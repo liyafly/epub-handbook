@@ -1,0 +1,13 @@
+# Claude Code — 个人/本地文件
+.claude/settings.local.json
+
+# 解压的电子书文件夹
+design-patterns/
+epub-guide/
+
+# epub 文件
+*.epub
+
+# demo 工作目录
+demo-epub/
+demo-fxl/
