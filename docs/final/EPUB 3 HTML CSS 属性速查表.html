@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EPUB 3 HTML / CSS 属性速查表</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --paper: #fffdf8;
+      --ink: #23211d;
+      --muted: #716d64;
+      --line: #d8d0c3;
+      --accent: #8f4f20;
+      --chip: #efe6d8;
+      --code: #f1eee8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: rgba(246, 244, 239, 0.96);
+      border-bottom: 1px solid var(--line);
+      padding: 18px 24px 14px;
+      backdrop-filter: blur(8px);
+    }
+    h1 { margin: 0 0 10px; font-size: 24px; line-height: 1.2; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    input[type="search"] {
+      flex: 1 1 360px;
+      min-width: 220px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 15px;
+    }
+    .count { color: var(--muted); font-size: 14px; }
+    main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 44px; }
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 20px;
+    }
+    nav a {
+      color: var(--accent);
+      text-decoration: none;
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 13px;
+    }
+    section {
+      margin: 22px 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    h2 {
+      margin: 0;
+      padding: 13px 16px;
+      font-size: 18px;
+      background: #eee7dc;
+      border-bottom: 1px solid var(--line);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #f7f1e8;
+      color: #3b3329;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      background: var(--code);
+      border: 1px solid #e1dbd1;
+      border-radius: 4px;
+      padding: 1px 4px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+    .status {
+      display: inline-block;
+      min-width: 4em;
+      text-align: center;
+      border-radius: 999px;
+      padding: 1px 8px;
+      background: var(--chip);
+      color: #5d421f;
+      border: 1px solid #dfcfbb;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .hidden { display: none; }
+    .empty {
+      display: none;
+      margin: 20px 0;
+      padding: 18px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+    }
+    @media (max-width: 760px) {
+      header { padding: 14px 14px 12px; }
+      main { padding: 16px 12px 32px; }
+      table { font-size: 14px; }
+      th, td { padding: 8px 7px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EPUB 3 HTML / CSS 属性速查表</h1>
+    <div class="bar">
+      <input id="search" type="search" placeholder="搜索标签、属性、用途、状态，例如：ruby / font-family / A-lite / 弹注">
+      <span class="count" id="count"></span>
+    </div>
+  </header>
+
+  <main>
+    <nav>
+      <a href="#html">HTML</a>
+      <a href="#opf">OPF</a>
+      <a href="#font">字体</a>
+      <a href="#text">文本</a>
+      <a href="#box">盒模型</a>
+      <a href="#page">分页</a>
+      <a href="#list">列表</a>
+      <a href="#media">图片</a>
+      <a href="#vertical">竖排</a>
+      <a href="#effects">文字效果</a>
+      <a href="#ruby">Ruby</a>
+      <a href="#note">弹注</a>
+      <a href="#table">表格</a>
+      <a href="#responsive">查询/变量</a>
+      <a href="#alite">A-lite</a>
+      <a href="#compat">兼容</a>
+    </nav>
+
+    <div class="empty" id="empty">没有匹配项。</div>
+
+    <section id="html">
+      <h2>HTML 元素</h2>
+      <table>
+        <thead><tr><th>元素 / 属性</th><th>用途</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;html xml:lang="zh-CN"&gt;</code></td><td>XHTML 根元素与语言</td><td><span class="status">推荐</span></td><td>每个 XHTML 都写</td></tr>
+          <tr><td><code>&lt;meta charset="utf-8"/&gt;</code></td><td>字符集</td><td><span class="status">推荐</span></td><td>每个 XHTML 都写</td></tr>
+          <tr><td><code>&lt;section epub:type="chapter"&gt;</code></td><td>章节</td><td><span class="status">推荐</span></td><td>章节语义</td></tr>
+          <tr><td><code>&lt;nav epub:type="toc"&gt;</code></td><td>目录</td><td><span class="status">推荐</span></td><td>nav.xhtml 必备</td></tr>
+          <tr><td><code>&lt;nav epub:type="landmarks"&gt;</code></td><td>地标</td><td><span class="status">推荐</span></td><td>封面、目录、正文开始</td></tr>
+          <tr><td><code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code></td><td>标题层级</td><td><span class="status">推荐</span></td><td>不跳级</td></tr>
+          <tr><td><code>&lt;p&gt;</code></td><td>正文段落</td><td><span class="status">推荐</span></td><td>中文正文默认缩进</td></tr>
+          <tr><td><code>&lt;em&gt;</code></td><td>强调</td><td><span class="status">推荐</span></td><td>中文显示为着重号</td></tr>
+          <tr><td><code>&lt;strong&gt;</code></td><td>重要</td><td><span class="status">推荐</span></td><td>语义强重要性</td></tr>
+          <tr><td><code>&lt;cite&gt;</code></td><td>作品名 / 来源</td><td><span class="status">推荐</span></td><td>书名、篇名、来源</td></tr>
+          <tr><td><code>&lt;q&gt;</code></td><td>行内引用</td><td><span class="status">推荐</span></td><td>配合 <code>quotes</code></td></tr>
+          <tr><td><code>&lt;blockquote&gt;</code></td><td>块引用</td><td><span class="status">推荐</span></td><td>长引用</td></tr>
+          <tr><td><code>&lt;code&gt;</code> / <code>&lt;pre&gt;</code></td><td>代码</td><td><span class="status">推荐</span></td><td>等宽字体</td></tr>
+          <tr><td><code>&lt;kbd&gt;</code> / <code>&lt;samp&gt;</code> / <code>&lt;var&gt;</code></td><td>技术文本</td><td><span class="status">可用</span></td><td>键盘、输出、变量</td></tr>
+          <tr><td><code>&lt;ol&gt;</code> / <code>&lt;ul&gt;</code> / <code>&lt;li&gt;</code></td><td>列表</td><td><span class="status">推荐</span></td><td>清除列表项缩进</td></tr>
+          <tr><td><code>&lt;dl&gt;</code> / <code>&lt;dt&gt;</code> / <code>&lt;dd&gt;</code></td><td>定义列表</td><td><span class="status">推荐</span></td><td>术语表、参数表</td></tr>
+          <tr><td><code>&lt;table&gt;</code> / <code>&lt;thead&gt;</code> / <code>&lt;tbody&gt;</code></td><td>数据表格</td><td><span class="status">可用</span></td><td>只用于真实表格</td></tr>
+          <tr><td><code>&lt;figure&gt;</code> / <code>&lt;img&gt;</code> / <code>&lt;figcaption&gt;</code></td><td>图片与说明</td><td><span class="status">推荐</span></td><td><code>alt</code> 必填</td></tr>
+          <tr><td><code>&lt;picture&gt;</code> / <code>&lt;source&gt;</code></td><td>响应式图片</td><td><span class="status">条件可用</span></td><td>KFX 可能只取 img</td></tr>
+          <tr><td><code>&lt;a epub:type="noteref"&gt;</code></td><td>弹注触发</td><td><span class="status">推荐</span></td><td>项目采用图片图标</td></tr>
+          <tr><td><code>&lt;aside epub:type="footnote"&gt;</code></td><td>弹注内容</td><td><span class="status">推荐</span></td><td>同 XHTML 文件</td></tr>
+          <tr><td><code>&lt;ruby&gt;</code> / <code>&lt;rb&gt;</code> / <code>&lt;rt&gt;</code> / <code>&lt;rp&gt;</code></td><td>注音</td><td><span class="status">推荐</span></td><td>保留 rp 后备</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="opf">
+      <h2>OPF / EPUB 包属性</h2>
+      <table>
+        <thead><tr><th>属性 / 元素</th><th>推荐值</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>package version</code></td><td><code>3.0</code></td><td><span class="status">推荐</span></td><td>EPUB 3</td></tr>
+          <tr><td><code>unique-identifier</code></td><td><code>bookid</code></td><td><span class="status">推荐</span></td><td>对应 dc:identifier</td></tr>
+          <tr><td><code>xml:lang</code></td><td><code>zh-CN</code></td><td><span class="status">推荐</span></td><td>全书语言</td></tr>
+          <tr><td><code>prefix</code></td><td><code>rendition:</code> + <code>ibooks:</code></td><td><span class="status">推荐</span></td><td>使用相关 meta 时必须</td></tr>
+          <tr><td><code>dcterms:modified</code></td><td>ISO 时间</td><td><span class="status">推荐</span></td><td>EPUB 3 必备</td></tr>
+          <tr><td><code>rendition:layout</code></td><td><code>reflowable</code></td><td><span class="status">推荐</span></td><td>全书默认可重排</td></tr>
+          <tr><td><code>rendition:orientation</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁屏幕方向</td></tr>
+          <tr><td><code>rendition:spread</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁单双页</td></tr>
+          <tr><td><code>ibooks:specified-fonts</code></td><td><code>true</code></td><td><span class="status">推荐</span></td><td>Apple Books 嵌入字体声明</td></tr>
+          <tr><td><code>page-progression-direction</code></td><td><code>ltr</code></td><td><span class="status">推荐</span></td><td>全书横排</td></tr>
+          <tr><td><code>page-progression-direction</code></td><td><code>rtl</code></td><td><span class="status">条件可用</span></td><td>整本竖排书</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="font">
+      <h2>CSS 字体与文本</h2>
+      <table>
+        <thead><tr><th>属性 / 规则</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>@font-face</code></td><td>定义书内字体</td><td><span class="status">推荐</span></td><td>正文、标题、生僻字分开</td></tr>
+          <tr><td><code>font-family</code></td><td>书内字体 + 系统 fallback + 通用族</td><td><span class="status">推荐</span></td><td>正文字体主路径</td></tr>
+          <tr><td><code>font-style</code></td><td><code>normal</code> / <code>italic</code></td><td><span class="status">推荐</span></td><td>中文强调用着重号</td></tr>
+          <tr><td><code>font-weight</code></td><td><code>normal</code> / <code>bold</code> / <code>400</code> / <code>700</code></td><td><span class="status">推荐</span></td><td>嵌入字重需匹配</td></tr>
+          <tr><td><code>font-size</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>正文避免固定 px</td></tr>
+          <tr><td><code>line-height</code></td><td><code>1.6</code>–<code>1.9</code></td><td><span class="status">推荐</span></td><td>中文常用 1.7</td></tr>
+          <tr><td><code>text-indent</code></td><td><code>2em</code></td><td><span class="status">推荐</span></td><td>中文正文</td></tr>
+          <tr><td><code>text-align</code></td><td><code>left</code> / <code>center</code> / <code>right</code> / <code>justify</code></td><td><span class="status">推荐</span></td><td>正文常用 justify</td></tr>
+          <tr><td><code>hyphens</code></td><td><code>auto</code></td><td><span class="status">可用</span></td><td>西文断字</td></tr>
+          <tr><td><code>widows</code> / <code>orphans</code></td><td><code>2</code></td><td><span class="status">可用</span></td><td>防孤行</td></tr>
+          <tr><td><code>hanging-punctuation</code></td><td><code>allow-end</code></td><td><span class="status">渐进增强</span></td><td>Apple Books / KOReader 较好</td></tr>
+          <tr><td><code>:lang()</code></td><td>按语言分字体 / 强调</td><td><span class="status">推荐</span></td><td>中英文混排</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="box">
+      <h2>盒模型 / 布局 / 分页</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>margin</code> / <code>padding</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>段距、容器</td></tr>
+          <tr><td><code>border</code></td><td><code>1px solid #888</code></td><td><span class="status">推荐</span></td><td>分隔线、表格</td></tr>
+          <tr><td><code>box-sizing</code></td><td><code>border-box</code></td><td><span class="status">推荐</span></td><td>A-lite</td></tr>
+          <tr><td><code>max-width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>图片</td></tr>
+          <tr><td><code>overflow</code></td><td><code>hidden</code> / <code>auto</code></td><td><span class="status">推荐</span></td><td>A-lite / 表格滚动</td></tr>
+          <tr><td><code>display</code></td><td><code>block</code> / <code>inline-block</code> / <code>table-*</code></td><td><span class="status">推荐</span></td><td>兼容稳定</td></tr>
+          <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>首字下沉、竖排列</td></tr>
+          <tr><td><code>position: relative</code></td><td>列表 marker</td><td><span class="status">可用</span></td><td>局部定位</td></tr>
+          <tr><td><code>page-break-before</code></td><td><code>always</code></td><td><span class="status">推荐</span></td><td>章首页、A-lite</td></tr>
+          <tr><td><code>page-break-after</code></td><td><code>always</code> / <code>avoid</code></td><td><span class="status">推荐</span></td><td>A-lite / 标题避断</td></tr>
+          <tr><td><code>page-break-inside</code></td><td><code>avoid</code></td><td><span class="status">推荐</span></td><td>图、表、引用、A-lite</td></tr>
+          <tr><td><code>break-before</code> / <code>break-after</code> / <code>break-inside</code></td><td>新分页属性</td><td><span class="status">渐进增强</span></td><td>与 page-break 并写</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="list">
+      <h2>列表 / 计数器</h2>
+      <table>
+        <thead><tr><th>属性 / 值</th><th>用途</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>list-style-type: disc</code></td><td>实心圆点</td><td><span class="status">推荐</span></td><td></td></tr>
+          <tr><td><code>circle</code> / <code>square</code></td><td>空心圆 / 方块</td><td><span class="status">可用</span></td><td></td></tr>
+          <tr><td><code>decimal</code></td><td>数字</td><td><span class="status">推荐</span></td><td></td></tr>
+          <tr><td><code>lower-roman</code> / <code>upper-roman</code></td><td>罗马数字</td><td><span class="status">可用</span></td><td>老 KFX 注意</td></tr>
+          <tr><td><code>lower-alpha</code> / <code>upper-alpha</code></td><td>英文字母</td><td><span class="status">可用</span></td><td></td></tr>
+          <tr><td><code>cjk-ideographic</code></td><td>中文一二三</td><td><span class="status">可用</span></td><td>KFX 不稳时用 counter</td></tr>
+          <tr><td><code>counter-reset</code></td><td>重置计数器</td><td><span class="status">推荐</span></td><td>中文编号</td></tr>
+          <tr><td><code>counter-increment</code></td><td>增加计数器</td><td><span class="status">推荐</span></td><td>中文编号</td></tr>
+          <tr><td><code>counter()</code></td><td>输出计数器</td><td><span class="status">推荐</span></td><td><code>counter(c, cjk-ideographic)</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="media">
+      <h2>图片 / 背景</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>max-width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>图片自适应</td></tr>
+          <tr><td><code>height</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>保持比例</td></tr>
+          <tr><td><code>vertical-align</code></td><td><code>baseline</code> / <code>middle</code></td><td><span class="status">推荐</span></td><td>行内图标</td></tr>
+          <tr><td><code>background-image</code></td><td><code>url(...)</code></td><td><span class="status">推荐</span></td><td>A-lite 背景</td></tr>
+          <tr><td><code>background-repeat</code></td><td><code>no-repeat</code></td><td><span class="status">推荐</span></td><td>海报背景</td></tr>
+          <tr><td><code>background-position</code></td><td><code>left bottom</code> / <code>center center</code></td><td><span class="status">推荐</span></td><td>海报背景</td></tr>
+          <tr><td><code>background-size</code></td><td><code>80% auto</code> / <code>cover</code></td><td><span class="status">推荐</span></td><td>海报背景</td></tr>
+          <tr><td><code>filter: invert(1)</code></td><td>夜间透明图反相</td><td><span class="status">渐进增强</span></td><td>透明 PNG</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="vertical">
+      <h2>竖排</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>writing-mode</code></td><td><code>vertical-rl</code></td><td><span class="status">推荐</span></td><td>局部竖排、A-lite</td></tr>
+          <tr><td><code>-webkit-writing-mode</code></td><td><code>vertical-rl</code></td><td><span class="status">推荐</span></td><td>Apple Books</td></tr>
+          <tr><td><code>-epub-writing-mode</code></td><td><code>vertical-rl</code></td><td><span class="status">推荐</span></td><td>老 EPUB/KFX</td></tr>
+          <tr><td><code>text-orientation</code></td><td><code>mixed</code></td><td><span class="status">推荐</span></td><td>汉字直立，西文旋转</td></tr>
+          <tr><td><code>text-combine-upright</code></td><td><code>all</code></td><td><span class="status">可用</span></td><td>短数字直立</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="effects">
+      <h2>文字效果</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>text-emphasis</code></td><td><code>filled dot</code></td><td><span class="status">推荐</span></td><td>中文着重号</td></tr>
+          <tr><td><code>-webkit-text-emphasis-style</code></td><td><code>filled dot</code></td><td><span class="status">推荐</span></td><td>Apple Books</td></tr>
+          <tr><td><code>text-emphasis-position</code></td><td><code>under</code></td><td><span class="status">推荐</span></td><td>横排中文</td></tr>
+          <tr><td><code>text-decoration-line</code></td><td><code>underline</code></td><td><span class="status">推荐</span></td><td>波浪线基础</td></tr>
+          <tr><td><code>text-decoration-style</code></td><td><code>wavy</code> / <code>dotted</code> / <code>solid</code></td><td><span class="status">推荐</span></td><td>标准波浪线</td></tr>
+          <tr><td><code>text-decoration-color</code></td><td><code>#c03030</code></td><td><span class="status">可用</span></td><td>线颜色</td></tr>
+          <tr><td><code>text-underline-offset</code></td><td><code>0.12em</code></td><td><span class="status">可用</span></td><td>下划线偏移</td></tr>
+          <tr><td><code>quotes</code></td><td><code>"「" "」" "『" "』"</code></td><td><span class="status">推荐</span></td><td>中文 q</td></tr>
+          <tr><td><code>content: open-quote</code></td><td>自动开引号</td><td><span class="status">推荐</span></td><td>q::before</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="ruby">
+      <h2>Ruby 注音</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>ruby-position</code></td><td><code>over</code></td><td><span class="status">可用</span></td><td>横排注音在上</td></tr>
+          <tr><td><code>ruby-align</code></td><td><code>center</code></td><td><span class="status">推荐</span></td><td>居中</td></tr>
+          <tr><td><code>rt font-size</code></td><td><code>0.5em</code></td><td><span class="status">推荐</span></td><td>注音字号</td></tr>
+          <tr><td><code>rt line-height</code></td><td><code>1</code></td><td><span class="status">推荐</span></td><td>防撑行</td></tr>
+          <tr><td><code>rp display</code></td><td><code>none</code></td><td><span class="status">推荐</span></td><td>隐藏括号</td></tr>
+          <tr><td><code>p:has(ruby)</code></td><td><code>line-height: 2</code></td><td><span class="status">渐进增强</span></td><td>新内核</td></tr>
+          <tr><td><code>.has-ruby</code></td><td><code>line-height: 2</code></td><td><span class="status">推荐</span></td><td>兜底</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="note">
+      <h2>弹出注释</h2>
+      <table>
+        <thead><tr><th>项</th><th>推荐写法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td>触发元素</td><td><code>&lt;a epub:type="noteref" role="doc-noteref"&gt;</code></td><td><span class="status">推荐</span></td><td>放图片图标</td></tr>
+          <tr><td>触发图标</td><td><code>&lt;img alt="注" src="../Images/note.png"/&gt;</code></td><td><span class="status">推荐</span></td><td>项目默认</td></tr>
+          <tr><td>注释内容</td><td><code>&lt;aside epub:type="footnote" role="doc-footnote"&gt;</code></td><td><span class="status">推荐</span></td><td>同 XHTML 文件</td></tr>
+          <tr><td>返回符号</td><td><code>◎</code></td><td><span class="status">推荐</span></td><td>demo 实践采用</td></tr>
+          <tr><td>返回属性</td><td><code>epub:type="backlink" role="doc-backlink"</code></td><td><span class="status">推荐</span></td><td></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="table">
+      <h2>表格</h2>
+      <table>
+        <thead><tr><th>属性</th><th>推荐值</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>border-collapse</code></td><td><code>collapse</code></td><td><span class="status">推荐</span></td><td>边线合并</td></tr>
+          <tr><td><code>width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>占满内容区</td></tr>
+          <tr><td><code>thead display</code></td><td><code>table-header-group</code></td><td><span class="status">可用</span></td><td>跨页表头</td></tr>
+          <tr><td><code>tfoot display</code></td><td><code>table-footer-group</code></td><td><span class="status">可用</span></td><td>跨页表尾</td></tr>
+          <tr><td><code>overflow-x</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>长表格横向滚动</td></tr>
+          <tr><td><code>nth-child(even)</code></td><td>隔行背景</td><td><span class="status">可用</span></td><td>墨水屏用浅灰</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="responsive">
+      <h2>夜间模式 / 媒体查询 / 变量 / 锚点</h2>
+      <table>
+        <thead><tr><th>特性</th><th>推荐写法</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td>夜间模式</td><td><code>@media (prefers-color-scheme: dark)</code></td><td><span class="status">渐进增强</span></td><td>阅读器可能覆盖作者色</td></tr>
+          <tr><td>窄屏</td><td><code>@media (max-width: 600px)</code></td><td><span class="status">可用</span></td><td>并排图、表格回退</td></tr>
+          <tr><td>极窄屏</td><td><code>@media (max-width: 400px)</code></td><td><span class="status">可用</span></td><td>小幅调字号</td></tr>
+          <tr><td>CSS 变量</td><td><code>:root { --name: value; }</code></td><td><span class="status">可用</span></td><td>主流支持</td></tr>
+          <tr><td>变量调用</td><td><code>var(--name)</code></td><td><span class="status">可用</span></td><td>不放在 @font-face src</td></tr>
+          <tr><td>锚点偏移</td><td><code>scroll-margin-top</code></td><td><span class="status">可用</span></td><td>跳转后避开顶栏</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="alite">
+      <h2>A-lite</h2>
+      <table>
+        <thead><tr><th>属性 / 结构</th><th>推荐值</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>body.fullpage</code></td><td>页面根类</td><td><span class="status">推荐</span></td><td>整页海报</td></tr>
+          <tr><td><code>.fullframe</code></td><td>内容框</td><td><span class="status">推荐</span></td><td>叠加文字 / 图片</td></tr>
+          <tr><td><code>font-size</code></td><td><code>16px</code></td><td><span class="status">推荐</span></td><td>内部基准</td></tr>
+          <tr><td><code>min-height</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>fullpage</td></tr>
+          <tr><td><code>overflow</code></td><td><code>hidden</code></td><td><span class="status">推荐</span></td><td>避免分页切碎</td></tr>
+          <tr><td><code>page-break-before/after</code></td><td><code>always</code></td><td><span class="status">推荐</span></td><td>单独成页</td></tr>
+          <tr><td><code>page-break-inside</code></td><td><code>avoid</code></td><td><span class="status">推荐</span></td><td>避免内部断页</td></tr>
+          <tr><td><code>background-image</code></td><td>海报背景</td><td><span class="status">推荐</span></td><td>放在 body</td></tr>
+          <tr><td><code>float</code></td><td><code>right</code></td><td><span class="status">推荐</span></td><td>多列从右往左</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="compat">
+      <h2>兼容记录</h2>
+      <table>
+        <thead><tr><th>特性</th><th>Apple Books</th><th>Thorium</th><th>Calibre</th><th>Kindle KFX</th><th>KOReader</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td><code>.ttf/.otf @font-face</code></td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>ibooks:specified-fonts</code></td><td>必需</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td><span class="status">推荐</span></td></tr>
+          <tr><td>A-lite 海报</td><td>实测可用</td><td>可用</td><td>可用</td><td>实测可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td>图片图标弹注</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>text-emphasis</code></td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>text-decoration-style: wavy</code></td><td>可用</td><td>可用</td><td>可用</td><td>视版本</td><td>视版本</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>ruby + rt</code></td><td>可用</td><td>可用</td><td>可用</td><td>KFX 可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>writing-mode</code></td><td>可用</td><td>可用</td><td>可用</td><td>KFX 可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>:has()</code></td><td>新版可用</td><td>可用</td><td>可用</td><td>不稳定</td><td>视版本</td><td><span class="status">渐进增强</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const input = document.getElementById('search');
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    const sections = Array.from(document.querySelectorAll('section'));
+    const count = document.getElementById('count');
+    const empty = document.getElementById('empty');
+
+    function normalize(text) {
+      return text.toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function filter() {
+      const q = normalize(input.value);
+      let visibleRows = 0;
+
+      rows.forEach(row => {
+        const hit = !q || normalize(row.textContent).includes(q);
+        row.classList.toggle('hidden', !hit);
+        if (hit) visibleRows += 1;
+      });
+
+      sections.forEach(section => {
+        const any = Array.from(section.querySelectorAll('tbody tr')).some(row => !row.classList.contains('hidden'));
+        section.classList.toggle('hidden', !any);
+      });
+
+      count.textContent = `${visibleRows} 条`;
+      empty.style.display = visibleRows ? 'none' : 'block';
+    }
+
+    input.addEventListener('input', filter);
+    filter();
+  </script>
+</body>
+</html>

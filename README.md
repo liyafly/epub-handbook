@@ -1,0 +1,73 @@
+# EPUB Handbook
+
+这个项目用于沉淀 EPUB 3 制作规范、实测方案、转换技能和参考样本。
+
+## 推荐阅读入口
+
+1. `docs/final/EPUB 3 终极实践手册.md`
+   - 最终执行手册。
+   - 只保留推荐方案：A-lite 整页海报、字体策略、弹出注释、局部竖排、标准 CSS 写法和制作检查流程。
+
+2. `docs/final/EPUB 3 HTML CSS 属性速查表.md`
+   - Markdown 版属性速查表。
+   - 用表格整理 HTML 标签、OPF 元数据、CSS 属性、字体、图片、注释、Ruby、竖排和兼容性状态。
+
+3. `docs/final/EPUB 3 HTML CSS 属性速查表.html`
+   - HTML 查询版。
+   - 适合本地打开后按属性名、标签名、用途或状态搜索。
+
+## 目录结构
+
+```text
+docs/
+  final/
+    EPUB 3 终极实践手册.md
+    EPUB 3 HTML CSS 属性速查表.md
+    EPUB 3 HTML CSS 属性速查表.html
+  source/
+    EPUB 3 制作完全参考手册.md
+    EPUB 3 补充：其他 CSS 模块.md
+    EPUB 3 补充：列表 - 字体 - HTML 标签速查.md
+    EPUB 3 补充：图片与整版海报页.md
+    EPUB 3 补充：弹出注释与 Ruby 注音.md
+  experiments/
+    EPUB 3 章节扉页与竖排实战 · 补充 05.md
+
+references/
+  epubs/
+    EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
+
+skills/
+  epub-alite-converter/
+    SKILL.md
+  epub-popup-footnote-converter/
+    SKILL.md
+    assets/note.png
+```
+
+## 各目录职责
+
+`docs/final/` 是正式文档区。后续制作 EPUB 时，优先以这里的终极手册和速查表为准。
+
+`docs/source/` 是早期探索和补充文档区。这些内容保留原始推导、取舍和参考资料，作为溯源材料，不强制代表最终推荐写法。
+
+`docs/experiments/` 是实测记录区。当前 `05` 文档保留 A-lite 海报方案的实践过程，最终结论已经整理进终极手册。
+
+`references/epubs/` 是可以纳入版本管理的参考 EPUB 区。当前只放《EPub指南——从入门到放弃》。
+
+`skills/` 是 Codex 本地技能区：
+
+- `epub-alite-converter`：把封面、卷首、章节扉页一类整页图转换为 A-lite 方案，并保留现有文字和图片叠加排版。
+- `epub-popup-footnote-converter`：把普通注释转换为标准弹出注释结构，使用图片注释图标和 `◎` 返回符号。
+
+## 忽略规则
+
+默认忽略所有 EPUB、demo 工作目录和解压目录。
+
+唯一例外是：
+
+```text
+references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
+```
+
+这本入门 EPUB 会被 Git 看到，方便作为长期参考样本保留。其他 EPUB 继续只作为本地素材，不纳入版本管理。
