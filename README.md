@@ -71,3 +71,12 @@ references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library
 ```
 
 这本入门 EPUB 会被 Git 看到，方便作为长期参考样本保留。其他 EPUB 继续只作为本地素材，不纳入版本管理。
+
+## 许可证
+
+本仓库采用双许可证：
+
+- `docs/` 下的原创手册、速查表和项目文档采用 Creative Commons Attribution 4.0 International License。
+- 仓库内的可复用 HTML/CSS/XML 代码片段、模板和 `skills/` 下的转换技能采用 MIT License。
+
+`references/epubs/` 下的第三方参考 EPUB 不属于本仓库原创内容，不包含在上述授权范围内。详见 `LICENSE` 和 `THIRD_PARTY.md`。

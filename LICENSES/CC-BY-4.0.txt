@@ -1,0 +1,15 @@
+Creative Commons Attribution 4.0 International
+
+SPDX-License-Identifier: CC-BY-4.0
+
+This repository applies CC BY 4.0 to original documentation prose, handbook
+material, reference tables, and written project notes under `docs/` and
+`README.md`.
+
+The full legal code is maintained by Creative Commons:
+
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+The human-readable summary is available at:
+
+https://creativecommons.org/licenses/by/4.0/

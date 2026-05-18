@@ -1,0 +1,33 @@
+# License
+
+Copyright (c) 2026 liyafly
+
+This repository uses a dual-license structure.
+
+## Documentation
+
+Original documentation prose, handbook material, reference tables, and written project notes under `docs/` and `README.md` are licensed under the Creative Commons Attribution 4.0 International License.
+
+SPDX-License-Identifier: CC-BY-4.0
+
+Full legal code:
+
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+Human-readable summary:
+
+https://creativecommons.org/licenses/by/4.0/
+
+## Code And Skills
+
+Codex skills, reusable HTML/CSS/XML snippets, templates, example code, and automation-oriented material in this repository are licensed under the MIT License.
+
+SPDX-License-Identifier: MIT
+
+See `LICENSES/MIT.txt`.
+
+## Third-Party Reference Material
+
+Files under `references/epubs/` may be third-party reference material. They are not covered by the repository's CC BY 4.0 or MIT license grants unless a file explicitly says otherwise.
+
+See `THIRD_PARTY.md`.
