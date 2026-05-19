@@ -10,7 +10,7 @@
   - 手册（人读）
   - 速查表（人读）
   - 技能（半自动执行）
-  - 合同规范（机器消费，见 `docs/final/SPEC-实现约束.md`）
+  - 实现约束（机器消费，见 `docs/final/SPEC-实现约束.md`）
 
 ## 推荐阅读入口
 
@@ -28,7 +28,7 @@
 
 4. `docs/final/SPEC-实现约束.md`
    - 机器与实现对接优先阅读。
-   - 仅列硬约束（弹注/A-lite/字体/打包），用于执行层实现和回归测试。
+   - 仅列实现约束（弹注/A-lite/字体/打包），用于执行层实现和回归测试。
 
 5. `docs/final/epub-pro 技术架构 v1.md`
    - 执行层技术蓝图（Swift/Kotlin 双核 + Rust sidecar）。
@@ -37,11 +37,17 @@
 ## 目录结构
 
 ```text
+CLAUDE.md
+
 docs/
   final/
     EPUB 3 终极实践手册.md
     EPUB 3 HTML CSS 属性速查表.md
     EPUB 3 HTML CSS 属性速查表.html
+    SPEC-实现约束.md
+    epub-pro 技术架构 v1.md
+    fixtures.md
+    reader-matrix.yaml
   source/
     EPUB 3 制作完全参考手册.md
     EPUB 3 补充：其他 CSS 模块.md
@@ -50,6 +56,8 @@ docs/
     EPUB 3 补充：弹出注释与 Ruby 注音.md
   experiments/
     EPUB 3 章节扉页与竖排实战 · 补充 05.md
+  reference/
+    README.md
 
 references/
   epubs/
