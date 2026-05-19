@@ -1,0 +1,35 @@
+version: 1
+updated_at: 2026-05-19
+owner: epub-handbook
+
+lanes:
+  - id: standard_epub
+    name: 标准 EPUB 基线
+  - id: alite_epub
+    name: A-lite 增强基线
+
+readers:
+  - id: ibooks_ios
+    name: Apple Books (iOS)
+  - id: ibooks_macos
+    name: Apple Books (macOS)
+  - id: kindle_previewer
+    name: Kindle Previewer
+  - id: thorium
+    name: Thorium Reader
+
+cases:
+  - id: 01-basic-cjk
+    title: 基础中文排版
+  - id: 02-footnotes
+    title: 弹出注释
+  - id: 03-fontspec-no-subset
+    title: 字体配置（不子集）
+  - id: 04-fontspec-subset
+    title: 字体配置（子集）
+  - id: 05-vertical-cjk
+    title: 局部竖排
+
+expectations:
+  # status: pass | warn | fail | na
+  []
