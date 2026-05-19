@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>旧版弹注 fallback</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>五、旧版弹注 fallback</h1>
+    <p>
+      这一页保留项目标准的 EPUB 3 弹注结构，同时额外给多看与掌阅旧版识别用的属性和类名。
+      正文里的注释触发仍然指向同一文件内的章末列表
+      <sup>
+        <a id="note-legacy-1"
+           class="noteref-icon duokan-footnote"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-legacy-1">
+          <img class="zhangyue-footnote"
+               alt="《说文解字》是东汉许慎编撰的字书。"
+               zy-footnote="《说文解字》是东汉许慎编撰的字书。"
+               src="../Images/note.png"/>
+        </a>
+      </sup>
+      ，阅读器如果不识别弹窗，也应能按链接跳转到注释。
+    </p>
+    <p>
+      第二个样本用于验证多个注释共享同一个列表容器，而不是每个注释各自生成一套 aside
+      <sup>
+        <a id="note-legacy-2"
+           class="noteref-icon duokan-footnote"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-legacy-2">
+          <img class="zhangyue-footnote"
+               alt="这里的 fallback 只放纯文本，富文本仍保留在章末注释体内。"
+               zy-footnote="这里的 fallback 只放纯文本，富文本仍保留在章末注释体内。"
+               src="../Images/note.png"/>
+        </a>
+      </sup>
+      。
+    </p>
+  </section>
+
+  <aside epub:type="footnote" role="doc-footnote">
+    <div><hr class="footnote-line"/></div>
+    <ol class="footnote-list duokan-footnote-content">
+      <li class="footnote-item duokan-footnote-item" id="footnote-legacy-1">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-legacy-1">◎</a>
+          《说文解字》是东汉许慎编撰的字书。这里使用章末列表承载完整注释内容，触发处的图片只提供兼容识别。
+        </p>
+      </li>
+      <li class="footnote-item duokan-footnote-item" id="footnote-legacy-2">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-legacy-2">◎</a>
+          兼容属性中的注释必须是纯文本；如果注释正文需要 <strong>加粗</strong>、书名号或其他内联样式，应以这里的列表内容为准。
+        </p>
+      </li>
+    </ol>
+  </aside>
+</body>
+</html>

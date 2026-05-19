@@ -5,9 +5,10 @@
 ## 修改优先级
 
 1. `docs/final/`：对外约束层，任何改动都应视为规范变更。
-2. `templates/`（若存在）：机器消费源，优先级高于文档中的示例代码块。
+2. `templates/`：可运行样式样本和机器消费源，优先级高于文档中的示例代码块。
 3. `skills/*/SKILL.md`：自动化行为契约，修改需保持向后兼容。
-4. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
+4. `docs/guides/`：维护说明和工作流建议，不承载下游架构。
+5. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
 
 ## 关键约束
 
@@ -17,6 +18,7 @@
   - `docs/final/SPEC-实现约束.md`
 - 涉及弹注、字体、A-lite、竖排等规范条目时，优先写入 `SPEC-实现约束.md`，再在手册里解释。
 - `skills/*/SKILL.md` 的 frontmatter 字段名不要改（可补字段值，不要随意删改 key）。
+- `templates/` 下的样本应能独立打包，生成产物放在模板自己的 `dist/` 目录。
 - 任何新增第三方 EPUB 参考样本，必须同步更新 `THIRD_PARTY.md`（来源/作者/许可/链接）。
 
 ## 建议流程

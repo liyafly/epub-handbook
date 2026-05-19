@@ -12,8 +12,10 @@
       --muted: #716d64;
       --line: #d8d0c3;
       --accent: #8f4f20;
+      --accent-2: #1f6f68;
       --chip: #efe6d8;
       --code: #f1eee8;
+      --preview-bg: #fffaf1;
     }
     * { box-sizing: border-box; }
     body {
@@ -108,6 +110,180 @@
       font-size: 12px;
       white-space: nowrap;
     }
+    .preview-cell {
+      width: 25%;
+      min-width: 210px;
+    }
+    .preview-sample {
+      min-height: 68px;
+      padding: 10px;
+      border: 1px solid #ded3c3;
+      border-radius: 6px;
+      background: var(--preview-bg);
+      color: #24211d;
+      overflow: hidden;
+      font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+    }
+    .preview-title {
+      display: block;
+      margin: 0 0 5px;
+      color: var(--muted);
+      font: 12px/1.2 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .preview-sample p {
+      margin: 0.2em 0;
+      text-indent: 2em;
+      line-height: 1.55;
+    }
+    .preview-sample h3 {
+      margin: 0.1em 0 0.35em;
+      font: 700 1.15em/1.25 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .preview-sample blockquote {
+      margin: 0;
+      padding: 0.15em 0 0.15em 0.75em;
+      border-left: 3px solid var(--accent);
+      color: #51483d;
+    }
+    .preview-sample code,
+    .preview-sample pre,
+    .preview-sample kbd,
+    .preview-sample samp {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+    }
+    .preview-sample pre {
+      margin: 0;
+      padding: 0.5em;
+      overflow: hidden;
+      background: #f0ece4;
+      border: 1px solid #ded6ca;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre;
+    }
+    .preview-sample kbd {
+      padding: 1px 5px;
+      border: 1px solid #8c8276;
+      border-radius: 4px;
+      background: #f3ede2;
+    }
+    .preview-sample em {
+      font-style: normal;
+      text-emphasis: filled dot;
+      text-emphasis-position: under;
+      -webkit-text-emphasis-style: filled dot;
+      -webkit-text-emphasis-position: under;
+    }
+    .preview-sample q {
+      quotes: "「" "」" "『" "』";
+    }
+    .preview-sample q::before { content: open-quote; }
+    .preview-sample q::after { content: close-quote; }
+    .preview-sample ruby {
+      ruby-align: center;
+      line-height: 2;
+    }
+    .preview-sample rt {
+      font-size: 0.5em;
+      line-height: 1;
+    }
+    .preview-sample rp { display: none; }
+    .preview-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .preview-chip {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 2px 8px;
+      border: 1px solid #d8c8b3;
+      border-radius: 5px;
+      background: #f6efe4;
+      font-size: 13px;
+    }
+    .preview-note {
+      display: inline-flex;
+      width: 1.5em;
+      height: 1.5em;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fffdf8;
+      font-size: 0.82em;
+      text-decoration: none;
+    }
+    .preview-note-body {
+      margin-top: 0.45em;
+      padding-top: 0.35em;
+      border-top: 1px solid #a99b8a;
+      font-size: 0.86em;
+      line-height: 1.35;
+    }
+    .preview-poster {
+      position: relative;
+      min-height: 94px;
+      padding: 8px;
+      overflow: hidden;
+      background: linear-gradient(155deg, #fffaf1 0%, #fffaf1 58%, #1f6f68 58%, #1f6f68 100%);
+    }
+    .preview-poster::after {
+      content: "";
+      position: absolute;
+      right: 12px;
+      bottom: 8px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #c9a24e;
+      opacity: 0.8;
+    }
+    .preview-vertical {
+      writing-mode: vertical-rl;
+      -webkit-writing-mode: vertical-rl;
+      -epub-writing-mode: vertical-rl;
+      text-orientation: mixed;
+      -webkit-text-orientation: mixed;
+      -epub-text-orientation: mixed;
+      min-height: 78px;
+      max-width: 100%;
+      margin-left: auto;
+      line-height: 1.45;
+    }
+    .preview-image {
+      height: 54px;
+      border: 1px solid #c9bcaa;
+      border-radius: 5px;
+      background:
+        linear-gradient(135deg, transparent 0 52%, #8f4f20 52% 100%),
+        #efe6d8;
+    }
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .preview-table th,
+    .preview-table td {
+      padding: 3px 5px;
+      border: 1px solid #bfb2a2;
+    }
+    .preview-table th { background: #eee7dc; }
+    .preview-table tr:nth-child(even) td { background: #f5efe6; }
+    .preview-box {
+      padding: 7px;
+      border: 1px solid #9f9384;
+      background: #fffdf8;
+    }
+    .preview-meter {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--accent-2) 0 64%, #dfd5c7 64% 100%);
+    }
     .hidden { display: none; }
     .empty {
       display: none;
@@ -123,6 +299,8 @@
       main { padding: 16px 12px 32px; }
       table { font-size: 14px; }
       th, td { padding: 8px 7px; }
+      .preview-cell { min-width: 170px; }
+      .preview-sample { min-height: 58px; padding: 8px; }
     }
   </style>
 </head>
@@ -420,8 +598,6 @@
 
   <script>
     const input = document.getElementById('search');
-    const rows = Array.from(document.querySelectorAll('tbody tr'));
-    const sections = Array.from(document.querySelectorAll('section'));
     const count = document.getElementById('count');
     const empty = document.getElementById('empty');
 
@@ -429,12 +605,139 @@
       return text.toLowerCase().replace(/\s+/g, ' ').trim();
     }
 
+    function sample(label, html, extraClass = '') {
+      return `<div class="preview-sample ${extraClass}" aria-label="${label}">
+        <span class="preview-title">${label}</span>
+        ${html}
+      </div>`;
+    }
+
+    function previewFor(sectionId, signature, rowText) {
+      const key = normalize(`${signature} ${rowText}`);
+
+      if (sectionId === 'compat') {
+        return sample('阅读器对比', '<div class="preview-row"><span class="preview-chip">Apple</span><span class="preview-chip">Kindle</span><span class="preview-chip">KOReader</span></div><div class="preview-meter"></div>');
+      }
+
+      if (key.includes('a-lite') || key.includes('fullpage') || key.includes('fullframe')) {
+        return sample('A-lite 海报', '<div class="preview-vertical">章节扉页<br/>可重排</div>', 'preview-poster');
+      }
+
+      if (key.includes('noteref') || key.includes('footnote') || key.includes('backlink') || key.includes('弹注') || key.includes('注释')) {
+        return sample('弹注', '<p>正文里有注释 <a class="preview-note">注</a></p><div class="preview-note-body">◎ 注释内容保留在本文件。</div>');
+      }
+
+      if (key.includes('ruby') || key.includes('<rb>') || key.includes('<rt>') || key.includes('<rp>') || key.includes('注音')) {
+        return sample('Ruby', '<p><ruby><rb>燕</rb><rp>（</rp><rt>yan</rt><rp>）</rp></ruby><ruby><rb>京</rb><rp>（</rp><rt>jing</rt><rp>）</rp></ruby> 风物</p>');
+      }
+
+      if (key.includes('writing-mode') || key.includes('vertical-rl') || key.includes('text-orientation') || key.includes('竖排')) {
+        return sample('竖排', '<div class="preview-vertical">春水初生<br/>春林初盛</div>');
+      }
+
+      if (key.includes('<h1>') || key.includes('<h2>') || key.includes('<h6>') || key.includes('标题')) {
+        return sample('标题', '<h3>第一章 春水</h3><p>标题层级清楚，不跳级。</p>');
+      }
+
+      if (key.includes('<p>') || key.includes('text-indent') || key.includes('line-height') || key.includes('text-align') || key.includes('正文')) {
+        return sample('正文', '<p>这是中文正文样张，用来观察缩进、行高和两端对齐。</p>');
+      }
+
+      if (key.includes('<em>') || key.includes('text-emphasis') || key.includes('着重')) {
+        return sample('强调', '<p>这一句包含<em>着重号</em>和普通文字。</p>');
+      }
+
+      if (key.includes('<strong>') || key.includes('font-weight')) {
+        return sample('加粗', '<p>普通文字 <strong>重要文字</strong></p>');
+      }
+
+      if (key.includes('<cite>')) {
+        return sample('作品名', '<p>我重读了<cite>边城</cite>。</p>');
+      }
+
+      if (key.includes('<q>') || key.includes('quotes') || key.includes('open-quote')) {
+        return sample('行内引用', '<p>他说<q>明天再看</q>。</p>');
+      }
+
+      if (key.includes('blockquote')) {
+        return sample('块引用', '<blockquote><p>长引文单独成块，边线提示层级。</p></blockquote>');
+      }
+
+      if (key.includes('<code>') || key.includes('<pre>') || key.includes('<kbd>') || key.includes('<samp>') || key.includes('<var>')) {
+        return sample('技术文本', '<pre><code>p { line-height: 1.75; }</code></pre><div class="preview-row"><kbd>Enter</kbd><span>运行</span></div>');
+      }
+
+      if (key.includes('<ol>') || key.includes('<ul>') || key.includes('<li>') || key.includes('list-style') || key.includes('counter')) {
+        return sample('列表', '<ol><li>第一项</li><li>第二项换行检查</li></ol>');
+      }
+
+      if (key.includes('<dl>') || key.includes('<dt>') || key.includes('<dd>')) {
+        return sample('定义列表', '<dl><dt>术语</dt><dd>解释文本</dd></dl>');
+      }
+
+      if (key.includes('<table>') || key.includes('<thead>') || key.includes('<tbody>') || key.includes('<tfoot>') || key.includes('<tr>') || key.includes('<th>') || key.includes('<td>') || key.includes('border-collapse') || key.includes('table-header-group') || key.includes('nth-child')) {
+        return sample('表格', '<table class="preview-table"><thead><tr><th>项</th><th>值</th></tr></thead><tbody><tr><td>Ruby</td><td>可用</td></tr><tr><td>A-lite</td><td>推荐</td></tr></tbody></table>');
+      }
+
+      if (key.includes('<figure>') || key.includes('<img') || key.includes('<figcaption>') || key.includes('<picture>') || key.includes('<source>') || key.includes('<svg>') || key.includes('background') || key.includes('max-width') || key.includes('height') || key.includes('filter')) {
+        return sample('图片', '<div class="preview-image"></div><p style="text-indent:0;font-size:12px;color:#716d64;">图片说明文字</p>');
+      }
+
+      if (key.includes('@font-face') || key.includes('font-family') || key.includes('font-style') || key.includes('font-size')) {
+        return sample('字体样张', '<p style="text-indent:0;font-size:1.25em;">汉字 Aa 123</p><div class="preview-row"><span class="preview-chip">serif</span><span class="preview-chip">sans</span></div>');
+      }
+
+      if (key.includes('margin') || key.includes('padding') || key.includes('border') || key.includes('box-sizing') || key.includes('overflow') || key.includes('display') || key.includes('float') || key.includes('position') || key.includes('page-break') || key.includes('break-')) {
+        return sample('盒模型', '<div class="preview-box"><p style="text-indent:0;">内容框</p></div>');
+      }
+
+      if (key.includes('@media') || key.includes('prefers-color-scheme') || key.includes('css 变量') || key.includes('var(') || key.includes('scroll-margin')) {
+        return sample('响应式', '<div class="preview-row"><span class="preview-chip">窄屏</span><span class="preview-chip">夜间</span><span class="preview-chip">变量</span></div>');
+      }
+
+      if (sectionId === 'opf') {
+        return sample('包信息', '<div class="preview-row"><span class="preview-chip">OPF</span><span class="preview-chip">manifest</span><span class="preview-chip">spine</span></div>');
+      }
+
+      return sample('样张', '<p>示例文字用于快速观察该条目的阅读效果。</p>');
+    }
+
+    function initPreviews() {
+      document.querySelectorAll('table').forEach(table => {
+        const section = table.closest('section');
+        const sectionId = section ? section.id : '';
+        const headRow = table.querySelector('thead tr');
+        if (headRow && !headRow.querySelector('.preview-head')) {
+          const th = document.createElement('th');
+          th.className = 'preview-head preview-cell';
+          th.textContent = 'HTML 预览';
+          headRow.appendChild(th);
+        }
+
+        table.querySelectorAll('tbody tr').forEach(row => {
+          if (row.querySelector('.preview-cell')) return;
+          row.dataset.searchText = normalize(row.textContent);
+          const firstCell = row.cells[0];
+          const signature = firstCell ? firstCell.textContent : '';
+          const td = document.createElement('td');
+          td.className = 'preview-cell';
+          td.innerHTML = previewFor(sectionId, signature, row.textContent);
+          row.appendChild(td);
+        });
+      });
+    }
+
+    initPreviews();
+
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    const sections = Array.from(document.querySelectorAll('section'));
+
     function filter() {
       const q = normalize(input.value);
       let visibleRows = 0;
 
       rows.forEach(row => {
-        const hit = !q || normalize(row.textContent).includes(q);
+        const hit = !q || row.dataset.searchText.includes(q);
         row.classList.toggle('hidden', !hit);
         if (hit) visibleRows += 1;
       });

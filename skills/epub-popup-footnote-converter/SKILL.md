@@ -126,3 +126,12 @@ sup {
 - Do not emit one aside per note when a file contains multiple notes; group them in one aside with `ol/li`.
 - Do not rewrite note prose.
 - Do not use `duokan-wavyline`, duokan-only notes, or JS as the main mechanism.
+
+## Validation Fixture
+
+Use `templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml` as the local reference shape for popup footnotes. A converted file should preserve the same broad invariants:
+
+- noteref `href` points to a `li.footnote-item` in the same XHTML file.
+- the file has one grouped `aside epub:type="footnote"` for all local notes.
+- backlinks use `epub:type="backlink"` and `role="doc-backlink"`.
+- the note trigger uses an image icon when the EPUB has or can receive the icon asset.

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" role="img" aria-label="poster sample">
+  <rect width="900" height="1200" fill="#f2eadc"/>
+  <path d="M0 950 C180 880 280 1010 430 930 C590 845 710 920 900 820 L900 1200 L0 1200 Z" fill="#8f4f20" opacity="0.86"/>
+  <path d="M0 1060 C210 980 320 1120 500 1028 C660 946 760 1015 900 948 L900 1200 L0 1200 Z" fill="#23211d" opacity="0.22"/>
+  <circle cx="700" cy="220" r="96" fill="#c9a24e" opacity="0.72"/>
+  <rect x="96" y="150" width="10" height="660" fill="#23211d" opacity="0.4"/>
+  <rect x="126" y="240" width="10" height="520" fill="#23211d" opacity="0.22"/>
+</svg>

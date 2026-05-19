@@ -1,0 +1,374 @@
+@charset "utf-8";
+
+@page {
+  margin: 0.75em;
+  padding: 0;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 1em;
+  color: #1f1d19;
+  background: #fffdf8;
+  font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+  font-size: 100%;
+  line-height: 1.75;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3 {
+  margin: 1.2em 0 0.7em;
+  line-height: 1.3;
+  text-indent: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+p {
+  margin: 0.45em 0;
+  text-indent: 2em;
+  text-align: justify;
+}
+
+a {
+  color: inherit;
+}
+
+em {
+  font-style: normal;
+  text-emphasis: filled dot;
+  text-emphasis-position: under;
+  -webkit-text-emphasis-style: filled dot;
+  -webkit-text-emphasis-position: under;
+}
+
+strong {
+  font-weight: 700;
+}
+
+q {
+  quotes: "「" "」" "『" "』";
+}
+
+q::before {
+  content: open-quote;
+}
+
+q::after {
+  content: close-quote;
+}
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.3em 0 0.3em 1em;
+  border-left: 0.18em solid #8f4f20;
+  color: #4c4439;
+}
+
+figure {
+  margin: 1.2em 0;
+  text-align: center;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+figcaption {
+  margin-top: 0.4em;
+  color: #6a6257;
+  font-size: 0.85em;
+  text-indent: 0;
+}
+
+ruby {
+  ruby-align: center;
+}
+
+rt {
+  font-size: 0.5em;
+  line-height: 1;
+}
+
+rp {
+  display: none;
+}
+
+.has-ruby {
+  line-height: 2;
+}
+
+sup {
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.noteref-icon,
+a.duokan-footnote {
+  text-decoration: none;
+}
+
+.noteref-icon img,
+a.duokan-footnote img,
+img.zhangyue-footnote {
+  width: auto;
+  height: 1em;
+  vertical-align: baseline;
+}
+
+.footnote-line {
+  width: 60%;
+  height: 1px;
+  margin: 1.5em 0 1em -0.5em;
+  border: none;
+  border-top: 1px solid #777;
+}
+
+.footnote-list {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  text-align: left;
+}
+
+.duokan-footnote-content {
+  margin-top: 0;
+}
+
+.footnote-list.duokan-footnote-content {
+  margin-left: 0;
+}
+
+.footnote-item {
+  margin: 0.4em 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.footnote-item.duokan-footnote-item {
+  list-style-type: none;
+}
+
+.footnote {
+  margin: 0.4em 0;
+  text-indent: 0;
+  font-size: 0.9em;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.footnote-back {
+  margin-right: 0.25em;
+  text-decoration: none;
+}
+
+.font-order-song {
+  font-family:
+    "Songti SC", "STSongti-SC-Regular", "STSongti-SC-Light", "STSong",
+    "SimSun", "NSimSun", "SimSun-ExtB",
+    "BookBodySong", "RareSong", "Source Han Serif SC", "Noto Serif CJK SC",
+    serif;
+}
+
+.font-order-kai {
+  font-family:
+    "Kaiti SC", "STKaiti-SC-Regular", "STKaiti-SC-Bold", "STKaiti",
+    "KaiTi", "KaiTi_GB2312",
+    "BookTitleKai", "LXGW WenKai", "Source Han Serif SC", "Noto Serif CJK SC",
+    serif;
+}
+
+.font-order-mixed {
+  font-family:
+    "Songti SC", "STSongti-SC-Regular", "STSong",
+    "SimSun", "NSimSun", "SimSun-ExtB",
+    "Kaiti SC", "STKaiti", "KaiTi", "KaiTi_GB2312",
+    "BookBodySong", "BookTitleKai", "RareSong", "Source Han Serif SC", "Noto Serif CJK SC",
+    serif;
+}
+
+.font-specimen {
+  margin: 0.85em 0;
+}
+
+.demo-list li {
+  margin: 0.25em 0;
+  text-indent: 0;
+}
+
+.demo-definition dt {
+  margin-top: 0.6em;
+  font-weight: 700;
+}
+
+.demo-definition dd {
+  margin-left: 2em;
+}
+
+.table-wrap {
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+th,
+td {
+  padding: 0.45em 0.5em;
+  border: 1px solid #9b9488;
+  text-align: left;
+  vertical-align: top;
+}
+
+thead {
+  display: table-header-group;
+  background: #eee7dc;
+}
+
+tbody tr:nth-child(even) {
+  background: #f6f1e8;
+}
+
+pre {
+  margin: 1em 0;
+  padding: 0.8em;
+  overflow-x: auto;
+  background: #f1eee8;
+  border: 1px solid #d8d0c3;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+code,
+kbd,
+samp {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+kbd {
+  padding: 0.05em 0.35em;
+  border: 1px solid #938a7c;
+  border-radius: 0.2em;
+  background: #f4efe6;
+}
+
+.title-page {
+  min-height: 88%;
+  padding-top: 18%;
+  text-align: center;
+  page-break-after: always;
+  -webkit-page-break-after: always;
+}
+
+.title-page h1 {
+  margin: 0;
+  font-size: 2em;
+}
+
+.title-page p {
+  text-align: center;
+  text-indent: 0;
+}
+
+.vertical-sample {
+  min-height: 18em;
+  margin: 1.2em 0;
+  overflow: hidden;
+  border-top: 1px solid #d8d0c3;
+  border-bottom: 1px solid #d8d0c3;
+}
+
+.vcol {
+  writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+  text-orientation: mixed;
+  -webkit-text-orientation: mixed;
+  -epub-text-orientation: mixed;
+  float: right;
+  min-height: 14em;
+  margin: 1em 0 1em 1.2em;
+  text-indent: 0;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+body.fullpage {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  box-sizing: border-box;
+  page-break-before: always;
+  page-break-after: always;
+  page-break-inside: avoid;
+  -webkit-page-break-before: always;
+  -webkit-page-break-after: always;
+  -webkit-page-break-inside: avoid;
+  overflow: hidden;
+  background-image: url("../Images/poster.svg");
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 80% auto;
+}
+
+.fullframe {
+  width: 100%;
+  height: auto;
+  min-height: 90%;
+  margin: 0;
+  padding: 8% 8% 0;
+  overflow: hidden;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.poster-title {
+  writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+  float: right;
+  margin: 0 0 0 1.2em;
+  font-size: 1.6em;
+  letter-spacing: 0;
+  text-indent: 0;
+}
+
+.poster-copy {
+  writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+  float: right;
+  max-height: 24em;
+  margin: 2em 0 0 1em;
+  text-indent: 0;
+}
+
+@media (max-width: 420px) {
+  body {
+    padding: 0.75em;
+    line-height: 1.65;
+  }
+
+  table {
+    font-size: 0.86em;
+  }
+}

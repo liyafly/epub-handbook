@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>Ruby 与弹注</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>二、Ruby 与弹注</h1>
+    <p class="has-ruby">
+      <ruby><rb>燕</rb><rp>（</rp><rt>yan</rt><rp>）</rp></ruby>
+      <ruby><rb>京</rb><rp>（</rp><rt>jing</rt><rp>）</rp></ruby>
+      的注音应显示在基字上方；如果阅读器不支持 Ruby，则保留括号后备。
+    </p>
+    <p>
+      弹注触发使用图片图标
+      <sup>
+        <a id="note-1"
+           class="noteref-icon"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-1">
+          <img alt="注" src="../Images/note.svg"/>
+        </a>
+      </sup>
+      ，注释内容保留在同一个 XHTML 文件的 grouped aside 中。
+    </p>
+  </section>
+
+  <aside epub:type="footnote" role="doc-footnote">
+    <div><hr class="footnote-line"/></div>
+    <ol class="footnote-list">
+      <li class="footnote-item" id="footnote-1">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-1">◎</a>
+          这是弹出注释样本。阅读器如果支持 EPUB 3 footnote，可弹窗显示；不支持时也应能跳转阅读。
+        </p>
+      </li>
+    </ol>
+  </aside>
+</body>
+</html>

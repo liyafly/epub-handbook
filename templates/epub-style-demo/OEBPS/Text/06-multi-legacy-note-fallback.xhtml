@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>多条旧版弹注 fallback</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>六、多条旧版弹注 fallback</h1>
+    <p>
+      这一页用于检查同一章节里连续出现多条注释时，标准弹注、多看列表弹注和掌阅图片弹注 fallback 是否能共存。
+      第一条注释是纯文本说明
+      <sup>
+        <a id="note-multi-1"
+           class="noteref-icon duokan-footnote"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-multi-1">
+          <img class="zhangyue-footnote"
+               alt="第一条注释用于验证纯文本 fallback。"
+               zy-footnote="第一条注释用于验证纯文本 fallback。"
+               src="../Images/note.png"/>
+        </a>
+      </sup>
+      ，第二条注释在同一段里紧接出现
+      <sup>
+        <a id="note-multi-2"
+           class="noteref-icon duokan-footnote"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-multi-2">
+          <img class="zhangyue-footnote"
+               alt="第二条注释用于验证同段多触发点。"
+               zy-footnote="第二条注释用于验证同段多触发点。"
+               src="../Images/note.png"/>
+        </a>
+      </sup>
+      。
+    </p>
+    <p>
+      第三条注释放在后续段落，用来确认不同段落的触发点仍然回到同一个注释列表
+      <sup>
+        <a id="note-multi-3"
+           class="noteref-icon duokan-footnote"
+           epub:type="noteref"
+           role="doc-noteref"
+           href="#footnote-multi-3">
+          <img class="zhangyue-footnote"
+               alt="第三条注释用于验证跨段落共享注释列表。"
+               zy-footnote="第三条注释用于验证跨段落共享注释列表。"
+               src="../Images/note.png"/>
+        </a>
+      </sup>
+      。触发处的 <code>zy-footnote</code> 只承载纯文本摘要，富文本仍以章末列表内容为准。
+    </p>
+  </section>
+
+  <aside epub:type="footnote" role="doc-footnote">
+    <div><hr class="footnote-line"/></div>
+    <ol class="footnote-list duokan-footnote-content">
+      <li class="footnote-item duokan-footnote-item" id="footnote-multi-1">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-multi-1">◎</a>
+          第一条注释用于验证纯文本 fallback：标准阅读器识别 noteref，多看识别列表项，掌阅旧版读取图片上的纯文本属性。
+        </p>
+      </li>
+      <li class="footnote-item duokan-footnote-item" id="footnote-multi-2">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-multi-2">◎</a>
+          第二条注释用于验证同一段里多个触发点。每个触发点都有独立 id，分别指向本列表中对应的 li。
+        </p>
+      </li>
+      <li class="footnote-item duokan-footnote-item" id="footnote-multi-3">
+        <p class="footnote">
+          <a class="footnote-back"
+             epub:type="backlink"
+             role="doc-backlink"
+             href="#note-multi-3">◎</a>
+          第三条注释保留一个 <strong>富文本</strong> 版本，用来检查富文本正文和纯文本 fallback 分离后是否仍可读。
+        </p>
+      </li>
+    </ol>
+  </aside>
+</body>
+</html>

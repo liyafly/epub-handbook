@@ -24,7 +24,7 @@
 
 3. `docs/final/EPUB 3 HTML CSS 属性速查表.html`
    - HTML 查询版。
-   - 适合本地打开后按属性名、标签名、用途或状态搜索。
+   - 适合本地打开后按属性名、标签名、用途或状态搜索，并逐行查看 HTML 预览样张。
 
 4. `docs/final/SPEC-实现约束.md`
    - 机器与实现对接优先阅读。
@@ -33,6 +33,15 @@
 5. `docs/final/epub-pro 技术架构 v1.md`
    - 执行层技术蓝图（Swift/Kotlin 双核 + Rust sidecar）。
    - 覆盖目录、接口、子集器策略、测试矩阵、分发与里程碑。
+   - 日常样式、模板和 skill 调整不改这个文件；只在执行层架构变化时更新。
+
+6. `docs/guides/skills-and-templates.md`
+   - skills 与模板维护建议。
+   - 说明哪些内容应该放手册、哪些应该放 skill、哪些应该放可运行模板。
+
+7. `templates/epub-style-demo/`
+   - 可快速打包的 EPUB 3 样式 demo。
+   - 用于在 Apple Books、Kindle、KOReader、Thorium、Calibre 等环境对比显示效果。
 
 ## 目录结构
 
@@ -56,6 +65,9 @@ docs/
     EPUB 3 补充：弹出注释与 Ruby 注音.md
   experiments/
     EPUB 3 章节扉页与竖排实战 · 补充 05.md
+  guides/
+    README.md
+    skills-and-templates.md
   reference/
     README.md
 
@@ -64,11 +76,26 @@ references/
     EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
 
 skills/
+  README.md
   epub-alite-converter/
     SKILL.md
   epub-popup-footnote-converter/
     SKILL.md
     assets/note.png
+
+templates/
+  README.md
+  epub-style-demo/
+    README.md
+    build.sh
+    mimetype
+    META-INF/container.xml
+    OEBPS/
+      package.opf
+      nav.xhtml
+      Styles/base.css
+      Text/*.xhtml
+      Images/*.svg
 ```
 
 ## 各目录职责
@@ -79,6 +106,8 @@ skills/
 
 `docs/experiments/` 是实测记录区。当前 `05` 文档保留 A-lite 海报方案的实践过程，最终结论已经整理进终极手册。
 
+`docs/guides/` 是仓库维护说明区。这里记录 skills、模板、目录职责和后续维护建议，不承载下游技术架构。
+
 `references/epubs/` 是可以纳入版本管理的参考 EPUB 区。当前只放《EPub指南——从入门到放弃》。
 
 `skills/` 是 Codex 本地技能区：
@@ -86,9 +115,15 @@ skills/
 - `epub-alite-converter`：把封面、卷首、章节扉页一类整页图转换为 A-lite 方案，并保留现有文字和图片叠加排版。
 - `epub-popup-footnote-converter`：把普通注释转换为标准弹出注释结构，使用图片注释图标和 `◎` 返回符号。
 
+`templates/` 是可运行样式样本区。当前 `templates/epub-style-demo/` 可以用下面命令生成最小 EPUB，用来验证正文、Ruby、弹注、竖排、A-lite、列表、表格和代码样式：
+
+```sh
+sh templates/epub-style-demo/build.sh
+```
+
 ## 忽略规则
 
-默认忽略所有 EPUB、demo 工作目录和解压目录。
+默认忽略所有 EPUB、demo 工作目录、模板生成目录和解压目录。
 
 唯一例外是：
 

@@ -125,3 +125,12 @@ body.fullpage {
 - Do not remove overlay text just because it is difficult to position.
 - Do not add marketing-style decorations or new visual concepts.
 - Do not introduce private reading-system CSS as the main path.
+
+## Validation Fixture
+
+Use `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` as the local reference shape for A-lite output. A converted page should preserve the same broad invariants:
+
+- `body.fullpage` owns the full-page background and page-break rules.
+- `.fullframe` contains the overlay content.
+- vertical overlay text uses `writing-mode: vertical-rl` with prefixed fallbacks.
+- no absolute positioning or fixed-layout package metadata is introduced.

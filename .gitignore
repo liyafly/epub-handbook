@@ -13,3 +13,4 @@ _epub_reference/
 # demo 工作目录
 demo-epub/
 demo-fxl/
+templates/**/dist/

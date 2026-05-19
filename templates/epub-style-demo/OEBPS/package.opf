@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf"
+         version="3.0"
+         unique-identifier="bookid"
+         xml:lang="zh-CN"
+         prefix="rendition: http://www.idpf.org/vocab/rendition/# ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:29c40923-5f6a-4a93-8a2b-92e8bc4d0a11</dc:identifier>
+    <dc:title>EPUB Style Demo</dc:title>
+    <dc:creator>EPUB Handbook</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <dc:date>2026-05-19</dc:date>
+    <meta property="dcterms:modified">2026-05-19T00:00:00Z</meta>
+    <meta property="rendition:layout">reflowable</meta>
+    <meta property="rendition:orientation">auto</meta>
+    <meta property="rendition:spread">auto</meta>
+    <meta property="ibooks:specified-fonts">true</meta>
+  </metadata>
+
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="css" href="Styles/base.css" media-type="text/css"/>
+    <item id="poster" href="Images/poster.svg" media-type="image/svg+xml"/>
+    <item id="note-icon" href="Images/note.svg" media-type="image/svg+xml"/>
+    <item id="legacy-note-icon" href="Images/note.png" media-type="image/png"/>
+    <item id="title" href="Text/00-title.xhtml" media-type="application/xhtml+xml"/>
+    <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ruby-note" href="Text/02-ruby-note.xhtml" media-type="application/xhtml+xml"/>
+    <item id="vertical-alite" href="Text/03-vertical-alite.xhtml" media-type="application/xhtml+xml"/>
+    <item id="lists-tables-code" href="Text/04-lists-tables-code.xhtml" media-type="application/xhtml+xml"/>
+    <item id="legacy-note-fallback" href="Text/05-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
+    <item id="multi-legacy-note-fallback" href="Text/06-multi-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
+    <item id="font-family-order" href="Text/07-font-family-order.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+
+  <spine page-progression-direction="ltr">
+    <itemref idref="title"/>
+    <itemref idref="body"/>
+    <itemref idref="ruby-note"/>
+    <itemref idref="vertical-alite"/>
+    <itemref idref="lists-tables-code"/>
+    <itemref idref="legacy-note-fallback"/>
+    <itemref idref="multi-legacy-note-fallback"/>
+    <itemref idref="font-family-order"/>
+  </spine>
+</package>

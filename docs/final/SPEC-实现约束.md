@@ -9,7 +9,6 @@
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
-- 字体子集化时，`◎`（U+25CE）必须包含在 codepoints 中；若正文主字体无该字形，回退为 `↑`（U+2191）或图片 backlink。
 
 ## 2) A-lite 页面约束
 
@@ -31,7 +30,7 @@
 1. 全书 XHTML 实际用字
 2. 角色映射要求字符（body / heading / quote / rare）
 3. 用户 `extraCodepoints`
-4. 实现约束字符（如 `◎`）
+4. 实现显式声明的额外字符；默认回跳符号 `◎` 走阅读器或系统 fallback，不强制进入各角色字体子集
 
 附加规则：
 - 当角色字体本身即为人工子集（rare 专用字库），可按角色策略显式 `none`，避免重复裁切。
