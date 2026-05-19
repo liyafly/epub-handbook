@@ -118,9 +118,11 @@
 | `epub:type="bodymatter"` | 正文开始 | 推荐 | landmarks |
 | `epub:type="toc"` | 目录 | 推荐 | nav |
 | `<a epub:type="noteref" role="doc-noteref">` | 注释触发 | 推荐 | 项目采用图片图标触发 |
-| `<aside epub:type="footnote" role="doc-footnote">` | 注释内容 | 推荐 | 与 noteref 同 XHTML |
+| `<aside epub:type="footnote" role="doc-footnote">` | 注释容器 | 推荐 | 每个 XHTML 一个，包住本文件全部注释 |
+| `<ol class="footnote-list">` | 注释列表 | 推荐 | 放在 footnote aside 内 |
+| `<li class="footnote-item" id="footnote-1">` | 单条注释目标 | 推荐 | noteref 的 `href` 指向这里 |
 | `<a epub:type="backlink" role="doc-backlink">` | 注释返回 | 推荐 | 项目采用 `◎` |
-| `<section epub:type="footnotes">` | 注释组 | 可用 | 多条注释时包裹 |
+| `<section epub:type="footnotes">` | 注释组 | 可用 | 不作为项目弹注主路径 |
 
 ### 2.8 Ruby 注音
 
@@ -391,11 +393,13 @@ body {
 |---|---|---|---|
 | 触发元素 | `<a epub:type="noteref" role="doc-noteref">` | 推荐 | 放图片图标 |
 | 触发图标 | `<img alt="注" src="../Images/note.png"/>` | 推荐 | 项目默认 |
-| 注释内容 | `<aside epub:type="footnote" role="doc-footnote">` | 推荐 | 与 noteref 同文件 |
+| 注释容器 | `<aside epub:type="footnote" role="doc-footnote">` | 推荐 | 每个 XHTML 一个 |
+| 注释列表 | `<ol class="footnote-list">` | 推荐 | 承载本文件全部注释 |
+| 单条注释 | `<li class="footnote-item" id="footnote-1">` | 推荐 | noteref 跳转目标 |
 | 返回符号 | `◎` | 推荐 | demo 实践采用 |
 | 返回属性 | `epub:type="backlink" role="doc-backlink"` | 推荐 |  |
 | noteref id | `note-1` | 推荐 | 全文唯一 |
-| footnote id | `footnote-1` | 推荐 | 与 href 对应 |
+| footnote id | `footnote-1` | 推荐 | 放在 `li.footnote-item` 上，与 href 对应 |
 
 ---
 

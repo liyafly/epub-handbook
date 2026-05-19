@@ -87,12 +87,12 @@ section[epub|type~="footnotes"] {
 ### 1.3 七条硬规则
 
 1. `<a>` 必须有 `epub:type="noteref"`，建议加 `role="doc-noteref"`
-2. `<aside>` 必须有 `epub:type="footnote"`，建议加 `role="doc-footnote"`
-3. 每条注释一个独立 `<aside>` + 全文档唯一 `id`
-4. `<aside>` 必须包**整段**注释内容（KFX 检查最严）
-5. **`<aside>` 必须与 `<a noteref>` 在同一 xhtml 文件**（Apple Books 限制；跨文件强制退化为跳转）
-6. 不要给 `<aside>` 写 `display: none`，阅读器接管显隐
-7. `<section epub:type="footnotes">` 放章末，每章自带，不要全书集中
+2. 每个含注释的 XHTML 文件只放一个 `<aside epub:type="footnote">`，建议加 `role="doc-footnote"`
+3. 多条注释放在同一个 `aside` 内的 `ol.footnote-list > li.footnote-item`
+4. 每条 `li.footnote-item` 带全文档唯一 `id`，正文 `noteref` 直接指向这个 `li`
+5. `li.footnote-item` 必须包**整段**注释内容（KFX 检查最严）
+6. **`<aside>` 与目标 `li` 必须和 `<a noteref>` 在同一 xhtml 文件**（Apple Books 限制；跨文件强制退化为跳转）
+7. 不要给 `<aside>` 写 `display: none`，阅读器接管显隐
 
 ### 1.4 各阅读器实际行为
 
@@ -117,9 +117,9 @@ section[epub|type~="footnotes"] {
 | CSS 作用于弹层 | 多忽略 | 完整 | 完整（夜间模式覆盖颜色） |
 | 多段注释 | 截到首段 | 完整 | 完整 |
 
-### 1.6 多看 / 掌阅兼容（中国市场可选，单独一份）
+### 1.6 多看 / 掌阅兼容（历史探索，不作为最终方案）
 
-国内流通量较大的多看、掌阅各有私有扩展。在 §6.1 结构基础上**只叠加 `class` 属性，不增删元素**，得到一份对国内主流也兼容的写法。
+国内流通量较大的多看、掌阅各有私有扩展。以下内容仅保留早期兼容探索，最终手册和 skill 不采用 `duokan-*` 或 `zy-footnote` 作为主路径。正式制作时使用 `aside + ol.footnote-list + li.footnote-item` 的中性结构。
 
 ```xml
 <!-- 正文：在 <a> 上叠加多看类名 -->

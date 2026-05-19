@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 内嵌授权字体，只用书内字体名 + 通用族兜底 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，`aside epub:type="footnote"` 承载内容，`◎` 返回 |
+| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回 |
 | 波浪线 | 标准 `text-decoration-style: wavy` |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
@@ -372,6 +372,8 @@ body.poster-bg {
 
 注释触发采用图片图标，图标放 `Images/note.png`。返回符号采用 `◎`。
 
+同一个 XHTML 文件内只放一个注释容器：`aside epub:type="footnote"`。多条注释放在容器内的 `ol.footnote-list`，每条注释用 `li.footnote-item` 承载，正文 `noteref` 直接指向对应 `li` 的 `id`。这样保留 EPUB 3 标准弹注识别点，也保留 demo 的多注释聚合结构。
+
 ```xml
 <p>
   正文内容
@@ -384,17 +386,42 @@ body.poster-bg {
       <img alt="注" src="../Images/note.png"/>
     </a>
   </sup>
+  第二处正文内容
+  <sup>
+    <a id="note-2"
+       class="noteref-icon"
+       epub:type="noteref"
+       role="doc-noteref"
+       href="#footnote-2">
+      <img alt="注" src="../Images/note.png"/>
+    </a>
+  </sup>
 </p>
 
-<aside id="footnote-1" epub:type="footnote" role="doc-footnote">
-  <div><hr class="footnote-line"/></div>
-  <p class="footnote">
-    <a class="footnote-back"
-       epub:type="backlink"
-       role="doc-backlink"
-       href="#note-1">◎</a>
-    注释内容。
-  </p>
+<aside epub:type="footnote" role="doc-footnote">
+  <div><hr class="footnote-line xian"/></div>
+
+  <ol class="footnote-list">
+    <li class="footnote-item" id="footnote-1">
+      <p class="footnote">
+        <a class="footnote-back"
+           epub:type="backlink"
+           role="doc-backlink"
+           href="#note-1">◎</a>
+        第一条注释内容。
+      </p>
+    </li>
+
+    <li class="footnote-item" id="footnote-2">
+      <p class="footnote">
+        <a class="footnote-back"
+           epub:type="backlink"
+           role="doc-backlink"
+           href="#note-2">◎</a>
+        第二条注释内容。
+      </p>
+    </li>
+  </ol>
 </aside>
 ```
 
@@ -424,6 +451,19 @@ sup {
   border-top: 1px solid #777;
 }
 
+.footnote-list {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  text-align: left;
+}
+
+.footnote-item {
+  margin: 0.4em 0;
+  padding: 0;
+  list-style-type: none;
+}
+
 .footnote {
   margin: 0.4em 0;
   text-indent: 0;
@@ -439,7 +479,7 @@ sup {
 }
 ```
 
-这个结构同时保留标准弹注识别点和 demo 的视觉逻辑：正文点图片，注释内用 `◎` 返回。
+这个结构同时保留标准弹注识别点和 demo 的视觉逻辑：正文点图片，同文件的 `aside` 统一承载本章注释，注释内用 `◎` 返回。不要使用多看私有类名或私有 CSS 作为主路径；如从旧多看结构转换，可以把原有 `ol/li` 视觉分组迁移成这里的中性类名。
 
 ---
 
@@ -685,9 +725,11 @@ body.page-vrl {
 
 - [ ] 正文引用是图片图标。
 - [ ] `<a>` 有 `epub:type="noteref"` 和 `role="doc-noteref"`。
-- [ ] 注释容器是 `<aside epub:type="footnote" role="doc-footnote">`。
+- [ ] 每个含注释的 XHTML 有一个 `<aside epub:type="footnote" role="doc-footnote">` 注释容器。
+- [ ] 多条注释放在同一个容器内的 `ol.footnote-list > li.footnote-item`。
+- [ ] noteref 的 `href` 指向对应 `li.footnote-item` 的 `id`。
 - [ ] 注释返回符号是 `◎`。
-- [ ] noteref 和 aside 在同一 XHTML 文件。
+- [ ] noteref、注释 `li` 和外层 aside 在同一 XHTML 文件。
 
 ### 标准效果
 

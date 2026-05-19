@@ -182,7 +182,9 @@
           <tr><td><code>&lt;figure&gt;</code> / <code>&lt;img&gt;</code> / <code>&lt;figcaption&gt;</code></td><td>图片与说明</td><td><span class="status">推荐</span></td><td><code>alt</code> 必填</td></tr>
           <tr><td><code>&lt;picture&gt;</code> / <code>&lt;source&gt;</code></td><td>响应式图片</td><td><span class="status">条件可用</span></td><td>KFX 可能只取 img</td></tr>
           <tr><td><code>&lt;a epub:type="noteref"&gt;</code></td><td>弹注触发</td><td><span class="status">推荐</span></td><td>项目采用图片图标</td></tr>
-          <tr><td><code>&lt;aside epub:type="footnote"&gt;</code></td><td>弹注内容</td><td><span class="status">推荐</span></td><td>同 XHTML 文件</td></tr>
+          <tr><td><code>&lt;aside epub:type="footnote"&gt;</code></td><td>弹注容器</td><td><span class="status">推荐</span></td><td>每个 XHTML 一个，包住本文件全部注释</td></tr>
+          <tr><td><code>&lt;ol class="footnote-list"&gt;</code></td><td>注释列表</td><td><span class="status">推荐</span></td><td>放在 footnote aside 内</td></tr>
+          <tr><td><code>&lt;li class="footnote-item" id="footnote-1"&gt;</code></td><td>单条注释目标</td><td><span class="status">推荐</span></td><td>noteref 的 href 指向这里</td></tr>
           <tr><td><code>&lt;ruby&gt;</code> / <code>&lt;rb&gt;</code> / <code>&lt;rt&gt;</code> / <code>&lt;rp&gt;</code></td><td>注音</td><td><span class="status">推荐</span></td><td>保留 rp 后备</td></tr>
         </tbody>
       </table>
@@ -340,7 +342,9 @@
         <tbody>
           <tr><td>触发元素</td><td><code>&lt;a epub:type="noteref" role="doc-noteref"&gt;</code></td><td><span class="status">推荐</span></td><td>放图片图标</td></tr>
           <tr><td>触发图标</td><td><code>&lt;img alt="注" src="../Images/note.png"/&gt;</code></td><td><span class="status">推荐</span></td><td>项目默认</td></tr>
-          <tr><td>注释内容</td><td><code>&lt;aside epub:type="footnote" role="doc-footnote"&gt;</code></td><td><span class="status">推荐</span></td><td>同 XHTML 文件</td></tr>
+          <tr><td>注释容器</td><td><code>&lt;aside epub:type="footnote" role="doc-footnote"&gt;</code></td><td><span class="status">推荐</span></td><td>每个 XHTML 一个</td></tr>
+          <tr><td>注释列表</td><td><code>&lt;ol class="footnote-list"&gt;</code></td><td><span class="status">推荐</span></td><td>承载本文件全部注释</td></tr>
+          <tr><td>单条注释</td><td><code>&lt;li class="footnote-item" id="footnote-1"&gt;</code></td><td><span class="status">推荐</span></td><td>noteref 跳转目标</td></tr>
           <tr><td>返回符号</td><td><code>◎</code></td><td><span class="status">推荐</span></td><td>demo 实践采用</td></tr>
           <tr><td>返回属性</td><td><code>epub:type="backlink" role="doc-backlink"</code></td><td><span class="status">推荐</span></td><td></td></tr>
         </tbody>
