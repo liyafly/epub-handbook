@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-19
+updated_at: 2026-05-20
 owner: epub-handbook
 
 lanes:
@@ -19,17 +19,58 @@ readers:
     name: Thorium Reader
 
 cases:
+  - id: 00-cover-metadata
+    title: OPF 封面声明
+    fixture: templates/epub-style-demo/OEBPS/package.opf
+  - id: 00-title-page
+    title: 封面式标题页
+    fixture: templates/epub-style-demo/OEBPS/Text/00-title.xhtml
   - id: 01-basic-cjk
-    title: 基础中文排版
-  - id: 02-footnotes
-    title: 弹出注释
-  - id: 03-fontspec-no-subset
-    title: 字体配置（不子集）
-  - id: 04-fontspec-subset
-    title: 字体配置（子集）
-  - id: 05-vertical-cjk
-    title: 局部竖排
+    title: 普通中文正文
+    fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
+  - id: 02-ruby-standard-footnote
+    title: Ruby 与标准弹注
+    fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
+  - id: 03-alite-poster
+    title: A-lite 海报
+    fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
+  - id: 04-table-code
+    title: 表格与代码
+    fixture: templates/epub-style-demo/OEBPS/Text/04-lists-tables-code.xhtml
+  - id: 05-duokan-fallback
+    title: 多看 fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml
+  - id: 06-multi-duokan-fallback
+    title: 多条多看 fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml
+  - id: 07-font-family-order
+    title: font-family 顺序
+    fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
+  - id: 08-long-mixed-flow
+    title: 长段落与中英混排
+    fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
+  - id: 09-kindle-risk
+    title: Kindle 专项风险页
+    fixture: templates/epub-style-demo/OEBPS/Text/09-kindle-risk.xhtml
 
 expectations:
   # status: pass | warn | fail | na
-  []
+  - reader: kindle_previewer
+    case: 00-cover-metadata
+    status: warn
+    reader_version: unknown
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260520-233054.epub
+    failed_page: package.opf
+    issue: "Kindle Previewer W14016: 没有指定封面"
+    action: "已在 demo OPF 中补充 PNG cover-image 与 meta name=cover；待重新导入 Kindle Previewer 复测。"
+    workaround: "使用 raster 封面图，并同时声明 properties=\"cover-image\" 与 meta name=\"cover\"。"
+  - reader: kindle_previewer
+    case: 09-kindle-risk
+    status: warn
+    reader_version: unknown
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260520-235448.epub
+    conversion_log: templates/epub-style-demo/dist/epub-style-demo-20260520-233702-conversionLog.csv
+    failed_page: unknown
+    issue: "conversionLog 只有表头、没有错误行；用户端反馈转换后文档仍打不开。"
+    action: "已新增 toc.ncx、spine toc、Kindle 风险页和场景矩阵；完整 demo 已改为 PNG 资源路径，待用新构建产物复测。"
+    workaround: "若新包仍打不开，先用 templates/kindle-minimal-repro/dist/kindle-minimal-repro-20260520-235314.epub 对照；minimal 可打开而完整 demo 不可打开时，继续二分页面级 CSS / Ruby / footnote / A-lite 特性。"

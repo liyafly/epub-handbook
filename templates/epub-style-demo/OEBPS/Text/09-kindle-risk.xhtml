@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>Kindle 风险项</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>九、Kindle 风险项</h1>
+    <p class="kindle-risk-check">
+      这一页用于把 Kindle Previewer 风险点集中到一个可复测页面。当前包应同时具备 EPUB 3 nav、NCX fallback、PNG cover-image、普通 PNG 图片、PNG 正文图片、表格、代码块和长串换行保护。
+    </p>
+
+    <h2>资源识别</h2>
+    <div class="asset-pair">
+      <figure>
+        <img src="../Images/cover.png" alt="PNG cover-image 资源"/>
+        <figcaption>PNG cover-image：用于 Kindle 封面识别。</figcaption>
+      </figure>
+      <figure>
+        <img src="../Images/poster.png" alt="PNG 海报资源"/>
+        <figcaption>PNG 正文图片：用于排除 SVG 资源导致 Kindle 无法打开的风险。</figcaption>
+      </figure>
+    </div>
+
+    <h2>长串与代码</h2>
+    <p class="unbreakable-probe">
+      KindleRiskLongToken: https://example.invalid/epub-style-demo/kindle-preview-risk-check/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+    </p>
+    <pre><code>&lt;meta name="cover" content="cover-image"/&gt;
+&lt;item id="cover-image" href="Images/cover.png"
+      media-type="image/png" properties="cover-image"/&gt;</code></pre>
+
+    <h2>表格</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>风险项</th><th>最小检查</th><th>预期</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>封面</td><td>PNG + cover-image + meta cover</td><td>无 W14016</td></tr>
+          <tr><td>目录</td><td>nav.xhtml + toc.ncx</td><td>可生成导航</td></tr>
+          <tr><td>Raster</td><td>正文 img 引用 PNG</td><td>可显示</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</body>
+</html>

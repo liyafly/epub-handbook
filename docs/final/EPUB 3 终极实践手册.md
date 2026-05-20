@@ -189,11 +189,22 @@ body {
 
 html {
   font-size: 100%;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  -webkit-box-sizing: inherit;
+  box-sizing: inherit;
 }
 
 body {
   margin: 0;
   padding: 0 1em;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
@@ -738,6 +749,8 @@ body.page-vrl {
 ### OPF
 
 - [ ] `nav.xhtml` 有 `properties="nav"`。
+- [ ] 需 Kindle/旧工具链兼容时，manifest 含 `toc.ncx` 且 `spine toc="ncx"`。
+- [ ] 封面图使用 JPEG/PNG，并同时声明 `properties="cover-image"` 与 `<meta name="cover">`。
 - [ ] 所有 XHTML / CSS / 图片 / 字体都进入 `manifest`。
 - [ ] `rendition:layout` 是 `reflowable`。
 - [ ] 有嵌入字体时写 `ibooks:specified-fonts=true`。

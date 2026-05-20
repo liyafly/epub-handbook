@@ -164,6 +164,7 @@
 | `rendition:spread` | `auto` | 推荐 | 不强制单双页 |
 | `ibooks:specified-fonts` | `true` | 推荐 | Apple Books 嵌入字体声明 |
 | `<meta name="cover">` | `cover-img` | 推荐 | 兼容封面识别 |
+| `spine toc="ncx"` | `toc` / `ncx` item id | 推荐 | Kindle / 旧工具链兼容目录 |
 
 ### 3.3 manifest media-type
 
@@ -172,6 +173,7 @@
 | XHTML | `application/xhtml+xml` | 推荐 |
 | nav.xhtml | `application/xhtml+xml` + `properties="nav"` | 推荐 |
 | NCX | `application/x-dtbncx+xml` | 推荐 |
+| cover image | `image/jpeg` / `image/png` + `properties="cover-image"` | 推荐 |
 | CSS | `text/css` | 推荐 |
 | JPEG | `image/jpeg` | 推荐 |
 | PNG | `image/png` | 推荐 |
@@ -245,6 +247,7 @@ body {
 |---|---|---|---|
 | `margin` | `em` / `%` | 推荐 | 段距、图距 |
 | `padding` | `em` / `%` | 推荐 | 容器内距 |
+| `body width + padding` | 避免 `width:100%` 叠加左右 `padding` | 必须 | 普通正文页防右侧裁切 |
 | `border` | `1px solid #888` | 推荐 | 分隔线、表格 |
 | `border-left` | 引文边线 | 推荐 | 块引文 |
 | `border-radius` | 小半径 | 可用 | 代码、kbd |

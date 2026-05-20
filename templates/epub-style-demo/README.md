@@ -24,11 +24,16 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 6. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
 7. `06-multi-legacy-note-fallback.xhtml`：同一 XHTML 文件内多条 fallback 弹注。
 8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证。
+9. `08-long-mixed-flow.xhtml`：长段落、中英混排、大字号标题与右侧裁切压力测试。
+10. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
+
+OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
+完整覆盖关系见 `SCENE_MATRIX.md`。
 
 ## 验证建议
 
 - Apple Books：重点看嵌入样式、Ruby、弹注和 A-lite 分页。
-- Kindle / KFX：重点看弹注触发、竖排、表格和背景图。
+- Kindle / KFX：重点看封面识别、弹注触发、竖排、表格和背景图。
 - KOReader / Thorium / Calibre：重点看 CSS 兼容差异和窄屏重排。
 
 这个模板不包含第三方字体和版权图片，便于直接纳入版本管理。

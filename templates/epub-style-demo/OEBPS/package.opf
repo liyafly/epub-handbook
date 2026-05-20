@@ -14,17 +14,19 @@
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
+    <meta name="cover" content="cover-image"/>
     <meta property="ibooks:specified-fonts">true</meta>
   </metadata>
 
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="css-fonts" href="Styles/fonts.css" media-type="text/css"/>
     <item id="css-base" href="Styles/base.css" media-type="text/css"/>
     <item id="css-poster" href="Styles/poster.css" media-type="text/css"/>
-    <item id="poster" href="Images/poster.svg" media-type="image/svg+xml"/>
-    <item id="note-icon" href="Images/note.svg" media-type="image/svg+xml"/>
-    <item id="legacy-note-icon" href="Images/note.png" media-type="image/png"/>
+    <item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>
+    <item id="poster" href="Images/poster.png" media-type="image/png"/>
+    <item id="note-icon" href="Images/note.png" media-type="image/png"/>
     <item id="title" href="Text/00-title.xhtml" media-type="application/xhtml+xml"/>
     <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
     <item id="ruby-note" href="Text/02-ruby-note.xhtml" media-type="application/xhtml+xml"/>
@@ -33,9 +35,11 @@
     <item id="legacy-note-fallback" href="Text/05-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="multi-legacy-note-fallback" href="Text/06-multi-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="font-family-order" href="Text/07-font-family-order.xhtml" media-type="application/xhtml+xml"/>
+    <item id="long-mixed-flow" href="Text/08-long-mixed-flow.xhtml" media-type="application/xhtml+xml"/>
+    <item id="kindle-risk" href="Text/09-kindle-risk.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
-  <spine page-progression-direction="ltr">
+  <spine toc="ncx" page-progression-direction="ltr">
     <itemref idref="title"/>
     <itemref idref="body"/>
     <itemref idref="ruby-note"/>
@@ -44,5 +48,7 @@
     <itemref idref="legacy-note-fallback"/>
     <itemref idref="multi-legacy-note-fallback"/>
     <itemref idref="font-family-order"/>
+    <itemref idref="long-mixed-flow"/>
+    <itemref idref="kindle-risk"/>
   </spine>
 </package>

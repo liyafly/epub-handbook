@@ -1,0 +1,81 @@
+@charset "utf-8";
+
+@page {
+  margin: 0.75em;
+  padding: 0;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  -webkit-box-sizing: inherit;
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  padding: 1em;
+  color: #1f1d19;
+  background: #fffdf8;
+  font-family: "Songti SC", "Source Han Serif SC", serif;
+  font-size: 100%;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+}
+
+h1,
+h2 {
+  margin: 1em 0 0.6em;
+  line-height: 1.25;
+  text-indent: 0;
+}
+
+p {
+  margin: 0.5em 0;
+  text-indent: 2em;
+  text-align: left;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+figure {
+  margin: 1em 0;
+  text-align: center;
+  page-break-inside: avoid;
+}
+
+figcaption {
+  margin-top: 0.35em;
+  font-size: 0.86em;
+  color: #5f584f;
+  text-indent: 0;
+}
+
+pre {
+  margin: 1em 0;
+  padding: 0.8em;
+  overflow-x: auto;
+  background: #f1eee8;
+  border: 1px solid #d8d0c3;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.86em;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.token {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

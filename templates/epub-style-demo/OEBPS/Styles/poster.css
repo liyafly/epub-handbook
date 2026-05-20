@@ -11,12 +11,14 @@ html {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  -webkit-box-sizing: border-box;
   box-sizing: border-box;
 }
 
 *,
 *::before,
 *::after {
+  -webkit-box-sizing: inherit;
   box-sizing: inherit;
 }
 
@@ -29,6 +31,7 @@ body.fullpage {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  -webkit-box-sizing: border-box;
   box-sizing: border-box;
   page-break-before: always;
   page-break-after: always;
@@ -41,7 +44,7 @@ body.fullpage {
 
 body.poster-bg {
   background-color: #eceae7;
-  background-image: url("../Images/poster.svg");
+  background-image: url("../Images/poster.png");
   background-repeat: no-repeat;
   background-position: left bottom;
   background-size: 80% auto;
@@ -53,6 +56,7 @@ body.poster-bg {
   min-height: 90%;
   margin: 0;
   padding: 0;
+  -webkit-box-sizing: border-box;
   box-sizing: border-box;
   overflow: visible;
   page-break-inside: avoid;

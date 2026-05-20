@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>Kindle 风险页</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>Kindle 风险页</h1>
+    <p>这个最小复现包只保留 OPF 封面声明、EPUB 3 nav、NCX fallback、PNG 封面、SVG 正文图片、普通 CSS 和一个长串，用来排查 Kindle Previewer 打不开的问题。</p>
+
+    <figure>
+      <img src="../Images/poster.svg" alt="SVG 图片样本"/>
+      <figcaption>如果最小包打不开，下一步先移除这个 SVG 资源复测。</figcaption>
+    </figure>
+
+    <p class="token">KindleMinimalReproLongToken_ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789_abcdefghijklmnopqrstuvwxyz</p>
+
+    <pre><code>&lt;spine toc="ncx" page-progression-direction="ltr"&gt;
+  &lt;itemref idref="cover-page"/&gt;
+  &lt;itemref idref="risk-page"/&gt;
+&lt;/spine&gt;</code></pre>
+  </section>
+</body>
+</html>

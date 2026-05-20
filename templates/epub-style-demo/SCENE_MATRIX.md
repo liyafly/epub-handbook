@@ -1,0 +1,24 @@
+# EPUB Style Demo 场景矩阵
+
+本矩阵是 demo EPUB 的执行清单。新增兼容性判断时，先补这里和对应 XHTML，再 build EPUB、跑阅读器验证，最后回写 `docs/final/reader-matrix.yaml` 与最终文档。
+
+| 场景 | XHTML | 主要检查点 | 目标阅读器 |
+|---|---|---|---|
+| 封面式标题页 | `Text/00-title.xhtml` | 标题页分页、landmark cover、标题居中 | Apple Books / Kindle Previewer / Thorium |
+| 普通正文 | `Text/01-body.xhtml` | 段落缩进、行高、引用、着重、图片 figure | 全部 |
+| 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距 | Apple Books / Thorium / KOReader |
+| A-lite 海报 | `Text/03-vertical-alite.xhtml` | `body.fullpage`、`.fullframe padding:0`、背景、竖排标题 | Apple Books / Kindle Previewer |
+| 表格与代码 | `Text/04-lists-tables-code.xhtml` | 列表、表格滚动、代码块、kbd | Kindle Previewer / KOReader / Thorium |
+| 多看 fallback | `Text/05-legacy-note-fallback.xhtml` | `duokan-footnote`、`li.duokan-footnote-content`、单注释 | 多看 / 标准阅读器回退 |
+| 多条 fallback | `Text/06-multi-legacy-note-fallback.xhtml` | 多 noteref 指向同一 `aside` 内不同 `li` | 多看 / 标准阅读器回退 |
+| font-family 顺序 | `Text/07-font-family-order.xhtml` | 系统优先、书内优先、楷体混合链、生僻字 fallback | Apple Books / Windows 阅读器 |
+| 长段落与中英混排 | `Text/08-long-mixed-flow.xhtml` | 普通正文盒模型、右侧裁切、长 token 换行、大字号标题 | Kindle Previewer / Apple Books |
+| Kindle 风险项 | `Text/09-kindle-risk.xhtml` | cover metadata、nav + NCX、PNG、长串、表格、代码 | Kindle Previewer |
+
+## 打包与记录
+
+```sh
+sh templates/epub-style-demo/build.sh
+```
+
+验证完成后，把阅读器名称、版本、构建产物、失败页面、现象、状态和 workaround 写入 `docs/final/reader-matrix.yaml`。

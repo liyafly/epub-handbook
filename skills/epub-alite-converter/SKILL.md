@@ -69,7 +69,7 @@ Use the project A-lite scheme exactly:
    - keep internal base `font-size: 16px`
 7. Preserve embedded fonts. For locked title fonts, use the book's internal font name first, normally with only `serif`/`sans-serif` as generic fallback.
 8. Ensure CSS layering: A-lite CSS must land in `Styles/poster.css`; do not write A-lite rules into `base.css`.
-9. Update OPF manifest only for assets/CSS/fonts that are actually used, and declare `fonts.css` / `base.css` / `poster.css` separately when A-lite exists.
+9. Update OPF manifest only for assets/CSS/fonts that are actually used, and declare `fonts.css` / `base.css` / `poster.css` separately when A-lite exists. Preserve existing `nav.xhtml`, `toc.ncx`, `spine toc="ncx"`, and cover-image metadata when present.
 10. Validate by reading the resulting XHTML/CSS and checking that no required overlay text/image was dropped.
 
 ## A-lite CSS Skeleton

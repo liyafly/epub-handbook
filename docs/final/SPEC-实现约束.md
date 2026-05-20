@@ -50,7 +50,15 @@
 
 - 输出包必须满足 EPUB `mimetype` 首条且 STORED（无压缩）规则。
 - OPF 元数据、manifest/spine 的排序与稳定性必须可复现（便于 golden fixture diff）。
+- EPUB 必须声明封面图：manifest 中封面图片 `<item>` 必须带 `properties="cover-image"`，并同步提供 `<meta name="cover" content="..."/>` 兼容 Kindle Previewer。
+- 封面图优先使用 JPEG/PNG 等 raster 资源；SVG 可作为正文或海报资源，但不作为 Kindle 兼容封面主声明。
+- EPUB 3 必须提供 `nav.xhtml`；需要 Kindle/旧工具链兼容的 demo 或交付包必须同时提供 `toc.ncx`，并在 OPF spine 写 `toc="ncx"`。
 - 生成物应回写构建元数据：子集器名称/版本、字形统计、构建时间。
+
+## 5.5) 正文页盒模型
+
+- 普通可重排正文页的 `body` 不允许同时使用 `width:100%` 与左右 `padding`；正文页应保持 auto 宽度，让 padding 计入可用行宽，避免阅读器右侧裁切。
+- 正文页如需页面留白，优先使用 `body { margin:0; padding:... }`，并显式设置 `box-sizing:border-box` / `-webkit-box-sizing:border-box`。
 
 
 ## 6) Fixture 命名索引（M5 对齐）

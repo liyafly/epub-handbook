@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>长段落与中英混排</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+</head>
+<body>
+  <section class="longflow" epub:type="chapter">
+    <h1>八、长段落与中英混排</h1>
+    <h2 class="stress-title">大字号标题换行压力测试</h2>
+
+    <p>
+      这一页专门检查普通正文页的盒模型、右侧裁切和长段落重排。正文不使用固定宽度，不使用绝对定位，也不在 body 上叠加 width:100% 与 padding。阅读器放大字号后，文字应在页面内自然换行，右侧不应被裁掉。
+    </p>
+
+    <p>
+      长段落样本：汪曾祺写草木、食物、人物与地方风物时，常以平实句子连接细节。这里连续放入较长中文句子，用来观察行高、段距、缩进、标点挤压和分页行为。若阅读器的中文两端对齐实现较弱，也应至少保证每一行都留在可见区域内，不因页面 padding 或盒模型计算错误而截去末尾文字。
+    </p>
+
+    <p class="mixed-run">
+      中英混排样本：English words, EPUB 3.3, Kindle Previewer, Apple Books, Thorium Reader, KOReader, CSS box-sizing, overflow-wrap, font-family, and punctuation should wrap safely with 中文正文、全角标点、书名号《样本》、引号「测试」以及数字 2026-05-20 混排。
+    </p>
+
+    <p class="unbreakable-probe">
+      LongTokenProbe: EPUBStyleDemoKindlePreviewerLineBreakProbe_ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789_abcdefghijklmnopqrstuvwxyz
+    </p>
+
+    <figure>
+      <img src="../Images/cover.png" alt="PNG 封面图样本"/>
+      <figcaption>PNG 图片样本：验证 raster 图片在普通正文页内自适应宽度。</figcaption>
+    </figure>
+  </section>
+</body>
+</html>

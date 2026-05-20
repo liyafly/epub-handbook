@@ -5,7 +5,7 @@
       xml:lang="zh-CN"
       lang="zh-CN">
 <head>
-  <title>系统字体优先正文</title>
+  <title>font-family 顺序验证</title>
   <meta charset="utf-8"/>
   <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
   <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
@@ -15,10 +15,10 @@
     <h1>七、font-family 顺序验证</h1>
     <p><!-- 演示 font-family 顺序对实际命中的影响：分别测试系统优先、书内优先与混合链。 --></p>
     <p class="font-specimen demo-system-first">
-      宋体正文样本：山川草木，风雨晦明，皆可入书。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察 iBooks、Windows 阅读器和其他阅读器的实际字体选择。
+      系统宋体优先样本：山川草木，风雨晦明，皆可入书。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察 iBooks、Windows 阅读器和其他阅读器的实际字体选择。
     </p>
     <p class="font-specimen demo-embedded-first">
-      楷体正文样本：春水初生，春林初盛，春风十里。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察楷体链在不同设备上的命中顺序。
+      书内宋体优先样本：春水初生，春林初盛，春风十里。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察嵌入正文字体在不同设备上的命中顺序。
     </p>
     <p class="font-specimen demo-mixed">
       混合回退样本：先给书内嵌入楷体，再给系统楷体，最后给开源中文回退。若阅读器按首个可用名称命中，这一段应优先显示嵌入楷体。
