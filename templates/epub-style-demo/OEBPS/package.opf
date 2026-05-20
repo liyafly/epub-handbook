@@ -19,7 +19,9 @@
 
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-    <item id="css" href="Styles/base.css" media-type="text/css"/>
+    <item id="css-fonts" href="Styles/fonts.css" media-type="text/css"/>
+    <item id="css-base" href="Styles/base.css" media-type="text/css"/>
+    <item id="css-poster" href="Styles/poster.css" media-type="text/css"/>
     <item id="poster" href="Images/poster.svg" media-type="image/svg+xml"/>
     <item id="note-icon" href="Images/note.svg" media-type="image/svg+xml"/>
     <item id="legacy-note-icon" href="Images/note.png" media-type="image/png"/>

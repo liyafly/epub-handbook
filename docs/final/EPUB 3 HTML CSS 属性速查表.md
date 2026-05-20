@@ -219,14 +219,7 @@
 
 ```css
 body {
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "Song S", "Song T",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 ```
 
@@ -236,7 +229,7 @@ body {
 .poster-title,
 .title-kai,
 .inscription {
-  font-family: "BookTitleKai", "Kaiti SC", "STKaiti", "KaiTi", "楷体", serif;
+  font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
 }
 
 .rare {
@@ -429,6 +422,14 @@ body {
 
 ---
 
+## 十四点五、多看 fallback 属性速查
+
+| 项目 | 写法 | 作用 |
+|---|---|---|
+| 多看触发类 | `class="duokan-footnote"` | noteref 兼容触发 |
+| 多看条目类 | `class="duokan-footnote-item"` | 兼容列表项 |
+| 多看内容类 | `class="duokan-footnote-content"`（挂在 `li`） | 弹窗内容匹配点 |
+
 ## 十五、A-lite 属性速查
 
 | 属性 / 结构 | 推荐值 | 状态 | 备注 |
@@ -436,8 +437,11 @@ body {
 | `body.fullpage` | 页面根类 | 推荐 | 整页海报 |
 | `.fullframe` | 内容框 | 推荐 | 承载叠加文字 / 图片 |
 | `font-size` | `16px` | 推荐 | A-lite 内部基准 |
+| `body.poster-bg` | 背景 modifier | 推荐 | 海报背景容器 |
+| `.fullframe` | `padding: 0` | 推荐 | A-lite 骨架 |
+| `.fullframe` | `overflow: visible` | 推荐 | 避免竖排列被骨架裁切 |
 | `min-height` | `100%` | 推荐 | fullpage |
-| `overflow` | `hidden` | 推荐 | 避免分页切碎 |
+| `body.fullpage` | `overflow: hidden` | 推荐 | 限制整页背景与分页 |
 | `page-break-before` | `always` | 推荐 | 单独成页 |
 | `page-break-after` | `always` | 推荐 | 单独成页 |
 | `page-break-inside` | `avoid` | 推荐 | 避免内部断页 |
@@ -459,6 +463,7 @@ body {
 | `text-decoration-style: wavy` | 可用 | 可用 | 可用 | 视版本 | 视版本 | 推荐 |
 | `ruby + rt` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |
 | `writing-mode: vertical-rl` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |
+| legacy fallback（多看） | 条件可用 | 条件可用 | 条件可用 | 不适用 | 条件可用 | 按需 |
 | CSS 变量 | 可用 | 可用 | 可用 | 可用 | 可用 | 可用 |
 | `@media (max-width)` | 可用 | 可用 | 可用 | 视版本 | 可用 | 可用 |
 | `prefers-color-scheme` | 可用 | 可用 | 可用 | 视设备 | 可用 | 渐进增强 |

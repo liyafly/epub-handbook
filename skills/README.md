@@ -8,7 +8,7 @@
 |---|---|---|
 | `epub-alite-converter` | 把封面、卷首、章节扉页或海报页转换为 A-lite 可重排整页方案 | `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` |
 | `epub-popup-footnote-converter` | 把普通注释、尾注或旧式注释转换为项目标准弹出注释结构 | `templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml` |
-| `epub-legacy-footnote-fallback` | 在标准弹注结构上叠加多看、掌阅读者端兼容识别钩子 | `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml` |
+| `epub-legacy-footnote-fallback` | 在标准弹注结构上叠加多看兼容识别钩子 | `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml` |
 
 ## 维护规则
 

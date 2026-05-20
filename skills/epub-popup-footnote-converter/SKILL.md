@@ -60,7 +60,7 @@ Use this structure:
 </aside>
 ```
 
-5. If the source uses the demo shape with `ol.duokan-footnote-content` and `li.duokan-footnote-item`, keep the grouped `ol/li` structure, but rename to neutral classes such as `footnote-list` and `footnote-item`. Do not keep `duokan-*` classes as the main output.
+5. If the source uses legacy `duokan-*` note classes, keep the grouped `ol/li` structure, but rename to neutral classes such as `footnote-list` and `footnote-item`. Do not keep `duokan-*` classes as the main output.
 6. Add `Images/note.png` to OPF manifest if it is not already listed. If the EPUB has no note icon yet, copy this skill's `assets/note.png` into the EPUB `Images/` directory.
 7. Add the CSS below to the active stylesheet or merge it into the existing note section.
 8. Verify every noteref `href="#footnote-x"` resolves to a `li.footnote-item`, every backlink resolves, every file with notes has exactly one grouped footnote aside, and every note remains in the same XHTML file.
@@ -118,6 +118,12 @@ sup {
 }
 ```
 
+## CSS placement
+
+- Footnote CSS must be written to `Styles/base.css`.
+- Do not write footnote CSS into `poster.css`.
+- `@font-face` and font utility classes belong in `Styles/fonts.css`.
+
 ## Guardrails
 
 - Do not replace the image icon with plain text unless no icon asset exists and the user approves.
@@ -126,6 +132,7 @@ sup {
 - Do not emit one aside per note when a file contains multiple notes; group them in one aside with `ol/li`.
 - Do not rewrite note prose.
 - Do not use `duokan-wavyline`, duokan-only notes, or JS as the main mechanism.
+- If the target EPUB needs Duokan legacy compatibility, apply `epub-legacy-footnote-fallback` after this conversion instead of inventing new private attributes.
 
 ## Validation Fixture
 

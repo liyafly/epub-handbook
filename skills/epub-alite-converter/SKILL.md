@@ -18,7 +18,7 @@ Use the project A-lite scheme exactly:
 - `font-size: 16px`
 - `overflow: hidden`
 - `page-break-before/after/inside`
-- `background-image` on `body.fullpage` when the page has a full-page background
+- background belongs to `body.poster-bg` (or other `poster-*` modifier), not `body.fullpage`
 - `writing-mode: vertical-rl` for vertical text
 - `float: right` for vertical columns
 - no FXL conversion
@@ -68,8 +68,9 @@ Use the project A-lite scheme exactly:
    - convert title sizes into `%` or `em`
    - keep internal base `font-size: 16px`
 7. Preserve embedded fonts. For locked title fonts, use the book's internal font name first, normally with only `serif`/`sans-serif` as generic fallback.
-8. Update OPF manifest only for assets/CSS/fonts that are actually used.
-9. Validate by reading the resulting XHTML/CSS and checking that no required overlay text/image was dropped.
+8. Ensure CSS layering: A-lite CSS must land in `Styles/poster.css`; do not write A-lite rules into `base.css`.
+9. Update OPF manifest only for assets/CSS/fonts that are actually used, and declare `fonts.css` / `base.css` / `poster.css` separately when A-lite exists.
+10. Validate by reading the resulting XHTML/CSS and checking that no required overlay text/image was dropped.
 
 ## A-lite CSS Skeleton
 
@@ -82,6 +83,13 @@ html {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
 }
 
 body.fullpage {
@@ -101,6 +109,11 @@ body.fullpage {
   -webkit-page-break-after: always;
   -webkit-page-break-inside: avoid;
   overflow: hidden;
+}
+
+body.poster-bg {
+  background-color: #eceae7;
+  background-image: url("../Images/poster-bg.png");
   background-repeat: no-repeat;
   background-position: left bottom;
   background-size: 80% auto;
@@ -112,7 +125,8 @@ body.fullpage {
   min-height: 90%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  box-sizing: border-box;
+  overflow: visible;
   page-break-inside: avoid;
   -webkit-page-break-inside: avoid;
 }
@@ -130,7 +144,10 @@ body.fullpage {
 
 Use `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` as the local reference shape for A-lite output. A converted page should preserve the same broad invariants:
 
-- `body.fullpage` owns the full-page background and page-break rules.
+- use `body class="fullpage poster-bg"`; `body.fullpage` owns shell rules and `body.poster-bg` owns background.
 - `.fullframe` contains the overlay content.
+- `.fullframe` must keep `padding:0`; place overlay text with element margins instead of page-shell padding.
 - vertical overlay text uses `writing-mode: vertical-rl` with prefixed fallbacks.
 - no absolute positioning or fixed-layout package metadata is introduced.
+
+- fixture must use `<body class="fullpage poster-bg">` when the page has poster background.

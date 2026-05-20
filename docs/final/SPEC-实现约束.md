@@ -9,13 +9,24 @@
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
+- 当需要兼容多看旧版本时，必须在标准结构基础上同步：
+  - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
+  - 每条 `<li class="footnote-item">` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`；
+  - `duokan-footnote-content` 必须挂在 `<li>` 上，不允许挂在 `<ol>` 上。
+- fallback 为次路径，禁止创建第二份注释容器。
 
 ## 2) A-lite 页面约束
 
 - 仅允许 reflowable EPUB；v1 不支持 FXL。
 - A-lite 页面 CSS 禁用 `position: absolute`。
 - A-lite 页面 CSS 禁用 `vh` / `vw` 单位。
-- 海报页 `<body>` 必须带 `class="fullpage"`，外层必须是 `<section class="fullframe" epub:type="chapter">`。
+- 海报页 `<body>` 必须带 `class="fullpage"`；需要海报背景时必须使用 `class="fullpage poster-bg"`。外层必须是 `<section class="fullframe" epub:type="chapter">`。
+- A-lite 根 `html` 必须包含 `width:100%; height:100%; min-height:100%`。
+- `body.fullpage` 不允许直接携带 `background-*`；背景必须放在 `body.poster-bg` 或其他 `poster-*` modifier。
+- `body.fullpage` 必须包含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
+- A-lite 页 `html` / `body.fullpage` / `.fullframe` 必须使用 `box-sizing:border-box`，避免 `width:100%` 叠加内外补白后被阅读器裁切。
+- `.fullframe` 必须保持 `padding: 0; overflow: visible`；页面留白由内部文字/图形元素的 `margin` 控制，不给整页骨架加 padding。
+- A-lite 推荐类白名单：`fullpage` / `poster-bg` / `fullframe` / `poster-title` / `poster-subtitle` / `vcol`。
 - 所有可见叠加文本必须为真实文本节点；不允许将全部可见文字仅以图片承载。
 
 ## 3) 字体与 OPF
@@ -49,3 +60,26 @@
 - `03-fontspec-no-subset`
 - `04-fontspec-subset`
 - `05-vertical-cjk`
+
+> 注：本索引用于 M5 fixture 命名；与 `templates/epub-style-demo/` 的 8 页样本是独立集合。
+
+
+## 7) CSS 分层约定
+
+| 文件 | 职责 | 允许内容 | 禁止内容 |
+|---|---|---|---|
+| `fonts.css` | 字体声明 | `@font-face`、字体工具类（如 `.rare`） | 排版、颜色、分页、布局 |
+| `base.css` | 正文样式 | 段落、标题、列表、表格、代码、ruby、注释 | A-lite 海报页规则（`body.fullpage` / `.fullframe` / `.poster-*`） |
+| `poster.css` | A-lite 海报页 | `body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol` | 正文常规段落规则 |
+
+附加规则：
+- 海报页 XHTML 必须链接 `fonts.css` + `poster.css`（可按需再链 `base.css`）。
+- 正文页 XHTML 必须链接 `fonts.css` + `base.css`。
+- OPF manifest 必须分别声明 `fonts.css` / `base.css` / `poster.css`（若项目存在 A-lite 页）。
+
+## 8) 字体链规则
+
+- `font-family` 链最长 4 段：嵌入字体 → 1 个系统中文字体 → 1 个跨平台开源中文字体 → generic family。
+- 嵌入字体必须放链首；系统字体仅做未嵌入时兜底。
+- 不建议在同一条链里堆叠多个同家族别名（如 `Songti SC` / `STSongti-*`）。
+- 生僻字回退建议使用独立类（如 `.rare`）与专用字体，不要塞进 `body` 主链。

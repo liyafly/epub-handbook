@@ -19,11 +19,11 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 1. `00-title.xhtml`：封面式标题页。
 2. `01-body.xhtml`：中文正文、引用、着重、图片。
 3. `02-ruby-note.xhtml`：Ruby 注音和标准弹出注释结构。
-4. `03-vertical-alite.xhtml`：局部竖排和 A-lite 海报页。
+4. `03-vertical-alite.xhtml`：A-lite 整页海报样本（title + subtitle）。
 5. `04-lists-tables-code.xhtml`：列表、表格、代码块和键盘文本。
-6. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看与掌阅读者端 fallback。
+6. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
 7. `06-multi-legacy-note-fallback.xhtml`：同一 XHTML 文件内多条 fallback 弹注。
-8. `07-font-family-order.xhtml`：正文系统字体优先的 font-family 顺序验证。
+8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证。
 
 ## 验证建议
 

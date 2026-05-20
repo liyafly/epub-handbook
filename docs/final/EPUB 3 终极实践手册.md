@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 内嵌授权字体，只用书内字体名 + 通用族兜底 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回 |
+| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
 | 波浪线 | 标准 `text-decoration-style: wavy` |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
@@ -150,16 +150,11 @@ book.epub
 
 ```css
 body {
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "Song S", "Song T",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 ```
+
+> 反例：上面的长链别名堆叠（如 `STSongti-*` / `NSimSun` / `宋体`）违反 SPEC §8，仅用于说明 anti-pattern。
 
 正文采用书内字体优先，系统字体链兜底。iOS / Apple Books 对系统中文字体名命中不稳定，默认体验依靠 `BookBodySong`。
 
@@ -202,13 +197,7 @@ body {
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 
 p {
@@ -236,10 +225,7 @@ img {
 }
 
 code, pre, kbd, samp {
-  font-family:
-    "SF Mono", "Menlo", "Monaco",
-    "Consolas", "Source Code Pro", "JetBrains Mono",
-    monospace;
+  font-family: "SF Mono", "Consolas", "Source Code Pro", monospace;
 }
 ```
 
@@ -285,6 +271,13 @@ html {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
 }
 
 body.fullpage {
@@ -304,15 +297,17 @@ body.fullpage {
   -webkit-page-break-after: always;
   -webkit-page-break-inside: avoid;
   overflow: hidden;
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  background-size: 80% auto;
 }
 
 body.poster-bg {
   background-color: #eceae7;
   background-image: url("../Images/poster-bg.png");
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 80% auto;
 }
+
+> 约束：`body.fullpage` 仅负责页面骨架，不直接挂背景图；背景通过 `body.poster-bg` 等 modifier 类提供。
 
 .fullframe {
   width: 100%;
@@ -320,7 +315,8 @@ body.poster-bg {
   min-height: 90%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  box-sizing: border-box;
+  overflow: visible;
   page-break-inside: avoid;
   -webkit-page-break-inside: avoid;
 }
@@ -341,13 +337,13 @@ body.poster-bg {
 
 .poster-title {
   clear: right;
-  margin: 2% 8% 0 0;
+  margin: 2% 4% 0 0;
   padding: 0;
   font-family: "BookTitleKai", serif;
   font-weight: normal;
-  font-size: 280%;
-  line-height: 1;
-  letter-spacing: 0.04em;
+  font-size: 260%;
+  line-height: 1.12;
+  letter-spacing: 0;
   color: #080400;
 }
 
@@ -358,13 +354,21 @@ body.poster-bg {
   font-family: "BookTitleKai", serif;
   font-weight: normal;
   font-size: 160%;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
+  line-height: 1.25;
+  letter-spacing: 0;
   color: #8f978a;
 }
 ```
 
 ---
+
+## 六点五、CSS 文件分层
+
+- `fonts.css`：仅放 `@font-face` 与字体工具类（如 `.rare`）。
+- `base.css`：正文组件（段落、列表、表格、注释、ruby）。
+- `poster.css`：A-lite 海报页（`body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol`）。
+
+海报页建议链接 `fonts.css + poster.css`（可按需再链 `base.css`）；正文页链接 `fonts.css + base.css`。
 
 ## 七、弹出注释方案
 
@@ -480,6 +484,41 @@ sup {
 ```
 
 这个结构同时保留标准弹注识别点和 demo 的视觉逻辑：正文点图片，同文件的 `aside` 统一承载本章注释，注释内用 `◎` 返回。不要使用多看私有类名或私有 CSS 作为主路径；如从旧多看结构转换，可以把原有 `ol/li` 视觉分组迁移成这里的中性类名。
+
+### 7.3 叠加多看 fallback
+
+只有目标 EPUB 明确需要多看旧版兼容时，才在标准结构上叠加多看类名；不要创建第二份注释容器。
+
+```html
+<p>
+  需要注释的正文
+  <sup>
+    <a id="note-legacy-1"
+       class="noteref-icon duokan-footnote"
+       epub:type="noteref"
+       role="doc-noteref"
+       href="#footnote-legacy-1">
+      <img alt="注" src="../Images/note.png"/>
+    </a>
+  </sup>
+  继续正文。
+</p>
+
+<aside epub:type="footnote" role="doc-footnote">
+  <div><hr class="footnote-line"/></div>
+  <ol class="footnote-list">
+    <li class="footnote-item duokan-footnote-item duokan-footnote-content" id="footnote-legacy-1">
+      <p class="footnote">
+        <a class="footnote-back"
+           epub:type="backlink"
+           role="doc-backlink"
+           href="#note-legacy-1">◎</a>
+        注释正文仍只保留在同一个章末列表内。
+      </p>
+    </li>
+  </ol>
+</aside>
+```
 
 ---
 
@@ -716,7 +755,7 @@ body.page-vrl {
 
 - [ ] `body.fullpage` 有 `min-height:100%`。
 - [ ] 有 `page-break-before/after/inside`。
-- [ ] 有 `overflow:hidden`。
+- [ ] `body.fullpage` 有 `overflow:hidden`，`.fullframe` 保持 `overflow:visible`。
 - [ ] 内部基准字号为 `16px`。
 - [ ] 竖排使用 `writing-mode: vertical-rl`。
 - [ ] 多列使用 `float:right`。
@@ -748,3 +787,15 @@ body.page-vrl {
 - W3C: [EPUB 3.3](https://www.w3.org/TR/epub-33/)
 - MDN: [text-decoration-style](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/text-decoration-style)
 - 本项目：`docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md`
+
+
+### 自检补充（A-lite / 弹注 / 字体）
+
+- [ ] 根 `html` 含 `width/height/min-height:100%`。
+- [ ] `body.fullpage` 不携带 `background-*`；背景通过 `poster-bg` 等 modifier 提供。
+- [ ] `body.fullpage` 含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
+- [ ] `.fullframe` 骨架 `padding:0; overflow:visible`，留白靠内部元素 `margin`。
+- [ ] 需多看旧版兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
+- [ ] 每条 `li.footnote-item` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`。
+- [ ] `duokan-footnote-content` 不出现在 `<ol>`。
+- [ ] 任一 `font-family` 链 ≤ 4 段，嵌入字体放链首。
