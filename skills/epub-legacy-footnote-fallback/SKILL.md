@@ -24,7 +24,7 @@ Add legacy hooks on top of that same structure:
 - add `duokan-footnote-content` to each note `li` (not the grouped `ol`)
 - add `duokan-footnote-item` to each note `li`
 - put a note icon image inside the noteref anchor
-- add `zhangyue-footnote` and `zy-footnote="plain text note"` to that image
+- add `zhangyue-footnote` to the image, and add `zy-footnote="plain text note"` to both the noteref `<a>` and the image `<img>` (values must match each other and `<img alt>`)
 
 Do not create a second note body for the fallback.
 
@@ -38,7 +38,8 @@ Do not create a second note body for the fallback.
        class="noteref-icon duokan-footnote"
        epub:type="noteref"
        role="doc-noteref"
-       href="#footnote-1">
+       href="#footnote-1"
+       zy-footnote="纯文本注释内容">
       <img class="zhangyue-footnote"
            alt="纯文本注释内容"
            zy-footnote="纯文本注释内容"
@@ -70,7 +71,7 @@ Do not create a second note body for the fallback.
 2. Preserve ids when possible. Ensure noteref ids and note target ids are unique inside the XHTML file.
 3. Add `duokan-footnote` to each noteref anchor without removing `epub:type`, `role`, `id`, or `href`.
 4. Ensure the noteref anchor contains an image icon. Use `../Images/note.png` when adding a new asset for legacy fallback.
-5. Add `class="zhangyue-footnote"` and a `zy-footnote` attribute to that image.
+5. Add `class="zhangyue-footnote"` to the image. Add `zy-footnote="..."` to both `<a>` and `<img>`, keep values identical, and keep `<img alt>` in sync.
 6. Build the `zy-footnote` value from a plain-text version of the note body: strip markup, collapse whitespace, and XML-escape attribute characters.
 7. Add `duokan-footnote-content` to each `li.footnote-item`; do not put it on `ol`.
 8. Add `duokan-footnote-item` to each `li.footnote-item`.
@@ -119,6 +120,7 @@ If the source does not already use `.footnote-line`, add a visible separator wit
 - Do not place `duokan-footnote-content` on grouped `ol`; otherwise Duokan may pop the entire list.
 - Do not use JavaScript or `display:none` note bodies.
 - Do not put HTML markup inside `zy-footnote`; it must be plain text.
+- Do not let `zy-footnote` on `<a>` and `<img>` carry different plain text; both must exactly match `<img alt>`.
 - If a note contains rich markup, keep the rich version in the grouped note body and put only a plain-text summary in `zy-footnote` and `alt`.
 
 ## Validation Fixture
@@ -134,3 +136,5 @@ Use these local reference shapes:
 - In one XHTML file with multiple notes, each trigger must open only its targeted `li` content.
 - Zhangyue path should use only `zy-footnote` plain text from the icon attribute.
 - Standard EPUB path must resolve by href -> target id exactly.
+
+- In fallback fixtures, `<a>` `zy-footnote`, `<img>` `zy-footnote`, and `<img alt>` must match exactly.

@@ -11,6 +11,7 @@
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
 - 当需要兼容多看/掌阅老版本时，必须同步：
   - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
+  - `zy-footnote` 必须同时挂在 noteref `<a>` 与该 `<img>` 上，且两处纯文本一字不差一致并与 `<img alt>` 同值；
   - 该 `<img>` 必须带 `class="zhangyue-footnote"` 与 `zy-footnote="<纯文本注释>"`；
   - 每条 `<li class="footnote-item">` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`；
   - `duokan-footnote-content` 必须挂在 `<li>` 上，不允许挂在 `<ol>` 上；

@@ -219,14 +219,7 @@
 
 ```css
 body {
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "Song S", "Song T",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 ```
 
@@ -435,7 +428,7 @@ body {
 |---|---|---|
 | 多看触发类 | `class="duokan-footnote"` | noteref 兼容触发 |
 | 掌阅触发类 | `class="zhangyue-footnote"` | 图片触发兼容 |
-| 掌阅文本属性 | `zy-footnote="纯文本"` | 旧版掌阅纯文本注释 |
+| 掌阅文本属性 | `zy-footnote="纯文本"`（`<a>` 与 `<img>` 双写） | 两处与 `<img alt>` 必须同值 |
 | 多看条目类 | `class="duokan-footnote-item"` | 兼容列表项 |
 | 多看内容类 | `class="duokan-footnote-content"`（挂在 `li`） | 弹窗内容匹配点 |
 

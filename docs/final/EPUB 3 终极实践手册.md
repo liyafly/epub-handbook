@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 内嵌授权字体，只用书内字体名 + 通用族兜底 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看/掌阅老版时叠加 `duokan-*` / `zhangyue-footnote` / `zy-footnote` fallback |
+| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看/掌阅老版时叠加 `duokan-*` / `zhangyue-footnote` 与 `<a>+<img>` 双写 `zy-footnote` fallback |
 | 波浪线 | 标准 `text-decoration-style: wavy` |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
@@ -756,7 +756,8 @@ body.page-vrl {
 - [ ] `body.fullpage` 含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
 - [ ] `.fullframe` 骨架 `padding:0`。
 - [ ] 需多看/掌阅兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
-- [ ] 该 `<img>` 带 `class="zhangyue-footnote"` 与 `zy-footnote="纯文本注释"`。
+- [ ] `<a>` 与 `<img>` 上 `zy-footnote` 及 `<img alt>` 三者文本一字不差一致。
+- [ ] 该 `<img>` 带 `class="zhangyue-footnote"`。
 - [ ] 每条 `li.footnote-item` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`。
 - [ ] `duokan-footnote-content` 不出现在 `<ol>`。
 - [ ] 任一 `font-family` 链 ≤ 4 段，嵌入字体放链首。
