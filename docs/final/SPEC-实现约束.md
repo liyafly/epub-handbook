@@ -16,6 +16,11 @@
 - A-lite 页面 CSS 禁用 `position: absolute`。
 - A-lite 页面 CSS 禁用 `vh` / `vw` 单位。
 - 海报页 `<body>` 必须带 `class="fullpage"`，外层必须是 `<section class="fullframe" epub:type="chapter">`。
+- A-lite 根 `html` 必须包含 `width:100%; height:100%; min-height:100%`。
+- `body.fullpage` 不允许直接携带 `background-*`；背景必须放在 `body.poster-bg` 或其他 `poster-*` modifier。
+- `body.fullpage` 必须包含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
+- `.fullframe` 骨架必须 `padding: 0`；额外留白必须由 modifier 类承担。
+- A-lite 推荐类白名单：`fullpage` / `poster-bg` / `fullframe` / `poster-title` / `poster-subtitle` / `vcol`。
 - 所有可见叠加文本必须为真实文本节点；不允许将全部可见文字仅以图片承载。
 
 ## 3) 字体与 OPF
@@ -49,3 +54,24 @@
 - `03-fontspec-no-subset`
 - `04-fontspec-subset`
 - `05-vertical-cjk`
+
+
+## 7) CSS 分层约定
+
+| 文件 | 职责 | 允许内容 | 禁止内容 |
+|---|---|---|---|
+| `fonts.css` | 字体声明 | `@font-face`、字体工具类（如 `.rare`） | 排版、颜色、分页、布局 |
+| `base.css` | 正文样式 | 段落、标题、列表、表格、代码、ruby、注释 | A-lite 海报页规则（`body.fullpage` / `.fullframe` / `.poster-*`） |
+| `poster.css` | A-lite 海报页 | `body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol` | 正文常规段落规则 |
+
+附加规则：
+- 海报页 XHTML 必须链接 `fonts.css` + `poster.css`（可按需再链 `base.css`）。
+- 正文页 XHTML 必须链接 `fonts.css` + `base.css`。
+- OPF manifest 必须分别声明 `fonts.css` / `base.css` / `poster.css`（若项目存在 A-lite 页）。
+
+## 8) 字体链规则
+
+- `font-family` 链最长 4 段：嵌入字体 → 1 个系统中文字体 → 1 个跨平台开源中文字体 → generic family。
+- 嵌入字体必须放链首；系统字体仅做未嵌入时兜底。
+- 不建议在同一条链里堆叠多个同家族别名（如 `Songti SC` / `STSongti-*`）。
+- 生僻字回退建议使用独立类（如 `.rare`）与专用字体，不要塞进 `body` 主链。

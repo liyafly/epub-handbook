@@ -6,6 +6,9 @@
 }
 
 html {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
   margin: 0;
   padding: 0;
 }
@@ -145,8 +148,8 @@ img.zhangyue-footnote {
   margin-top: 0;
 }
 
-.footnote-list.duokan-footnote-content {
-  margin-left: 0;
+.footnote-item.duokan-footnote-content {
+  margin: 0;
 }
 
 .footnote-item {
@@ -172,29 +175,16 @@ img.zhangyue-footnote {
   text-decoration: none;
 }
 
-.font-order-song {
-  font-family:
-    "Songti SC", "STSongti-SC-Regular", "STSongti-SC-Light", "STSong",
-    "SimSun", "NSimSun", "SimSun-ExtB",
-    "BookBodySong", "RareSong", "Source Han Serif SC", "Noto Serif CJK SC",
-    serif;
+.demo-system-first {
+  font-family: "Songti SC", "Source Han Serif SC", serif;
 }
 
-.font-order-kai {
-  font-family:
-    "Kaiti SC", "STKaiti-SC-Regular", "STKaiti-SC-Bold", "STKaiti",
-    "KaiTi", "KaiTi_GB2312",
-    "BookTitleKai", "LXGW WenKai", "Source Han Serif SC", "Noto Serif CJK SC",
-    serif;
+.demo-embedded-first {
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 
-.font-order-mixed {
-  font-family:
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun", "SimSun-ExtB",
-    "Kaiti SC", "STKaiti", "KaiTi", "KaiTi_GB2312",
-    "BookBodySong", "BookTitleKai", "RareSong", "Source Han Serif SC", "Noto Serif CJK SC",
-    serif;
+.demo-mixed {
+  font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
 }
 
 .font-specimen {
@@ -307,59 +297,6 @@ kbd {
   text-indent: 0;
   page-break-inside: avoid;
   -webkit-page-break-inside: avoid;
-}
-
-body.fullpage {
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  margin: 0;
-  padding: 0;
-  font-size: 16px;
-  box-sizing: border-box;
-  page-break-before: always;
-  page-break-after: always;
-  page-break-inside: avoid;
-  -webkit-page-break-before: always;
-  -webkit-page-break-after: always;
-  -webkit-page-break-inside: avoid;
-  overflow: hidden;
-  background-image: url("../Images/poster.svg");
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  background-size: 80% auto;
-}
-
-.fullframe {
-  width: 100%;
-  height: auto;
-  min-height: 90%;
-  margin: 0;
-  padding: 8% 8% 0;
-  overflow: hidden;
-  page-break-inside: avoid;
-  -webkit-page-break-inside: avoid;
-}
-
-.poster-title {
-  writing-mode: vertical-rl;
-  -webkit-writing-mode: vertical-rl;
-  -epub-writing-mode: vertical-rl;
-  float: right;
-  margin: 0 0 0 1.2em;
-  font-size: 1.6em;
-  letter-spacing: 0;
-  text-indent: 0;
-}
-
-.poster-copy {
-  writing-mode: vertical-rl;
-  -webkit-writing-mode: vertical-rl;
-  -epub-writing-mode: vertical-rl;
-  float: right;
-  max-height: 24em;
-  margin: 2em 0 0 1em;
-  text-indent: 0;
 }
 
 @media (max-width: 420px) {

@@ -21,7 +21,7 @@ Keep the project's standard structure as the primary shape:
 Add legacy hooks on top of that same structure:
 
 - add `duokan-footnote` to the noteref anchor
-- add `duokan-footnote-content` to the grouped note `ol`
+- add `duokan-footnote-content` to each note `li` (not the grouped `ol`)
 - add `duokan-footnote-item` to each note `li`
 - put a note icon image inside the noteref anchor
 - add `zhangyue-footnote` and `zy-footnote="plain text note"` to that image
@@ -50,8 +50,8 @@ Do not create a second note body for the fallback.
 
 <aside epub:type="footnote" role="doc-footnote">
   <div><hr class="footnote-line"/></div>
-  <ol class="footnote-list duokan-footnote-content">
-    <li class="footnote-item duokan-footnote-item" id="footnote-1">
+  <ol class="footnote-list">
+    <li class="footnote-item duokan-footnote-item duokan-footnote-content" id="footnote-1">
       <p class="footnote">
         <a class="footnote-back"
            epub:type="backlink"
@@ -72,7 +72,7 @@ Do not create a second note body for the fallback.
 4. Ensure the noteref anchor contains an image icon. Use `../Images/note.png` when adding a new asset for legacy fallback.
 5. Add `class="zhangyue-footnote"` and a `zy-footnote` attribute to that image.
 6. Build the `zy-footnote` value from a plain-text version of the note body: strip markup, collapse whitespace, and XML-escape attribute characters.
-7. Add `duokan-footnote-content` to the grouped `ol.footnote-list`.
+7. Add `duokan-footnote-content` to each `li.footnote-item`; do not put it on `ol`.
 8. Add `duokan-footnote-item` to each `li.footnote-item`.
 9. Add `Images/note.png` to the OPF manifest if missing.
 10. Verify all href/backlink targets resolve inside the same XHTML file.
@@ -99,8 +99,8 @@ img.zhangyue-footnote {
   margin-top: 0;
 }
 
-.footnote-list.duokan-footnote-content {
-  margin-left: 0;
+.footnote-item.duokan-footnote-content {
+  margin: 0;
 }
 
 .footnote-item.duokan-footnote-item {
@@ -116,6 +116,7 @@ If the source does not already use `.footnote-line`, add a visible separator wit
 - Do not remove neutral classes such as `footnote-list` and `footnote-item`.
 - Do not keep only `duokan-*` classes.
 - Do not duplicate note prose in a second visible note list.
+- Do not place `duokan-footnote-content` on grouped `ol`; otherwise Duokan may pop the entire list.
 - Do not use JavaScript or `display:none` note bodies.
 - Do not put HTML markup inside `zy-footnote`; it must be plain text.
 - If a note contains rich markup, keep the rich version in the grouped note body and put only a plain-text summary in `zy-footnote` and `alt`.
@@ -126,3 +127,10 @@ Use these local reference shapes:
 
 - `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml` for a compact compatibility example.
 - `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml` for multiple fallback notes sharing one grouped list in the same XHTML file.
+
+
+### Multi-note validation
+
+- In one XHTML file with multiple notes, each trigger must open only its targeted `li` content.
+- Zhangyue path should use only `zy-footnote` plain text from the icon attribute.
+- Standard EPUB path must resolve by href -> target id exactly.

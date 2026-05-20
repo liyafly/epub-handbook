@@ -118,6 +118,12 @@ sup {
 }
 ```
 
+## CSS placement
+
+- Footnote CSS must be written to `Styles/base.css`.
+- Do not write footnote CSS into `poster.css`.
+- `@font-face` and font utility classes belong in `Styles/fonts.css`.
+
 ## Guardrails
 
 - Do not replace the image icon with plain text unless no icon asset exists and the user approves.

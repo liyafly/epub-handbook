@@ -314,6 +314,8 @@ body.poster-bg {
   background-image: url("../Images/poster-bg.png");
 }
 
+> 约束：`body.fullpage` 仅负责页面骨架，不直接挂背景图；背景通过 `body.poster-bg` 等 modifier 类提供。
+
 .fullframe {
   width: 100%;
   height: auto;
@@ -365,6 +367,14 @@ body.poster-bg {
 ```
 
 ---
+
+## 六点五、CSS 文件分层
+
+- `fonts.css`：仅放 `@font-face` 与字体工具类（如 `.rare`）。
+- `base.css`：正文组件（段落、列表、表格、注释、ruby）。
+- `poster.css`：A-lite 海报页（`body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol`）。
+
+海报页建议链接 `fonts.css + poster.css`（可按需再链 `base.css`）；正文页链接 `fonts.css + base.css`。
 
 ## 七、弹出注释方案
 
