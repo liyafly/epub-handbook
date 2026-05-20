@@ -9,13 +9,20 @@
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
+- 当需要兼容多看/掌阅老版本时，必须同步：
+  - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
+  - 该 `<img>` 必须带 `class="zhangyue-footnote"` 与 `zy-footnote="<纯文本注释>"`；
+  - 每条 `<li class="footnote-item">` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`；
+  - `duokan-footnote-content` 必须挂在 `<li>` 上，不允许挂在 `<ol>` 上；
+  - `zy-footnote` 仅承载纯文本，属性内容需 XML 转义。
+- fallback 为次路径，禁止创建第二份注释容器。
 
 ## 2) A-lite 页面约束
 
 - 仅允许 reflowable EPUB；v1 不支持 FXL。
 - A-lite 页面 CSS 禁用 `position: absolute`。
 - A-lite 页面 CSS 禁用 `vh` / `vw` 单位。
-- 海报页 `<body>` 必须带 `class="fullpage"`，外层必须是 `<section class="fullframe" epub:type="chapter">`。
+- 海报页 `<body>` 必须带 `class="fullpage"`；需要海报背景时必须使用 `class="fullpage poster-bg"`。外层必须是 `<section class="fullframe" epub:type="chapter">`。
 - A-lite 根 `html` 必须包含 `width:100%; height:100%; min-height:100%`。
 - `body.fullpage` 不允许直接携带 `background-*`；背景必须放在 `body.poster-bg` 或其他 `poster-*` modifier。
 - `body.fullpage` 必须包含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
@@ -54,6 +61,8 @@
 - `03-fontspec-no-subset`
 - `04-fontspec-subset`
 - `05-vertical-cjk`
+
+> 注：本索引用于 M5 fixture 命名；与 `templates/epub-style-demo/` 的 8 页样本是独立集合。
 
 
 ## 7) CSS 分层约定

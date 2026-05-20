@@ -70,7 +70,7 @@ Use the project A-lite scheme exactly:
 7. Preserve embedded fonts. For locked title fonts, use the book's internal font name first, normally with only `serif`/`sans-serif` as generic fallback.
 8. Ensure CSS layering: A-lite CSS must land in `Styles/poster.css`; do not write A-lite rules into `base.css`.
 9. Update OPF manifest only for assets/CSS/fonts that are actually used, and declare `fonts.css` / `base.css` / `poster.css` separately when A-lite exists.
-9. Validate by reading the resulting XHTML/CSS and checking that no required overlay text/image was dropped.
+10. Validate by reading the resulting XHTML/CSS and checking that no required overlay text/image was dropped.
 
 ## A-lite CSS Skeleton
 
@@ -102,6 +102,11 @@ body.fullpage {
   -webkit-page-break-after: always;
   -webkit-page-break-inside: avoid;
   overflow: hidden;
+}
+
+body.poster-bg {
+  background-color: #eceae7;
+  background-image: url("../Images/poster-bg.png");
   background-repeat: no-repeat;
   background-position: left bottom;
   background-size: 80% auto;
@@ -135,3 +140,5 @@ Use `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` as the local 
 - `.fullframe` contains the overlay content.
 - vertical overlay text uses `writing-mode: vertical-rl` with prefixed fallbacks.
 - no absolute positioning or fixed-layout package metadata is introduced.
+
+- fixture must use `<body class="fullpage poster-bg">` when the page has poster background.

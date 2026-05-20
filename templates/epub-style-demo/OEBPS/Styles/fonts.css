@@ -1,7 +1,14 @@
 @charset "utf-8";
 
-/* Place @font-face declarations here in production EPUBs. */
-/* Demo fixture intentionally keeps this minimal and license-free. */
+/* See SPEC §8: keep font-family chains <= 4 segments and put embedded fonts first. */
+/* Production EPUBs should place @font-face declarations in this file. */
+
+/* Example skeleton:
+@font-face {
+  font-family: "BookBodySong";
+  src: url("../Fonts/BookBodySong.ttf");
+}
+*/
 
 .rare {
   font-family: "RareSong", "BookBodySong", serif;

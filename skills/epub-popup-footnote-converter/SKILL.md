@@ -132,6 +132,7 @@ sup {
 - Do not emit one aside per note when a file contains multiple notes; group them in one aside with `ol/li`.
 - Do not rewrite note prose.
 - Do not use `duokan-wavyline`, duokan-only notes, or JS as the main mechanism.
+- If the target EPUB needs Duokan/Zhangyue legacy compatibility, apply `epub-legacy-footnote-fallback` after this conversion instead of inventing new private attributes.
 
 ## Validation Fixture
 

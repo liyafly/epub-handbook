@@ -21,7 +21,7 @@
       楷体正文样本：春水初生，春林初盛，春风十里。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察楷体链在不同设备上的命中顺序。
     </p>
     <p class="font-specimen demo-mixed">
-      混合回退样本：先给系统宋体，再给系统楷体，最后才给书内定义的 BookBodySong、BookTitleKai、RareSong 以及 Source Han Serif SC、Noto Serif CJK SC。若阅读器只认 font-family 的首个可用名称，这一段应优先使用系统宋体。
+      混合回退样本：先给书内嵌入楷体，再给系统楷体，最后给开源中文回退。若阅读器按首个可用名称命中，这一段应优先显示嵌入楷体。
     </p>
     <p class="font-specimen demo-system-first">
       生僻字与异体字观察：𠀀、𠮷、髙、﨑、㐂。若首选字体缺字，阅读器应继续沿同一个 font-family 列表寻找后续字体，而不是只依赖 @font-face 内部的 fallback。

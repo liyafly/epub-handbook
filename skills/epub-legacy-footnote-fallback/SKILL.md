@@ -1,6 +1,6 @@
 ---
 name: epub-legacy-footnote-fallback
-description: Add a compatibility fallback for Duokan and Zhangyue/iReader popup notes while keeping the project's standard EPUB 3 grouped footnote structure as the primary output.
+description: Add a compatibility fallback for Duokan and Zhangyue/iReader popup notes while keeping the project's standard EPUB 3 grouped footnote structure as the primary output; this makes output compliant with SPEC §1 fallback constraints when legacy support is required.
 ---
 
 # EPUB Legacy Footnote Fallback

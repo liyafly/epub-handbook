@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 内嵌授权字体，只用书内字体名 + 通用族兜底 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回 |
+| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看/掌阅老版时叠加 `duokan-*` / `zhangyue-footnote` / `zy-footnote` fallback |
 | 波浪线 | 标准 `text-decoration-style: wavy` |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
@@ -150,16 +150,11 @@ book.epub
 
 ```css
 body {
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "Song S", "Song T",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 ```
+
+> 反例：上面的长链别名堆叠（如 `STSongti-*` / `NSimSun` / `宋体`）违反 SPEC §8，仅用于说明 anti-pattern。
 
 正文采用书内字体优先，系统字体链兜底。iOS / Apple Books 对系统中文字体名命中不稳定，默认体验依靠 `BookBodySong`。
 
@@ -202,13 +197,7 @@ body {
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
-  font-family:
-    "BookBodySong",
-    "Songti SC", "STSongti-SC-Regular", "STSong",
-    "SimSun", "NSimSun",
-    "Source Han Serif SC", "Noto Serif CJK SC",
-    "宋体",
-    serif;
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 
 p {
@@ -758,3 +747,16 @@ body.page-vrl {
 - W3C: [EPUB 3.3](https://www.w3.org/TR/epub-33/)
 - MDN: [text-decoration-style](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/text-decoration-style)
 - 本项目：`docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md`
+
+
+### 自检补充（A-lite / 弹注 / 字体）
+
+- [ ] 根 `html` 含 `width/height/min-height:100%`。
+- [ ] `body.fullpage` 不携带 `background-*`；背景通过 `poster-bg` 等 modifier 提供。
+- [ ] `body.fullpage` 含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
+- [ ] `.fullframe` 骨架 `padding:0`。
+- [ ] 需多看/掌阅兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
+- [ ] 该 `<img>` 带 `class="zhangyue-footnote"` 与 `zy-footnote="纯文本注释"`。
+- [ ] 每条 `li.footnote-item` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`。
+- [ ] `duokan-footnote-content` 不出现在 `<ol>`。
+- [ ] 任一 `font-family` 链 ≤ 4 段，嵌入字体放链首。
