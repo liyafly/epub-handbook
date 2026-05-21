@@ -55,6 +55,13 @@
 - EPUB 3 必须提供 `nav.xhtml`；需要 Kindle/旧工具链兼容的 demo 或交付包必须同时提供 `toc.ncx`，并在 OPF spine 写 `toc="ncx"`。
 - 生成物应回写构建元数据：子集器名称/版本、字形统计、构建时间。
 
+## 5.1) 图片格式兼容
+
+- 书内图片主路径使用 JPEG / PNG。照片、插画优先 JPEG；线稿、截图、图表、注释图标优先 PNG。
+- WebP 不进入 Kindle 主路径。2026-05-21 Kindle conversion log 已记录 WebP 样本触发 W14012 / W14015，文件被判定为不支持或无效。
+- SVG 只能作为现代 EPUB 增强或源文件保留；面向 Kindle 的生产包如发现空白、变形、转换慢或字体依赖，必须预先栅格化为 JPEG / PNG。
+- 面向 Kindle 的图片产物必须使用 sRGB JPEG / PNG，并避免透明、CMYK、TIFF、多帧 GIF 等不稳定输入。
+
 ## 5.5) 正文页盒模型
 
 - 普通可重排正文页的 `body` 不允许同时使用 `width:100%` 与左右 `padding`；正文页应保持 auto 宽度，让 padding 计入可用行宽，避免阅读器右侧裁切。

@@ -699,7 +699,14 @@ figcaption {
 
 - 封面和照片：JPEG。
 - 透明图、注释图标、贴图、截图：PNG。
-- 简单矢量：SVG。
+- WebP：仅作现代阅读器增强实验或源文件，不进入 Kindle 主路径；Kindle conversion log 已确认 WebP 会触发不支持/无效图像通知。
+- SVG：可作为现代 EPUB 增强或源文件；面向 Kindle 的生产包应准备 JPEG / PNG 栅格化版本。
+
+生产建议：
+
+- 书内图片以 JPEG / PNG 为主。照片、插画优先 JPEG；线稿、截图、图表优先 PNG。
+- 面向 Kindle 的图片应提前转为 sRGB JPEG / PNG，避免透明、CMYK、TIFF、多帧 GIF 和 WebP。
+- SVG 若包含复杂路径、文字、外部字体或滤镜，不要直接作为 Kindle 主路径；先栅格化，再把文字说明放回 HTML 正文或 `figcaption`。
 
 ---
 

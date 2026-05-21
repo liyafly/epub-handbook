@@ -190,7 +190,8 @@
 | CSS | `text/css` | 推荐 |
 | JPEG | `image/jpeg` | 推荐 |
 | PNG | `image/png` | 推荐 |
-| SVG | `image/svg+xml` | 可用 |
+| WebP | `image/webp` | 条件可用：现代阅读器增强；Kindle conversion log 已确认不适合作主路径 |
+| SVG | `image/svg+xml` | 条件可用：现代 EPUB 增强或源文件；Kindle 生产包优先栅格化 |
 | TTF | `font/ttf` | 推荐 |
 | OTF | `font/otf` | 推荐 |
 | WOFF | `font/woff` | 条件可用 |

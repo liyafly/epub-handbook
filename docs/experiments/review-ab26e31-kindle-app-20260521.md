@@ -25,6 +25,15 @@
 - `03-alite-poster`：80% 海报背景是否保持既有基线。
 - `03b-poster-fullbleed`：`background-size: cover` 是否满铺。
 
+## Kindle conversion log 记录
+
+`templates/epub-style-demo/dist/epub-style-demo-20260521-232619-conversionLog.csv` 显示：
+
+- `W14012`：不支持媒体文件格式。
+- `W14015`：`OEBPS/Images/complex-webp.webp` 图像无效，且没有通过电子书创建。
+
+结论：Kindle 主路径不得使用 WebP。WebP 只能作为现代阅读器增强实验；面向 Kindle 的构建产物必须预转换为 JPEG / PNG。复杂 SVG 未出现在该 conversion log 中，说明转换阶段未报 SVG 错，但仍需 Kindle App 视觉确认。该 WebP / SVG 临时 demo 已从 `epub-style-demo` 中移除，只保留本结论。
+
 ## 检索结论
 
 - Apple Books Asset Guide 5.3.1: Apple Books 支持 EPUB 3.3，并在可访问性章节把 MathML 描述为 EPUB 3 中表示数学公式的 XML 标记语言。见 [Apple Books Asset Guide](https://help.apple.com/itc/booksassetguide/en.lproj/static.html)。
