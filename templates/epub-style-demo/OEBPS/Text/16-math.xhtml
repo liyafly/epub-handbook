@@ -1,6 +1,216 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-CN" lang="zh-CN">
-<head><title>简单数学公式</title><meta charset="utf-8"/>
-<link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/><link rel="stylesheet" type="text/css" href="../Styles/base.css"/><link rel="stylesheet" type="text/css" href="../Styles/media.css"/></head>
-<body><section epub:type="chapter"><h1>十六、简单数学公式</h1><p>勾股：a<sup>2</sup>+b<sup>2</sup>=c<sup>2</sup>，化学：H<sub>2</sub>O。</p><div class="math-block">∫<span class="math-inline">f(x)dx</span></div></section></body></html>
+<head>
+  <title>数学公式与 MathML</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/media.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>十六、数学公式与 MathML</h1>
+
+    <p>基础文本兜底：勾股 a<sup>2</sup> + b<sup>2</sup> = c<sup>2</sup>，化学式 H<sub>2</sub>O。</p>
+
+    <h2>行内 MathML：上下标</h2>
+    <p>
+      二次项示例：
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+        <msup><mi>x</mi><mn>2</mn></msup>
+        <mo>+</mo>
+        <msub><mi>a</mi><mn>1</mn></msub>
+        <mi>x</mi>
+        <mo>+</mo>
+        <msubsup><mi>b</mi><mn>0</mn><mn>2</mn></msubsup>
+      </math>
+      ，用于验证 <code>msup</code>、<code>msub</code> 与 <code>msubsup</code>。
+    </p>
+
+    <h2>分式与根式</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mrow>
+          <mi>y</mi>
+          <mo>=</mo>
+          <mfrac>
+            <mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow>
+            <mrow><mn>2</mn><mi>c</mi></mrow>
+          </mfrac>
+          <mo>+</mo>
+          <msqrt>
+            <mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mn>1</mn></mrow>
+          </msqrt>
+          <mo>+</mo>
+          <mroot>
+            <mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow>
+            <mn>3</mn>
+          </mroot>
+        </mrow>
+      </math>
+    </div>
+
+    <h2>上下标记与围框</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mrow>
+          <mover><mi>AB</mi><mo>→</mo></mover>
+          <mo>+</mo>
+          <munder><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow></munder>
+          <msup><mi>x</mi><mi>i</mi></msup>
+          <mo>+</mo>
+          <munderover>
+            <mo>∫</mo>
+            <mn>0</mn>
+            <mn>1</mn>
+          </munderover>
+          <mi>f</mi>
+          <mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>
+          <mi>d</mi><mi>x</mi>
+          <mo>+</mo>
+          <menclose notation="box">
+            <mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow>
+          </menclose>
+        </mrow>
+      </math>
+    </div>
+
+    <h2>矩阵与分段函数</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mfenced open="[" close="]">
+          <mtable>
+            <mtr>
+              <mtd><mn>1</mn></mtd>
+              <mtd><mn>0</mn></mtd>
+            </mtr>
+            <mtr>
+              <mtd><mn>0</mn></mtd>
+              <mtd><mn>1</mn></mtd>
+            </mtr>
+          </mtable>
+        </mfenced>
+      </math>
+    </div>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mrow>
+          <mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>
+          <mo>=</mo>
+          <mfenced open="{" close="">
+            <mtable>
+              <mtr>
+                <mtd><msup><mi>x</mi><mn>2</mn></msup></mtd>
+                <mtd><mtext>当 </mtext><mi>x</mi><mo>≥</mo><mn>0</mn></mtd>
+              </mtr>
+              <mtr>
+                <mtd><mo>-</mo><mi>x</mi></mtd>
+                <mtd><mtext>当 </mtext><mi>x</mi><mo>&lt;</mo><mn>0</mn></mtd>
+              </mtr>
+            </mtable>
+          </mfenced>
+        </mrow>
+      </math>
+    </div>
+
+    <h2>带编号与对齐标记的表格</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mtable>
+          <mlabeledtr>
+            <mtd><mtext>(1)</mtext></mtd>
+            <mtd>
+              <maligngroup/>
+              <mi>x</mi>
+              <mo>+</mo>
+              <mi>y</mi>
+              <malignmark/>
+              <mo>=</mo>
+              <mn>10</mn>
+            </mtd>
+          </mlabeledtr>
+          <mtr>
+            <mtd>
+              <maligngroup/>
+              <mn>2</mn>
+              <mi>x</mi>
+              <mo>-</mo>
+              <mi>y</mi>
+              <malignmark/>
+              <mo>=</mo>
+              <mn>3</mn>
+            </mtd>
+          </mtr>
+        </mtable>
+      </math>
+    </div>
+
+    <h2>语义 annotation 与复杂脚标</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <semantics>
+          <mrow>
+            <mi>E</mi>
+            <mo>=</mo>
+            <mi>m</mi>
+            <msup><mi>c</mi><mn>2</mn></msup>
+          </mrow>
+          <annotation encoding="application/x-tex">E=mc^2</annotation>
+        </semantics>
+      </math>
+    </div>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mmultiscripts>
+          <mi>T</mi>
+          <mi>i</mi>
+          <mi>j</mi>
+          <mi>k</mi>
+          <mi>l</mi>
+        </mmultiscripts>
+      </math>
+    </div>
+
+    <h2>字符串与文本节点</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mrow>
+          <ms>ISBN</ms>
+          <mo>:</mo>
+          <mtext>字符串节点与普通说明文字</mtext>
+        </mrow>
+      </math>
+    </div>
+
+    <h2>间距、样式与不可见占位</h2>
+    <div class="math-block">
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+        <mstyle mathvariant="bold">
+          <mrow>
+            <mi>A</mi>
+            <mspace width="1em"/>
+            <mo>=</mo>
+            <mspace width="1em"/>
+            <mpadded lspace="0.2em" width="+0.6em">
+              <mphantom><mi>B</mi></mphantom>
+              <mi>C</mi>
+            </mpadded>
+          </mrow>
+        </mstyle>
+      </math>
+    </div>
+
+    <p class="math-note">
+      本页覆盖 KDP MathML 支持列表中的常用标签组合：<code>math</code>、<code>mrow</code>、
+      <code>mi</code>、<code>mn</code>、<code>mo</code>、<code>mtext</code>、<code>mfrac</code>、
+      <code>msqrt</code>、<code>mroot</code>、<code>msub</code>、<code>msup</code>、
+      <code>msubsup</code>、<code>mover</code>、<code>munder</code>、<code>munderover</code>、
+      <code>menclose</code>、<code>mfenced</code>、<code>mtable</code>、<code>mtr</code>、
+      <code>mlabeledtr</code>、<code>mtd</code>、<code>maligngroup</code>、<code>malignmark</code>、
+      <code>semantics</code>、<code>annotation</code>、<code>mmultiscripts</code>、<code>ms</code>、
+      <code>mspace</code>、<code>mstyle</code>、<code>mpadded</code> 与 <code>mphantom</code>。
+    </p>
+  </section>
+</body>
+</html>

@@ -16,7 +16,7 @@
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
 | 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
-| 波浪线 | 标准 `text-decoration-style: wavy` |
+| 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
 
@@ -239,6 +239,48 @@ code, pre, kbd, samp {
   font-family: "SF Mono", "Consolas", "Source Code Pro", monospace;
 }
 ```
+
+---
+
+## 五点五、图片环绕兼容路径
+
+图文环绕使用 `<figure>` 浮动作为主路径。Kindle App 实测 figure 也能环绕；关键是 figure 有明确固定宽度，并且前后正文足够长，让阅读器有足够行数展示绕排。direct `img` 直挂 float 不作为主路径，避免部分阅读器图片显示过小。
+
+```html
+<figure class="img-left">
+  <img src="../Images/poster.png" alt="左浮动"/>
+  <figcaption>图片说明。</figcaption>
+</figure>
+<p>
+  正文从图片右侧环绕，段落要足够长才能观察绕排。
+</p>
+```
+
+```css
+figure.img-left {
+  float: left;
+  width: 240px;
+  max-width: 45%;
+  margin: 0 1em 0.6em 0;
+  text-align: center;
+}
+
+figure.img-right {
+  float: right;
+  width: 240px;
+  max-width: 45%;
+  margin: 0 0 0.6em 1em;
+  text-align: center;
+}
+
+figure.img-left img,
+figure.img-right img {
+  width: 100%;
+  height: auto;
+}
+```
+
+`width` 用固定 px；不要用 `em` 做 Kindle 主路径。`max-width` 只是给 Readest / Apple Books / Thorium 等非 Kindle 引擎的窄屏兜底，不能依赖 Kindle 一定执行。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
 
 ---
 
@@ -517,8 +559,8 @@ sup {
 
 <aside epub:type="footnote" role="doc-footnote">
   <div><hr class="footnote-line"/></div>
-  <ol class="footnote-list">
-    <li class="footnote-item duokan-footnote-item duokan-footnote-content" id="footnote-legacy-1">
+  <ol class="footnote-list duokan-footnote-content">
+    <li class="footnote-item duokan-footnote-item" id="footnote-legacy-1">
       <p class="footnote">
         <a class="footnote-back"
            epub:type="backlink"
@@ -557,8 +599,9 @@ sup {
 
 ```css
 .wavy {
-  text-decoration-line: underline;
+  text-decoration: underline;
   text-decoration-style: wavy;
+  -webkit-text-decoration-style: wavy;
   text-decoration-color: #c03030;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.12em;
@@ -568,6 +611,8 @@ sup {
 ```html
 <span class="wavy">波浪线内容</span>
 ```
+
+Kindle App 只显示基础 underline，不显示 wavy；这是预期降级。不要写 `text-decoration: underline wavy`，旧引擎可能把整条 declaration 丢弃，导致连下划线也没有。
 
 ### 8.3 Ruby 注音
 
@@ -729,6 +774,23 @@ body.page-vrl {
 
 ---
 
+## 十点五、MathML
+
+Kindle Enhanced Typesetting 支持 MathML。含 MathML 的 XHTML 必须在 OPF manifest 上声明 `properties="mathml"`。
+
+```xml
+<item id="math"
+      href="Text/16-math.xhtml"
+      media-type="application/xhtml+xml"
+      properties="mathml"/>
+```
+
+demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubsup`、`mover`、`munder`、`munderover`、`menclose`、`mfenced`、`mtable`、`mlabeledtr`、`maligngroup`、`malignmark`、`semantics`、`annotation`、`mmultiscripts`、`ms`、`mspace`、`mstyle`、`mpadded`、`mphantom`。
+
+不支持 MathML 的目标阅读器需要文本公式或图片公式 fallback；不要把复杂公式只保存在不可读的截图里。
+
+---
+
 ## 十一、制作流程
 
 1. 准备文本、封面、海报背景、注释图标、授权字体。
@@ -809,6 +871,6 @@ body.page-vrl {
 - [ ] `body.fullpage` 含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
 - [ ] `.fullframe` 骨架 `padding:0; overflow:visible`，留白靠内部元素 `margin`。
 - [ ] 需多看旧版兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
-- [ ] 每条 `li.footnote-item` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`。
-- [ ] `duokan-footnote-content` 不出现在 `<ol>`。
+- [ ] 注释列表 `<ol>` 同时挂 `footnote-list duokan-footnote-content`。
+- [ ] 每条 `li.footnote-item` 只额外挂 `duokan-footnote-item`，不重复挂 `duokan-footnote-content`。
 - [ ] 任一 `font-family` 链 ≤ 4 段，嵌入字体放链首。

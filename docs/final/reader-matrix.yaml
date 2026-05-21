@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-20
+updated_at: 2026-05-21
 owner: epub-handbook
 
 lanes:
@@ -17,6 +17,8 @@ readers:
     name: Kindle Previewer
   - id: thorium
     name: Thorium Reader
+  - id: readest
+    name: Readest
   - id: duokan
     name: 多看阅读
 
@@ -36,6 +38,9 @@ cases:
   - id: 03-alite-poster
     title: A-lite 海报
     fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
+  - id: 03b-poster-fullbleed
+    title: 海报全幅 cover 对照
+    fixture: templates/epub-style-demo/OEBPS/Text/03b-poster-fullbleed.xhtml
   - id: 04-table-code
     title: 表格与代码
     fixture: templates/epub-style-demo/OEBPS/Text/04-lists-tables-code.xhtml
@@ -73,7 +78,7 @@ cases:
     title: 版权 / 题献 / 题记
     fixture: templates/epub-style-demo/OEBPS/Text/15-frontmatter.xhtml
   - id: 16-math
-    title: 简单数学公式
+    title: 数学公式与 MathML
     fixture: templates/epub-style-demo/OEBPS/Text/16-math.xhtml
   - id: 17-image-layout
     title: 图文环绕
@@ -104,12 +109,30 @@ expectations:
   - reader: kindle_previewer
     case: 17-image-layout
     status: warn
-    reader_version: pending-local-verification
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
+    reader_version: pending-kindle-app-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
     failed_page: 17-image-layout
-    issue: "Kindle 路径需验证 img 直挂 float + width 声明是否在 KF8/KFX 均生效。"
-    action: "已改为 img.kindle-img-left/right 直挂 float，并补 width 属性；等待 Kindle Previewer 复测回写 pass/fail。"
-    workaround: "figure 浮动仅作为标准 EPUB 路径保留，Kindle 走 img 兼容路径。"
+    issue: "Kindle App 实测 figure 浮动可环绕；需验证长正文阈值、短段反例与大字号回归。"
+    action: "本轮改为 figure 主路径，去掉 img 直挂对照；figure 使用固定 CSS 宽度，正文样例加长以满足环绕阈值。"
+    workaround: "环绕失败时先检查正文长度、剩余列宽和字号；短段不能作为失败证据。"
+  - reader: readest
+    case: 17-image-layout
+    status: warn
+    reader_version: pending-user-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    failed_page: 17-image-layout
+    issue: "img 直挂路径在部分阅读器图片偏小；figure 固定宽度路径需复测。"
+    action: "本轮统一改为 figure + CSS 固定宽度；待 Readest 复测确认尺寸与环绕。"
+    workaround: "避免 direct img 作为主路径；带 caption 和环绕图统一使用 figure。"
+  - reader: kindle_previewer
+    case: 16-math
+    status: warn
+    reader_version: pending-kindle-app-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    failed_page: 16-math
+    issue: "KDP Enhanced Typesetting 支持 MathML；本页覆盖分式、根式、上下标、矩阵、semantics/annotation 等标签组合。"
+    action: "已在 OPF manifest 为 16-math 声明 properties=\"mathml\"；等待 Kindle App/Previewer 复测渲染。"
+    workaround: "若目标平台不支持 MathML，需要提供文本公式或图片公式 fallback。"
   - reader: duokan
     case: 05-duokan-fallback
     status: pass
@@ -126,8 +149,8 @@ expectations:
     action: "用户实测通过，保留 ol 容器级写法。"
   - reader: kindle_previewer
     case: 10-text-effects
-    status: pass
+    status: warn
     reader_version: pending-user-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
-    issue: ".dropcap (float:left) 在 Kindle App/Previewer 的生效性。"
-    action: "按用户实测 pass 保留现有 dropcap 写法。"
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    issue: ".dropcap (float:left) 在 Kindle App/Previewer 生效；.wavy 拆行后 Kindle App 显示为普通下划线。"
+    action: "保留拆行写法：Kindle 走 underline fallback，Apple Books/Readest/Thorium 等支持 text-decoration-style 的阅读器显示 wavy。"

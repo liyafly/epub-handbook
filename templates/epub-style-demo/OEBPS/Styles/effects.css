@@ -9,7 +9,9 @@
 }
 
 .wavy {
-  text-decoration: underline wavy;
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  -webkit-text-decoration-style: wavy;
 }
 
 .dropcap-host {

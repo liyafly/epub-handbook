@@ -133,6 +133,18 @@
 | `<rt>` | 注音文本 | 推荐 | 拼音、外文读音 |
 | `<rp>` | 后备括号 | 推荐 | 不支持 ruby 时显示括号 |
 
+### 2.9 MathML
+
+| 元素 / 属性 | 用途 | 状态 | 备注 |
+|---|---|---|---|
+| `<math>` | MathML 根 | 条件可用 | Kindle Enhanced Typesetting 支持；manifest 需 `properties="mathml"` |
+| `<mrow>` / `<mi>` / `<mn>` / `<mo>` / `<mtext>` | 基础公式结构 | 条件可用 | 变量、数字、运算符、文本 |
+| `<mfrac>` / `<msqrt>` / `<mroot>` | 分式与根式 | 条件可用 | 16 号 demo 覆盖 |
+| `<msub>` / `<msup>` / `<msubsup>` / `<mmultiscripts>` | 上下标与复杂脚标 | 条件可用 | 避免未确认支持的扩展标签 |
+| `<mover>` / `<munder>` / `<munderover>` / `<menclose>` | 上下标记与围框 | 条件可用 | 适合积分、向量、框选 |
+| `<mfenced>` / `<mtable>` / `<mtr>` / `<mlabeledtr>` / `<mtd>` | 括号、矩阵与带编号行 | 条件可用 | 复杂表格需实测 |
+| `<semantics>` / `<annotation>` | 语义与备用源码 | 条件可用 | 可放 TeX annotation |
+
 ---
 
 ## 三、OPF / EPUB 包属性速查
@@ -172,6 +184,7 @@
 |---|---|---|
 | XHTML | `application/xhtml+xml` | 推荐 |
 | nav.xhtml | `application/xhtml+xml` + `properties="nav"` | 推荐 |
+| XHTML with MathML | `application/xhtml+xml` + `properties="mathml"` | 条件可用 |
 | NCX | `application/x-dtbncx+xml` | 推荐 |
 | cover image | `image/jpeg` / `image/png` + `properties="cover-image"` | 推荐 |
 | CSS | `text/css` | 推荐 |
@@ -252,14 +265,14 @@ body {
 | `border-left` | 引文边线 | 推荐 | 块引文 |
 | `border-radius` | 小半径 | 可用 | 代码、kbd |
 | `box-sizing` | `border-box` | 推荐 | A-lite 页面 |
-| `width` | `%` / `auto` | 推荐 | 图片、表格 |
+| `width` | `%` / `auto` / 固定 `px` | 推荐 | 表格可用 `%`；环绕 figure 主路径用固定 px |
 | `max-width` | `100%` | 推荐 | 图片 |
 | `height` | `auto` | 推荐 | 图片 |
 | `min-height` | `100%` / `90%` | 推荐 | A-lite |
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | Kindle 上图文环绕需将 float 直接挂在 `<img>` 并显式宽度；`<figure>` 路径仅作标准 EPUB 对照。 |
+| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，固定 px 宽度，正文必须足够长；direct img 不作为主路径。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |
@@ -358,8 +371,8 @@ body {
 | `-webkit-text-emphasis-style` | `filled dot` | 推荐 | Apple Books |
 | `-epub-text-emphasis-style` | `filled dot` | 推荐 | EPUB 兼容 |
 | `text-emphasis-position` | `under` | 推荐 | 横排中文 |
-| `text-decoration-line` | `underline` | 推荐 | 波浪线基础 |
-| `text-decoration-style` | `wavy` / `dotted` / `solid` | 推荐 | 标准波浪线 |
+| `text-decoration` | `underline` | 推荐 | 波浪线基础兜底；Kindle 只显示这层 |
+| `text-decoration-style` | `wavy` / `dotted` / `solid` | 渐进增强 | 标准波浪线；Kindle App 退化为普通 underline |
 | `text-decoration-color` | `#c03030` | 可用 | 波浪线颜色 |
 | `text-decoration-thickness` | `1px` | 可用 | 线宽 |
 | `text-underline-offset` | `0.12em` | 可用 | 下划线偏移 |
@@ -431,7 +444,7 @@ body {
 |---|---|---|
 | 多看触发类 | `class="duokan-footnote"` | noteref 兼容触发 |
 | 多看条目类 | `class="duokan-footnote-item"` | 兼容列表项 |
-| 多看内容类 | `class="duokan-footnote-content"`（挂在 `li`） | 弹窗内容匹配点 |
+| 多看内容类 | `class="duokan-footnote-content"`（挂在 `ol.footnote-list`） | 弹窗内容匹配点 |
 
 ## 十五、A-lite 属性速查
 
@@ -463,7 +476,9 @@ body {
 | A-lite 海报 | 实测可用 | 可用 | 可用 | 实测可用 | 可用 | 推荐 |
 | 图片图标弹注 | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `text-emphasis` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
-| `text-decoration-style: wavy` | 可用 | 可用 | 可用 | 视版本 | 视版本 | 推荐 |
+| `figure + float + width(px)` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
+| MathML | 可用 | 可用 | 可用 | Enhanced Typesetting | 视版本 | 条件可用 |
+| `text-decoration-style: wavy` | 可用 | 可用 | 可用 | 退化为 underline | 视版本 | 渐进增强 |
 | `ruby + rt` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |
 | `writing-mode: vertical-rl` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |
 | legacy fallback（多看） | 条件可用 | 条件可用 | 条件可用 | 不适用 | 条件可用 | 按需 |

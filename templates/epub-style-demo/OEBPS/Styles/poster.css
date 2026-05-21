@@ -99,3 +99,11 @@ body.poster-bg {
   min-height: 14em;
   margin: 1em 0 1em 1.2em;
 }
+
+body.poster-bg-fullbleed {
+  background-color: #eceae7;
+  background-image: url("../Images/poster.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}

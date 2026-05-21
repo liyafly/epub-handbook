@@ -12,32 +12,62 @@
   <section epub:type="chapter">
     <h1>十七、图文环绕</h1>
 
-    <h2>左浮动（Kindle 兼容路径）</h2>
     <p>
-      <img class="kindle-img-left" src="../Images/poster.png" alt="左浮动" width="200"/>
-      这是用于验证 Kindle 图文环绕的演示段落，正文需要足够长才能完整环绕浮动图片。Kindle Publishing Guidelines 允许 float，
-      但要求挂在 img 元素本身并显式声明宽度，所以这里同时使用 width 属性与 CSS 宽度，并保证段落至少四到六行。
-      这一段刻意保持较长，避免出现图片将正文整体顶到下一行造成的假阴性结果。
+      本页以带说明文字的 <code>figure</code> 为主路径。Kindle App 实测显示 figure 也能环绕；
+      关键是图片宽度要明确，且图片前后的正文要足够长，
+      阅读器才有可绕排的文本列宽与行数。
     </p>
-    <p class="clear-both">清除浮动后另起一段。</p>
 
-    <h2>右浮动（同上）</h2>
+    <h2>右浮动 figure（主路径）</h2>
+    <figure class="img-right">
+      <img src="../Images/poster.png" alt="右浮动 figure"/>
+      <figcaption>右浮动 figure，含 caption。</figcaption>
+    </figure>
     <p>
-      <img class="kindle-img-right" src="../Images/poster.png" alt="右浮动" width="200"/>
-      右浮动用于对照左浮动；如果阅读器对 float:right 的支持弱于 float:left，这里能直接观察到差异。段落保持等长，
-      方便在阅读器矩阵中填写结果。
+      这一段故意写得较长，用来验证 Kindle、Readest、Apple Books 与 Thorium 对 figure 浮动的处理。
+      图文环绕必须有足够多的正文围绕图片流动；如果文字太短，阅读器看起来像没有环绕，实际上只是没有足够行数展示绕排。
+      继续补充一些中文内容，让右侧图片的左边形成稳定文本列：阅读器会先排标题、图片和说明文字，再把本段正文贴着 figure 的边缘排列。
+      当字号较大或屏幕较窄时，剩余列宽变少，阅读器可能把后续文字整体推到图片下方，这属于环绕阈值不足，而不是 figure 本身不可用。
+    </p>
+    <p>
+      第二段用于观察浮动是否继续影响后续段落。只要没有执行 clear，正文仍可能沿着图片边缘继续排布；
+      因此实际书稿中，每个浮动组后面都应该显式清除浮动，避免下一个小节标题被吸到图片旁边。
     </p>
     <p class="clear-both">清除浮动。</p>
 
-    <h2>figure 包裹版（标准 EPUB 路径）</h2>
+    <h2>左浮动 figure（主路径）</h2>
     <figure class="img-left">
-      <img src="../Images/poster.png" alt="figure 左浮动"/>
-      <figcaption>figure 路径：标准阅读器走这一条</figcaption>
+      <img src="../Images/poster.png" alt="左浮动 figure"/>
+      <figcaption>左浮动 figure，含 caption。</figcaption>
     </figure>
     <p>
-      figure 版用于验证 Apple Books 与 Thorium 上 figure 包裹层的 float 行为。Kindle 上预期这一段可能不会环绕，
-      作为与上方 img 兼容路径的对照样例。
+      左浮动用于和右浮动互相对照。这里同样要保持正文足够长，才能看出文字从图片右侧开始绕排。
+      如果只写一两句话，Kindle 和其他阅读器都可能把效果表现成“图片在上、文字在下”，那不是失败样例。
+      固定宽度让 figure 的占位可预测；caption 跟随 figure 同宽，能在 Kindle App 中保留语义图片说明。
+      继续写一段较长文本，确保默认字号下至少有数行文字贴住浮动图片。
     </p>
+    <p class="clear-both">清除浮动。</p>
+
+    <h2>大字号 figure 回归</h2>
+    <div style="font-size: 1.6em">
+      <figure class="img-left">
+        <img src="../Images/poster.png" alt="大字号左浮动 figure"/>
+        <figcaption>大字号 figure。</figcaption>
+      </figure>
+      <p>
+        放大字号后，环绕是否成立取决于剩余列宽是否还能容纳足够字符。这里保留固定宽度，
+        同时写入足够长的正文，观察 Kindle App 在大字号下是否仍然让文字贴着 figure 排列。
+        如果屏幕过窄或字号继续放大，阅读器可能主动取消环绕并把文字排到图片下方；这应记录为阈值限制。
+      </p>
+      <p class="clear-both">清除浮动。</p>
+    </div>
+
+    <h2>短段反例</h2>
+    <figure class="img-right">
+      <img src="../Images/poster.png" alt="短段右浮动 figure"/>
+      <figcaption>短段不容易观察。</figcaption>
+    </figure>
+    <p>文字太短时，不足以证明环绕失败。</p>
     <p class="clear-both">清除浮动。</p>
   </section>
 </body>

@@ -36,6 +36,7 @@
     <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
     <item id="ruby-note" href="Text/02-ruby-note.xhtml" media-type="application/xhtml+xml"/>
     <item id="vertical-alite" href="Text/03-vertical-alite.xhtml" media-type="application/xhtml+xml"/>
+    <item id="poster-fullbleed" href="Text/03b-poster-fullbleed.xhtml" media-type="application/xhtml+xml"/>
     <item id="lists-tables-code" href="Text/04-lists-tables-code.xhtml" media-type="application/xhtml+xml"/>
     <item id="legacy-note-fallback" href="Text/05-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="multi-legacy-note-fallback" href="Text/06-multi-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
@@ -48,7 +49,7 @@
     <item id="duokan-rich" href="Text/13-duokan-rich-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="vertical-body" href="Text/14-vertical-body.xhtml" media-type="application/xhtml+xml"/>
     <item id="frontmatter" href="Text/15-frontmatter.xhtml" media-type="application/xhtml+xml"/>
-    <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml"/>
+    <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml" properties="mathml"/>
     <item id="image-layout" href="Text/17-image-layout.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
@@ -57,6 +58,7 @@
     <itemref idref="body"/>
     <itemref idref="ruby-note"/>
     <itemref idref="vertical-alite"/>
+    <itemref idref="poster-fullbleed"/>
     <itemref idref="lists-tables-code"/>
     <itemref idref="legacy-note-fallback"/>
     <itemref idref="multi-legacy-note-fallback"/>

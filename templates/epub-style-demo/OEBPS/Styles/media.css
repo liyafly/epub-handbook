@@ -3,42 +3,53 @@
 .math-block {
   text-align: center;
   margin: 1em 0;
+  text-indent: 0;
+  overflow-x: auto;
 }
 
 .math-inline {
   white-space: nowrap;
 }
 
-img.kindle-img-left {
-  float: left;
-  width: 12em;
-  max-width: 40%;
-  margin: 0 1em 0.6em 0;
-}
-
-img.kindle-img-right {
-  float: right;
-  width: 12em;
-  max-width: 40%;
-  margin: 0 0 0.6em 1em;
+.math-note {
+  text-indent: 0;
+  text-align: left;
+  font-size: 0.9em;
 }
 
 .img-left {
   float: left;
-  width: 40%;
+  width: 240px;
+  max-width: 45%;
   margin: 0 1em 0.6em 0;
+  text-align: center;
 }
 
 .img-right {
   float: right;
-  width: 40%;
+  width: 240px;
+  max-width: 45%;
   margin: 0 0 0.6em 1em;
+  text-align: center;
+}
+
+.img-left img,
+.img-right img {
+  width: 100%;
+  height: auto;
+  margin: 0;
 }
 
 .img-center {
   display: block;
   margin: 0.8em auto;
   text-align: center;
+}
+
+.img-center img {
+  width: 320px;
+  max-width: 100%;
+  height: auto;
 }
 
 .clear-both {

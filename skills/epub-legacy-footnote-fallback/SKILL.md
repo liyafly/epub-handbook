@@ -21,7 +21,7 @@ Keep the project's standard structure as the primary shape:
 Add legacy hooks on top of that same structure:
 
 - add `duokan-footnote` to the noteref anchor
-- add `duokan-footnote-content` to each note `li` (not the grouped `ol`)
+- add `duokan-footnote-content` to the grouped `ol.footnote-list`
 - add `duokan-footnote-item` to each note `li`
 - put a note icon image inside the noteref anchor
 
@@ -46,8 +46,8 @@ Do not create a second note body for the fallback.
 
 <aside epub:type="footnote" role="doc-footnote">
   <div><hr class="footnote-line"/></div>
-  <ol class="footnote-list">
-    <li class="footnote-item duokan-footnote-item duokan-footnote-content" id="footnote-1">
+  <ol class="footnote-list duokan-footnote-content">
+    <li class="footnote-item duokan-footnote-item" id="footnote-1">
       <p class="footnote">
         <a class="footnote-back"
            epub:type="backlink"
@@ -66,7 +66,7 @@ Do not create a second note body for the fallback.
 2. Preserve ids when possible. Ensure noteref ids and note target ids are unique inside the XHTML file.
 3. Add `duokan-footnote` to each noteref anchor without removing `epub:type`, `role`, `id`, or `href`.
 4. Ensure the noteref anchor contains an image icon. Use `../Images/note.png` when adding a new asset for legacy fallback.
-5. Add `duokan-footnote-content` to each `li.footnote-item`; do not put it on `ol`.
+5. Add `duokan-footnote-content` to the grouped `ol.footnote-list`; do not put it on `li`.
 6. Add `duokan-footnote-item` to each `li.footnote-item`.
 7. Add `Images/note.png` to the OPF manifest if missing.
 8. Verify all href/backlink targets resolve inside the same XHTML file.
@@ -88,11 +88,9 @@ a.duokan-footnote img {
   vertical-align: baseline;
 }
 
-.duokan-footnote-content {
-  margin-top: 0;
-}
-
-.footnote-item.duokan-footnote-content {
+ol.duokan-footnote-content {
+  list-style-type: none;
+  padding: 0;
   margin: 0;
 }
 
@@ -109,7 +107,7 @@ If the source does not already use `.footnote-line`, add a visible separator wit
 - Do not remove neutral classes such as `footnote-list` and `footnote-item`.
 - Do not keep only `duokan-*` classes.
 - Do not duplicate note prose in a second visible note list.
-- Do not place `duokan-footnote-content` on grouped `ol`; otherwise Duokan may pop the entire list.
+- Do not place `duokan-footnote-content` on individual `li` items; Duokan legacy compatibility is verified with the class on the grouped `ol`.
 - Do not use JavaScript or `display:none` note bodies.
 - Do not add reader-specific private note attributes outside the Duokan fallback scope.
 

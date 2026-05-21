@@ -265,8 +265,8 @@
  */
 
 .demo-system-first {
-  /* 系统优先（短链对照）：用于观察系统字体优先命中。 */
-  font-family: "Songti SC", "Source Han Serif SC", serif;
+  /* 系统优先（短链对照）：覆盖 Mac/iOS、Windows、Adobe 默认 CJK fallback。 */
+  font-family: "Songti SC", "SimSun", "Source Han Serif SC", serif;
 }
 
 .demo-embedded-first {

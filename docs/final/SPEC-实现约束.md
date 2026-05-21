@@ -60,6 +60,24 @@
 - 普通可重排正文页的 `body` 不允许同时使用 `width:100%` 与左右 `padding`；正文页应保持 auto 宽度，让 padding 计入可用行宽，避免阅读器右侧裁切。
 - 正文页如需页面留白，优先使用 `body { margin:0; padding:... }`，并显式设置 `box-sizing:border-box` / `-webkit-box-sizing:border-box`。
 
+## 5.6) 图片环绕兼容
+
+- 图文环绕的通用路径是 `<figure class="img-left|img-right">` 包裹 `<img>` 与可选 `<figcaption>`，把 `float:left/right` 与固定 CSS `width` 挂在 `figure` 上。
+- demo 默认 figure 宽度使用 `240px`；不得使用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。
+- `max-width` 只能作为非 Kindle 阅读器的窄屏兜底；Kindle KF8 支持表不保证 `max-width`，不得把它作为 Kindle 主约束。
+- 环绕样例必须提供足够长的前后正文；短段落无法证明 float 失败，只能作为阈值反例。
+- 不使用 direct `img` 直挂 float 作为主路径，避免部分阅读器图片显示过小。
+
+## 5.7) 文字装饰兼容
+
+- 带样式的下划线必须拆成多条声明：先写 `text-decoration: underline;`，再写 `text-decoration-style: wavy;` 等增强属性。
+- Kindle App 已实测能显示基础 underline fallback，但不会显示 wavy；这属于预期降级，不再视为样式丢失。
+
+## 5.8) MathML
+
+- 含 MathML 的 XHTML manifest item 必须声明 `properties="mathml"`。
+- Kindle 路径只把 MathML 视为 Enhanced Typesetting 能力；目标平台不支持时必须准备文本公式或图片公式 fallback。
+- demo 优先覆盖 KDP 支持列表内标签组合，不引入未确认支持的私有数学标签。
 
 ## 6) Fixture 命名索引（M5 对齐）
 
