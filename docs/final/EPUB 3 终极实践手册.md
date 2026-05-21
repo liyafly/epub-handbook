@@ -259,14 +259,14 @@ code, pre, kbd, samp {
 ```css
 figure.img-left {
   float: left;
-  width: 25%;
+  width: 30%;
   margin: 0 1em 0.6em 0;
   text-align: center;
 }
 
 figure.img-right {
   float: right;
-  width: 25%;
+  width: 30%;
   margin: 0 0 0.6em 1em;
   text-align: center;
 }
@@ -278,7 +278,9 @@ figure.img-right img {
 }
 ```
 
-`width:25%` 表示 figure 占可用行宽的四分之一。不要用 `em` 做 Kindle 主路径。图片高度不固定：内层 `img` 用 `height:auto` 保持天然宽高比；`aspect-ratio` 不作为 EPUB 主路径，因为旧阅读器支持不稳定，而且 figure 还要容纳 caption 的自然高度。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
+推荐把 figure 宽度先放在 `25%–35%` 之间，本 demo 默认 `30%`。这个范围不是 EPUB 标准常量，而是兼顾 Kindle App 绕排阈值与 Readest 图片可读性的保守起点：宽度越大，图片越清楚，但剩余文本列越窄；宽度越小，环绕更稳，但图片可能显得偏小。`50%` 在某些设备上也能成功，是因为它仍然是百分比宽度，且当时的屏幕与字号还给正文留下了足够列宽；但它更接近阈值，窄屏或大字号下更容易被阅读器改排到图片下方。正式书稿要按目标阅读器、屏幕宽度、用户字号和正文长度实测微调。
+
+不要用 `em` 做 Kindle 主路径。`em` 会随用户字号放大，导致浮动盒和剩余列宽一起变化；百分比宽度绑定页面宽度，所以大字号下更稳定。图片高度不固定：内层 `img` 用 `height:auto` 保持天然宽高比；`aspect-ratio` 不作为 EPUB 主路径，因为旧阅读器支持不稳定，而且 figure 还要容纳 caption 的自然高度。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
 
 ---
 

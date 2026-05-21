@@ -110,25 +110,25 @@ expectations:
     case: 17-image-layout
     status: warn
     reader_version: pending-kindle-app-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
     failed_page: 17-image-layout
     issue: "Kindle App 实测 figure 浮动可环绕；需验证长正文阈值、短段反例与大字号回归。"
-    action: "本轮改为 figure 主路径，去掉 img 直挂对照；figure 使用 width:25%，正文样例加长以满足环绕阈值。"
+    action: "本轮改为 figure 主路径，去掉 img 直挂对照；figure 使用 25%–35% 百分比宽度区间，demo 默认 30%，正文样例加长以满足环绕阈值。"
     workaround: "环绕失败时先检查正文长度、剩余列宽和字号；短段不能作为失败证据。"
   - reader: readest
     case: 17-image-layout
     status: warn
     reader_version: pending-user-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
     failed_page: 17-image-layout
     issue: "img 直挂路径在部分阅读器图片偏小；figure 百分比宽度路径需复测。"
-    action: "本轮统一改为 figure + width:25%；待 Readest 复测确认尺寸与环绕。"
+    action: "本轮统一改为 figure + 25%–35% 百分比宽度，demo 默认 30%；待 Readest 复测确认尺寸与环绕。"
     workaround: "避免 direct img 作为主路径；带 caption 和环绕图统一使用 figure。"
   - reader: kindle_previewer
     case: 16-math
     status: warn
     reader_version: pending-kindle-app-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
     failed_page: 16-math
     issue: "KDP Enhanced Typesetting 支持 MathML；本页覆盖分式、根式、上下标、矩阵、semantics/annotation 等标签组合。"
     action: "已在 OPF manifest 为 16-math 声明 properties=\"mathml\"；等待 Kindle App/Previewer 复测渲染。"
@@ -151,6 +151,6 @@ expectations:
     case: 10-text-effects
     status: warn
     reader_version: pending-user-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-214108.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
     issue: ".dropcap (float:left) 在 Kindle App/Previewer 生效；.wavy 拆行后 Kindle App 显示为普通下划线。"
     action: "保留拆行写法：Kindle 走 underline fallback，Apple Books/Readest/Thorium 等支持 text-decoration-style 的阅读器显示 wavy。"

@@ -22,7 +22,7 @@
 | 整页正文竖排 | `Text/14-vertical-body.xhtml` | `body.page-vrl`、`.vrl-section` | Apple Books / KOReader |
 | 前置页 | `Text/15-frontmatter.xhtml` | `epub:type="frontmatter"`、题献与题记 | 全部 |
 | 数学公式与 MathML | `Text/16-math.xhtml` | KDP MathML 支持标签：分式、根式、上下标、矩阵、semantics/annotation | Kindle App / Kindle Previewer / Apple Books / Thorium |
-| 图文环绕 | `Text/17-image-layout.xhtml` | figure 浮动、25% 宽度、长正文阈值、短段反例、大字号回归 | Kindle App / Readest / Apple Books / Thorium |
+| 图文环绕 | `Text/17-image-layout.xhtml` | figure 浮动、25%–35% 百分比宽度、长正文阈值、短段反例、大字号回归 | Kindle App / Readest / Apple Books / Thorium |
 
 ## 打包与记录
 

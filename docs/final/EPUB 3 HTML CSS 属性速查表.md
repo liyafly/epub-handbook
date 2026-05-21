@@ -265,14 +265,14 @@ body {
 | `border-left` | 引文边线 | 推荐 | 块引文 |
 | `border-radius` | 小半径 | 可用 | 代码、kbd |
 | `box-sizing` | `border-box` | 推荐 | A-lite 页面 |
-| `width` | `%` / `auto` / 固定 `px` | 推荐 | 环绕 figure 主路径用 `25%`；表格可用 `%` |
+| `width` | `%` / `auto` / 固定 `px` | 推荐 | 环绕 figure 主路径推荐 `25%–35%`，按阅读器实测微调；表格可用 `%` |
 | `max-width` | `100%` | 推荐 | 图片 |
 | `height` | `auto` | 推荐 | 图片 |
 | `min-height` | `100%` / `90%` | 推荐 | A-lite |
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，`width:25%`，正文必须足够长；direct img 不作为主路径。 |
+| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比，正文必须足够长；direct img 不作为主路径。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |

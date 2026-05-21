@@ -63,7 +63,8 @@
 ## 5.6) 图片环绕兼容
 
 - 图文环绕的通用路径是 `<figure class="img-left|img-right">` 包裹 `<img>` 与可选 `<figcaption>`，把 `float:left/right` 与百分比 `width` 挂在 `figure` 上。
-- demo 默认 figure 宽度使用 `25%`，即约四分之一行宽；不得使用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。
+- figure 宽度使用百分比，推荐先落在 `25%–35%`，demo 默认 `30%`；不得使用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。
+- `25%–35%` 不是标准常量，而是当前 Kindle App / Readest 反馈下的保守起点：图片过宽会压缩剩余文本列，图片过窄会影响可读性，正式书稿必须按目标阅读器、屏幕和字号实测微调。
 - 内层图片必须使用 `width:100%; height:auto;`。不要固定高度，也不要依赖 `aspect-ratio` 作为主路径；真实图片让 `height:auto` 保持天然宽高比。
 - 环绕样例必须提供足够长的前后正文；短段落无法证明 float 失败，只能作为阈值反例。
 - 不使用 direct `img` 直挂 float 作为主路径，避免部分阅读器图片显示过小。
