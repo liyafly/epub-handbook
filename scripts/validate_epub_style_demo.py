@@ -60,6 +60,7 @@ def manifest_map(package_root: ET.Element) -> dict[str, ET.Element]:
 
 
 def href_path(href: str) -> Path:
+  href = href.split("#", 1)[0]
   return OEBPS / href
 
 
