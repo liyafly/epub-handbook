@@ -113,7 +113,7 @@ book.epub
 - 全书默认 `reflowable`。
 - A-lite 海报页仍是普通 spine item。
 - 字体文件、注释图标、背景图都进入 `manifest`。
-- Apple Books 使用嵌入字体时保留 `ibooks:specified-fonts=true`。
+- 无论是否嵌入字体，Apple Books 路径都保留 `ibooks:specified-fonts=true`，避免用户偏好字体覆盖 CSS 字体链。
 
 ---
 

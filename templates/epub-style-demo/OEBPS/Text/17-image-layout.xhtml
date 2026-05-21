@@ -1,6 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-CN" lang="zh-CN">
-<head><title>图文九宫格</title><meta charset="utf-8"/>
-<link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/><link rel="stylesheet" type="text/css" href="../Styles/base.css"/><link rel="stylesheet" type="text/css" href="../Styles/media.css"/></head>
-<body><section epub:type="chapter"><h1>十七、图文九宫格</h1><figure class="img-left"><img src="../Images/poster.png" alt="左浮动"/></figure><p>图文混排示例，含左浮动。</p><p class="clear-both">清除浮动。</p></section></body></html>
+<head>
+  <title>图文环绕</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/media.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>十七、图文环绕</h1>
+
+    <h2>左浮动（Kindle 兼容路径）</h2>
+    <p>
+      <img class="kindle-img-left" src="../Images/poster.png" alt="左浮动" width="200"/>
+      这是用于验证 Kindle 图文环绕的演示段落，正文需要足够长才能完整环绕浮动图片。Kindle Publishing Guidelines 允许 float，
+      但要求挂在 img 元素本身并显式声明宽度，所以这里同时使用 width 属性与 CSS 宽度，并保证段落至少四到六行。
+      这一段刻意保持较长，避免出现图片将正文整体顶到下一行造成的假阴性结果。
+    </p>
+    <p class="clear-both">清除浮动后另起一段。</p>
+
+    <h2>右浮动（同上）</h2>
+    <p>
+      <img class="kindle-img-right" src="../Images/poster.png" alt="右浮动" width="200"/>
+      右浮动用于对照左浮动；如果阅读器对 float:right 的支持弱于 float:left，这里能直接观察到差异。段落保持等长，
+      方便在阅读器矩阵中填写结果。
+    </p>
+    <p class="clear-both">清除浮动。</p>
+
+    <h2>figure 包裹版（标准 EPUB 路径）</h2>
+    <figure class="img-left">
+      <img src="../Images/poster.png" alt="figure 左浮动"/>
+      <figcaption>figure 路径：标准阅读器走这一条</figcaption>
+    </figure>
+    <p>
+      figure 版用于验证 Apple Books 与 Thorium 上 figure 包裹层的 float 行为。Kindle 上预期这一段可能不会环绕，
+      作为与上方 img 兼容路径的对照样例。
+    </p>
+    <p class="clear-both">清除浮动。</p>
+  </section>
+</body>
+</html>

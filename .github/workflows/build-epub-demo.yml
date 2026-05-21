@@ -3,6 +3,11 @@ name: Build EPUB Demo
 on:
   workflow_dispatch:
   push:
+    branches: [main, develop]
+    paths:
+      - 'templates/epub-style-demo/**'
+      - '.github/workflows/build-epub-demo.yml'
+  pull_request:
     paths:
       - 'templates/epub-style-demo/**'
       - '.github/workflows/build-epub-demo.yml'
@@ -14,12 +19,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Clean dist
+        run: rm -rf templates/epub-style-demo/dist
+
       - name: Build demo EPUB
         run: sh templates/epub-style-demo/build.sh
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install EPUBCheck
+        run: |
+          curl -L -o epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+          unzip -q epubcheck.zip -d "$RUNNER_TEMP/epubcheck"
+          echo "EPUBCHECK_JAR=$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar" >> "$GITHUB_ENV"
+
+      - name: Validate with EPUBCheck
+        run: |
+          epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
+          java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default --out "$epub.epubcheck.xml" || true
 
       - name: Upload EPUB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: epub-style-demo
+          name: epub-style-demo-${{ github.sha }}
           path: templates/epub-style-demo/dist/*.epub
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload EPUBCheck report
+        uses: actions/upload-artifact@v4
+        with:
+          name: epubcheck-report-${{ github.sha }}
+          path: templates/epub-style-demo/dist/*.epub.epubcheck.xml
+          if-no-files-found: error
+          retention-days: 30

@@ -17,6 +17,8 @@ readers:
     name: Kindle Previewer
   - id: thorium
     name: Thorium Reader
+  - id: duokan
+    name: 多看阅读
 
 cases:
   - id: 00-cover-metadata
@@ -52,6 +54,30 @@ cases:
   - id: 09-kindle-risk
     title: Kindle 专项风险页
     fixture: templates/epub-style-demo/OEBPS/Text/09-kindle-risk.xhtml
+  - id: 10-text-effects
+    title: 文字效果合集（着重 / 波浪线 / 首字下沉 / Ruby）
+    fixture: templates/epub-style-demo/OEBPS/Text/10-text-effects.xhtml
+  - id: 11-chapter-opening
+    title: 章首结构
+    fixture: templates/epub-style-demo/OEBPS/Text/11-chapter-opening.xhtml
+  - id: 12-literary-fiction
+    title: 小说体综合
+    fixture: templates/epub-style-demo/OEBPS/Text/12-literary-fiction.xhtml
+  - id: 13-duokan-rich-fallback
+    title: 多看富文本 fallback 一体页
+    fixture: templates/epub-style-demo/OEBPS/Text/13-duokan-rich-fallback.xhtml
+  - id: 14-vertical-body
+    title: 整页正文竖排
+    fixture: templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml
+  - id: 15-frontmatter
+    title: 版权 / 题献 / 题记
+    fixture: templates/epub-style-demo/OEBPS/Text/15-frontmatter.xhtml
+  - id: 16-math
+    title: 简单数学公式
+    fixture: templates/epub-style-demo/OEBPS/Text/16-math.xhtml
+  - id: 17-image-layout
+    title: 图文环绕
+    fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
 
 expectations:
   # status: pass | warn | fail | na
@@ -74,3 +100,34 @@ expectations:
     issue: "conversionLog 只有表头、没有错误行；用户端反馈转换后文档仍打不开。"
     action: "已新增 toc.ncx、spine toc、Kindle 风险页和场景矩阵；完整 demo 已改为 PNG 资源路径，待用新构建产物复测。"
     workaround: "若新包仍打不开，先用 templates/kindle-minimal-repro/dist/kindle-minimal-repro-20260520-235314.epub 对照；minimal 可打开而完整 demo 不可打开时，继续二分页面级 CSS / Ruby / footnote / A-lite 特性。"
+
+  - reader: kindle_previewer
+    case: 17-image-layout
+    status: warn
+    reader_version: pending-local-verification
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
+    failed_page: 17-image-layout
+    issue: "Kindle 路径需验证 img 直挂 float + width 声明是否在 KF8/KFX 均生效。"
+    action: "已改为 img.kindle-img-left/right 直挂 float，并补 width 属性；等待 Kindle Previewer 复测回写 pass/fail。"
+    workaround: "figure 浮动仅作为标准 EPUB 路径保留，Kindle 走 img 兼容路径。"
+  - reader: duokan
+    case: 05-duokan-fallback
+    status: pass
+    reader_version: pending-user-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
+    issue: "验证 ol.duokan-footnote-content 容器级挂载是否可识别。"
+    action: "按用户实测保留容器级写法，不再使用 li 级 duokan-footnote-content。"
+  - reader: duokan
+    case: 06-multi-duokan-fallback
+    status: pass
+    reader_version: pending-user-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
+    issue: "多条注释场景下验证容器级 duokan-footnote-content。"
+    action: "用户实测通过，保留 ol 容器级写法。"
+  - reader: kindle_previewer
+    case: 10-text-effects
+    status: pass
+    reader_version: pending-user-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521.epub
+    issue: ".dropcap (float:left) 在 Kindle App/Previewer 的生效性。"
+    action: "按用户实测 pass 保留现有 dropcap 写法。"

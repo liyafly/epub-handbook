@@ -265,8 +265,8 @@
  */
 
 .demo-system-first {
-  /* 系统优先（与 .book-song 同链）：Apple + Windows + Android/开源 + generic */
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  /* 系统优先（短链对照）：用于观察系统字体优先命中。 */
+  font-family: "Songti SC", "Source Han Serif SC", serif;
 }
 
 .demo-embedded-first {

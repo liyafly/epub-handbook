@@ -11,8 +11,8 @@
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
 - 当需要兼容多看旧版本时，必须在标准结构基础上同步：
   - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
-  - 每条 `<li class="footnote-item">` 同时挂 `duokan-footnote-item` 与 `duokan-footnote-content`；
-  - `duokan-footnote-content` 必须挂在 `<li>` 上，不允许挂在 `<ol>` 上。
+  - 注释容器必须使用 `<ol class="footnote-list duokan-footnote-content">`；
+  - 每条 `<li class="footnote-item">` 仅挂 `duokan-footnote-item`，禁止在 `<li>` 上重复挂 `duokan-footnote-content`。
 - fallback 为次路径，禁止创建第二份注释容器。
 
 ## 2) A-lite 页面约束
@@ -31,7 +31,7 @@
 
 ## 3) 字体与 OPF
 
-- 若启用书内字体嵌入，OPF `<package>` 必须在 `prefix` 声明 ibooks 命名空间，并包含：`<meta property="ibooks:specified-fonts">true</meta>`。
+- 无论是否启用书内字体嵌入，OPF `<package>` 都必须在 `prefix` 声明 ibooks 命名空间，并保留：`<meta property="ibooks:specified-fonts">true</meta>`。
 - 标题字体来源仅允许：书内嵌入字体 + 通用族回退（serif/sans-serif/monospace 等）。
 - 字体策略必须与 `fontspec` 三态一致：`auto | forceAll | none`。
 

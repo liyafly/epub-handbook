@@ -259,7 +259,7 @@ body {
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | 首字下沉、竖排列 |
+| `float` | `left` / `right` | 推荐 | Kindle 上图文环绕需将 float 直接挂在 `<img>` 并显式宽度；`<figure>` 路径仅作标准 EPUB 对照。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |

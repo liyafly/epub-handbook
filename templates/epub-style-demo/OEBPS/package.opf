@@ -9,8 +9,8 @@
     <dc:title>EPUB Style Demo</dc:title>
     <dc:creator>EPUB Handbook</dc:creator>
     <dc:language>zh-CN</dc:language>
-    <dc:date>2026-05-19</dc:date>
-    <meta property="dcterms:modified">2026-05-19T00:00:00Z</meta>
+    <dc:date>2026-05-21</dc:date>
+    <meta property="dcterms:modified">2026-05-21T00:00:00Z</meta>
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
