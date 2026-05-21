@@ -21,6 +21,10 @@
 - `templates/` 下的样本应能独立打包，生成产物放在模板自己的 `dist/` 目录。
 - Kindle/Apple Books/Thorium/KOReader 等阅读器兼容性问题，不允许只靠手册推断修改；必须先更新或新增 demo EPUB 场景，打包验证，再回写 `docs/final/reader-matrix.yaml` 和最终文档。
 - demo EPUB 必须覆盖结构多样性：普通正文、中英混排、大字号标题、图片/封面、表格、代码、标准弹注、legacy fallback、A-lite、竖排、字体链。
+- 图文环绕主路径使用 `figure.img-left/right`：`float` 与固定 px `width` 挂在 `<figure>`，内部 `<img>` 使用 `width:100%; height:auto`。不要把 direct `img` 浮动作为主路径；部分阅读器会显示过小。
+- 图文环绕 fixture 必须包含足够长的正文、短段反例和大字号回归。短段看不出环绕不能直接判定为失败。
+- `.wavy` 等带样式下划线必须先写基础 `text-decoration: underline;`，再写 `text-decoration-style: ...;`。Kindle App 显示普通下划线是预期 fallback。
+- 含 MathML 的 XHTML 必须在 OPF manifest 声明 `properties="mathml"`，并优先覆盖 KDP Enhanced Typesetting 支持列表内标签。
 - 任何从阅读器实测得出的规则，必须能追溯到具体 demo 文件、构建产物、阅读器名称/版本、现象描述和处理结论；缺少这些信息时，只能记录为待验证假设，不能写成最终约束。
 - 每次新增、修复或推翻一个兼容性判断，都必须实时更新 `docs/final/reader-matrix.yaml`。若该判断会影响制作规则，必须继续更新 SPEC、终极手册、速查表；若会影响自动化行为，再同步更新相关 skill。
 - 任何新增第三方 EPUB 参考样本，必须同步更新 `THIRD_PARTY.md`（来源/作者/许可/链接）。
@@ -44,4 +48,4 @@
 2. 阅读器/打包实测问题：先改 `templates/` 或新增 fixture，build EPUB，记录阅读器版本、日志、现象与结果。
 3. 实测结果稳定后，再按 `reader-matrix.yaml` → `SPEC-实现约束.md` → 终极手册 → 速查表 → skills 的顺序同步规则。
 4. 说明增强：仅改 `docs/source/` 或 `docs/experiments/` 也可。
-5. 变更后执行最小自检（打包、结构 grep、XML/ZIP 校验、链接、标题、路径、术语一致性）。
+5. 变更后执行最小自检（打包、`scripts/validate-epub-style-demo.sh --epub <artifact>`、XML/ZIP 校验、链接、标题、路径、术语一致性）。
