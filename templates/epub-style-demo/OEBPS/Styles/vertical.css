@@ -1,0 +1,4 @@
+@charset "utf-8";
+body.page-vrl { writing-mode: vertical-rl; -epub-writing-mode: vertical-rl; }
+.vrl-title { font-size:1.5em; }
+.vrl-section p { text-indent: 1em; }

@@ -24,6 +24,11 @@
     <item id="css-fonts" href="Styles/fonts.css" media-type="text/css"/>
     <item id="css-base" href="Styles/base.css" media-type="text/css"/>
     <item id="css-poster" href="Styles/poster.css" media-type="text/css"/>
+    <item id="css-notes" href="Styles/notes.css" media-type="text/css"/>
+    <item id="css-effects" href="Styles/effects.css" media-type="text/css"/>
+    <item id="css-literary" href="Styles/literary.css" media-type="text/css"/>
+    <item id="css-media" href="Styles/media.css" media-type="text/css"/>
+    <item id="css-vertical" href="Styles/vertical.css" media-type="text/css"/>
     <item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>
     <item id="poster" href="Images/poster.png" media-type="image/png"/>
     <item id="note-icon" href="Images/note.png" media-type="image/png"/>
@@ -37,6 +42,14 @@
     <item id="font-family-order" href="Text/07-font-family-order.xhtml" media-type="application/xhtml+xml"/>
     <item id="long-mixed-flow" href="Text/08-long-mixed-flow.xhtml" media-type="application/xhtml+xml"/>
     <item id="kindle-risk" href="Text/09-kindle-risk.xhtml" media-type="application/xhtml+xml"/>
+    <item id="text-effects" href="Text/10-text-effects.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-opening" href="Text/11-chapter-opening.xhtml" media-type="application/xhtml+xml"/>
+    <item id="literary-fiction" href="Text/12-literary-fiction.xhtml" media-type="application/xhtml+xml"/>
+    <item id="duokan-rich" href="Text/13-duokan-rich-fallback.xhtml" media-type="application/xhtml+xml"/>
+    <item id="vertical-body" href="Text/14-vertical-body.xhtml" media-type="application/xhtml+xml"/>
+    <item id="frontmatter" href="Text/15-frontmatter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml"/>
+    <item id="image-layout" href="Text/17-image-layout.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -50,5 +63,13 @@
     <itemref idref="font-family-order"/>
     <itemref idref="long-mixed-flow"/>
     <itemref idref="kindle-risk"/>
+    <itemref idref="text-effects"/>
+    <itemref idref="chapter-opening"/>
+    <itemref idref="literary-fiction"/>
+    <itemref idref="duokan-rich"/>
+    <itemref idref="vertical-body"/>
+    <itemref idref="frontmatter"/>
+    <itemref idref="math"/>
+    <itemref idref="image-layout"/>
   </spine>
 </package>

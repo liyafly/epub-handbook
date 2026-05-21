@@ -1,15 +1,282 @@
 @charset "utf-8";
 
-/* See SPEC §8: keep font-family chains <= 4 segments and put embedded fonts first. */
-/* Production EPUBs should place @font-face declarations in this file. */
+/* ============================================================
+ * fonts.css —— 字体声明与字体工具类
+ *
+ * 仅放：@font-face、字体工具类（.rare / .title-special 等）。
+ * 不放：排版、颜色、分页、布局（这些在 base.css / poster.css）。
+ *
+ * 策略（同一份 EPUB 跑遍所有阅读器）：
+ *   1. 默认正文、标题、引用、等宽 **不嵌字体**，直接用各平台系统字体链
+ *      （默认链 ≤ 4 段：Apple + Windows + Android/开源 + generic）。
+ *   2. 嵌入字体只用于：(a) 大量生僻字；(b) 设计必须特定字体；(c) 二者同时存在。
+ *   3. 嵌入字体单独挂专用类（.rare / .title-special / .book-*-deluxe …），
+ *      按场景选模式 A / B / C（详见配套文档 §1）：
+ *        - 模式 A 设计专用：链 ≤ 2 段，嵌入 + generic；
+ *        - 模式 B 生僻字专用：链 ≤ 2 段，嵌入 + generic；
+ *        - 模式 C 嵌入 + 系统字体复合：链 ≤ 5 段，嵌入只出现 1 次
+ *          （第 1 位或倒数第 2 位，二选一）。
+ *   4. 没有专用类用到 @font-face 时，整段 @font-face 必须保持注释。
+ *
+ * 详见 SPEC §7 CSS 分层、SPEC §8 字体链规则、终极手册 §四。
+ * 嵌入字体启用后，记得同步 OPF manifest item。
+ * OPF metadata 的 <meta property="ibooks:specified-fonts">true</meta>
+ * 作为通用预防默认始终保留（未嵌字体也保留，详见配套 fonts-css-expansion-plan.md §4）。
+ * ============================================================ */
 
-/* Example skeleton:
-@font-face {
-  font-family: "BookBodySong";
-  src: url("../Fonts/BookBodySong.ttf");
+
+/* ---------- 一、@font-face 骨架（默认全部注释，按需取消） ----------
+ *
+ * 仅在有专用类（§ 三 B）真正引用某字体时，才取消对应 @font-face 的注释。
+ * 不要"先放着以后再说"——未引用的 @font-face 会让 OPF 必须打包对应字体文件
+ * （否则 EPUBCheck 失败），多余的字体打包也会让 Apple Books 加载更慢。
+ */
+
+/*
+@font-face {                          // 生僻字子集（仅 .rare 命中）
+  font-family: "RareSongSubset";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../Fonts/RareSongSubset.ttf") format("truetype");
+}
+
+@font-face {                          // 题签 / 卷头题字（仅 .title-special 命中）
+  font-family: "BookTitleSpecial";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../Fonts/BookTitleSpecial.ttf") format("truetype");
+}
+
+@font-face {                          // 签名档 / 印章（仅 .signature 命中）
+  font-family: "BookSignature";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../Fonts/BookSignature.ttf") format("truetype");
 }
 */
 
+
+/* ---------- 二、系统字体参考清单（组装跨平台链时挑选） ----------
+ *
+ * **默认链 ≤ 4 段**；按 SPEC §8 顺序取一即可，不要全部堆。
+ * 推荐顺序：1 个 Apple 系统字体 → 1 个 Windows 系统字体
+ *           → 1 个 Android / 跨平台开源 CJK 字体 → 1 个 generic family。
+ * （嵌入模式 C 复合链 ≤ 5 段，结构详见配套文档 §1 / SPEC §8。）
+ *
+ * 简体宋体 / serif（衬线，正文）
+ *   Apple (macOS / iOS / Apple Books):   "Songti SC"
+ *   Windows:                              "SimSun", "宋体", "NSimSun"
+ *   Android (Noto 已预装):                 "Noto Serif CJK SC"
+ *   跨平台开源:                            "Source Han Serif SC", "Noto Serif CJK SC"
+ *   反例（同家族堆叠）:                     "Songti SC", "STSongti-SC-Regular", "SimSun", "宋体"
+ *
+ * 简体黑体 / sans-serif（无衬线，标题/UI）
+ *   Apple:                                "PingFang SC"
+ *   Windows:                              "Microsoft YaHei", "微软雅黑", "SimHei", "黑体"
+ *   Android:                              "Noto Sans CJK SC"
+ *   跨平台开源:                            "Source Han Sans SC", "Noto Sans CJK SC"
+ *
+ * 简体楷体（题签 / 引用 / 楷体段落）
+ *   Apple:                                "Kaiti SC"（兼容旧名 "STKaiti"）
+ *   Windows:                              "KaiTi"（兼容旧名 "楷体"）
+ *   跨平台开源:                            "AR PL UKai CN"
+ *   Android:                              系统通常不预装楷体；落到 serif
+ *
+ * 简体仿宋（少用，引文 / 古籍）
+ *   Apple:                                "STFangsong"
+ *   Windows:                              "FangSong", "仿宋"
+ *
+ * 繁体宋体（zh-TW serif）
+ *   Apple:                                "Songti TC"
+ *   Windows:                              "PMingLiU", "新細明體"
+ *   Android:                              "Noto Serif CJK TC"
+ *   跨平台开源:                            "Source Han Serif TC"
+ *
+ * 繁体黑体（zh-TW sans-serif）
+ *   Apple:                                "PingFang TC"
+ *   Windows:                              "Microsoft JhengHei", "微軟正黑體"
+ *   跨平台开源:                            "Source Han Sans TC", "Noto Sans CJK TC"
+ *
+ * 日文 serif（明朝体）
+ *   Apple:                                "Hiragino Mincho ProN", "YuMincho"
+ *   Windows:                              "Yu Mincho", "MS Mincho"
+ *   跨平台开源:                            "Source Han Serif JP", "Noto Serif CJK JP"
+ *
+ * 日文 sans-serif（黑体 / Gothic）
+ *   Apple:                                "Hiragino Sans", "Hiragino Kaku Gothic ProN"
+ *   Windows:                              "Yu Gothic", "YuGothic", "Meiryo"
+ *   跨平台开源:                            "Source Han Sans JP", "Noto Sans CJK JP"
+ *
+ * 韩文
+ *   Apple:                                "Apple SD Gothic Neo"
+ *   Windows:                              "Malgun Gothic"
+ *   跨平台开源:                            "Source Han Sans KR", "Noto Sans CJK KR"
+ *
+ * 西文 serif
+ *   Apple Books:                          "Iowan Old Style"
+ *   macOS:                                "Palatino", "Palatino Linotype", "Georgia"
+ *   Windows:                              "Georgia", "Cambria", "Times New Roman"
+ *
+ * 西文 sans-serif
+ *   Apple:                                "SF Pro Text", "Helvetica Neue", "Helvetica"
+ *   Windows:                              "Segoe UI", "Tahoma", "Arial"
+ *
+ * 等宽
+ *   Apple:                                "SF Mono", "Menlo"
+ *   Windows:                              "Consolas", "Courier New"
+ *   跨平台开源:                            "Source Code Pro", "DejaVu Sans Mono"
+ *
+ * ---------- 链组装规则（SPEC §8）：
+ *   - 链尾必须是 generic family（serif / sans-serif / monospace）。
+ *   - 默认链 ≤ 4 段；嵌入模式 C 复合链 ≤ 5 段。
+ *   - 不堆叠同一平台的多个别名（Songti SC 与 STSongti-SC-Regular，
+ *     或 SimSun 与 宋体，不要同时出现）；"一平台一字体名" 是允许的。
+ *   - 嵌入字体 **不进默认链**；要用嵌入字体请去 § 三 B 的专用类。
+ * ----------
+ */
+
+
+/* ---------- 三 A、默认跨平台字体工具类（不嵌字体；推荐直接用） ----------
+ *
+ * 这一组类**不依赖** @font-face，可以直接挂在 XHTML 上。base.css 的 body /
+ * 标题 / 等宽规则也建议直接使用同等结构的链（详见 base.css）。
+ *
+ * 没有 .rare / .title-special / .signature 需求的书，整本书只需要这一组类。
+ *
+ * 链组装原则：每条链 **≤ 4 段**，覆盖
+ *   Apple（macOS / iOS / Apple Books）→ Windows → Android / 开源 → generic family。
+ *   特例：`.book-fangsong` 只有 3 段（Android 通常缺仿宋，直接落 serif）。
+ *
+ * 注意：q / blockquote 等元素选择器属"排版规则"，应在 base.css / literary.css
+ * 通过 `font-family: inherit` 与 class 组合来控制，不写在 fonts.css 里。
+ * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="book-kai" 即可。
+ */
+
+/* ===== 宋体 / serif（正文衬线） ===== */
+.book-song,
+.song,
+.book-body {                            /* .book-body 保留为向后兼容别名 */
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+/* ===== 黑体 / sans-serif（标题、UI） ===== */
+.book-hei,
+.hei,
+.book-heading {                         /* .book-heading 保留为向后兼容别名 */
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
+/* ===== 楷体（引文、题签、文学体） ===== */
+.book-kai,
+.kai,
+.book-kaiti,                            /* .book-kaiti / .kaiti 保留为向后兼容别名 */
+.kaiti {
+  font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
+}
+
+/* ===== 仿宋（古籍、引文） ===== */
+.book-fangsong,
+.fangsong {
+  /* Android 通常无内置仿宋；缺失时退到 serif（多为系统宋体兜底） */
+  font-family: "STFangsong", "FangSong", serif;
+}
+
+/* ===== 等宽 ===== */
+.book-mono,
+.mono {
+  /* Apple → Windows → 跨平台开源 → generic，恰好 4 段 */
+  font-family: "SF Mono", Consolas, "Source Code Pro", monospace;
+}
+
+/* ===== 西文衬线（中英混排时给西文显式衬线，可选） ===== */
+.book-latin-serif {
+  font-family: "Iowan Old Style", "Palatino", Georgia, serif;
+}
+
+
+/* ---------- 三 B、嵌入字体专用类（按 §1 模式 A / B / C 选用） ----------
+ *
+ * 只在有嵌入字体 (@font-face 已取消注释) 且 OPF manifest 已加 font item 时，
+ * 才取消下面对应类的注释。（OPF metadata 的 ibooks:specified-fonts=true
+ * 是通用预防默认，与是否嵌字体无关，参见配套文档 §4。）
+ */
+
+/* —— 模式 A：设计字体专用（≤ 2 段，嵌入 + generic） ——
+ * 卷头题字 / 题签 / 签名档：必须呈现设计字形；链里不挂任何系统字体。
+ */
+/*
+.title-special {
+  font-family: "BookTitleSpecial", serif;
+}
+
+.signature {
+  font-family: "BookSignature", serif;
+}
+*/
+
+/* —— 模式 B：生僻字子集字库专用（≤ 2 段，嵌入 + generic） ——
+ * 嵌入字体只承担 .rare 命中的字符；缺字时落 serif（多为豆腐），方便定位补字。
+ */
+/*
 .rare {
-  font-family: "RareSong", "BookBodySong", serif;
+  font-family: "RareSongSubset", serif;
+}
+*/
+
+/* —— 模式 C：嵌入 + 系统字体复合（≤ 5 段） ——
+ * 嵌入字体在链里**只出现 1 次**，位置为第 1 位（C1）或倒数第 2 位（C2）。
+ * 二选一，不能两处都放。
+ */
+
+/* C1 设计前置：嵌入设计字体放第 1 位 + 跨平台系统字体 + generic
+ * 适用：以设计字形为主，对生僻字不敏感
+ */
+/*
+.book-song-deluxe {
+  font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.book-kai-deluxe {
+  font-family: "BookKaiDesign", "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
+}
+*/
+
+/* C2 嵌入兜底：跨平台系统字体 + 嵌入字库放倒数第 2 位 + generic
+ * 适用：以可读为主，仅个别生僻字需要补字字库
+ */
+/*
+.book-song-with-rare {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif;
+}
+*/
+
+/* 既要设计字形又要补字时：不要塞同一条链，请拆成两个类
+ * - body / 章节标题挂 .book-song-deluxe（C1）
+ * - 生僻字单独 <span class="rare">…</span>（模式 B）
+ */
+
+
+/* ---------- 四、demo 字体顺序对照（07 号样页用） ----------
+ *
+ * 这一组类**仅用于** 07 号 demo 演示在不同阅读器下"系统优先 / 嵌入优先 /
+ * 混合链"三种字体链的实际命中差异，是教学样本，**不是**生产路径。
+ * 生产请按 §三 A（默认）/ §三 B（专用类）的命名挂类，例如 .book-song /
+ * .book-kai / .rare / .book-song-deluxe，不要直接挂这里的 demo-* 类。
+ */
+
+.demo-system-first {
+  /* 系统优先（与 .book-song 同链）：Apple + Windows + Android/开源 + generic */
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.demo-embedded-first {
+  /* 嵌入优先：演示嵌入字体放第 1 位时的命中差异。
+   * 与模式 C1 结构一致；生产请按模式 C1 挂在专用类（如 .book-song-deluxe）。 */
+  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
+}
+
+.demo-mixed {
+  /* 混合链：演示"嵌入字体 + 系统字体"混合时的命中差异。
+   * 生产同样要按模式 C 挂在专用类，不要直接用本类。 */
+  font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
 }

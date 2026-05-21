@@ -1,0 +1,25 @@
+name: Build EPUB Demo
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'templates/epub-style-demo/**'
+      - '.github/workflows/build-epub-demo.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build demo EPUB
+        run: sh templates/epub-style-demo/build.sh
+
+      - name: Upload EPUB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: epub-style-demo
+          path: templates/epub-style-demo/dist/*.epub
+          if-no-files-found: error
