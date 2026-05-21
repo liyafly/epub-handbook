@@ -50,5 +50,13 @@
       <navLabel><text>Kindle 风险项</text></navLabel>
       <content src="Text/09-kindle-risk.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-11" playOrder="11"><navLabel><text>文字效果合集</text></navLabel><content src="Text/10-text-effects.xhtml"/></navPoint>
+    <navPoint id="navpoint-12" playOrder="12"><navLabel><text>章首结构</text></navLabel><content src="Text/11-chapter-opening.xhtml"/></navPoint>
+    <navPoint id="navpoint-13" playOrder="13"><navLabel><text>小说体综合</text></navLabel><content src="Text/12-literary-fiction.xhtml"/></navPoint>
+    <navPoint id="navpoint-14" playOrder="14"><navLabel><text>多看 fallback 富文本一体页</text></navLabel><content src="Text/13-duokan-rich-fallback.xhtml"/></navPoint>
+    <navPoint id="navpoint-15" playOrder="15"><navLabel><text>整页正文竖排</text></navLabel><content src="Text/14-vertical-body.xhtml"/></navPoint>
+    <navPoint id="navpoint-16" playOrder="16"><navLabel><text>版权题献题记</text></navLabel><content src="Text/15-frontmatter.xhtml"/></navPoint>
+    <navPoint id="navpoint-17" playOrder="17"><navLabel><text>简单数学公式</text></navLabel><content src="Text/16-math.xhtml"/></navPoint>
+    <navPoint id="navpoint-18" playOrder="18"><navLabel><text>图文九宫格</text></navLabel><content src="Text/17-image-layout.xhtml"/></navPoint>
   </navMap>
 </ncx>

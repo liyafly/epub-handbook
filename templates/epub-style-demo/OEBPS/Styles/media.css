@@ -1,0 +1,7 @@
+@charset "utf-8";
+.math-block { text-align:center; margin: 1em 0; }
+.math-inline { white-space: nowrap; }
+.img-left { float:left; width:40%; margin:0 1em .6em 0; }
+.img-right { float:right; width:40%; margin:0 0 .6em 1em; }
+.img-center { margin: .8em auto; text-align:center; }
+.clear-both { clear: both; }

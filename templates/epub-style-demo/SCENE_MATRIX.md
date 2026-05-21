@@ -9,7 +9,7 @@
 | 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距 | Apple Books / Thorium / KOReader |
 | A-lite 海报 | `Text/03-vertical-alite.xhtml` | `body.fullpage`、`.fullframe padding:0`、背景、竖排标题 | Apple Books / Kindle Previewer |
 | 表格与代码 | `Text/04-lists-tables-code.xhtml` | 列表、表格滚动、代码块、kbd | Kindle Previewer / KOReader / Thorium |
-| 多看 fallback | `Text/05-legacy-note-fallback.xhtml` | `duokan-footnote`、`li.duokan-footnote-content`、单注释 | 多看 / 标准阅读器回退 |
+| 多看 fallback | `Text/05-legacy-note-fallback.xhtml` | `duokan-footnote`、`ol.duokan-footnote-content`、单注释 | 多看 / 标准阅读器回退 |
 | 多条 fallback | `Text/06-multi-legacy-note-fallback.xhtml` | 多 noteref 指向同一 `aside` 内不同 `li` | 多看 / 标准阅读器回退 |
 | font-family 顺序 | `Text/07-font-family-order.xhtml` | 系统优先、书内优先、楷体混合链、生僻字 fallback | Apple Books / Windows 阅读器 |
 | 长段落与中英混排 | `Text/08-long-mixed-flow.xhtml` | 普通正文盒模型、右侧裁切、长 token 换行、大字号标题 | Kindle Previewer / Apple Books |
@@ -22,3 +22,12 @@ sh templates/epub-style-demo/build.sh
 ```
 
 验证完成后，把阅读器名称、版本、构建产物、失败页面、现象、状态和 workaround 写入 `docs/final/reader-matrix.yaml`。
+
+| 文字效果合集 | `Text/10-text-effects.xhtml` | `.emp` / `.wavy` / `.dropcap` / Ruby 行距 | 全部 |
+| 章首结构 | `Text/11-chapter-opening.xhtml` | 章首图、标题副标题、卷头引文 | Apple Books / Thorium |
+| 小说体综合 | `Text/12-literary-fiction.xhtml` | 对话、诗节、场景分隔、信件块 | 全部 |
+| 多看富文本 fallback | `Text/13-duokan-rich-fallback.xhtml` | `ol.duokan-footnote-content` + `li.duokan-footnote-item` | 多看 / 标准阅读器 |
+| 整页正文竖排 | `Text/14-vertical-body.xhtml` | `body.page-vrl`、`.vrl-section` | Apple Books / KOReader |
+| 前置页 | `Text/15-frontmatter.xhtml` | `epub:type="frontmatter"`、题献与题记 | 全部 |
+| 简单数学公式 | `Text/16-math.xhtml` | sup/sub、math block、希腊符号 | 全部 |
+| 图文九宫格 | `Text/17-image-layout.xhtml` | 浮动类与 clear-both | 全部 |

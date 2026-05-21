@@ -1,0 +1,10 @@
+@charset "utf-8";
+.chapter-head img { display:block; width:100%; max-width:24em; margin: 0 auto 1em; }
+.chapter-title .sptxt { font-size: .7em; font-weight: 400; }
+.epigraph { margin: 1em 0; text-align:right; font-style: italic; }
+.epigraph-source { display:block; margin-top:.3em; font-size:.9em; }
+.dialog p { text-indent:0; margin:.35em 0; }
+.dialog-speaker { font-weight:600; }
+.poetry .stanza { text-indent:0; margin: .8em 0; }
+.letter { border-left: 2px solid #ccc; padding-left: .9em; margin: 1em 0; }
+.letter-close,.letter-signature { text-align:right; }
