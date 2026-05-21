@@ -29,7 +29,8 @@ scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>
 
 ## Current Compatibility Rules
 
-- Image wrapping uses `figure.img-left` / `figure.img-right` as the main path. Float and fixed pixel width belong on `figure`; the nested `img` is `width:100%; height:auto`.
+- Image wrapping uses `figure.img-left` / `figure.img-right` as the main path. Float and `width:25%` belong on `figure`; the nested `img` is `width:100%; height:auto`.
+- Do not fix image height or rely on `aspect-ratio` for the main EPUB path. Real image assets preserve their ratio through `height:auto`, and `figure` also needs natural height for captions.
 - Direct `img` float is not the main path because it can render too small in some readers.
 - Wrapping tests need enough surrounding prose. A short paragraph is a threshold counterexample, not proof that float failed.
 - Wavy underline must be split: `text-decoration: underline;` first, then `text-decoration-style: wavy;`. Kindle App fallback is ordinary underline.

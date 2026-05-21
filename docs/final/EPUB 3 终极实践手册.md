@@ -244,7 +244,7 @@ code, pre, kbd, samp {
 
 ## 五点五、图片环绕兼容路径
 
-图文环绕使用 `<figure>` 浮动作为主路径。Kindle App 实测 figure 也能环绕；关键是 figure 有明确固定宽度，并且前后正文足够长，让阅读器有足够行数展示绕排。direct `img` 直挂 float 不作为主路径，避免部分阅读器图片显示过小。
+图文环绕使用 `<figure>` 浮动作为主路径。Kindle App 实测 figure 也能环绕；关键是 figure 有明确百分比宽度，并且前后正文足够长，让阅读器有足够行数展示绕排。direct `img` 直挂 float 不作为主路径，避免部分阅读器图片显示过小。
 
 ```html
 <figure class="img-left">
@@ -259,16 +259,14 @@ code, pre, kbd, samp {
 ```css
 figure.img-left {
   float: left;
-  width: 240px;
-  max-width: 45%;
+  width: 25%;
   margin: 0 1em 0.6em 0;
   text-align: center;
 }
 
 figure.img-right {
   float: right;
-  width: 240px;
-  max-width: 45%;
+  width: 25%;
   margin: 0 0 0.6em 1em;
   text-align: center;
 }
@@ -280,7 +278,7 @@ figure.img-right img {
 }
 ```
 
-`width` 用固定 px；不要用 `em` 做 Kindle 主路径。`max-width` 只是给 Readest / Apple Books / Thorium 等非 Kindle 引擎的窄屏兜底，不能依赖 Kindle 一定执行。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
+`width:25%` 表示 figure 占可用行宽的四分之一。不要用 `em` 做 Kindle 主路径。图片高度不固定：内层 `img` 用 `height:auto` 保持天然宽高比；`aspect-ratio` 不作为 EPUB 主路径，因为旧阅读器支持不稳定，而且 figure 还要容纳 caption 的自然高度。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
 
 ---
 

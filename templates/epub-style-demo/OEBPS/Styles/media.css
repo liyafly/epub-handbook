@@ -19,16 +19,14 @@
 
 .img-left {
   float: left;
-  width: 240px;
-  max-width: 45%;
+  width: 25%;
   margin: 0 1em 0.6em 0;
   text-align: center;
 }
 
 .img-right {
   float: right;
-  width: 240px;
-  max-width: 45%;
+  width: 25%;
   margin: 0 0 0.6em 1em;
   text-align: center;
 }

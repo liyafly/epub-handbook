@@ -21,7 +21,7 @@
 - `templates/` 下的样本应能独立打包，生成产物放在模板自己的 `dist/` 目录。
 - Kindle/Apple Books/Thorium/KOReader 等阅读器兼容性问题，不允许只靠手册推断修改；必须先更新或新增 demo EPUB 场景，打包验证，再回写 `docs/final/reader-matrix.yaml` 和最终文档。
 - demo EPUB 必须覆盖结构多样性：普通正文、中英混排、大字号标题、图片/封面、表格、代码、标准弹注、legacy fallback、A-lite、竖排、字体链。
-- 图文环绕主路径使用 `figure.img-left/right`：`float` 与固定 px `width` 挂在 `<figure>`，内部 `<img>` 使用 `width:100%; height:auto`。不要把 direct `img` 浮动作为主路径；部分阅读器会显示过小。
+- 图文环绕主路径使用 `figure.img-left/right`：`float` 与百分比 `width:25%` 挂在 `<figure>`，内部 `<img>` 使用 `width:100%; height:auto`。不要固定高度或依赖 `aspect-ratio` 作为主路径；真实图片让 `height:auto` 保持天然比例。不要把 direct `img` 浮动作为主路径；部分阅读器会显示过小。
 - 图文环绕 fixture 必须包含足够长的正文、短段反例和大字号回归。短段看不出环绕不能直接判定为失败。
 - `.wavy` 等带样式下划线必须先写基础 `text-decoration: underline;`，再写 `text-decoration-style: ...;`。Kindle App 显示普通下划线是预期 fallback。
 - 含 MathML 的 XHTML 必须在 OPF manifest 声明 `properties="mathml"`，并优先覆盖 KDP Enhanced Typesetting 支持列表内标签。

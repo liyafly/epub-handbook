@@ -134,6 +134,8 @@ def validate_source(check: Check) -> None:
   image_layout = IMAGE_LAYOUT.read_text(encoding="utf-8")
   check.require("kindle-img" not in media_css, "media.css must not define direct img kindle-* float classes")
   check.require("kindle-img" not in image_layout, "17-image-layout must not use direct img kindle-* float classes")
+  check.require("width: 25%;" in media_css, "figure image float classes must use 25% width")
+  check.require("aspect-ratio" not in media_css, "media.css must not depend on aspect-ratio for image wrapping")
   check.require("class=\"img-left\"" in image_layout, "17-image-layout must include figure.img-left")
   check.require("class=\"img-right\"" in image_layout, "17-image-layout must include figure.img-right")
   check.require("短段反例" in image_layout, "17-image-layout must include a short-text threshold counterexample")

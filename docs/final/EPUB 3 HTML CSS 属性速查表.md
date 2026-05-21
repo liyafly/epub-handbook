@@ -265,14 +265,14 @@ body {
 | `border-left` | 引文边线 | 推荐 | 块引文 |
 | `border-radius` | 小半径 | 可用 | 代码、kbd |
 | `box-sizing` | `border-box` | 推荐 | A-lite 页面 |
-| `width` | `%` / `auto` / 固定 `px` | 推荐 | 表格可用 `%`；环绕 figure 主路径用固定 px |
+| `width` | `%` / `auto` / 固定 `px` | 推荐 | 环绕 figure 主路径用 `25%`；表格可用 `%` |
 | `max-width` | `100%` | 推荐 | 图片 |
 | `height` | `auto` | 推荐 | 图片 |
 | `min-height` | `100%` / `90%` | 推荐 | A-lite |
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，固定 px 宽度，正文必须足够长；direct img 不作为主路径。 |
+| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，`width:25%`，正文必须足够长；direct img 不作为主路径。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |
@@ -323,6 +323,7 @@ body {
 | `height` | `auto` | 推荐 | 保持比例 |
 | `vertical-align` | `baseline` / `middle` | 推荐 | 行内图标 |
 | `object-fit` | `contain` / `cover` | 条件可用 | 部分阅读器 |
+| `aspect-ratio` | 固定比例盒 | 渐进增强 | 不作为环绕图片主路径；真实图片用 `height:auto` 保持比例 |
 | `background-image` | `url(...)` | 推荐 | A-lite 背景 |
 | `background-repeat` | `no-repeat` | 推荐 | 海报背景 |
 | `background-position` | `left bottom` / `center center` | 推荐 | 海报背景 |
@@ -476,7 +477,7 @@ body {
 | A-lite 海报 | 实测可用 | 可用 | 可用 | 实测可用 | 可用 | 推荐 |
 | 图片图标弹注 | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `text-emphasis` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
-| `figure + float + width(px)` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
+| `figure + float + width(%)` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | MathML | 可用 | 可用 | 可用 | Enhanced Typesetting | 视版本 | 条件可用 |
 | `text-decoration-style: wavy` | 可用 | 可用 | 可用 | 退化为 underline | 视版本 | 渐进增强 |
 | `ruby + rt` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |
