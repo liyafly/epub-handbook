@@ -27,9 +27,12 @@
 
 ## 检索结论
 
+- Apple Books Asset Guide 5.3.1: Apple Books 支持 EPUB 3.3，并在可访问性章节把 MathML 描述为 EPUB 3 中表示数学公式的 XML 标记语言。见 [Apple Books Asset Guide](https://help.apple.com/itc/booksassetguide/en.lproj/static.html)。
 - Kindle 官方 [Image Guidelines - Reflowable](https://kdp.amazon.com/en_US/help/topic/G75V4YX5X8GRGXWV) 说明带 caption 的图片使用 `figure`；用户 Kindle App 实测确认 figure 浮动也能环绕，因此 demo 以 figure 为主路径。
 - [Kindle Publishing Guidelines PDF](https://kindlegen.s3.amazonaws.com/AmazonKindlePublishingGuidelines.pdf) 支持表列出 `float` 与 `width` 支持，但 `max-width` 不保证；所以主约束应放在固定 `width`，`max-width` 只做非 Kindle 窄屏兜底。
 - Kindle Publishing Guidelines 对 `text-decoration` 的支持值只列 `overline` / `underline`，没有 `text-decoration-style`；Kindle App 显示普通下划线是预期 fallback。
+- KDP [Text Guidelines - Reflowable](https://kdp.amazon.com/en_US/help/topic/GH4DRT75GWWAGBTU) 的 MathML Support 说明 Enhanced Typesetting 支持 MathML，并列出本轮 demo 覆盖的标签集合。
+- W3C [EPUB 3.3](https://www.w3.org/TR/epub-33/) 作为 Apple Books 与项目最终文档的 EPUB 标准基线；含 MathML 的内容文档需要在 OPF manifest 上通过 `properties="mathml"` 标记。
 
 ## 文档同步门槛
 
