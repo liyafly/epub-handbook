@@ -118,6 +118,12 @@ Use these local reference shapes:
 - `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml` for a compact compatibility example.
 - `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml` for multiple fallback notes sharing one grouped list in the same XHTML file.
 
+Run the stdlib-only validator after applying fallback:
+
+```sh
+scripts/validate-popup-notes.sh
+```
+
 
 ### Multi-note validation
 

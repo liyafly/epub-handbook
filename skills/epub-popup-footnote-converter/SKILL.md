@@ -120,7 +120,7 @@ sup {
 
 ## CSS placement
 
-- Footnote CSS must be written to `Styles/base.css`.
+- Footnote CSS must be written to `Styles/notes.css` in this repository's layered demo.
 - Do not write footnote CSS into `poster.css`.
 - `@font-face` and font utility classes belong in `Styles/fonts.css`.
 
@@ -142,3 +142,15 @@ Use `templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml` as the local refer
 - the file has one grouped `aside epub:type="footnote"` for all local notes.
 - backlinks use `epub:type="backlink"` and `role="doc-backlink"`.
 - the note trigger uses an image icon when the EPUB has or can receive the icon asset.
+
+Run the stdlib-only validator after conversion:
+
+```sh
+scripts/validate-popup-notes.sh
+```
+
+For a built artifact:
+
+```sh
+scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+```

@@ -20,6 +20,7 @@ sh templates/epub-style-demo/build.sh
 
 ```sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 ```
 
 4. Record the artifact in `docs/final/reader-matrix.yaml`. Use `warn` with pending reader version when human retest is still needed; do not invent pass/fail.
@@ -43,6 +44,7 @@ Before committing, run at minimum:
 ```sh
 sh templates/epub-style-demo/build.sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 xmllint --noout templates/epub-style-demo/OEBPS/package.opf templates/epub-style-demo/OEBPS/nav.xhtml templates/epub-style-demo/OEBPS/toc.ncx
 git diff --check
 ```
