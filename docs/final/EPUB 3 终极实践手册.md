@@ -156,7 +156,9 @@ body {
 
 > 反例：上面的长链别名堆叠（如 `STSongti-*` / `NSimSun` / `宋体`）违反 SPEC §8，仅用于说明 anti-pattern。
 
-正文采用书内字体优先，系统字体链兜底。iOS / Apple Books 对系统中文字体名命中不稳定，默认体验依靠 `BookBodySong`。
+默认路径：正文走各平台系统中文字体链（Apple `Songti SC` + Windows `SimSun` + Android / 跨平台开源 `Noto Serif CJK SC` + `serif`）。iOS / Apple Books 对 `Songti SC` 命中稳定；Android 系统已预装 `Noto Serif CJK SC`；Windows 走 `SimSun` 兜底。
+
+例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在链首：`"BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
 
 ### 4.3 特殊标题字体
 
@@ -169,6 +171,8 @@ body {
 ```
 
 特殊标题、题签、卷首页只写书内字体名 + 通用族兜底，避免系统字体提前替换设计字形。
+
+> 上述写法属于模式 A（链 ≤ 2 段，仅嵌入字体 + generic）。如果项目未嵌入 `BookTitleKai`，把这条规则改为系统楷体链 `.title-kai { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`（与 `fonts.css` 的 `.book-kai` 同源），不要保留死链。
 
 ### 4.4 生僻字
 

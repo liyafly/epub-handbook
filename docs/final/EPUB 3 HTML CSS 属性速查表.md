@@ -234,22 +234,32 @@
 ### 4.1 正文字体链
 
 ```css
+/* 默认（不嵌字体） */
 body {
-  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+/* 模式 C1-body（含生僻字 + 全字符集嵌入字体） */
+body {
+  font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
+
+> 第一组是默认路径；第二组仅当全书含生僻字、且嵌入"全字符集"字体（`fontspec=forceAll`）时启用，详见 SPEC §8 模式 C1-body。
 
 ### 4.2 标题 / 特殊字体
 
 ```css
+/* 模式 A：题签 / 卷头题字 / 签名档（嵌入设计字体；链 ≤ 2 段） */
 .poster-title,
 .title-kai,
 .inscription {
-  font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
+  font-family: "BookTitleKai", serif;
 }
 
+/* 模式 B：生僻字子集字库（链 ≤ 2 段） */
 .rare {
-  font-family: "RareSong", "BookBodySong", serif;
+  font-family: "RareSongSubset", serif;
 }
 ```
 
