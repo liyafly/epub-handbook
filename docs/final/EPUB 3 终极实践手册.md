@@ -10,7 +10,7 @@
 
 | 模块 | 最终方案 |
 |---|---|
-| 正文 | EPUB 3.3 可重排，正文使用各平台系统中文字体链；不嵌入正文字体 |
+| 正文 | EPUB 3.3 可重排，默认走各平台系统中文字体链；含生僻字时允许嵌入"全字符集"字体走模式 C1-body 直接挂 body / h*（详见 §四） |
 | 整页海报 / 卷首 / 章节扉页 | A-lite：可重排整页、无 FXL、无 `vh/vw`、无绝对定位 |
 | 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
@@ -179,6 +179,30 @@ body {
 ```
 
 > 旧写法 `"RareSong", "BookBodySong", serif` 是反例——生僻字字体后面挂正文嵌入宋体，缺字时落到系统宋体的豆腐。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "RareSongSubset", serif; }`；(模式 C1 设计前置) `.book-song-deluxe { font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.book-song-with-rare { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif; }`。
+
+
+### 含生僻字的全字符集方案（模式 C1-body）
+
+当正文存在生僻字、且选择嵌入"全字符集"字体（不做子集裁剪）时，
+允许把该嵌入字体直接挂在 body / h*，走单一字体链以保持设计统一。
+
+```css
+body {
+  font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "BookHeiFull", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+```
+
+要点：
+
+- 嵌入字体必须覆盖书内所有生僻字（GB 18030 / CJK Ext-A 起，按书内用字裁切但不做子集压缩）；
+- OPF manifest 声明该字体 item，`fontspec` 切到 `forceAll`；
+- 不允许把子集字库（如 `RareSongSubset`）走本路径——子集挂 body 必然落豆腐；子集字库一律走 `.rare` 类（模式 B）；
+- 体积说明：全字符集 CJK 字体单 weight 约 8–15 MB；启用前评估包体增长是否可接受；
+- 这条路径与 `.rare` 类互斥：选了 C1-body 就不再需要 `.rare`；不嵌全字符集字体的项目继续走默认系统字体链。
 
 生僻字字体只放子集。
 
@@ -886,3 +910,4 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 嵌入字体仅出现在专用类（模式 A / B / C），不进 body / h* 等元素选择器。
 - [ ] 任一字体链的链尾必须是 generic family（serif / sans-serif / monospace）。
 - [ ] 默认链 ≤ 4 段；嵌入模式 C 复合链 ≤ 5 段，嵌入字体在链里只出现 1 次（第 1 位或倒数第 2 位）。
+- [ ] 启用模式 C1-body 时：嵌入字体是全字符集、`fontspec=forceAll`、链 ≤ 5 段、嵌入仅在第 1 位。
