@@ -370,6 +370,20 @@ code, pre, kbd, samp {
 
 > 现有 `base.css` 已经接近这个结构；执行模型落地时核对："body 链不要含嵌入字体名"、"标题链不要含嵌入字体名"、"链 ≤ 4 段"、"每段对应不同平台或开源 / generic"。
 
+> 含生僻字、采用 C1-body 模式的真书，`base.css` 的 body / h* 链改写为：
+>
+> ```css
+> body {
+>   font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+> }
+>
+> h1, h2, h3, h4, h5, h6 {
+>   font-family: "BookHeiFull", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+> }
+> ```
+>
+> 这是 demo 不演示的场景（demo 不含生僻字），但真书可直接复用。嵌入字体必须是全字符集，OPF manifest 挂字体 item，`fontspec=forceAll`。
+
 ---
 
 ## 4. 与 OPF 的配合
@@ -397,9 +411,10 @@ code, pre, kbd, samp {
 |---|---|---|---|
 | `none`（默认） | 全书走系统字体链 | 否 | `true`（通用预防默认，始终保留）|
 | `auto` | 仅 .rare / .title-special 等专用类对应的字体打包，按用字裁切 | 是（仅子集） | `true` |
-| `forceAll` | 嵌入字体不裁切（整字库） | 是 | `true` |
+| `forceAll` | 嵌入字体不裁切（整字库）；含生僻字时可走模式 C1-body 直接挂 body / h* | 是 | `true` |
 
 > 与现 SPEC §4 "auto 模式 = 全书 XHTML 实际用字" 不冲突；只是默认推荐从 `auto` 改为 `none`。在 SPEC §4 末尾加一句："默认模式为 `none`；仅当书内出现 § 三 B 专用类时切到 `auto`/`forceAll`。"
+> `forceAll` 是模式 C1-body 的必备条件——子集模式（`auto`）不允许 body / h* 直接挂嵌入字体；子集字库一律走 `.rare` 类（模式 B）。
 
 ---
 
