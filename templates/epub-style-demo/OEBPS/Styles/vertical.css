@@ -2,3 +2,9 @@
 body.page-vrl { writing-mode: vertical-rl; -epub-writing-mode: vertical-rl; }
 .vrl-title { font-size:1.5em; }
 .vrl-section p { text-indent: 1em; }
+
+body.page-vrl { line-height: 1.9; }
+.vrl-section { margin: 1em 0; }
+.vrl-section h2 { writing-mode: vertical-rl; -epub-writing-mode: vertical-rl; font-size: 1.3em; margin: 0 1em; }
+.vrl-section ruby { ruby-position: over; }
+.vrl-section rt { font-size: .55em; }

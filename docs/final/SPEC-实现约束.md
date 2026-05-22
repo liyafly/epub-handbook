@@ -102,18 +102,39 @@
 
 | 文件 | 职责 | 允许内容 | 禁止内容 |
 |---|---|---|---|
-| `fonts.css` | 字体声明 | `@font-face`、字体工具类（如 `.rare`） | 排版、颜色、分页、布局 |
-| `base.css` | 正文样式 | 段落、标题、列表、表格、代码、ruby、注释 | A-lite 海报页规则（`body.fullpage` / `.fullframe` / `.poster-*`） |
-| `poster.css` | A-lite 海报页 | `body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol` | 正文常规段落规则 |
+| `fonts.css` | 字体声明 | `@font-face`、字体工具类（默认链 `.book-song` / `.book-hei` / `.book-kai` / `.book-fangsong` / `.book-mono` / `.book-latin-serif` 与对应短别名；嵌入专用类 `.rare` / `.title-special` / `.signature`） | 排版、颜色、分页、布局、元素选择器 |
+| `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
+| `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
+| `effects.css` | 文字效果 | `.emp` / `.wavy` / `.dropcap` / `.scene-break` / Ruby 行距 | 字体声明、弹注、文学结构 |
+| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.chapter-head` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` | 弹注、图文浮动、海报、竖排 |
+| `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
+| `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
+| `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |
 
 附加规则：
-- 海报页 XHTML 必须链接 `fonts.css` + `poster.css`（可按需再链 `base.css`）。
-- 正文页 XHTML 必须链接 `fonts.css` + `base.css`。
-- OPF manifest 必须分别声明 `fonts.css` / `base.css` / `poster.css`（若项目存在 A-lite 页）。
+- 加载顺序：`fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。
+- 海报页 XHTML link `fonts.css + poster.css`（如需正文排版再加 `base.css`）。
+- 正文页 XHTML 至少 link `fonts.css + base.css`，其他层按场景选用。
+- OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
+- 单文件不超过 200 行；超过即拆分。
+- 跨层依赖通过类名契约，不允许下层文件引用上层组件类。
 
 ## 8) 字体链规则
 
-- `font-family` 链最长 4 段：嵌入字体 → 1 个系统中文字体 → 1 个跨平台开源中文字体 → generic family。
-- 嵌入字体必须放链首；系统字体仅做未嵌入时兜底。
-- 不建议在同一条链里堆叠多个同家族别名（如 `Songti SC` / `STSongti-*`）。
-- 生僻字回退建议使用独立类（如 `.rare`）与专用字体，不要塞进 `body` 主链。
+- 同一份 EPUB 默认走跨平台系统字体链，不嵌入字体；嵌入字体仅用于
+  (a) 大量生僻字、(b) 设计上必须的特定字体、(c) (a) 与 (b) 同时存在。
+- **默认 `font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
+  → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
+- 嵌入字体不允许出现在默认 `body` / `h*` / `code` 等元素选择器链中，必须挂在
+  专用类（`.rare` / `.title-special` / `.book-song-deluxe` 等）上。
+- 专用类按场景使用以下三种模式：
+  - **模式 A 设计字体专用**（题签 / 卷头题字 / 签名档）：链 ≤ 2 段，嵌入字体 + generic family；
+  - **模式 B 生僻字子集专用**（`.rare` 类）：链 ≤ 2 段，嵌入字体 + generic family；
+  - **模式 C 嵌入 + 系统字体复合**：**链 ≤ 5 段**，嵌入字体在链里**只出现 1 次**，位置为第 1 位（C1 设计前置）或倒数第 2 位（C2 嵌入兜底），二选一；中间为 3 段系统字体（Apple + Windows + Android / 开源 CJK），链尾 generic family。
+    - C1 示例：`"BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`
+    - C2 示例：`"Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif`
+- 同一条链里嵌入字体出现 ≥ 2 次属反模式；若需"设计字形 + 生僻字兜底"双重支援，应拆成两个类（C1 类挂在正文 / 章节，模式 B `.rare` 类用 span 包住生僻字），不要塞进同一条链。
+- "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
+- 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
+- 没有专用类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
+- `<meta property="ibooks:specified-fonts">true</meta>` 作为通用预防默认始终保留，与是否嵌入字体无关——未嵌字体时它表示"用我指定的系统字体链"，避免 Apple Books 里用户的第三方字体覆盖书内排版。

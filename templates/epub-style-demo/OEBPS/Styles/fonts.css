@@ -33,21 +33,21 @@
  */
 
 /*
-@font-face {                          // 生僻字子集（仅 .rare 命中）
+@font-face {                          /* 生僻字子集（仅 .rare 命中） */
   font-family: "RareSongSubset";
   font-style: normal;
   font-weight: 400;
   src: url("../Fonts/RareSongSubset.ttf") format("truetype");
 }
 
-@font-face {                          // 题签 / 卷头题字（仅 .title-special 命中）
+@font-face {                          /* 题签 / 卷头题字（仅 .title-special 命中） */
   font-family: "BookTitleSpecial";
   font-style: normal;
   font-weight: 400;
   src: url("../Fonts/BookTitleSpecial.ttf") format("truetype");
 }
 
-@font-face {                          // 签名档 / 印章（仅 .signature 命中）
+@font-face {                          /* 签名档 / 印章（仅 .signature 命中） */
   font-family: "BookSignature";
   font-style: normal;
   font-weight: 400;
@@ -266,7 +266,7 @@
 
 .demo-system-first {
   /* 系统优先（短链对照）：覆盖 Mac/iOS、Windows、Adobe 默认 CJK fallback。 */
-  font-family: "Songti SC", "SimSun", "Source Han Serif SC", serif;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 .demo-embedded-first {

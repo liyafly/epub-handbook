@@ -216,7 +216,7 @@
 | 属性 / 规则 | 推荐值 / 用法 | 状态 | 备注 |
 |---|---|---|---|
 | `@font-face` | 定义书内字体 | 推荐 | 正文、标题、生僻字可分开 |
-| `font-family` | 书内字体 + 系统 fallback + 通用族 | 推荐 | 正文字体主路径 |
+| `font-family` | 默认 Apple + Windows + Android/开源 + generic（≤ 4 段，不嵌字体）；嵌入字体仅走专用类（模式 A / B / C，详见 SPEC §8） | 推荐 | 正文字体主路径 |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
