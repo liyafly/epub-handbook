@@ -10,9 +10,9 @@
 
 | 模块 | 最终方案 |
 |---|---|
-| 正文 | EPUB 3.3 可重排，正文主字体可内嵌授权宋体类字体，系统字体作为 fallback |
+| 正文 | EPUB 3.3 可重排，正文使用各平台系统中文字体链；不嵌入正文字体 |
 | 整页海报 / 卷首 / 章节扉页 | A-lite：可重排整页、无 FXL、无 `vh/vw`、无绝对定位 |
-| 标题 / 题签 / 特殊排版 | 内嵌授权字体，只用书内字体名 + 通用族兜底 |
+| 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
 | Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
 | 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
@@ -150,7 +150,7 @@ book.epub
 
 ```css
 body {
-  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
@@ -174,9 +174,11 @@ body {
 
 ```css
 .rare {
-  font-family: "RareSong", "BookBodySong", serif;
+  font-family: "RareSongSubset", serif;
 }
 ```
+
+> 旧写法 `"RareSong", "BookBodySong", serif` 是反例——生僻字字体后面挂正文嵌入宋体，缺字时落到系统宋体的豆腐。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "RareSongSubset", serif; }`；(模式 C1 设计前置) `.book-song-deluxe { font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.book-song-with-rare { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif; }`。
 
 生僻字字体只放子集。
 
@@ -208,7 +210,7 @@ body {
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
-  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 p {
@@ -880,4 +882,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 需多看旧版兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
 - [ ] 注释列表 `<ol>` 同时挂 `footnote-list duokan-footnote-content`。
 - [ ] 每条 `li.footnote-item` 只额外挂 `duokan-footnote-item`，不重复挂 `duokan-footnote-content`。
-- [ ] 任一 `font-family` 链 ≤ 4 段，嵌入字体放链首。
+- [ ] 默认正文 / 标题 / 等宽走系统字体链，不嵌字体。
+- [ ] 嵌入字体仅出现在专用类（模式 A / B / C），不进 body / h* 等元素选择器。
+- [ ] 任一字体链的链尾必须是 generic family（serif / sans-serif / monospace）。
+- [ ] 默认链 ≤ 4 段；嵌入模式 C 复合链 ≤ 5 段，嵌入字体在链里只出现 1 次（第 1 位或倒数第 2 位）。
