@@ -127,6 +127,17 @@
   → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
 - 嵌入字体不允许出现在默认 `body` / `h*` / `code` 等元素选择器链中，必须挂在
   专用类（`.rare` / `.title-special` / `.book-song-deluxe` 等）上。
+- 例外（模式 C1-body）：当正文确实含生僻字、且选择嵌入"全字符集"字体（非子集）时，
+  允许把该嵌入字体按模式 C1 直接挂在 `body` / `h*` 链上，走单一字体链以保持设计统一。
+  启用要求：
+  - 嵌入字体必须覆盖书内所有生僻字（至少 GB 18030 / CJK Unified Ideographs + Ext-A，
+    按书内实际用字裁切但不再做子集压缩）；子集字库（如 `RareSongSubset`）禁止走本路径，
+    必须改用模式 B `.rare` 类；
+  - OPF manifest 声明对应字体 item；
+  - `fontspec` 切到 `forceAll`（参考 fonts-css-expansion-plan §5）；
+  - body / h* 链仍 ≤ 5 段，嵌入字体在第 1 位且只出现 1 次，其后 3 段系统字体，
+    链尾 generic family；
+  - 示例：`body { font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。
 - 专用类按场景使用以下三种模式：
   - **模式 A 设计字体专用**（题签 / 卷头题字 / 签名档）：链 ≤ 2 段，嵌入字体 + generic family；
   - **模式 B 生僻字子集专用**（`.rare` 类）：链 ≤ 2 段，嵌入字体 + generic family；
