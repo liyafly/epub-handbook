@@ -44,7 +44,7 @@
 
 > 反例（必须避免）：
 > - `body { font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif; }`  
->   → 默认 body 链塞嵌入字体，整本书强制携带 6–10 MB 字库；若真的需要这种效果，应改用模式 C 并挂在专用类上，让 XHTML 显式选用。
+>   → 默认场景下，body 链塞嵌入字体导致整本书强制携带 6–10 MB 字库；若只是设计需求，应改用模式 C 并挂专用类。**例外**：当书内确有生僻字、且嵌入"全字符集"字体（非子集，`fontspec=forceAll`）时，这种写法属于模式 C1-body，详见 SPEC §8 与终极手册 §四。本反例针对"无生僻字、不需要嵌入也硬挂 body"的常见错误。
 > - `.rare { font-family: "RareSong", "BookBodySong", "Songti SC", serif; }`  
 >   → 生僻字字体后面又挂正文宋体，缺字时落到系统宋体的豆腐——这是没有解决问题的链。
 > - `.book-song-deluxe { font-family: "BookSongDesign", "Songti SC", "SimSun", "RareSongSubset", serif; }`  
@@ -330,13 +330,16 @@
 
 .demo-embedded-first {
   /* 嵌入优先：演示嵌入字体放第 1 位时的命中差异。
-   * 与模式 C1 结构一致；生产请按模式 C1 挂在专用类（如 .book-song-deluxe）。 */
+   * 与模式 C1 结构一致；生产挂载位置取决于场景：
+   *   - 仅设计需求 → 模式 C1 挂专用类（如 .book-song-deluxe）；
+   *   - 含生僻字 + 全字符集嵌入 → C1-body 例外，可直接挂 body / h*。 */
   font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
 }
 
 .demo-mixed {
   /* 混合链：演示"嵌入字体 + 系统字体"混合时的命中差异。
-   * 生产同样要按模式 C 挂在专用类，不要直接用本类。 */
+   * 生产请按模式 C 挂专用类（或 C1-body 例外路径直接挂 body）；
+   * 不要直接用本 demo-* 类做生产路径。 */
   font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
 }
 ```
@@ -419,6 +422,14 @@ code, pre, kbd, samp {
 ---
 
 ## 6. SPEC §8 / 终极手册 §四 同步改写清单
+
+> 状态：本节列出的所有改写已在分支 `codex/modify-files-to-execute-in-order` 落地：
+> - SPEC §8 由 `c7f8617` 完成；
+> - 终极手册 §一 / §四 / §十二 由 `c7f8617` + `a6f1902` + `f848117` 完成；
+> - 速查表 §四 由 `c7f8617` + `f848117` 完成；
+> - C1-body 例外的同步追加由 `a6f1902` + `f848117` 完成。
+>
+> 保留本节作为变更记录，新项目落地参考。
 
 > 本次策略反转之后，SPEC §8 与终极手册 §四的现有措辞与本文档不一致，需要执行模型按下列改写一次性同步。
 

@@ -456,7 +456,7 @@ body {
 |---|---|---|
 | 多看触发类 | `class="duokan-footnote"` | noteref 兼容触发 |
 | 多看条目类 | `class="duokan-footnote-item"` | 兼容列表项 |
-| 多看内容类 | `class="duokan-footnote-content"`（挂在 `ol.footnote-list`） | 弹窗内容匹配点 |
+| 多看内容类 | `<ol class="footnote-list duokan-footnote-content">` —— 两个类同挂在 `<ol>` 上，不允许只挂 `duokan-footnote-content` | 弹窗内容匹配点 |
 
 ## 十五、A-lite 属性速查
 
