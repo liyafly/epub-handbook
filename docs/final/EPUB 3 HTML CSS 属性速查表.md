@@ -292,7 +292,7 @@ body {
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `box-shadow` | `.2em .2em 0 #ddd` / `inset 0 0 .4em #ddd` | 渐进增强 | 便签阴影；必须有 border/background 兜底 |
 | `transform` | `rotate(-1deg)` | 风险 | 不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误 |
-| SVG 花边框 | 内联 SVG + `aria-hidden="true"` + 普通边框兜底 | 渐进增强 | 贝塞尔曲线花边；失效时降级为双线框或左侧竖线 |
+| SVG 花边实验 | 内联 SVG + `aria-hidden="true"` + 普通边框兜底 | 实验项 | 只验证简单 SVG 边线可行性；不作为推荐边框 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |
 
