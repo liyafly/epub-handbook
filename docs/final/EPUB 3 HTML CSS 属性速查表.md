@@ -278,7 +278,7 @@ body {
 | `border` | `1px solid #888` | 推荐 | 分隔线、表格 |
 | `border-left` | 引文边线 | 推荐 | 块引文 |
 | `border-style` | `solid` / `dashed` / `double` / `dotted` | 推荐 | 便签、资料卡、摘录框 |
-| `border-radius` | 小半径 | 可用 | 代码、kbd |
+| `border-radius` | 小半径 / 不对称半径 | 可用 | 代码、kbd、不规则便签 |
 | `outline` / `outline-offset` | 细线外框 | 渐进增强 | 不规则便签效果；可被忽略 |
 | `box-sizing` | `border-box` | 推荐 | A-lite 页面 |
 | `width` | `%` / `auto` / 固定 `px` | 推荐 | 环绕 figure 主路径推荐 `25%–35%`，按阅读器实测微调；表格可用 `%` |
@@ -292,6 +292,7 @@ body {
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `box-shadow` | `.2em .2em 0 #ddd` / `inset 0 0 .4em #ddd` | 渐进增强 | 便签阴影；必须有 border/background 兜底 |
 | `transform` | `rotate(-1deg)` | 风险 | 不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误 |
+| SVG 花边框 | 内联 SVG + `aria-hidden="true"` + 普通边框兜底 | 渐进增强 | 贝塞尔曲线花边；失效时降级为双线框或左侧竖线 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |
 

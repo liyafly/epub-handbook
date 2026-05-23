@@ -9,7 +9,9 @@
 - `fonts-css-expansion-plan.md`：`fonts.css` 重写为「系统字体优先 + 嵌入字体仅特定场景 + 注释骨架」的模板，含跨平台系统字体清单、`ibooks:specified-fonts` 通用预防默认策略，并给出 SPEC §8 与终极手册 §四的改写清单。
 - `duokan-footnote-fallback-fix.md`：多看弹注 fallback 结构修正说明（`duokan-footnote-content` 应挂 `<ol>` 而非 `<li>`），含 SPEC/手册/skill/demo 改动清单与多看实测步骤。
 - `demo-scene-expansion-plan.md`：demo 模板 10–17 共 8 个新场景（文字效果、章首、文学体、多看富文本、竖排正文、版权页、数学公式、图文九宫格）的 XHTML / 分层 CSS / nav / opf / ncx / SCENE_MATRIX / reader-matrix 改动清单。
-- `english-fiction-layout.md`：英文书籍排版与优化流程，覆盖小说、散文、非虚构、诗集/戏剧、双语书的类型判断、段落节奏、字体链、断字、插图和阅读器复测。
+- `english-fiction-layout.md`：英文正文排版与优化流程，覆盖 prose 类书籍的字体、段落、章首、首字、强调、插图和阅读器复测。
+- `anthology-navigation.md`：短篇全集、作品合集和分卷文集的总目录、局部目录、回本卷目录链接与 `(•)` 可访问性规则。
+- `note-box-border-styles.md`：可重排便签、摘录框、专业花边框、阴影和不规则边缘的安全实现方式。
 
 > 早期 plan 文档保留推导过程；已落地的规则以 `docs/final/`、`templates/epub-style-demo/`、`skills/` 和本目录的专题指南为准。
 

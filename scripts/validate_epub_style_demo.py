@@ -205,13 +205,19 @@ def validate_source(check: Check) -> None:
   )
   for token in [
     ".note-square", ".note-dashed", ".note-double", ".note-left-rule",
-    ".note-shadow", ".note-inset", ".note-slant", ".note-irregular",
+    ".note-shadow", ".note-inset", ".note-slant", ".note-corner-ornament",
+    ".note-ornate-rule", ".note-ornate-svg", ".note-corner-frame",
+    ".note-long-shadow", ".note-irregular",
   ]:
     check.require(token in effects_css, f"effects.css missing note box style: {token}")
   for token in [
     'class="note-box note-square"',
     'class="note-box note-shadow"',
     'class="note-box note-slant"',
+    'class="note-box note-corner-ornament"',
+    'class="note-ornate-svg"',
+    '<path class="note-ornate-main"',
+    'class="note-box note-long-shadow"',
     'class="note-box note-irregular"',
   ]:
     check.require(token in note_text, f"19-border-shadow-notes.xhtml missing note box sample: {token}")
