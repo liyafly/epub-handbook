@@ -53,6 +53,13 @@ book.epub
 
 `fonts.css` 管字体，`base.css` 管正文组件，`poster.css` 管 A-lite 海报页。
 
+> 上面 `Fonts/` 目录与三个示例字体文件**仅在嵌入字体场景下需要**：
+> - 默认路径（不嵌字体）：删掉 `Fonts/` 目录与 OPF 字体 item；`fonts.css` 内所有 `@font-face` 保持注释。
+> - 模式 A / B（专用类嵌入）：按需保留对应字体文件。
+> - 模式 C1-body（含生僻字 + 全字符集字体）：保留一份覆盖全书用字的 `Fonts/BookSongFull.ttf`（或同等命名）。
+>
+> 字体命名仅为示例；实际工程按授权字体名命名。
+
 ---
 
 ## 三、OPF 模板
@@ -115,11 +122,19 @@ book.epub
 - 字体文件、注释图标、背景图都进入 `manifest`。
 - 无论是否嵌入字体，Apple Books 路径都保留 `ibooks:specified-fonts=true`，避免用户偏好字体覆盖 CSS 字体链。
 
+> OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**，但 `<meta property="ibooks:specified-fonts">true</meta>` 与是否嵌入字体无关：
+> - 默认（不嵌字体）：**保留** `ibooks:specified-fonts=true`（避免 Apple Books 用户字体覆盖书内系统字体链），**删除** `Fonts/*` item。
+> - 嵌入场景：保留 `ibooks:specified-fonts=true`，同时声明对应 `font/ttf` item，`fontspec` 切到 `auto` / `forceAll`（按 SPEC §4 / fonts-css-expansion-plan §5）。
+
 ---
 
 ## 四、字体方案
 
 ### 4.1 `fonts.css`
+
+以下 `@font-face` 声明**仅在嵌入字体场景下取消注释并启用**；默认路径不需要这一节，整段保持注释（与 `templates/epub-style-demo/OEBPS/Styles/fonts.css` §一 一致）。
+
+> 此节的三个示例字体名都是占位符，实际工程换成授权字体名即可。
 
 ```css
 @charset "utf-8";
@@ -557,7 +572,7 @@ sup {
   font-size: 0.9em;
   line-height: 1.35;
   text-align: left;
-  font-family: "BookTitleKai", "BookBodySong", serif;
+  /* font-family 继承 body：默认系统宋体链；C1-body 模式下继承嵌入全字符集字体 */
 }
 
 .footnote-back {
@@ -567,6 +582,8 @@ sup {
 ```
 
 这个结构同时保留标准弹注识别点和 demo 的视觉逻辑：正文点图片，同文件的 `aside` 统一承载本章注释，注释内用 `◎` 返回。不要使用多看私有类名或私有 CSS 作为主路径；如从旧多看结构转换，可以把原有 `ol/li` 视觉分组迁移成这里的中性类名。
+
+> 若项目希望注释正文用楷体（设计需求），改用系统楷体链：`.footnote { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`。不要在 `.footnote` 基础类上叠加书内嵌入字体。
 
 ### 7.3 叠加多看 fallback
 
@@ -660,13 +677,15 @@ ruby {
 rt {
   font-size: 0.5em;
   line-height: 1;
-  font-family: "BookBodySong", sans-serif;
+  /* font-family 继承 body：注音跟正文同字体 */
 }
 
 p.has-ruby {
   line-height: 1.9;
 }
 ```
+
+> 如确需给 ruby 注音单独换字体（例如汉字正文 + 平假名注音用日文字体），按 SPEC §8 模式 A 写系统字体链：`rt[lang="ja"] { font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans CJK JP", sans-serif; }`。
 
 ### 8.4 引用
 
@@ -681,7 +700,7 @@ p.has-ruby {
 ```css
 q,
 blockquote {
-  font-family: "BookTitleKai", "BookBodySong", serif;
+  font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
 }
 
 blockquote {
@@ -694,6 +713,8 @@ blockquote p {
   text-indent: 0;
 }
 ```
+
+> 引用走楷体是中文出版常见约定，与 `fonts.css` 的 `.book-kai` 同源。若项目希望引用走正文宋体，删掉这条 `font-family` 让它继承 body。
 
 ---
 
