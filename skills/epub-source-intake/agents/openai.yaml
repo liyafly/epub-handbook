@@ -1,0 +1,5 @@
+interface:
+  display_name: "EPUB 源材料接入"
+  short_description: "从文本/PDF 建立 EPUB 制作入口。"
+  default_prompt: "使用 $epub-source-intake 从这些文本或 PDF 源材料建立可校对的 EPUB source bundle。"
+

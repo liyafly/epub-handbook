@@ -9,8 +9,9 @@
 - `fonts-css-expansion-plan.md`：`fonts.css` 重写为「系统字体优先 + 嵌入字体仅特定场景 + 注释骨架」的模板，含跨平台系统字体清单、`ibooks:specified-fonts` 通用预防默认策略，并给出 SPEC §8 与终极手册 §四的改写清单。
 - `duokan-footnote-fallback-fix.md`：多看弹注 fallback 结构修正说明（`duokan-footnote-content` 应挂 `<ol>` 而非 `<li>`），含 SPEC/手册/skill/demo 改动清单与多看实测步骤。
 - `demo-scene-expansion-plan.md`：demo 模板 10–17 共 8 个新场景（文字效果、章首、文学体、多看富文本、竖排正文、版权页、数学公式、图文九宫格）的 XHTML / 分层 CSS / nav / opf / ncx / SCENE_MATRIX / reader-matrix 改动清单。
+- `english-fiction-layout.md`：英文书籍排版与优化流程，覆盖小说、散文、非虚构、诗集/戏剧、双语书的类型判断、段落节奏、字体链、断字、插图和阅读器复测。
 
-> 四份新文档都属于"待执行清单"：本仓库未直接修改对应源码，等多看 / 阅读器实测确认后，再由后续模型按文档逐项落地。
+> 早期 plan 文档保留推导过程；已落地的规则以 `docs/final/`、`templates/epub-style-demo/`、`skills/` 和本目录的专题指南为准。
 
 ## 落地顺序（四份文档协作时的推荐顺序）
 

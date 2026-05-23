@@ -1,0 +1,5 @@
+interface:
+  display_name: "EPUB A-lite 转换"
+  short_description: "转换可重排全页海报。"
+  default_prompt: "使用 $epub-alite-converter 把这个封面式 EPUB 页面转换为项目 A-lite 方案。"
+

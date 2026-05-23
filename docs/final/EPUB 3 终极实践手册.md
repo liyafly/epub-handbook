@@ -1,6 +1,6 @@
 # EPUB 3 终极实践手册
 
-> 版本：2026-05-18  
+> 版本：2026-05-23
 > 定位：把现有主手册、补充篇、`wang-chapterpage-demo-v2.epub` 实测结果收敛为一套最终推荐方案。  
 > 原则：只写推荐路径，围绕 A-lite、标准弹注、标准 CSS 和授权嵌入字体。
 
@@ -19,6 +19,7 @@
 | 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
+| 英文小说正文 | `lang="en"` + 短 serif 链，首段无缩进、后续段落缩进，插图居中 figure，避免固定页高 |
 
 ---
 
@@ -284,6 +285,52 @@ code, pre, kbd, samp {
   font-family: "SF Mono", "Consolas", "Source Code Pro", monospace;
 }
 ```
+
+---
+
+## 五点二、英文小说正文
+
+英文小说和中文正文不要共用同一套段落节奏。以 Stuart Little 这类简单英文 EPUB 为参考，稳定结构是：章节图单独居中，章节标题居中，首段无缩进并可用 `::first-letter` 做轻量首字，后续段落缩进，插图使用居中 `figure`，不依赖固定页高或固定行数。
+
+```html
+<body class="english-fiction" xml:lang="en" lang="en">
+  <section epub:type="chapter">
+    <figure class="en-illustration">
+      <img src="../Images/ch01.jpg" alt="Chapter illustration"/>
+    </figure>
+    <h1 class="english-chapter-title">I. Chapter Title</h1>
+    <p class="en-noindent en-first-letter">The first paragraph starts without indent.</p>
+    <p>Following paragraphs use a modest first-line indent.</p>
+  </section>
+</body>
+```
+
+```css
+.english-fiction {
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+  line-height: 1.55;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.english-fiction p {
+  margin: 0;
+  text-indent: 1.35em;
+  text-align: left;
+}
+
+.english-fiction .en-noindent {
+  text-indent: 0;
+}
+
+.en-first-letter::first-letter {
+  font-size: 1.75em;
+  line-height: .8;
+  font-weight: 700;
+}
+```
+
+英文正文不强制 `text-align: justify` 作为通用主路径。窄屏、大字号或阅读器断字支持弱时，英文 justify 容易产生大词距；除非目标平台已验证 hyphenation，优先左对齐。首字建议先用 `::first-letter`，避免把单词拆成 `<span>T</span>he` 后影响朗读或复制；旧式 span 首字和 float drop cap 可作为增强，但必须在大字号下复测。
 
 ---
 

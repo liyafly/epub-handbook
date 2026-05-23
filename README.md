@@ -37,11 +37,15 @@
 
 6. `docs/guides/skills-and-templates.md`
    - skills 与模板维护建议。
-   - 说明哪些内容应该放手册、哪些应该放 skill、哪些应该放可运行模板。
+   - 说明哪些内容应该放手册、哪些应该放 skill、哪些应该放可运行模板，以及 harness/hook 的使用方式。
 
 7. `templates/epub-style-demo/`
    - 可快速打包的 EPUB 3 样式 demo。
    - 用于在 Apple Books、Kindle、KOReader、Thorium、Calibre 等环境对比显示效果。
+
+8. `skills/README.md`
+   - Codex/Claude Code 技能总入口。
+   - 说明已有 EPUB 优化、文本/PDF 源材料接入、专项排版修复和验证命令。
 
 ## 目录结构
 
@@ -77,11 +81,27 @@ references/
 
 skills/
   README.md
+  epub-layout-auditor/
+    SKILL.md
+  epub-source-intake/
+    SKILL.md
+  epub-english-typography-optimizer/
+    SKILL.md
   epub-alite-converter/
     SKILL.md
   epub-popup-footnote-converter/
     SKILL.md
     assets/note.png
+  epub-*/agents/openai.yaml
+
+scripts/
+  epub_ai_harness.py
+  validate_skills_basic.py
+  validate_epub_style_demo.py
+  validate_popup_notes.py
+
+hooks/
+  pre-commit.epub-handbook
 
 templates/
   README.md
@@ -95,7 +115,7 @@ templates/
       nav.xhtml
       Styles/base.css
       Text/*.xhtml
-      Images/*.svg
+      Images/*.png
 ```
 
 ## 各目录职责
@@ -110,15 +130,30 @@ templates/
 
 `references/epubs/` 是可以纳入版本管理的参考 EPUB 区。当前只放《EPub指南——从入门到放弃》。
 
-`skills/` 是 Codex 本地技能区：
+`skills/` 是 Codex/Claude Code 技能区。已有 EPUB 优化先走 `epub-layout-auditor`；只有文本、PDF、HTML 或 OCR 结果时先走 `epub-source-intake`；具体问题再切到 CSS、中文字体、英文排版、图片、竖排、弹注、Kindle、OPF/nav 或 A-lite 专项 skill。完整清单见 `skills/README.md`。
 
-- `epub-alite-converter`：把封面、卷首、章节扉页一类整页图转换为 A-lite 方案，并保留现有文字和图片叠加排版。
-- `epub-popup-footnote-converter`：把普通注释转换为标准弹出注释结构，使用图片注释图标和 `◎` 返回符号。
+`scripts/epub_ai_harness.py` 是 AI 辅助入口，用来判断输入类型、列出结构风险、推荐 skills 和下一步命令：
+
+```sh
+scripts/epub_ai_harness.py <epub-or-source-path>
+scripts/epub_ai_harness.py <epub-or-source-path> --format json
+```
+
+图片压缩、PDF 解析和 OCR 不在本仓实现；本仓只负责记录边界、检查 EPUB 风险和验证排版/结构。
 
 `templates/` 是可运行样式样本区。当前 `templates/epub-style-demo/` 可以用下面命令生成最小 EPUB，用来验证正文、Ruby、弹注、竖排、A-lite、列表、表格和代码样式：
 
 ```sh
 sh templates/epub-style-demo/build.sh
+```
+
+常用校验：
+
+```sh
+scripts/validate_skills_basic.py
+scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+git diff --check
 ```
 
 ## 忽略规则

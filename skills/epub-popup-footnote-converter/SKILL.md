@@ -1,32 +1,32 @@
 ---
 name: epub-popup-footnote-converter
-description: Convert EPUB note references and endnotes into the project's standard popup footnote structure using an image note icon trigger and an ◎ backlink, while preserving note content.
+description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标记转换为项目标准 popup footnote 结构：图片注释图标触发、同文件 grouped note body、◎ 回跳，并保留注释内容。
 ---
 
-# EPUB Popup Footnote Converter
+# EPUB Popup Footnote 转换
 
-Use this skill when converting plain footnotes, endnotes, old duokan-style notes, or text-only noteref markers into the project's final popup footnote pattern.
+当需要把普通脚注、尾注、旧多看注释或纯文本 noteref 标记转换为项目最终 popup footnote 模式时使用这个 skill。
 
-## Fixed Target
+## 固定目标
 
-Use this structure:
+使用这个结构：
 
-- noteref is an `<a>` with `epub:type="noteref"` and `role="doc-noteref"`
-- noteref content is an image icon, normally `../Images/note.png`; this skill bundles `assets/note.png` as the default icon
-- each XHTML file has one grouped note body: `<aside epub:type="footnote" role="doc-footnote">`
-- all notes in that XHTML file are grouped inside `ol.footnote-list`
-- each note target is a `li.footnote-item` with the target `id`
-- noteref `href` points to the corresponding `li.footnote-item` id, not to a separate per-note aside
-- backlink is `◎`
-- noteref, target `li`, and containing aside stay in the same XHTML file
-- note content text is preserved exactly
-- no private note mechanism as the main path
+- noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`。
+- noteref 内容是图片图标，通常为 `../Images/note.png`；本 skill 的 `assets/note.png` 是默认图标。
+- 每个 XHTML 文件最多一个 grouped note body：`<aside epub:type="footnote" role="doc-footnote">`。
+- 该 XHTML 文件内所有 notes 放进 `ol.footnote-list`。
+- 每条 note target 是带目标 `id` 的 `li.footnote-item`。
+- noteref `href` 指向对应 `li.footnote-item` id，不指向独立 per-note aside。
+- 回跳符号是 `◎`。
+- noteref、target `li` 和包含它的 aside 位于同一 XHTML 文件。
+- 注释正文精确保留。
+- 私有 note 机制不能作为主路径。
 
-## Conversion Workflow
+## 转换流程
 
-1. Read the XHTML file containing the note reference and note body.
-2. Preserve existing note ids when possible. Normalize only when ids collide or are missing.
-3. Replace text markers such as `[1]`, `*`, `注` with the image noteref. The `href` must point to the final `li.footnote-item` target id:
+1. 读取包含 note reference 和 note body 的 XHTML 文件。
+2. 尽量保留已有 note id。只有缺失或冲突时才规范化。
+3. 把 `[1]`、`*`、`注` 等文本标记替换为图片 noteref。`href` 必须指向最终 `li.footnote-item` target id：
 
 ```html
 <sup>
@@ -40,7 +40,7 @@ Use this structure:
 </sup>
 ```
 
-4. Convert all note bodies in the XHTML file into one grouped aside:
+4. 把同一 XHTML 文件内所有 note body 转成一个 grouped aside：
 
 ```html
 <aside epub:type="footnote" role="doc-footnote">
@@ -60,10 +60,10 @@ Use this structure:
 </aside>
 ```
 
-5. If the source uses legacy `duokan-*` note classes, keep the grouped `ol/li` structure, but rename to neutral classes such as `footnote-list` and `footnote-item`. Do not keep `duokan-*` classes as the main output.
-6. Add `Images/note.png` to OPF manifest if it is not already listed. If the EPUB has no note icon yet, copy this skill's `assets/note.png` into the EPUB `Images/` directory.
-7. Add the CSS below to the active stylesheet or merge it into the existing note section.
-8. Verify every noteref `href="#footnote-x"` resolves to a `li.footnote-item`, every backlink resolves, every file with notes has exactly one grouped footnote aside, and every note remains in the same XHTML file.
+5. 源文件使用旧 `duokan-*` note 类时，保留 grouped `ol/li` 结构，但改成 `footnote-list`、`footnote-item` 等中性类。不要把 `duokan-*` 类作为主输出。
+6. 如果 OPF manifest 未列出 `Images/note.png`，补上该资源。EPUB 还没有注释图标时，把本 skill 的 `assets/note.png` 复制进 EPUB 的 `Images/` 目录。
+7. 把下面 CSS 加入活动 stylesheet，或合并进已有 note section。
+8. 验证每个 noteref `href="#footnote-x"` 都指向 `li.footnote-item`，每个 backlink 都能回跳，每个有 notes 的文件只有一个 grouped footnote aside，且每条 note 都留在同一 XHTML 文件。
 
 ## CSS
 
@@ -118,38 +118,38 @@ sup {
 }
 ```
 
-## CSS placement
+## CSS 放置
 
-- Footnote CSS must be written to `Styles/notes.css` in this repository's layered demo.
-- Do not write footnote CSS into `poster.css`.
-- `@font-face` and font utility classes belong in `Styles/fonts.css`.
+- 在本仓库 layered demo 中，footnote CSS 必须写进 `Styles/notes.css`。
+- 不把 footnote CSS 写进 `poster.css`。
+- `@font-face` 和字体工具类属于 `Styles/fonts.css`。
 
-## Guardrails
+## 禁止事项
 
-- Do not replace the image icon with plain text unless no icon asset exists and the user approves.
-- Do not use `display:none` on the footnote body.
-- Do not move notes into a different XHTML file.
-- Do not emit one aside per note when a file contains multiple notes; group them in one aside with `ol/li`.
-- Do not rewrite note prose.
-- Do not use `duokan-wavyline`, duokan-only notes, or JS as the main mechanism.
-- If the target EPUB needs Duokan legacy compatibility, apply `epub-legacy-footnote-fallback` after this conversion instead of inventing new private attributes.
+- 除非没有图标资源且用户同意，不把图片图标替换为纯文本。
+- 不对 footnote body 使用 `display:none`。
+- 不把 notes 移到另一个 XHTML 文件。
+- 同一文件包含多条 notes 时，不输出每条一个 aside；必须用一个 aside + `ol/li` 分组。
+- 不改写注释正文。
+- 不把 `duokan-wavyline`、多看专属 notes 或 JS 作为主机制。
+- 如果目标 EPUB 需要多看旧版兼容，先做本转换，再应用 `epub-legacy-footnote-fallback`。
 
-## Validation Fixture
+## 验证 fixture
 
-Use `templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml` as the local reference shape for popup footnotes. A converted file should preserve the same broad invariants:
+使用 `templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml` 作为本地 popup footnote 参考。转换文件应满足：
 
-- noteref `href` points to a `li.footnote-item` in the same XHTML file.
-- the file has one grouped `aside epub:type="footnote"` for all local notes.
-- backlinks use `epub:type="backlink"` and `role="doc-backlink"`.
-- the note trigger uses an image icon when the EPUB has or can receive the icon asset.
+- noteref `href` 指向同一 XHTML 内的 `li.footnote-item`。
+- 每个文件用一个 grouped `aside epub:type="footnote"` 容纳所有本地 notes。
+- backlinks 使用 `epub:type="backlink"` 和 `role="doc-backlink"`。
+- EPUB 有或能接收图标资源时，note trigger 使用图片图标。
 
-Run the stdlib-only validator after conversion:
+转换后运行：
 
 ```sh
 scripts/validate-popup-notes.sh
 ```
 
-For a built artifact:
+验证已构建产物：
 
 ```sh
 scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub

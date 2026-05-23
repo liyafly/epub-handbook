@@ -1,33 +1,33 @@
 ---
 name: epub-legacy-footnote-fallback
-description: Add a compatibility fallback for Duokan popup notes while keeping the project's standard EPUB 3 grouped footnote structure as the primary output; this makes output compliant with SPEC §1 fallback constraints when legacy support is required.
+description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版 popup note 兼容 fallback。用于必须兼容 Duokan legacy readers，且仍需满足 SPEC §1 fallback 约束时。
 ---
 
-# EPUB Legacy Footnote Fallback
+# EPUB 旧版弹注 Fallback
 
-Use this skill only when the target EPUB must preserve popup-note compatibility for Duokan legacy readers. This is a compatibility layer, not the default project note pattern.
+只有目标 EPUB 必须保留多看旧版 popup-note 兼容性时才使用这个 skill。它是兼容层，不是项目默认 note 模式。
 
-## Fixed Target
+## 固定目标
 
-Keep the project's standard structure as the primary shape:
+保留项目标准结构作为主形态：
 
-- noteref is an `<a>` with `epub:type="noteref"` and `role="doc-noteref"`
-- noteref `href` points to a note `li` in the same XHTML file
-- each XHTML file has one grouped note body: `<aside epub:type="footnote" role="doc-footnote">`
-- all local notes are grouped inside `ol.footnote-list`
-- each note target is a `li.footnote-item`
-- backlink is `◎`
+- noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`。
+- noteref `href` 指向同一 XHTML 文件内的 note `li`。
+- 每个 XHTML 文件只有一个 grouped note body：`<aside epub:type="footnote" role="doc-footnote">`。
+- 所有本地 notes 放在 `ol.footnote-list`。
+- 每条 note target 是 `li.footnote-item`。
+- backlink 是 `◎`。
 
-Add legacy hooks on top of that same structure:
+在同一结构上叠加 legacy hooks：
 
-- add `duokan-footnote` to the noteref anchor
-- add `duokan-footnote-content` to the grouped `ol.footnote-list`
-- add `duokan-footnote-item` to each note `li`
-- put a note icon image inside the noteref anchor
+- noteref anchor 增加 `duokan-footnote`。
+- grouped `ol.footnote-list` 增加 `duokan-footnote-content`。
+- 每个 note `li` 增加 `duokan-footnote-item`。
+- noteref anchor 内放 note icon 图片。
 
-Do not create a second note body for the fallback.
+不要为 fallback 创建第二份 note body。
 
-## XHTML Pattern
+## XHTML 模式
 
 ```html
 <p>
@@ -60,20 +60,20 @@ Do not create a second note body for the fallback.
 </aside>
 ```
 
-## Conversion Workflow
+## 转换流程
 
-1. Start from a file that already follows, or can be converted to, the standard `aside > ol.footnote-list > li.footnote-item` pattern.
-2. Preserve ids when possible. Ensure noteref ids and note target ids are unique inside the XHTML file.
-3. Add `duokan-footnote` to each noteref anchor without removing `epub:type`, `role`, `id`, or `href`.
-4. Ensure the noteref anchor contains an image icon. Use `../Images/note.png` when adding a new asset for legacy fallback.
-5. Add `duokan-footnote-content` to the grouped `ol.footnote-list`; do not put it on `li`.
-6. Add `duokan-footnote-item` to each `li.footnote-item`.
-7. Add `Images/note.png` to the OPF manifest if missing.
-8. Verify all href/backlink targets resolve inside the same XHTML file.
+1. 从已经符合，或可先转换为，标准 `aside > ol.footnote-list > li.footnote-item` 模式的文件开始。
+2. 尽量保留 id。确保 noteref id 和 note target id 在当前 XHTML 内唯一。
+3. 给每个 noteref anchor 增加 `duokan-footnote`，但不要删除 `epub:type`、`role`、`id` 或 `href`。
+4. 确保 noteref anchor 包含图片图标。新增 legacy fallback 资源时使用 `../Images/note.png`。
+5. 给 grouped `ol.footnote-list` 增加 `duokan-footnote-content`；不要把它放到 `li` 上。
+6. 给每个 `li.footnote-item` 增加 `duokan-footnote-item`。
+7. 如果 OPF manifest 未声明 `Images/note.png`，补上。
+8. 验证所有 href/backlink target 都解析到同一 XHTML 文件内。
 
 ## CSS
 
-Merge these rules into the active note CSS when the EPUB does not already style these classes:
+如果 EPUB 还没有样式化这些类，把以下规则合并到活动 note CSS：
 
 ```css
 .noteref-icon,
@@ -99,33 +99,32 @@ ol.duokan-footnote-content {
 }
 ```
 
-If the source does not already use `.footnote-line`, add a visible separator with either a `footnote-line` rule or a border on `.duokan-footnote-content`; do not use both in the same visual path.
+如果源文件没有 `.footnote-line`，可以添加可见分隔线：要么使用 `footnote-line` 规则，要么给 `.duokan-footnote-content` 加 border；同一路径不要两者都用。
 
-## Guardrails
+## 禁止事项
 
-- Do not use this skill for the normal project output; use `epub-popup-footnote-converter` instead.
-- Do not remove neutral classes such as `footnote-list` and `footnote-item`.
-- Do not keep only `duokan-*` classes.
-- Do not duplicate note prose in a second visible note list.
-- Do not place `duokan-footnote-content` on individual `li` items; Duokan legacy compatibility is verified with the class on the grouped `ol`.
-- Do not use JavaScript or `display:none` note bodies.
-- Do not add reader-specific private note attributes outside the Duokan fallback scope.
+- 普通项目输出不要使用这个 skill；默认用 `epub-popup-footnote-converter`。
+- 不删除 `footnote-list`、`footnote-item` 等中性类。
+- 不只保留 `duokan-*` 类。
+- 不复制一份第二个可见 note list。
+- 不把 `duokan-footnote-content` 放在单个 `li` 上；旧多看兼容验证的是 grouped `ol` 上的类。
+- 不使用 JavaScript 或 `display:none` note body。
+- 不在多看 fallback 范围外添加阅读器私有 note 属性。
 
-## Validation Fixture
+## 验证 fixture
 
-Use these local reference shapes:
+使用这些本地参考：
 
-- `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml` for a compact compatibility example.
-- `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml` for multiple fallback notes sharing one grouped list in the same XHTML file.
+- `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`：单条兼容样例。
+- `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml`：同一 XHTML 内多条 fallback notes 共用一个 grouped list。
 
-Run the stdlib-only validator after applying fallback:
+应用 fallback 后运行 stdlib-only validator：
 
 ```sh
 scripts/validate-popup-notes.sh
 ```
 
+多条 note 验证：
 
-### Multi-note validation
-
-- In one XHTML file with multiple notes, each trigger must open only its targeted `li` content.
-- Standard EPUB path must resolve by href -> target id exactly.
+- 同一 XHTML 文件内有多条 notes 时，每个 trigger 只能打开它指向的 `li` 内容。
+- 标准 EPUB 路径必须能通过 href -> target id 精确解析。
