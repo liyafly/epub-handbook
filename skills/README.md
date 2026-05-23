@@ -40,7 +40,7 @@ scripts/epub_ai_harness.py <epub-or-source-path>
 | `epub-source-intake` | 从文本、Markdown、HTML、PDF 或 OCR 结果建立 EPUB 制作入口 | `scripts/epub_ai_harness.py` |
 | `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `docs/final/SPEC-实现约束.md` §7 |
 | `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体和生僻字 fallback | `Text/07-font-family-order.xhtml`、`Text/08-long-mixed-flow.xhtml` |
-| `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `Text/18-english-fiction.xhtml`、`docs/guides/english-fiction-layout.md` |
+| `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `Text/18-english-fiction.xhtml`、`docs/guides/english-fiction-layout.md`、`docs/guides/anthology-navigation.md` |
 | `epub-literary-structure-formatter` | 章首、题记、前置页、对话、诗、信件、场景分隔 | `Text/11-chapter-opening.xhtml`、`Text/12-literary-fiction.xhtml`、`Text/15-frontmatter.xhtml` |
 | `epub-image-layout-optimizer` | figure 环绕、图注、封面声明、图片格式兼容 | `Text/17-image-layout.xhtml` |
 | `epub-vertical-ruby-optimizer` | 竖排正文、Ruby 注音、中西文方向 | `Text/02-ruby-note.xhtml`、`Text/14-vertical-body.xhtml` |

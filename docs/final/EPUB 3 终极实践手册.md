@@ -411,6 +411,8 @@ figure.img-right img {
 - 虚线/双线：用于草稿、题签、复古效果。
 - 投影/内阴影：`box-shadow` / `inset`，可丢失增强；忽略后仍有边框和底色。
 - 斜角感便签：用不对称边框、圆角和投影模拟贴纸偏移；不要在通用 Kindle 版本使用 `transform: rotate()`。
+- 专业花边框：用小型内联 SVG 绘制贝塞尔曲线、双横线和角部卷草，SVG 加 `aria-hidden="true"`；正文仍用 HTML 真文本和普通边框兜底。
+- 长条投影框：上下边线 + 左侧色条 + 投影，适合较长资料卡。
 - 不规则边缘：不对称 `border-radius` + `outline`，不要依赖 `clip-path`。
 
 不要用复杂滤镜、CSS mask 或多层伪元素承载关键信息。Kindle/旧 WebKit 可能忽略阴影或外轮廓；只要边框和底色还在，就应视为合格降级。

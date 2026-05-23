@@ -24,7 +24,7 @@
 | 数学公式与 MathML | `Text/16-math.xhtml` | KDP MathML 支持标签：分式、根式、上下标、矩阵、semantics/annotation | Kindle App / Kindle Previewer / Apple Books / Thorium |
 | 图文环绕 | `Text/17-image-layout.xhtml` | figure 浮动、25%–35% 百分比宽度、长正文阈值、短段反例、大字号回归 | Kindle App / Readest / Apple Books / Thorium |
 | 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、居中插图、摘录、大字号回归 | Readest / Kindle Previewer / Apple Books / Thorium |
-| 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule 边框、box-shadow、inset shadow、斜角感便签、不规则边缘 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
+| 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、专业花边框、长条投影、不规则边缘 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
 
 ## 打包与记录
 
