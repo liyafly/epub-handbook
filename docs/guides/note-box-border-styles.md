@@ -4,7 +4,7 @@
 
 ## 主原则
 
-便签和装饰框必须保留真实文本。边框、阴影、SVG 花边和不规则边缘只提供视觉层次，阅读器忽略它们时仍然要能读。
+便签和装饰框必须保留真实文本。边框、阴影和不规则边缘只提供视觉层次，阅读器忽略它们时仍然要能读。
 
 最稳主路径：
 
@@ -20,7 +20,6 @@
 - `inset box-shadow`
 - `outline` / `outline-offset`
 - 不对称 `border-radius`
-- 装饰性 SVG 边框线稿
 
 不要在通用 Kindle 版本使用 `transform: rotate()` 旋转整块文本框。2026-05-23 用 Kindle Previewer 3.104 实测：`box-shadow`、`inset box-shadow`、`outline-offset` 可完成转换；`transform: rotate()` 会触发 KFX 增强排版内部错误。
 
@@ -36,83 +35,21 @@
 | 实心投影 | 纸片厚度 | 中；需边框兜底 |
 | 内阴影 | 内嵌资料卡 | 中；夜间模式慎用 |
 | 斜角感 | 贴纸偏移感 | 中；用边框/圆角/阴影模拟 |
-| 专业花边框 | 古典题签、信件框、摘录框 | 中；SVG 必须是装饰 |
 | 不规则边缘 | 手贴纸、剪贴感 | 中；不要依赖 clip-path |
 
-## 专业花边框
+生产推荐顺序是：普通方框或左侧竖线优先；需要题签感时用双线框；需要纸片层次时再加阴影；手贴纸感用不对称圆角、外轮廓和投影模拟。不要把复杂花边作为通用 EPUB 的默认边框。
 
-用户想要的专业花边框，不应把花纹放进框内正文区，也不应让角标漂在边框外。更合适的做法是把上边框和下边框做成小型 SVG 线稿：贝塞尔曲线、双横线、角部卷草和竖线端点直接相连；正文区只保留左右竖线和真实文本。不要用图片框包文字。
+## SVG 花边实验
 
-```html
-<div class="note-box note-corner-ornament">
-  <div class="note-ornate-rule note-ornate-rule-top" aria-hidden="true">
-    <svg class="note-ornate-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
-      <path class="note-ornate-main" d="M90 82 L90 120 ... M910 82 L910 120 ..."/>
-      <path class="note-ornate-line" d="M126 30 L874 30 M126 38 L874 38"/>
-    </svg>
-  </div>
-  <div class="note-corner-frame">
-    <p class="note-title">专业花边框</p>
-    <p>这里是真实文本。花边属于边框线稿，正文区仍正常重排。</p>
-  </div>
-  <div class="note-ornate-rule note-ornate-rule-bottom" aria-hidden="true">
-    <svg class="note-ornate-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
-      <path class="note-ornate-main" d="M90 0 L90 38 ... M910 0 L910 38 ..."/>
-      <path class="note-ornate-line" d="M126 82 L874 82 M126 90 L874 90"/>
-    </svg>
-  </div>
-</div>
-```
+`19-border-shadow-notes.xhtml` 中的 SVG 花边样例只用于验证“简单内联 SVG path 能否作为装饰边线被 Readest、Apple Books 和 Kindle Previewer 转换链路接受”。它不是生产推荐边框。
 
-```css
-.note-corner-ornament {
-  border: 0;
-  padding: .15em 0;
-  background: #fffdf8;
-  box-shadow: .18em .18em 0 #ded4c2;
-}
+实验结论：
 
-.note-ornate-rule {
-  display: block;
-  margin: 0;
-  height: 2.55em;
-  text-indent: 0;
-  line-height: 0;
-}
-
-.note-ornate-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.note-ornate-main,
-.note-ornate-line {
-  fill: none;
-  stroke: #4f4539;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.note-ornate-main {
-  stroke-width: 1.8;
-}
-
-.note-ornate-line {
-  stroke-width: 1.15;
-}
-
-.note-corner-frame {
-  margin: 0 8.9%;
-  border-left: 1px solid #6f6254;
-  border-right: 1px solid #6f6254;
-  padding: .35em .95em .45em;
-  background: #fffdf8;
-}
-```
-
-这个方案把花边做成装饰性 SVG，必须加 `aria-hidden="true"`，避免朗读时读出无意义线稿。SVG 失效时，正文区仍有左右竖线、底色和真实文本；若某个发行目标不接受内联 SVG，应降级为双线框或左侧竖线框。
+- 可行：小型内联 SVG、`path`、贝塞尔曲线、双横线和 `aria-hidden="true"` 可用于装饰性边线。
+- 必须保留真实文本：SVG 只能画边框或角部花纹，不能承载正文。
+- 必须可降级：SVG 失效时，正文区还要有底色、左右竖线或普通边框可读。
+- 不作为默认推荐：SVG 花边维护成本高，细节依赖阅读器缩放、主题和抗锯齿；普通书稿优先用双线框、左侧竖线或浅底投影。
+- 仅在强设计需求中考虑：例如古典题签、请柬式引文、少量扉页题记。使用前必须在目标阅读器和大字号下复测。
 
 ## 类似手绘不规则边框
 
