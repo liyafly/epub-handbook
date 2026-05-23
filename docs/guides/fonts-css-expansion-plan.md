@@ -496,6 +496,8 @@ code, pre, kbd, samp {
   反例段（"反例：上面的长链别名堆叠…"）保留并扩充一条："反例：把嵌入字体塞进默认正文链——一份 EPUB 跨设备发布时这是常见反模式；若真的需要嵌入设计字体，按本文档 §1 模式 C 复合链挂在专用类上，不要写进 `body`。"
 - §4.3 特殊标题字体：保留 `.poster-title { font-family: "BookTitleKai", serif; }` 形态，但**显式说明**"仅当本书启用了 `BookTitleKai` 嵌入字体时才出现该规则（模式 A，链 ≤ 2 段）；否则改用系统楷体链 `.book-kai { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`"。
 - §4.4 生僻字：保留 `.rare { font-family: "RareSong", "BookBodySong", serif; }` 这段，但**改为反例提示**："旧写法把 RareSong 后面挂正文宋体，缺字时落系统宋体的豆腐——这是反模式。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "RareSongSubset", serif; }`；(模式 C1 设计前置) `.book-song-deluxe { font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.book-song-with-rare { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif; }`。"
+- §二 / §三 / §四 模板示例：`Fonts/` 目录、OPF `Fonts/*` item、`@font-face` 示例都必须标明"仅在嵌入字体场景下需要 / 保留 / 启用"。默认路径保留 `ibooks:specified-fonts=true`，删除字体 item，并让 `@font-face` 保持注释。
+- §七 / §八 示例：弹注 `.footnote` 与 `rt` 默认继承 body 字体链；`q, blockquote` 如需楷体，使用系统楷体链 `"Kaiti SC", "KaiTi", "AR PL UKai CN", serif`。这些基础组件不应出现 `BookBodySong`，也不应把两段嵌入字体塞进同一条链。
 - §十二 检查清单"字体"段：
   - 删除 `- [ ] 正文主字体为书内授权字体。`
   - 新增 `- [ ] 默认正文 / 标题 / 等宽走系统字体链，不嵌字体。`
