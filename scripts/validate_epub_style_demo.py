@@ -19,8 +19,10 @@ PACKAGE = OEBPS / "package.opf"
 NAV = OEBPS / "nav.xhtml"
 NCX = OEBPS / "toc.ncx"
 MEDIA_CSS = OEBPS / "Styles" / "media.css"
+FONTS_CSS = OEBPS / "Styles" / "fonts.css"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
 ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
+NOTE_BOXES_PAGE = OEBPS / "Text" / "19-border-shadow-notes.xhtml"
 MATH_PAGE = OEBPS / "Text" / "16-math.xhtml"
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -86,6 +88,10 @@ def percentage_width(css: str, selector: str) -> float | None:
   return float(match.group("value")) if match else None
 
 
+def strip_css_comments(css: str) -> str:
+  return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
 def validate_source(check: Check) -> None:
   package_root = parse_xml(PACKAGE, check)
   if package_root is None:
@@ -145,6 +151,13 @@ def validate_source(check: Check) -> None:
       if src:
         check.require(href_path(src).exists(), f"toc.ncx content missing: {src}")
 
+  fonts_css = FONTS_CSS.read_text(encoding="utf-8")
+  active_fonts_css = strip_css_comments(fonts_css)
+  check.require(
+    "../Fonts/" not in active_fonts_css,
+    "fonts.css default @font-face skeleton leaked an active missing font URL",
+  )
+
   media_css = MEDIA_CSS.read_text(encoding="utf-8")
   image_layout = IMAGE_LAYOUT.read_text(encoding="utf-8")
   check.require("kindle-img" not in media_css, "media.css must not define direct img kindle-* float classes")
@@ -183,6 +196,25 @@ def validate_source(check: Check) -> None:
     'class="en-large-probe"',
   ]:
     check.require(token in english_text, f"18-english-fiction.xhtml missing English fiction marker: {token}")
+
+  effects_css = (OEBPS / "Styles" / "effects.css").read_text(encoding="utf-8")
+  note_text = NOTE_BOXES_PAGE.read_text(encoding="utf-8")
+  check.require(
+    "transform:" not in effects_css and "-webkit-transform:" not in effects_css,
+    "effects.css note fixtures must not use transform; Kindle Previewer 3 KFX conversion crashes on rotated note boxes",
+  )
+  for token in [
+    ".note-square", ".note-dashed", ".note-double", ".note-left-rule",
+    ".note-shadow", ".note-inset", ".note-slant", ".note-irregular",
+  ]:
+    check.require(token in effects_css, f"effects.css missing note box style: {token}")
+  for token in [
+    'class="note-box note-square"',
+    'class="note-box note-shadow"',
+    'class="note-box note-slant"',
+    'class="note-box note-irregular"',
+  ]:
+    check.require(token in note_text, f"19-border-shadow-notes.xhtml missing note box sample: {token}")
 
 
 def validate_epub(epub_path: Path, check: Check) -> None:
