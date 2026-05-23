@@ -103,13 +103,70 @@
 }
 
 .note-slant {
-  border: 1px solid #c9bda9;
-  border-left-width: .42em;
-  border-right-width: .12em;
-  border-radius: .15em .55em .2em .4em;
+  border-top: 3px solid #9f7b3d;
+  border-right: 1px solid #c9bda9;
+  border-bottom: 1px solid #c9bda9;
+  border-left: .75em solid #d6a33a;
+  border-radius: .15em 1em .28em .85em;
   background: #fff7cc;
-  -webkit-box-shadow: .16em .16em 0 #e2d6b5;
-  box-shadow: .16em .16em 0 #e2d6b5;
+  -webkit-box-shadow: .34em .22em 0 #e2d6b5;
+  box-shadow: .34em .22em 0 #e2d6b5;
+}
+
+.note-corner-ornament {
+  border: 0;
+  padding: .15em 0;
+  background: #fffdf8;
+  -webkit-box-shadow: .18em .18em 0 #ded4c2;
+  box-shadow: .18em .18em 0 #ded4c2;
+}
+
+.note-ornate-rule {
+  display: block;
+  margin: 0;
+  height: 2.55em;
+  text-indent: 0;
+  line-height: 0;
+}
+
+.note-ornate-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.note-ornate-main,
+.note-ornate-line {
+  fill: none;
+  stroke: #4f4539;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.note-ornate-main {
+  stroke-width: 1.8;
+}
+
+.note-ornate-line {
+  stroke-width: 1.15;
+}
+
+.note-corner-frame {
+  margin: 0 8.9%;
+  border-left: 1px solid #6f6254;
+  border-right: 1px solid #6f6254;
+  padding: .35em .95em .45em;
+  background: #fffdf8;
+}
+
+.note-long-shadow {
+  border-top: 1px solid #8b7a66;
+  border-bottom: 1px solid #8b7a66;
+  border-left: .25em solid #8f4f20;
+  background: #fffdf8;
+  -webkit-box-shadow: .45em .18em 0 #ded4c2;
+  box-shadow: .45em .18em 0 #ded4c2;
 }
 
 .note-irregular {

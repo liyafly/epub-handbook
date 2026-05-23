@@ -191,26 +191,26 @@ expectations:
     case: 19-border-shadow-notes
     status: warn
     reader_version: local-app-2026-05-23
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-134028.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-220800.epub
     failed_page: 19-border-shadow-notes
-    issue: "Readest 可打开最终构建包并从目录跳转到边框与阴影便签；默认字号下 solid/rounded/dashed 等首页样式正常，辅助树包含全部便签真实文本，待逐页大字号复测。"
-    action: "通用 demo 已移除 transform rotate，斜角感改用不对称边框、圆角和投影模拟；所有便签保留 border/background fallback。"
+    issue: "Readest 可打开最终构建包并从目录跳转到边框与阴影便签；默认字号下 solid/rounded/dashed/double/left-rule、box-shadow、inset、增强斜角感、内联 SVG 专业花边框、长条投影和不规则边缘可见，待大字号复测。"
+    action: "通用 demo 已移除 transform rotate，斜角感改用加重左侧色带、顶部边线、偏移投影和不对称圆角；专业花边框改为贝塞尔曲线 SVG 线稿并保留真实文本。"
     workaround: "生产主路径优先使用 border/background/left-rule；box-shadow、outline-offset 只作为可丢失增强。"
   - reader: kindle_previewer
     case: 19-border-shadow-notes
     status: warn
     reader_version: "3.104.0"
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-134028.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-220800.epub
     failed_page: 19-border-shadow-notes
-    issue: "Kindle Previewer CLI 转换成功，Enhanced Typesetting 支持，0 errors；GUI 已显示第 19 页全部分页，solid/dashed/double/left-rule、box-shadow、inset、斜角感和不规则边缘可见，待大字号多设备复测。"
+    issue: "Kindle Previewer CLI 转换成功，Enhanced Typesetting 支持，0 errors；新增增强斜角感、内联 SVG 专业花边框和长条投影未破坏 KFX 转换，待 GUI 大字号多设备复测。"
     action: "临时二分确认 transform: rotate() 会触发 KFX 增强排版内部错误；已从通用 demo、文档和 skill 中移除旋转便签主路径，并新增校验防止回归。"
     workaround: "Kindle 目标书稿中不用 transform 旋转文本框；斜角感用不对称边框、圆角和投影模拟，阴影和外轮廓只能作为可丢失增强。"
   - reader: ibooks_macos
     case: 19-border-shadow-notes
     status: warn
     reader_version: local-app-2026-05-23
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-134028.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-220800.epub
     failed_page: 19-border-shadow-notes
-    issue: "Apple Books 可打开最终构建包；默认双页视图显示 double、left-rule、box-shadow、inset、斜角感和不规则边缘，上一轮已确认首页 solid/rounded/dashed 可见，待大字号复测。"
+    issue: "Apple Books 可打开最终构建包；默认双页视图显示 double、left-rule、box-shadow、inset、增强斜角感、内联 SVG 专业花边框、长条投影和不规则边缘，待大字号复测。"
     action: "保留真实文本和可重排盒模型，便签视觉不依赖图片或固定页面尺寸。"
     workaround: "Apple Books 可显示投影和不规则边缘，但仍需保留边框/底色主路径，避免主题和字号变化时信息丢失。"

@@ -429,6 +429,7 @@
           <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>图文环绕、竖排列；英文首字主路径用 <code>::first-letter</code></td></tr>
           <tr><td><code>box-shadow</code></td><td><code>.2em .2em 0 #ddd</code> / <code>inset 0 0 .4em #ddd</code></td><td><span class="status">渐进增强</span></td><td>便签阴影；必须有 border/background 兜底</td></tr>
           <tr><td><code>transform</code></td><td><code>rotate(-1deg)</code></td><td><span class="status">风险</span></td><td>不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误</td></tr>
+          <tr><td>SVG 花边框</td><td>内联 SVG + <code>aria-hidden="true"</code> + 普通边框兜底</td><td><span class="status">渐进增强</span></td><td>贝塞尔曲线花边；失效时降级为双线框或左侧竖线</td></tr>
           <tr><td><code>position: relative</code></td><td>列表 marker</td><td><span class="status">可用</span></td><td>局部定位</td></tr>
           <tr><td><code>page-break-before</code></td><td><code>always</code></td><td><span class="status">推荐</span></td><td>章首页、A-lite</td></tr>
           <tr><td><code>page-break-after</code></td><td><code>always</code> / <code>avoid</code></td><td><span class="status">推荐</span></td><td>A-lite / 标题避断</td></tr>
