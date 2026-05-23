@@ -376,6 +376,47 @@ figure.img-right img {
 
 ---
 
+## 五点六、边框、阴影与便签
+
+便签、提示框、资料卡和摘录框与中文/英文正文共用同一个原则：内容必须是真实文本，视觉边框只是辅助。最稳主路径是 `border` / `border-left` / `background` / `padding`；阴影和不规则边缘都只作为增强。不要在通用 EPUB 中用 `transform: rotate()` 旋转整块文本框，Kindle Previewer 3.104（2026-05-23 实测）会在增强排版转换中触发内部错误。
+
+```html
+<div class="note-box note-shadow">
+  <p class="note-title">提示</p>
+  <p>这里是真实文本。阅读器忽略阴影时，边框和底色仍然保留。</p>
+</div>
+```
+
+```css
+.note-box {
+  margin: 1.1em 0;
+  padding: .8em .9em;
+  text-indent: 0;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.note-shadow {
+  border: 1px solid #c9bda9;
+  background: #fffaf0;
+  -webkit-box-shadow: .22em .22em 0 #d8ccb9;
+  box-shadow: .22em .22em 0 #d8ccb9;
+}
+```
+
+可用层级：
+
+- 方正框：`border: 1px/2px solid`，最稳。
+- 左侧竖线：`border-left`，适合长引用和非虚构提示。
+- 虚线/双线：用于草稿、题签、复古效果。
+- 投影/内阴影：`box-shadow` / `inset`，可丢失增强；忽略后仍有边框和底色。
+- 斜角感便签：用不对称边框、圆角和投影模拟贴纸偏移；不要在通用 Kindle 版本使用 `transform: rotate()`。
+- 不规则边缘：不对称 `border-radius` + `outline`，不要依赖 `clip-path`。
+
+不要用复杂滤镜、CSS mask 或多层伪元素承载关键信息。Kindle/旧 WebKit 可能忽略阴影或外轮廓；只要边框和底色还在，就应视为合格降级。
+
+---
+
 ## 六、A-lite 整页海报方案
 
 ### 6.1 XHTML

@@ -8,6 +8,96 @@
 
 这些观察只用于提炼版式规则，不复制原书正文。
 
+## 英文和中文的共同点与差异
+
+英文和中文的 EPUB 排版底层逻辑相同：都是先判断页面角色，再用少量稳定类控制正文、标题、引文、诗、信件、插图、注释和附录。差异主要在默认正文节奏：
+
+- 字体链不同：中文用 CJK serif/sans 链；英文 prose 通常用 serif 链。
+- 缩进不同：中文正文常用 `2em`；英文小说常用 `1.2em–1.5em`，首段不缩进。
+- 对齐不同：中文常用两端对齐；英文在没有稳定 hyphenation 前优先左对齐。
+- 首字不同：英文常见 `::first-letter` 或 drop cap；中文首字下沉只适合特定文学效果。
+- 断字不同：英文需要 `lang` + `hyphens:auto`；中文更关注标点、禁则和 CJK 混排。
+
+其他结构规则基本一致：不同文体或情景使用不同字体、字号、边框、摘录、题记或图文策略。需要设计感时可以嵌入英文字体，但仍应通过短链和专用类控制。
+
+## 英文字体与嵌入策略
+
+默认不必嵌入英文字体。系统 serif 链已经足够完成大多数英文小说和非虚构：
+
+```css
+body {
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+}
+```
+
+需要嵌入字体的场景：
+
+- 特定版本设计必须复现，比如古典短篇集、诗集或品牌化出版物。
+- small caps、题签、卷首标题、签名档等需要特定字形。
+- 多语言混排需要覆盖特殊音标、希腊字母或扩展 Latin。
+- 阅读器默认字体破坏全书气质，且目标平台已验证 Publisher Font / 原版字体开关。
+
+嵌入时不要把所有字体塞进 `body`。推荐把正文字体和装饰字体分开：
+
+```css
+.english-body {
+  font-family: "BookSerif", Georgia, "Times New Roman", serif;
+}
+
+.english-title-special,
+.smallcaps {
+  font-family: "BookSerifSC", Georgia, serif;
+}
+```
+
+OPF 必须声明字体文件，并继续保留通用字体 fallback。Kindle Previewer 要测试 Publisher Font；Apple Books 要测试原版字体设置。
+
+## 英文书中的边框、阴影和便签
+
+英文书与中文书一样，可以按文本角色使用提示框、信件框、报纸剪贴、摘录卡、编辑注或资料卡。关键规则是：框内仍然是真实文本，视觉只辅助阅读。
+
+推荐层级：
+
+- 方正框：`border` + `background` + `padding`，最适合普通注释和资料卡。
+- 左侧竖线：`border-left`，适合长引用、非虚构提示和译者注。
+- 虚线/双线：适合草稿感、旧报纸、复古短篇集的摘录框。
+- 投影/内阴影：`box-shadow` 可以使用，但必须有边框和底色兜底。
+- 斜角感：用不对称边框、圆角和投影模拟，不在通用 Kindle 版本使用 `transform: rotate()`。
+- 不规则边缘：用不对称 `border-radius`、`outline` / `outline-offset`；不要依赖 `clip-path` 或 mask。
+
+2026-05-23 用 Kindle Previewer 3.104 实测：`box-shadow`、`inset box-shadow`、`outline-offset` 可完成转换；`transform: rotate()` 会触发 KFX 增强排版内部错误。因此“真正旋转的便签”只适合非 Kindle 专用版本，且必须单独回归。
+
+## 大合集导航
+
+O. Henry 合集样本是 EPUB 2：34 个 HTML、4 个书内字体、69 张图片。它不是“整本一个 HTML”，而是按作品集拆成多个 HTML；每个作品集开头有局部目录，正文每篇后面用 `(•)` 链回当前作品集目录，也有链回总目录。
+
+这种模式适合大合集，但要分清主次：
+
+- 主导航：EPUB 3 `nav.xhtml` + Kindle/legacy `toc.ncx`，覆盖总目录和主要作品层级。
+- 局部目录：每个作品集或卷首保留一个 `section id="cont"`，列出本卷篇目。
+- 回目录点号：可以作为局部增强，帮助读者读完一篇后回到本卷目录。
+- 可访问性：不要只放无说明的点号。生产版建议加 `title` / `aria-label`，或用可见短文案如“回本卷目录”。
+- 不要在每个短篇之间强塞全局总目录链接；先回本卷目录，再由本卷目录回总目录，层级更清楚。
+
+推荐结构：
+
+```html
+<nav epub:type="toc" id="collection-toc">
+  <h2>Collection Title</h2>
+  <ol>
+    <li><a href="#story-01">Story One</a></li>
+    <li><a href="#story-02">Story Two</a></li>
+  </ol>
+  <p class="local-nav"><a href="../nav.xhtml">Back to main contents</a></p>
+</nav>
+
+<section epub:type="chapter" id="story-01">
+  <h3>Story One</h3>
+  <p>...</p>
+  <p class="local-nav"><a href="#collection-toc" title="Back to this collection contents">(•)</a></p>
+</section>
+```
+
 ## 完整优化流程
 
 1. 输入审稿

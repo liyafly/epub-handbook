@@ -419,11 +419,16 @@
         <tbody>
           <tr><td><code>margin</code> / <code>padding</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>段距、容器</td></tr>
           <tr><td><code>border</code></td><td><code>1px solid #888</code></td><td><span class="status">推荐</span></td><td>分隔线、表格</td></tr>
+          <tr><td><code>border-style</code></td><td><code>solid</code> / <code>dashed</code> / <code>double</code> / <code>dotted</code></td><td><span class="status">推荐</span></td><td>便签、资料卡、摘录框</td></tr>
+          <tr><td><code>border-radius</code></td><td>小半径 / 不对称半径</td><td><span class="status">可用</span></td><td>代码、kbd、不规则便签</td></tr>
+          <tr><td><code>outline</code> / <code>outline-offset</code></td><td>细线外框</td><td><span class="status">渐进增强</span></td><td>不规则便签效果；可被忽略</td></tr>
           <tr><td><code>box-sizing</code></td><td><code>border-box</code></td><td><span class="status">推荐</span></td><td>A-lite</td></tr>
           <tr><td><code>max-width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>图片</td></tr>
           <tr><td><code>overflow</code></td><td><code>hidden</code> / <code>auto</code></td><td><span class="status">推荐</span></td><td>A-lite / 表格滚动</td></tr>
           <tr><td><code>display</code></td><td><code>block</code> / <code>inline-block</code> / <code>table-*</code></td><td><span class="status">推荐</span></td><td>兼容稳定</td></tr>
           <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>图文环绕、竖排列；英文首字主路径用 <code>::first-letter</code></td></tr>
+          <tr><td><code>box-shadow</code></td><td><code>.2em .2em 0 #ddd</code> / <code>inset 0 0 .4em #ddd</code></td><td><span class="status">渐进增强</span></td><td>便签阴影；必须有 border/background 兜底</td></tr>
+          <tr><td><code>transform</code></td><td><code>rotate(-1deg)</code></td><td><span class="status">风险</span></td><td>不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误</td></tr>
           <tr><td><code>position: relative</code></td><td>列表 marker</td><td><span class="status">可用</span></td><td>局部定位</td></tr>
           <tr><td><code>page-break-before</code></td><td><code>always</code></td><td><span class="status">推荐</span></td><td>章首页、A-lite</td></tr>
           <tr><td><code>page-break-after</code></td><td><code>always</code> / <code>avoid</code></td><td><span class="status">推荐</span></td><td>A-lite / 标题避断</td></tr>

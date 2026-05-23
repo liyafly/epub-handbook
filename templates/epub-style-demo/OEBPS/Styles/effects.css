@@ -41,3 +41,81 @@
 .has-ruby {
   line-height: 1.9;
 }
+
+.note-box {
+  margin: 1.1em 0;
+  padding: .8em .9em;
+  text-indent: 0;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.note-box p {
+  margin: .35em 0;
+  text-indent: 0;
+  text-align: left;
+}
+
+.note-title {
+  margin: 0 0 .45em;
+  text-indent: 0;
+  font-weight: 700;
+}
+
+.note-square {
+  border: 2px solid #6f6254;
+  background: #fffaf0;
+}
+
+.note-soft {
+  border: 1px solid #b9aa96;
+  border-radius: .35em;
+  background: #fbf7ed;
+}
+
+.note-dashed {
+  border: 1px dashed #6f6254;
+  background: #fffdf8;
+}
+
+.note-double {
+  border: 3px double #6f6254;
+  background: #fffdf8;
+}
+
+.note-left-rule {
+  border-left: .35em solid #8f4f20;
+  background: #f7f2e8;
+}
+
+.note-shadow {
+  border: 1px solid #c9bda9;
+  background: #fffaf0;
+  -webkit-box-shadow: .22em .22em 0 #d8ccb9;
+  box-shadow: .22em .22em 0 #d8ccb9;
+}
+
+.note-inset {
+  border: 1px solid #b9aa96;
+  background: #fbf7ed;
+  -webkit-box-shadow: inset 0 0 .45em #d8ccb9;
+  box-shadow: inset 0 0 .45em #d8ccb9;
+}
+
+.note-slant {
+  border: 1px solid #c9bda9;
+  border-left-width: .42em;
+  border-right-width: .12em;
+  border-radius: .15em .55em .2em .4em;
+  background: #fff7cc;
+  -webkit-box-shadow: .16em .16em 0 #e2d6b5;
+  box-shadow: .16em .16em 0 #e2d6b5;
+}
+
+.note-irregular {
+  border: 2px solid #6f6254;
+  border-radius: .2em .8em .3em .6em;
+  background: #fffdf8;
+  outline: 1px solid #d8ccb9;
+  outline-offset: .18em;
+}

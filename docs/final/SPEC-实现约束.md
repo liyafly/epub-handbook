@@ -96,6 +96,15 @@
 - 章首插图和正文插图默认使用居中 `figure`，宽度用 `max-width` 约束，不固定页高，不把插图做成固定版式页面。
 - 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。
 
+## 5.10) 边框、阴影与便签文本框
+
+- 便签、提示、摘录和资料卡必须保留真实文本；禁止把文字直接烘焙进图片来实现纸张效果。
+- 主路径使用 `border`、`border-left`、`background`、`padding`、`margin` 和 `page-break-inside: avoid`。这些属性在 Readest、Apple Books、Kindle Previewer 和旧 WebKit 路径中更稳。
+- `box-shadow`、`inset box-shadow`、`outline-offset`、不对称 `border-radius` 只能作为渐进增强；阅读器忽略时不得影响阅读。
+- 通用 EPUB 不使用 `transform: rotate()` 旋转便签文本框。Kindle Previewer 3.104（2026-05-23 实测）会在 KFX 增强排版转换中触发内部错误；若某个非 Kindle 发行目标确实需要旋转效果，必须放在该目标专用版本并单独验证。
+- 不依赖 `clip-path`、复杂滤镜、CSS mask 或多层伪元素承载关键信息；它们在 EPUB 阅读器中支持不稳定。
+- 长文本便签不要追求倾斜效果。需要贴纸感时优先用不对称边框、圆角和投影模拟，避免窄屏下产生裁切或左右溢出。
+
 ## 6) Fixture 命名索引（M5 对齐）
 
 - `01-basic-cjk`
@@ -114,7 +123,7 @@
 | `fonts.css` | 字体声明 | `@font-face`、字体工具类（默认链 `.book-song` / `.book-hei` / `.book-kai` / `.book-fangsong` / `.book-mono` / `.book-latin-serif` 与对应短别名；嵌入专用类 `.rare` / `.title-special` / `.signature`） | 排版、颜色、分页、布局、元素选择器 |
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
-| `effects.css` | 文字效果 | `.emp` / `.wavy` / `.dropcap` / `.scene-break` / Ruby 行距 | 字体声明、弹注、文学结构 |
+| `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.scene-break` / Ruby 行距 / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
 | `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.chapter-head` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` | 弹注、图文浮动、海报、竖排 |
 | `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
 | `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
