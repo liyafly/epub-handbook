@@ -1,47 +1,49 @@
 ---
 name: epub-style-demo-maintainer
-description: Maintain the epub-style-demo compatibility fixture, reader matrix, final rules, and validation loop when EPUB reader behavior changes or new demo coverage is needed.
+description: 维护 epub-style-demo 兼容 fixture、reader matrix、最终规则和验证循环。用于 EPUB 阅读器行为变化、需要新增 demo 覆盖、或需要把实测发现沉淀为最终生产规则时。
 ---
 
-# EPUB Style Demo Maintainer
+# EPUB Style Demo 维护
 
-Use this skill when changing `templates/epub-style-demo/`, adding reader compatibility cases, or turning a reader finding into final EPUB production rules.
+当修改 `templates/epub-style-demo/`、新增阅读器兼容场景，或把阅读器发现转成最终 EPUB 生产规则时使用这个 skill。
 
-## Fixed Workflow
+## 固定工作流
 
-1. Start with `templates/epub-style-demo/`. Add or update the smallest fixture that exposes the reader behavior.
-2. Build the demo:
+1. 从 `templates/epub-style-demo/` 开始。新增或更新能暴露阅读器行为的最小 fixture。
+2. 构建 demo：
 
 ```sh
 sh templates/epub-style-demo/build.sh
 ```
 
-3. Validate structure with the stdlib-only script:
+3. 用 stdlib-only 脚本验证结构：
 
 ```sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 ```
 
-4. Record the artifact in `docs/final/reader-matrix.yaml`. Use `warn` with pending reader version when human retest is still needed; do not invent pass/fail.
-5. Only after a fixture and matrix entry exist, update `docs/final/SPEC-实现约束.md`, then the final handbook and quick reference table.
-6. If the rule affects automation behavior, update relevant `skills/*/SKILL.md` without changing frontmatter keys.
+4. 把产物记录到 `docs/final/reader-matrix.yaml`。需要人工复测或版本待确认时使用 `warn`，不要虚构 pass/fail。
+5. 只有 fixture 和 matrix 记录都存在后，才更新 `docs/final/SPEC-实现约束.md`，然后更新最终手册和速查表。
+6. 如果规则影响自动化行为，同步更新相关 `skills/*/SKILL.md`，但不要改变 frontmatter 字段名。
 
-## Current Compatibility Rules
+## 当前兼容规则
 
-- Image wrapping uses `figure.img-left` / `figure.img-right` as the main path. Float and percentage `width` belong on `figure`; start in the `25%` to `35%` range, then tune against the target reader, viewport, and font size. The nested `img` is `width:100%; height:auto`.
-- Do not fix image height or rely on `aspect-ratio` for the main EPUB path. Real image assets preserve their ratio through `height:auto`, and `figure` also needs natural height for captions.
-- Direct `img` float is not the main path because it can render too small in some readers.
-- Book images use JPEG / PNG as the production path. WebP is only a modern-reader experiment; Kindle conversion logs W14012 / W14015 for the demo WebP. SVG can be tested as an enhancement, but Kindle-targeted builds need a JPEG / PNG raster fallback when rendering is uncertain.
-- Wrapping tests need enough surrounding prose. A short paragraph is a threshold counterexample, not proof that float failed.
-- Wavy underline must be split: `text-decoration: underline;` first, then `text-decoration-style: wavy;`. Kindle App fallback is ordinary underline.
-- XHTML files containing MathML must have `properties="mathml"` in the OPF manifest.
-- MathML coverage should stay inside KDP Enhanced Typesetting and EPUB 3 supported tags unless a new experiment justifies otherwise.
-- Duokan legacy fallback uses `ol.footnote-list.duokan-footnote-content`; individual `li.footnote-item` only get `duokan-footnote-item`.
+- 图片环绕主路径使用 `figure.img-left` / `figure.img-right`。float 和百分比 `width` 挂在 `figure` 上，先从 `25%` 到 `35%` 调整，再结合目标阅读器、视口和字号实测。
+- 不固定图片高度，也不把 `aspect-ratio` 作为主路径。真实图片通过 `height:auto` 保持宽高比，`figure` 也需要自然高度以承载图注。
+- direct `img` float 不是主路径，因为部分阅读器会把图片渲染得过小。
+- 书内图片以 JPEG / PNG 为生产主路径。WebP 只作为现代阅读器实验；demo WebP 在 Kindle conversion logs 中触发 W14012 / W14015。SVG 可作为增强测试，但 Kindle 目标构建需要在渲染不确定时提供 JPEG / PNG 栅格 fallback。
+- 图文环绕测试需要足够长的周围正文。短段落只是阈值反例，不足以证明 float 失败。
+- 波浪下划线必须拆开：先写 `text-decoration: underline;`，再写 `text-decoration-style: wavy;`。Kindle App fallback 为普通 underline。
+- 含 MathML 的 XHTML manifest item 必须带 `properties="mathml"`。
+- MathML 覆盖应保持在 KDP Enhanced Typesetting 和 EPUB 3 支持标签范围内，除非新实验有理由扩展。
+- 多看旧版 fallback 使用 `ol.footnote-list.duokan-footnote-content`；单个 `li.footnote-item` 只加 `duokan-footnote-item`。
+- 英文书籍规则先按类型拆分：小说/散文走 `.english-fiction`，非虚构后续单独 fixture；英文正文必须声明 `lang`，使用短 serif 链，首段无缩进、后续段缩进，未验证断字时不强制 justify。
+- 英文小说插图默认居中 `figure`，不把图文环绕作为 fiction 主路径；首字优先用 `::first-letter` 保持正文单词完整，旧式 span 首字和 float drop cap 只作增强并需大字号复测。
 
-## Validation Expectations
+## 验证期望
 
-Before committing, run at minimum:
+提交前至少运行：
 
 ```sh
 sh templates/epub-style-demo/build.sh
@@ -51,4 +53,4 @@ xmllint --noout templates/epub-style-demo/OEBPS/package.opf templates/epub-style
 git diff --check
 ```
 
-If `xmllint` is unavailable, the Python validation script still parses XML with stdlib and catches manifest/link/MathML errors.
+如果本机没有 `xmllint`，Python 验证脚本仍会用标准库解析 XML，并捕获 manifest/link/MathML 错误。

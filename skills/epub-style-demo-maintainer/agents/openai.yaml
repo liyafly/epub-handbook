@@ -1,0 +1,5 @@
+interface:
+  display_name: "EPUB Style Demo 维护"
+  short_description: "维护 demo fixture 和矩阵。"
+  default_prompt: "使用 $epub-style-demo-maintainer 更新 EPUB style demo fixture、reader matrix 和最终规则。"
+

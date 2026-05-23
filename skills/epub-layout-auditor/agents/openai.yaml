@@ -1,0 +1,5 @@
+interface:
+  display_name: "EPUB 排版审稿"
+  short_description: "审 EPUB 排版并分派修复。"
+  default_prompt: "使用 $epub-layout-auditor 审核这个 EPUB 排版改动，并按优先级给出阅读器安全修复。"
+

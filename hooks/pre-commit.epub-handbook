@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT"
+
+changed=$(git diff --cached --name-only)
+
+git diff --check --cached
+python3 scripts/validate_skills_basic.py
+
+if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|scripts/validate_|scripts/epub_ai_harness.py|docs/final/SPEC-)'; then
+  artifact=$(sh templates/epub-style-demo/build.sh)
+  scripts/validate-epub-style-demo.sh --epub "$artifact"
+  scripts/validate-popup-notes.sh --epub "$artifact"
+  if command -v xmllint >/dev/null 2>&1; then
+    xmllint --noout \
+      templates/epub-style-demo/OEBPS/package.opf \
+      templates/epub-style-demo/OEBPS/nav.xhtml \
+      templates/epub-style-demo/OEBPS/toc.ncx
+  fi
+fi
+

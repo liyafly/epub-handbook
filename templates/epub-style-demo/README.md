@@ -35,6 +35,7 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 17. `15-frontmatter.xhtml`：版权、题献与题记。
 18. `16-math.xhtml`：数学公式与 MathML。
 19. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试。
+20. `18-english-fiction.xhtml`：英文小说正文、首段规则、居中插图与大字号回归测试。
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
 完整覆盖关系见 `SCENE_MATRIX.md`。

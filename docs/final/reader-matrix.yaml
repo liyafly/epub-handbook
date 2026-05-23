@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-21
+updated_at: 2026-05-23
 owner: epub-handbook
 
 lanes:
@@ -83,6 +83,9 @@ cases:
   - id: 17-image-layout
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
+  - id: 18-english-fiction
+    title: 英文小说正文
+    fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
 
 expectations:
   # status: pass | warn | fail | na
@@ -154,3 +157,30 @@ expectations:
     artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
     issue: ".dropcap (float:left) 在 Kindle App/Previewer 生效；.wavy 拆行后 Kindle App 显示为普通下划线。"
     action: "保留拆行写法：Kindle 走 underline fallback，Apple Books/Readest/Thorium 等支持 text-decoration-style 的阅读器显示 wavy。"
+  - reader: readest
+    case: 18-english-fiction
+    status: warn
+    reader_version: local-app-2026-05-23
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    failed_page: 18-english-fiction
+    issue: "Readest 已能打开新构建包并从目录跳转到英文小说页；标题、::first-letter 首字、正文缩进、居中插图和 caption 默认字号显示正常，待更多字号复测。"
+    action: "先按 Stuart Little 类简单英文 EPUB 的结构提炼为合成样文，不复制原书内容；Readest 辅助树暴露旧式 span 首字会拆词，已改为 ::first-letter。"
+    workaround: "英文小说优先使用 lang=\"en\"、短 serif 链、左对齐或谨慎 justification、居中 figure；不要依赖固定页高或浮动首字。"
+  - reader: kindle_previewer
+    case: 18-english-fiction
+    status: warn
+    reader_version: local-app-2026-05-23
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    failed_page: 18-english-fiction
+    issue: "Kindle Previewer 可完成转换并显示英文小说页；标题、首段、::first-letter 首字和正文默认字号可见，待大字号与多设备模式复测。"
+    action: "保持 EPUB 3 + NCX 路径，图片使用 PNG，首字采用 ::first-letter 而非拆词 span 或 float，降低 KFX 转换和朗读风险。"
+    workaround: "若 Kindle 大字号下段落过密，优先调 line-height 与段落缩进；不要用固定页面尺寸。"
+  - reader: ibooks_macos
+    case: 18-english-fiction
+    status: warn
+    reader_version: local-app-2026-05-23
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    failed_page: 18-english-fiction
+    issue: "Apple Books 可导入并从目录跳转到英文小说页；标题、::first-letter 首字、正文、插图与 caption 默认字号显示正常，待原版字体/大字号复测。"
+    action: "已在 Books.app 做默认字号打开检查；后续需记录原版字体/用户字体设置对排版的影响。"
+    workaround: "保留 OPF ibooks:specified-fonts=true，并在页面级使用短英文 serif 链。"

@@ -97,3 +97,71 @@
 .scene-break-text {
   letter-spacing: .5em;
 }
+
+.english-fiction {
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+  line-height: 1.55;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.english-fiction p {
+  margin: 0;
+  text-indent: 1.35em;
+  text-align: left;
+}
+
+.english-fiction .en-noindent,
+.english-fiction .en-illustration + p,
+.english-fiction blockquote p,
+.english-fiction .en-break {
+  text-indent: 0;
+}
+
+.english-chapter-title {
+  margin: 1em 0 1.8em;
+  text-align: center;
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+  font-size: 1.6em;
+  font-weight: 400;
+}
+
+.en-first-letter::first-letter {
+  font-size: 1.75em;
+  line-height: .8;
+  font-weight: 700;
+}
+
+.en-illustration {
+  margin: 1.2em auto;
+  text-align: center;
+}
+
+.en-illustration img {
+  display: block;
+  width: auto;
+  max-width: 15em;
+  margin: 0 auto;
+}
+
+.en-illustration-small img {
+  max-width: 10em;
+}
+
+.en-extract {
+  margin: 1em 1.5em;
+  padding: 0;
+  border-left: 0;
+  font-style: italic;
+}
+
+.en-break {
+  margin: 1.4em 0;
+  text-align: center;
+  letter-spacing: .25em;
+}
+
+.en-large-probe {
+  font-size: 1.35em;
+  line-height: 1.45;
+}

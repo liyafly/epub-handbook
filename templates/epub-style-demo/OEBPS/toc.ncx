@@ -86,5 +86,9 @@
       <navLabel><text>图文环绕</text></navLabel>
       <content src="Text/17-image-layout.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-19" playOrder="20">
+      <navLabel><text>英文小说正文</text></navLabel>
+      <content src="Text/18-english-fiction.xhtml"/>
+    </navPoint>
   </navMap>
 </ncx>
