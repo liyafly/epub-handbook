@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>边框与阴影便签</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/effects.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>十九、边框与阴影便签</h1>
+
+    <p>本页测试可重排 EPUB 中的便签、摘录和提示框。内容仍是真实文本；边框、阴影、斜角感和不规则边缘只作为视觉增强。</p>
+
+    <div class="note-box note-square">
+      <p class="note-title">方正边框</p>
+      <p>用于普通提示、定义或编辑批注。最稳妥，旧阅读器即使忽略背景色也能保留边框。</p>
+    </div>
+
+    <div class="note-box note-soft">
+      <p class="note-title">圆角浅底</p>
+      <p>适合温和提示。圆角属于增强项，不影响文字阅读。</p>
+    </div>
+
+    <div class="note-box note-dashed">
+      <p class="note-title">虚线边框</p>
+      <p>用于草稿、待核查、可选说明。虚线在 Kindle/旧 WebKit 中通常可用，但不要承载关键信息。</p>
+    </div>
+
+    <div class="note-box note-double">
+      <p class="note-title">双线边框</p>
+      <p>适合文献摘录、题签或复古提示。线宽不宜太粗，避免小屏压迫正文。</p>
+    </div>
+
+    <div class="note-box note-left-rule">
+      <p class="note-title">左侧竖线</p>
+      <p>适合引用、译注和非虚构提示。相比整框，左侧竖线更省空间，也更适合长段落。</p>
+    </div>
+
+    <div class="note-box note-shadow">
+      <p class="note-title">实心投影</p>
+      <p>用 `box-shadow` 模拟纸片厚度。阅读器忽略阴影时，边框和底色仍然保留。</p>
+    </div>
+
+    <div class="note-box note-inset">
+      <p class="note-title">内阴影</p>
+      <p>用于内嵌资料卡。不要把内阴影做得太深，否则夜间模式或电子墨水屏上会显脏。</p>
+    </div>
+
+    <div class="note-box note-slant">
+      <p class="note-title">斜角感便签</p>
+      <p>用不对称边框、圆角和投影模拟贴纸偏移感。不要在通用 Kindle 版本中用 `transform: rotate()` 旋转整块文本。</p>
+    </div>
+
+    <div class="note-box note-irregular">
+      <p class="note-title">不规则边缘</p>
+      <p>通过不对称圆角和外轮廓模拟手贴纸感。EPUB 中不要依赖复杂 clip-path，保持文本和边框优先。</p>
+    </div>
+  </section>
+</body>
+</html>

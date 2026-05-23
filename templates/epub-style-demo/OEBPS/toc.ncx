@@ -90,5 +90,9 @@
       <navLabel><text>英文小说正文</text></navLabel>
       <content src="Text/18-english-fiction.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-20" playOrder="21">
+      <navLabel><text>边框与阴影便签</text></navLabel>
+      <content src="Text/19-border-shadow-notes.xhtml"/>
+    </navPoint>
   </navMap>
 </ncx>

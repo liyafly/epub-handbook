@@ -52,6 +52,7 @@
     <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml" properties="mathml"/>
     <item id="image-layout" href="Text/17-image-layout.xhtml" media-type="application/xhtml+xml"/>
     <item id="english-fiction" href="Text/18-english-fiction.xhtml" media-type="application/xhtml+xml"/>
+    <item id="border-shadow-notes" href="Text/19-border-shadow-notes.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -75,5 +76,6 @@
     <itemref idref="math"/>
     <itemref idref="image-layout"/>
     <itemref idref="english-fiction"/>
+    <itemref idref="border-shadow-notes"/>
   </spine>
 </package>
