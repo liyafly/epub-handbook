@@ -399,9 +399,12 @@
           <tr><td><code>font-weight</code></td><td><code>normal</code> / <code>bold</code> / <code>400</code> / <code>700</code></td><td><span class="status">推荐</span></td><td>嵌入字重需匹配</td></tr>
           <tr><td><code>font-size</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>正文避免固定 px</td></tr>
           <tr><td><code>line-height</code></td><td><code>1.6</code>–<code>1.9</code></td><td><span class="status">推荐</span></td><td>中文常用 1.7</td></tr>
+          <tr><td><code>line-height</code></td><td><code>1.45</code>–<code>1.65</code></td><td><span class="status">推荐</span></td><td>英文小说常用，简单重排书先取 1.55 左右</td></tr>
           <tr><td><code>text-indent</code></td><td><code>2em</code></td><td><span class="status">推荐</span></td><td>中文正文</td></tr>
-          <tr><td><code>text-align</code></td><td><code>left</code> / <code>center</code> / <code>right</code> / <code>justify</code></td><td><span class="status">推荐</span></td><td>正文常用 justify</td></tr>
+          <tr><td><code>text-indent</code></td><td><code>1.2em</code>–<code>1.5em</code></td><td><span class="status">推荐</span></td><td>英文小说后续段落；首段用 0</td></tr>
+          <tr><td><code>text-align</code></td><td><code>left</code> / <code>center</code> / <code>right</code> / <code>justify</code></td><td><span class="status">推荐</span></td><td>中文正文常用 justify；英文未验证断字时优先 left</td></tr>
           <tr><td><code>hyphens</code></td><td><code>auto</code></td><td><span class="status">可用</span></td><td>西文断字</td></tr>
+          <tr><td><code>-webkit-hyphens</code></td><td><code>auto</code></td><td><span class="status">可用</span></td><td>Apple Books / WebKit 兜底</td></tr>
           <tr><td><code>widows</code> / <code>orphans</code></td><td><code>2</code></td><td><span class="status">可用</span></td><td>防孤行</td></tr>
           <tr><td><code>hanging-punctuation</code></td><td><code>allow-end</code></td><td><span class="status">渐进增强</span></td><td>Apple Books / KOReader 较好</td></tr>
           <tr><td><code>:lang()</code></td><td>按语言分字体 / 强调</td><td><span class="status">推荐</span></td><td>中英文混排</td></tr>
@@ -420,7 +423,7 @@
           <tr><td><code>max-width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>图片</td></tr>
           <tr><td><code>overflow</code></td><td><code>hidden</code> / <code>auto</code></td><td><span class="status">推荐</span></td><td>A-lite / 表格滚动</td></tr>
           <tr><td><code>display</code></td><td><code>block</code> / <code>inline-block</code> / <code>table-*</code></td><td><span class="status">推荐</span></td><td>兼容稳定</td></tr>
-          <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>首字下沉、竖排列</td></tr>
+          <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>图文环绕、竖排列；英文首字主路径用 <code>::first-letter</code></td></tr>
           <tr><td><code>position: relative</code></td><td>列表 marker</td><td><span class="status">可用</span></td><td>局部定位</td></tr>
           <tr><td><code>page-break-before</code></td><td><code>always</code></td><td><span class="status">推荐</span></td><td>章首页、A-lite</td></tr>
           <tr><td><code>page-break-after</code></td><td><code>always</code> / <code>avoid</code></td><td><span class="status">推荐</span></td><td>A-lite / 标题避断</td></tr>

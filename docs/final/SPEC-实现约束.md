@@ -87,6 +87,15 @@
 - Kindle 路径只把 MathML 视为 Enhanced Typesetting 能力；目标平台不支持时必须准备文本公式或图片公式 fallback。
 - demo 优先覆盖 KDP 支持列表内标签组合，不引入未确认支持的私有数学标签。
 
+## 5.9) 英文小说正文
+
+- 英文书页必须在 HTML 或 `body` 上声明 `xml:lang="en"` / `lang="en"`，让 Apple Books、Readest、Kindle 和其他阅读器有机会启用正确断字和朗读规则。
+- 英文正文使用短 serif 链，推荐起点为 `Georgia, "Times New Roman", "Noto Serif", serif`；不要沿用中文 `Songti/SimSun/Noto Serif CJK` 链。
+- 简单英文小说的主路径是首段无缩进、后续段落 `1.2em–1.5em` 首行缩进，段间距接近 0；不要同时使用大段间距和大缩进。
+- 英文正文不强制 `justify`。未实测 hyphenation 的 Kindle/Readest/Apple Books 路径优先 `text-align:left`；确认断字稳定后才使用 `justify`。
+- 章首插图和正文插图默认使用居中 `figure`，宽度用 `max-width` 约束，不固定页高，不把插图做成固定版式页面。
+- 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。
+
 ## 6) Fixture 命名索引（M5 对齐）
 
 - `01-basic-cjk`
@@ -106,7 +115,7 @@
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
 | `effects.css` | 文字效果 | `.emp` / `.wavy` / `.dropcap` / `.scene-break` / Ruby 行距 | 字体声明、弹注、文学结构 |
-| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.chapter-head` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` | 弹注、图文浮动、海报、竖排 |
+| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.chapter-head` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` | 弹注、图文浮动、海报、竖排 |
 | `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
 | `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
 | `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |

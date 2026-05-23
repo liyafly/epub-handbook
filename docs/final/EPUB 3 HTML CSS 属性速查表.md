@@ -221,12 +221,15 @@
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
 | `line-height` | `1.6`–`1.9` | 推荐 | 中文常用 1.7 |
+| `line-height` | `1.45`–`1.65` | 推荐 | 英文小说常用；简单重排书先取 1.55 左右 |
 | `text-indent` | `2em` | 推荐 | 中文正文 |
-| `text-align` | `left` / `center` / `right` / `justify` | 推荐 | 正文常用 `justify` |
+| `text-indent` | `1.2em`–`1.5em` | 推荐 | 英文小说后续段落；首段用 `0` |
+| `text-align` | `left` / `center` / `right` / `justify` | 推荐 | 中文正文常用 `justify`；英文未验证断字时优先 `left` |
 | `text-justify` | `inter-ideograph` | 可用 | 部分阅读器忽略 |
 | `letter-spacing` | `0.04em` 等 | 可用 | 标题、竖排题签 |
 | `word-break` | `break-all` | 条件可用 | 中文长串可用，正文谨慎 |
 | `hyphens` | `auto` | 可用 | 西文断字 |
+| `-webkit-hyphens` | `auto` | 可用 | Apple Books / WebKit 兜底 |
 | `widows` / `orphans` | `2` | 可用 | 防孤行 |
 | `hanging-punctuation` | `allow-end` | 渐进增强 | Apple Books / KOReader 较好 |
 | `hyphenate-limit-chars` | `6 3 3` | 渐进增强 | 支持有限 |
@@ -283,7 +286,7 @@ body {
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比，正文必须足够长；direct img 不作为主路径。 |
+| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比；英文首字主路径用 `::first-letter`。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | `position` | `relative` | 可用 | 列表 marker |
 | `position` | `absolute` | 条件可用 | 正文不用；A-lite 不用 |

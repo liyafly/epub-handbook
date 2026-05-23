@@ -1,0 +1,5 @@
+interface:
+  display_name: "EPUB 旧版弹注 Fallback"
+  short_description: "叠加多看旧版弹注兼容。"
+  default_prompt: "使用 $epub-legacy-footnote-fallback 在标准 EPUB 弹注上叠加多看旧版兼容 fallback。"
+

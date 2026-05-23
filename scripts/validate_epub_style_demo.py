@@ -20,6 +20,7 @@ NAV = OEBPS / "nav.xhtml"
 NCX = OEBPS / "toc.ncx"
 MEDIA_CSS = OEBPS / "Styles" / "media.css"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
+ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
 MATH_PAGE = OEBPS / "Text" / "16-math.xhtml"
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -170,6 +171,18 @@ def validate_source(check: Check) -> None:
     "<semantics", "<annotation", "<mmultiscripts", "<ms>",
   ]:
     check.require(token in math_text, f"16-math.xhtml missing MathML sample: {token}")
+
+  english_text = ENGLISH_PAGE.read_text(encoding="utf-8")
+  for token in [
+    'xml:lang="en"',
+    'body class="english-fiction"',
+    'class="english-chapter-title"',
+    'class="en-noindent"',
+    'class="en-noindent en-first-letter"',
+    'class="en-illustration"',
+    'class="en-large-probe"',
+  ]:
+    check.require(token in english_text, f"18-english-fiction.xhtml missing English fiction marker: {token}")
 
 
 def validate_epub(epub_path: Path, check: Check) -> None:

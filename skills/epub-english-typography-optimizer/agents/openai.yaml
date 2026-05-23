@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 英文排版优化"
+  short_description: "优化英文书籍段落、标题和断字。"
+  default_prompt: "使用 $epub-english-typography-optimizer 为这本英文 EPUB 制定并落地排版优化方案。"
