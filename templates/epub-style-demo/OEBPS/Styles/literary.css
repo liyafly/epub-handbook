@@ -12,6 +12,86 @@
   font-weight: 400;
 }
 
+.chapter-header,
+.chapter-head-art,
+.chapter-head-banner {
+  text-align: center;
+  text-indent: 0;
+}
+
+.chapter-header {
+  margin: 1em 0 1.8em;
+  page-break-after: avoid;
+  -webkit-page-break-after: avoid;
+}
+
+.chapter-head-art,
+.chapter-head-banner {
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.chapter-head-art {
+  margin: .8em auto .7em;
+}
+
+.chapter-head-art img {
+  display: block;
+  width: 35%;
+  max-width: 7.5em;
+  min-width: 4.5em;
+  height: auto;
+  margin: 0 auto;
+}
+
+.chapter-head-art-roomy img {
+  width: 40%;
+  max-width: 9em;
+}
+
+.chapter-head-banner {
+  margin: .9em 0 1em;
+}
+
+.chapter-head-banner img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.chapter-kicker,
+.chapter-subtitle {
+  margin: .25em 0;
+  text-align: center;
+  text-indent: 0;
+}
+
+.chapter-kicker {
+  font-size: .85em;
+}
+
+.decorated-chapter-title {
+  margin: .35em 0 .7em;
+  text-align: center;
+  font-size: 1.45em;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.chapter-subtitle {
+  font-size: .9em;
+}
+
+.chapter-head-note {
+  margin: 1em 0;
+  padding: .6em .8em;
+  border-left: .25em solid #8f4f20;
+  text-indent: 0;
+  text-align: left;
+}
+
 .epigraph {
   margin: 1em 0;
   text-align: right;
@@ -61,7 +141,6 @@
 .copyright-statement {
   margin-top: 1em;
   font-size: .9em;
-  color: #555;
 }
 
 .dedication {
@@ -90,11 +169,16 @@
 }
 
 .scene-break {
+  border: 0;
+  border-top: 1px solid #888;
+  width: 20%;
   text-align: center;
-  margin: 1.2em 0;
+  margin: 1.2em auto;
 }
 
 .scene-break-text {
+  text-align: center;
+  text-indent: 0;
   letter-spacing: .5em;
 }
 
@@ -112,7 +196,6 @@
 }
 
 .english-fiction .en-noindent,
-.english-fiction .en-illustration + p,
 .english-fiction blockquote p,
 .english-fiction .en-break {
   text-indent: 0;
@@ -130,6 +213,20 @@
   font-size: 1.75em;
   line-height: .8;
   font-weight: 700;
+}
+
+.en-dropcap-host {
+  text-indent: 0;
+}
+
+.en-dropcap {
+  float: left;
+  font-family: "Snell Roundhand", "Segoe Script", cursive;
+  font-size: 3.3em;
+  line-height: .78;
+  font-weight: 400;
+  padding-right: .1em;
+  margin-top: .04em;
 }
 
 .en-illustration {

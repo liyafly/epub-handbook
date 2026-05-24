@@ -64,4 +64,3 @@ scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artif
 ```
 
 如果有 Kindle Previewer 日志，最终说明里要列出日志文件名、warning code、资源路径和测试 app/版本。
-

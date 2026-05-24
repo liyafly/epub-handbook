@@ -12,6 +12,7 @@
   text-decoration: underline;
   text-decoration-style: wavy;
   -webkit-text-decoration-style: wavy;
+  text-decoration-color: #c03030;
 }
 
 .dropcap-host {
@@ -23,23 +24,6 @@
   font-size: 2.6em;
   line-height: 1;
   padding-right: 0.12em;
-}
-
-.scene-break {
-  border: 0;
-  border-top: 1px solid #888;
-  width: 20%;
-  margin: 1.2em auto;
-}
-
-.scene-break-text {
-  text-align: center;
-  letter-spacing: 0.2em;
-  text-indent: 0;
-}
-
-.has-ruby {
-  line-height: 1.9;
 }
 
 .note-box {

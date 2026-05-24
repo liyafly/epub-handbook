@@ -20,6 +20,7 @@
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
 | 英文小说正文 | `lang="en"` + 短 serif 链，首段无缩进、后续段落缩进，插图居中 figure，避免固定页高 |
+| 章节头图 | 普通可重排章首使用 `figure.chapter-head-art` 小章标或 `figure.chapter-head-banner` 满栏横幅 + 真实 `h1`；强视觉首屏才走 A-lite |
 
 ---
 
@@ -290,7 +291,7 @@ code, pre, kbd, samp {
 
 ## 五点二、英文小说正文
 
-英文小说和中文正文不要共用同一套段落节奏。以 Stuart Little 这类简单英文 EPUB 为参考，稳定结构是：章节图单独居中，章节标题居中，首段无缩进并可用 `::first-letter` 做轻量首字，后续段落缩进，插图使用居中 `figure`，不依赖固定页高或固定行数。
+英文小说和中文正文不要共用同一套段落节奏。简单英文 prose EPUB 的稳定结构是：章节图单独居中，章节标题居中，首段无缩进并可用 `::first-letter` 做轻量首字，后续段落缩进，插图使用居中 `figure`，不依赖固定页高或固定行数。
 
 ```html
 <body class="english-fiction" xml:lang="en" lang="en">
@@ -300,6 +301,7 @@ code, pre, kbd, samp {
     </figure>
     <h1 class="english-chapter-title">I. Chapter Title</h1>
     <p class="en-noindent en-first-letter">The first paragraph starts without indent.</p>
+    <p class="en-noindent en-dropcap-host"><span class="en-dropcap">A</span> second opening paragraph demonstrates a lowered initial.</p>
     <p>Following paragraphs use a modest first-line indent.</p>
   </section>
 </body>
@@ -328,9 +330,73 @@ code, pre, kbd, samp {
   line-height: .8;
   font-weight: 700;
 }
+
+.en-dropcap-host {
+  text-indent: 0;
+}
+
+.en-dropcap {
+  float: left;
+  font-family: "Snell Roundhand", "Segoe Script", cursive;
+  font-size: 3.3em;
+  line-height: .78;
+  font-weight: 400;
+  padding-right: .1em;
+  margin-top: .04em;
+}
 ```
 
-英文正文不强制 `text-align: justify` 作为通用主路径。窄屏、大字号或阅读器断字支持弱时，英文 justify 容易产生大词距；除非目标平台已验证 hyphenation，优先左对齐。首字建议先用 `::first-letter`，避免把单词拆成 `<span>T</span>he` 后影响朗读或复制；旧式 span 首字和 float drop cap 可作为增强，但必须在大字号下复测。
+英文正文不强制 `text-align: justify` 作为通用主路径。窄屏、大字号或阅读器断字支持弱时，英文 justify 容易产生大词距；除非目标平台已验证 hyphenation，优先左对齐。首字建议先用 `::first-letter`，避免把单词拆成 `<span>T</span>he` 后影响朗读或复制；旧式 span 首字和 float drop cap 可作为增强，但必须在大字号下复测。若下沉首字需要特殊字体，生产书应嵌入授权字体并声明 OPF font item；demo 可用 `"Snell Roundhand", "Segoe Script", cursive` 这类系统手写体链代替。
+
+---
+
+## 五点三、章节头图设置
+
+部分书籍排版会在每章标题前放装饰图。可以借鉴这个结构，但要保持标题和正文是真实文本：头图只做气氛、系列感或栏目识别，不承载章节标题。普通章首分两类：小型章标使用保守宽度，横幅头图可以铺满正文内容栏。
+
+```html
+<header class="chapter-header">
+  <figure class="chapter-head-art">
+    <img src="../Images/chapter-mark.png" alt=""/>
+  </figure>
+  <p class="chapter-kicker">第一章</p>
+  <h1 class="decorated-chapter-title">章节标题</h1>
+  <p class="chapter-subtitle">可选副标题</p>
+</header>
+```
+
+```css
+.chapter-head-art {
+  margin: .8em auto .7em;
+  text-align: center;
+  text-indent: 0;
+  page-break-inside: avoid;
+}
+
+.chapter-head-art img {
+  display: block;
+  width: 35%;
+  max-width: 7.5em;
+  min-width: 4.5em;
+  height: auto;
+  margin: 0 auto;
+}
+
+.chapter-head-art-roomy img {
+  width: 40%;
+  max-width: 9em;
+}
+
+.chapter-head-banner img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+```
+
+同一本 EPUB 里优先把小章标的保守宽度作为默认 fallback：`35%` 左右加 `max-width`。空间充足且已复测时，再对少数页面加增强类到 `40%` 左右。横幅头图使用 `width:100%; max-width:100%`，高度由源图比例决定；若需要更矮或更高，应裁好横向源图，而不是在 CSS 里硬写高度。EPUB 的“满屏宽”通常只能稳定做到“满正文内容栏宽”，不要为了贴屏幕边缘去破坏用户页边距。不要用 `vh`、absolute positioning 或大段顶部空白来控制章首；如果需要整页视觉封面，走 A-lite，而不是把普通章节做成固定版式。
 
 ---
 
@@ -488,7 +554,6 @@ body.fullpage {
 }
 
 body.poster-bg {
-  background-color: #eceae7;
   background-image: url("../Images/poster-bg.png");
   background-repeat: no-repeat;
   background-position: left bottom;
@@ -532,7 +597,6 @@ body.poster-bg {
   font-size: 260%;
   line-height: 1.12;
   letter-spacing: 0;
-  color: #080400;
 }
 
 .poster-subtitle {
@@ -544,7 +608,6 @@ body.poster-bg {
   font-size: 160%;
   line-height: 1.25;
   letter-spacing: 0;
-  color: #8f978a;
 }
 ```
 
@@ -552,11 +615,18 @@ body.poster-bg {
 
 ## 六点五、CSS 文件分层
 
-- `fonts.css`：仅放 `@font-face` 与字体工具类（如 `.rare`）。
-- `base.css`：正文组件（段落、列表、表格、注释、ruby）。
+- `fonts.css`：仅放 `@font-face`、系统字体工具类和嵌入字体专用 helper。
+- `base.css`：正文基础元素（`@page`、`html/body`、标题、段落、列表、表格、代码、普通 `figure/img`、inline 语义、Ruby 默认、`.has-ruby` 行距兜底）。
+- `notes.css`：标准 popup footnote、多看 fallback 和注释图标。
+- `effects.css`：着重号、波浪线、首字下沉、便签/资料卡边框阴影。
+- `literary.css`：章首、章节头图、题记、对话、诗、信件、场景分隔、前置页、英文 prose 结构。
+- `media.css`：正文图文环绕、图片网格、公式块。
+- `vertical.css`：非海报整页竖排正文。
 - `poster.css`：A-lite 海报页（`body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol`）。
 
-海报页建议链接 `fonts.css + poster.css`（可按需再链 `base.css`）；正文页链接 `fonts.css + base.css`。
+加载顺序是 `fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。海报页建议链接 `fonts.css + poster.css`（可按需再链 `base.css`）；正文页链接 `fonts.css + base.css`，再按场景加入组件层。
+
+普通 `html` / `body`、`body.fullpage`、标题、图注和引用不要写页面级 `color`、`background` 或 `background-color`，避免覆盖阅读器的夜间模式、护眼模式和用户主题。局部组件可以保留必要的边框、阴影和背景装饰；A-lite 背景图只写在 `poster-bg` 等 modifier 上。
 
 ## 七、弹出注释方案
 

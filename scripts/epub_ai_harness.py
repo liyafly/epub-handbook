@@ -7,6 +7,7 @@ import argparse
 import json
 import posixpath
 import re
+import shlex
 import shutil
 import sys
 import zipfile
@@ -17,6 +18,7 @@ from xml.etree import ElementTree as ET
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 CONTAINER_NS = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
 MATHML_URI = "http://www.w3.org/1998/Math/MathML"
+SVG_URI = "http://www.w3.org/2000/svg"
 TEXT_EXTS = {".txt", ".md", ".markdown", ".html", ".xhtml", ".xml"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif", ".tif", ".tiff"}
 PDF_EXTS = {".pdf"}
@@ -29,6 +31,10 @@ def split_props(value: str | None) -> set[str]:
 def norm_join(base: str, href: str) -> str:
   href = href.split("#", 1)[0]
   return posixpath.normpath(posixpath.join(base, href))
+
+
+def shell_path(path: Path) -> str:
+  return shlex.quote(str(path))
 
 
 def finding(level: str, message: str, path: str | None = None) -> dict[str, str]:
@@ -205,6 +211,10 @@ def inspect_opf(
       report.findings.append(finding("error", "MathML XHTML item missing properties=\"mathml\"", href))
       report.add_skill("epub-package-nav-auditor")
       report.add_skill("epub-kindle-compatibility-checker")
+    has_svg = "<svg" in text or SVG_URI in text
+    if has_svg and "svg" not in props:
+      report.findings.append(finding("error", "Inline SVG XHTML item missing properties=\"svg\"", href))
+      report.add_skill("epub-package-nav-auditor")
     if "epub:type=\"noteref\"" in text or "epub:type='noteref'" in text:
       report.add_skill("epub-popup-footnote-converter")
       if "epub:type=\"footnote\"" not in text and "epub:type='footnote'" not in text:
@@ -226,8 +236,8 @@ def inspect_opf(
 
 def inspect_epub(path: Path, report: Report) -> None:
   report.mode = "existing-epub"
-  report.add_command(f"scripts/epub_ai_harness.py {path}")
-  report.add_command(f"scripts/validate-popup-notes.sh --epub {path}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
+  report.add_command(f"scripts/validate-popup-notes.sh --epub {shell_path(path)}")
   try:
     with zipfile.ZipFile(path) as zf:
       infos = zf.infolist()
@@ -265,7 +275,7 @@ def inspect_epub(path: Path, report: Report) -> None:
 
 def inspect_epub_tree(path: Path, report: Report, opf_path: Path) -> None:
   report.mode = "epub-source-tree"
-  report.add_command(f"scripts/epub_ai_harness.py {path}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   if path.name == "epub-style-demo":
     report.add_command("sh templates/epub-style-demo/build.sh")
     report.add_command("scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub")
@@ -308,7 +318,7 @@ def find_opf_in_tree(path: Path) -> Path | None:
 def inspect_source(path: Path, report: Report) -> None:
   report.mode = "source-intake"
   report.add_skill("epub-source-intake")
-  report.add_command(f"scripts/epub_ai_harness.py {path}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   suffix = path.suffix.lower()
   if suffix in PDF_EXTS:
     for tool in ("pdftotext", "mutool", "ocrmypdf", "tesseract"):
@@ -344,7 +354,7 @@ def inspect_directory(path: Path, report: Report) -> None:
       counts["other"] += 1
   report.mode = "mixed-directory" if counts["epub"] else "source-intake"
   report.summary["file_counts"] = counts
-  report.add_command(f"scripts/epub_ai_harness.py {path}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   if counts["epub"]:
     report.add_skill("epub-layout-auditor")
   if counts["pdf"] or counts["text"]:

@@ -14,11 +14,11 @@
 - 强调：按语义使用 italic、bold、small caps 或手写体/签名字体；不要把普通正文换成花哨字体。
 - 字体：普通英文 prose 默认系统 serif 链；只有特定设计场景才嵌入字体。
 
-## 从 Stuart Little 样本得到的结构观察
+## 简单英文小说结构模式
 
-该本地参考 EPUB 是典型简单英文小说结构：EPUB 2 package、NCX 目录、单 CSS、章节 XHTML、JPG 插图。正文主要由居中插图、居中章标题、首段无缩进加轻量首字、后续缩进段落组成；CSS 没有 float、absolute positioning 或复杂布局。这说明它的重点不是精装饰，而是让英文 prose 在不同阅读器里稳定重排。
+典型简单英文小说 EPUB 往往是很轻的结构：package、目录、单 CSS 或少量 CSS、章节 XHTML、JPG/PNG 插图。正文主要由居中插图、居中章标题、首段无缩进加轻量首字、后续缩进段落组成；CSS 不依赖 float、absolute positioning 或复杂布局。这说明英文 prose 的重点不是精装饰，而是让段落、插图和标题在不同阅读器里稳定重排。
 
-这些观察只用于提炼版式规则，不复制原书正文。
+这些结构观察只用于提炼版式规则，不依赖仓库外的第三方样本。
 
 ## 英文和中文的共同点与差异
 
@@ -136,7 +136,29 @@ OPF 必须声明实际打包的字体文件，并继续保留通用 fallback。K
 }
 ```
 
-浮动式 drop cap 只作为增强，必须在 Kindle Previewer、Readest、Apple Books 和大字号下复测。不要用 `<span>T</span>he` 这种拆词方式作为主路径，它会影响复制、朗读和辅助技术。
+浮动式 drop cap 只作为增强，必须在 Kindle Previewer、Readest、Apple Books 和大字号下复测。若需要特殊手写体或题字字体，生产书应嵌入授权字体并在 OPF manifest 声明；demo 可用系统手写体链代替：
+
+```html
+<p class="en-noindent en-dropcap-host"><span class="en-dropcap">A</span> clerk arrived at the station door.</p>
+```
+
+```css
+.en-dropcap-host {
+  text-indent: 0;
+}
+
+.en-dropcap {
+  float: left;
+  font-family: "Snell Roundhand", "Segoe Script", cursive;
+  font-size: 3.3em;
+  line-height: .78;
+  font-weight: 400;
+  padding-right: .1em;
+  margin-top: .04em;
+}
+```
+
+不要用 `<span>T</span>he` 这种拆词方式作为主路径，它会影响复制、朗读和辅助技术。需要展示下沉时，优先选择 `A` / `I` 这类单字词开头，或把拆词风险明确标为增强路径。
 
 ## 强调与特殊文本
 

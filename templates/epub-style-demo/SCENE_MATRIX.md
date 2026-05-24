@@ -23,8 +23,17 @@
 | 前置页 | `Text/15-frontmatter.xhtml` | `epub:type="frontmatter"`、题献与题记 | 全部 |
 | 数学公式与 MathML | `Text/16-math.xhtml` | KDP MathML 支持标签：分式、根式、上下标、矩阵、semantics/annotation | Kindle App / Kindle Previewer / Apple Books / Thorium |
 | 图文环绕 | `Text/17-image-layout.xhtml` | figure 浮动、25%–35% 百分比宽度、长正文阈值、短段反例、大字号回归 | Kindle App / Readest / Apple Books / Thorium |
-| 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、居中插图、摘录、大字号回归 | Readest / Kindle Previewer / Apple Books / Thorium |
+| 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、手写体 float 下沉首字、居中插图、摘录、大字号回归 | Readest / Kindle Previewer / Apple Books / Thorium |
 | 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、SVG 花边实验、长条投影、不规则边缘 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
+| 章节头图设置 | `Text/20-chapter-head-image.xhtml` | 小型头图、满栏横幅头图、真实 h1、kicker/副标题、35% 单书 fallback、40% 复测增强类、大字号不裁切、横向不溢出 | Kindle Previewer / Apple Books / Thorium |
+
+## 外部人工场景
+
+以下场景需要仓库外的授权素材，不进入默认 demo EPUB。验证时应复制 demo 到临时工作区，加入本地授权资源，再把结论回写 `docs/final/reader-matrix.yaml`。
+
+| 场景 | Fixture 形态 | 主要检查点 | 目标阅读器 |
+|---|---|---|---|
+| C1-body 全字符集字体链 | 临时加入 `OEBPS/Fonts/BookSongFull.ttf`、OPF font item、`@font-face` 和 body/h* 链首嵌入字体 | 字体覆盖所有生僻字、`fontspec=forceAll`、链 ≤ 5 段、嵌入字体只出现 1 次、默认字号和大字号均不裁切 | Apple Books / Kindle Previewer / Thorium |
 
 ## 打包与记录
 

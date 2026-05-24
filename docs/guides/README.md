@@ -10,6 +10,7 @@
 - `duokan-footnote-fallback-fix.md`：多看弹注 fallback 结构修正说明（`duokan-footnote-content` 应挂 `<ol>` 而非 `<li>`），含 SPEC/手册/skill/demo 改动清单与多看实测步骤。
 - `demo-scene-expansion-plan.md`：demo 模板 10–17 共 8 个新场景（文字效果、章首、文学体、多看富文本、竖排正文、版权页、数学公式、图文九宫格）的 XHTML / 分层 CSS / nav / opf / ncx / SCENE_MATRIX / reader-matrix 改动清单。
 - `english-fiction-layout.md`：英文正文排版与优化流程，覆盖 prose 类书籍的字体、段落、章首、首字、强调、插图和阅读器复测。
+- `chapter-head-image.md`：普通可重排章节开头的小型头图、满栏横幅头图、kicker、真实标题和单书 fallback 规则。
 - `anthology-navigation.md`：短篇全集、作品合集和分卷文集的总目录、局部目录、回本卷目录链接与 `(•)` 可访问性规则。
 - `note-box-border-styles.md`：可重排便签、摘录框、阴影、不规则边缘和 SVG 花边实验的安全边界。
 

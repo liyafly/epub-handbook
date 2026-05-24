@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-23
+updated_at: 2026-05-24
 owner: epub-handbook
 
 lanes:
@@ -84,11 +84,14 @@ cases:
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
   - id: 18-english-fiction
-    title: 英文小说正文
+    title: 英文小说正文（含手写体下沉首字）
     fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
   - id: 19-border-shadow-notes
     title: 边框与阴影便签
     fixture: templates/epub-style-demo/OEBPS/Text/19-border-shadow-notes.xhtml
+  - id: 20-chapter-head-image
+    title: 章节头图设置
+    fixture: templates/epub-style-demo/OEBPS/Text/20-chapter-head-image.xhtml
 
 expectations:
   # status: pass | warn | fail | na
@@ -163,29 +166,29 @@ expectations:
   - reader: readest
     case: 18-english-fiction
     status: warn
-    reader_version: local-app-2026-05-23
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    reader_version: local-app-2026-05-24
+    artifact: templates/epub-style-demo/dist/epub-style-demo-dropcap-20260524-verified.epub
     failed_page: 18-english-fiction
-    issue: "Readest 已能打开新构建包并从目录跳转到英文小说页；标题、::first-letter 首字、正文缩进、居中插图和 caption 默认字号显示正常，待更多字号复测。"
-    action: "先按 Stuart Little 类简单英文 EPUB 的结构提炼为合成样文，不复制原书内容；Readest 辅助树暴露旧式 span 首字会拆词，已改为 ::first-letter。"
-    workaround: "英文小说优先使用 lang=\"en\"、短 serif 链、左对齐或谨慎 justification、居中 figure；不要依赖固定页高或浮动首字。"
+    issue: "Readest 已能打开新构建包并从目录跳转到英文小说页；标题、::first-letter 轻量首字、正文缩进、手写体 float 下沉首字、居中插图和 caption 默认字号显示正常，待更多字号复测。"
+    action: "保留 ::first-letter 作为稳定路径，新增 .en-dropcap-host + .en-dropcap 作为增强样例；下沉首字用系统手写体链代替未打包的授权字体。"
+    workaround: "英文小说主路径仍优先使用 lang=\"en\"、短 serif 链、左对齐或谨慎 justification、居中 figure；浮动下沉首字只作增强并保留大字号复测要求。"
   - reader: kindle_previewer
     case: 18-english-fiction
     status: warn
-    reader_version: local-app-2026-05-23
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    reader_version: local-app-2026-05-24
+    artifact: templates/epub-style-demo/dist/epub-style-demo-dropcap-20260524-verified.epub
     failed_page: 18-english-fiction
-    issue: "Kindle Previewer 可完成转换并显示英文小说页；标题、首段、::first-letter 首字和正文默认字号可见，待大字号与多设备模式复测。"
-    action: "保持 EPUB 3 + NCX 路径，图片使用 PNG，首字采用 ::first-letter 而非拆词 span 或 float，降低 KFX 转换和朗读风险。"
-    workaround: "若 Kindle 大字号下段落过密，优先调 line-height 与段落缩进；不要用固定页面尺寸。"
+    issue: "Kindle Previewer 可完成转换并显示英文小说页；标题、::first-letter 轻量首字、正文默认字号和手写体 float 下沉首字可见，待大字号与多设备模式复测。"
+    action: "保持 EPUB 3 + NCX 路径，图片使用 PNG；新增下沉首字仅作为增强样例，默认首段仍保留 ::first-letter 稳定路径。"
+    workaround: "若 Kindle 大字号下段落过密或下沉首字挤压正文，优先调 line-height、下沉首字字号和 padding；不要用固定页面尺寸。"
   - reader: ibooks_macos
     case: 18-english-fiction
     status: warn
-    reader_version: local-app-2026-05-23
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260523-115701.epub
+    reader_version: local-app-2026-05-24
+    artifact: templates/epub-style-demo/dist/epub-style-demo-dropcap-20260524-verified.epub
     failed_page: 18-english-fiction
-    issue: "Apple Books 可导入并从目录跳转到英文小说页；标题、::first-letter 首字、正文、插图与 caption 默认字号显示正常，待原版字体/大字号复测。"
-    action: "已在 Books.app 做默认字号打开检查；后续需记录原版字体/用户字体设置对排版的影响。"
+    issue: "Apple Books 可导入并跳转到英文小说页；标题、::first-letter 首字、正文、手写体 float 下沉首字、插图与 caption 默认字号显示正常，待原版字体/大字号复测。"
+    action: "已在 Books.app 做默认字号打开检查；下沉首字使用系统手写体链，后续需记录原版字体/用户字体设置对排版的影响。"
     workaround: "保留 OPF ibooks:specified-fonts=true，并在页面级使用短英文 serif 链。"
   - reader: readest
     case: 19-border-shadow-notes

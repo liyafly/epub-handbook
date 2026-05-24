@@ -94,5 +94,9 @@
       <navLabel><text>边框与阴影便签</text></navLabel>
       <content src="Text/19-border-shadow-notes.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-21" playOrder="22">
+      <navLabel><text>章节头图设置</text></navLabel>
+      <content src="Text/20-chapter-head-image.xhtml"/>
+    </navPoint>
   </navMap>
 </ncx>

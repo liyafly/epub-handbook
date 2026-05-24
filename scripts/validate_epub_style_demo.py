@@ -23,12 +23,14 @@ FONTS_CSS = OEBPS / "Styles" / "fonts.css"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
 ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
 NOTE_BOXES_PAGE = OEBPS / "Text" / "19-border-shadow-notes.xhtml"
+CHAPTER_HEAD_PAGE = OEBPS / "Text" / "20-chapter-head-image.xhtml"
 MATH_PAGE = OEBPS / "Text" / "16-math.xhtml"
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 XHTML_NS = {"xhtml": "http://www.w3.org/1999/xhtml"}
 NCX_NS = {"ncx": "http://www.daisy.org/z3986/2005/ncx/"}
 MATHML_URI = "http://www.w3.org/1998/Math/MathML"
+SVG_URI = "http://www.w3.org/2000/svg"
 
 
 class Check:
@@ -68,11 +70,11 @@ def href_path(href: str) -> Path:
   return OEBPS / href
 
 
-def has_mathml(path: Path, check: Check) -> bool:
+def has_namespaced_markup(path: Path, check: Check, uri: str) -> bool:
   root = parse_xml(path, check)
   if root is None:
     return False
-  return any(elem.tag.startswith("{" + MATHML_URI + "}") for elem in root.iter())
+  return any(elem.tag.startswith("{" + uri + "}") for elem in root.iter())
 
 
 def selector_block(css: str, selector: str) -> str | None:
@@ -122,9 +124,13 @@ def validate_source(check: Check) -> None:
     if not href or not href.endswith(".xhtml"):
       continue
     path = href_path(href)
-    if path.exists() and has_mathml(path, check):
-      props = split_props(item.attrib.get("properties"))
+    if not path.exists():
+      continue
+    props = split_props(item.attrib.get("properties"))
+    if has_namespaced_markup(path, check, MATHML_URI):
       check.require("mathml" in props, f"MathML content missing OPF properties=mathml: {href}")
+    if has_namespaced_markup(path, check, SVG_URI):
+      check.require("svg" in props, f"Inline SVG content missing OPF properties=svg: {href}")
 
   check.require(
     href_to_item.get("Text/16-math.xhtml") is not None,
@@ -136,6 +142,17 @@ def validate_source(check: Check) -> None:
       "mathml" in split_props(math_item.attrib.get("properties")),
       "16-math.xhtml manifest item must declare properties=mathml",
     )
+  note_item = href_to_item.get("Text/19-border-shadow-notes.xhtml")
+  check.require(note_item is not None, "19-border-shadow-notes.xhtml must be in manifest")
+  if note_item is not None:
+    check.require(
+      "svg" in split_props(note_item.attrib.get("properties")),
+      "19-border-shadow-notes.xhtml manifest item must declare properties=svg",
+    )
+  check.require(
+    href_to_item.get("Text/20-chapter-head-image.xhtml") is not None,
+    "20-chapter-head-image.xhtml must be in manifest",
+  )
 
   nav_root = parse_xml(NAV, check)
   if nav_root is not None:
@@ -192,10 +209,22 @@ def validate_source(check: Check) -> None:
     'class="english-chapter-title"',
     'class="en-noindent"',
     'class="en-noindent en-first-letter"',
+    'class="en-noindent en-dropcap-host"',
+    'class="en-dropcap"',
     'class="en-illustration"',
     'class="en-large-probe"',
   ]:
     check.require(token in english_text, f"18-english-fiction.xhtml missing English fiction marker: {token}")
+
+  literary_css = (OEBPS / "Styles" / "literary.css").read_text(encoding="utf-8")
+  for token in [
+    ".en-first-letter::first-letter",
+    ".en-dropcap-host",
+    ".en-dropcap",
+    "Snell Roundhand",
+    "float: left",
+  ]:
+    check.require(token in literary_css, f"literary.css missing English fiction style: {token}")
 
   effects_css = (OEBPS / "Styles" / "effects.css").read_text(encoding="utf-8")
   note_text = NOTE_BOXES_PAGE.read_text(encoding="utf-8")
@@ -221,6 +250,27 @@ def validate_source(check: Check) -> None:
     'class="note-box note-irregular"',
   ]:
     check.require(token in note_text, f"19-border-shadow-notes.xhtml missing note box sample: {token}")
+
+  chapter_head_text = CHAPTER_HEAD_PAGE.read_text(encoding="utf-8")
+  for token in [
+    ".chapter-header",
+    ".chapter-head-art",
+    ".chapter-head-art-roomy",
+    ".chapter-head-banner",
+    ".decorated-chapter-title",
+    ".chapter-head-note",
+  ]:
+    check.require(token in literary_css, f"literary.css missing chapter head image style: {token}")
+  for token in [
+    'class="chapter-with-head-image"',
+    'class="chapter-header"',
+    'class="chapter-head-art"',
+    'class="chapter-head-banner"',
+    'class="decorated-chapter-title"',
+    'class="chapter-head-art chapter-head-art-roomy"',
+    "Images/chapter-banner.png",
+  ]:
+    check.require(token in chapter_head_text, f"20-chapter-head-image.xhtml missing chapter head marker: {token}")
 
 
 def validate_epub(epub_path: Path, check: Check) -> None:

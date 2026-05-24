@@ -94,7 +94,7 @@
 - 简单英文小说的主路径是首段无缩进、后续段落 `1.2em–1.5em` 首行缩进，段间距接近 0；不要同时使用大段间距和大缩进。
 - 英文正文不强制 `justify`。未实测 hyphenation 的 Kindle/Readest/Apple Books 路径优先 `text-align:left`；确认断字稳定后才使用 `justify`。
 - 章首插图和正文插图默认使用居中 `figure`，宽度用 `max-width` 约束，不固定页高，不把插图做成固定版式页面。
-- 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。
+- 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。下沉首字若需要特殊字体，生产 EPUB 使用授权嵌入字体并声明 OPF font item；demo 可用系统手写体链代替。
 
 ## 5.10) 边框、阴影与便签文本框
 
@@ -105,6 +105,15 @@
 - 不依赖 `clip-path`、复杂滤镜、CSS mask 或多层伪元素承载关键信息；它们在 EPUB 阅读器中支持不稳定。
 - 长文本便签不要追求倾斜效果。需要贴纸感时优先用不对称边框、圆角和投影模拟，避免窄屏下产生裁切或左右溢出。
 - 内联 SVG 花边只作为实验验证项，不作为通用推荐边框。若强设计需求必须使用，SVG 只能承载装饰边线并加 `aria-hidden="true"`，正文仍是 HTML 真文本；生产版必须能降级为双线框、左侧竖线框或普通边框。
+
+## 5.11) 章节头图
+
+- 普通可重排章节头图属于章首结构，写入 `literary.css`，不归入正文图文混排的 `media.css`。
+- 头图必须是装饰或栏目识别；章节标题、kicker、副标题必须保留为真实 XHTML 文本。
+- 小型章标使用保守百分比宽度并加 `max-width`：约 `35%`；空间充足且已复测时，可用增强类到约 `40%`。
+- 满栏横幅头图可使用 `width:100%; max-width:100%`，只铺满正文内容栏，不要求突破阅读器页边距。
+- 内层图片使用 `height:auto`；横幅高度由源图宽高比控制。不固定高度，不使用 `vh/vw`、absolute positioning 或大段顶部空白模拟固定页。
+- 如果章首需要强视觉首屏、背景图或大面积叠字，应改走 A-lite 海报方案；不要把普通章节头图扩大成伪固定版式。
 
 ## 6) Fixture 命名索引（M5 对齐）
 
@@ -122,10 +131,10 @@
 | 文件 | 职责 | 允许内容 | 禁止内容 |
 |---|---|---|---|
 | `fonts.css` | 字体声明 | `@font-face`、字体工具类（默认链 `.book-song` / `.book-hei` / `.book-kai` / `.book-fangsong` / `.book-mono` / `.book-latin-serif` 与对应短别名；嵌入专用类 `.rare` / `.title-special` / `.signature`） | 排版、颜色、分页、布局、元素选择器 |
-| `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
+| `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
-| `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.scene-break` / Ruby 行距 / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
-| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.chapter-head` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` | 弹注、图文浮动、海报、竖排 |
+| `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
+| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` | 弹注、图文浮动、海报、竖排 |
 | `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
 | `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
 | `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |
@@ -135,7 +144,8 @@
 - 海报页 XHTML link `fonts.css + poster.css`（如需正文排版再加 `base.css`）。
 - 正文页 XHTML 至少 link `fonts.css + base.css`，其他层按场景选用。
 - OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
-- 单文件不超过 200 行；超过即拆分。
+- `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。
+- 单文件 400 行预警、500 行硬上限；超过 500 行必须按职责拆分或迁入已有正确层。
 - 跨层依赖通过类名契约，不允许下层文件引用上层组件类。
 
 ## 8) 字体链规则
