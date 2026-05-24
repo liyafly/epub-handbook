@@ -26,8 +26,6 @@ body {
   padding: 1em;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  color: #1f1d19;
-  background: #fffdf8;
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
   font-size: 100%;
   line-height: 1.75;
@@ -86,7 +84,6 @@ blockquote {
   margin: 1em 0;
   padding: 0.3em 0 0.3em 1em;
   border-left: 0.18em solid #8f4f20;
-  color: #4c4439;
 }
 
 figure {
@@ -103,7 +100,6 @@ img {
 
 figcaption {
   margin-top: 0.4em;
-  color: #6a6257;
   font-size: 0.85em;
   text-indent: 0;
 }

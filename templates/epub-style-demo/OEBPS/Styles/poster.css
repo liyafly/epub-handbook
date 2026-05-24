@@ -28,6 +28,7 @@ body.fullpage {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -43,7 +44,6 @@ body.fullpage {
 }
 
 body.poster-bg {
-  background-color: #eceae7;
   background-image: url("../Images/poster.png");
   background-repeat: no-repeat;
   background-position: left bottom;
@@ -101,7 +101,6 @@ body.poster-bg {
 }
 
 body.poster-bg-fullbleed {
-  background-color: #eceae7;
   background-image: url("../Images/poster.png");
   background-repeat: no-repeat;
   background-position: center center;

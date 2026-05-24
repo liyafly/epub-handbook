@@ -52,7 +52,7 @@ Ruby 保持语义：
    - 横排正文中的 inline Ruby。
    - 整页竖排正文。
    - 海报式 A-lite 叠加。
-3. inline Ruby 默认样式放 `base.css`，增强间距可放 `effects.css`。
+3. inline Ruby 默认样式与 `.has-ruby` 行距兜底放 `base.css`。
 4. 竖排正文页使用 `body.page-vrl` 和 `vertical.css` 中的 `.vrl-section`。
 5. 保留所有真实文本、注音文本和阅读顺序。
 6. `text-combine-upright` 只用于短数字或标记，并在确认阅读器支持后使用。
@@ -80,4 +80,3 @@ Ruby 保持语义：
 sh templates/epub-style-demo/build.sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 ```
-

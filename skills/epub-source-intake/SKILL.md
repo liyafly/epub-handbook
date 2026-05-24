@@ -102,4 +102,3 @@ git diff --check
 ```
 
 如果已经形成 EPUB source tree 或 `.epub`，再使用 `epub-package-nav-auditor` 和对应专项 skill 做排版验证。
-
