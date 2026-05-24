@@ -103,6 +103,7 @@
 | `<figure>` | 图文组 | 推荐 | 图片 + 说明 |
 | `<img src alt>` | 图片 | 推荐 | `alt` 必填 |
 | `<figcaption>` | 图片说明 | 推荐 | 放在 `<figure>` 内 |
+| 章节头图 | `<header>` + `figure.chapter-head-art` / `figure.chapter-head-banner` + 真实 `<h1>` | 推荐 | 小章标或满栏横幅；标题不能烘焙进图片 |
 | `<svg>` | 矢量图 | 可用 | 图标、线稿 |
 | `<picture>` | 响应式图片 | 条件可用 | KFX 可能只取 `<img>` |
 | `<source>` | 图片候选源 | 条件可用 | 与 `<picture>` 配合 |
@@ -290,6 +291,7 @@ body {
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
 | `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比；英文首字主路径用 `::first-letter`。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
+| 章节头图宽度 | 小章标 fallback `width:35%; max-width:7.5em`，横幅 `width:100%; max-width:100%` | 推荐 | 写在 `literary.css`；高度由源图比例决定 |
 | `box-shadow` | `.2em .2em 0 #ddd` / `inset 0 0 .4em #ddd` | 渐进增强 | 便签阴影；必须有 border/background 兜底 |
 | `transform` | `rotate(-1deg)` | 风险 | 不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误 |
 | SVG 花边实验 | 内联 SVG + `aria-hidden="true"` + 普通边框兜底 | 实验项 | 只验证简单 SVG 边线可行性；不作为推荐边框 |
@@ -393,7 +395,7 @@ body {
 | `text-emphasis-position` | `under` | 推荐 | 横排中文 |
 | `text-decoration` | `underline` | 推荐 | 波浪线基础兜底；Kindle 只显示这层 |
 | `text-decoration-style` | `wavy` / `dotted` / `solid` | 渐进增强 | 标准波浪线；Kindle App 退化为普通 underline |
-| `text-decoration-color` | `#c03030` | 可用 | 波浪线颜色 |
+| `text-decoration-color` | `#c03030` | 可用 | 波浪线颜色；局部文字效果可指定 |
 | `text-decoration-thickness` | `1px` | 可用 | 线宽 |
 | `text-underline-offset` | `0.12em` | 可用 | 下划线偏移 |
 | `quotes` | `"「" "」" "『" "』"` | 推荐 | 中文 `<q>` |

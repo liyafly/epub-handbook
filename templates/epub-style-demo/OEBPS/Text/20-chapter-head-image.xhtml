@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>章节头图设置</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/literary.css"/>
+</head>
+<body>
+  <section class="chapter-with-head-image" epub:type="chapter">
+    <header class="chapter-header">
+      <figure class="chapter-head-art">
+        <img src="../Images/poster.png" alt=""/>
+      </figure>
+      <p class="chapter-kicker">第二十章</p>
+      <h1 class="decorated-chapter-title">章节头图设置</h1>
+      <p class="chapter-subtitle">头图只做气氛，标题仍使用真实文本</p>
+    </header>
+
+    <p class="chapter-head-note">部分书籍排版会在每章标题前放一张小型装饰图。可借鉴的是“轻量头图 + 真实标题 + 可重排正文”的结构，而不是把整页章首做成图片。</p>
+
+    <p>章节头图适合历史、散文、短篇集和带系列感的非虚构。默认宽度采用保守 fallback，让同一份 EPUB 在窄屏和 Kindle 转换后也不占据过多首屏空间。</p>
+
+    <section>
+      <header class="chapter-header">
+        <figure class="chapter-head-banner">
+          <img src="../Images/chapter-banner.png" alt=""/>
+        </figure>
+        <p class="chapter-kicker">横幅模式</p>
+        <h2 class="decorated-chapter-title">满栏章节头图</h2>
+        <p class="chapter-subtitle">图片铺满正文内容栏，高度由源图比例决定</p>
+      </header>
+
+      <p>横幅头图可以使用 <code>width:100%</code> 铺满阅读器正文栏，不再给小章标那样的最大宽度限制。高度不要在 CSS 中硬写；如果希望更矮或更高，优先准备相应比例的横向源图。</p>
+    </section>
+
+    <figure class="chapter-head-art chapter-head-art-roomy">
+      <img src="../Images/poster.png" alt=""/>
+      <figcaption>空间充足且已复测时，可以在同一本书里使用稍宽的增强类。</figcaption>
+    </figure>
+
+    <p>正文从头图和标题之后自然开始。不要使用固定页高、大段空白或 absolute positioning 来控制章首；如果需要更强的视觉页，请改走 A-lite 海报页，而不是在普通正文里模拟固定版式。</p>
+  </section>
+</body>
+</html>

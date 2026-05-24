@@ -2,4 +2,3 @@ interface:
   display_name: "EPUB Package 导航审核"
   short_description: "审核 OPF、nav、NCX 与资源。"
   default_prompt: "使用 $epub-package-nav-auditor 验证这个 EPUB 的 package、manifest、nav 和 NCX 结构。"
-

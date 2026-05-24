@@ -31,6 +31,7 @@
     <item id="css-vertical" href="Styles/vertical.css" media-type="text/css"/>
     <item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>
     <item id="poster" href="Images/poster.png" media-type="image/png"/>
+    <item id="chapter-banner-image" href="Images/chapter-banner.png" media-type="image/png"/>
     <item id="note-icon" href="Images/note.png" media-type="image/png"/>
     <item id="title" href="Text/00-title.xhtml" media-type="application/xhtml+xml"/>
     <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
@@ -52,7 +53,8 @@
     <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml" properties="mathml"/>
     <item id="image-layout" href="Text/17-image-layout.xhtml" media-type="application/xhtml+xml"/>
     <item id="english-fiction" href="Text/18-english-fiction.xhtml" media-type="application/xhtml+xml"/>
-    <item id="border-shadow-notes" href="Text/19-border-shadow-notes.xhtml" media-type="application/xhtml+xml"/>
+    <item id="border-shadow-notes" href="Text/19-border-shadow-notes.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="chapter-head-image" href="Text/20-chapter-head-image.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -77,5 +79,6 @@
     <itemref idref="image-layout"/>
     <itemref idref="english-fiction"/>
     <itemref idref="border-shadow-notes"/>
+    <itemref idref="chapter-head-image"/>
   </spine>
 </package>

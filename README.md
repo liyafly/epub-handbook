@@ -141,7 +141,7 @@ scripts/epub_ai_harness.py <epub-or-source-path> --format json
 
 图片压缩、PDF 解析和 OCR 不在本仓实现；本仓只负责记录边界、检查 EPUB 风险和验证排版/结构。
 
-`templates/` 是可运行样式样本区。当前 `templates/epub-style-demo/` 可以用下面命令生成最小 EPUB，用来验证正文、Ruby、弹注、竖排、A-lite、列表、表格和代码样式：
+`templates/` 是可运行样式样本区。当前 `templates/epub-style-demo/` 可以用下面命令生成最小 EPUB，用来验证正文、Ruby、弹注、竖排、A-lite、列表、表格、代码、英文正文、图文环绕、章节头图、便签边框和 MathML 样式：
 
 ```sh
 sh templates/epub-style-demo/build.sh

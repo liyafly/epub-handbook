@@ -2,4 +2,3 @@ interface:
   display_name: "EPUB 字体排版优化"
   short_description: "调整 CJK 字体链和正文节奏。"
   default_prompt: "使用 $epub-typography-optimizer 优化这个 EPUB 的中文排版和字体兼容性。"
-

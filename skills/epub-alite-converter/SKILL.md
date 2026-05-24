@@ -112,7 +112,6 @@ body.fullpage {
 }
 
 body.poster-bg {
-  background-color: #eceae7;
   background-image: url("../Images/poster-bg.png");
   background-repeat: no-repeat;
   background-position: left bottom;
@@ -146,6 +145,7 @@ body.poster-bg {
 
 - 有海报背景时使用 `<body class="fullpage poster-bg">`。
 - `body.fullpage` 承载 shell 规则，`body.poster-bg` 承载背景规则。
+- `body.fullpage` 不写页面级 `color`、`background` 或 `background-color`；`body.poster-bg` 只写背景图、位置和尺寸。
 - `.fullframe` 包含叠加内容。
 - `.fullframe` 保持 `padding:0`；叠加文字用元素 margin 定位，不给页面骨架加 padding。
 - 竖排叠加文字使用 `writing-mode: vertical-rl` 和前缀 fallback。

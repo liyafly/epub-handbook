@@ -40,6 +40,7 @@ scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>
 - 多看旧版 fallback 使用 `ol.footnote-list.duokan-footnote-content`；单个 `li.footnote-item` 只加 `duokan-footnote-item`。
 - 英文书籍规则先按类型拆分：小说/散文走 `.english-fiction`，非虚构后续单独 fixture；英文正文必须声明 `lang`，使用短 serif 链，首段无缩进、后续段缩进，未验证断字时不强制 justify。
 - 英文小说插图默认居中 `figure`，不把图文环绕作为 fiction 主路径；首字优先用 `::first-letter` 保持正文单词完整，旧式 span 首字和 float drop cap 只作增强并需大字号复测。
+- 章节头图属于普通可重排章首结构，放 `literary.css`；头图只做装饰，标题必须是真实 `h1`。小章标保守宽度，满栏横幅用 `width:100%` 铺满正文内容栏并由源图比例控制高度。
 - 便签/资料卡主路径使用 border、background、padding 和 left-rule；box-shadow、inset、不规则圆角和 outline-offset 只作为可丢失增强。
 - 通用 demo 不使用 `transform: rotate()` 旋转便签块；Kindle Previewer 3.104（2026-05-23 实测）会触发 KFX 增强排版内部错误。需要斜角感时用不对称边框、圆角和投影模拟。
 - SVG 花边只作为 demo 实验项，用来验证简单内联 SVG 边线可行性，不作为推荐边框；长条投影框必须保留真实文本和边框兜底。

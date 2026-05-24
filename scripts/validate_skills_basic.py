@@ -11,6 +11,35 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9-]{1,63}$")
+CONTRACTS: dict[str, list[tuple[str, str]]] = {
+  "epub-css-layering-optimizer": [
+    ("skills/epub-css-layering-optimizer/SKILL.md", "docs/guides/note-box-border-styles.md"),
+    ("docs/guides/note-box-border-styles.md", "便签、边框与阴影文本框"),
+    ("templates/epub-style-demo/OEBPS/Styles/effects.css", ".note-box"),
+    ("templates/epub-style-demo/OEBPS/Text/19-border-shadow-notes.xhtml", "note-box note-shadow"),
+  ],
+  "epub-english-typography-optimizer": [
+    ("docs/guides/english-fiction-layout.md", "templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml"),
+    ("docs/guides/anthology-navigation.md", "局部目录"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".english-fiction"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".en-noindent"),
+  ],
+  "epub-literary-structure-formatter": [
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/chapter-head-image.md"),
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/anthology-navigation.md"),
+    ("docs/guides/anthology-navigation.md", "回本卷目录"),
+    ("docs/guides/chapter-head-image.md", "chapter-head-art"),
+    ("docs/guides/chapter-head-image.md", "chapter-head-banner"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-art"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-banner"),
+  ],
+  "epub-package-nav-auditor": [
+    ("skills/epub-package-nav-auditor/SKILL.md", "docs/guides/anthology-navigation.md"),
+    ("docs/guides/anthology-navigation.md", "局部目录"),
+    ("templates/epub-style-demo/OEBPS/package.opf", 'properties="svg"'),
+  ],
+}
 
 
 def parse_frontmatter(path: Path) -> dict[str, str]:
@@ -81,6 +110,14 @@ def validate_skill(folder: Path) -> list[str]:
     prompt = values.get("default_prompt", "")
     if f"${name}" not in prompt:
       errors.append(f"{agent_path}: default_prompt must mention ${name}")
+
+  for rel_path, token in CONTRACTS.get(name, []):
+    target = ROOT / rel_path
+    if not target.exists():
+      errors.append(f"{skill_path}: contract target missing: {rel_path}")
+      continue
+    if token not in target.read_text(encoding="utf-8"):
+      errors.append(f"{skill_path}: contract token missing in {rel_path}: {token}")
   return errors
 
 
@@ -99,4 +136,3 @@ def main() -> int:
 
 if __name__ == "__main__":
   raise SystemExit(main())
-

@@ -514,7 +514,7 @@
 
 ### 4.1 `base.css` 清理
 
-`base.css` 后半部分（约 line 234–414）出现整段重复（`.demo-list / table / pre / .title-page / @media` 块被复制了一遍），落本计划前**先删除重复段**。删除后 `base.css` 应只包含：reset / `html/body` / `h1–h6` / `p` / `ul/ol/dl` / `table` / `pre/code/kbd/samp` / `figure/img/figcaption` / `a` / `em/strong/q/blockquote` / `ruby/rt/rp` 默认样式 + 必要的 `@page` 与窄屏 `@media`。不允许再出现弹注、文字效果、文学结构、图文浮动、海报、竖排相关规则——它们分别迁到 `notes.css / effects.css / literary.css / media.css / poster.css / vertical.css`。
+`base.css` 后半部分（约 line 234–414）出现整段重复（`.demo-list / table / pre / .title-page / @media` 块被复制了一遍），落本计划前**先删除重复段**。删除后 `base.css` 应只包含：reset / `html/body` / `h1–h6` / `p` / `ul/ol/dl` / `table` / `pre/code/kbd/samp` / `figure/img/figcaption` / `a` / `em/strong/q/blockquote` / `ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 + 必要的 `@page` 与窄屏 `@media`。不允许再出现弹注、文字效果、文学结构、图文浮动、海报、竖排相关规则——它们分别迁到 `notes.css / effects.css / literary.css / media.css / poster.css / vertical.css`。
 
 验证：
 
@@ -639,26 +639,6 @@ ol.duokan-footnote-content {
   line-height: 0.9;
 }
 
-/* 场景分隔 */
-.scene-break {
-  width: 30%;
-  margin: 1.4em auto;
-  border: none;
-  border-top: 1px solid #9b9488;
-}
-
-.scene-break-text {
-  margin: 1em 0;
-  text-align: center;
-  text-indent: 0;
-  letter-spacing: 0.5em;
-  color: #6a6257;
-}
-
-/* Ruby 行距加强 */
-.has-ruby {
-  line-height: 2;
-}
 ```
 
 ### 4.4 新建 `OEBPS/Styles/literary.css`
@@ -692,7 +672,6 @@ ol.duokan-footnote-content {
   margin-top: 0.3em;
   font-size: 0.6em;
   font-weight: normal;
-  color: #6a6257;
 }
 
 .epigraph {
@@ -706,7 +685,6 @@ ol.duokan-footnote-content {
   display: block;
   margin-top: 0.4em;
   font-size: 0.85em;
-  color: #6a6257;
 }
 
 /* 对话 */
@@ -732,6 +710,21 @@ ol.duokan-footnote-content {
   padding-left: 1em;
   text-indent: 0;
   line-height: 1.9;
+}
+
+/* 场景分隔 */
+.scene-break {
+  width: 30%;
+  margin: 1.4em auto;
+  border: none;
+  border-top: 1px solid #9b9488;
+}
+
+.scene-break-text {
+  margin: 1em 0;
+  text-align: center;
+  text-indent: 0;
+  letter-spacing: 0.5em;
 }
 
 /* 信件块 */
@@ -774,7 +767,6 @@ ol.duokan-footnote-content {
 .copyright-statement {
   margin-top: 1em;
   font-size: 0.88em;
-  color: #6a6257;
 }
 
 .dedication-text {
@@ -998,9 +990,11 @@ body.page-vrl {
 ### 4.8 拆分后整体自检
 
 ```bash
-# 1) 每个 CSS 文件 ≤ 200 行
+# 1) 每个 CSS 文件 400 行预警、500 行硬上限
 for f in templates/epub-style-demo/OEBPS/Styles/*.css; do
-  lines=$(wc -l < "$f"); [ "$lines" -gt 200 ] && echo "OVERSIZE $f ($lines lines)"
+  lines=$(wc -l < "$f")
+  [ "$lines" -gt 400 ] && echo "WARN $f ($lines lines)"
+  [ "$lines" -gt 500 ] && echo "OVERSIZE $f ($lines lines)"
 done
 # 2) 每个 XHTML 里 link 的所有 CSS 都在 manifest
 # 3) 每个 manifest 里的 CSS 都真实存在
@@ -1194,9 +1188,11 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
    for f in templates/epub-style-demo/OEBPS/Text/1*.xhtml; do
      rg -oP 'id="[^"]+"' "$f" | sort | uniq -d
    done
-   # 每个 CSS 文件 ≤ 200 行
+   # 每个 CSS 文件 400 行预警、500 行硬上限
    for f in templates/epub-style-demo/OEBPS/Styles/*.css; do
-     lines=$(wc -l < "$f"); [ "$lines" -gt 200 ] && echo "OVERSIZE $f ($lines lines)"
+     lines=$(wc -l < "$f")
+     [ "$lines" -gt 400 ] && echo "WARN $f ($lines lines)"
+     [ "$lines" -gt 500 ] && echo "OVERSIZE $f ($lines lines)"
    done
    ```
 7. Kindle Previewer / Apple Books / Thorium / 多看 / KOReader 打开 dist EPUB；按 SCENE_MATRIX 每页过一遍。13/16/17 是本次新增的高优先级回归页。
@@ -1205,7 +1201,7 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
 落地后请勾选：
 
 - [ ] 8 个新 XHTML（10–17）已加入 OPF manifest 与 spine、nav.xhtml、toc.ncx。
-- [ ] `OEBPS/Styles/` 下出现 8 个 CSS 文件，且各文件 ≤ 200 行。
+- [ ] `OEBPS/Styles/` 下出现 8 个 CSS 文件，且各文件 ≤ 500 行（400 行提示规划拆分）。
 - [ ] base.css 重复块已删除，弹注规则已迁到 notes.css，未保留任何组件类。
 - [ ] fonts.css 已整体替换为新模板，且 demo 仍能不依赖第三方字体打包。
 - [ ] 每个 XHTML 的 `<link>` 顺序符合 [css-layering-plan.md §2.2](./css-layering-plan.md)，且只 link 自己用到的层。

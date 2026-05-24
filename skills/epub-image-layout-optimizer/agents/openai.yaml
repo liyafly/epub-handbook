@@ -2,4 +2,3 @@ interface:
   display_name: "EPUB 图片版式优化"
   short_description: "修复 figure、封面和图文环绕。"
   default_prompt: "使用 $epub-image-layout-optimizer 让这个 EPUB 的图片和 figure 更适合阅读器。"
-

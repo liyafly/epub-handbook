@@ -2,4 +2,3 @@ interface:
   display_name: "EPUB CSS 分层优化"
   short_description: "按职责整理 EPUB CSS。"
   default_prompt: "使用 $epub-css-layering-optimizer 把这些 EPUB 样式重构到正确 CSS 分层。"
-
