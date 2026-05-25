@@ -520,6 +520,7 @@ code, pre, kbd, samp {
 - [ ] **专用类 模式 C 复合**（`.book-*-deluxe` / `.book-*-with-rare` 等）：链 ≤ 5 段；**嵌入字体在链里只出现 1 次**，位置为第 1 位（C1）或倒数第 2 位（C2），二选一；其余为 3 段系统字体（Apple + Windows + Android / 开源）+ generic family。
 - [ ] `fonts.css` 中所有未被引用的 `@font-face` 保持**注释**状态。
 - [ ] 启用 `@font-face` 时，OPF manifest 含对应 `font/ttf` 或 `font/otf` item。
+- [ ] 所有 active CSS `url()`（尤其 `@font-face src`）都能在 EPUB zip 内解析到真实文件，且对应资源已进入 OPF manifest；不允许 CSS 指向缺失字体。
 - [ ] OPF metadata **始终**含 `<meta property="ibooks:specified-fonts">true</meta>`（通用预防默认，是否嵌字体都保留）。
 - [ ] 同一条链里没有同家族别名堆叠。
 - [ ] `.rare` 在没有 `RareSongSubset` 时**保持注释**或显式说明"未启用"。
