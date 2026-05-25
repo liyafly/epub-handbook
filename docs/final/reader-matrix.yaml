@@ -92,6 +92,9 @@ cases:
   - id: 20-chapter-head-image
     title: 章节头图设置
     fixture: templates/epub-style-demo/OEBPS/Text/20-chapter-head-image.xhtml
+  - id: 21-classical-modern
+    title: 文白对照
+    fixture: templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml
 
 expectations:
   # status: pass | warn | fail | na
@@ -244,3 +247,31 @@ expectations:
     issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
     action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
     workaround: "Thorium 仅作为重排对照，不因未测而扩大生产规则。"
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: pass
+    reader_version: "3.104.0"
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-080944.epub
+    conversion_log: templates/epub-style-demo/dist/Logs/epub-style-demo-20260526-080944_log.csv
+    failed_page: 21-classical-modern
+    issue: "Kindle Previewer 转换成功，Enhanced Typesetting 支持，0 errors；默认 Kindle 电子书阅读器 profile、字号 4 下，.parallel-pair 的原文/白话可左右并排显示。"
+    action: "文白 demo 从纵向-only 修正为 source-order fallback + 成对 float 左右增强；不使用 table/flex/grid 承载正文。"
+    workaround: "窄屏或大字号列宽不足时允许退回上下显示；若只交付 Kindle 成品 AZW3，可把 table-layout fixed 作为专用例外，但不写入通用 EPUB 主路径。"
+  - reader: ibooks_macos
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-apple-books-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    failed_page: 21-classical-modern
+    issue: "文白对照页已打包，Apple Books 仍待默认字号、大字号和原版字体设置复测。"
+    action: "复测后再把文白对照条目结构写成 pass/fail；当前仅记录待测 artifact。"
+    workaround: "原文/白话字体用 fonts.css 工具类组合，用户字体设置下仍应保留真实文本和自然重排。"
+  - reader: thorium
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-thorium-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    failed_page: 21-classical-modern
+    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
+    action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
+    workaround: "Thorium 作为重排对照，重点看局部目录锚点、条目分隔和大字号文本流。"

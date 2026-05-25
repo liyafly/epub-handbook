@@ -442,7 +442,56 @@ figure.img-right img {
 
 ---
 
-## 五点六、边框、阴影与便签
+## 五点六、文白对照左右兼容
+
+文白对照和原文/译文对照可以做左右并排，但不要把它做成表格、flex 或固定版式。稳定路径是先写源序上下结构，再用 `float` 增强成左右栏；Kindle 或其他阅读器不支持时，自然按源序显示为原文在上、译文在下。
+
+```html
+<section class="parallel-pair parallel-float-pair">
+  <div class="parallel-col parallel-col-classical">
+    <p class="parallel-label">原文</p>
+    <p class="classical-text book-song">文言原文。</p>
+  </div>
+  <div class="parallel-col parallel-col-modern">
+    <p class="parallel-label">白话</p>
+    <p class="modern-text book-kai">白话译文。</p>
+  </div>
+  <div class="parallel-clear" aria-hidden="true"></div>
+</section>
+```
+
+```css
+.parallel-col-classical,
+.parallel-col-modern {
+  width: auto;
+}
+
+.parallel-float-pair .parallel-col-classical {
+  float: left;
+  width: 37%;
+  margin-right: 5%;
+}
+
+.parallel-float-pair .parallel-col-modern {
+  overflow: hidden;
+  width: auto;
+}
+
+.parallel-clear {
+  clear: both;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+}
+```
+
+如果源书每组只有两个段落，也可以直接给原文段落加 `float` 与百分比宽度，让译文段落保持普通块；如果每侧有多段、标签或注记，使用 `.parallel-col-*` 包裹更稳。默认 `.parallel-col-*` 要保持全宽，只有 `.parallel-float-pair` 进入 float 增强，避免失败态变成半宽上下错位。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退回上下显示。
+
+Kindle 专用 AZW3 里可以见到 `table-layout: fixed` + 左右 `td` 的英汉对照做法，实际能显示左右栏。但它不适合作为 EPUB/KDP 源文件的默认建议：表格承载长正文会增加质量审核、大字号、窄屏和辅助技术风险。除非目标就是只交付 Kindle 成品格式并已经逐设备验收，否则优先用 source-order + float。
+
+---
+
+## 五点七、边框、阴影与便签
 
 便签、提示框、资料卡和摘录框与中文/英文正文共用同一个原则：内容必须是真实文本，视觉边框只是辅助。最稳主路径是 `border` / `border-left` / `background` / `padding`；阴影和不规则边缘都只作为增强。不要在通用 EPUB 中用 `transform: rotate()` 旋转整块文本框，Kindle Previewer 3.104（2026-05-23 实测）会在增强排版转换中触发内部错误。
 
@@ -619,7 +668,7 @@ body.poster-bg {
 - `base.css`：正文基础元素（`@page`、`html/body`、标题、段落、列表、表格、代码、普通 `figure/img`、inline 语义、Ruby 默认、`.has-ruby` 行距兜底）。
 - `notes.css`：标准 popup footnote、多看 fallback 和注释图标。
 - `effects.css`：着重号、波浪线、首字下沉、便签/资料卡边框阴影。
-- `literary.css`：章首、章节头图、题记、对话、诗、信件、场景分隔、前置页、英文 prose 结构。
+- `literary.css`：章首、章节头图、题记、对话、诗、信件、场景分隔、前置页、英文 prose 结构、文白对照条目结构。
 - `media.css`：正文图文环绕、图片网格、公式块。
 - `vertical.css`：非海报整页竖排正文。
 - `poster.css`：A-lite 海报页（`body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol`）。
