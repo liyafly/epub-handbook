@@ -1,5 +1,8 @@
 @charset "utf-8";
 
+/* If note container visuals push this file past the 400-line warning
+ * threshold, split them into decoration.css and keep text effects here. */
+
 .emp {
   -epub-text-emphasis: filled dot;
   -webkit-text-emphasis: filled dot;
@@ -159,4 +162,18 @@
   background: #fffdf8;
   outline: 1px solid #d8ccb9;
   outline-offset: .18em;
+}
+
+.note-handcut {
+  border: 2px solid #5f5448;
+  border-top-width: 3px;
+  border-right-width: 2px;
+  border-bottom-width: 3px;
+  border-left-width: 2px;
+  border-radius: .9em .18em .75em .28em;
+  outline: 1px solid #d8ccb9;
+  outline-offset: .16em;
+  background: #fffdf8;
+  -webkit-box-shadow: .2em .25em 0 #ded4c2;
+  box-shadow: .2em .25em 0 #ded4c2;
 }

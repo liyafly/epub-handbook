@@ -14,7 +14,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 - 正文字体使用短的跨平台系统字体链。
 - 默认 `font-family` 链最多 4 段：Apple、Windows、Android/开源 CJK、generic。
-- 除非书籍明确需要全量嵌入覆盖，不把嵌入字体放进默认 `body` / `h*`。
+- 默认不把嵌入字体放进 `body` / `h*`；唯一例外是含生僻字且使用全字符集字体的 C1-body 路径。
 - 生僻字子集使用 `.rare` 等专用类。
 - 设计字体使用 `.title-special`、`.signature` 等专用类。
 - 即使没有嵌入字体，OPF 也保留 `ibooks:specified-fonts` metadata。
@@ -41,13 +41,21 @@ body {
 }
 ```
 
-如果确实需要全量嵌入正文字体，链仍要短，并在文档或构建元数据中说明策略：
+嵌入字体按 SPEC §8 的三种模式选择：
+
+- 模式 A：设计字体专用类，链为嵌入字体 + generic。
+- 模式 B：生僻字子集 `.rare`，链为嵌入字体 + generic。
+- 模式 C：嵌入 + 系统字体复合链，链最多 5 段，嵌入字体只出现一次。
+
+如果确实存在生僻字且 fontspec 使用 `forceAll` 打包全字符集字体，可以走 C1-body 例外。链仍要短，并在文档或构建元数据中说明策略：
 
 ```css
 body {
   font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
+
+子集字库不能走 C1-body；子集只允许通过 `.rare` 等显式类包住需要补字的字符。
 
 ## 工作流
 
@@ -82,6 +90,7 @@ body {
 
 - 不把版权字体放进模板或示例。
 - 不把多个嵌入字体塞进默认链来解决生僻字。
+- 不把子集字库挂到 `body` / `h*`。
 - 有稳定英文 family/PostScript 名时，不依赖中文字体显示名。
 - 不删除 generic fallback。
 - 没有明确阅读器 bug 时，不在阅读字体上滥用 `!important`。

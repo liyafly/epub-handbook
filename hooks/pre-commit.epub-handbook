@@ -8,8 +8,9 @@ changed=$(git diff --cached --name-only)
 
 git diff --check --cached
 python3 scripts/validate_skills_basic.py
+python3 scripts/test_epub_ai_harness.py
 
-if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|scripts/validate_|scripts/epub_ai_harness.py|docs/final/SPEC-)'; then
+if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|scripts/validate_|scripts/epub_ai_harness.py|scripts/test_epub_ai_harness.py|docs/final/)'; then
   artifact=$(sh templates/epub-style-demo/build.sh)
   scripts/validate-epub-style-demo.sh --epub "$artifact"
   scripts/validate-popup-notes.sh --epub "$artifact"

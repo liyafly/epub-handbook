@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-24
+updated_at: 2026-05-25
 owner: epub-handbook
 
 lanes:
@@ -217,3 +217,30 @@ expectations:
     issue: "Apple Books 可打开最终构建包；默认双页视图显示 double、left-rule、box-shadow、inset、增强斜角感、内联 SVG 花边实验、长条投影和不规则边缘，待大字号复测。"
     action: "保留真实文本和可重排盒模型，便签视觉不依赖图片或固定页面尺寸。"
     workaround: "Apple Books 可显示投影和不规则边缘，但仍需保留边框/底色主路径，避免主题和字号变化时信息丢失。"
+  - reader: kindle_previewer
+    case: 20-chapter-head-image
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-223159.epub
+    failed_page: 20-chapter-head-image
+    issue: "章节头图页已进入新构建包；小型头图、满栏横幅、真实标题、35% fallback 与 40% 增强类仍待 Kindle Previewer 大字号和多设备模式复测。"
+    action: "保留 warn，不虚构 pass；复测时重点确认头图不占满首屏、横幅不横向溢出、正文不会被标题区异常推远。"
+    workaround: "若 Kindle 转换后头图过大，优先调小 .chapter-head-art 的百分比宽度或 max-width；不要改成固定页高或整页图片。"
+  - reader: ibooks_macos
+    case: 20-chapter-head-image
+    status: warn
+    reader_version: pending-apple-books-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-223159.epub
+    failed_page: 20-chapter-head-image
+    issue: "章节头图页已打包，Apple Books 仍待默认字号、大字号和原版字体设置复测。"
+    action: "复测后再把小型头图和满栏横幅写成 pass/fail；当前仅记录待测 artifact。"
+    workaround: "标题必须保持真实 h1/h2 文本，头图只做气氛；用户字体设置下仍应自然重排。"
+  - reader: thorium
+    case: 20-chapter-head-image
+    status: warn
+    reader_version: pending-thorium-version
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-223159.epub
+    failed_page: 20-chapter-head-image
+    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
+    action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
+    workaround: "Thorium 仅作为重排对照，不因未测而扩大生产规则。"

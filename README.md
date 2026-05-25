@@ -95,7 +95,9 @@ skills/
   epub-*/agents/openai.yaml
 
 scripts/
+  install-hooks.sh
   epub_ai_harness.py
+  test_epub_ai_harness.py
   validate_skills_basic.py
   validate_epub_style_demo.py
   validate_popup_notes.py
@@ -151,9 +153,16 @@ sh templates/epub-style-demo/build.sh
 
 ```sh
 scripts/validate_skills_basic.py
+scripts/test_epub_ai_harness.py
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 git diff --check
+```
+
+可选安装本仓 pre-commit hook：
+
+```sh
+scripts/install-hooks.sh
 ```
 
 ## 忽略规则
