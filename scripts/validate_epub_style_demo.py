@@ -24,6 +24,7 @@ IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
 ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
 NOTE_BOXES_PAGE = OEBPS / "Text" / "19-border-shadow-notes.xhtml"
 CHAPTER_HEAD_PAGE = OEBPS / "Text" / "20-chapter-head-image.xhtml"
+CLASSICAL_MODERN_PAGE = OEBPS / "Text" / "21-classical-modern.xhtml"
 MATH_PAGE = OEBPS / "Text" / "16-math.xhtml"
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -153,6 +154,10 @@ def validate_source(check: Check) -> None:
     href_to_item.get("Text/20-chapter-head-image.xhtml") is not None,
     "20-chapter-head-image.xhtml must be in manifest",
   )
+  check.require(
+    href_to_item.get("Text/21-classical-modern.xhtml") is not None,
+    "21-classical-modern.xhtml must be in manifest",
+  )
 
   nav_root = parse_xml(NAV, check)
   if nav_root is not None:
@@ -274,6 +279,58 @@ def validate_source(check: Check) -> None:
     "Images/chapter-banner.png",
   ]:
     check.require(token in chapter_head_text, f"20-chapter-head-image.xhtml missing chapter head marker: {token}")
+
+  classical_modern_text = CLASSICAL_MODERN_PAGE.read_text(encoding="utf-8")
+  for token in [
+    'class="classical-modern"',
+    'id="classical-modern-toc"',
+    'class="parallel-entry"',
+    'class="parallel-entry-title"',
+    'class="parallel-source"',
+    'class="parallel-pair parallel-float-pair"',
+    'class="parallel-col parallel-col-classical"',
+    'class="parallel-col parallel-col-modern"',
+    'class="parallel-clear"',
+    'class="parallel-label"',
+    'class="classical-text book-song"',
+    'class="modern-text book-kai"',
+    'class="parallel-return"',
+    'class="parallel-entry parallel-large-probe"',
+  ]:
+    check.require(token in classical_modern_text, f"21-classical-modern.xhtml missing marker: {token}")
+  for token in [
+    ".classical-modern",
+    ".classical-modern-local-toc",
+    ".parallel-entry",
+    ".parallel-entry-title",
+    ".parallel-source",
+    ".parallel-pair",
+    ".parallel-float-pair",
+    ".parallel-col",
+    ".parallel-col-classical",
+    ".parallel-col-modern",
+    ".parallel-clear",
+    ".parallel-label",
+    ".classical-text",
+    ".modern-text",
+    ".parallel-return",
+    ".parallel-large-probe",
+  ]:
+    check.require(token in literary_css, f"literary.css missing classical-modern style: {token}")
+  classical_block = selector_block(literary_css, ".parallel-float-pair .parallel-col-classical") or ""
+  modern_block = selector_block(literary_css, ".parallel-float-pair .parallel-col-modern") or ""
+  pair_block = selector_block(literary_css, ".parallel-pair") or ""
+  classical_width = percentage_width(literary_css, ".parallel-float-pair .parallel-col-classical")
+  check.require("display: flex" not in pair_block, "parallel-pair must not depend on display:flex")
+  check.require("float: left" in classical_block, "parallel-col-classical must float left")
+  check.require("overflow: hidden" in modern_block, "parallel-col-modern must form a float-side block")
+  check.require("float:" not in modern_block, "parallel-col-modern must remain a normal block beside the float")
+  check.require(classical_width is not None, "parallel-col-classical must define percentage width")
+  if classical_width is not None:
+    check.require(
+      30 <= classical_width <= 42,
+      f"parallel-col-classical width must stay in a conservative float range, found {classical_width:g}%",
+    )
 
 
 def validate_epub(epub_path: Path, check: Check) -> None:

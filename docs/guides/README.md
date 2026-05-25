@@ -12,6 +12,7 @@
 - `english-fiction-layout.md`：英文正文排版与优化流程，覆盖 prose 类书籍的字体、段落、章首、首字、强调、插图和阅读器复测。
 - `chapter-head-image.md`：普通可重排章节开头的小型头图、满栏横幅头图、kicker、真实标题和单书 fallback 规则。
 - `anthology-navigation.md`：短篇全集、作品合集和分卷文集的总目录、局部目录、回本卷目录链接与 `(•)` 可访问性规则。
+- `classical-modern-layout.md`：文白对照、原文/译文对照和双文本条目的 section 结构、字体类组合、局部目录与验证清单。
 - `note-box-border-styles.md`：可重排便签、摘录框、阴影、不规则边缘和 SVG 花边实验的安全边界。
 
 > 早期 plan 文档保留推导过程；已落地的规则以 `docs/final/`、`templates/epub-style-demo/`、`skills/` 和本目录的专题指南为准。

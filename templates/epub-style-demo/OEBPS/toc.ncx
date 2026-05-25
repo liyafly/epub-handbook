@@ -98,5 +98,9 @@
       <navLabel><text>章节头图设置</text></navLabel>
       <content src="Text/20-chapter-head-image.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-22" playOrder="23">
+      <navLabel><text>文白对照</text></navLabel>
+      <content src="Text/21-classical-modern.xhtml"/>
+    </navPoint>
   </navMap>
 </ncx>

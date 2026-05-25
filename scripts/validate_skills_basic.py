@@ -31,12 +31,16 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
   "epub-literary-structure-formatter": [
     ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/chapter-head-image.md"),
     ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/anthology-navigation.md"),
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/classical-modern-layout.md"),
     ("docs/guides/anthology-navigation.md", "回本卷目录"),
     ("docs/guides/chapter-head-image.md", "chapter-head-art"),
     ("docs/guides/chapter-head-image.md", "chapter-head-banner"),
+    ("docs/guides/classical-modern-layout.md", "文白对照"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-art"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-banner"),
+    ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".classical-modern"),
+    ("templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml", "classical-text book-song"),
   ],
   "epub-package-nav-auditor": [
     ("skills/epub-package-nav-auditor/SKILL.md", "docs/guides/anthology-navigation.md"),
