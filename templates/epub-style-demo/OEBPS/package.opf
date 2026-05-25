@@ -55,6 +55,7 @@
     <item id="english-fiction" href="Text/18-english-fiction.xhtml" media-type="application/xhtml+xml"/>
     <item id="border-shadow-notes" href="Text/19-border-shadow-notes.xhtml" media-type="application/xhtml+xml" properties="svg"/>
     <item id="chapter-head-image" href="Text/20-chapter-head-image.xhtml" media-type="application/xhtml+xml"/>
+    <item id="classical-modern" href="Text/21-classical-modern.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -80,5 +81,6 @@
     <itemref idref="english-fiction"/>
     <itemref idref="border-shadow-notes"/>
     <itemref idref="chapter-head-image"/>
+    <itemref idref="classical-modern"/>
   </spine>
 </package>

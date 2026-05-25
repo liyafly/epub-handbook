@@ -43,6 +43,7 @@
 |---|---|---|---|
 | `<h1>`–`<h6>` | 标题层级 | 推荐 | 不跳级 |
 | `<p>` | 正文段落 | 推荐 | 中文正文默认 `text-indent: 2em` |
+| 文白对照条目 | `<section>` + 真实标题 + 原文/白话段落 + 左侧 float 对照 | 推荐 | 源序上下为 fallback；支持时左右显示；不用 `table` / `flex` / `grid` 承载正文 |
 | `<span>` | 行内样式容器 | 推荐 | 着重、波浪线、语言片段 |
 | `<div>` | 无语义块容器 | 可用 | 排版包装；不替代章节语义 |
 | `<hr>` | 分节符 / 横线 | 可用 | 可配装饰类 |
@@ -289,7 +290,7 @@ body {
 | `overflow` | `hidden` / `auto` | 推荐 | A-lite / 表格滚动 |
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
-| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比；英文首字主路径用 `::first-letter`。 |
+| `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比；文白对照可用左侧原文 float + 右侧普通块；英文首字主路径用 `::first-letter`。 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | 章节头图宽度 | 小章标 fallback `width:35%; max-width:7.5em`，横幅 `width:100%; max-width:100%` | 推荐 | 写在 `literary.css`；高度由源图比例决定 |
 | `box-shadow` | `.2em .2em 0 #ddd` / `inset 0 0 .4em #ddd` | 渐进增强 | 便签阴影；必须有 border/background 兜底 |
@@ -499,6 +500,7 @@ body {
 | 图片图标弹注 | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `text-emphasis` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `figure + float + width(%)` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
+| `parallel text + float + width(%)` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐；失败时源序上下显示 |
 | MathML | 可用 | 可用 | 可用 | Enhanced Typesetting | 视版本 | 条件可用 |
 | `text-decoration-style: wavy` | 可用 | 可用 | 可用 | 退化为 underline | 视版本 | 渐进增强 |
 | `ruby + rt` | 可用 | 可用 | 可用 | KFX 可用 | 可用 | 推荐 |

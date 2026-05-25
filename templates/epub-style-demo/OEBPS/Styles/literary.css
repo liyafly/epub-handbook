@@ -262,3 +262,130 @@
   font-size: 1.35em;
   line-height: 1.45;
 }
+
+.classical-modern {
+  line-height: 1.78;
+}
+
+.classical-modern-local-toc {
+  margin: 1em 0 1.2em;
+  padding: .65em .85em;
+  border-left: .25em solid #8f4f20;
+}
+
+.classical-modern-local-toc h2 {
+  margin: 0 0 .35em;
+  font-size: 1em;
+  text-align: left;
+}
+
+.classical-modern-local-toc ol {
+  margin: .2em 0 0 1.4em;
+  padding: 0;
+}
+
+.parallel-entry {
+  margin: 1.35em 0;
+  padding-top: .85em;
+  border-top: 1px solid #d8d0c3;
+}
+
+.parallel-entry-title {
+  margin: 0 0 .35em;
+  font-size: 1.2em;
+  text-align: left;
+}
+
+.parallel-source,
+.parallel-label,
+.parallel-return {
+  text-indent: 0;
+  text-align: left;
+}
+
+.parallel-source {
+  margin: .2em 0 .8em;
+  font-size: .85em;
+}
+
+.parallel-pair {
+  clear: both;
+  margin: .75em 0 1em;
+}
+
+.parallel-pair + .parallel-pair {
+  margin-top: .85em;
+}
+
+.parallel-col {
+  margin: 0 0 .7em;
+}
+
+.parallel-col-classical {
+  width: auto;
+}
+
+.parallel-col-modern {
+  width: auto;
+}
+
+.parallel-float-pair .parallel-col-classical {
+  float: left;
+  width: 37%;
+  margin-right: 5%;
+}
+
+.parallel-float-pair .parallel-col-modern {
+  overflow: hidden;
+  width: auto;
+}
+
+.parallel-clear {
+  clear: both;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
+.parallel-label {
+  margin: 0 0 .22em;
+  font-size: .82em;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+.classical-text,
+.modern-text {
+  margin: .22em 0;
+  text-indent: 2em;
+  text-align: justify;
+}
+
+.classical-text {
+  line-height: 1.85;
+}
+
+.modern-text {
+  line-height: 1.75;
+}
+
+.parallel-return {
+  margin: .75em 0 0;
+  font-size: .85em;
+}
+
+.parallel-large-probe {
+  font-size: 1.2em;
+}
+
+@media (max-width: 420px) {
+  .parallel-float-pair .parallel-col-classical,
+  .parallel-float-pair .parallel-col-modern {
+    float: none;
+    overflow: visible;
+    width: auto;
+    margin-right: 0;
+  }
+}

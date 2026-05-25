@@ -38,6 +38,7 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 20. `18-english-fiction.xhtml`：英文小说正文、轻量首字、手写体下沉首字、居中插图与大字号回归测试。
 21. `19-border-shadow-notes.xhtml`：边框、阴影、斜角感、SVG 花边实验、长条投影和不规则便签文本框。
 22. `20-chapter-head-image.xhtml`：小型章节头图、满栏横幅头图、kicker、真实标题、窄屏保守宽度与单书 fallback。
+23. `21-classical-modern.xhtml`：文白对照条目结构、局部目录、原文/白话纵向相邻和大字号回归测试。
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
 完整覆盖关系见 `SCENE_MATRIX.md`。

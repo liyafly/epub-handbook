@@ -76,6 +76,15 @@
 - 环绕样例必须提供足够长的前后正文；短段落无法证明 float 失败，只能作为阈值反例。
 - 不使用 direct `img` 直挂 float 作为主路径，避免部分阅读器图片显示过小。
 
+## 5.6.1) 文白对照左右兼容
+
+- 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
+- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left` 并使用保守百分比宽度，译文列保持普通块并用 `overflow:hidden` 占右侧剩余宽度，组末放显式清除元素。
+- 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。
+- Kindle 目标包不要把左右对照只写在 `@media (orientation: landscape)` 内；Kindle Previewer / KFX 对 flex 与 orientation 组合不应作为主路径。
+- 多段原文/多段译文优先包进 `.parallel-col-classical` / `.parallel-col-modern`；每侧只有单段时，可以直接对原文段落加 float、译文段落保持普通块，但仍必须由下一组或显式 clear 结束该组。
+- Kindle 专用 AZW3/MOBI 成品中可见 `table-layout: fixed` 左右对照先例，但通用 EPUB / KDP 源文件不把 table 当正文对照主路径；只有明确只交付 Kindle 成品格式并逐设备验收时，才作为专用例外。
+
 ## 5.7) 文字装饰兼容
 
 - 带样式的下划线必须拆成多条声明：先写 `text-decoration: underline;`，再写 `text-decoration-style: wavy;` 等增强属性。
@@ -134,7 +143,7 @@
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
 | `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
-| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` | 弹注、图文浮动、海报、竖排 |
+| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` / `.classical-modern` / `.parallel-entry` / `.parallel-pair` / `.parallel-col-*` | 弹注、普通图文浮动、海报、竖排 |
 | `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
 | `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
 | `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |
