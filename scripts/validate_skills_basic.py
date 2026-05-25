@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Stdlib-only validation for local skill folders."""
+"""Stdlib-only validation for local skill folders.
+
+agents/openai.yaml intentionally supports only flat string keys; do not introduce
+lists, nested maps, or block scalars without replacing parse_simple_yaml_strings.
+"""
 
 from __future__ import annotations
 
@@ -38,6 +42,12 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("skills/epub-package-nav-auditor/SKILL.md", "docs/guides/anthology-navigation.md"),
     ("docs/guides/anthology-navigation.md", "局部目录"),
     ("templates/epub-style-demo/OEBPS/package.opf", 'properties="svg"'),
+  ],
+  "epub-typography-optimizer": [
+    ("skills/epub-typography-optimizer/SKILL.md", "C1-body"),
+    ("skills/epub-typography-optimizer/SKILL.md", "默认 `font-family` 链最多 4 段"),
+    ("docs/guides/fonts-css-expansion-plan.md", "模式 C1-body"),
+    ("templates/epub-style-demo/OEBPS/Styles/fonts.css", ".book-song"),
   ],
 }
 

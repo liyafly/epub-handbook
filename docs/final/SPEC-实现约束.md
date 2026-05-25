@@ -143,6 +143,7 @@
 - 加载顺序：`fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。
 - 海报页 XHTML link `fonts.css + poster.css`（如需正文排版再加 `base.css`）。
 - 正文页 XHTML 至少 link `fonts.css + base.css`，其他层按场景选用。
+- 若 `.note-box` 容器视觉继续增长并让 `effects.css` 超过 400 行，优先拆出 `decoration.css` 承载便签/资料卡边框阴影；`effects.css` 保留文字效果。超过 500 行必须拆分。
 - OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
 - `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。
 - 单文件 400 行预警、500 行硬上限；超过 500 行必须按职责拆分或迁入已有正确层。

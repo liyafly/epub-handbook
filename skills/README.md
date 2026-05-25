@@ -98,11 +98,10 @@ scripts/validate_skills_basic.py
 可选安装本仓 hook 模板：
 
 ```sh
-cp hooks/pre-commit.epub-handbook .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+scripts/install-hooks.sh
 ```
 
-这个 hook 会运行 `git diff --check --cached`、skill 基础校验，并在 demo 或关键验证脚本变化时自动构建和验证 `templates/epub-style-demo/`。
+这个 hook 会运行 `git diff --check --cached`、skill 基础校验和 harness smoke test，并在 demo、关键验证脚本或 `docs/final/` 变化时自动构建和验证 `templates/epub-style-demo/`。
 
 ## 两类常见场景
 

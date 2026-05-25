@@ -198,6 +198,8 @@ tbody tr:nth-child(even) {
   background: #f6f1e8;
 }
 
+/* Intentionally shaded local components; page-level text/background stays unset
+ * so reader night mode and publisher-font controls can still work. */
 pre {
   margin: 1em 0;
   padding: 0.8em;

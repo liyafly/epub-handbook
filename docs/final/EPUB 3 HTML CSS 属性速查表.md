@@ -221,10 +221,10 @@
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
-| `line-height` | `1.6`–`1.9` | 推荐 | 中文常用 1.7 |
-| `line-height` | `1.45`–`1.65` | 推荐 | 英文小说常用；简单重排书先取 1.55 左右 |
-| `text-indent` | `2em` | 推荐 | 中文正文 |
-| `text-indent` | `1.2em`–`1.5em` | 推荐 | 英文小说后续段落；首段用 `0` |
+| `line-height (中文)` | `1.6`–`1.9` | 推荐 | 中文常用 1.7 |
+| `line-height (英文)` | `1.45`–`1.65` | 推荐 | 英文小说常用；简单重排书先取 1.55 左右 |
+| `text-indent (中文)` | `2em` | 推荐 | 中文正文 |
+| `text-indent (英文)` | `1.2em`–`1.5em` | 推荐 | 英文小说后续段落；首段用 `0` |
 | `text-align` | `left` / `center` / `right` / `justify` | 推荐 | 中文正文常用 `justify`；英文未验证断字时优先 `left` |
 | `text-justify` | `inter-ideograph` | 可用 | 部分阅读器忽略 |
 | `letter-spacing` | `0.04em` 等 | 可用 | 标题、竖排题签 |
