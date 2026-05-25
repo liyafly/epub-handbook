@@ -18,6 +18,7 @@ DEFAULT_OEBPS = ROOT / "templates" / "epub-style-demo" / "OEBPS"
 XHTML_NS = "http://www.w3.org/1999/xhtml"
 EPUB_NS = "http://www.idpf.org/2007/ops"
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
+CONTAINER_NS = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
 
 
 def epub_attr(name: str) -> str:
@@ -120,10 +121,10 @@ def validate_backlink(ctx: NoteContext, backlink: ET.Element, note_ids: set[str]
     check.require(target_id in note_ids, f"{prefix} target must be a noteref id: #{target_id}")
 
 
-def validate_file(path: Path, check: Check) -> None:
+def validate_file(path: Path, check: Check) -> bool:
   root = parse_xml(path, check)
   if root is None:
-    return
+    return False
   ctx = NoteContext(path=path, root=root, ids=collect_ids(root, path, check))
 
   noterefs = [
@@ -136,7 +137,7 @@ def validate_file(path: Path, check: Check) -> None:
   ]
 
   if not noterefs and not footnote_asides:
-    return
+    return False
 
   check.require(len(footnote_asides) == 1, f"{path}: files with notes must have exactly one grouped footnote aside")
   if footnote_asides:
@@ -184,10 +185,33 @@ def validate_file(path: Path, check: Check) -> None:
         li_classes = classes(li)
         check.require("duokan-footnote-item" in li_classes, f"{path}: Duokan fallback li missing class=duokan-footnote-item")
         check.require("duokan-footnote-content" not in li_classes, f"{path}: duokan-footnote-content must not be on li")
+  return True
 
 
-def validate_manifest(oebps: Path, check: Check) -> None:
+def find_opf(root: Path, oebps: Path) -> Path | None:
+  container = root / "META-INF" / "container.xml"
+  if container.exists():
+    try:
+      container_root = ET.parse(container).getroot()
+      rootfile = container_root.find(".//c:rootfile", CONTAINER_NS)
+      opf = rootfile.attrib.get("full-path") if rootfile is not None else None
+      if opf and (root / opf).exists():
+        return root / opf
+    except ET.ParseError:
+      return None
   package = oebps / "package.opf"
+  if package.exists():
+    return package
+  opfs = sorted(oebps.glob("*.opf"))
+  return opfs[0] if opfs else None
+
+
+def validate_manifest(oebps: Path, opf_path: Path | None, check: Check) -> None:
+  if opf_path is None:
+    check.fail(f"{oebps}: OPF package document not found")
+    return
+  package = opf_path
+  opf_dir = package.parent
   root = parse_xml(package, check)
   if root is None:
     return
@@ -196,13 +220,16 @@ def validate_manifest(oebps: Path, check: Check) -> None:
     if item.attrib.get("href") == "Images/note.png"
   ]
   check.require(note_items, f"{package}: manifest must include Images/note.png")
-  check.require((oebps / "Images" / "note.png").exists(), f"{oebps}: Images/note.png missing on disk")
+  check.require((opf_dir / "Images" / "note.png").exists(), f"{opf_dir}: Images/note.png missing on disk")
 
 
-def validate_oebps(oebps: Path, check: Check) -> None:
-  validate_manifest(oebps, check)
+def validate_oebps(root: Path, oebps: Path, check: Check) -> None:
+  opf_path = find_opf(root, oebps)
+  found_notes = False
   for path in sorted((oebps / "Text").glob("*.xhtml")):
-    validate_file(path, check)
+    found_notes = validate_file(path, check) or found_notes
+  if found_notes:
+    validate_manifest(oebps, opf_path, check)
 
 
 def main(argv: list[str]) -> int:
@@ -217,9 +244,9 @@ def main(argv: list[str]) -> int:
       extracted = Path(tmp)
       with zipfile.ZipFile(args.epub) as zf:
         zf.extractall(extracted)
-      validate_oebps(extracted / "OEBPS", check)
+      validate_oebps(extracted, extracted / "OEBPS", check)
   else:
-    validate_oebps(args.oebps, check)
+    validate_oebps(args.oebps.parent, args.oebps, check)
 
   if check.errors:
     for error in check.errors:

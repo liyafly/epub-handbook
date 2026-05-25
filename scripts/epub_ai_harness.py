@@ -21,6 +21,16 @@ MATHML_URI = "http://www.w3.org/1998/Math/MathML"
 SVG_URI = "http://www.w3.org/2000/svg"
 TEXT_EXTS = {".txt", ".md", ".markdown", ".html", ".xhtml", ".xml"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif", ".tif", ".tiff"}
+FONT_EXTS = {".otf", ".ttf", ".woff", ".woff2"}
+FONT_MEDIA_TYPES = {
+  "font/otf",
+  "font/ttf",
+  "font/woff",
+  "font/woff2",
+  "application/font-sfnt",
+  "application/font-woff",
+  "application/vnd.ms-opentype",
+}
 PDF_EXTS = {".pdf"}
 
 
@@ -31,6 +41,20 @@ def split_props(value: str | None) -> set[str]:
 def norm_join(base: str, href: str) -> str:
   href = href.split("#", 1)[0]
   return posixpath.normpath(posixpath.join(base, href))
+
+
+def is_external_url(value: str) -> bool:
+  return bool(re.match(r"^(?:[a-z][a-z0-9+.-]*:|//|#)", value, re.I))
+
+
+def css_url_values(css: str) -> list[str]:
+  active = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+  urls: list[str] = []
+  for match in re.finditer(r"url\(\s*(?P<url>[^)]+?)\s*\)", active, re.I):
+    value = match.group("url").strip().strip("\"'")
+    if value and not is_external_url(value):
+      urls.append(value)
+  return urls
 
 
 def shell_path(path: Path) -> str:
@@ -104,7 +128,9 @@ def inspect_opf(
     "other": 0,
   }
   href_by_id: dict[str, str] = {}
+  manifest_paths: set[str] = set()
   xhtml_items: list[ET.Element] = []
+  css_items: list[ET.Element] = []
   image_items: list[ET.Element] = []
 
   for item in manifest:
@@ -113,15 +139,18 @@ def inspect_opf(
     media_type = item.attrib.get("media-type", "")
     if item_id and href:
       href_by_id[item_id] = href
+    if href:
+      manifest_paths.add(norm_join(opf_dir, href))
     if media_type == "application/xhtml+xml" or href.endswith(".xhtml"):
       media_counts["xhtml"] += 1
       xhtml_items.append(item)
     elif media_type == "text/css" or href.endswith(".css"):
       media_counts["css"] += 1
+      css_items.append(item)
     elif media_type.startswith("image/") or Path(href).suffix.lower() in IMAGE_EXTS:
       media_counts["images"] += 1
       image_items.append(item)
-    elif "font" in media_type:
+    elif media_type in FONT_MEDIA_TYPES or Path(href).suffix.lower() in FONT_EXTS:
       media_counts["fonts"] += 1
     else:
       media_counts["other"] += 1
@@ -180,6 +209,24 @@ def inspect_opf(
     if not idref or idref not in href_by_id:
       report.findings.append(finding("error", "Spine idref missing from manifest", idref or "<missing>"))
       report.add_skill("epub-package-nav-auditor")
+
+  for item in css_items:
+    href = item.attrib.get("href", "")
+    target = norm_join(opf_dir, href)
+    if not href or not exists(target):
+      continue
+    css = read_bytes(target).decode("utf-8", errors="ignore")
+    for raw_url in css_url_values(css):
+      linked = norm_join(posixpath.dirname(target), raw_url)
+      if not exists(linked):
+        report.findings.append(finding("error", "CSS url() target missing", f"{href} -> {raw_url}"))
+        report.add_skill("epub-css-layering-optimizer")
+        report.add_skill("epub-package-nav-auditor")
+        if Path(raw_url.split("#", 1)[0]).suffix.lower() in FONT_EXTS:
+          report.add_skill("epub-typography-optimizer")
+      elif linked not in manifest_paths:
+        report.findings.append(finding("error", "CSS url() target missing from OPF manifest", f"{href} -> {raw_url}"))
+        report.add_skill("epub-package-nav-auditor")
 
   for item in image_items:
     href = item.attrib.get("href", "")
