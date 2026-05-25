@@ -73,9 +73,10 @@ scripts/epub_ai_harness.py <path> --format json
 `hooks/pre-commit.epub-handbook` 是可选 git hook 模板，不默认安装。需要时执行：
 
 ```sh
-cp hooks/pre-commit.epub-handbook .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+scripts/install-hooks.sh
 ```
+
+该 hook 会运行空白检查、skill 基础校验和 harness smoke test；当 demo、关键验证脚本或 `docs/final/` 变化时，还会重新构建并验证样式 demo。
 
 图片压缩、PDF 解析和 OCR 不在本仓实现。对应 workflow 只记录风险、工具边界和校验入口，真正压缩/抽取由外部工具完成。
 
@@ -84,6 +85,7 @@ chmod +x .git/hooks/pre-commit
 ```sh
 scripts/epub_ai_harness.py <path>
 scripts/validate_skills_basic.py
+scripts/test_epub_ai_harness.py
 sh templates/epub-style-demo/build.sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
 scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub

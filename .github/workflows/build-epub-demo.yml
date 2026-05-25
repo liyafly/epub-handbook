@@ -6,10 +6,18 @@ on:
     branches: [main, develop]
     paths:
       - 'templates/epub-style-demo/**'
+      - 'scripts/**'
+      - 'skills/**'
+      - 'docs/final/**'
+      - 'docs/guides/**'
       - '.github/workflows/build-epub-demo.yml'
   pull_request:
     paths:
       - 'templates/epub-style-demo/**'
+      - 'scripts/**'
+      - 'skills/**'
+      - 'docs/final/**'
+      - 'docs/guides/**'
       - '.github/workflows/build-epub-demo.yml'
 
 jobs:
@@ -24,6 +32,14 @@ jobs:
 
       - name: Build demo EPUB
         run: sh templates/epub-style-demo/build.sh
+
+      - name: Validate local fixtures and skills
+        run: |
+          epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
+          python3 scripts/validate_skills_basic.py
+          python3 scripts/test_epub_ai_harness.py
+          scripts/validate-epub-style-demo.sh --epub "$epub"
+          scripts/validate-popup-notes.sh --epub "$epub"
 
       - name: Setup Java
         uses: actions/setup-java@v4

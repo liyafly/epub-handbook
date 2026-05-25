@@ -57,6 +57,8 @@
 
 可重排 EPUB 不适合用 `clip-path` 或复杂 SVG path 包正文。类似手绘纸片可以用不对称圆角、不同边宽、外轮廓和投影模拟：
 
+仓库 demo 已在 `effects.css` 和 `19-border-shadow-notes.xhtml` 落地 `.note-handcut`，作为可运行的手剪纸边框样例。
+
 ```css
 .note-handcut {
   border: 2px solid #5f5448;
@@ -73,6 +75,14 @@
 ```
 
 这不能做出任意凹凸轮廓，但能在 Kindle/Readest/Apple Books 中保持真实文本和稳定分页。
+
+## 验证清单
+
+- 默认字号：边框、标题和正文层级清楚。
+- 大字号：连续便签不会互相挤压，分页后仍可读。
+- 夜间模式：浅底色不承载唯一信息，边框和正文仍有足够对比。
+- Kindle KFX 转换：不使用 `transform: rotate()`，转换日志无增强排版内部错误。
+- Apple Books 原版字体：用户字体设置不会让便签正文裁切或溢出。
 
 ## Demo 补充建议
 

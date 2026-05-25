@@ -227,16 +227,18 @@ def validate_source(check: Check) -> None:
     check.require(token in literary_css, f"literary.css missing English fiction style: {token}")
 
   effects_css = (OEBPS / "Styles" / "effects.css").read_text(encoding="utf-8")
+  active_effects_css = strip_css_comments(effects_css)
   note_text = NOTE_BOXES_PAGE.read_text(encoding="utf-8")
+  # SPEC §5.10 bans rotated note boxes after Kindle Previewer 3.104 KFX failures.
   check.require(
-    "transform:" not in effects_css and "-webkit-transform:" not in effects_css,
-    "effects.css note fixtures must not use transform; Kindle Previewer 3 KFX conversion crashes on rotated note boxes",
+    re.search(r"(?:-webkit-)?transform\s*:\s*[^;{}]*\brotate", active_effects_css) is None,
+    "effects.css note fixtures must not use transform: rotate(); see docs/final/SPEC-实现约束.md §5.10",
   )
   for token in [
     ".note-square", ".note-dashed", ".note-double", ".note-left-rule",
     ".note-shadow", ".note-inset", ".note-slant", ".note-corner-ornament",
     ".note-ornate-rule", ".note-ornate-svg", ".note-corner-frame",
-    ".note-long-shadow", ".note-irregular",
+    ".note-long-shadow", ".note-irregular", ".note-handcut",
   ]:
     check.require(token in effects_css, f"effects.css missing note box style: {token}")
   for token in [
@@ -248,6 +250,7 @@ def validate_source(check: Check) -> None:
     '<path class="note-ornate-main"',
     'class="note-box note-long-shadow"',
     'class="note-box note-irregular"',
+    'class="note-box note-handcut"',
   ]:
     check.require(token in note_text, f"19-border-shadow-notes.xhtml missing note box sample: {token}")
 
