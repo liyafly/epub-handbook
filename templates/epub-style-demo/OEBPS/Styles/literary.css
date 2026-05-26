@@ -287,7 +287,7 @@
 .parallel-entry {
   margin: 1.35em 0;
   padding-top: .85em;
-  border-top: 1px solid #d8d0c3;
+  border-top: 1px solid #888;
 }
 
 .parallel-entry-title {
@@ -297,7 +297,6 @@
 }
 
 .parallel-source,
-.parallel-label,
 .parallel-return {
   text-indent: 0;
   text-align: left;
@@ -317,27 +316,22 @@
   margin-top: .85em;
 }
 
-.parallel-col {
-  margin: 0 0 .7em;
+.parallel-float-pair {
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+  break-inside: avoid;
 }
 
-.parallel-col-classical {
-  width: auto;
+.parallel-stack-pair {
+  page-break-inside: auto;
+  -webkit-page-break-inside: auto;
+  break-inside: auto;
 }
 
-.parallel-col-modern {
-  width: auto;
-}
-
-.parallel-float-pair .parallel-col-classical {
-  float: left;
-  width: 37%;
-  margin-right: 5%;
-}
-
-.parallel-float-pair .parallel-col-modern {
-  overflow: hidden;
-  width: auto;
+.parallel-pair-allow-break {
+  page-break-inside: auto;
+  -webkit-page-break-inside: auto;
+  break-inside: auto;
 }
 
 .parallel-clear {
@@ -347,13 +341,6 @@
   padding: 0;
   font-size: 0;
   line-height: 0;
-}
-
-.parallel-label {
-  margin: 0 0 .22em;
-  font-size: .82em;
-  font-weight: 700;
-  letter-spacing: .05em;
 }
 
 .classical-text,
@@ -372,20 +359,31 @@
 }
 
 .parallel-return {
+  clear: both;
   margin: .75em 0 0;
   font-size: .85em;
 }
 
-.parallel-large-probe {
-  font-size: 1.2em;
+.parallel-return a {
+  text-decoration: none;
 }
 
-@media (max-width: 420px) {
-  .parallel-float-pair .parallel-col-classical,
-  .parallel-float-pair .parallel-col-modern {
-    float: none;
-    overflow: visible;
-    width: auto;
-    margin-right: 0;
+/* 探针类：仅用于 fixture 的大字号回归验证，不要在生产书稿中使用。 */
+.parallel-large-probe { font-size: 1.2em; }
+
+@media (min-width: 40em) {
+  .parallel-float-pair .classical-text {
+    float: left;
+    width: 38%;
+  }
+
+  .parallel-float-pair .modern-text {
+    float: right;
+    width: 58%;
+  }
+
+  .parallel-float-pair .classical-text,
+  .parallel-float-pair .modern-text {
+    text-indent: 1em;
   }
 }
