@@ -347,7 +347,7 @@
           <tr><td><code>&lt;nav epub:type="landmarks"&gt;</code></td><td>地标</td><td><span class="status">推荐</span></td><td>封面、目录、正文开始</td></tr>
           <tr><td><code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code></td><td>标题层级</td><td><span class="status">推荐</span></td><td>不跳级</td></tr>
           <tr><td><code>&lt;p&gt;</code></td><td>正文段落</td><td><span class="status">推荐</span></td><td>中文正文默认缩进</td></tr>
-          <tr><td>文白对照条目</td><td><code>&lt;section&gt;</code> + 真实标题 + 原文/白话段落</td><td><span class="status">推荐</span></td><td>纵向相邻，不用 table 或固定双栏承载正文</td></tr>
+          <tr><td>文白对照条目</td><td><code>&lt;section&gt;</code> + 真实标题 + 原文/白话段落</td><td><span class="status">推荐</span></td><td>默认纵向相邻；只在宽屏 <code>min-width</code> 增强中左右；不用 table 或固定双栏承载正文</td></tr>
           <tr><td><code>&lt;em&gt;</code></td><td>强调</td><td><span class="status">推荐</span></td><td>中文显示为着重号</td></tr>
           <tr><td><code>&lt;strong&gt;</code></td><td>重要</td><td><span class="status">推荐</span></td><td>语义强重要性</td></tr>
           <tr><td><code>&lt;cite&gt;</code></td><td>作品名 / 来源</td><td><span class="status">推荐</span></td><td>书名、篇名、来源</td></tr>
@@ -428,7 +428,7 @@
           <tr><td><code>max-width</code></td><td><code>100%</code></td><td><span class="status">推荐</span></td><td>图片</td></tr>
           <tr><td><code>overflow</code></td><td><code>hidden</code> / <code>auto</code></td><td><span class="status">推荐</span></td><td>A-lite / 表格滚动</td></tr>
           <tr><td><code>display</code></td><td><code>block</code> / <code>inline-block</code> / <code>table-*</code></td><td><span class="status">推荐</span></td><td>兼容稳定</td></tr>
-          <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>图文环绕、竖排列；英文首字主路径用 <code>::first-letter</code></td></tr>
+          <tr><td><code>float</code></td><td><code>left</code> / <code>right</code></td><td><span class="status">推荐</span></td><td>图文环绕、竖排列；文白对照只放在宽屏 <code>min-width</code> 增强；英文首字主路径用 <code>::first-letter</code></td></tr>
           <tr><td>章节头图宽度</td><td>小章标 fallback <code>width:35%; max-width:7.5em</code>，横幅 <code>width:100%; max-width:100%</code></td><td><span class="status">推荐</span></td><td>写在 <code>literary.css</code>；高度由源图比例决定</td></tr>
           <tr><td><code>box-shadow</code></td><td><code>.2em .2em 0 #ddd</code> / <code>inset 0 0 .4em #ddd</code></td><td><span class="status">渐进增强</span></td><td>便签阴影；必须有 border/background 兜底</td></tr>
           <tr><td><code>transform</code></td><td><code>rotate(-1deg)</code></td><td><span class="status">风险</span></td><td>不放入通用 Kindle 版本；Kindle Previewer 3.104 实测可能触发增强排版转换内部错误</td></tr>

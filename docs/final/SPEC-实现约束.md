@@ -79,10 +79,13 @@
 ## 5.6.1) 文白对照左右兼容
 
 - 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
-- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left` 并使用保守百分比宽度，译文列保持普通块并用 `overflow:hidden` 占右侧剩余宽度，组末放显式清除元素。
+- 主路径结构应接近大部头文白书：一组 `.parallel-pair` 直接包含原文段落和译文段落。基础状态必须上下；短组可用 `.parallel-float-pair`，但双侧 `float:left/right` + `38%/58%` 只能放在宽屏 `@media (min-width: 40em)` 增强里。Kindle 电子墨水、小屏、大字号、长组、大字号探针或已知风险组应保持上下。
+- 不依赖 `overflow:hidden` BFC 形成右侧列；KF8/KFX 对这条路径不稳定。不要为了标签和列容器把每组正文包得过重，除非确有多段注记需求。
+- 分页保护只能用于短组增强类：`.parallel-float-pair { page-break-inside: avoid; -webkit-page-break-inside: avoid; break-inside: avoid; }`；`.parallel-pair` 默认允许长对照自然切页，`.parallel-stack-pair` / `.parallel-pair-allow-break` 必须显式允许切页，避免 Kindle 产生大空白页。
 - 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。
-- Kindle 目标包不要把左右对照只写在 `@media (orientation: landscape)` 内；Kindle Previewer / KFX 对 flex 与 orientation 组合不应作为主路径。
-- 多段原文/多段译文优先包进 `.parallel-col-classical` / `.parallel-col-modern`；每侧只有单段时，可以直接对原文段落加 float、译文段落保持普通块，但仍必须由下一组或显式 clear 结束该组。
+- 不引入 `amzn-kf8` / `amzn-mobi` 媒体查询；不要把左右对照只写在 `@media (orientation: landscape)` 内。Kindle Previewer / KFX 对 flex 与 orientation 组合不应作为主路径。
+- 不强求任何 Kindle 窄屏 pair 左右对照；长段、字号探针或已知风险 pair 用 `.parallel-stack-pair` 保持上下。
+- Kindle 用户字体覆盖后宋楷差异可能消失，原文/白话至少要靠段落顺序、出处和上下文独立可读；生产书可在条目级补充说明，但不要在每个短 pair 里堆标签。
 - Kindle 专用 AZW3/MOBI 成品中可见 `table-layout: fixed` 左右对照先例，但通用 EPUB / KDP 源文件不把 table 当正文对照主路径；只有明确只交付 Kindle 成品格式并逐设备验收时，才作为专用例外。
 
 ## 5.7) 文字装饰兼容
@@ -143,7 +146,7 @@
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
 | `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
-| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` / `.classical-modern` / `.parallel-entry` / `.parallel-pair` / `.parallel-col-*` | 弹注、普通图文浮动、海报、竖排 |
+| `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` / `.classical-modern` / `.parallel-entry` / `.parallel-pair` / `.parallel-float-pair` / `.parallel-stack-pair` | 弹注、普通图文浮动、海报、竖排 |
 | `media.css` | 图文混排 + 公式 | 图片浮动九宫格、`.figure-grid`、`.math-block` / `.math-inline` | 普通 `figure` / `img` 基础样式 |
 | `vertical.css` | 整页正文竖排（非 A-lite） | `body.page-vrl` / `.vrl-section` / `.vrl-title` | 海报规则 |
 | `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |
