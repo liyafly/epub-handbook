@@ -287,11 +287,9 @@ def validate_source(check: Check) -> None:
     'class="parallel-entry"',
     'class="parallel-entry-title"',
     'class="parallel-source"',
-    'class="parallel-pair parallel-float-pair"',
-    'class="parallel-col parallel-col-classical"',
-    'class="parallel-col parallel-col-modern"',
+    'parallel-float-pair',
+    'parallel-stack-pair',
     'class="parallel-clear"',
-    'class="parallel-label"',
     'class="classical-text book-song"',
     'class="modern-text book-kai"',
     'class="parallel-return"',
@@ -306,30 +304,40 @@ def validate_source(check: Check) -> None:
     ".parallel-source",
     ".parallel-pair",
     ".parallel-float-pair",
-    ".parallel-col",
-    ".parallel-col-classical",
-    ".parallel-col-modern",
+    ".parallel-stack-pair",
     ".parallel-clear",
-    ".parallel-label",
     ".classical-text",
     ".modern-text",
     ".parallel-return",
     ".parallel-large-probe",
   ]:
     check.require(token in literary_css, f"literary.css missing classical-modern style: {token}")
-  classical_block = selector_block(literary_css, ".parallel-float-pair .parallel-col-classical") or ""
-  modern_block = selector_block(literary_css, ".parallel-float-pair .parallel-col-modern") or ""
+  classical_block = selector_block(literary_css, ".parallel-float-pair .classical-text") or ""
+  modern_block = selector_block(literary_css, ".parallel-float-pair .modern-text") or ""
   pair_block = selector_block(literary_css, ".parallel-pair") or ""
-  classical_width = percentage_width(literary_css, ".parallel-float-pair .parallel-col-classical")
+  float_pair_block = selector_block(literary_css, ".parallel-float-pair") or ""
+  stack_pair_block = selector_block(literary_css, ".parallel-stack-pair") or ""
+  classical_width = percentage_width(literary_css, ".parallel-float-pair .classical-text")
+  modern_width = percentage_width(literary_css, ".parallel-float-pair .modern-text")
   check.require("display: flex" not in pair_block, "parallel-pair must not depend on display:flex")
-  check.require("float: left" in classical_block, "parallel-col-classical must float left")
-  check.require("overflow: hidden" in modern_block, "parallel-col-modern must form a float-side block")
-  check.require("float:" not in modern_block, "parallel-col-modern must remain a normal block beside the float")
-  check.require(classical_width is not None, "parallel-col-classical must define percentage width")
+  check.require("page-break-inside: avoid" not in pair_block, "parallel-pair default must allow long stacked pairs to paginate")
+  check.require("page-break-inside: avoid" in float_pair_block, "parallel-float-pair must protect short source/translation pairs from page splits")
+  check.require("page-break-inside: auto" in stack_pair_block, "parallel-stack-pair must explicitly allow long stacked pairs to paginate")
+  check.require("@media (min-width: 40em)" in literary_css, "parallel float layout must be a wide-screen progressive enhancement")
+  check.require("float: left" in classical_block, "classical-text must float left in the wide enhancement")
+  check.require("float: right" in modern_block, "modern-text must float right in the wide enhancement")
+  check.require("display: flex" not in literary_css, "classical-modern layout must not depend on flex")
+  check.require(classical_width is not None, "classical-text must define percentage width in the enhancement")
+  check.require(modern_width is not None, "modern-text must define percentage width in the enhancement")
   if classical_width is not None:
     check.require(
-      30 <= classical_width <= 42,
-      f"parallel-col-classical width must stay in a conservative float range, found {classical_width:g}%",
+      36 <= classical_width <= 40,
+      f"classical-text width must stay near the sample 38/58 split, found {classical_width:g}%",
+    )
+  if modern_width is not None:
+    check.require(
+      56 <= modern_width <= 60,
+      f"modern-text width must stay near the sample 38/58 split, found {modern_width:g}%",
     )
 
 

@@ -444,37 +444,43 @@ figure.img-right img {
 
 ## 五点六、文白对照左右兼容
 
-文白对照和原文/译文对照可以做左右并排，但不要把它做成表格、flex 或固定版式。稳定路径是先写源序上下结构，再用 `float` 增强成左右栏；Kindle 或其他阅读器不支持时，自然按源序显示为原文在上、译文在下。
+文白对照和原文/译文对照可以做左右并排，但不要把它做成表格、flex 或固定版式。稳定路径是先写源序上下结构，再只在足够宽的阅读区域用 `float` 增强成左右栏；Kindle 电子墨水、小屏、大字号或其他阅读器不支持 media / float 时，必须保持原文在上、译文在下，不能退化成半宽错位。
 
 ```html
 <section class="parallel-pair parallel-float-pair">
-  <div class="parallel-col parallel-col-classical">
-    <p class="parallel-label">原文</p>
-    <p class="classical-text book-song">文言原文。</p>
-  </div>
-  <div class="parallel-col parallel-col-modern">
-    <p class="parallel-label">白话</p>
-    <p class="modern-text book-kai">白话译文。</p>
-  </div>
+  <p class="classical-text book-song" xml:lang="lzh">文言原文。</p>
+  <p class="modern-text book-kai">白话译文。</p>
   <div class="parallel-clear" aria-hidden="true"></div>
 </section>
 ```
 
 ```css
-.parallel-col-classical,
-.parallel-col-modern {
-  width: auto;
+.parallel-pair {
+  clear: both;
 }
 
-.parallel-float-pair .parallel-col-classical {
-  float: left;
-  width: 37%;
-  margin-right: 5%;
+.parallel-float-pair {
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+  break-inside: avoid;
 }
 
-.parallel-float-pair .parallel-col-modern {
-  overflow: hidden;
-  width: auto;
+.parallel-stack-pair {
+  page-break-inside: auto;
+  -webkit-page-break-inside: auto;
+  break-inside: auto;
+}
+
+@media (min-width: 40em) {
+  .parallel-float-pair .classical-text {
+    float: left;
+    width: 38%;
+  }
+
+  .parallel-float-pair .modern-text {
+    float: right;
+    width: 58%;
+  }
 }
 
 .parallel-clear {
@@ -485,7 +491,7 @@ figure.img-right img {
 }
 ```
 
-如果源书每组只有两个段落，也可以直接给原文段落加 `float` 与百分比宽度，让译文段落保持普通块；如果每侧有多段、标签或注记，使用 `.parallel-col-*` 包裹更稳。默认 `.parallel-col-*` 要保持全宽，只有 `.parallel-float-pair` 进入 float 增强，避免失败态变成半宽上下错位。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退回上下显示。
+这个结构刻意接近大部头文白书：每组直接放原文段落和译文段落；短组用 `.parallel-float-pair` 标记为可增强，但基础状态仍上下，只有 `min-width:40em` 以上才左右显示；长段或大字号探针用 `.parallel-stack-pair` 保持上下并允许正常分页。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退化不可控。
 
 Kindle 专用 AZW3 里可以见到 `table-layout: fixed` + 左右 `td` 的英汉对照做法，实际能显示左右栏。但它不适合作为 EPUB/KDP 源文件的默认建议：表格承载长正文会增加质量审核、大字号、窄屏和辅助技术风险。除非目标就是只交付 Kindle 成品格式并已经逐设备验收，否则优先用 source-order + float。
 

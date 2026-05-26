@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-25
+updated_at: 2026-05-26
 owner: epub-handbook
 
 lanes:
@@ -251,20 +251,59 @@ expectations:
     case: 21-classical-modern
     status: pass
     reader_version: "3.104.0"
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-080944.epub
-    conversion_log: templates/epub-style-demo/dist/Logs/epub-style-demo-20260526-080944_log.csv
+    profile: "CLI conversion"
+    font_size: n/a
+    mode: n/a
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    conversion_log: templates/epub-style-demo/dist/kp-out-epub-style-demo-20260526-224326/Logs/epub-style-demo-20260526-224326_log.csv
     failed_page: 21-classical-modern
-    issue: "Kindle Previewer 转换成功，Enhanced Typesetting 支持，0 errors；默认 Kindle 电子书阅读器 profile、字号 4 下，.parallel-pair 的原文/白话可左右并排显示。"
-    action: "文白 demo 从纵向-only 修正为 source-order fallback + 成对 float 左右增强；不使用 table/flex/grid 承载正文。"
-    workaround: "窄屏或大字号列宽不足时允许退回上下显示；若只交付 Kindle 成品 AZW3，可把 table-layout fixed 作为专用例外，但不写入通用 EPUB 主路径。"
+    issue: "Kindle Previewer CLI 转换成功，Enhanced Typesetting 支持，Summary_Log 记录 0 errors / 0 quality issues。"
+    action: "改为接近《太平广记》样本的 pair 结构：直接原文段落 + 译文段落；默认上下；短组只在 @media (min-width: 40em) 中使用 38/58 双 float；长组 .parallel-stack-pair 上下并允许分页。"
+    workaround: "不要强求 Kindle 窄屏左右；长段、分页边界风险组或大字号目标显式上下，避免半宽错位和大空白页。"
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: pass
+    reader_version: "3.104.0"
+    profile: "Kindle 电子书阅读器"
+    font_size: 4
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    failed_page: 21-classical-modern
+    issue: "GUI spot check：Kindle E-reader / 字号 4 下，文白页保持上下显示；未再出现短组半宽错位、回目录按钮挤入正文或长组大空白页。宽屏左右增强仍需平板/桌面宽视口复测。"
+    action: "把 float 从默认样式移入 @media (min-width: 40em)；.parallel-pair 默认可分页，.parallel-float-pair 仅保护短组，.parallel-stack-pair 显式允许分页。"
+    workaround: "如某个生产 pair 在 Kindle 上跨页错位，不调全局 float，直接保持 .parallel-stack-pair 上下。"
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: "3.104.0"
+    profile: "Kindle 电子书阅读器"
+    font_size: 6
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    failed_page: 21-classical-modern
+    issue: "待 GUI 复测：字号 6/7 下应继续保持上下，不允许半宽错位；当前规则已避免默认 float，但仍需翻页检查实际分页。"
+    action: "左右对照只作为 min-width:40em 宽屏增强；Kindle 大字号目标优先上下。"
+    workaround: "大字号不可读的 pair 直接改 .parallel-stack-pair；不要用 overflow:hidden BFC 或 table 兜底。"
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: "3.104.0"
+    profile: "Kindle Paperwhite"
+    font_size: 4
+    mode: night
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    failed_page: 21-classical-modern
+    issue: "待 GUI/实机复测：夜间模式下 .parallel-entry 顶线和轻量回目录链接需确认不刺眼且可点击。"
+    action: "顶线保持 #888；回目录链接取消 inline-block 按钮边框，避免 Kindle 分页/焦点残留抢占版面；译文不加左侧细线，保持样本式段落。"
+    workaround: "如夜间链接仍过强，优先进一步弱化链接视觉，但保留锚点。"
   - reader: ibooks_macos
     case: 21-classical-modern
     status: warn
     reader_version: pending-apple-books-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
     failed_page: 21-classical-modern
-    issue: "文白对照页已打包，Apple Books 仍待默认字号、大字号和原版字体设置复测。"
-    action: "复测后再把文白对照条目结构写成 pass/fail；当前仅记录待测 artifact。"
+    issue: "Apple Books macOS 现有导入本 spot check：文白长组按源序上下显示正常；新 artifact 仍待重新导入后测默认字号、大字号和原版字体设置。"
+    action: "当前规则默认上下，对 Apple Books 应为保守路径；复测宽视口时再确认 min-width:40em 左右增强是否按预期启用。"
     workaround: "原文/白话字体用 fonts.css 工具类组合，用户字体设置下仍应保留真实文本和自然重排。"
   - reader: thorium
     case: 21-classical-modern
