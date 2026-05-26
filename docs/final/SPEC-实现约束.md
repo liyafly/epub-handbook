@@ -79,7 +79,7 @@
 ## 5.6.1) 文白对照左右兼容
 
 - 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
-- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left` 并使用保守百分比宽度，译文列保持普通块并用 `overflow:hidden` 占右侧剩余宽度，组末放显式清除元素。
+- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left; width:48%`、译文列 `float:right; width:48%`，组末放显式清除元素。不要依赖 `overflow:hidden` BFC。
 - 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。
 - Kindle 目标包不要把左右对照只写在 `@media (orientation: landscape)` 内；Kindle Previewer / KFX 对 flex 与 orientation 组合不应作为主路径。
 - 多段原文/多段译文优先包进 `.parallel-col-classical` / `.parallel-col-modern`；每侧只有单段时，可以直接对原文段落加 float、译文段落保持普通块，但仍必须由下一组或显式 clear 结束该组。

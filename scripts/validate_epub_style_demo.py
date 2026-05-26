@@ -323,13 +323,12 @@ def validate_source(check: Check) -> None:
   classical_width = percentage_width(literary_css, ".parallel-float-pair .parallel-col-classical")
   check.require("display: flex" not in pair_block, "parallel-pair must not depend on display:flex")
   check.require("float: left" in classical_block, "parallel-col-classical must float left")
-  check.require("overflow: hidden" in modern_block, "parallel-col-modern must form a float-side block")
-  check.require("float:" not in modern_block, "parallel-col-modern must remain a normal block beside the float")
+  check.require("float: right" in modern_block, "parallel-col-modern must float right in Kindle-safe double-float layout")
   check.require(classical_width is not None, "parallel-col-classical must define percentage width")
   if classical_width is not None:
     check.require(
-      30 <= classical_width <= 42,
-      f"parallel-col-classical width must stay in a conservative float range, found {classical_width:g}%",
+      45 <= classical_width <= 49,
+      f"parallel-col-classical width must stay in a double-float range, found {classical_width:g}%",
     )
 
 

@@ -43,7 +43,8 @@
 |---|---|---|---|
 | `<h1>`–`<h6>` | 标题层级 | 推荐 | 不跳级 |
 | `<p>` | 正文段落 | 推荐 | 中文正文默认 `text-indent: 2em` |
-| 文白对照条目 | `<section>` + 真实标题 + 原文/白话段落 + 左侧 float 对照 | 推荐 | 源序上下为 fallback；支持时左右显示；不用 `table` / `flex` / `grid` 承载正文 |
+| 文白对照条目 | `<section>` + 真实标题 + 原文/白话段落 + 双侧 float 对照 | 推荐 | 源序上下为 fallback；支持时左右显示；不用 `table` / `flex` / `grid` 承载正文 |
+| 文白对照浮动列 | `.parallel-col-classical { float:left; width:48% }` + `.parallel-col-modern { float:right; width:48% }` + `.parallel-clear` | 推荐 | Kindle 主路径；列宽不足时应退回上下 |
 | `<span>` | 行内样式容器 | 推荐 | 着重、波浪线、语言片段 |
 | `<div>` | 无语义块容器 | 可用 | 排版包装；不替代章节语义 |
 | `<hr>` | 分节符 / 横线 | 可用 | 可配装饰类 |

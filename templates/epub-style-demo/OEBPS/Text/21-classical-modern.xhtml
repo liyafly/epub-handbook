@@ -17,8 +17,8 @@
 
     <p class="chapter-head-note">本页验证文言原文与白话译文的可重排对照结构。推荐做法是按条目分 section，每组原文和译文先按源序上下排列，再用 float 做左右并排增强；阅读器不支持 float 或剩余列宽不足时，应自然退回上下显示，不使用 table、flex 或 grid 承载正文。</p>
 
-    <nav epub:type="toc" id="classical-modern-toc" class="classical-modern-local-toc">
-      <h2>本页条目</h2>
+    <nav epub:type="toc" class="classical-modern-local-toc" aria-labelledby="classical-modern-toc">
+      <h2 id="classical-modern-toc">本页条目</h2>
       <ol>
         <li><a href="#entry-mountain-bell">山亭夜钟</a></li>
         <li><a href="#entry-river-letter">江边短札</a></li>
@@ -31,11 +31,11 @@
 
       <section class="parallel-pair parallel-float-pair">
         <div class="parallel-col parallel-col-classical">
-          <p class="parallel-label">原文</p>
-          <p class="classical-text book-song">客宿山亭，夜半闻钟。童子启户视之，月在松间，泉声与钟声相答。客曰：此地无寺，钟从何来？童子笑曰：山中风入石窍，其声类钟，久居者不怪也。</p>
+          <p class="parallel-label">【原文】</p>
+          <p class="classical-text book-song" xml:lang="lzh">客宿山亭，夜半闻钟。童子启户视之，月在松间，泉声与钟声相答。客曰：此地无寺，钟从何来？童子笑曰：山中风入石窍，其声类钟，久居者不怪也。</p>
         </div>
         <div class="parallel-col parallel-col-modern">
-          <p class="parallel-label">白话</p>
+          <p class="parallel-label">【白话】</p>
           <p class="modern-text book-kai">旅客住在山亭里，半夜听见钟声。童子开门去看，只见月亮挂在松树之间，泉水声像是在回应钟声。旅客问这里没有寺院，钟声从哪里来。童子说山风吹进石洞，声音像钟，住久的人就不觉得奇怪了。</p>
         </div>
         <div class="parallel-clear" aria-hidden="true"></div>
@@ -43,11 +43,11 @@
 
       <section class="parallel-pair parallel-float-pair">
         <div class="parallel-col parallel-col-classical">
-          <p class="parallel-label">原文续</p>
-          <p class="classical-text book-song">客因留听，至曙始寂。既行，回望山亭，云气满谷，若钟声犹在衣袂间。</p>
+          <p class="parallel-label">【原文 · 续】</p>
+          <p class="classical-text book-song" xml:lang="lzh">客因留听，至曙始寂。既行，回望山亭，云气满谷，若钟声犹在衣袂间。</p>
         </div>
         <div class="parallel-col parallel-col-modern">
-          <p class="parallel-label">白话续</p>
+          <p class="parallel-label">【白话 · 续】</p>
           <p class="modern-text book-kai">旅客于是留下来细听，直到天亮声音才停。离开后回头看山亭，只见云气铺满山谷，仿佛钟声还留在衣袖之间。</p>
         </div>
         <div class="parallel-clear" aria-hidden="true"></div>
@@ -62,11 +62,11 @@
 
       <section class="parallel-pair parallel-float-pair">
         <div class="parallel-col parallel-col-classical">
-          <p class="parallel-label">原文</p>
-          <p class="classical-text book-song">书生夜过江岸，见灯一盏，随流上下。近而视之，乃渔父缚灯于小舟，舟中置书一卷。书生问其故，渔父曰：吾识字不多，每夜随灯读数行，风静则进，风急则止。</p>
+          <p class="parallel-label">【原文】</p>
+          <p class="classical-text book-song" xml:lang="lzh">书生夜过江岸，见灯一盏，随流上下。近而视之，乃渔父缚灯于小舟，舟中置书一卷。书生问其故，渔父曰：吾识字不多，每夜随灯读数行，风静则进，风急则止。</p>
         </div>
         <div class="parallel-col parallel-col-modern">
-          <p class="parallel-label">白话</p>
+          <p class="parallel-label">【白话】</p>
           <p class="modern-text book-kai">一个书生夜里经过江边，看见一盏灯随着水流上下浮动。走近一看，原来是渔父把灯绑在小船上，船里放着一卷书。书生问他为什么这样做。渔父说自己认字不多，每天夜里就借着灯读几行，风平时多读一点，风急时就停下来。</p>
         </div>
         <div class="parallel-clear" aria-hidden="true"></div>
