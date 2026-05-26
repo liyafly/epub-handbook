@@ -79,9 +79,12 @@
 ## 5.6.1) 文白对照左右兼容
 
 - 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
-- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left` 并使用保守百分比宽度，译文列保持普通块并用 `overflow:hidden` 占右侧剩余宽度，组末放显式清除元素。
+- 支持左右对照时，使用 `float` 作为渐进增强：默认列块必须全宽上下；启用 `.parallel-float-pair` 后，原文列 `float:left; width:48%`、译文列 `float:right; width:48%`，组末放显式清除元素。不要依赖 `overflow:hidden` BFC。
 - 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。
 - Kindle 目标包不要把左右对照只写在 `@media (orientation: landscape)` 内；Kindle Previewer / KFX 对 flex 与 orientation 组合不应作为主路径。
+- `.parallel-pair` 必须声明 `page-break-inside: avoid; -webkit-page-break-inside: avoid; break-inside: avoid;`；超长对照可加 `.parallel-pair-allow-break` 显式允许组内分页，避免整段推页产生大空白。
+- 窄屏/大字号 fallback 使用 `@media (max-width: 32em)` 与 `@media (max-width: 420px)` 双档，不引入 `amzn-kf8` / `amzn-mobi` 媒体查询。
+- Kindle 用户字体覆盖后宋楷差异可能消失，必须依赖结构性视觉（`【原文】/【白话】` 标签、`.modern-text` 左侧细线、float 增强态 `text-indent: 1em`）维持可辨识性。
 - 多段原文/多段译文优先包进 `.parallel-col-classical` / `.parallel-col-modern`；每侧只有单段时，可以直接对原文段落加 float、译文段落保持普通块，但仍必须由下一组或显式 clear 结束该组。
 - Kindle 专用 AZW3/MOBI 成品中可见 `table-layout: fixed` 左右对照先例，但通用 EPUB / KDP 源文件不把 table 当正文对照主路径；只有明确只交付 Kindle 成品格式并逐设备验收时，才作为专用例外。
 

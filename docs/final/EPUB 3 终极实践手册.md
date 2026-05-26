@@ -449,11 +449,11 @@ figure.img-right img {
 ```html
 <section class="parallel-pair parallel-float-pair">
   <div class="parallel-col parallel-col-classical">
-    <p class="parallel-label">原文</p>
+    <p class="parallel-label">【原文】</p>
     <p class="classical-text book-song">文言原文。</p>
   </div>
   <div class="parallel-col parallel-col-modern">
-    <p class="parallel-label">白话</p>
+    <p class="parallel-label">【白话】</p>
     <p class="modern-text book-kai">白话译文。</p>
   </div>
   <div class="parallel-clear" aria-hidden="true"></div>
@@ -468,13 +468,12 @@ figure.img-right img {
 
 .parallel-float-pair .parallel-col-classical {
   float: left;
-  width: 37%;
-  margin-right: 5%;
+  width: 48%;
 }
 
 .parallel-float-pair .parallel-col-modern {
-  overflow: hidden;
-  width: auto;
+  float: right;
+  width: 48%;
 }
 
 .parallel-clear {
@@ -485,7 +484,7 @@ figure.img-right img {
 }
 ```
 
-如果源书每组只有两个段落，也可以直接给原文段落加 `float` 与百分比宽度，让译文段落保持普通块；如果每侧有多段、标签或注记，使用 `.parallel-col-*` 包裹更稳。默认 `.parallel-col-*` 要保持全宽，只有 `.parallel-float-pair` 进入 float 增强，避免失败态变成半宽上下错位。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退回上下显示。
+每侧的原文/译文都用 `.parallel-col-*` 包裹（含 `<p class="parallel-label">` 标签段 + 正文段），让结构在双 float 增强态和上下 fallback 之间都稳定。默认 `.parallel-col-*` 要保持全宽，只有 `.parallel-float-pair` 进入 float 增强，避免失败态变成半宽上下错位。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退回上下显示。
 
 Kindle 专用 AZW3 里可以见到 `table-layout: fixed` + 左右 `td` 的英汉对照做法，实际能显示左右栏。但它不适合作为 EPUB/KDP 源文件的默认建议：表格承载长正文会增加质量审核、大字号、窄屏和辅助技术风险。除非目标就是只交付 Kindle 成品格式并已经逐设备验收，否则优先用 source-order + float。
 

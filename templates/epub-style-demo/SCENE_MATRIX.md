@@ -26,7 +26,7 @@
 | 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、手写体 float 下沉首字、居中插图、摘录、大字号回归 | Readest / Kindle Previewer / Apple Books / Thorium |
 | 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、SVG 花边实验、长条投影、不规则边缘、手剪纸边框 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
 | 章节头图设置 | `Text/20-chapter-head-image.xhtml` | 小型头图、满栏横幅头图、真实 h1、kicker/副标题、35% 单书 fallback、40% 复测增强类、大字号不裁切、横向不溢出 | Kindle Previewer / Apple Books / Thorium |
-| 文白对照 | `Text/21-classical-modern.xhtml` | 条目级 section、局部目录、原文/白话源序 fallback、左侧 float 左右对照、出处、回本页目录链接、大字号不使用 table/flex/grid | Kindle Previewer / Apple Books / Thorium / Readest |
+| 文白对照 | `Text/21-classical-modern.xhtml` | 条目级 section、局部目录、原文/白话源序 fallback、左侧 float 左右对照、出处、回本页目录链接、大字号不使用 table/flex/grid | Kindle Previewer / Kindle 设备 KFX / Kindle App / Apple Books / Thorium / Readest |
 
 ## 外部人工场景
 
@@ -43,3 +43,10 @@ sh templates/epub-style-demo/build.sh
 ```
 
 验证完成后，把阅读器名称、版本、构建产物、失败页面、现象、状态和 workaround 写入 `docs/final/reader-matrix.yaml`。
+
+
+## Case 21 补充必测
+
+- 字号：1 / 3 / 4 / 5 / 6 / 7。
+- 模式：日间 / 夜间。
+- 字体：默认、Kindle Bookerly、Publisher Font、Apple Books Original。

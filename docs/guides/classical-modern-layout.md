@@ -11,8 +11,8 @@
 ## 推荐结构
 
 ```html
-<nav epub:type="toc" id="classical-modern-toc" class="classical-modern-local-toc">
-  <h2>本页条目</h2>
+<nav epub:type="toc" class="classical-modern-local-toc" aria-labelledby="classical-modern-toc">
+  <h2 id="classical-modern-toc">本页条目</h2>
   <ol>
     <li><a href="#entry-01">条目标题</a></li>
   </ol>
@@ -24,11 +24,11 @@
 
   <section class="parallel-pair parallel-float-pair">
     <div class="parallel-col parallel-col-classical">
-      <p class="parallel-label">原文</p>
+      <p class="parallel-label">【原文】</p>
       <p class="classical-text book-song">文言原文。</p>
     </div>
     <div class="parallel-col parallel-col-modern">
-      <p class="parallel-label">白话</p>
+      <p class="parallel-label">【白话】</p>
       <p class="modern-text book-kai">白话译文。</p>
     </div>
     <div class="parallel-clear" aria-hidden="true"></div>
@@ -45,6 +45,8 @@
 ```css
 .parallel-pair {
   clear: both;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .parallel-col-classical,
@@ -54,13 +56,12 @@
 
 .parallel-float-pair .parallel-col-classical {
   float: left;
-  width: 37%;
-  margin-right: 5%;
+  width: 48%;
 }
 
 .parallel-float-pair .parallel-col-modern {
-  overflow: hidden;
-  width: auto;
+  float: right;
+  width: 48%;
 }
 
 .parallel-clear {
@@ -71,7 +72,7 @@
 }
 ```
 
-如果每组两侧都只有一个段落，也可以直接把 `float` 写在原文段落上，让译文段落保持普通块并用 `overflow:hidden` 形成右侧块；多段原文、多段译文或需要标签时，推荐用 `.parallel-col` 包裹每侧文本。默认 `.parallel-col-*` 必须保持全宽 block，只有加 `.parallel-float-pair` 的组才进入左右增强，避免阅读器不支持或挤不下时出现“半宽上下堆叠”。当前推荐起点是左侧原文 `float:left; width:37%; margin-right:5%`，白话列不再 float，而是以普通 block 占据右侧剩余宽度；这比两列同时 float 更不容易在 Kindle 分页器里把第二列挤到下一块。不要依赖 `::after` clearfix 作为唯一清除方式，KF8 对伪元素选择器支持不稳；显式 `.parallel-clear` 更容易在 Kindle 路径中保留。
+每侧的原文/译文都用 `.parallel-col-*` 包裹（含 `<p class="parallel-label">` 标签段 + 正文段），让结构在双 float 增强态和上下 fallback 之间都稳定。默认 `.parallel-col-*` 必须保持全宽 block，只有加 `.parallel-float-pair` 的组才进入左右增强，避免阅读器不支持或挤不下时出现“半宽上下堆叠”。当前推荐起点是双侧 float：左列 `float:left; width:48%`，右列 `float:right; width:48%`，预留 4% 缓冲避免 50/50 像素取整换行。不要依赖 `::after` clearfix 作为唯一清除方式，KF8 对伪元素选择器支持不稳；显式 `.parallel-clear` 更容易在 Kindle 路径中保留。
 
 有些 Kindle 专用 AZW3/MOBI 成品会用 `table-layout: fixed` 和左右 `td` 做英汉/文白对照；这能解释为什么 Kindle 里可以见到成功的左右对照。但对 EPUB 源文件和 KDP 上传路径，不把 table 作为推荐主路径：Amazon 质量规则长期把非表格正文塞进 table 视为风险，且大字号、辅助技术和窄屏更容易变差。只有明确只交付 Kindle 专用 AZW3、并且已经在目标设备逐页验收时，才把 table 当作专用例外。
 
@@ -86,11 +87,11 @@
 - `.parallel-source`：出处、卷次、校注来源。
 - `.parallel-pair`：一组原文/译文对照，默认全宽上下。
 - `.parallel-float-pair`：启用 float 左右增强。
-- `.parallel-col-classical` / `.parallel-col-modern`：左右列；默认全宽，增强态下原文列 `float:left` 并保留约 5% 余量，白话列作为普通块占右侧剩余宽度。
+- `.parallel-col-classical` / `.parallel-col-modern`：左右列；默认全宽，增强态下双侧 `float` + `48%/48%`。
 - `.parallel-clear`：显式清除浮动，避免依赖伪元素。
 - `.parallel-label`：原文/白话标签。
 - `.classical-text`：文言段落节奏。
-- `.modern-text`：白话段落节奏。
+- `.modern-text`：白话段落节奏 + 左侧细线结构提示。
 - `.parallel-return`：回本页条目链接。
 
 ## 大部头做法
@@ -105,10 +106,17 @@
 ## 验证清单
 
 - 默认字号下，支持 `float` 的阅读器可显示左右对照。
-- 大字号或窄屏下，原文与白话仍能连续阅读，允许退回上下显示。
+- Kindle 字号 5/6/7 要验证退回上下显示行为（5 可能边界，6/7 应退回）。
+- 分页边界不应把同一组原文/白话硬切开。
+- 夜间模式下分隔线与译文左侧细线不刺眼。
 - 不横向滚动，不依赖 table、flex、grid 或固定版式。
 - nav / NCX / 局部目录链接都能定位到条目。
 - 原文、白话和出处角色清晰，但不依赖颜色表达唯一信息。
 - 原文和译文字体通过 `fonts.css` 工具类组合，默认不新增嵌入字体。
+
+- 用户字体覆盖（Bookerly / Publisher Font / OpenDyslexic）后，原文/白话仍可独立识别。
+- 条目末尾 `(•)` 回跳后，视口上 1/3 可见「本页条目」标题或条目标题。
+- `(•)` 触屏命中区需接近 1cm × 1cm（Paperwhite 实机或 Previewer GUI 视感）。
+- `.parallel-pair-allow-break` 为长对照（建议单组 ≥ 250 字）预留逃逸口，避免 `avoid` 造成整段推页。
 
 对应 demo fixture：`templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml`。

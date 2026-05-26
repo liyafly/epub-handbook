@@ -244,34 +244,109 @@ expectations:
     reader_version: pending-thorium-version
     artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-223159.epub
     failed_page: 20-chapter-head-image
-    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
+    issue: "文白对照已切到双 float 新路径；Thorium 仍待基于新 artifact 的视觉复测记录。"
     action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
     workaround: "Thorium 仅作为重排对照，不因未测而扩大生产规则。"
   - reader: kindle_previewer
     case: 21-classical-modern
-    status: pass
-    reader_version: "3.104.0"
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-080944.epub
-    conversion_log: templates/epub-style-demo/dist/Logs/epub-style-demo-20260526-080944_log.csv
-    failed_page: 21-classical-modern
-    issue: "Kindle Previewer 转换成功，Enhanced Typesetting 支持，0 errors；默认 Kindle 电子书阅读器 profile、字号 4 下，.parallel-pair 的原文/白话可左右并排显示。"
-    action: "文白 demo 从纵向-only 修正为 source-order fallback + 成对 float 左右增强；不使用 table/flex/grid 承载正文。"
-    workaround: "窄屏或大字号列宽不足时允许退回上下显示；若只交付 Kindle 成品 AZW3，可把 table-layout fixed 作为专用例外，但不写入通用 EPUB 主路径。"
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 4
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "代码已切到双侧 float 48/48 + 分页保护 + 32em fallback；当前环境无法运行 Kindle Previewer GUI/CLI，待人工补实测截图。"
+    action: "将旧的 BFC overflow 路径替换为 Kindle-safe 双 float，并扩展 reader matrix 字段。"
+    workaround: "在 Previewer 中优先验证字号 1/3/4/5/6/7 与日夜模式；大字号退回上下显示。"
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 6
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "期望字号 6 触发回退为上下显示，需在 Previewer 复测确认。"
+    action: "新增 32em 媒体查询作为 Kindle 大字号中间档 fallback。"
+    workaround: "若未触发回退，记录可读性并调整阈值。"
+
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 1
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "小字号双栏预期稳定，待 Previewer 实测截图。"
+    action: "补齐字号分档占位记录，避免误读为只测 4/6。"
+    workaround: "若出现列宽异常，优先检查 float 清除与列宽断言。"
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 3
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "中字号两栏可读性待实测确认。"
+    action: "保持双 float 主路径，等待人工截图。"
+    workaround: "必要时调窄标签与缩进。"
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 5
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "字号 5 为两栏/上下回退边界，待 Previewer 实测。"
+    action: "32em fallback 作为大字号中间档。"
+    workaround: "若仍双栏且拥挤，记录并评估阈值。"
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 7
+    mode: day
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "超大字号应回退上下显示，待实测。"
+    action: "保留双档媒体查询并记录回退表现。"
+    workaround: "未回退时需补充可读性说明。"
+
+  - reader: kindle_previewer
+    case: 21-classical-modern
+    status: warn
+    reader_version: pending-kindle-previewer-version
+    profile: "Kindle 电子书阅读器"
+    font_size: 4
+    mode: night
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
+    issue: "夜间模式下顶线与译文左侧线对比待复测。"
+    action: "保留现色值并明确夜间可见性待人工验证。"
+    workaround: "若对比不足，优先提高左侧线 alpha 或改 currentColor。"
+
   - reader: ibooks_macos
     case: 21-classical-modern
     status: warn
     reader_version: pending-apple-books-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
     failed_page: 21-classical-modern
-    issue: "文白对照页已打包，Apple Books 仍待默认字号、大字号和原版字体设置复测。"
+    issue: "文白对照页已打包到新 artifact；Apple Books 仍待默认字号、大字号和 Original 字体复测。"
     action: "复测后再把文白对照条目结构写成 pass/fail；当前仅记录待测 artifact。"
     workaround: "原文/白话字体用 fonts.css 工具类组合，用户字体设置下仍应保留真实文本和自然重排。"
   - reader: thorium
     case: 21-classical-modern
     status: warn
     reader_version: pending-thorium-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-055136.epub
     failed_page: 21-classical-modern
-    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
+    issue: "文白对照已切到双 float 新路径；Thorium 仍待基于新 artifact 的视觉复测记录。"
     action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
     workaround: "Thorium 作为重排对照，重点看局部目录锚点、条目分隔和大字号文本流。"
