@@ -1,5 +1,6 @@
 import { parseXml, elements, firstElement, normalizeText } from "./xml.js";
 import { formatBytes } from "../util/format.js";
+import { IncrementalSha256 } from "../util/hash.js";
 
 function requireZip() {
   if (!globalThis.zip?.ZipReader) {
@@ -26,6 +27,27 @@ export async function readEntryText(entry) {
 export async function readEntryBuffer(entry) {
   const blob = await entry.getData(new (requireZip()).BlobWriter());
   return blob.arrayBuffer();
+}
+
+export async function readEntryHash(entry) {
+  const zipLib = requireZip();
+  class HashWriter extends zipLib.Writer {
+    constructor() {
+      super();
+      this.hasher = new IncrementalSha256();
+      this.size = 0;
+    }
+
+    writeUint8Array(chunk) {
+      this.size += chunk.length;
+      this.hasher.update(chunk);
+    }
+
+    getData() {
+      return { sha256: this.hasher.digest(), size: this.size };
+    }
+  }
+  return entry.getData(new HashWriter());
 }
 
 function manifestItems(opfDoc, opfDir) {
