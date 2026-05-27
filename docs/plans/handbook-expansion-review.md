@@ -579,7 +579,7 @@ python3 scripts/validate_text_invariance.py \
 
 3. **`retired fixtures index`**（11 行）：是历史小文件，与 reader-matrix.yaml + SCENE_MATRIX 有内容重叠，且没有入口指向它。
 
-4. **`docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md`**（529 行）：从命名和内容看是「source 补充」系列（`docs/source/EPUB 3 补充：...` 同名约定），错位到 experiments/。
+4. **`docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md`**（529 行）：从命名和内容看是「source 补充」系列（`docs/source/EPUB 3 补充：...` 同名约定），错位到 experiments/。
 
 5. **`docs/source/` vs `docs/experiments/` 边界不清**：source/ 是早期推导稿（已不再演进，但被 final/ 索引引用），experiments/ 应该是「实验 + 复盘记录」（应该按 review-* 文件命名规则）。当前 experiments/ 里前 4 个文件都是 review-* 风格，第 5 个（补充 05）就违反了这个约定。
 
@@ -855,7 +855,7 @@ grep -rn "retired fixtures index" --include="*.md" --include="*.yaml" .
 #### Step 6：experiments → source 修正（commit: `chore(docs): move 章节扉页与竖排实战 to source/`）
 
 ```sh
-git mv "docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md" "docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md"
+git mv "docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md" "docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md"
 ```
 
 更新引用（grep 文件名）。
@@ -899,7 +899,7 @@ PY
 - docs/final/ 收回 epub-pro 架构副本到 docs/architecture/。
 - docs/architecture/ 并入 docs/architecture/。
 - retired fixtures index 删除。
-- docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md 归位到 source/。
+- docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md 归位到 source/。
 - docs/README.md 加分类决策树。
 ```
 
