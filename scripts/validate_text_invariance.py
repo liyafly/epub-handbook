@@ -25,7 +25,7 @@ OPF_NS = {"opf": "http://www.idpf.org/2007/opf", "dc": "http://purl.org/dc/eleme
 CORE_METADATA = ("title", "creator", "identifier", "language")
 BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "blockquote", "pre", "div"}
 IGNORED_TEXT_TAGS = {"rt", "rp", "script", "style"}
-CHECKS = ("text", "metadata", "spine", "cover", "drm")
+CHECKS = ("text", "metadata", "spine", "cover", "drm", "anchors")
 
 
 class InputError(Exception):
@@ -181,6 +181,38 @@ def compare_text(before: EpubData, after: EpubData, allow_list: list[str], verbo
   return [p for p in problems if not p.startswith("verbose:")] if not verbose else problems
 
 
+def extract_anchor_ids(content: bytes, label: str) -> set[str]:
+  root = parse_xml(content, label)
+  ids: set[str] = set()
+  for elem in root.iter():
+    value = elem.attrib.get("id")
+    if value:
+      ids.add(value)
+  return ids
+
+
+def compare_anchors(before: EpubData, after: EpubData, allow_list: list[str], verbose: bool) -> list[str]:
+  problems: list[str] = []
+  before_paths = xhtml_paths(before)
+  after_paths = xhtml_paths(after)
+  for name in sorted(before_paths):
+    if skipped(name, allow_list):
+      continue
+    if name not in after_paths:
+      problems.append(f"anchors: XHTML file deleted: {name}")
+      continue
+    before_ids = extract_anchor_ids(before.zf.read(name), f"{before.path}:{name}")
+    after_ids = extract_anchor_ids(after.zf.read(name), f"{after.path}:{name}")
+    missing = sorted(before_ids - after_ids)
+    if missing:
+      shown = ", ".join(missing[:12])
+      suffix = "" if len(missing) <= 12 else f", ... ({len(missing)} total)"
+      problems.append(f"anchors: deleted id in {name}: {shown}{suffix}")
+    elif verbose:
+      problems.append(f"verbose: anchors unchanged: {name} ({len(before_ids)} ids)")
+  return [p for p in problems if not p.startswith("verbose:")] if not verbose else problems
+
+
 def require_opf(epub: EpubData) -> ET.Element:
   if epub.opf_root is None:
     raise InputError(f"{epub.path}: cannot resolve OPF from META-INF/container.xml")
@@ -293,6 +325,10 @@ def validate(args: argparse.Namespace) -> int:
         text_results = compare_text(before, after, args.allow_list, args.verbose)
         verbose_lines.extend(line for line in text_results if line.startswith("verbose:"))
         problems.extend(line for line in text_results if not line.startswith("verbose:"))
+      if "anchors" in checks:
+        anchor_results = compare_anchors(before, after, args.allow_list, args.verbose)
+        verbose_lines.extend(line for line in anchor_results if line.startswith("verbose:"))
+        problems.extend(line for line in anchor_results if not line.startswith("verbose:"))
       if "metadata" in checks:
         problems.extend(compare_metadata(before, after))
       if "spine" in checks:
@@ -317,7 +353,7 @@ def main(argv: list[str]) -> int:
   parser = argparse.ArgumentParser(description="Validate EPUB cleanup red-line invariants")
   parser.add_argument("before", type=Path)
   parser.add_argument("after", type=Path)
-  parser.add_argument("--check", default="all", help="text,metadata,spine,cover,drm,all or comma list")
+  parser.add_argument("--check", default="all", help="text,metadata,spine,cover,drm,anchors,all or comma list")
   parser.add_argument("--redlines", choices=("all", "text"), help="legacy alias for --check")
   parser.add_argument("--allow-list", action="append", default=[], help="fnmatch pattern for XHTML paths")
   parser.add_argument("--output", type=Path, help="write report to file instead of stderr")
