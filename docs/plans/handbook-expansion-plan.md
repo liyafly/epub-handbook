@@ -288,7 +288,7 @@ docs/getting-started/
 ### 1. 克隆仓库
 
 ```sh
-git clone https://github.com/<owner>/epub-handbook.git
+git clone https://github.com/liyafly/epub-handbook.git
 cd epub-handbook
 ```
 
@@ -3230,7 +3230,7 @@ Stage 2 `validate_text_invariance.py` 已经给 CI 通过 / 不通过的口径�
 │  For reader compatibility, see:                  │
 │  docs/final/reader-matrix.yaml                   │
 │                                                  │
-│  Source: https://github.com/<owner>/epub-handbook│
+│  Source: https://github.com/liyafly/epub-handbook│
 │  License: MIT                                    │
 │  Diff rendering: built-in line diff (MIT)          │
 │  Zip parsing: zip.js (BSD-3)                     │
