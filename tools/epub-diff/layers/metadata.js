@@ -1,3 +1,5 @@
+import { throwIfAborted } from "../parsers/epub.js";
+
 const CORE = ["title", "creator", "identifier", "language"];
 
 function groupMetadata(items) {
@@ -11,11 +13,13 @@ function groupMetadata(items) {
   return grouped;
 }
 
-export function diffMetadata(before, after) {
+export function diffMetadata(before, after, options = {}) {
+  const { signal } = options;
   const b = groupMetadata(before.metadata);
   const a = groupMetadata(after.metadata);
   const keys = [...new Set([...b.keys(), ...a.keys()])].sort();
   const rows = keys.map((key) => {
+    throwIfAborted(signal);
     const beforeValue = (b.get(key) || []).join(" | ");
     const afterValue = (a.get(key) || []).join(" | ");
     return { key, before: beforeValue, after: afterValue, changed: beforeValue !== afterValue, core: CORE.includes(key) };

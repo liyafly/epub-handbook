@@ -5,6 +5,16 @@ function row(cells) {
   return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
 function table(headers, rows) {
   return `<div class="table-wrap"><table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
@@ -60,6 +70,22 @@ function renderStyle(layer) {
 function renderResources(layer) {
   const c = counts(layer.rows);
   const changed = layer.rows.filter((resource) => resource.status !== "same");
+  const item = (resource) => {
+    const details = `${resource.status}: ${resource.path} (${formatBytes(resource.before?.size || 0)} -> ${formatBytes(resource.after?.size || 0)})`;
+    const thumbs = resource.thumbnails ? `
+      <div class="resource-thumbs">
+        <figure>
+          <img src="${escapeHtml(resource.thumbnails.before.url)}" alt="before ${escapeHtml(resource.path)}">
+          <figcaption>before</figcaption>
+        </figure>
+        <figure>
+          <img src="${escapeHtml(resource.thumbnails.after.url)}" alt="after ${escapeHtml(resource.path)}">
+          <figcaption>after</figcaption>
+        </figure>
+      </div>
+    ` : "";
+    return `<li><div>${escapeHtml(details)}</div>${thumbs}</li>`;
+  };
   return `
     <div class="metric-grid">
       <div class="metric">Added: ${c.added || 0}</div>
@@ -68,7 +94,7 @@ function renderResources(layer) {
       <div class="metric">Unchanged: ${c.same || 0}</div>
     </div>
     <ul class="resource-list">
-      ${changed.map((item) => `<li>${item.status}: ${item.path} (${formatBytes(item.before?.size || 0)} -> ${formatBytes(item.after?.size || 0)})</li>`).join("") || "<li class=\"ok\">All resources identical.</li>"}
+      ${changed.map(item).join("") || "<li class=\"ok\">All resources identical.</li>"}
     </ul>
   `;
 }

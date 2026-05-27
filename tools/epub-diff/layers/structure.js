@@ -1,3 +1,5 @@
+import { throwIfAborted } from "../parsers/epub.js";
+
 function mapById(items) {
   return new Map(items.map((item) => [item.id || item.path, item]));
 }
@@ -6,11 +8,13 @@ function itemSig(item) {
   return `${item.href}|${item.mediaType}|${item.properties}`;
 }
 
-export async function diffStructure(before, after) {
+export async function diffStructure(before, after, options = {}) {
+  const { signal } = options;
   const bMap = mapById(before.manifest);
   const aMap = mapById(after.manifest);
   const keys = [...new Set([...bMap.keys(), ...aMap.keys()])].sort();
   const manifest = keys.map((key) => {
+    throwIfAborted(signal);
     const b = bMap.get(key);
     const a = aMap.get(key);
     return {
