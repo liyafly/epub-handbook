@@ -128,3 +128,22 @@ scripts/validate-popup-notes.sh
 
 - 同一 XHTML 文件内有多条 notes 时，每个 trigger 只能打开它指向的 `li` 内容。
 - 标准 EPUB 路径必须能通过 href -> target id 精确解析。
+
+## Dry-run 约定
+
+本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
+
+调用示例：
+
+```sh
+# 预览
+<skill-invocation> work/before/source.epub > work/dry-run.json
+
+# 审查
+cat work/dry-run.json | jq
+
+# 确认后执行
+<skill-invocation> --commit work/before/source.epub
+```
+
+dry-run 输出格式见 [docs/guides/epub-cleanup-flow.md](../../docs/guides/epub-cleanup-flow.md)。
