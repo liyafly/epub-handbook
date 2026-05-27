@@ -17,6 +17,7 @@
 
 ## E
 
+- **EPUB**：开放电子书标准（IDPF/W3C），基于 HTML/CSS/ZIP 的容器格式。本仓面向 EPUB 3。
 - **epub:type**：EPUB 3 语义注解属性，如 `epub:type="footnote"`。
 - **epubcheck**：W3C 官方 EPUB 校验器。
 - **Enhanced Typesetting**：Amazon 的增强排版路径，KFX 转换后启用。
@@ -28,13 +29,15 @@
 
 ## K
 
-- **KFX**：Kindle 当前主流容器。
+- **KFX**：Kindle 当前主流容器格式。
+- **KF8**：Kindle Format 8，Amazon 的 EPUB 3 衍生格式（.azw3），KFX 的前身。
 - **KDP**：Kindle Direct Publishing。
 
 ## M
 
 - **manifest**：OPF 中列出所有 epub 内文件的清单。
 - **MathML**：数学公式标记语言。
+- **MOBI**：Mobipocket 电子书格式，Amazon Kindle 早期的私有格式，KF8/AZW3 的前身。
 
 ## N
 
