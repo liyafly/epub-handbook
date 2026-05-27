@@ -9,6 +9,13 @@ function requireZip() {
   return globalThis.zip;
 }
 
+export function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const error = new Error("Comparison cancelled");
+  error.name = "AbortError";
+  throw error;
+}
+
 function joinPath(base, href) {
   const parts = `${base}/${href}`.split("/");
   const out = [];
@@ -20,34 +27,52 @@ function joinPath(base, href) {
   return out.join("/");
 }
 
-export async function readEntryText(entry) {
-  return entry.getData(new (requireZip()).TextWriter());
+export async function readEntryText(entry, options = {}) {
+  throwIfAborted(options.signal);
+  const text = await entry.getData(new (requireZip()).TextWriter());
+  throwIfAborted(options.signal);
+  return text;
 }
 
-export async function readEntryBuffer(entry) {
+export async function readEntryBuffer(entry, options = {}) {
+  throwIfAborted(options.signal);
   const blob = await entry.getData(new (requireZip()).BlobWriter());
+  throwIfAborted(options.signal);
   return blob.arrayBuffer();
 }
 
-export async function readEntryHash(entry) {
+export async function readEntryBlob(entry, type = "", options = {}) {
+  throwIfAborted(options.signal);
+  const blob = await entry.getData(new (requireZip()).BlobWriter(type));
+  throwIfAborted(options.signal);
+  return blob;
+}
+
+export async function readEntryHash(entry, options = {}) {
   const zipLib = requireZip();
   class HashWriter extends zipLib.Writer {
-    constructor() {
+    constructor(signal) {
       super();
+      this.signal = signal;
       this.hasher = new IncrementalSha256();
       this.size = 0;
     }
 
     writeUint8Array(chunk) {
+      throwIfAborted(this.signal);
       this.size += chunk.length;
       this.hasher.update(chunk);
     }
 
     getData() {
+      throwIfAborted(this.signal);
       return { sha256: this.hasher.digest(), size: this.size };
     }
   }
-  return entry.getData(new HashWriter());
+  throwIfAborted(options.signal);
+  const result = await entry.getData(new HashWriter(options.signal));
+  throwIfAborted(options.signal);
+  return result;
 }
 
 function manifestItems(opfDoc, opfDir) {
@@ -79,24 +104,27 @@ function metadata(opfDoc) {
   return fields;
 }
 
-export async function parseEpub(file, onProgress = () => {}) {
+export async function parseEpub(file, onProgress = () => {}, options = {}) {
+  const { signal } = options;
+  throwIfAborted(signal);
   const zipLib = requireZip();
   const reader = new zipLib.ZipReader(new zipLib.BlobReader(file));
   const entries = await reader.getEntries();
+  throwIfAborted(signal);
   const entryMap = new Map(entries.map((entry) => [entry.filename, entry]));
   const names = new Set(entryMap.keys());
   if (!names.has("META-INF/container.xml")) {
     throw new Error("Cannot read EPUB: missing META-INF/container.xml");
   }
   onProgress(`Read ${entries.length} zip entries from ${file.name}`);
-  const containerText = await readEntryText(entryMap.get("META-INF/container.xml"));
+  const containerText = await readEntryText(entryMap.get("META-INF/container.xml"), { signal });
   const containerDoc = parseXml(containerText, "container.xml");
   const rootfile = firstElement(containerDoc, "rootfile");
   const opfPath = rootfile?.getAttribute("full-path");
   if (!opfPath || !entryMap.has(opfPath)) {
     throw new Error("Cannot read EPUB: OPF path from container.xml does not resolve");
   }
-  const opfText = await readEntryText(entryMap.get(opfPath));
+  const opfText = await readEntryText(entryMap.get(opfPath), { signal });
   const opfDoc = parseXml(opfText, opfPath);
   const opfDir = opfPath.includes("/") ? opfPath.split("/").slice(0, -1).join("/") : "";
   const manifest = manifestItems(opfDoc, opfDir);
