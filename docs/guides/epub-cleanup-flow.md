@@ -179,7 +179,7 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --form
 
 ## 14. 标准 `notes.md` 模板
 
-```md
+````md
 # 清洗记录：<书名>
 
 > 日期：<DATE>
@@ -216,6 +216,20 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --form
 python3 scripts/validate_text_invariance.py before/source.epub after/cleaned.epub --check all
 ```
 
+## 5. Diff 概览
+
+- 结构：unchanged
+- 文本：identical
+- 样式：N selector 改动
+- 资源：N add / delete / modified
+- 元数据：core unchanged
+
+## 6. 可信度评估
+
+- 红线触发数：0
+- 结论：自动通过
+````
+
 ## 15. 自造 demo
 
 首轮端到端演示不依赖公版书。先生成仓库自造样本：
@@ -248,17 +262,3 @@ python3 scripts/validate_text_invariance.py \
 ```
 
 前两条必须通过；反例必须失败。
-
-## 5. Diff 概览
-
-- 结构：unchanged
-- 文本：identical
-- 样式：N selector 改动
-- 资源：N add / delete / modified
-- 元数据：core unchanged
-
-## 6. 可信度评估
-
-- 红线触发数：0
-- 结论：自动通过
-```
