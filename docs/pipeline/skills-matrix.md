@@ -1,6 +1,10 @@
 # Skills × 流程步骤映射表
 
 > 14 个现有 skill 在「清洗流水线」与「新书制作」中的角色。
+>
+> `scripts/epub_ai_harness.py --mode cleanup` 输出的 `recommended_skills` 是候选清单，不是自动执行顺序。实际清洗顺序必须由操作者按 findings、[cleanup-patterns.md](cleanup-patterns.md) 和 SPEC §10 决定。
+>
+> 各 SKILL.md 中的 Dry-run / `--commit` 约定是 AI 行为契约：调用方应先给出预期改动和红线风险，再经确认执行写盘。本仓没有提供统一的 `<skill-invocation>` CLI，也不会自动强制 `--commit` flag。
 
 ## 总表
 
@@ -33,4 +37,4 @@
 6. `epub-legacy-footnote-fallback`（可选）
 7. `epub-kindle-compatibility-checker`
 
-每两个 skill 之间跑 `validate_text_invariance.py` + dry-run 审查。
+每个 skill 执行前先做 dry-run 审查；每次实际写盘后立刻跑 `validate_text_invariance.py`。
