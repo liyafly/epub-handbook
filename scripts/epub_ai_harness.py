@@ -32,6 +32,7 @@ FONT_MEDIA_TYPES = {
   "application/vnd.ms-opentype",
 }
 PDF_EXTS = {".pdf"}
+LEVEL_ORDER = {"error": 0, "warn": 1, "info": 2}
 
 
 def split_props(value: str | None) -> set[str]:
@@ -78,17 +79,28 @@ class Report:
     self.summary: dict[str, object] = {}
     self.findings: list[dict[str, str]] = []
     self.skills: list[str] = []
+    self.skill_levels: dict[str, str] = {}
     self.commands: list[str] = []
     self.tools: dict[str, bool] = {}
 
-  def add_skill(self, name: str) -> None:
+  def add_skill(self, name: str, level: str = "info") -> None:
     skill = f"${name}"
     if skill not in self.skills:
       self.skills.append(skill)
+    current = self.skill_levels.get(skill)
+    if current is None or LEVEL_ORDER[level] < LEVEL_ORDER[current]:
+      self.skill_levels[skill] = level
 
   def add_command(self, command: str) -> None:
     if command not in self.commands:
       self.commands.append(command)
+
+  def findings_by_level(self) -> dict[str, int]:
+    counts = {"error": 0, "warn": 0, "info": 0}
+    for item in self.findings:
+      level = item.get("level", "info")
+      counts[level] = counts.get(level, 0) + 1
+    return counts
 
   def as_dict(self) -> dict[str, object]:
     return {
@@ -97,6 +109,7 @@ class Report:
       "input_kind": self.input_kind,
       "summary": self.summary,
       "findings": self.findings,
+      "findings_by_level": self.findings_by_level(),
       "recommended_skills": self.skills,
       "suggested_commands": self.commands,
       "tool_availability": self.tools,
@@ -179,7 +192,7 @@ def inspect_opf(
   if len(nav_items) != 1:
     level = "warn" if package_version.startswith("2") else "error"
     report.findings.append(finding(level, "EPUB 3 package should contain exactly one nav item"))
-    report.add_skill("epub-package-nav-auditor")
+    report.add_skill("epub-package-nav-auditor", level)
 
   ncx_items = [
     item for item in manifest
@@ -189,32 +202,32 @@ def inspect_opf(
   has_spine_ncx = spine_root is not None and bool(spine_root.attrib.get("toc"))
   if not ncx_items or not has_spine_ncx:
     report.findings.append(finding("warn", "Kindle/legacy delivery should keep toc.ncx and spine toc=\"ncx\""))
-    report.add_skill("epub-kindle-compatibility-checker")
-    report.add_skill("epub-package-nav-auditor")
+    report.add_skill("epub-kindle-compatibility-checker", "warn")
+    report.add_skill("epub-package-nav-auditor", "warn")
 
   cover_items = [item for item in manifest if "cover-image" in split_props(item.attrib.get("properties"))]
   meta_cover = root.find(".//opf:meta[@name='cover']", OPF_NS)
   if not cover_items or meta_cover is None:
     report.findings.append(finding("warn", "Cover should have properties=\"cover-image\" and legacy meta name=\"cover\""))
-    report.add_skill("epub-image-layout-optimizer")
-    report.add_skill("epub-kindle-compatibility-checker")
+    report.add_skill("epub-image-layout-optimizer", "warn")
+    report.add_skill("epub-kindle-compatibility-checker", "warn")
 
   for item in manifest:
     href = item.attrib.get("href")
     if not href:
       report.findings.append(finding("error", "Manifest item missing href", item.attrib.get("id")))
-      report.add_skill("epub-package-nav-auditor")
+      report.add_skill("epub-package-nav-auditor", "error")
       continue
     target = norm_join(opf_dir, href)
     if not exists(target):
       report.findings.append(finding("error", "Manifest href missing", target))
-      report.add_skill("epub-package-nav-auditor")
+      report.add_skill("epub-package-nav-auditor", "error")
 
   for itemref in spine:
     idref = itemref.attrib.get("idref")
     if not idref or idref not in href_by_id:
       report.findings.append(finding("error", "Spine idref missing from manifest", idref or "<missing>"))
-      report.add_skill("epub-package-nav-auditor")
+      report.add_skill("epub-package-nav-auditor", "error")
 
   for item in css_items:
     href = item.attrib.get("href", "")
@@ -226,13 +239,13 @@ def inspect_opf(
       linked = norm_join(posixpath.dirname(target), raw_url)
       if not exists(linked):
         report.findings.append(finding("error", "CSS url() target missing", f"{href} -> {raw_url}"))
-        report.add_skill("epub-css-layering-optimizer")
-        report.add_skill("epub-package-nav-auditor")
+        report.add_skill("epub-css-layering-optimizer", "error")
+        report.add_skill("epub-package-nav-auditor", "error")
         if Path(raw_url.split("#", 1)[0]).suffix.lower() in FONT_EXTS:
-          report.add_skill("epub-typography-optimizer")
+          report.add_skill("epub-typography-optimizer", "error")
       elif linked not in manifest_paths:
         report.findings.append(finding("error", "CSS url() target missing from OPF manifest", f"{href} -> {raw_url}"))
-        report.add_skill("epub-package-nav-auditor")
+        report.add_skill("epub-package-nav-auditor", "error")
 
   for item in image_items:
     href = item.attrib.get("href", "")
@@ -240,15 +253,15 @@ def inspect_opf(
     props = split_props(item.attrib.get("properties"))
     if ext == ".webp":
       report.findings.append(finding("warn", "WebP is not a Kindle main-path image format", href))
-      report.add_skill("epub-kindle-compatibility-checker")
-      report.add_skill("epub-image-layout-optimizer")
+      report.add_skill("epub-kindle-compatibility-checker", "warn")
+      report.add_skill("epub-image-layout-optimizer", "warn")
     elif ext == ".svg" and "cover-image" in props:
       report.findings.append(finding("warn", "SVG-only cover is risky for Kindle delivery", href))
-      report.add_skill("epub-kindle-compatibility-checker")
-      report.add_skill("epub-image-layout-optimizer")
+      report.add_skill("epub-kindle-compatibility-checker", "warn")
+      report.add_skill("epub-image-layout-optimizer", "warn")
     elif ext in {".tif", ".tiff", ".gif"}:
       report.findings.append(finding("warn", "Convert this image to JPEG/PNG for EPUB delivery", href))
-      report.add_skill("epub-image-layout-optimizer")
+      report.add_skill("epub-image-layout-optimizer", "warn")
 
   for item in xhtml_items:
     href = item.attrib.get("href", "")
@@ -265,16 +278,17 @@ def inspect_opf(
     has_math = "<math" in text or MATHML_URI in text
     if has_math and "mathml" not in props:
       report.findings.append(finding("error", "MathML XHTML item missing properties=\"mathml\"", href))
-      report.add_skill("epub-package-nav-auditor")
-      report.add_skill("epub-kindle-compatibility-checker")
+      report.add_skill("epub-package-nav-auditor", "error")
+      report.add_skill("epub-kindle-compatibility-checker", "error")
     has_svg = "<svg" in text or SVG_URI in text
     if has_svg and "svg" not in props:
       report.findings.append(finding("error", "Inline SVG XHTML item missing properties=\"svg\"", href))
-      report.add_skill("epub-package-nav-auditor")
+      report.add_skill("epub-package-nav-auditor", "error")
     if "epub:type=\"noteref\"" in text or "epub:type='noteref'" in text:
       report.add_skill("epub-popup-footnote-converter")
       if "epub:type=\"footnote\"" not in text and "epub:type='footnote'" not in text:
         report.findings.append(finding("warn", "noteref found without same-file footnote aside", href))
+        report.add_skill("epub-popup-footnote-converter", "warn")
     if "duokan-footnote" in text:
       report.add_skill("epub-legacy-footnote-fallback")
     if "writing-mode" in text or "page-vrl" in text or "<ruby" in text:
@@ -286,7 +300,7 @@ def inspect_opf(
       "This EPUB appears to be OCR-derived or scan-heavy; cleanup is unlikely to help until source intake/OCR is revisited",
       kind="ocr-residual",
     ))
-    report.add_skill("epub-source-intake")
+    report.add_skill("epub-source-intake", "warn")
 
   if media_counts["css"]:
     report.add_skill("epub-css-layering-optimizer")
@@ -316,10 +330,10 @@ def inspect_epub(path: Path, report: Report) -> None:
       first = infos[0]
       if first.filename != "mimetype" or first.compress_type != zipfile.ZIP_STORED:
         report.findings.append(finding("error", "EPUB mimetype must be first zip entry and stored"))
-        report.add_skill("epub-package-nav-auditor")
+        report.add_skill("epub-package-nav-auditor", "error")
       if "META-INF/container.xml" not in names:
         report.findings.append(finding("error", "EPUB missing META-INF/container.xml"))
-        report.add_skill("epub-package-nav-auditor")
+        report.add_skill("epub-package-nav-auditor", "error")
         return
       container = parse_xml_bytes(zf.read("META-INF/container.xml"), report, "META-INF/container.xml")
       if container is None:
@@ -328,7 +342,7 @@ def inspect_epub(path: Path, report: Report) -> None:
       opf_path = rootfile.attrib.get("full-path") if rootfile is not None else None
       if not opf_path or opf_path not in names:
         report.findings.append(finding("error", "container.xml rootfile does not resolve", opf_path or "<missing>"))
-        report.add_skill("epub-package-nav-auditor")
+        report.add_skill("epub-package-nav-auditor", "error")
         return
       opf_root = parse_xml_bytes(zf.read(opf_path), report, opf_path)
       if opf_root is None:
@@ -352,7 +366,7 @@ def inspect_epub_tree(path: Path, report: Report, opf_path: Path) -> None:
     opf_root = ET.parse(opf_path).getroot()
   except ET.ParseError as exc:
     report.findings.append(finding("error", f"OPF parse failed: {exc}", str(opf_path)))
-    report.add_skill("epub-package-nav-auditor")
+    report.add_skill("epub-package-nav-auditor", "error")
     return
   root_dir = path
   rel_opf = opf_path.relative_to(root_dir).as_posix()
@@ -395,6 +409,7 @@ def inspect_source(path: Path, report: Report) -> None:
     if not report.tools.get("pdftotext") and not report.tools.get("mutool"):
       report.findings.append(finding("warn", "No common PDF text extractor found in PATH; extraction is external to this repo"))
     report.findings.append(finding("warn", "PDF extraction requires sample-page proofreading before EPUB layout work"))
+    report.add_skill("epub-source-intake", "warn")
   elif suffix in TEXT_EXTS:
     report.findings.append(finding("info", "Text/HTML source should be structured before visual EPUB optimization"))
   elif suffix in IMAGE_EXTS:
@@ -441,11 +456,15 @@ def apply_workflow_mode(report: Report) -> None:
   if report.mode != "cleanup":
     return
   report.skills = [skill for skill in report.skills if skill != "$epub-source-intake"]
-  if "$epub-layout-auditor" in report.skills:
-    report.skills.remove("$epub-layout-auditor")
-  report.skills.insert(0, "$epub-layout-auditor")
   if report.input_kind not in {"existing-epub", "epub-source-tree"}:
     report.findings.append(finding("warn", "Cleanup mode expects an existing EPUB or EPUB source tree"))
+  rest = [skill for skill in report.skills if skill != "$epub-layout-auditor"]
+  original_order = {skill: index for index, skill in enumerate(report.skills)}
+  rest.sort(key=lambda skill: (
+    LEVEL_ORDER.get(report.skill_levels.get(skill, "info"), LEVEL_ORDER["info"]),
+    original_order[skill],
+  ))
+  report.skills = ["$epub-layout-auditor", *rest]
 
 
 def inspect_path(path: Path, workflow_mode: str = "build") -> Report:
