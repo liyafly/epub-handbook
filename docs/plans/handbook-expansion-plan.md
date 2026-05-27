@@ -436,9 +436,9 @@ done
 
 ## 专题指南
 - [guides/](guides/)
-  - 字体策略：[fonts-css-expansion-plan.md](guides/fonts-css-expansion-plan.md)
-  - CSS 分层：[css-layering-plan.md](guides/css-layering-plan.md)
-  - Demo 扩展：[demo-scene-expansion-plan.md](guides/demo-scene-expansion-plan.md)
+  - 字体策略：[fonts-css-expansion-plan.md](plans/fonts-css-expansion-plan.md)
+  - CSS 分层：[css-layering-plan.md](plans/css-layering-plan.md)
+  - Demo 扩展：[demo-scene-expansion-plan.md](plans/demo-scene-expansion-plan.md)
   - 文白对照：[classical-modern-layout.md](guides/classical-modern-layout.md)
   - 英文小说：[english-fiction-layout.md](guides/english-fiction-layout.md)
   - 章首图：[chapter-head-image.md](guides/chapter-head-image.md)
@@ -931,7 +931,7 @@ grep -q "Kindle Previewer" docs/getting-started/03-readers.md
 
 按兴趣分流：
 
-- **字体策略**：[docs/guides/fonts-css-expansion-plan.md](../guides/fonts-css-expansion-plan.md)。
+- **字体策略**：[docs/plans/fonts-css-expansion-plan.md](../plans/fonts-css-expansion-plan.md)。
 - **弹注 / 注释**：[docs/guides/duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md) + 看 `epub-popup-footnote-converter` skill。
 - **图片混排**：[docs/guides/chapter-head-image.md](../guides/chapter-head-image.md)。
 - **英文小说**：[docs/guides/english-fiction-layout.md](../guides/english-fiction-layout.md)。

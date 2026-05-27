@@ -50,7 +50,7 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
   "epub-typography-optimizer": [
     ("skills/epub-typography-optimizer/SKILL.md", "C1-body"),
     ("skills/epub-typography-optimizer/SKILL.md", "默认 `font-family` 链最多 4 段"),
-    ("docs/guides/fonts-css-expansion-plan.md", "模式 C1-body"),
+    ("docs/plans/fonts-css-expansion-plan.md", "模式 C1-body"),
     ("templates/epub-style-demo/OEBPS/Styles/fonts.css", ".book-song"),
   ],
 }
