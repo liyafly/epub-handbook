@@ -15,3 +15,14 @@
 - `lxml` 是推荐依赖，但当前核心红线脚本使用标准库实现，避免环境未安装时无法跑测试。
 - 计划文档写 Project Gutenberg #25196 为《唐诗三百首》；实测该编号是《百家姓》。
 - 2026-05-27 用户确认首轮不做公版书 demo。Stage 4 主样本改为 `samples/demo-books/` 自造 EPUB；`samples/third-party/` 仅保留为未来第三方样本占位。
+
+## 2026-05-27 文档重组
+
+按 `docs/plans/handbook-expansion-review.md` §9 重组：
+
+- `docs/guides/` 拆为 guides（场景）、plans（计划）和 pipeline（流程）。
+- `docs/final/` 收回 `epub-pro` 架构副本到 `docs/architecture/`。
+- `docs/architecture/` 承接原 `docs/reference/` 的下游参考定位。
+- `docs/final/fixtures.md` 删除。
+- `docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md` 归位到 `docs/source/`。
+- `docs/README.md` 增加新文档分类决策树。
