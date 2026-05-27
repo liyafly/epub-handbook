@@ -26,7 +26,7 @@ All processing happens in your browser. No file ever leaves your device.
 - Structure: OPF manifest, spine, nav, ncx.
 - Text: block-level SHA-256 of XHTML text content.
 - Style: CSS selectors and line-level diff.
-- Resources: images, fonts, audio, other binary files.
+- Resources: images, fonts, audio, other binary files; resource hashes are streamed through an incremental SHA-256 writer.
 - Metadata: core `dc:*` fields and other metadata.
 
 ## What this tool does not do
