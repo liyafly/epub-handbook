@@ -798,12 +798,12 @@ git mv docs/pipeline/diff-tool.md         docs/pipeline/diff-tool.md
 
 ## 核心文档（按读取顺序）
 
-1. [cleanup-flow.md](cleanup-flow.md) — 流水线主流程（健康检查 → 红线 gate → diff review → reader-matrix 回写）
-2. [cleanup-patterns.md](cleanup-patterns.md) — 典型脏 EPUB 模式识别与 skill 推荐顺序
-3. [asset-optimization.md](asset-optimization.md) — 图片与字体优化（清洗流程 §4 附件）
-4. [diff-tool.md](diff-tool.md) — EPUB Diff Web App 使用说明
-5. [skills-matrix.md](skills-matrix.md) — 14 个 skill 在清洗 / 新书流程中的角色
-6. [decisions.md](decisions.md) — Stage 落地决策与偏差记录
+1. [cleanup-flow.md](../pipeline/cleanup-flow.md) — 流水线主流程（健康检查 → 红线 gate → diff review → reader-matrix 回写）
+2. [cleanup-patterns.md](../pipeline/cleanup-patterns.md) — 典型脏 EPUB 模式识别与 skill 推荐顺序
+3. [asset-optimization.md](../pipeline/asset-optimization.md) — 图片与字体优化（清洗流程 §4 附件）
+4. [diff-tool.md](../pipeline/diff-tool.md) — EPUB Diff Web App 使用说明
+5. [skills-matrix.md](../pipeline/skills-matrix.md) — 14 个 skill 在清洗 / 新书流程中的角色
+6. [decisions.md](../pipeline/decisions.md) — Stage 落地决策与偏差记录
 
 ## SPEC 对应
 
@@ -827,7 +827,7 @@ rmdir docs/architecture
 
 ## 当前条目
 
-- [epub-pro-v1.md](epub-pro-v1.md) — 下游 `epub-pro` 实现仓的技术架构正本副本。
+- [epub-pro-v1.md](../architecture/epub-pro-v1.md) — 下游 `epub-pro` 实现仓的技术架构正本副本。
 
 ## 维护约定
 
@@ -836,7 +836,7 @@ rmdir docs/architecture
 - 本目录文件**不进 docs/final/**：它们不是 epub-handbook 的对外硬约束。
 ```
 
-注意：`docs/architecture/epub-pro-v1.md` 里如果有 internal `[XX](../final/SPEC-...)` 之类相对链接，路径不变（深度相同）；如果有 `[a](./xx.md)` 之类同目录链接需校对。
+注意：`docs/architecture/epub-pro-v1.md` 里如果有 internal `[XX](../final/SPEC-...)` 之类相对链接，路径不变（深度相同）；如果有 ``[a] -> xx.md`` 之类同目录链接需校对。
 
 #### Step 5：删除 retired fixtures index（commit: `chore(docs): retire retired fixtures index`）
 

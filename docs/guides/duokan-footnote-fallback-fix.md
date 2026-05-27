@@ -167,7 +167,7 @@
 
 ### 4.5 弹注 CSS 落点
 
-按 [css-layering-plan.md §2.1](./css-layering-plan.md)，弹注样式应统一迁到 `notes.css`。本节的新增规则也跟随迁过去：
+按 [css-layering-plan.md §2.1](../plans/css-layering-plan.md)，弹注样式应统一迁到 `notes.css`。本节的新增规则也跟随迁过去：
 
 新增（合并到 `notes.css`）：
 
