@@ -51,7 +51,7 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/source.epub
 
 ## 5. 决定是否清洗
 
-把 findings 对照 [epub-cleanup-flow.md](../guides/epub-cleanup-flow.md)：
+把 findings 对照 [cleanup-flow.md](../pipeline/cleanup-flow.md)：
 
 - 红线很多（文本错误、缺核心 metadata）-> 不要清洗，先回到源头校对。
 - 黄线为主（样式 / 字体 / 结构混乱）-> 可以进入清洗流水线。
