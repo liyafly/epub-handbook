@@ -72,7 +72,7 @@ python3 -m http.server 8000
 
 ## 与清洗流程集成
 
-见 [epub-cleanup-flow.md](epub-cleanup-flow.md)。自动红线 gate 先跑；diff 工具只负责人工可视化 review。
+见 [cleanup-flow.md](cleanup-flow.md)。自动红线 gate 先跑；diff 工具只负责人工可视化 review。
 
 ## 故障排查
 

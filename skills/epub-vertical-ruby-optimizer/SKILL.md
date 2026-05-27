@@ -98,4 +98,4 @@ cat work/dry-run.json | jq
 <skill-invocation> --commit work/before/source.epub
 ```
 
-dry-run 输出格式见 [docs/guides/epub-cleanup-flow.md](../../docs/guides/epub-cleanup-flow.md)。
+dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。
