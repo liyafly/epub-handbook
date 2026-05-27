@@ -9,6 +9,7 @@
 | Q3 | AI 改动黄线是否可配置 | 不可配置 | 清洗边界统一由 SPEC §10 管 |
 | Q4 | 公版书实体 .epub 是否入 Git | 不入；首轮 demo 改用自造 EPUB | 仓库体积、来源溯源和演示版式都更稳 |
 | Q5 | Web app 入口位置 | `tools/epub-diff/` | 与 fixture、docs 分离，作为用户工具 |
+| Q6 | `samples/fixtures-tiny/` 是否补齐真实 EPUB fixture | 暂不补齐；保留目录骨架和 README 作为未来手工扩展槽位 | 当前自动化测试已在 `scripts/test_validate_text_invariance.py` 内即时构造等价 EPUB，避免维护两套同类测试样本 |
 
 ## 计划偏差记录
 
