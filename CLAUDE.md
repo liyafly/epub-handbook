@@ -8,7 +8,12 @@
 2. `docs/final/`：对外约束层，任何改动都应视为规范变更；必须由 demo fixture 或明确实测结果支撑。
 3. `skills/*/SKILL.md`：自动化行为契约，修改需保持向后兼容。
 4. `docs/guides/`：维护说明和工作流建议，不承载下游架构。
-5. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
+5. `docs/getting-started/`：入门教程，可自由补充；遇到与 final/ 冲突时以 final/ 为准。
+6. `docs/pipeline/`：批处理流水线工作流文档，与 docs/guides/ 同级。
+7. `tools/`：面向用户 / maintainer 的本地工具（如 epub-diff web app）。修改要保证「双击即用」的最小依赖原则。
+8. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
+9. `samples/demo-books/`：自造清洗 / diff 演示样本；生成的 .epub 不入 git。
+10. `samples/third-party/`：未来公版书样本与许可记录；实体 .epub 不入 git。
 
 ## 关键约束
 
@@ -28,7 +33,8 @@
 - 修改弹注结构后必须运行 `scripts/validate-popup-notes.sh`；构建 EPUB 后优先用 `scripts/validate-popup-notes.sh --epub <artifact>` 复核打包产物。
 - 任何从阅读器实测得出的规则，必须能追溯到具体 demo 文件、构建产物、阅读器名称/版本、现象描述和处理结论；缺少这些信息时，只能记录为待验证假设，不能写成最终约束。
 - 每次新增、修复或推翻一个兼容性判断，都必须实时更新 `docs/final/reader-matrix.yaml`。若该判断会影响制作规则，必须继续更新 SPEC、终极手册、速查表；若会影响自动化行为，再同步更新相关 skill。
-- 任何新增第三方 EPUB 参考样本，必须同步更新 `THIRD_PARTY.md`（来源/作者/许可/链接）。
+- 任何新增第三方 EPUB 参考样本，必须同步更新 `THIRD_PARTY.md`（来源/作者/许可/链接）。首轮清洗 demo 优先使用 `samples/demo-books/` 自造样本。
+- 已有 EPUB 清洗必须遵守 `docs/final/SPEC-实现约束.md` §10：清洗前保留 before，改后运行 `scripts/validate_text_invariance.py`，人工 review 用 `tools/epub-diff/index.html`。
 
 ## 实测回写闭环
 

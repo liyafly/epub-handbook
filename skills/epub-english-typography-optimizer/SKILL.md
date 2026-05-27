@@ -140,3 +140,22 @@ git diff --check
 ```
 
 阅读器复测至少覆盖 Readest、Kindle Previewer 和 Apple Books；记录默认字号和大字号两种状态。
+
+## Dry-run 约定
+
+本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
+
+调用示例：
+
+```sh
+# 预览
+<skill-invocation> work/before/source.epub > work/dry-run.json
+
+# 审查
+cat work/dry-run.json | jq
+
+# 确认后执行
+<skill-invocation> --commit work/before/source.epub
+```
+
+dry-run 输出格式见 [docs/guides/epub-cleanup-flow.md](../../docs/guides/epub-cleanup-flow.md)。
