@@ -1,5 +1,5 @@
 import { formatBytes } from "../util/format.js";
-import { renderLineDiff } from "./pierre-diff.js";
+import { renderLineDiff } from "./line-diff.js";
 
 function row(cells) {
   return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;

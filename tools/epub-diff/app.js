@@ -7,7 +7,6 @@ import { diffMetadata } from "./layers/metadata.js";
 import { renderDiffView } from "./render/diff-view.js";
 import { showView, setProgress } from "./render/loading.js";
 import { setupTheme } from "./render/theme.js";
-import { loadPierreDiffs } from "./render/pierre-diff.js";
 
 const state = {
   beforeFile: null,
@@ -57,7 +56,6 @@ async function compare() {
   state.cancelled = false;
   showView("loading");
   try {
-    await loadPierreDiffs();
     setProgress(5, "Opening before EPUB");
     const before = await parseEpub(state.beforeFile, (msg) => setProgress(10, msg));
     throwIfCancelled();

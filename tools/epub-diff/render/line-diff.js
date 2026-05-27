@@ -1,15 +1,3 @@
-let pierreAttempted = false;
-
-export async function loadPierreDiffs() {
-  if (pierreAttempted) return;
-  pierreAttempted = true;
-  try {
-    await import("../assets/vendor/pierre-diffs.js");
-  } catch {
-    // The app keeps a built-in renderer so missing vendor assets do not hide all diff data.
-  }
-}
-
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
