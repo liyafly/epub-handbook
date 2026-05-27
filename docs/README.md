@@ -17,8 +17,8 @@
 ## 工程契约层
 
 - [final/SPEC-实现约束.md](final/SPEC-实现约束.md)：实现硬规则
-- [final/EPUB 3 终极实践手册.md](final/EPUB%203%20终极实践手册.md)：对外手册
-- [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB%203%20HTML%20CSS%20属性速查表.md)：属性速查表
+- [final/EPUB 3 终极实践手册.md](final/EPUB 3 终极实践手册.md)：对外手册
+- [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB 3 HTML CSS 属性速查表.md)：属性速查表
 - [final/reader-matrix.yaml](final/reader-matrix.yaml)：阅读器兼容性实测矩阵
 
 ## 场景指南
