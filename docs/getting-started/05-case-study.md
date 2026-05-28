@@ -1,6 +1,6 @@
 # 自造 EPUB 清洗演示案例
 
-本页汇总 Stage 4 的自造 before / after EPUB。`samples/demo-books/dist/` 下的生成产物可入 Git，方便直接演示；每个样本目录提供 `notes.md` 复现流程。
+本页汇总 Stage 4 的自造 before / after EPUB。生成产物不入 Git；每个样本目录提供 `notes.md` 复现流程。
 
 ## 先生成样本
 
