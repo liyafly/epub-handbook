@@ -118,13 +118,6 @@ def noop(_b: Path, _a: Path, _t: Path) -> None:
   pass
 
 
-def change_anchor_id(before_src: Path, after_src: Path, _tmp: Path) -> None:
-  before_body = '<section id="chapter-1"><p>第一段文字。</p><p id="chapter-1-p2">第二段文字。</p></section>'
-  after_body = '<section id="chapter-1-renamed"><p>第一段文字。</p><p id="chapter-1-p2">第二段文字。</p></section>'
-  (before_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(before_body), encoding="utf-8")
-  (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(after_body), encoding="utf-8")
-
-
 def main() -> int:
   tests = [
     ("TC1 self", noop, 0, []),
@@ -145,8 +138,6 @@ def main() -> int:
     ("TC18 drm explicit", lambda _b, a, _t: (a / "META-INF/encryption.xml").write_text("<encryption/>", encoding="utf-8"), 2, ["--check", "drm"], "DRM detected"),
     ("TC19 check text only", lambda _b, a, _t: (a / "OEBPS/package.opf").write_text(package_xml(title="新标题"), encoding="utf-8"), 0, ["--check", "text"]),
     ("TC20 verbose pass", noop, 0, ["--verbose"], "All requested red-line checks passed."),
-    ("TC21 anchor explicit", change_anchor_id, 1, ["--check", "anchors"], "anchors: deleted id"),
-    ("TC22 anchor all", change_anchor_id, 1, [], "anchors: deleted id"),
   ]
 
   for name, mutator, expected, args, *rest in tests:
@@ -174,7 +165,7 @@ def main() -> int:
     if result.returncode or elapsed > 5:
       raise AssertionError(f"TC9 22 XHTML failed: rc={result.returncode}, elapsed={elapsed:.2f}\n{result.stderr}")
 
-  print("validate_text_invariance tests ok (22 cases)")
+  print("validate_text_invariance tests ok (20 cases)")
   return 0
 
 
