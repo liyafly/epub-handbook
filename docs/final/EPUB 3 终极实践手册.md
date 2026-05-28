@@ -1134,7 +1134,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - Amazon: [Kindle Publishing Guidelines](https://kindlegen.s3.amazonaws.com/AmazonKindlePublishingGuidelines.pdf?rw_useCurrentProtocol=1)
 - W3C: [EPUB 3.3](https://www.w3.org/TR/epub-33/)
 - MDN: [text-decoration-style](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/text-decoration-style)
-- 本项目：`docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md`
+- 本项目：`docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md`
 
 
 ### 自检补充（A-lite / 弹注 / 字体）
