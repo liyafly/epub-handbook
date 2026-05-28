@@ -37,7 +37,7 @@ bash scripts/validate-popup-notes.sh --epub "$EPUB"
 
 退出码 0 = 通过。
 
-### 4. 改一段文字，重新构建，再用 diff 工具看看改了什么
+### 4. 改一段文字，重新构建，再用外部 diff 工具看看改了什么
 
 ```sh
 # 编辑 templates/epub-style-demo/OEBPS/Text/01-body.xhtml，改一行文字
@@ -45,7 +45,7 @@ bash templates/epub-style-demo/build.sh
 ls -t templates/epub-style-demo/dist/*.epub | head -2
 ```
 
-把 `tools/epub-diff/index.html` 用浏览器打开，选这两个 epub 做对比。
+按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 对比这两个 epub。
 
 ### 5. 用阅读器打开
 

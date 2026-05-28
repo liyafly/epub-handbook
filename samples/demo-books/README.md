@@ -1,6 +1,6 @@
 # 自造 EPUB 演示样本
 
-本目录放完全由本仓自造的 EPUB demo。它们用于演示清洗流水线、红线 gate 和 `tools/epub-diff/`，不依赖公版书来源。
+本目录放完全由本仓自造的 EPUB demo。它们用于演示清洗流水线、红线 gate 和 外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)），不依赖公版书来源。
 
 `dist/` 下的自造 `.epub` 和 `manifest.json` 可以入 Git，方便用户不构建也能直接打开 diff 工具演示。
 
@@ -43,9 +43,9 @@ python3 scripts/validate_text_invariance.py \
   --check all
 ```
 
-## Diff 工具演示
+## Diff 演示
 
-打开 `tools/epub-diff/index.html`，选择任意 before / after 对：
+按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 选 before / after 对：
 
 - `city-field-notes`：应看到样式、资源和结构层变化；文本层保持一致。
 - `paper-garden`：应看到 CSS 与资源变化；文本层保持一致。

@@ -20,7 +20,7 @@
 >
 > - Stage 1：入门层、文档目录重组和索引已落地。
 > - Stage 2：SPEC §10、`validate_text_invariance.py`、cleanup 流程、skills matrix 和 harness 已落地；红线 gate 已覆盖 text / metadata / spine / cover / DRM / anchors。
-> - Stage 3：`tools/epub-diff/` 已落地为纯静态 app；资源层使用流式 SHA-256，diff 渲染为内置 line diff，支持渐进取消和 modified 图片预览。
+> - Stage 3：~~`tools/epub-diff/` 已落地为纯静态 app；资源层使用流式 SHA-256，diff 渲染为内置 line diff，支持渐进取消和 modified 图片预览。~~ **已于 2026-05-28 整体移除整个 `tools/` 目录**；diff review 切到 Calibre Editor / VS Code，工作流写在根 `README.md` 的 `#epub-diff-review` 段。执行记录见 [2026-05-28-remove-epub-diff.md](./2026-05-28-remove-epub-diff.md)。本文件正文里仍出现 `tools/epub-diff/` 引用，作为历史快照保留。
 > - Stage 4：v1 使用 `samples/demo-books/` 自造样本和 case study；公版书 demo 不再作为本轮交付项。
 
 ---

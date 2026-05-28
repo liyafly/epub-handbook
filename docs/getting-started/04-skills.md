@@ -13,7 +13,7 @@
 2. 已有 EPUB 先用 `epub-layout-auditor` 做总审稿。
 3. 按 findings 分派到专项 skill。
 4. 每次改动后运行 `scripts/validate_text_invariance.py`。
-5. 用 `tools/epub-diff/index.html` 做人工 diff review。
+5. 按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 做人工 diff review。
 
 ## 当前 skill 一览
 

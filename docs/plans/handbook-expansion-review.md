@@ -1,4 +1,7 @@
 # 手册扩展计划落地 Review 与续做指南
+> **2026-05-28 更新**：本 review 中关于 `tools/epub-diff/` 的所有 P0 / P2 条目（流式 SHA-256、@pierre/diffs、AbortSignal、modified 图片缩略图、vendor 升级流程文档）均已**作废**，因为整个 `tools/` 目录于 2026-05-28 整体移除。后续 diff review 走 Calibre / VS Code，见根 `README.md` 的 `#epub-diff-review` 段与 [2026-05-28-remove-epub-diff.md](./2026-05-28-remove-epub-diff.md)。正文保留为历史快照。
+>
+
 
 > **审稿对象**：`docs/plans/handbook-expansion-plan.md`（Claude 草稿，2026-05-26）
 > 与本分支 `codex/handbook-expansion-pipeline-diff`（commit `6806868`、`7e0bb36`）相对于 `develop` 的落地差异。
