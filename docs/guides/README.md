@@ -38,4 +38,4 @@
 - `docs/final/` 仍是对外稳定手册与约束层；SPEC §1 / §7 / §8 与终极手册的改动都通过本目录的 plan 文档驱动。
 - `docs/source/` 和 `docs/experiments/` 仍保留推导、补充与实验过程。
 - `templates/` 放可运行、可打包、可对比的 EPUB 样式样本；本目录的 plan 文档落地后，回写产物（XHTML、CSS、构建脚本输出）都进 `templates/`。
-- `docs/architecture/epub-pro-v1.md` 是架构正本，当前保持现状。
+- `docs/final/epub-pro 技术架构 v1.md` 是架构正本，当前保持现状。

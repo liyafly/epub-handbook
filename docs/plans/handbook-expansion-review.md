@@ -563,7 +563,7 @@ python3 scripts/validate_text_invariance.py \
 | `docs/experiments/` | 5 | ~1210 | 复盘与实测笔记 + **「补充 05」(529 行) 错位**（内容是 source 类） |
 | `docs/getting-started/` | 9 | ~700 | 入门层 |
 | `docs/pipeline/` | 3 | ~90 | 流水线占位（极小） |
-| `docs/architecture/` | 1 | ~10 | 仅 README，引用 final/ 里的 epub-pro 文档 |
+| `docs/reference/` | 1 | ~10 | 仅 README，引用 final/ 里的 epub-pro 文档 |
 | 根 README + 索引 | 2 | ~110 | docs/README.md + 主 README |
 
 **主要问题**：
@@ -575,7 +575,7 @@ python3 scripts/validate_text_invariance.py \
    - **(d) 工具说明**（应迁到 pipeline/ 或就近）：`diff-tool.md`
    - `docs/guides/README.md` 自己已经感觉到这种混杂（中段写「落地顺序」给的是 (b) 的执行顺序，对 (a) 类用户毫无意义）。
 
-2. **`docs/architecture/` 归位**：`epub-pro 技术架构 v1.md`（779 行）按 `docs/architecture/README.md` 的声明属于「下游 epub-pro 实现仓的参考副本」，**不是 epub-handbook 的对外约束**；放在 `docs/final/` 会让人误以为它和 SPEC 同级。
+2. **`docs/final/` 越界**：`epub-pro 技术架构 v1.md`（779 行）按 `docs/reference/README.md` 的声明属于「下游 epub-pro 实现仓的参考副本」，**不是 epub-handbook 的对外约束**；放在 `docs/final/` 会让人误以为它和 SPEC 同级。
 
 3. **`docs/final/fixtures.md`**（11 行）：是历史小文件，与 reader-matrix.yaml + SCENE_MATRIX 有内容重叠，且没有入口指向它。
 
@@ -585,7 +585,7 @@ python3 scripts/validate_text_invariance.py \
 
 6. **`docs/pipeline/` 太空**：3 个文件 90 行，把它升级为「流水线主目录」可以承接 (c) (d) 类文档。
 
-7. **`docs/architecture/` 只剩一个 11 行的 README**：完全可以合并到一个新的 `docs/architecture/` 目录，或干脆删除。
+7. **`docs/reference/` 只剩一个 11 行的 README**：完全可以合并到一个新的 `docs/architecture/` 目录，或干脆删除。
 
 ### 9.2 目标目录结构（重组后）
 
@@ -632,7 +632,7 @@ docs/
 │   └── skills-and-templates.md               # ← 从 guides/ 迁（仓库维护说明）
 │
 ├── architecture/                             # 新建：下游 / 周边架构参考（2 文件）
-│   ├── README.md                             # 合并自 docs/architecture/README.md
+│   ├── README.md                             # 合并自 docs/reference/README.md
 │   └── epub-pro-v1.md                        # ← 从 final/ 迁，去掉文件名中的空格
 │
 ├── source/                                   # 推导稿（6 文件）
@@ -648,7 +648,7 @@ docs/
 
 # 删除：
 # - docs/final/fixtures.md   （11 行，无入口引用；若内容必须保留，先合并到 reader-matrix.yaml 注释或 SCENE_MATRIX）
-# - docs/architecture/            （目录整体并入 docs/architecture/）
+# - docs/reference/            （目录整体并入 docs/architecture/）
 ```
 
 **计数变化**：
@@ -660,7 +660,7 @@ docs/
 - `docs/final/`：6 → 4 — 严格成为「上游硬约束」。
 - `docs/experiments/`：5 → 4 — 名实相符。
 - `docs/source/`：5 → 6 — 收回补充 05。
-- `docs/architecture/`：1 → 0（删除）。
+- `docs/reference/`：1 → 0（删除）。
 
 ### 9.3 分类原则（写进重组后的 docs/README.md）
 
@@ -813,9 +813,9 @@ git mv docs/pipeline/diff-tool.md         docs/pipeline/diff-tool.md
 #### Step 4：迁移 final → architecture（commit: `chore(docs): move epub-pro architecture out of final/`）
 
 ```sh
-git mv "docs/architecture/epub-pro-v1.md" docs/architecture/epub-pro-v1.md
-git mv docs/architecture/README.md             docs/architecture/README.md
-rmdir docs/architecture
+git mv "docs/final/epub-pro 技术架构 v1.md" docs/architecture/epub-pro-v1.md
+git mv docs/reference/README.md             docs/architecture/README.md
+rmdir docs/reference
 ```
 
 `docs/architecture/README.md` 改写为：
@@ -865,7 +865,7 @@ git mv "docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md" "do
 - `docs/README.md`：按 9.2 的新结构重排，加 9.3 决策树作为「我该把新文档放哪」段。
 - `docs/guides/README.md`：删除已迁出文件的描述，只保留 6 个场景指南；去掉中段那个「落地顺序」（那是给 plans/ 的，不是给 guides/ 的）。
 - 根 `README.md`：第二个表「我要做什么？」表里的链接不需要改（指向目录而不是文件）。
-- `CLAUDE.md` 优先级表里如果有具体文件路径，按新位置更新（grep `docs/plans/handbook|docs/plans/css-layering|docs/plans/fonts-css-expansion|docs/plans/demo-scene-expansion|docs/plans/skills-and-templates|docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization\|docs/architecture/epub-pro\|docs/final/fixtures.md\|docs/architecture\|docs/experiments/EPUB 3 章节扉页`）。
+- `CLAUDE.md` 优先级表里如果有具体文件路径，按新位置更新（grep `docs/plans/handbook|docs/plans/css-layering|docs/plans/fonts-css-expansion|docs/plans/demo-scene-expansion|docs/plans/skills-and-templates|docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization\|docs/final/epub-pro\|docs/final/fixtures.md\|docs/reference\|docs/experiments/EPUB 3 章节扉页`）。
 
 #### Step 8：跑链接自检（commit-less，本地验证）
 
@@ -897,7 +897,7 @@ PY
 
 - docs/guides/ 拆为 guides（场景）+ plans（计划）+ pipeline（流程）。
 - docs/final/ 收回 epub-pro 架构副本到 docs/architecture/。
-- docs/architecture/ 并入 docs/architecture/。
+- docs/reference/ 并入 docs/architecture/。
 - docs/final/fixtures.md 删除。
 - docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md 归位到 source/。
 - docs/README.md 加分类决策树。
@@ -911,7 +911,7 @@ PY
 # 1. 新目录存在
 test -d docs/plans
 test -d docs/architecture
-test ! -d docs/architecture
+test ! -d docs/reference
 
 # 2. guides/ 瘦身
 test "$(ls docs/guides/*.md | wc -l)" -le 7   # README + 6 场景指南
@@ -925,7 +925,7 @@ test "$(ls docs/final/ | wc -l)" -eq 4
 # 5. 旧路径全无遗留
 ! grep -rn "migrated-plan-old-paths" . --include="*.md" --include="*.yaml" --include="*.py" --include="*.sh"
 ! grep -rn "docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization" . --include="*.md" --include="*.yaml" --include="*.py" --include="*.sh"
-! grep -rn "docs/architecture/epub-pro\|docs/final/fixtures\|docs/architecture/" . --include="*.md" --include="*.yaml"
+! grep -rn "docs/final/epub-pro\|docs/final/fixtures\|docs/reference/" . --include="*.md" --include="*.yaml"
 
 # 6. 链接自检
 python3 -c "import pathlib,re; [print(md, m.group(1)) for md in pathlib.Path('docs').rglob('*.md') for m in re.finditer(r'\\[[^\\]]+\\]\\(([^)#]+\\.(?:md|yaml))(?:#[^)]*)?\\)', md.read_text('utf-8')) if not (md.parent / m.group(1)).resolve().exists()]"
