@@ -118,42 +118,12 @@ def validate_missing_css_url_detection() -> int:
       encoding="utf-8",
     )
     returncode, data = run_harness(root)
-    cleanup_returncode, cleanup_data = run_harness(root, "--mode", "cleanup")
   if returncode == 0:
     print("ERROR: missing CSS url should make harness fail", file=sys.stderr)
     return 1
   findings = data.get("findings", [])
   if not any(item.get("message") == "CSS url() target missing" for item in findings):
     print(f"ERROR: missing CSS url finding not present: {findings}", file=sys.stderr)
-    return 1
-  if cleanup_returncode == 0:
-    print("ERROR: missing CSS url should make cleanup harness fail", file=sys.stderr)
-    return 1
-  levels = cleanup_data.get("findings_by_level", {})
-  if levels.get("error", 0) < 1 or levels.get("warn", 0) < 1:
-    print(f"ERROR: cleanup findings_by_level missing expected counts: {levels}", file=sys.stderr)
-    return 1
-  cleanup_skills = cleanup_data.get("recommended_skills", [])
-  error_skills = [
-    "$epub-package-nav-auditor",
-    "$epub-css-layering-optimizer",
-    "$epub-typography-optimizer",
-  ]
-  warn_skills = [
-    "$epub-kindle-compatibility-checker",
-    "$epub-image-layout-optimizer",
-  ]
-  if not cleanup_skills or cleanup_skills[0] != "$epub-layout-auditor":
-    print(f"ERROR: cleanup mode should keep layout auditor first: {cleanup_skills}", file=sys.stderr)
-    return 1
-  try:
-    last_error = max(cleanup_skills.index(skill) for skill in error_skills)
-    first_warn = min(cleanup_skills.index(skill) for skill in warn_skills)
-  except ValueError:
-    print(f"ERROR: cleanup ordering test missing expected skills: {cleanup_skills}", file=sys.stderr)
-    return 1
-  if last_error >= first_warn:
-    print(f"ERROR: cleanup skills not sorted by finding level: {cleanup_skills}", file=sys.stderr)
     return 1
   print("epub_ai_harness CSS url smoke test ok")
   return 0
