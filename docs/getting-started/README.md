@@ -1,6 +1,6 @@
 # 入门
 
-本目录给第一次接触本仓的人。按顺序读完这些页面，你会知道如何构建 demo、如何检查自己的 EPUB、何时使用 AI skills，以及清洗后怎么用外部 diff 工具 review。
+本目录给第一次接触本仓的人。按顺序读完这些页面，你会知道如何构建 demo、如何检查自己的 EPUB、何时使用 AI skills，以及清洗后怎么用 diff 工具 review。
 
 ## 如何使用
 
@@ -17,7 +17,7 @@
 
 - 工程契约（[docs/final/](../final/)）查看硬规则与速查表；
 - 批处理流水线（[docs/pipeline/](../pipeline/)）做批量清洗；
-- 外部 Diff 工具（按 [根 README #epub-diff-review](../../README.md#epub-diff-review) 用 Calibre / VS Code）对比改前 / 改后。
+- Diff 工具（[tools/epub-diff/index.html](../../tools/epub-diff/index.html)）对比改前 / 改后。
 
 ## 速查：一定要做 / 一定不要
 
@@ -46,7 +46,7 @@
 - **文白对照 / 古典文本**：[docs/guides/classical-modern-layout.md](../guides/classical-modern-layout.md)
 - **合集 / 大部头**：[docs/guides/anthology-navigation.md](../guides/anthology-navigation.md)
 - **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/pipeline/cleanup-flow.md](../pipeline/cleanup-flow.md)
-- **review 改前改后差异**：按 [根 README #epub-diff-review](../../README.md#epub-diff-review) 用 Calibre / VS Code
+- **review 改前改后差异**：浏览器打开 [tools/epub-diff/index.html](../../tools/epub-diff/index.html)
 - **贡献回本仓**：[CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ## 推荐阅读顺序

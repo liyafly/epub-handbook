@@ -20,5 +20,3 @@
 ## 已归档
 
 暂无。落地完成且无续做的计划，按需移到 `plans/archive/`。
-
-- `2026-05-28-remove-epub-diff.md`：移除整个 `tools/` 目录、把 diff workflow 写进根 README、丰富 README 的 review + 执行计划

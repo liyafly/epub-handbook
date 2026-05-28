@@ -20,7 +20,7 @@ bash samples/demo-books/build.sh
 2. `after` 拆成 `base.css` / `media.css` / `notes.css` / `tables.css`。
 3. 正文、核心元数据、spine 和封面不变。
 4. 用 `validate_text_invariance.py --check all` 做红线 gate。
-5. 按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 对比结构、文本、样式、资源、元数据五层。
+5. 用 `tools/epub-diff/index.html` 对比结构、文本、样式、资源、元数据五层。
 
 ## 案例 2：纸上花园观察录
 
@@ -38,10 +38,10 @@ bash samples/demo-books/build.sh
 
 - 现成 EPUB 的清洗要先守红线，再谈样式整理。
 - AI 最常用入口是 `epub-layout-auditor`，真正写盘前先 dry-run。
-- 外部 diff 工具（Calibre / VS Code）负责让人看见结构、文本、样式、资源、元数据五层变化；它不替代 reader-matrix 实测。
+- Diff 工具负责让人看见结构、文本、样式、资源、元数据五层变化；它不替代 reader-matrix 实测。
 - 自造 demo 可以覆盖脚注、表格、代码、Ruby、竖排增强和红线反例，不受第三方来源质量限制。
 
 ## 下一步
 
 - 拿你自己的 epub，跟着 [cleanup-flow.md](../pipeline/cleanup-flow.md) 跑一遍。
-- 按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 看自己的清洗结果。
+- 用 [tools/epub-diff/index.html](../../tools/epub-diff/index.html) 看自己的清洗结果。
