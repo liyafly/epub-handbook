@@ -1,187 +1,310 @@
-# EPUB Handbook
+# epub-handbook
 
-这个项目用于沉淀 EPUB 3 制作规范、实测方案、转换技能和参考样本，并作为 `epub-pro` 执行引擎的上游规范仓。
+中文 EPUB 3 制作与 AI 协作工具集。围绕「硬约束 + 自造 demo + 阅读器实测 + 自动化 skill」四件套构建：所有规则都有 demo fixture 兜底，所有阅读器兼容性结论都从实测回写，所有 AI 行为都按写定的 skill 契约执行。
 
+适合：
 
-## 上下游定位（epub-pro 对接）
+- 制作中文 EPUB 3 的工程师与编辑
+- 想用 AI 帮忙清洗已有 epub 的人
+- 想给团队约定 epub 制作规范的 maintainer
 
-- **上游输入**：阅读器实测、第三方参考 EPUB 与历史推导文档。
-- **本仓输出**：
-  - 手册（人读）
-  - 速查表（人读）
-  - 技能（半自动执行）
-  - 实现约束（机器消费，见 `docs/final/SPEC-实现约束.md`）
+## 仓库做什么
 
-## 推荐阅读入口
+1. **工程契约层** — [docs/final/](docs/final/)：SPEC、终极手册、HTML / CSS 属性速查表、阅读器兼容性实测矩阵 `reader-matrix.yaml`。这是对外硬约束。
+2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
+3. **AI 协作 skills** — [skills/](skills/)：14 个专项 skill（CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
+4. **可运行 demo** — [templates/](templates/) 与 [samples/demo-books/](samples/demo-books/)：每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
+5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
 
-1. `docs/final/EPUB 3 终极实践手册.md`
-   - 最终执行手册。
-   - 只保留推荐方案：A-lite 整页海报、字体策略、弹出注释、局部竖排、标准 CSS 写法和制作检查流程。
+## 项目目标与完成标准
 
-2. `docs/final/EPUB 3 HTML CSS 属性速查表.md`
-   - Markdown 版属性速查表。
-   - 用表格整理 HTML 标签、OPF 元数据、CSS 属性、字体、图片、注释、Ruby、竖排和兼容性状态。
+本仓的目标不是只收集 EPUB 知识，而是把它做成两个可执行产品：
 
-3. `docs/final/EPUB 3 HTML CSS 属性速查表.html`
-   - HTML 查询版。
-   - 适合本地打开后按属性名、标签名、用途或状态搜索，并逐行查看 HTML 预览样张。
+1. **新人学习排版**：从 demo、教程、SPEC 和 reader-matrix 理解中文 EPUB 3 的可重排排版规则。
+2. **已有 EPUB 精致排版工具**：对一本现成 EPUB 做 preflight、EPUB3 迁移、弹注标准化、多字体 / 内嵌字体建议、图片转化建议、AI skill 分派、红线 gate 和 diff review。
 
-4. `docs/final/SPEC-实现约束.md`
-   - 机器与实现对接优先阅读。
-   - 仅列实现约束（弹注/A-lite/字体/打包），用于执行层实现和回归测试。
+一次任务算完成，至少要留下：输入 / 输出 EPUB 路径、preflight 结果、EPUB3 迁移结果或跳过理由、精排建议 JSON、红线命令结果、diff review 结论、阅读器实测结果或跳过理由、需要回写的文档 / skill 清单。这样后来的维护者不用猜改动依据。
 
-5. `docs/final/epub-pro 技术架构 v1.md`
-   - 执行层技术蓝图（Swift/Kotlin 双核 + Rust sidecar）。
-   - 覆盖目录、接口、子集器策略、测试矩阵、分发与里程碑。
-   - 日常样式、模板和 skill 调整不改这个文件；只在执行层架构变化时更新。
+## 我要做什么？
 
-6. `docs/guides/skills-and-templates.md`
-   - skills 与模板维护建议。
-   - 说明哪些内容应该放手册、哪些应该放 skill、哪些应该放可运行模板，以及 harness/hook 的使用方式。
+| 场景 | 入口 |
+| --- | --- |
+| 第一次接手，判断怎么走 | 先看 [#项目目标与完成标准](#项目目标与完成标准)，再跑 [#5-分钟跑通](#5-分钟跑通) |
+| 从零做一本新书 | [docs/getting-started/01-first-epub.md](docs/getting-started/01-first-epub.md) → `templates/epub-style-demo/` |
+| 改造一本现成 EPUB | [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) |
+| 给一本 EPUB 出精排建议 | [docs/pipeline/refinement-harnesses.md](docs/pipeline/refinement-harnesses.md) + `scripts/epub_refinement_harness.py` |
+| 跑自造清洗样本 | [samples/demo-books/README.md](samples/demo-books/README.md) |
+| 做实时样本 demo 实验 | [templates/epub-style-demo/README.md](templates/epub-style-demo/README.md) + [templates/epub-style-demo/SCENE_MATRIX.md](templates/epub-style-demo/SCENE_MATRIX.md) |
+| 看制作硬规则 | [docs/final/SPEC-实现约束.md](docs/final/SPEC-实现约束.md) |
+| 查 HTML / CSS 属性 | [docs/final/EPUB 3 HTML CSS 属性速查表.md](docs/final/EPUB%203%20HTML%20CSS%20属性速查表.md) |
+| 看阅读器兼容性记录 | [docs/final/reader-matrix.yaml](docs/final/reader-matrix.yaml) |
+| 对比改前 / 改后 | [#epub-diff-review](#epub-diff-review) |
+| 给 AI 接入 | [skills/README.md](skills/README.md)；各 skill 的 metadata 在 `skills/*/agents/openai.yaml` |
+| 看场景化指南 | [docs/guides/](docs/guides/) |
+| 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [CLAUDE.md](CLAUDE.md) |
 
-7. `templates/epub-style-demo/`
-   - 可快速打包的 EPUB 3 样式 demo。
-   - 用于在 Apple Books、Kindle、KOReader、Thorium、Calibre 等环境对比显示效果。
+## 准备环境
 
-8. `skills/README.md`
-   - Codex/Claude Code 技能总入口。
-   - 说明已有 EPUB 优化、文本/PDF 源材料接入、专项排版修复和验证命令。
+| 必需 | 用途 |
+| --- | --- |
+| bash / zip / unzip | 打包 / 解压 EPUB |
+| python3 ≥ 3.9 | 红线脚本、harness、validator |
+| git | 仓库 + `git diff --no-index` 当 diff 引擎 |
 
-## 目录结构
+推荐：
+
+- **Calibre 5+** — 主路径 diff review（macOS / Windows / Linux 均有官方安装包）
+- **VS Code** — 精细 diff review
+- **epubcheck**（W3C 官方）— EPUB 合法性兜底；`brew install epubcheck` 或下载 zip
+- **Kindle Previewer 3** — Kindle 转换风险预检
+- **Apple Books** — macOS / iOS 实测
+- **ImageMagick `magick`** — WebP / TIFF / GIF / SVG 等图片转 JPEG / PNG
+- **oxipng / pngquant / jpegoptim / svgo** — PNG、JPEG、SVG 外部优化；本仓只检测和复查，不内置压缩器
+- **lxml** — Python 部分解析任务有性能提升；`pip install lxml`
+
+## 5 分钟跑通
+
+```sh
+bash templates/epub-style-demo/build.sh
+EPUB="$(ls -t templates/epub-style-demo/dist/*.epub | head -1)"
+bash scripts/validate-epub-style-demo.sh --epub "$EPUB"
+bash scripts/validate-popup-notes.sh --epub "$EPUB"
+```
+
+详细教程见 [docs/getting-started/01-first-epub.md](docs/getting-started/01-first-epub.md)。
+
+## 三条可执行路线
+
+### A. 实时样本 demo 实验
+
+用当前仓库里的 demo 模板验证一条规则是否能落地：
+
+```sh
+bash templates/epub-style-demo/build.sh
+EPUB="$(ls -t templates/epub-style-demo/dist/*.epub | head -1)"
+bash scripts/validate-epub-style-demo.sh --epub "$EPUB"
+bash scripts/validate-popup-notes.sh --epub "$EPUB"
+```
+
+然后把 `$EPUB` 放进 Apple Books、Kindle Previewer、Calibre 或目标阅读器看渲染。若你新增场景，同步更新 `templates/epub-style-demo/SCENE_MATRIX.md`，再按 [#实测回写闭环](#实测回写闭环) 回写结论。
+
+### B. 自造清洗样本
+
+先用本仓自造 before / after EPUB 演练清洗流程，确认红线 gate 和 diff review 都能工作：
+
+```sh
+bash samples/demo-books/build.sh
+python3 scripts/validate_text_invariance.py \
+  samples/demo-books/dist/city-field-notes-before.epub \
+  samples/demo-books/dist/city-field-notes-after-clean.epub \
+  --check all
+```
+
+再按 [#epub-diff-review](#epub-diff-review) 对 before / after 做五层 review。`redline-trap` 是故意失败的反例，用来确认正文改写会被挡住。
+
+### C. 真实 EPUB 清洗
+
+对用户给的 EPUB 只走复制件，不改原文件：
+
+```sh
+mkdir -p work/before work/after
+cp /path/to/book.epub work/before/source.epub
+python3 scripts/epub_preflight_harness.py work/before/source.epub --format json > work/preflight.json
+```
+
+如果 preflight 没有 `error`，先把 EPUB2 或缺 nav 的包迁成 EPUB3 基线：
+
+```sh
+python3 scripts/epub3_migration_harness.py \
+  work/before/source.epub \
+  --write-output work/after/step-1-epub3.epub \
+  --format json > work/epub3-migration.json
+```
+
+再让 harness 给出精排建议和 AI skill 候选：
+
+```sh
+BASE=work/after/step-1-epub3.epub
+test -f "$BASE" || BASE=work/before/source.epub
+python3 scripts/epub_refinement_harness.py "$BASE" --format json > work/refinement.json
+python3 scripts/epub_ai_harness.py --mode cleanup "$BASE" --format json > work/findings.json
+```
+
+按 `work/refinement.json` 和 `work/findings.json` 分派 skill。每一步产物都存成 `work/after/step-N.epub`，并立即跑：
+
+```sh
+python3 scripts/validate_text_invariance.py \
+  work/before/source.epub \
+  work/after/step-N.epub \
+  --check all
+```
+
+最终产物 `work/after/cleaned.epub` 还要再跑一次红线 gate，再做 [#epub-diff-review](#epub-diff-review)。完整流程见 [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md)。
+
+## 精排 harness
+
+| harness | 作用 | 输出 |
+| --- | --- | --- |
+| `scripts/epub_preflight_harness.py` | 先检查 EPUB 格式 / package 是否可处理 | `preflight_status`、结构 findings、候选 skill |
+| `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
+| `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
+
+这三个入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
+
+## EPUB diff review
+
+要对比改前 / 改后两个 EPUB（清洗前后、模板改动前后等），本仓推荐两条本地路径，二选一或组合使用。**两条都本地运行，文件不离开设备**。
+
+红线层（正文文本 / 核心 metadata / spine / 章节锚点 / 封面）由 `scripts/validate_text_invariance.py` 兜底，与本节工具无关；红线先跑，diff review 是人工补看其余四层。
+
+### 主路径：Calibre Editor（推荐）
+
+Calibre 自带的「Compare to another book」提供字符级 HTML / CSS diff、图片像素 overlay 和文件树着色。Calibre 5.x 及以上版本均支持。
+
+1. 把 `before.epub` 拖入 Calibre 主程序书库（或直接 File → Open with → Edit book…）。
+2. 选中该书 → 右键 → **Tweak Book**（快捷键 `T`）。
+3. Tweak Book 窗口 → 顶部菜单 **File → Compare to another book…**。
+4. 选 `after.epub` → 自动打开两栏比较视图。
+5. 左侧文件树着色：绿 added / 红 deleted / 黄 modified；点击任一文件进入字符级 diff。
+6. 图片差异：双击图片节点弹出像素 + 尺寸 + 体积 overlay。
+7. 字体 / 音频等二进制：Calibre 只显示「内容不同」，要核对 SHA-256 走精细路径。
+
+完成后把结论抄到工作目录的 `notes.md`，按 [docs/pipeline/cleanup-flow.md §16](docs/pipeline/cleanup-flow.md) 的标准模板组织。
+
+### 精细路径：VS Code + `unzip`
+
+适合：单文件逐行核对、PR 内贴可粘贴的 diff、批处理多本 EPUB、shell 脚本里嵌套。
+
+```sh
+# 1. 解压
+mkdir -p work/before-extracted work/after-extracted
+unzip -q before.epub -d work/before-extracted
+unzip -q after.epub  -d work/after-extracted
+
+# 2. 整树概览（不需要 git 仓库）
+git diff --no-index --stat work/before-extracted work/after-extracted
+
+# 3. 单文件字符级 diff（中英文混排都能看清）
+git diff --no-index --color-words \
+  work/before-extracted/OEBPS/Text/01-body.xhtml \
+  work/after-extracted/OEBPS/Text/01-body.xhtml
+
+# 4. VS Code 内对照单文件
+code --diff \
+  work/before-extracted/OEBPS/Styles/base.css \
+  work/after-extracted/OEBPS/Styles/base.css
+
+# 5. VS Code 整树侧边栏（需扩展 moshfeu.compare-folders）
+code work/before-extracted work/after-extracted
+# 然后命令面板 → Compare Folders: Compare With ...
+
+# 6. 资源层 SHA-256 列表
+( cd work/before-extracted && find . -type f -exec shasum -a 256 {} + ) | sort > work/before.sha256
+( cd work/after-extracted  && find . -type f -exec shasum -a 256 {} + ) | sort > work/after.sha256
+diff -u work/before.sha256 work/after.sha256
+```
+
+Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
+
+### 五层 review 清单
+
+不论用 Calibre 还是 VS Code，都必须覆盖五层。文本红线由自动化 gate 兜底，其余四层人工看。
+
+| 层 | 看什么 | 主路径（Calibre） | 精细路径（VS Code） | 自动化兜底 |
+| --- | --- | --- | --- | --- |
+| 结构 | OPF manifest / spine / nav.xhtml / toc.ncx 文件级 add/del/mod | 左侧文件树颜色 | `git diff --no-index --stat` | `validate_text_invariance.py --check spine` |
+| 文本 | XHTML 正文是否真的不变（red line） | 字符级 diff | `git diff --no-index --color-words *.xhtml` | `validate_text_invariance.py --check text`（必须 0） |
+| 样式 | CSS selector 增删、属性变更 | 字符级 diff | `--color-words *.css` 或 `code --diff` | — |
+| 资源 | 图片 / 字体 / 音频 SHA-256 与体积 | 像素 + 尺寸 overlay | `shasum -a 256` 列表 diff | `validate_text_invariance.py --check cover`（封面红线） |
+| 元数据 | dc:* / `<meta>` 字段 | OPF 字符级 diff | 同上对 `*.opf` | `validate_text_invariance.py --check metadata`（必须 0） |
+
+### 故障排查
+
+| 现象 | 解决 |
+| --- | --- |
+| Calibre Compare 菜单灰掉 | Tweak Book 必须处于编辑状态；先 `Cmd+S` 存一次再 Compare |
+| `git diff --no-index` 报「not a git repository」 | `--no-index` 模式不需要仓库；确认命令完整 |
+| `code --diff` 不弹窗 | VS Code 命令行未注册：在 VS Code 里 `Cmd+Shift+P` → `Shell Command: Install 'code' command in PATH` |
+| Calibre 看到 modified 但 diff 全空 | EPUB 内文件用了不同 EOL（CRLF vs LF）；用 `git diff --no-index --ignore-cr-at-eol` 复核 |
+| `shasum` 在 Linux 报命令缺失 | 改用 `sha256sum`；列序兼容 |
+
+### 不做什么
+
+- 不渲染 EPUB（不是阅读器）；阅读器渲染效果走 reader-matrix 实测。
+- 不替代红线 gate；红线永远靠 `validate_text_invariance.py`。
+- 不向外网传文件；本节所有命令本地执行。
+
+## 已有 EPUB 清洗
+
+主流程见 [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md)。要点：
+
+- **红线先跑**：`scripts/validate_text_invariance.py before.epub after.epub --check all` 退出码必须为 0。
+- **harness 扫描**：`python3 scripts/epub_ai_harness.py --mode cleanup input.epub` 给出 findings 与推荐 skill 顺序。
+- **分派 skill**：按 findings 依次跑专项 skill；每步保留中间 epub 作回滚锚点。
+- **人工 review**：用上节的 [EPUB diff review](#epub-diff-review)。
+- **reader-matrix 回写**：实测有变化时按 [CONTRIBUTING.md](CONTRIBUTING.md) 把结果写回 `docs/final/reader-matrix.yaml`。
+
+## AI Skills
+
+[skills/](skills/) 下每个目录是一个可读契约：判断 / 修复 / 验证三段式 `SKILL.md`。
+
+主入口：
+
+- `epub-layout-auditor` — 总审稿、风险分级、分派专项修复。
+- `epub-source-intake` — 从 txt / md / PDF / OCR 等源材料起步。
+
+专项 14 个见 [docs/getting-started/04-skills.md](docs/getting-started/04-skills.md) 反向查表。
+
+无 AI 也可用：`SKILL.md` 本身就是 Markdown 步骤说明，人工跟着走即可。
+
+## 实测回写闭环
+
+任何阅读器 / 打包兼容性判断都不允许只靠手册推断，必须：
 
 ```text
-CLAUDE.md
-
-docs/
-  final/
-    EPUB 3 终极实践手册.md
-    EPUB 3 HTML CSS 属性速查表.md
-    EPUB 3 HTML CSS 属性速查表.html
-    SPEC-实现约束.md
-    epub-pro 技术架构 v1.md
-    fixtures.md
-    reader-matrix.yaml
-  source/
-    EPUB 3 制作完全参考手册.md
-    EPUB 3 补充：其他 CSS 模块.md
-    EPUB 3 补充：列表 - 字体 - HTML 标签速查.md
-    EPUB 3 补充：图片与整版海报页.md
-    EPUB 3 补充：弹出注释与 Ruby 注音.md
-  experiments/
-    EPUB 3 章节扉页与竖排实战 · 补充 05.md
-  guides/
-    README.md
-    skills-and-templates.md
-  reference/
-    README.md
-
-references/
-  epubs/
-    EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
-
-skills/
-  README.md
-  epub-layout-auditor/
-    SKILL.md
-  epub-source-intake/
-    SKILL.md
-  epub-english-typography-optimizer/
-    SKILL.md
-  epub-alite-converter/
-    SKILL.md
-  epub-popup-footnote-converter/
-    SKILL.md
-    assets/note.png
-  epub-*/agents/openai.yaml
-
-scripts/
-  install-hooks.sh
-  epub_ai_harness.py
-  test_epub_ai_harness.py
-  validate_skills_basic.py
-  validate_epub_style_demo.py
-  validate_popup_notes.py
-
-hooks/
-  pre-commit.epub-handbook
-
-templates/
-  README.md
-  epub-style-demo/
-    README.md
-    build.sh
-    mimetype
-    META-INF/container.xml
-    OEBPS/
-      package.opf
-      nav.xhtml
-      Styles/base.css
-      Text/*.xhtml
-      Images/*.png
+1. demo 复现（templates/epub-style-demo/ 加最小场景）
+   ↓
+2. 构建（templates/epub-style-demo/build.sh）
+   ↓
+3. 阅读器实测（Kindle Previewer / Apple Books / 多看 / KOReader ...）
+   ↓
+4. 回写（docs/final/reader-matrix.yaml: pass | warn | fail | na）
+   ↓
+5. 固化规则（docs/final/SPEC-实现约束.md）
+   ↓
+6. 同步（终极手册、速查表、相关 skills）
 ```
 
-## 各目录职责
+详见 [CLAUDE.md](CLAUDE.md) 的「实测回写闭环」段。
 
-`docs/final/` 是正式文档区。后续制作 EPUB 时，优先以这里的终极手册和速查表为准。
+## 这个仓库不是什么
 
-`docs/source/` 是早期探索和补充文档区。这些内容保留原始推导、取舍和参考资料，作为溯源材料，不强制代表最终推荐写法。
+- 不是初级排版课。
+- 不是封闭格式（mobi / AZW3）的制作工具。
+- 不是 epub.js 阅读器。
+- 不是 Kindle 自费出版的运营指南。
+- 不是阅读器渲染验证工具 — 本仓 diff 只比文件，不模拟渲染；渲染效果靠 reader-matrix 实测。
 
-`docs/experiments/` 是实测记录区。当前 `05` 文档保留 A-lite 海报方案的实践过程，最终结论已经整理进终极手册。
+## 文档地图
 
-`docs/guides/` 是仓库维护说明区。这里记录 skills、模板、目录职责和后续维护建议，不承载下游技术架构。
+| 层 | 路径 | 角色 |
+| --- | --- | --- |
+| 入门 | [docs/getting-started/](docs/getting-started/) | 第一次接触本仓的人 |
+| 工程契约 | [docs/final/](docs/final/) | SPEC、终极手册、速查表、reader-matrix；对外硬约束 |
+| 场景指南 | [docs/guides/](docs/guides/) | 英文小说 / 文白对照 / 章首图 / 弹注 fallback 等 |
+| 批处理流水线 | [docs/pipeline/](docs/pipeline/) | 拿到一本现成 EPUB 后的流程 |
+| 计划 / 审稿 | [docs/plans/](docs/plans/) | 多阶段重构、阶段 review、仓库维护说明 |
+| 下游架构 | [docs/architecture/](docs/architecture/) | 周边项目架构副本 |
+| 推导 / 实验 | [docs/source/](docs/source/), [docs/experiments/](docs/experiments/) | 早期推导、实测复盘 |
 
-`references/epubs/` 是可以纳入版本管理的参考 EPUB 区。当前只放《EPub指南——从入门到放弃》。
+完整索引见 [docs/README.md](docs/README.md)。
 
-`skills/` 是 Codex/Claude Code 技能区。已有 EPUB 优化先走 `epub-layout-auditor`；只有文本、PDF、HTML 或 OCR 结果时先走 `epub-source-intake`；具体问题再切到 CSS、中文字体、英文排版、图片、竖排、弹注、Kindle、OPF/nav 或 A-lite 专项 skill。完整清单见 `skills/README.md`。
+## 协作 / 贡献
 
-`scripts/epub_ai_harness.py` 是 AI 辅助入口，用来判断输入类型、列出结构风险、推荐 skills 和下一步命令：
+阅读 [CLAUDE.md](CLAUDE.md) 了解 AI 协作约定。本仓所有约束变更都走 demo → reader-matrix → SPEC → 手册 → 速查表 → skills 的实测闭环。
 
-```sh
-scripts/epub_ai_harness.py <epub-or-source-path>
-scripts/epub_ai_harness.py <epub-or-source-path> --format json
-```
+贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-图片压缩、PDF 解析和 OCR 不在本仓实现；本仓只负责记录边界、检查 EPUB 风险和验证排版/结构。
+## 许可
 
-`templates/` 是可运行样式样本区。当前 `templates/epub-style-demo/` 可以用下面命令生成最小 EPUB，用来验证正文、Ruby、弹注、竖排、A-lite、列表、表格、代码、英文正文、图文环绕、章节头图、文白对照、便签边框和 MathML 样式：
-
-```sh
-sh templates/epub-style-demo/build.sh
-```
-
-常用校验：
-
-```sh
-scripts/validate_skills_basic.py
-scripts/test_epub_ai_harness.py
-scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
-scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>.epub
-git diff --check
-```
-
-可选安装本仓 pre-commit hook：
-
-```sh
-scripts/install-hooks.sh
-```
-
-## 忽略规则
-
-默认忽略所有 EPUB、demo 工作目录、模板生成目录和解压目录。
-
-唯一例外是：
-
-```text
-references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
-```
-
-这本入门 EPUB 会被 Git 看到，方便作为长期参考样本保留。其他 EPUB 继续只作为本地素材，不纳入版本管理。
-
-## 许可证
-
-本仓库采用双许可证：
-
-- `docs/` 下的原创手册、速查表和项目文档采用 Creative Commons Attribution 4.0 International License。
-- 仓库内的可复用 HTML/CSS/XML 代码片段、模板和 `skills/` 下的转换技能采用 MIT License。
-
-`references/epubs/` 下的第三方参考 EPUB 不属于本仓库原创内容，不包含在上述授权范围内。详见 `LICENSE` 和 `THIRD_PARTY.md`。
+代码部分 MIT；文档与样本许可参见 [THIRD_PARTY.md](THIRD_PARTY.md)。

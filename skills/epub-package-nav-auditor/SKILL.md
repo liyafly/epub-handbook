@@ -100,3 +100,22 @@ xmllint --noout templates/epub-style-demo/OEBPS/package.opf templates/epub-style
 ```
 
 如果本机没有 `xmllint`，仍要运行 Python validator；它会用标准库解析 XML，并检查 package invariants。
+
+## Dry-run 约定
+
+本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
+
+调用示例：
+
+```sh
+# 预览
+<skill-invocation> work/before/source.epub > work/dry-run.json
+
+# 审查
+cat work/dry-run.json | jq
+
+# 确认后执行
+<skill-invocation> --commit work/before/source.epub
+```
+
+dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。

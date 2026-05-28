@@ -47,9 +47,9 @@
 
 2. **`pre-commit.epub-handbook` 没有安装路径说明。**
    仓库根有 `hooks/pre-commit.epub-handbook`，但没有 `scripts/install-hooks.sh`、`README.md` 也没有说明应该如何把它链接到 `.git/hooks/pre-commit`。
-   - 建议：在 `README.md` 或 `docs/guides/skills-and-templates.md` 末尾补一句 install 指令（`ln -sf ../../hooks/pre-commit.epub-handbook .git/hooks/pre-commit`），或者干脆加一个一行的 `scripts/install-hooks.sh`。否则团队/外部贡献者拿到分支只能看 hook，没有触发它的办法。
+   - 建议：在 `README.md` 或 `docs/plans/skills-and-templates.md` 末尾补一句 install 指令（`ln -sf ../../hooks/pre-commit.epub-handbook .git/hooks/pre-commit`），或者干脆加一个一行的 `scripts/install-hooks.sh`。否则团队/外部贡献者拿到分支只能看 hook，没有触发它的办法。
 
-3. **`docs/guides/fonts-css-expansion-plan.md §6` 自引用分支名 `codex/modify-files-to-execute-in-order`。**
+3. **`docs/plans/fonts-css-expansion-plan.md §6` 自引用分支名 `codex/modify-files-to-execute-in-order`。**
    合并后这个分支名会消失，引用会成为悬空指针。
    - 建议：去掉分支名，只保留 commit hash（`c7f8617` / `a6f1902` / `f8481177`），或者改成「已合并入 main」。
 

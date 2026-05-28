@@ -150,3 +150,22 @@ body.poster-bg {
 - `.fullframe` 保持 `padding:0`；叠加文字用元素 margin 定位，不给页面骨架加 padding。
 - 竖排叠加文字使用 `writing-mode: vertical-rl` 和前缀 fallback。
 - 不引入 absolute positioning 或 fixed-layout package metadata。
+
+## Dry-run 约定
+
+本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
+
+调用示例：
+
+```sh
+# 预览
+<skill-invocation> work/before/source.epub > work/dry-run.json
+
+# 审查
+cat work/dry-run.json | jq
+
+# 确认后执行
+<skill-invocation> --commit work/before/source.epub
+```
+
+dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。

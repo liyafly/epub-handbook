@@ -9,6 +9,7 @@ _epub_reference/
 # epub 文件
 *.epub
 !references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub
+!samples/demo-books/dist/*.epub
 
 # demo 工作目录
 demo-epub/

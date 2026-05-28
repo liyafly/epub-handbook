@@ -1,0 +1,3 @@
+# Recommended for guide snippets and future OPF/XHTML utilities.
+# Core red-line scripts currently use Python stdlib xml.etree and do not require it.
+lxml>=4.9

@@ -191,3 +191,116 @@
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有专用类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
 - `<meta property="ibooks:specified-fonts">true</meta>` 作为通用预防默认始终保留，与是否嵌入字体无关——未嵌字体时它表示"用我指定的系统字体链"，避免 Apple Books 里用户的第三方字体覆盖书内排版。
+
+## §10 AI 清洗已有 EPUB 的改动边界
+
+> 本节给 AI 协作代理使用：当输入是一本已存在的 EPUB（而不是从零构造）时，AI 的改动必须落在本节边界内。
+> 任何破坏本节约束的改动都视为事故，需要回滚。
+
+### §10.1 红线（绝对不可改）
+
+AI 检测到自己将要触发以下任一改动时，必须停止并询问用户：
+
+| 红线 | 说明 | 校验方式（自动） |
+| --- | --- | --- |
+| 正文文本 | 去除标签后的纯文本不允许变化；标点、错别字、通假字一律不动 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check text` |
+| `dc:title` / `dc:creator` / `dc:identifier` / `dc:language` | OPF 核心元数据 | `--check metadata` |
+| spine 阅读顺序 | `<itemref>` 序列不可重排 | `--check spine` |
+| 章节锚点 id | 影响第三方书签、旧链接、阅读器进度 | `--check anchors` |
+| 带 `properties="cover-image"` 的封面资源 | 不擅自压缩、转格式、裁切 | `--check cover` |
+| DRM 相关 | 发现 `META-INF/encryption.xml` 或文件无法解压：立即拒绝 | `--check drm` |
+
+红线触发后的处理：
+
+1. AI 在输出里明确列出将要触发的红线条目。
+2. 让用户决定：放弃、显式授权、或调整范围。
+3. 默认行为不得是自动通过。
+
+### §10.2 黄线（默认可改，但人工 review 必须看见）
+
+AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）可视化确认：
+
+| 黄线 | 说明 |
+| --- | --- |
+| 类名、内联样式 -> 外联 CSS 的迁移 | 不改语义、只移位 |
+| manifest `properties` 推断（svg / mathml） | 按文件内容推断 |
+| nav.xhtml 结构调整 | 锚点 id 保持，只动结构 |
+| 字体策略 | 添加 / 删除 `@font-face`，不替换正文文字 |
+| 图片格式转换 | 非封面资源可转换，不能裁切或改内容 |
+| CSS selector 合并 / 拆分 | 渲染效果应保持 |
+| 非封面资源添加 | 如新增 nav.xhtml |
+
+### §10.3 绿线（可自由改，不必单独通告）
+
+| 绿线 | 说明 |
+| --- | --- |
+| CSS 缩进 / 注释 / 排序 | 纯格式化 |
+| 内部 `div` / `span` wrapper 精简 | 不改 class / id |
+| 显式删除已被 grep 确认无引用的死代码 | CSS 孤儿类、孤儿 XHTML |
+| zip 压缩等级调整 | 不改文件内容 |
+| `xml:space` / 空白处理 | 不改语义文本 |
+
+### §10.4 元规则
+
+- 改动可见性：任何改动都必须在外部 diff 工具（Calibre / VS Code）中可见；不允许秘密改动。
+- 校验时机：每次 AI 改动后立刻跑 `validate_text_invariance.py`，红线触发立即回滚。
+- DRM 检测：处理前先尝试 `unzip -l`，失败或发现 `encryption.xml` 立刻停止。
+- 来源记录：清洗操作必须有 `notes.md` 记录改了什么、为什么、用哪个 skill。
+- 可回滚：清洗前 epub 保留为 `before/` 备份；不允许就地覆盖。
+
+### §10.5 自动化 gate（CI / pre-commit / AI 自检）
+
+| 检测项 | 命令 | 通过条件 |
+| --- | --- | --- |
+| 文本红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check text` | 退出码 0 |
+| DRM 检测 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check drm` | 不输出 `DRM detected` |
+| 核心 metadata 红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check metadata` | 退出码 0 |
+| spine 红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check spine` | 退出码 0 |
+| 章节锚点红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check anchors` | 退出码 0 |
+| 封面红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check cover` | 退出码 0 |
+| 全量红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 退出码 0 |
+
+人工可视化 review 通过外部 diff 工具（Calibre Editor 主路径，VS Code + `unzip` 精细路径，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）完成，不在自动化范畴。
+
+### §10.6 能力清单（What this pipeline can / can't do）
+
+#### 能做
+
+| 问题模式 | 主路径 skill | 自动化程度 |
+| --- | --- | --- |
+| 大量内联 `style="..."` -> 抽到外联 CSS | `epub-css-layering-optimizer` | 高 |
+| 标准 footnote 缺 `epub:type`、缺 `aria-describedby` -> 补齐 | `epub-popup-footnote-converter` | 高 |
+| 多看 / 旧版阅读器需要弹注 fallback | `epub-legacy-footnote-fallback` | 高 |
+| OPF manifest 缺 `properties="svg" / "mathml"` | `epub-package-nav-auditor` | 高 |
+| nav.xhtml 缺失 / 结构破损 | `epub-package-nav-auditor` | 中 |
+| toc.ncx 与 nav.xhtml 不同步 | `epub-package-nav-auditor` | 高 |
+| 字体策略不规范 | `epub-typography-optimizer` | 中 |
+| 中英混排排版不稳 | `epub-typography-optimizer` | 高 |
+| 英文小说首字下沉 / 字体策略 | `epub-english-typography-optimizer` | 中 |
+| 图文环绕用不稳定布局 | `epub-image-layout-optimizer` | 中 |
+| Ruby 注音不规范 | `epub-vertical-ruby-optimizer` | 高 |
+| Kindle Enhanced Typesetting 转换失败 | `epub-kindle-compatibility-checker` | 中 |
+| 文学结构混在一起 | `epub-literary-structure-formatter` | 中 |
+| 普通 epub 加 A-lite 增强 | `epub-alite-converter` | 中 |
+
+#### 不能做
+
+| 问题 | 为什么不做 | 用户该怎么办 |
+| --- | --- | --- |
+| 修文字错误 / 通假字 / 错字 | 正文文本不可变 | 回到源头校对 |
+| 多语言翻译 / 译文生成 | 工具不做内容生成 | 找译者 |
+| OCR 错误（重 OCR 一次） | 不在清洗范围 | 用 `epub-source-intake` 重做 |
+| 去图片水印 / 删 DRM | 法律风险 | 找原版授权 |
+| 加批注 / 书签 / 高亮 | 不是制作方范畴 | 用阅读器自带功能 |
+| 强制改 dc:identifier / dc:title | 核心 metadata 红线 | 重新规划 source |
+| 重排 spine | 阅读顺序红线 | 在 source 阶段决定 |
+| 把固定版式改为重排 | 信息可能由版式承载 | 重新制作 |
+| 视觉效果验收 | reader-matrix 负责 | 跑 reader-matrix 流程 |
+
+#### 适配性判断
+
+跑 `python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub`，看 findings：
+
+- 找到的问题多在「能做」清单：适合走清洗流水线。
+- 找到的问题多在「不能做」清单：不要走，回到源头。
+- 一半一半：先做能做的部分，剩下的另开方案。

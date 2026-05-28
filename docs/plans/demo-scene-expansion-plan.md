@@ -2,7 +2,7 @@
 
 > 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/`。  
 > 范围：在现有 00–09 之上，新增 10–17 共 8 个 demo 页，并补 `base.css` 的视觉类、`fonts.css`（见 [fonts-css-expansion-plan.md](./fonts-css-expansion-plan.md)）、`nav.xhtml`、`package.opf`、`toc.ncx`、`SCENE_MATRIX.md`、`docs/final/reader-matrix.yaml`。  
-> 协同文档：[duokan-footnote-fallback-fix.md](./duokan-footnote-fallback-fix.md)（13 号页直接采用新 fallback 结构）、[fonts-css-expansion-plan.md](./fonts-css-expansion-plan.md)（字体类放在 fonts.css，本文档不重复字体声明）。
+> 协同文档：[duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)（13 号页直接采用新 fallback 结构）、[fonts-css-expansion-plan.md](./fonts-css-expansion-plan.md)（字体类放在 fonts.css，本文档不重复字体声明）。
 
 ---
 
@@ -200,7 +200,7 @@
 
 ### 3.4 `Text/13-duokan-rich-fallback.xhtml`
 
-> 本页采用 [duokan-footnote-fallback-fix.md](./duokan-footnote-fallback-fix.md) §3 的目标结构（`duokan-footnote-content` 挂 `<ol>`，不挂 `<li>`）。是多看 fallback 的回归 fixture。
+> 本页采用 [duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md) §3 的目标结构（`duokan-footnote-content` 挂 `<ol>`，不挂 `<li>`）。是多看 fallback 的回归 fixture。
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1172,7 +1172,7 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
 > 与项目 CLAUDE.md "demo 先行、文档后补"一致。
 
 1. 先按 [css-layering-plan.md §6](./css-layering-plan.md) 在 `OEBPS/Styles/` 下创建 `notes.css / effects.css / literary.css / media.css / vertical.css` 五个新文件，按 §4.1 清理 `base.css` 重复段并把弹注规则迁出；OPF manifest 同步加 5 条 CSS item（见本文 §6）。
-2. 按 §3 写入 8 个 XHTML（10–17；**不动** 05/06，由 [duokan-footnote-fallback-fix.md](./duokan-footnote-fallback-fix.md) §4.4 单独处理）。
+2. 按 §3 写入 8 个 XHTML（10–17；**不动** 05/06，由 [duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md) §4.4 单独处理）。
 3. 按 §4.2–§4.6 把 demo 视觉类填入对应 CSS 层；按 [fonts-css-expansion-plan.md §2](./fonts-css-expansion-plan.md) 整体替换 `fonts.css`；OPF 的 `<meta property="ibooks:specified-fonts">true</meta>` **保留**为通用预防默认（见 fonts-css-expansion-plan.md §4）。
 4. 同步 §5–§9 的 nav / opf / ncx / SCENE_MATRIX / reader-matrix（**仅 cases / readers**，不预填 expectations）。
 5. 跑 `sh templates/epub-style-demo/build.sh`，产物落 dist。
