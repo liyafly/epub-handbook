@@ -1,7 +1,7 @@
 # 资源优化：图片与字体
 
 > 状态：操作指南；用现有工具，不写新脚本。
-> 对应清洗步骤：[cleanup-flow.md](cleanup-flow.md) §4。
+> 对应清洗步骤：[epub-cleanup-flow.md](epub-cleanup-flow.md) §4。
 > 对应 SPEC：[§10.2 黄线](../final/SPEC-实现约束.md) + [§10.1 红线](../final/SPEC-实现约束.md)。
 
 ## 1. 适用范围

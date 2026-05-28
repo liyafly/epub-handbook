@@ -22,10 +22,10 @@
 ## 专题指南
 
 - [guides/](guides/)
-  - 清洗流程：[cleanup-flow.md](pipeline/cleanup-flow.md)
-  - 典型脏 epub 模式：[cleanup-patterns.md](pipeline/cleanup-patterns.md)
-  - 资源优化（图片 / 字体）：[asset-optimization.md](pipeline/asset-optimization.md)
-  - Diff 工具：[diff-tool.md](pipeline/diff-tool.md)
+  - 清洗流程：[epub-cleanup-flow.md](guides/epub-cleanup-flow.md)
+  - 典型脏 epub 模式：[epub-cleanup-patterns.md](guides/epub-cleanup-patterns.md)
+  - 资源优化（图片 / 字体）：[asset-optimization.md](guides/asset-optimization.md)
+  - Diff 工具：[epub-diff-tool.md](guides/epub-diff-tool.md)
   - 字体策略：[fonts-css-expansion-plan.md](plans/fonts-css-expansion-plan.md)
   - CSS 分层：[css-layering-plan.md](plans/css-layering-plan.md)
   - Demo 扩展：[demo-scene-expansion-plan.md](plans/demo-scene-expansion-plan.md)

@@ -45,7 +45,7 @@
 - **英文小说**：[docs/guides/english-fiction-layout.md](../guides/english-fiction-layout.md)
 - **文白对照 / 古典文本**：[docs/guides/classical-modern-layout.md](../guides/classical-modern-layout.md)
 - **合集 / 大部头**：[docs/guides/anthology-navigation.md](../guides/anthology-navigation.md)
-- **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/pipeline/cleanup-flow.md](../pipeline/cleanup-flow.md)
+- **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/guides/epub-cleanup-flow.md](../guides/epub-cleanup-flow.md)
 - **review 改前改后差异**：浏览器打开 [tools/epub-diff/index.html](../../tools/epub-diff/index.html)
 - **贡献回本仓**：[CONTRIBUTING.md](../../CONTRIBUTING.md)
 

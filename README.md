@@ -25,7 +25,7 @@ bash scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<
 
 ## 看改前 / 改后差异
 
-把 `tools/epub-diff/index.html` 用浏览器打开（双击或拖入 Chrome / Safari / Firefox），选两个 epub 文件，点 Compare。详细见 [docs/pipeline/diff-tool.md](docs/pipeline/diff-tool.md)。
+把 `tools/epub-diff/index.html` 用浏览器打开（双击或拖入 Chrome / Safari / Firefox），选两个 epub 文件，点 Compare。详细见 [docs/guides/epub-diff-tool.md](docs/guides/epub-diff-tool.md)。
 
 ## 这个仓库不是什么
 

@@ -43,5 +43,5 @@ bash samples/demo-books/build.sh
 
 ## 下一步
 
-- 拿你自己的 epub，跟着 [cleanup-flow.md](../pipeline/cleanup-flow.md) 跑一遍。
+- 拿你自己的 epub，跟着 [epub-cleanup-flow.md](../guides/epub-cleanup-flow.md) 跑一遍。
 - 用 [tools/epub-diff/index.html](../../tools/epub-diff/index.html) 看自己的清洗结果。
