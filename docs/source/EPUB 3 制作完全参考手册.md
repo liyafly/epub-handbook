@@ -781,7 +781,7 @@ code, pre {
 - ✅ 我用 Python 写了个脚本,处理了 1000 条数据。
 - ❌ 我用Python写了个脚本,处理了1000条数据。
  
-可用工具自动处理:[pangu.js](https://github.com/vinta/pangu.js/)、[autocorrect](https://github.com/huacnlee/autocorrect) 等。
+可用工具自动处理:[pangu.js](https://github.com/vinta/pangu.js)、[autocorrect](https://github.com/huacnlee/autocorrect) 等。
  
 ### 标点压缩与避头尾
  
