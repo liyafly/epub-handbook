@@ -22,7 +22,7 @@
 bash tools/epub-diff/scripts/fetch-vendor.sh
 ```
 
-这会把 `zip.js` 抓到 `tools/epub-diff/assets/vendor/`。
+这会把 `@pierre/diffs` 和 `zip.js` 抓到 `tools/epub-diff/assets/vendor/`。
 
 ## 使用
 
@@ -82,4 +82,4 @@ python3 -m http.server 8000
 | 点 Compare 后报错 `Cannot read EPUB` | 输入不是合法 zip / 缺 container / 有读取错误 |
 | 大 epub 浏览器卡死 | 资源层已流式 hash；仍可能卡在超大 XHTML / CSS 解析或浏览器内存限制，记录样本后再评估 |
 | Safari 拖拽不工作 | 改用 Choose file 按钮 |
-| CSS diff 看不到高亮 | v1 使用内置 line diff renderer，只做行级高亮 |
+| CSS diff 看不到高亮 | vendor 未加载时会退回内置 diff renderer |
