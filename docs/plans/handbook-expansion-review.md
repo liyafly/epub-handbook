@@ -557,7 +557,7 @@ python3 scripts/validate_text_invariance.py \
 
 | 目录 | 文件数 | 行数 | 当前承载内容 |
 | --- | --- | --- | --- |
-| `docs/final/` | 6 | ~3000 | 工程契约（SPEC、终极手册、速查表、reader-matrix）+ **epub-pro 架构副本（779 行，与上游约束不同维度）** + **retired fixtures index 11 行（疑似遗骸）** |
+| `docs/final/` | 6 | ~3000 | 工程契约（SPEC、终极手册、速查表、reader-matrix）+ **epub-pro 架构副本（779 行，与上游约束不同维度）** + **fixtures.md 11 行（疑似遗骸）** |
 | `docs/guides/` | 16 | ~3900 | 现行专题指南、扩展计划、流程文档、工具说明 **四种身份混在一起** |
 | `docs/source/` | 5 | ~2860 | 早期推导稿、补充材料 |
 | `docs/experiments/` | 5 | ~1210 | 复盘与实测笔记 + **「补充 05」(529 行) 错位**（内容是 source 类） |
@@ -577,7 +577,7 @@ python3 scripts/validate_text_invariance.py \
 
 2. **`docs/architecture/` 归位**：`epub-pro 技术架构 v1.md`（779 行）按 `docs/architecture/README.md` 的声明属于「下游 epub-pro 实现仓的参考副本」，**不是 epub-handbook 的对外约束**；放在 `docs/final/` 会让人误以为它和 SPEC 同级。
 
-3. **`retired fixtures index`**（11 行）：是历史小文件，与 reader-matrix.yaml + SCENE_MATRIX 有内容重叠，且没有入口指向它。
+3. **`docs/final/fixtures.md`**（11 行）：是历史小文件，与 reader-matrix.yaml + SCENE_MATRIX 有内容重叠，且没有入口指向它。
 
 4. **`docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md`**（529 行）：从命名和内容看是「source 补充」系列（`docs/source/EPUB 3 补充：...` 同名约定），错位到 experiments/。
 
@@ -647,7 +647,7 @@ docs/
     └── review-codex-modify-files-to-execute-in-order-20260525.md
 
 # 删除：
-# - retired fixtures index   （11 行，无入口引用；若内容必须保留，先合并到 reader-matrix.yaml 注释或 SCENE_MATRIX）
+# - docs/final/fixtures.md   （11 行，无入口引用；若内容必须保留，先合并到 reader-matrix.yaml 注释或 SCENE_MATRIX）
 # - docs/architecture/            （目录整体并入 docs/architecture/）
 ```
 
@@ -838,16 +838,16 @@ rmdir docs/architecture
 
 注意：`docs/architecture/epub-pro-v1.md` 里如果有 internal `[XX](../final/SPEC-...)` 之类相对链接，路径不变（深度相同）；如果有 `[a](./xx.md)` 之类同目录链接需校对。
 
-#### Step 5：删除 retired fixtures index（commit: `chore(docs): retire retired fixtures index`）
+#### Step 5：删除 fixtures.md（commit: `chore(docs): retire final/fixtures.md`）
 
 ```sh
-git rm retired fixtures index
+git rm docs/final/fixtures.md
 ```
 
 先 grep 全仓引用：
 
 ```sh
-grep -rn "retired fixtures index" --include="*.md" --include="*.yaml" .
+grep -rn "fixtures.md" --include="*.md" --include="*.yaml" .
 ```
 
 把任何引用替换为 `docs/final/reader-matrix.yaml` 或 `templates/epub-style-demo/SCENE_MATRIX.md`（按引用上下文判断）。如果 grep 出 0 处引用，直接删；如果有引用，先迁移这一两行内容到 reader-matrix 注释或 SCENE_MATRIX，再删。
@@ -865,7 +865,7 @@ git mv "docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md" "do
 - `docs/README.md`：按 9.2 的新结构重排，加 9.3 决策树作为「我该把新文档放哪」段。
 - `docs/guides/README.md`：删除已迁出文件的描述，只保留 6 个场景指南；去掉中段那个「落地顺序」（那是给 plans/ 的，不是给 guides/ 的）。
 - 根 `README.md`：第二个表「我要做什么？」表里的链接不需要改（指向目录而不是文件）。
-- `CLAUDE.md` 优先级表里如果有具体文件路径，按新位置更新（grep `docs/plans/handbook|docs/plans/css-layering|docs/plans/fonts-css-expansion|docs/plans/demo-scene-expansion|docs/plans/skills-and-templates|docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization\|docs/architecture/epub-pro\|retired fixtures index\|docs/architecture\|docs/experiments/EPUB 3 章节扉页`）。
+- `CLAUDE.md` 优先级表里如果有具体文件路径，按新位置更新（grep `docs/plans/handbook|docs/plans/css-layering|docs/plans/fonts-css-expansion|docs/plans/demo-scene-expansion|docs/plans/skills-and-templates|docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization\|docs/architecture/epub-pro\|docs/final/fixtures.md\|docs/architecture\|docs/experiments/EPUB 3 章节扉页`）。
 
 #### Step 8：跑链接自检（commit-less，本地验证）
 
@@ -898,7 +898,7 @@ PY
 - docs/guides/ 拆为 guides（场景）+ plans（计划）+ pipeline（流程）。
 - docs/final/ 收回 epub-pro 架构副本到 docs/architecture/。
 - docs/architecture/ 并入 docs/architecture/。
-- retired fixtures index 删除。
+- docs/final/fixtures.md 删除。
 - docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md 归位到 source/。
 - docs/README.md 加分类决策树。
 ```
@@ -925,7 +925,7 @@ test "$(ls docs/final/ | wc -l)" -eq 4
 # 5. 旧路径全无遗留
 ! grep -rn "migrated-plan-old-paths" . --include="*.md" --include="*.yaml" --include="*.py" --include="*.sh"
 ! grep -rn "docs/pipeline/cleanup\|docs/pipeline/diff\|docs/pipeline/asset-optimization" . --include="*.md" --include="*.yaml" --include="*.py" --include="*.sh"
-! grep -rn "retired-final-fixtures-path" . --include="*.md" --include="*.yaml"
+! grep -rn "docs/architecture/epub-pro\|docs/final/fixtures\|docs/architecture/" . --include="*.md" --include="*.yaml"
 
 # 6. 链接自检
 python3 -c "import pathlib,re; [print(md, m.group(1)) for md in pathlib.Path('docs').rglob('*.md') for m in re.finditer(r'\\[[^\\]]+\\]\\(([^)#]+\\.(?:md|yaml))(?:#[^)]*)?\\)', md.read_text('utf-8')) if not (md.parent / m.group(1)).resolve().exists()]"
@@ -968,7 +968,7 @@ markdownlint-cli2 'docs/**/*.md' 'README.md' 'CONTRIBUTING.md' 'CLAUDE.md'
 - `samples/demo-books/` 自造 EPUB 的 Kindle Previewer / Apple Books 实测复测 — 留给 reader-matrix 实测回写工作流。
 - 计划文档之外的 guides（如 `english-fiction-layout.md`、`fonts-css-expansion-plan.md` 等）的内容审计。
 - `epub-handbook` 仓库的 CI（GitHub Actions）配置审计。
-- 文档**内容**层面的合并 / 重写（§9 只做目录与命名的整理，不动文件内部内容；除非是已被识别为 retired 的 `retired fixtures index`）。
+- 文档**内容**层面的合并 / 重写（§9 只做目录与命名的整理，不动文件内部内容；除非是已被识别为 retired 的 `final/fixtures.md`）。
 
 ---
 
