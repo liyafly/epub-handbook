@@ -14,10 +14,6 @@
 - `anthology-navigation.md`：短篇全集、作品合集和分卷文集的总目录、局部目录、回本卷目录链接与 `(•)` 可访问性规则。
 - `classical-modern-layout.md`：文白对照、原文/译文对照和双文本条目的 section 结构、字体类组合、局部目录与验证清单。
 - `note-box-border-styles.md`：可重排便签、摘录框、阴影、不规则边缘和 SVG 花边实验的安全边界。
-- `epub-cleanup-flow.md`：已有 EPUB 清洗流水线，覆盖健康检查、红线 gate、diff review、批量、回滚和 notes 模板。
-- `epub-cleanup-patterns.md`：典型脏 EPUB 模式与推荐 skill 顺序。
-- `asset-optimization.md`：图片与字体优化指南，覆盖 WebP 转换、无损压缩、字体子集化和封面红线。
-- `epub-diff-tool.md`：纯静态 EPUB Diff Web App 的使用说明。
 
 > 早期 plan 文档保留推导过程；已落地的规则以 `docs/final/`、`templates/epub-style-demo/`、`skills/` 和本目录的专题指南为准。
 

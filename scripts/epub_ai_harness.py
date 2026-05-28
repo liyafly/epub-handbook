@@ -61,20 +61,17 @@ def shell_path(path: Path) -> str:
   return shlex.quote(str(path))
 
 
-def finding(level: str, message: str, path: str | None = None, kind: str | None = None) -> dict[str, str]:
+def finding(level: str, message: str, path: str | None = None) -> dict[str, str]:
   data = {"level": level, "message": message}
   if path:
     data["path"] = path
-  if kind:
-    data["kind"] = kind
   return data
 
 
 class Report:
-  def __init__(self, input_path: Path, workflow_mode: str = "build") -> None:
+  def __init__(self, input_path: Path) -> None:
     self.input = str(input_path)
-    self.mode = workflow_mode
-    self.input_kind = "unknown"
+    self.mode = "unknown"
     self.summary: dict[str, object] = {}
     self.findings: list[dict[str, str]] = []
     self.skills: list[str] = []
@@ -94,7 +91,6 @@ class Report:
     return {
       "input": self.input,
       "mode": self.mode,
-      "input_kind": self.input_kind,
       "summary": self.summary,
       "findings": self.findings,
       "recommended_skills": self.skills,
@@ -136,8 +132,6 @@ def inspect_opf(
   xhtml_items: list[ET.Element] = []
   css_items: list[ET.Element] = []
   image_items: list[ET.Element] = []
-  xhtml_text_chars = 0
-  xhtml_image_refs = 0
 
   for item in manifest:
     item_id = item.attrib.get("id")
@@ -256,9 +250,6 @@ def inspect_opf(
     if not exists(target):
       continue
     text = read_bytes(target).decode("utf-8", errors="ignore")
-    text_without_tags = re.sub(r"<[^>]+>", "", text)
-    xhtml_text_chars += len(re.sub(r"\s+", "", text_without_tags))
-    xhtml_image_refs += len(re.findall(r"<img\b", text, flags=re.I))
     props = split_props(item.attrib.get("properties"))
     if re.search(r'\b(?:xml:)?lang=["\']en(?:[-_][A-Za-z0-9]+)?["\']', text):
       report.add_skill("epub-english-typography-optimizer")
@@ -280,14 +271,6 @@ def inspect_opf(
     if "writing-mode" in text or "page-vrl" in text or "<ruby" in text:
       report.add_skill("epub-vertical-ruby-optimizer")
 
-  if xhtml_image_refs and xhtml_image_refs >= media_counts["xhtml"] and xhtml_text_chars < max(300, xhtml_image_refs * 120):
-    report.findings.append(finding(
-      "warn",
-      "This EPUB appears to be OCR-derived or scan-heavy; cleanup is unlikely to help until source intake/OCR is revisited",
-      kind="ocr-residual",
-    ))
-    report.add_skill("epub-source-intake")
-
   if media_counts["css"]:
     report.add_skill("epub-css-layering-optimizer")
   if media_counts["images"]:
@@ -299,12 +282,9 @@ def inspect_opf(
 
 
 def inspect_epub(path: Path, report: Report) -> None:
-  report.input_kind = "existing-epub"
-  mode_flag = " --mode cleanup" if report.mode == "cleanup" else ""
-  report.add_command(f"scripts/epub_ai_harness.py{mode_flag} {shell_path(path)}")
+  report.mode = "existing-epub"
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   report.add_command(f"scripts/validate-popup-notes.sh --epub {shell_path(path)}")
-  if report.mode == "cleanup":
-    report.add_command(f"python3 scripts/validate_text_invariance.py {shell_path(path)} {shell_path(path)} --check all")
   try:
     with zipfile.ZipFile(path) as zf:
       infos = zf.infolist()
@@ -341,9 +321,8 @@ def inspect_epub(path: Path, report: Report) -> None:
 
 
 def inspect_epub_tree(path: Path, report: Report, opf_path: Path) -> None:
-  report.input_kind = "epub-source-tree"
-  mode_flag = " --mode cleanup" if report.mode == "cleanup" else ""
-  report.add_command(f"scripts/epub_ai_harness.py{mode_flag} {shell_path(path)}")
+  report.mode = "epub-source-tree"
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   if path.name == "epub-style-demo":
     report.add_command("sh templates/epub-style-demo/build.sh")
     report.add_command("scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub")
@@ -384,10 +363,9 @@ def find_opf_in_tree(path: Path) -> Path | None:
 
 
 def inspect_source(path: Path, report: Report) -> None:
-  report.input_kind = "source-intake"
+  report.mode = "source-intake"
   report.add_skill("epub-source-intake")
-  mode_flag = " --mode cleanup" if report.mode == "cleanup" else ""
-  report.add_command(f"scripts/epub_ai_harness.py{mode_flag} {shell_path(path)}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   suffix = path.suffix.lower()
   if suffix in PDF_EXTS:
     for tool in ("pdftotext", "mutool", "ocrmypdf", "tesseract"):
@@ -421,10 +399,9 @@ def inspect_directory(path: Path, report: Report) -> None:
       counts["epub"] += 1
     else:
       counts["other"] += 1
-  report.input_kind = "mixed-directory" if counts["epub"] else "source-intake"
+  report.mode = "mixed-directory" if counts["epub"] else "source-intake"
   report.summary["file_counts"] = counts
-  mode_flag = " --mode cleanup" if report.mode == "cleanup" else ""
-  report.add_command(f"scripts/epub_ai_harness.py{mode_flag} {shell_path(path)}")
+  report.add_command(f"scripts/epub_ai_harness.py {shell_path(path)}")
   if counts["epub"]:
     report.add_skill("epub-layout-auditor")
   if counts["pdf"] or counts["text"]:
@@ -437,21 +414,10 @@ def inspect_directory(path: Path, report: Report) -> None:
     report.findings.append(finding("info", "Directory has no OPF/container.xml; treat as source intake"))
 
 
-def apply_workflow_mode(report: Report) -> None:
-  if report.mode != "cleanup":
-    return
-  report.skills = [skill for skill in report.skills if skill != "$epub-source-intake"]
-  if "$epub-layout-auditor" in report.skills:
-    report.skills.remove("$epub-layout-auditor")
-  report.skills.insert(0, "$epub-layout-auditor")
-  if report.input_kind not in {"existing-epub", "epub-source-tree"}:
-    report.findings.append(finding("warn", "Cleanup mode expects an existing EPUB or EPUB source tree"))
-
-
-def inspect_path(path: Path, workflow_mode: str = "build") -> Report:
-  report = Report(path, workflow_mode)
+def inspect_path(path: Path) -> Report:
+  report = Report(path)
   if not path.exists():
-    report.input_kind = "missing"
+    report.mode = "missing"
     report.findings.append(finding("error", "Input path does not exist"))
     return report
   if path.is_dir():
@@ -463,7 +429,6 @@ def inspect_path(path: Path, workflow_mode: str = "build") -> Report:
   report.add_command("scripts/validate_skills_basic.py")
   if not report.findings:
     report.findings.append(finding("info", "No immediate structural issue detected by harness"))
-  apply_workflow_mode(report)
   return report
 
 
@@ -474,7 +439,6 @@ def render_markdown(report: Report) -> str:
     "",
     f"- Input: `{data['input']}`",
     f"- Mode: `{data['mode']}`",
-    f"- Input kind: `{data['input_kind']}`",
   ]
   if data["summary"]:
     lines.extend(["", "## Summary"])
@@ -499,12 +463,11 @@ def render_markdown(report: Report) -> str:
 
 def main(argv: list[str]) -> int:
   parser = argparse.ArgumentParser(description="EPUB/source routing harness for AI-assisted workflows")
-  parser.add_argument("--mode", choices=("build", "cleanup"), default="build")
   parser.add_argument("path", type=Path, help="EPUB, EPUB source tree, PDF/text source, or mixed source directory")
   parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
   args = parser.parse_args(argv)
 
-  report = inspect_path(args.path, args.mode)
+  report = inspect_path(args.path)
   data = report.as_dict()
   if args.format == "json":
     print(json.dumps(data, ensure_ascii=False, indent=2))

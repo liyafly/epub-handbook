@@ -15,9 +15,9 @@ HARNESS = ROOT / "scripts" / "epub_ai_harness.py"
 DEMO = ROOT / "templates" / "epub-style-demo"
 
 
-def run_harness(path: Path, *extra: str) -> tuple[int, dict[str, object]]:
+def run_harness(path: Path) -> tuple[int, dict[str, object]]:
   result = subprocess.run(
-    [sys.executable, str(HARNESS), *extra, str(path), "--format", "json"],
+    [sys.executable, str(HARNESS), str(path), "--format", "json"],
     cwd=ROOT,
     check=False,
     text=True,
@@ -60,20 +60,8 @@ def validate_demo_route() -> int:
     print(f"ERROR: harness missing suggested commands: {missing_commands}", file=sys.stderr)
     return 1
 
-  if data.get("input_kind") != "epub-source-tree":
-    print(f"ERROR: expected epub-source-tree input_kind, got {data.get('input_kind')}", file=sys.stderr)
-    return 1
-
-  returncode, cleanup_data = run_harness(DEMO, "--mode", "cleanup")
-  if returncode:
-    print(json.dumps(cleanup_data, ensure_ascii=False, indent=2), file=sys.stderr)
-    return returncode
-  if cleanup_data.get("mode") != "cleanup":
-    print(f"ERROR: expected cleanup mode, got {cleanup_data.get('mode')}", file=sys.stderr)
-    return 1
-  cleanup_skills = cleanup_data.get("recommended_skills", [])
-  if not cleanup_skills or cleanup_skills[0] != "$epub-layout-auditor":
-    print(f"ERROR: cleanup mode should start with layout auditor: {cleanup_skills}", file=sys.stderr)
+  if data.get("mode") != "epub-source-tree":
+    print(f"ERROR: expected epub-source-tree mode, got {data.get('mode')}", file=sys.stderr)
     return 1
 
   print("epub_ai_harness smoke test ok")

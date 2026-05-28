@@ -95,12 +95,6 @@ cases:
   - id: 21-classical-modern
     title: 文白对照
     fixture: templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml
-  - id: synthetic-city-field-notes
-    title: 自造清洗 demo：明日城巡游手记
-    fixture: samples/demo-books/dist/city-field-notes-after-clean.epub
-  - id: synthetic-paper-garden
-    title: 自造清洗 demo：纸上花园观察录
-    fixture: samples/demo-books/dist/paper-garden-after-clean.epub
 
 expectations:
   # status: pass | warn | fail | na
@@ -320,39 +314,3 @@ expectations:
     issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
     action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
     workaround: "Thorium 作为重排对照，重点看局部目录锚点、条目分隔和大字号文本流。"
-  - reader: kindle_previewer
-    case: synthetic-city-field-notes
-    status: warn
-    reader_version: pending-kindle-previewer-version
-    artifact: samples/demo-books/dist/city-field-notes-after-clean.epub
-    failed_page: n/a
-    issue: "自造清洗 demo 已通过红线 gate；Kindle Previewer 视觉复测未执行。"
-    action: "保持 warn，不虚构 pass；待导入 Kindle Previewer 记录版本和结果。"
-    workaround: "复测前先运行 samples/demo-books/build.sh，并重新跑 validate_text_invariance.py --check all。"
-  - reader: ibooks_macos
-    case: synthetic-city-field-notes
-    status: warn
-    reader_version: pending-apple-books-version
-    artifact: samples/demo-books/dist/city-field-notes-after-clean.epub
-    failed_page: n/a
-    issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
-    action: "待本地导入后记录默认字号、大字号、表格、脚注和插图结果。"
-    workaround: "导入前先删除 Books.app 中旧版本，避免缓存。"
-  - reader: kindle_previewer
-    case: synthetic-paper-garden
-    status: warn
-    reader_version: pending-kindle-previewer-version
-    artifact: samples/demo-books/dist/paper-garden-after-clean.epub
-    failed_page: n/a
-    issue: "自造清洗 demo 已通过红线 gate；Kindle Previewer 视觉复测未执行。"
-    action: "保持 warn，不虚构 pass；重点复测诗段、Ruby、blockquote 和竖排增强降级。"
-    workaround: "如竖排增强在 Kindle 降级，仍需保持默认横排可读。"
-  - reader: ibooks_macos
-    case: synthetic-paper-garden
-    status: warn
-    reader_version: pending-apple-books-version
-    artifact: samples/demo-books/dist/paper-garden-after-clean.epub
-    failed_page: n/a
-    issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
-    action: "待本地导入后记录默认字号、大字号、Ruby 和宽屏竖排增强结果。"
-    workaround: "若用户字体设置影响竖排增强，优先保证正文源序和可读性。"
