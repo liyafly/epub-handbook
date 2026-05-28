@@ -39,7 +39,7 @@
 
 ## 读完入门后去哪？
 
-- **字体策略**：[docs/plans/fonts-css-expansion-plan.md](../plans/fonts-css-expansion-plan.md)
+- **字体策略**：[docs/guides/fonts-css-expansion-plan.md](../guides/fonts-css-expansion-plan.md)
 - **弹注 / 注释**：[docs/guides/duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)
 - **图片混排**：[docs/guides/chapter-head-image.md](../guides/chapter-head-image.md)
 - **英文小说**：[docs/guides/english-fiction-layout.md](../guides/english-fiction-layout.md)

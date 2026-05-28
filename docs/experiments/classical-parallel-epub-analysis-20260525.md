@@ -60,7 +60,7 @@ CSS url() target missing: Styles/Stylesheetcss.css -> ../Fonts/<missing-fallback
 - `scripts/test_epub_ai_harness.py`：新增缺失 CSS 字体 URL 的 smoke test。
 - `scripts/validate_popup_notes.py`：通过 `META-INF/container.xml` 定位真实 OPF；无弹注的外部 EPUB 不再因为缺少 demo 专用 `Images/note.png` 失败。
 - `docs/guides/anthology-navigation.md`：补充超大古籍/工具书的条目级目录规则。
-- `docs/plans/fonts-css-expansion-plan.md`：补充 active CSS `url()` / `@font-face src` 必须同时存在于 zip 与 OPF manifest 的检查项。
+- `docs/guides/fonts-css-expansion-plan.md`：补充 active CSS `url()` / `@font-face src` 必须同时存在于 zip 与 OPF manifest 的检查项。
 - `templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml`：文白 demo 改为样本式 `.parallel-pair > .classical-text + .modern-text`；默认上下，短组只在 `min-width:40em` 宽屏 media 内 float 增强，长组保留上下显示并允许分页。
 - `docs/guides/classical-modern-layout.md`：把“不要双栏”修正为“不要 table/flex/grid/固定版式；允许 float 渐进增强”。
 
