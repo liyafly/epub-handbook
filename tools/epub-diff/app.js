@@ -1,4 +1,4 @@
-import { parseEpub, throwIfAborted } from "./parsers/epub.js";
+import { parseEpub } from "./parsers/epub.js";
 import { diffStructure } from "./layers/structure.js";
 import { diffText } from "./layers/text.js";
 import { diffStyle } from "./layers/style.js";
@@ -12,8 +12,7 @@ const state = {
   beforeFile: null,
   afterFile: null,
   result: null,
-  abortController: null,
-  objectUrls: [],
+  cancelled: false,
 };
 
 function $(id) {
@@ -48,89 +47,53 @@ function setupFileInput(slot) {
   });
 }
 
-function isAbort(error) {
-  return error?.name === "AbortError";
-}
-
-function clearObjectUrls() {
-  for (const url of state.objectUrls) URL.revokeObjectURL(url);
-  state.objectUrls = [];
-}
-
-function createObjectUrl(blob) {
-  const url = URL.createObjectURL(blob);
-  state.objectUrls.push(url);
-  return url;
+function throwIfCancelled() {
+  if (state.cancelled) throw new Error("Cancelled");
 }
 
 async function compare() {
   $("landing-error").textContent = "";
-  state.abortController?.abort();
-  clearObjectUrls();
-  const controller = new AbortController();
-  state.abortController = controller;
-  const { signal } = controller;
-  const isCurrent = () => state.abortController === controller;
+  state.cancelled = false;
   showView("loading");
   try {
     setProgress(5, "Opening before EPUB");
-    const before = await parseEpub(state.beforeFile, (msg) => setProgress(10, msg), { signal });
-    throwIfAborted(signal);
+    const before = await parseEpub(state.beforeFile, (msg) => setProgress(10, msg));
+    throwIfCancelled();
     setProgress(25, "Opening after EPUB");
-    const after = await parseEpub(state.afterFile, (msg) => setProgress(35, msg), { signal });
-    throwIfAborted(signal);
+    const after = await parseEpub(state.afterFile, (msg) => setProgress(35, msg));
+    throwIfCancelled();
 
     setProgress(45, "Comparing structure");
-    const structure = await diffStructure(before, after, { signal });
-    throwIfAborted(signal);
+    const structure = await diffStructure(before, after);
+    throwIfCancelled();
     setProgress(55, "Comparing metadata");
-    const metadata = diffMetadata(before, after, { signal });
-    throwIfAborted(signal);
+    const metadata = diffMetadata(before, after);
+    throwIfCancelled();
     setProgress(65, "Comparing text");
-    const text = await diffText(before, after, { signal });
-    throwIfAborted(signal);
+    const text = await diffText(before, after);
+    throwIfCancelled();
     setProgress(78, "Comparing style");
-    const style = await diffStyle(before, after, { signal });
-    throwIfAborted(signal);
+    const style = await diffStyle(before, after);
+    throwIfCancelled();
     setProgress(90, "Hashing resources");
-    const resources = await diffResources(before, after, {
-      createObjectUrl,
-      onProgress: (msg) => setProgress(90, msg),
-      signal,
-    });
-    throwIfAborted(signal);
+    const resources = await diffResources(before, after);
 
     state.result = { before, after, layers: { structure, metadata, text, style, resources } };
     renderDiffView(state.result);
     setProgress(100, "Done");
     showView("diff");
   } catch (error) {
-    if (!isCurrent()) return;
-    clearObjectUrls();
-    if (isAbort(error)) {
-      $("landing-error").textContent = "Comparison cancelled.";
-    } else {
-      $("landing-error").textContent = error.message || String(error);
-    }
     showView("landing");
-  } finally {
-    if (isCurrent()) state.abortController = null;
+    $("landing-error").textContent = error.message || String(error);
   }
 }
 
 function exportJson() {
   if (!state.result) return;
-  const resourceRows = state.result.layers.resources.rows.map((row) => {
-    const { thumbnails, ...plain } = row;
-    return plain;
-  });
   const plain = {
     before: state.result.before.summary,
     after: state.result.after.summary,
-    layers: {
-      ...state.result.layers,
-      resources: { ...state.result.layers.resources, rows: resourceRows },
-    },
+    layers: state.result.layers,
   };
   const blob = new Blob([JSON.stringify(plain, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -147,13 +110,10 @@ function setup() {
   setupFileInput("after");
   $("compare-btn").addEventListener("click", compare);
   $("cancel-btn").addEventListener("click", () => {
-    state.abortController?.abort();
+    state.cancelled = true;
     showView("landing");
   });
-  $("back-btn").addEventListener("click", () => {
-    clearObjectUrls();
-    showView("landing");
-  });
+  $("back-btn").addEventListener("click", () => showView("landing"));
   $("export-json").addEventListener("click", exportJson);
   $("view-toggle").addEventListener("click", () => {
     document.body.classList.toggle("stacked");

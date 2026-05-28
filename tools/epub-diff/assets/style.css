@@ -161,33 +161,6 @@ code, pre, .diff-table { font-family: var(--mono); }
 .line-same { color: var(--muted); }
 .file-block { margin: 1rem 0; }
 .resource-list { margin: 0.5rem 0; padding-left: 1.2rem; }
-.resource-list li { margin: 0.75rem 0; }
-.resource-thumbs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 180px));
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-.resource-thumbs figure {
-  margin: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg);
-}
-.resource-thumbs img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: contain;
-  background: repeating-conic-gradient(var(--panel) 0 25%, var(--bg) 0 50%) 50% / 18px 18px;
-}
-.resource-thumbs figcaption {
-  border-top: 1px solid var(--border);
-  padding: 0.35rem 0.5rem;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
 dialog {
   border: 1px solid var(--border);
   border-radius: 8px;

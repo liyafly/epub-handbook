@@ -1,4 +1,4 @@
-import { readEntryText, throwIfAborted } from "../parsers/epub.js";
+import { readEntryText } from "../parsers/epub.js";
 
 function parseSelectors(css) {
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -11,17 +11,15 @@ function parseSelectors(css) {
   return map;
 }
 
-export async function diffStyle(before, after, options = {}) {
-  const { signal } = options;
+export async function diffStyle(before, after) {
   const paths = [...new Set([...before.cssPaths, ...after.cssPaths])].sort();
   const files = [];
   let addedSelectors = 0;
   let deletedSelectors = 0;
   let modifiedSelectors = 0;
   for (const path of paths) {
-    throwIfAborted(signal);
-    const bText = before.entryMap.has(path) ? await readEntryText(before.entryMap.get(path), { signal }) : "";
-    const aText = after.entryMap.has(path) ? await readEntryText(after.entryMap.get(path), { signal }) : "";
+    const bText = before.entryMap.has(path) ? await readEntryText(before.entryMap.get(path)) : "";
+    const aText = after.entryMap.has(path) ? await readEntryText(after.entryMap.get(path)) : "";
     const bSel = parseSelectors(bText);
     const aSel = parseSelectors(aText);
     const selectors = [...new Set([...bSel.keys(), ...aSel.keys()])];
