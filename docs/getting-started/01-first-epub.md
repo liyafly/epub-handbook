@@ -11,7 +11,7 @@
 ### 1. 克隆仓库
 
 ```sh
-git clone https://github.com/liyafly/epub-handbook.git
+git clone https://github.com/<owner>/epub-handbook.git
 cd epub-handbook
 ```
 
