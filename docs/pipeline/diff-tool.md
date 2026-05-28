@@ -13,7 +13,7 @@
 - 结构：OPF / spine / nav / ncx。
 - 文本：XHTML 段落级 hash。
 - 样式：CSS selector + line diff。
-- 资源：图片 / 字体 / 音频（流式 SHA-256）。
+- 资源：图片 / 字体 / 音频。
 - 元数据：dc:* / meta。
 
 ## 安装（一次）
@@ -80,6 +80,6 @@ python3 -m http.server 8000
 | --- | --- |
 | 打开 index.html 一片空白 | `assets/vendor/` 是空的；先跑 `fetch-vendor.sh` |
 | 点 Compare 后报错 `Cannot read EPUB` | 输入不是合法 zip / 缺 container / 有读取错误 |
-| 大 epub 浏览器卡死 | 资源层已流式 hash；仍可能卡在超大 XHTML / CSS 解析或浏览器内存限制，记录样本后再评估 |
+| 大 epub 浏览器卡死 | 浏览器内存超限；记录为开放问题 |
 | Safari 拖拽不工作 | 改用 Choose file 按钮 |
 | CSS diff 看不到高亮 | vendor 未加载时会退回内置 diff renderer |

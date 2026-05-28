@@ -1,4 +1,5 @@
-import { readEntryHash } from "../parsers/epub.js";
+import { readEntryBuffer } from "../parsers/epub.js";
+import { sha256Buffer } from "../util/hash.js";
 
 function typeOf(path) {
   const ext = path.split(".").pop()?.toLowerCase() || "";
@@ -11,8 +12,8 @@ function typeOf(path) {
 async function entryInfo(epub, path) {
   const entry = epub.entryMap.get(path);
   if (!entry) return null;
-  const { sha256, size } = await readEntryHash(entry);
-  return { path, size: entry.uncompressedSize ?? size, sha256, type: typeOf(path) };
+  const buffer = await readEntryBuffer(entry);
+  return { path, size: entry.uncompressedSize || buffer.byteLength, sha256: await sha256Buffer(buffer), type: typeOf(path) };
 }
 
 export async function diffResources(before, after) {
