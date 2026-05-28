@@ -1418,7 +1418,7 @@ python3 scripts/validate_text_invariance.py work/before/source.epub work/after/c
 **输出**：目录 + README + .gitignore。
 **时间估算**：30 分钟。
 
-**原计划目录结构（未来补真实 fixture 时使用）**：
+**目录结构**：
 
 ```text
 samples/third-party/
@@ -1426,7 +1426,7 @@ samples/third-party/
 └── .gitignore
 ```
 
-**原计划 `README.md` 内容**（未来补真实 fixture 时可作为 drop-in）：
+**`README.md` 内容**（drop-in）：
 
 ````markdown
 # 第三方 EPUB 样本
@@ -2214,12 +2214,10 @@ grep -cE "^\| \`epub-" docs/pipeline/skills-matrix.md   # 期望 14 行 skill
 
 #### S2-T13：新建 `samples/fixtures-tiny/`「微型 epub 测试 fixture」
 
-> **2026-05-27 决策更新**：本项 v1 降级为「目录骨架 + README 占位」。自动化测试继续在 `scripts/test_validate_text_invariance.py` 内即时构造 EPUB；`samples/fixtures-tiny/` 只保留未来手工 fixture 的扩展槽位。
-
 **目的**：`validate_text_invariance.py` 和 `epub_diff` 工具的测试，目前都跑完整 demo epub（22+ XHTML）。需要更小、更精准、覆盖边界情况的 fixture。
 
 **输入**：无。
-**输出**：`samples/fixtures-tiny/` 目录骨架 + README。
+**输出**：`samples/fixtures-tiny/` 目录 + 一组最小 fixture。
 **时间估算**：4–5 小时。
 
 **目录结构**：
@@ -2238,7 +2236,7 @@ samples/fixtures-tiny/
 └── drm-marker/               # 含假的 encryption.xml（仅用于 DRM 检测测试）
 ```
 
-**未来补真实 fixture 时的子目录约定**：
+**每个 fixture 子目录约定**：
 
 - `source/` 是解压状态的 epub（mimetype + META-INF + OEBPS）。
 - `build.sh` 一行：把 source 打成 `.epub` 输出到 `dist/`。
@@ -2306,8 +2304,6 @@ for f in empty-paragraphs ruby-only mathml-only multi-lang one-image-one-text ne
 done
 # 输出应为空
 ```
-
-> v1 不要求存在 `source/`、`build.sh` 或生成的 `.epub`；这些只在后续决定补真实手工 fixture 时再加入。
 
 ---
 
@@ -2830,7 +2826,7 @@ markdownlint-cli2 docs/pipeline/asset-optimization.md
 - [ ] `docs/pipeline/cleanup-patterns.md` 落地，覆盖 ≥ 7 个典型模式。
 - [ ] `docs/pipeline/skills-matrix.md` 落地，覆盖 14 个现有 skill。
 - [ ] 14 个 SKILL.md 中清洗类 skill 都加了「Dry-run 约定」段。
-- [x] `samples/fixtures-tiny/` 目录骨架 + README 落地；真实 EPUB fixture 暂不补齐。
+- [ ] `samples/fixtures-tiny/` 落地，覆盖 7 个边界情况。
 - [ ] `docs/pipeline/asset-optimization.md` 落地，覆盖图片转换 / 无损压缩 / 字体子集化；命令全用现有工具（oxipng / mozjpeg / webp / pyftsubset / glyphhanger）。
 - [ ] `samples/third-party/` 占位（README + .gitignore）。
 - [ ] `skills/epub-layout-auditor/SKILL.md` 同步（含模式目录引用）。
@@ -4461,7 +4457,7 @@ lxml>=4.9
    - S2-T10 `cleanup-flow.md` §1 健康检查 + §9–§14 新章节
    - S2-T11 11 个清洗 skill 加 `--dry-run` 约定
    - S2-T12 `docs/pipeline/skills-matrix.md`
-   - S2-T13 `samples/fixtures-tiny/` 目录骨架 + README；真实 EPUB fixture 暂缓
+   - S2-T13 `samples/fixtures-tiny/` 7 个微型 fixture
    - S2-T14 `docs/pipeline/asset-optimization.md`（图片转换、无损压缩、字体子集化，全用现有工具）
 3. commit 分五个：
    - `feat(spec): add §10 AI cleanup boundary rules and §10.6 capability matrix`
