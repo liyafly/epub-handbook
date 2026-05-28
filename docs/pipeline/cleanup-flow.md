@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于把一本已存在的 EPUB 收拾干净。
 > 对应 SPEC：[§10 AI 改动边界](../final/SPEC-实现约束.md)。
-> 对应工具：`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、`tools/epub-diff/index.html`。
+> 对应工具：`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
 
 ## 整体流程
 
@@ -78,12 +78,11 @@ python3 scripts/validate_text_invariance.py work/before/source.epub work/after/c
 
 ## 6. Diff 人工 review
 
-打开 `tools/epub-diff/index.html`：
+按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 的两条路径做：
 
-- 第一个文件拾取框选 `work/before/source.epub`。
-- 第二个选 `work/after/cleaned.epub`。
-- 点 Compare。
-- 按结构 / 文本 / 样式 / 资源 / 元数据五层逐层 review。
+- 主路径（推荐）：Calibre Editor → Tweak Book → File → Compare to another book → 选 `work/after/cleaned.epub`。
+- 精细路径：`unzip` 解压两侧到 `work/before-extracted` / `work/after-extracted`，再用 `git diff --no-index` 整树概览 / `code --diff` 逐文件 / `shasum -a 256` 列表对资源层。
+- 五层覆盖：结构 / 文本 / 样式 / 资源 / 元数据。文本红线已在 §5 卡过，本步只确认人眼看到的改动与红线放行的清洗范围一致。
 
 这一步只看文件差异，不是阅读器效果验收。阅读器效果通过 reader-matrix 单独覆盖。
 
@@ -135,7 +134,7 @@ cp work/after/step-K-*.epub work/after/cleaned.epub
 | 指标 | 来源 | 期望 |
 | --- | --- | --- |
 | 红线触发数 | `validate_text_invariance.py --check all` | 必须 0 |
-| 黄线条数 | epub-diff 报告统计 | 记录 |
+| 黄线条数 | Calibre Compare 文件树 modified 计数（或 `git diff --no-index --stat` 行数） | 记录 |
 | epubcheck error 数（after） | `epubcheck` | 不多于 before |
 | 阅读器兼容性回归 | reader-matrix 复测 | 不变差 |
 

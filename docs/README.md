@@ -50,7 +50,7 @@
 
 - 自造清洗 / diff demo：[../samples/demo-books/](../samples/demo-books/)
 - 第三方样本占位：[../samples/third-party/](../samples/third-party/)
-- EPUB Diff Web App：[../tools/epub-diff/](../tools/epub-diff/)
+- EPUB diff review 工作流：[../README.md#epub-diff-review](../README.md#epub-diff-review)（Calibre / VS Code）
 
 ## 推导与实验
 
