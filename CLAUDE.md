@@ -7,15 +7,13 @@
 1. `templates/`：可运行样式样本和机器消费源。遇到阅读器显示、打包、转换兼容性问题时，先补 demo fixture 并实测。
 2. `docs/final/`：对外约束层，任何改动都应视为规范变更；必须由 demo fixture 或明确实测结果支撑。
 3. `skills/*/SKILL.md`：自动化行为契约，修改需保持向后兼容。
-4. `docs/guides/`：场景化实操指南，不承载计划、流水线或下游架构。
+4. `docs/guides/`：维护说明和工作流建议，不承载下游架构。
 5. `docs/getting-started/`：入门教程，可自由补充；遇到与 final/ 冲突时以 final/ 为准。
 6. `docs/pipeline/`：批处理流水线工作流文档，与 docs/guides/ 同级。
-7. `docs/plans/`：计划、review 和仓库维护说明；不直接驱动行为。
-8. `docs/architecture/`：下游 / 周边架构副本，不属于对外硬约束。
-9. `tools/`：面向用户 / maintainer 的本地工具（如 epub-diff web app）。修改要保证「双击即用」的最小依赖原则。
-10. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
-11. `samples/demo-books/`：自造清洗 / diff 演示样本；生成的 .epub 不入 git。
-12. `samples/third-party/`：未来公版书样本与许可记录；实体 .epub 不入 git。
+7. `tools/`：面向用户 / maintainer 的本地工具（如 epub-diff web app）。修改要保证「双击即用」的最小依赖原则。
+8. `docs/source/`、`docs/experiments/`：推导与实验区，可自由补充但不应反向覆盖约束层。
+9. `samples/demo-books/`：自造清洗 / diff 演示样本；生成的 .epub 不入 git。
+10. `samples/third-party/`：未来公版书样本与许可记录；实体 .epub 不入 git。
 
 ## 关键约束
 
