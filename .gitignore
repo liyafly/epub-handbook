@@ -15,3 +15,5 @@ _epub_reference/
 demo-epub/
 demo-fxl/
 templates/**/dist/
+
+work-epub/
