@@ -94,7 +94,7 @@ def main() -> int:
     if result.returncode != 1:
       raise AssertionError(f"TC3 li 缺 class 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  # TC4：含 note 但 manifest/磁盘缺 note.png → 退出码 1
+  # TC4：含 note 且 manifest 声明 note.png，但磁盘缺 note.png → 退出码 1
   with TemporaryDirectory() as raw:
     oebps = build_oebps(Path(raw), VALID_NOTE_XHTML, with_note_png=False)
     result = run(oebps)
