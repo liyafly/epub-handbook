@@ -60,19 +60,20 @@ jobs:
       - name: Validate with EPUBCheck
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
-          # 先产出 XML 报告（即使有错误也继续，下一步再判定，保证报告能上传）
-          java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default --out "$epub.epubcheck.xml" || true
+          # 以 EPUBCheck 退出码作为权威 gate；XML grep 只用于输出可读日志。
+          status=0
+          java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default --out "$epub.epubcheck.xml" || status=$?
           report="$epub.epubcheck.xml"
-          if [ ! -f "$report" ]; then
+          if [ -f "$report" ]; then
+            grep -E 'severity="[Ee][Rr][Rr][Oo][Rr]"|severity="[Ff][Aa][Tt][Aa][Ll]"' "$report" >&2 || true
+          else
             echo "EPUBCheck 没有产出报告 $report" >&2
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "EPUBCheck 退出码 $status：存在 ERROR/FATAL" >&2
             exit 1
           fi
-          if grep -Eq 'severity="(ERROR|FATAL)"' "$report"; then
-            echo "EPUBCheck 报告含 ERROR/FATAL：" >&2
-            grep -E 'severity="(ERROR|FATAL)"' "$report" >&2
-            exit 1
-          fi
-          echo "EPUBCheck: 无 ERROR/FATAL"
+          echo "EPUBCheck: 通过（退出码 0）"
 
       - name: Upload EPUB artifact
         uses: actions/upload-artifact@v4
@@ -83,6 +84,7 @@ jobs:
           retention-days: 30
 
       - name: Upload EPUBCheck report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: epubcheck-report-${{ github.sha }}
