@@ -15,3 +15,5 @@
 | `drm-marker/` | 含 fake `META-INF/encryption.xml` |
 
 目前每个子目录只保留 `.gitkeep`。后续确实需要手工 EPUB 样本时，再在对应目录补 `source/`、`build.sh` 和 `dist/` 忽略规则。
+
+> 长期定位：本目录是**有意保留的手工 fixture 扩展槽位**，不是待补的缺口。自动化回归一律在 `scripts/test_*.py` 内即时构造等价 EPUB（见 `test_validate_text_invariance.py`）。只有当某个边界确实需要手工维护的实体样本时，才在对应子目录补 `source/` + `build.sh`，并把 `dist/` 加入 `.gitignore`。

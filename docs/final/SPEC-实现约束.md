@@ -297,6 +297,8 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 把固定版式改为重排 | 信息可能由版式承载 | 重新制作 |
 | 视觉效果验收 | reader-matrix 负责 | 跑 reader-matrix 流程 |
 
+> 注：当前仍有部分 demo case 未实测，清单见 `reader-matrix.yaml` 的 `untested_cases` 段；这些场景的渲染表现尚无实测背书，引用其规则前请优先补测并回写。
+
 #### 适配性判断
 
 跑 `python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub`，看 findings：

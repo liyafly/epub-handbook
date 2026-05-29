@@ -38,6 +38,10 @@ jobs:
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
           python3 scripts/validate_skills_basic.py
           python3 scripts/test_epub_ai_harness.py
+          python3 scripts/test_validate_text_invariance.py
+          python3 scripts/test_epub_cleanup_harnesses.py
+          python3 scripts/test_validate_popup_notes.py
+          python3 scripts/test_build_demo_epubs.py
           scripts/validate-epub-style-demo.sh --epub "$epub"
           scripts/validate-popup-notes.sh --epub "$epub"
 
@@ -56,7 +60,19 @@ jobs:
       - name: Validate with EPUBCheck
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
+          # 先产出 XML 报告（即使有错误也继续，下一步再判定，保证报告能上传）
           java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default --out "$epub.epubcheck.xml" || true
+          report="$epub.epubcheck.xml"
+          if [ ! -f "$report" ]; then
+            echo "EPUBCheck 没有产出报告 $report" >&2
+            exit 1
+          fi
+          if grep -Eq 'severity="(ERROR|FATAL)"' "$report"; then
+            echo "EPUBCheck 报告含 ERROR/FATAL：" >&2
+            grep -E 'severity="(ERROR|FATAL)"' "$report" >&2
+            exit 1
+          fi
+          echo "EPUBCheck: 无 ERROR/FATAL"
 
       - name: Upload EPUB artifact
         uses: actions/upload-artifact@v4
