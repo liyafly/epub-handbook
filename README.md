@@ -60,7 +60,7 @@
 - **Apple Books** — macOS / iOS 实测
 - **ImageMagick `magick`** — WebP / TIFF / GIF / SVG 等图片转 JPEG / PNG
 - **oxipng / pngquant / jpegoptim / svgo** — PNG、JPEG、SVG 外部优化；本仓只检测和复查，不内置压缩器
-- **lxml** — Python 部分解析任务有性能提升；`pip install lxml`
+- **lxml** — 可选，为未来的 OPF/XHTML 解析工具预留；当前所有脚本仅用标准库 `xml.etree`，无需安装即可运行
 
 ## 5 分钟跑通
 

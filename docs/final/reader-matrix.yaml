@@ -356,3 +356,47 @@ expectations:
     issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
     action: "待本地导入后记录默认字号、大字号、Ruby 和宽屏竖排增强结果。"
     workaround: "若用户字体设置影响竖排增强，优先保证正文源序和可读性。"
+
+# 尚未实测的 demo case：fixture 真实存在且能打包，但还没有在任何阅读器留下 pass/warn/fail 记录。
+# 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
+# 按 CLAUDE.md「实测回写闭环」补 reader + status + reader_version + artifact + issue。
+untested_cases:
+  - case: 00-title-page
+    fixture: templates/epub-style-demo/OEBPS/Text/00-title.xhtml
+    note: "封面式标题页；尚未实测。"
+  - case: 01-basic-cjk
+    fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
+    note: "普通中文正文基线；尚未实测。"
+  - case: 02-ruby-standard-footnote
+    fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
+    note: "Ruby 注音 + 标准弹注；尚未实测。"
+  - case: 03-alite-poster
+    fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
+    note: "竖排 + A-lite；尚未实测。"
+  - case: 03b-poster-fullbleed
+    fixture: templates/epub-style-demo/OEBPS/Text/03b-poster-fullbleed.xhtml
+    note: "整版海报页；尚未实测。"
+  - case: 04-table-code
+    fixture: templates/epub-style-demo/OEBPS/Text/04-lists-tables-code.xhtml
+    note: "列表 / 表格 / 代码；尚未实测。"
+  - case: 07-font-family-order
+    fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
+    note: "字体链顺序；尚未实测。"
+  - case: 08-long-mixed-flow
+    fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
+    note: "长篇中英混排；尚未实测。"
+  - case: 11-chapter-opening
+    fixture: templates/epub-style-demo/OEBPS/Text/11-chapter-opening.xhtml
+    note: "章首页；尚未实测。"
+  - case: 12-literary-fiction
+    fixture: templates/epub-style-demo/OEBPS/Text/12-literary-fiction.xhtml
+    note: "文学小说排版；尚未实测。"
+  - case: 13-duokan-rich-fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/13-duokan-rich-fallback.xhtml
+    note: "多看富 fallback；尚未实测。"
+  - case: 14-vertical-body
+    fixture: templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml
+    note: "竖排正文；尚未实测。"
+  - case: 15-frontmatter
+    fixture: templates/epub-style-demo/OEBPS/Text/15-frontmatter.xhtml
+    note: "前言 / 版权等前置页；尚未实测。"
