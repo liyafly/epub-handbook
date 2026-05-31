@@ -15,7 +15,7 @@ description: 格式化 EPUB 文学结构，包括章首、卷首、题记、题�
 - 普通章节头图使用 `figure.chapter-head-art` 小章标或 `figure.chapter-head-banner` 满栏横幅 + 真实 `h1`，规则见 `docs/guides/chapter-head-image.md`。
 - 前置页使用合适的 `epub:type`。
 - 题记、题献、信件、对话和诗都保留真实文本。
-- 文白对照使用条目级 `section`，每组直接放原文段落和白话段落；默认上下，短组只在宽屏 `min-width` 增强中用双侧 `float` + 38/58 宽度左右对照，长组和 Kindle 窄屏用 `.parallel-stack-pair` 保持上下。不用 table、flex、grid 或固定版式，规则见 `docs/guides/classical-modern-layout.md`。
+- 文白对照使用条目级 `section`，每组直接放原文段落和白话段落；默认上下，短组只在宽屏 `min-width` 增强中用双侧 `float`。默认文白使用 38/58；原译接近可加 `.parallel-ratio-balanced` 使用 48/48；原文较长可加 `.parallel-ratio-source-wide` 使用 58/38；单书自定义比例两栏总和建议不超过 96%。长组和 Kindle 窄屏用 `.parallel-stack-pair` 保持上下。不用 table、flex、grid 或固定版式，规则见 `docs/guides/classical-modern-layout.md`。
 - 场景分隔使用文本或简单 CSS，不使用只有图片的装饰。
 - 所有文学结构都保持可重排，并能承受阅读器字号缩放。
 - 英文小说正文节奏、hyphenation 和 serif 字体链交给 `epub-english-typography-optimizer`；本 skill 只处理章首、题记、诗、信件等结构。
@@ -63,7 +63,7 @@ description: 格式化 EPUB 文学结构，包括章首、卷首、题记、题�
 4. 使用最小类集合：
    - `chapter-head`、`chapter-head-art`、`chapter-head-banner`、`chapter-kicker`、`chapter-subtitle`、`epigraph`
    - `dialog`、`poetry`、`letter`、`scene-break`
-   - `classical-modern`、`parallel-entry`、`parallel-pair`、`parallel-float-pair`、`parallel-stack-pair`、`parallel-clear`、`classical-text`、`modern-text`
+   - `classical-modern`、`parallel-entry`、`parallel-pair`、`parallel-float-pair`、`parallel-ratio-balanced`、`parallel-ratio-source-wide`、`parallel-stack-pair`、`parallel-clear`、`classical-text`、`modern-text`
    - `copyright-page`、`dedication`、`epigraph-page`
 5. 保持段落、换行和强调与源稿意图一致。
 6. 所有新组件规则写进 `literary.css`。

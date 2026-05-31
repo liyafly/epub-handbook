@@ -79,7 +79,7 @@
 ## 5.6.1) 文白对照左右兼容
 
 - 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
-- 主路径结构应接近大部头文白书：一组 `.parallel-pair` 直接包含原文段落和译文段落。基础状态必须上下；短组可用 `.parallel-float-pair`，但双侧 `float:left/right` + `38%/58%` 只能放在宽屏 `@media (min-width: 40em)` 增强里。Kindle 电子墨水、小屏、大字号、长组、大字号探针或已知风险组应保持上下。
+- 主路径结构应接近大部头文白书：一组 `.parallel-pair` 直接包含原文段落和译文段落。基础状态必须上下；短组可用 `.parallel-float-pair`，但双侧 `float:left/right` 只能放在宽屏 `@media (min-width: 40em)` 增强里。默认文白起点为 `38%/58%`；原译篇幅接近时可加 `.parallel-ratio-balanced` 使用 `48%/48%`；原文较长时可加 `.parallel-ratio-source-wide` 使用 `58%/38%`。单书可在后加载 CSS 中自定义比例，但两栏总和建议不超过 `96%`，给 gutter 留至少 `4%`。Kindle 电子墨水、小屏、大字号、长组、大字号探针或已知风险组应保持上下。
 - 不依赖 `overflow:hidden` BFC 形成右侧列；KF8/KFX 对这条路径不稳定。不要为了标签和列容器把每组正文包得过重，除非确有多段注记需求。
 - 分页保护只能用于短组增强类：`.parallel-float-pair { page-break-inside: avoid; -webkit-page-break-inside: avoid; break-inside: avoid; }`；`.parallel-pair` 默认允许长对照自然切页，`.parallel-stack-pair` / `.parallel-pair-allow-break` 必须显式允许切页，避免 Kindle 产生大空白页。
 - 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。

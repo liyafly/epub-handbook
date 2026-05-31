@@ -15,12 +15,14 @@
   <section class="classical-modern" epub:type="chapter">
     <h1>二十一、文白对照</h1>
 
-    <p class="chapter-head-note">本页验证文言原文与白话译文的可重排对照结构。推荐做法接近大部头文白书：每组只放原文段落和白话段落，默认按源序上下排列；只有阅读区域足够宽时，对短组启用 float 左右增强。Kindle 电子墨水、小屏、大字号、长段或阅读器不支持增强时保持上下显示，不使用 table、flex 或 grid 承载正文。</p>
+    <p class="chapter-head-note">本页验证文言原文与白话译文、原文与译文的可重排对照结构。推荐做法接近大部头文白书：每组只放两种真实文本，默认按源序上下排列；只有阅读区域足够宽时，对短组启用 float 左右增强。默认文白比例 38/58；原译篇幅接近时可用 48/48；原文更长时可用 58/38。Kindle 电子墨水、小屏、大字号、长段或阅读器不支持增强时保持上下显示，不使用 table、flex 或 grid 承载正文。</p>
 
     <nav epub:type="toc" class="classical-modern-local-toc" aria-labelledby="classical-modern-toc">
       <h2 id="classical-modern-toc">本页条目</h2>
       <ol>
         <li><a href="#entry-mountain-bell">山亭夜钟</a></li>
+        <li><a href="#entry-letter-translation">短笺原译</a></li>
+        <li><a href="#entry-source-wide">原文较长</a></li>
         <li><a href="#entry-river-letter">江边短札</a></li>
       </ol>
     </nav>
@@ -32,6 +34,32 @@
       <section class="parallel-pair parallel-float-pair">
         <p class="classical-text book-song" xml:lang="lzh">客宿山亭，夜半闻钟。月在松间，泉声相答。客问钟从何来，童子曰：风入石窍，其声类钟。</p>
         <p class="modern-text book-kai">旅客住在山亭里，半夜听见钟声。月亮挂在松间，泉声像在回应。旅客问钟声从哪里来，童子说是山风吹进石洞，声音像钟。</p>
+        <div class="parallel-clear" aria-hidden="true"></div>
+      </section>
+
+      <p class="parallel-return"><a href="#classical-modern-toc" title="回本页条目" aria-label="回本页条目">(•)</a></p>
+    </section>
+
+    <section class="parallel-entry" id="entry-letter-translation">
+      <h2 class="parallel-entry-title">短笺原译</h2>
+      <p class="parallel-source">出处：虚构示例，验证原文与译文篇幅接近时的 48/48 均衡 preset。</p>
+
+      <section class="parallel-pair parallel-float-pair parallel-ratio-balanced">
+        <p class="classical-text book-latin-serif" xml:lang="en">The lamp remained by the river after the boat had gone.</p>
+        <p class="modern-text book-song">船离开以后，那盏灯仍留在河边。</p>
+        <div class="parallel-clear" aria-hidden="true"></div>
+      </section>
+
+      <p class="parallel-return"><a href="#classical-modern-toc" title="回本页条目" aria-label="回本页条目">(•)</a></p>
+    </section>
+
+    <section class="parallel-entry" id="entry-source-wide">
+      <h2 class="parallel-entry-title">原文较长</h2>
+      <p class="parallel-source">出处：虚构示例，验证原文较长、译文较短时的 58/38 preset。</p>
+
+      <section class="parallel-pair parallel-float-pair parallel-ratio-source-wide">
+        <p class="classical-text book-song" xml:lang="lzh">山中有亭，亭外古松三株。雨后石径微湿，行人循泉声而上，至半岭始见灯影。</p>
+        <p class="modern-text book-kai">雨后循泉上山，半岭才看见亭灯。</p>
         <div class="parallel-clear" aria-hidden="true"></div>
       </section>
 
