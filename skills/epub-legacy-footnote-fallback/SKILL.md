@@ -11,6 +11,7 @@ description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版
 
 保留项目标准结构作为主形态：
 
+- XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
 - noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`。
 - noteref `href` 指向同一 XHTML 文件内的 note `li`。
 - 每个 XHTML 文件只有一个 grouped note body：`<aside epub:type="footnote" role="doc-footnote">`。
@@ -63,13 +64,14 @@ description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版
 ## 转换流程
 
 1. 从已经符合，或可先转换为，标准 `aside > ol.footnote-list > li.footnote-item` 模式的文件开始。
-2. 尽量保留 id。确保 noteref id 和 note target id 在当前 XHTML 内唯一。
-3. 给每个 noteref anchor 增加 `duokan-footnote`，但不要删除 `epub:type`、`role`、`id` 或 `href`。
-4. 确保 noteref anchor 包含图片图标。新增 legacy fallback 资源时使用 `../Images/note.png`。
-5. 给 grouped `ol.footnote-list` 增加 `duokan-footnote-content`；不要把它放到 `li` 上。
-6. 给每个 `li.footnote-item` 增加 `duokan-footnote-item`。
-7. 如果 OPF manifest 未声明 `Images/note.png`，补上。
-8. 验证所有 href/backlink target 都解析到同一 XHTML 文件内。
+2. 确保 XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
+3. 尽量保留 id。确保 noteref id 和 note target id 在当前 XHTML 内唯一。
+4. 给每个 noteref anchor 增加 `duokan-footnote`，但不要删除 `epub:type`、`role`、`id` 或 `href`。
+5. 确保 noteref anchor 包含图片图标。新增 legacy fallback 资源时使用 `../Images/note.png`。
+6. 给 grouped `ol.footnote-list` 增加 `duokan-footnote-content`；不要把它放到 `li` 上。
+7. 给每个 `li.footnote-item` 增加 `duokan-footnote-item`。
+8. 如果 OPF manifest 未声明 `Images/note.png`，补上。
+9. 验证所有 href/backlink target 都解析到同一 XHTML 文件内。
 
 ## CSS
 

@@ -101,7 +101,15 @@ def main() -> int:
     if result.returncode != 1:
       raise AssertionError(f"TC4 缺 note.png 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  print("validate_popup_notes tests ok (4 cases)")
+  # TC5：使用 epub:type 但根元素缺 xmlns:epub → XML 解析必须失败
+  broken = VALID_NOTE_XHTML.replace(' xmlns:epub="http://www.idpf.org/2007/ops"', '')
+  with TemporaryDirectory() as raw:
+    oebps = build_oebps(Path(raw), broken)
+    result = run(oebps)
+    if result.returncode != 1:
+      raise AssertionError(f"TC5 缺 xmlns:epub 应失败，实际 rc={result.returncode}\n{result.stdout}")
+
+  print("validate_popup_notes tests ok (5 cases)")
   return 0
 
 

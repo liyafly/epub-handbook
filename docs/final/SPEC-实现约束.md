@@ -4,6 +4,7 @@
 
 ## 1) 弹注（Footnote Popup）
 
+- 任何使用 `epub:type` 的 XHTML 根 `<html>` 必须声明：`xmlns:epub="http://www.idpf.org/2007/ops"`。
 - `a[epub:type="noteref"]` 与对应 `aside[epub:type="footnote"]` 必须位于**同一 XHTML 文件**。
 - 每个章节文件最多一个注释容器：`<aside epub:type="footnote" role="doc-footnote">`。
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
@@ -14,6 +15,7 @@
   - 注释容器必须使用 `<ol class="footnote-list duokan-footnote-content">`；
   - 每条 `<li class="footnote-item">` 仅挂 `duokan-footnote-item`，禁止在 `<li>` 上重复挂 `duokan-footnote-content`。
 - fallback 为次路径，禁止创建第二份注释容器。
+- 本节默认约束 EPUB3 主包。OPF `version="2.0"` 外壳中叠加 `xmlns:epub`、`epub:type` 或 `<aside>` 只能视为按目标阅读器验证的兼容模式，不得标为严格 EPUB2 标准路径；实操见 `docs/guides/epub2-popup-note-compatibility.md`。
 
 ## 2) A-lite 页面约束
 

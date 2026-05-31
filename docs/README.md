@@ -30,6 +30,7 @@
 - [guides/chapter-head-image.md](guides/chapter-head-image.md)：章首图
 - [guides/anthology-navigation.md](guides/anthology-navigation.md)：合集导航
 - [guides/note-box-border-styles.md](guides/note-box-border-styles.md)：便签框与边框
+- [guides/epub2-popup-note-compatibility.md](guides/epub2-popup-note-compatibility.md)：EPUB2 外壳 popup note 兼容模式
 - [guides/duokan-footnote-fallback-fix.md](guides/duokan-footnote-fallback-fix.md)：多看 fallback
 
 ## 批处理流水线

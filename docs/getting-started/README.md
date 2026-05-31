@@ -42,6 +42,7 @@
 
 - **字体策略**：[docs/plans/fonts-css-expansion-plan.md](../plans/fonts-css-expansion-plan.md)
 - **弹注 / 注释**：[docs/guides/duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)
+- **EPUB2 外壳弹注兼容实验**：[docs/guides/epub2-popup-note-compatibility.md](../guides/epub2-popup-note-compatibility.md)
 - **图片混排**：[docs/guides/chapter-head-image.md](../guides/chapter-head-image.md)
 - **英文小说**：[docs/guides/english-fiction-layout.md](../guides/english-fiction-layout.md)
 - **文白对照 / 古典文本**：[docs/guides/classical-modern-layout.md](../guides/classical-modern-layout.md)

@@ -18,6 +18,8 @@
 ## E
 
 - **EPUB**：开放电子书标准（IDPF/W3C），基于 HTML/CSS/ZIP 的容器格式。本仓面向 EPUB 3。
+- **EPUB2**：OPF `<package version="2.0">` 的 EPUB 版本；导航主路径是 NCX，正文已经可以使用 XHTML。
+- **EPUB3**：OPF `<package version="3.0">` 的 EPUB 版本；使用 XHTML navigation document，并支持更丰富的语义和媒体能力。
 - **epub:type**：EPUB 3 语义注解属性，如 `epub:type="footnote"`。
 - **epubcheck**：W3C 官方 EPUB 校验器。
 - **Enhanced Typesetting**：Amazon 的增强排版路径，KFX 转换后启用。
@@ -43,6 +45,8 @@
 
 - **NCX**：EPUB 2 时代的导航文件。
 - **nav.xhtml**：EPUB 3 的目录文件。
+- **namespace / 命名空间**：XML 中用 URI 区分元素或属性词汇的机制；`xmlns:epub="http://www.idpf.org/2007/ops"` 用来声明 `epub:` 前缀。
+- **noteref**：正文中指向注释目标的链接语义，常写作 `epub:type="noteref"`。
 
 ## O
 
@@ -56,6 +60,7 @@
 
 ## R
 
+- **reading system / 阅读系统**：负责解析并显示 EPUB 的软件或设备；同一 EPUB 在不同阅读系统上的结果可能不同。
 - **reflowable**：可重排版式。
 - **Ruby / 注音**：CJK 标注，`<ruby>` 配合 `<rt>` 给汉字加注音。
 - **reader-matrix**：本仓 `docs/final/reader-matrix.yaml`。

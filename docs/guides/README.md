@@ -9,6 +9,7 @@
 - [chapter-head-image.md](chapter-head-image.md)：可重排章节开头头图、横幅头图和 kicker。
 - [anthology-navigation.md](anthology-navigation.md)：短篇全集、作品合集和分卷文集导航。
 - [note-box-border-styles.md](note-box-border-styles.md)：便签、摘录框、边框、阴影和 SVG 花边实验边界。
+- [epub2-popup-note-compatibility.md](epub2-popup-note-compatibility.md)：EPUB2 外壳中尝试 EPUB3 popup note 语义时的边界、模板与实测清单。
 - [duokan-footnote-fallback-fix.md](duokan-footnote-fallback-fix.md)：多看弹注 fallback 结构修正与实测步骤。
 
 ## 相关目录

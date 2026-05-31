@@ -115,6 +115,7 @@
 
 | 元素 / 属性 | 用途 | 状态 | 备注 |
 |---|---|---|---|
+| `xmlns:epub="http://www.idpf.org/2007/ops"` | 声明 `epub:` 前缀 | 必须 | 任何使用 `epub:type` 的 XHTML 根 `<html>` 都要写 |
 | `epub:type="chapter"` | 章节语义 | 推荐 | 放在 `<section>` |
 | `epub:type="cover"` | 封面 | 推荐 | 封面页 |
 | `epub:type="bodymatter"` | 正文开始 | 推荐 | landmarks |
@@ -424,6 +425,7 @@ body {
 
 | 项 | 推荐写法 | 状态 | 备注 |
 |---|---|---|---|
+| XHTML 根声明 | `<html ... xmlns:epub="http://www.idpf.org/2007/ops">` | 必须 | 声明 `epub:` 前缀；不会单独把 OPF2 升级成 EPUB3 |
 | 触发元素 | `<a epub:type="noteref" role="doc-noteref">` | 推荐 | 放图片图标 |
 | 触发图标 | `<img alt="注" src="../Images/note.png"/>` | 推荐 | 项目默认 |
 | 注释容器 | `<aside epub:type="footnote" role="doc-footnote">` | 推荐 | 每个 XHTML 一个 |

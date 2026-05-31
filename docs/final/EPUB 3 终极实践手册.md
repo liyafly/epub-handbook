@@ -704,6 +704,17 @@ body.poster-bg {
 
 注释触发采用图片图标，图标放 `Images/note.png`。返回符号采用 `◎`。
 
+任何使用 `epub:type` 的 XHTML 文件都要先在根元素声明 EPUB namespace：
+
+```xml
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+```
+
+`xmlns:epub` 只负责声明 `epub:` 前缀，不会单独把 OPF2 包升级成 EPUB3。已有 EPUB2 因目标阅读器兼容需求暂时不能迁移时，可以尝试带双向链接 fallback 的混合写法，但必须按阅读器实测；见 [EPUB2 外壳中的 Popup Note 兼容写法](../guides/epub2-popup-note-compatibility.md)。
+
 同一个 XHTML 文件内只放一个注释容器：`aside epub:type="footnote"`。多条注释放在容器内的 `ol.footnote-list`，每条注释用 `li.footnote-item` 承载，正文 `noteref` 直接指向对应 `li` 的 `id`。这样保留 EPUB 3 标准弹注识别点，也保留 demo 的多注释聚合结构。
 
 ```xml
