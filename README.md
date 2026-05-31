@@ -104,6 +104,16 @@ python3 scripts/validate_text_invariance.py \
 
 ### C. 真实 EPUB 清洗
 
+单书默认入口是一条命令：
+
+```sh
+python3 scripts/epub_cleanup_pipeline.py \
+  /path/to/input.epub \
+  --work-dir work/book-a
+```
+
+它生成 before 备份、`after/cleaned.epub` 和 `reports/` 审计 bundle。结构规范化需要先 dry-run 再显式批准；人工 diff review 和阅读器实测仍然保留。完整说明见 [docs/pipeline/oneclick-epub3-converter.md](docs/pipeline/oneclick-epub3-converter.md)。
+
 对用户给的 EPUB 只走复制件，不改原文件：
 
 ```sh

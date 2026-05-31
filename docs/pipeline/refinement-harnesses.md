@@ -2,12 +2,13 @@
 
 > 面向「已有 EPUB -> 可选结构规范化 -> EPUB3 基线 -> AI 精排建议 -> 分步清洗 -> diff review」的脚本入口。
 
-这些脚本默认只读或 dry-run。只有 `epub_structure_tool.py normalize` 和 `epub3_migration_harness.py --write-output` 会写出新 EPUB；它们都不会原地覆盖输入文件。
+底层 harness 默认只读或 dry-run。`epub_cleanup_pipeline.py` 会复制 before 基线后调用写出步骤；所有写出步骤都不会原地覆盖输入文件。
 
-## 四个入口
+## 五个入口
 
 | 脚本 | 做什么 | 何时运行 |
 | --- | --- | --- |
+| `scripts/epub_cleanup_pipeline.py` | 一命令生成 before 基线、EPUB3 清洗产物、validator 结果、精排建议和 AI findings 审计 bundle | 单书清洗的默认入口 |
 | `scripts/epub_preflight_harness.py` | 检查 ZIP / mimetype / container / OPF / manifest / spine / XML / CSS url / DRM 标记，并复用 `epub_ai_harness.py` 的结构 findings | 拿到一本 EPUB 后第一步 |
 | `scripts/epub_structure_tool.py` | 可选：`normalize` 固定先格式化目录，再按 OPF manifest id 做文件名反混淆 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `scripts/epub3_migration_harness.py` | dry-run EPUB3 迁移计划；可选写出 `version="3.0"`、`dcterms:modified`、`nav.xhtml` 和 OPF nav item | preflight 没有 error 后 |

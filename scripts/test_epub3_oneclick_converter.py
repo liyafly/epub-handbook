@@ -112,6 +112,15 @@ def main() -> int:
     assert report.plain_notes_converted == 1, report
     assert report.nav_entries == 1, report
     assert report.stylesheet_links_added == 2, report
+    assert report.typography_roles == [
+      "type-body",
+      "type-title",
+      "type-subtitle",
+      "type-quote",
+      "type-note",
+      "type-emphasis",
+      "type-meta",
+    ], report
 
     with zipfile.ZipFile(output) as zf:
       infos = zf.infolist()
@@ -138,6 +147,7 @@ def main() -> int:
       chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
       assert 'xmlns:epub="http://www.idpf.org/2007/ops"' in chapter
       assert 'href="../Styles/epub3-enhancements.css"' in chapter
+      assert ".type-quote" in zf.read("OEBPS/Styles/epub3-enhancements.css").decode("utf-8")
       assert 'class="noteref-icon" epub:type="noteref" role="doc-noteref"' in chapter
       assert 'class="footnote-list"' in chapter
       assert 'role="doc-backlink"' in chapter

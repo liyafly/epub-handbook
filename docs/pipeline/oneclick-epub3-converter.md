@@ -1,7 +1,8 @@
-# 一键 EPUB3 转换脚本
+# 一命令 EPUB 清洗与 EPUB3 转换
 
-> 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，并套用项目的弹注与 CJK 文学排版基础层。
-> 脚本：`scripts/epub3_oneclick_converter.py`
+> 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
+> 流水线入口：`scripts/epub_cleanup_pipeline.py`
+> 底层变换器：`scripts/epub3_oneclick_converter.py`
 
 ## 适用范围
 
@@ -19,21 +20,26 @@
 - 图片压缩或转码。
 - 字体内嵌。脚本只写多字体使用规则，不打包字体。
 
-## 一键命令
+## 一条命令
 
-用脱敏工作目录承接真实文件，不把真实文件名写进报告：
+用一个新的脱敏工作目录承接真实文件，不把真实文件名写进提交记录：
 
 ```sh
-mkdir -p work/before work/after
-cp /path/to/input.epub work/before/source.epub
-
-python3 scripts/epub3_oneclick_converter.py \
-  work/before/source.epub \
-  --output work/after/cleaned.epub \
-  --format json > work/after/cleaned.report.json
+python3 scripts/epub_cleanup_pipeline.py \
+  /path/to/input.epub \
+  --work-dir work/book-a
 ```
 
-输出 EPUB 会包含：
+入口会自动完成：
+
+1. 复制输入为 `work/book-a/before/source.epub`，保留不可修改基线。
+2. 跑前置 preflight；有阻断错误立即停止。
+3. 调用底层 EPUB3 转换器。
+4. 跑产物 preflight、弹注 validator、红线子集 gate。
+5. 生成精排建议和 AI findings。
+6. 写入 `work/book-a/reports/pipeline.json`。
+
+输出 EPUB 位于 `work/book-a/after/cleaned.epub`，包含：
 
 - EPUB3 `package version="3.0"`。
 - `dcterms:modified`。
@@ -45,15 +51,42 @@ python3 scripts/epub3_oneclick_converter.py \
 - 新增 `Images/note.png`。
 - 普通尾注转为同文件 grouped popup footnote。
 
+流水线不会替代人工 diff review 和真实阅读器复测。`reports/pipeline.json` 会把它们列为剩余步骤。
+
+## 可选结构规范化
+
+内部目录混乱、文件名明显混淆或需要稳定 diff 时，先用同一个入口生成 dry-run 报告：
+
+```sh
+python3 scripts/epub_cleanup_pipeline.py \
+  /path/to/input.epub \
+  --work-dir work/book-a-normalize-review \
+  --normalize dry-run
+```
+
+检查 `work/book-a-normalize-review/reports/normalize-dry-run.json` 的两个阶段后，在新的工作目录显式批准：
+
+```sh
+python3 scripts/epub_cleanup_pipeline.py \
+  /path/to/input.epub \
+  --work-dir work/book-a-normalized \
+  --normalize apply \
+  --approve-normalize
+```
+
+`apply` 不接受隐式确认。每次运行使用新的工作目录，避免覆盖 before 基线和旧报告。
+
 ## 字体策略
 
 脚本注入的覆盖层遵循系统优先，不嵌入字体：
 
-- 正文：`"Songti SC", "SimSun", "Source Han Serif SC", serif`
+- 正文：`"Songti SC", "SimSun", "Noto Serif CJK SC", serif`
 - 标题：`"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`
 - 楷体类、引用、注释：`"Kaiti SC", "STKaiti", "KaiTi", serif`
 
-后续如需内嵌字体，只替换或补充显式类，不把子集字体挂到 `body`。
+覆盖层还提供 `type-body`、`type-title`、`type-subtitle`、`type-quote`、`type-note`、`type-emphasis` 和 `type-meta` 角色类。后续如需内嵌字体，只替换或补充显式类，不把子集字体挂到 `body`。
+
+角色拆分和本地文学 EPUB 的脱敏分析见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
 
 ## 弹注结构
 
@@ -89,12 +122,12 @@ python3 scripts/epub3_oneclick_converter.py \
 ## 验证
 
 ```sh
-unzip -tqq work/after/cleaned.epub
-python3 scripts/epub_preflight_harness.py work/after/cleaned.epub --format json
-bash scripts/validate-popup-notes.sh --epub work/after/cleaned.epub
+unzip -tqq work/book-a/after/cleaned.epub
+python3 scripts/epub_preflight_harness.py work/book-a/after/cleaned.epub --format json
+bash scripts/validate-popup-notes.sh --epub work/book-a/after/cleaned.epub
 python3 scripts/validate_text_invariance.py \
-  work/before/source.epub \
-  work/after/cleaned.epub \
+  work/book-a/before/source.epub \
+  work/book-a/after/cleaned.epub \
   --check metadata,drm,anchors \
   --allow-list '*/nav.xhtml'
 ```
@@ -104,11 +137,11 @@ python3 scripts/validate_text_invariance.py \
 Kindle Previewer 可选：
 
 ```sh
-mkdir -p work/after/kindle-preview-output
+mkdir -p work/book-a/after/kindle-preview-output
 '/Applications/Kindle Previewer 3.app/Contents/MacOS/Kindle Previewer 3' \
-  work/after/cleaned.epub \
+  work/book-a/after/cleaned.epub \
   -convert -qualitychecks \
-  -output work/after/kindle-preview-output \
+  -output work/book-a/after/kindle-preview-output \
   -locale zh
 ```
 
@@ -134,3 +167,14 @@ mkdir -p work/after/kindle-preview-output
 - 转换后 EPUB/KPF。
 - 真实书名、作者、ISBN、ASIN、水印、私有 metadata。
 - Kindle Previewer 生成的完整临时路径日志，除非已替换成本地占位路径。
+
+## 只调用底层变换器
+
+只有在上层已经完成 before 备份、preflight 和审计记录时，才直接调用底层脚本：
+
+```sh
+python3 scripts/epub3_oneclick_converter.py \
+  work/before/source.epub \
+  --output work/after/cleaned.epub \
+  --format json > work/after/cleaned.report.json
+```

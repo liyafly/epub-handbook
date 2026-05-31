@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于把一本已存在的 EPUB 收拾干净。
 > 对应 SPEC：[§10 AI 改动边界](../final/SPEC-实现约束.md)。
-> 对应工具：`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
+> 对应工具：`scripts/epub_cleanup_pipeline.py`、`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
 
 ## 整体流程
 
@@ -12,6 +12,20 @@
 5. 分派清洗 -> 6. 文本校验 -> 7. diff 人工 review ->
 8. 用户确认 -> 9. reader-matrix 回写
 ```
+
+## 一命令入口
+
+需要快速生成 before 基线、转换产物和审计报告时，优先运行：
+
+```sh
+python3 scripts/epub_cleanup_pipeline.py \
+  /path/to/input.epub \
+  --work-dir work/book-a
+```
+
+它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、红线子集校验、精排建议和 AI findings。人工 diff review、文本角色 class 分派和阅读器实测仍必须继续执行。
+
+如果需要 §1.5 结构规范化，用同一个入口先跑 `--normalize dry-run`，人工确认报告后在新的工作目录使用 `--normalize apply --approve-normalize`。详细命令见 [oneclick-epub3-converter.md](oneclick-epub3-converter.md)。
 
 ## 0. 准备
 

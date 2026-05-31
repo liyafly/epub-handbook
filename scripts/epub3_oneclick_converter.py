@@ -64,6 +64,15 @@ IMAGE_MEDIA_BY_EXT = {
 }
 
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
+TYPOGRAPHY_ROLES = [
+  "type-body",
+  "type-title",
+  "type-subtitle",
+  "type-quote",
+  "type-note",
+  "type-emphasis",
+  "type-meta",
+]
 
 
 ET.register_namespace("", OPF_URI)
@@ -90,6 +99,7 @@ class ConversionReport:
   manifest_items_added: list[str] = field(default_factory=list)
   manifest_items_updated: int = 0
   metadata_updates: list[str] = field(default_factory=list)
+  typography_roles: list[str] = field(default_factory=list)
   warnings: list[str] = field(default_factory=list)
 
   def as_dict(self) -> dict[str, object]:
@@ -107,6 +117,7 @@ class ConversionReport:
       "manifest_items_added": self.manifest_items_added,
       "manifest_items_updated": self.manifest_items_updated,
       "metadata_updates": self.metadata_updates,
+      "typography_roles": self.typography_roles,
       "warnings": self.warnings,
     }
 
@@ -614,7 +625,7 @@ body {
 }
 
 body {
-  font-family: "Songti SC", "SimSun", "Source Han Serif SC", serif;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
   line-height: 1.65;
   text-align: justify;
   text-justify: inter-ideograph;
@@ -634,6 +645,7 @@ h2,
 h3,
 h4,
 h5,
+.type-title,
 .cp,
 .front,
 .back,
@@ -650,6 +662,26 @@ h5,
   break-after: avoid;
   page-break-inside: avoid;
   break-inside: avoid;
+}
+
+.type-body {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.type-subtitle {
+  font-family: "Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-weight: normal;
+  text-indent: 0;
+}
+
+.type-quote,
+.type-meta {
+  font-family: "STFangsong", "FangSong", "Noto Serif CJK SC", serif;
+}
+
+.type-note,
+.type-emphasis {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
 }
 
 h1,
@@ -1037,6 +1069,7 @@ def convert_epub(
   note_zip = norm_join(opf_dir, note_href)
 
   if typography:
+    report.typography_roles = list(TYPOGRAPHY_ROLES)
     files[style_zip] = enhancement_css()
     add_manifest_item(root, report, "epub3-enhancements-css", style_href, "text/css")
   if popup_notes:
