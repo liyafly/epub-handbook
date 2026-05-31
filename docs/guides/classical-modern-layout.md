@@ -63,6 +63,19 @@
     float: right;
     width: 58%;
   }
+
+  .parallel-float-pair.parallel-ratio-balanced .classical-text,
+  .parallel-float-pair.parallel-ratio-balanced .modern-text {
+    width: 48%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .classical-text {
+    width: 58%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .modern-text {
+    width: 38%;
+  }
 }
 
 .parallel-clear {
@@ -74,6 +87,42 @@
 ```
 
 大部头文白对照优先保持结构简单：一组里直接放原文段落和译文段落，类似《太平广记》样本的 `section.paracol > p + p`。默认上下；短组可加 `.parallel-float-pair`，但左右列只放在 `@media (min-width: 40em)` 这类宽屏增强里。当前推荐起点是原文列 `float:left; width:38%`、白话列 `float:right; width:58%`，留出 4% 自然 gutter；不要依赖 `overflow:hidden` BFC 形成右侧列。长段、字号探针或已知风险组使用 `.parallel-stack-pair` 保持上下并允许正常分页。不要依赖 `::after` clearfix 作为唯一清除方式，KF8 对伪元素选择器支持不稳；显式 `.parallel-clear` 更容易在 Kindle 路径中保留。
+
+## 比例 preset 与自由调整
+
+比例不是标准常量，应按两栏实际篇幅调整。`literary.css` 提供三个起点：
+
+| 场景 | class | 原文列 | 译文列 | gutter | 建议 |
+| --- | --- | --- | --- | --- | --- |
+| 文言 / 白话 | 无额外 class | `38%` | `58%` | `4%` | 白话通常更长，作为默认 |
+| 原文 / 译文篇幅接近 | `.parallel-ratio-balanced` | `48%` | `48%` | `4%` | 双语短篇、逐段原译 |
+| 原文更长、译文摘要较短 | `.parallel-ratio-source-wide` | `58%` | `38%` | `4%` | 原注 / 译注、原文 / 摘译 |
+
+使用 preset：
+
+```html
+<section class="parallel-pair parallel-float-pair parallel-ratio-balanced">
+  <p class="classical-text book-latin-serif" xml:lang="en">Original text.</p>
+  <p class="modern-text book-song">译文。</p>
+  <div class="parallel-clear" aria-hidden="true"></div>
+</section>
+```
+
+单书可以在后加载 CSS 中自由覆盖比例，不改通用模板：
+
+```css
+@media (min-width: 40em) {
+  .parallel-float-pair.parallel-ratio-book-local .classical-text {
+    width: 44%;
+  }
+
+  .parallel-float-pair.parallel-ratio-book-local .modern-text {
+    width: 52%;
+  }
+}
+```
+
+两栏总和建议不超过 `96%`，给 gutter 留至少 `4%`。比例只控制宽屏增强；窄屏、大字号、长段和阅读器降级仍保持源序上下。
 
 有些 Kindle 专用 AZW3/MOBI 成品会用 `table-layout: fixed` 和左右 `td` 做英汉/文白对照；这能解释为什么 Kindle 里可以见到成功的左右对照。但对 EPUB 源文件和 KDP 上传路径，不把 table 作为推荐主路径：Amazon 质量规则长期把非表格正文塞进 table 视为风险，且大字号、辅助技术和窄屏更容易变差。只有明确只交付 Kindle 专用 AZW3、并且已经在目标设备逐页验收时，才把 table 当作专用例外。
 
@@ -88,6 +137,8 @@
 - `.parallel-source`：出处、卷次、校注来源。
 - `.parallel-pair`：一组原文/译文对照，默认全宽上下，允许长对照自然分页。
 - `.parallel-float-pair`：短组增强类；基础状态仍上下，只在宽阅读区域启用 float 左右增强，并用 `page-break-inside: avoid` 保护短对照不被切开。
+- `.parallel-ratio-balanced`：宽屏 `48/48` preset，用于原文 / 译文篇幅接近的短组。
+- `.parallel-ratio-source-wide`：宽屏 `58/38` preset，用于原文较长、译文较短的短组。
 - `.parallel-stack-pair`：显式保持上下并允许分页，用于长段、大字号探针或 Kindle 风险组。
 - `.parallel-clear`：显式清除浮动，避免依赖伪元素。
 - `.classical-text`：文言段落节奏。
@@ -106,6 +157,7 @@
 ## 验证清单
 
 - 默认字号下，短组可在足够宽的阅读区域左右对照；Kindle 电子墨水、小屏或大字号下应保持上下。
+- 比例 preset 或单书覆盖只在宽屏增强中生效；两栏总和不超过 `96%`。
 - Kindle 字号 5 / 6 / 7 或窄屏下，原文与白话必须连续上下阅读，不能出现半宽错位。
 - 分页边界不应把同一组原文/白话切成左在上一页、右在下一页。
 - 夜间模式下条目顶线和译文左侧线不刺眼。

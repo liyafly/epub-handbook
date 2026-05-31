@@ -386,4 +386,20 @@
   .parallel-float-pair .modern-text {
     text-indent: 1em;
   }
+
+  .parallel-float-pair.parallel-ratio-balanced .classical-text {
+    width: 48%;
+  }
+
+  .parallel-float-pair.parallel-ratio-balanced .modern-text {
+    width: 48%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .classical-text {
+    width: 58%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .modern-text {
+    width: 38%;
+  }
 }

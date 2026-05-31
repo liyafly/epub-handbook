@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-26
+updated_at: 2026-05-31
 owner: epub-handbook
 
 lanes:
@@ -93,7 +93,7 @@ cases:
     title: 章节头图设置
     fixture: templates/epub-style-demo/OEBPS/Text/20-chapter-head-image.xhtml
   - id: 21-classical-modern
-    title: 文白对照
+    title: 文白 / 原译对照
     fixture: templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml
   - id: synthetic-city-field-notes
     title: 自造清洗 demo：明日城巡游手记
@@ -260,11 +260,11 @@ expectations:
     profile: "CLI conversion"
     font_size: n/a
     mode: n/a
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
-    conversion_log: templates/epub-style-demo/dist/kp-out-epub-style-demo-20260526-224326/Logs/epub-style-demo-20260526-224326_log.csv
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
+    conversion_log: templates/epub-style-demo/dist/kp-out-parallel-ratios-20260531/Logs/epub-style-demo-20260531-224552_log.csv
     failed_page: 21-classical-modern
     issue: "Kindle Previewer CLI 转换成功，Enhanced Typesetting 支持，Summary_Log 记录 0 errors / 0 quality issues。"
-    action: "改为接近《太平广记》样本的 pair 结构：直接原文段落 + 译文段落；默认上下；短组只在 @media (min-width: 40em) 中使用 38/58 双 float；长组 .parallel-stack-pair 上下并允许分页。"
+    action: "保留样本式 pair 结构：直接原文段落 + 译文段落；默认上下；短组只在 @media (min-width: 40em) 中使用双 float；文白默认 38/58，原译接近用 48/48，原文较长用 58/38；长组 .parallel-stack-pair 上下并允许分页。"
     workaround: "不要强求 Kindle 窄屏左右；长段、分页边界风险组或大字号目标显式上下，避免半宽错位和大空白页。"
   - reader: kindle_previewer
     case: 21-classical-modern
@@ -273,10 +273,10 @@ expectations:
     profile: "Kindle 电子书阅读器"
     font_size: 4
     mode: day
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
     failed_page: 21-classical-modern
-    issue: "GUI spot check：Kindle E-reader / 字号 4 下，文白页保持上下显示；未再出现短组半宽错位、回目录按钮挤入正文或长组大空白页。宽屏左右增强仍需平板/桌面宽视口复测。"
-    action: "把 float 从默认样式移入 @media (min-width: 40em)；.parallel-pair 默认可分页，.parallel-float-pair 仅保护短组，.parallel-stack-pair 显式允许分页。"
+    issue: "2026-05-31 GUI spot check：Kindle E-reader / 字号 4 下，新 artifact 的文白默认、原译 48/48 与原文较长 58/38 preset 均保持源序上下；未出现半宽错位、回目录按钮挤入正文或长组大空白页。"
+    action: "float 只放在 @media (min-width: 40em)；.parallel-pair 默认可分页，.parallel-float-pair 仅保护短组，.parallel-stack-pair 显式允许分页。"
     workaround: "如某个生产 pair 在 Kindle 上跨页错位，不调全局 float，直接保持 .parallel-stack-pair 上下。"
   - reader: kindle_previewer
     case: 21-classical-modern
@@ -285,10 +285,10 @@ expectations:
     profile: "Kindle 电子书阅读器"
     font_size: 6
     mode: day
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
     failed_page: 21-classical-modern
-    issue: "待 GUI 复测：字号 6/7 下应继续保持上下，不允许半宽错位；当前规则已避免默认 float，但仍需翻页检查实际分页。"
-    action: "左右对照只作为 min-width:40em 宽屏增强；Kindle 大字号目标优先上下。"
+    issue: "本机 2026-05-31 尚未完成字号 6/7 翻页复测：Previewer 设备与字号选择是自绘控件，Computer Use 无法稳定切换；规则已避免默认 float，但仍需人工检查实际分页。"
+    action: "本地调试分支合并前，在 Kindle Previewer GUI 手动切字号 6/7 翻页；左右对照只作为 min-width:40em 宽屏增强，Kindle 大字号目标优先上下。"
     workaround: "大字号不可读的 pair 直接改 .parallel-stack-pair；不要用 overflow:hidden BFC 或 table 兜底。"
   - reader: kindle_previewer
     case: 21-classical-modern
@@ -297,28 +297,37 @@ expectations:
     profile: "Kindle Paperwhite"
     font_size: 4
     mode: night
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
     failed_page: 21-classical-modern
-    issue: "待 GUI/实机复测：夜间模式下 .parallel-entry 顶线和轻量回目录链接需确认不刺眼且可点击。"
-    action: "顶线保持 #888；回目录链接取消 inline-block 按钮边框，避免 Kindle 分页/焦点残留抢占版面；译文不加左侧细线，保持样本式段落。"
+    issue: "本机 2026-05-31 尚未完成夜间模式复测：Previewer 自绘控件无法由 Computer Use 稳定切换；仍需确认 .parallel-entry 顶线和轻量回目录链接不刺眼且可点击。"
+    action: "本地调试分支合并前，在 Kindle Previewer GUI 手动切夜间模式；顶线保持 #888，回目录链接不使用按钮边框，译文不加左侧细线。"
     workaround: "如夜间链接仍过强，优先进一步弱化链接视觉，但保留锚点。"
   - reader: ibooks_macos
     case: 21-classical-modern
-    status: warn
-    reader_version: pending-apple-books-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260526-224326.epub
+    status: pass
+    reader_version: "8.5"
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
     failed_page: 21-classical-modern
-    issue: "Apple Books macOS 现有导入本 spot check：文白长组按源序上下显示正常；新 artifact 仍待重新导入后测默认字号、大字号和原版字体设置。"
-    action: "当前规则默认上下，对 Apple Books 应为保守路径；复测宽视口时再确认 min-width:40em 左右增强是否按预期启用。"
+    issue: "2026-05-31 Apple Books macOS 8.5 重新导入新 artifact：宽视口默认字号下，文白默认 38/58、原译接近 48/48、原文较长 58/38 均显示为左右栏；新 preset 文案可见，排除旧缓存误判。"
+    action: "宽屏 preset 已通过默认字号 spot check；大字号和用户字体设置仍按单书发行目标复测。"
     workaround: "原文/白话字体用 fonts.css 工具类组合，用户字体设置下仍应保留真实文本和自然重排。"
+  - reader: readest
+    case: 21-classical-modern
+    status: pass
+    reader_version: "0.11.1"
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
+    failed_page: 21-classical-modern
+    issue: "2026-05-31 Readest macOS 0.11.1 重新导入新 artifact：宽视口默认设置下，文白默认 38/58、原译接近 48/48、原文较长 58/38 均显示为左右栏；局部目录和轻量回跳链接可见。"
+    action: "将三种比例作为宽屏起点；正式书仍按文本长度、字号和目标窗口宽度微调。"
+    workaround: "如用户增大字号后列宽不足，保持源序上下或把风险 pair 改为 .parallel-stack-pair。"
   - reader: thorium
     case: 21-classical-modern
     status: warn
-    reader_version: pending-thorium-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260525-232429.epub
+    reader_version: not-installed-local-2026-05-31
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260531-224552.epub
     failed_page: 21-classical-modern
-    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；当前只有本地构建 artifact，缺少 Thorium 视觉复测记录。"
-    action: "保持 warn，待 Thorium 打开后记录版本、截图或 artifact 说明，再决定是否更新为 pass。"
+    issue: "SCENE_MATRIX 声明 Thorium 为目标阅读器；本机 2026-05-31 未安装 Thorium，无法完成视觉复测。"
+    action: "保持 warn；本地调试分支合并前，用 Thorium 打开新 artifact，记录实际版本、默认字号、大字号、局部目录锚点和三种宽屏 preset。"
     workaround: "Thorium 作为重排对照，重点看局部目录锚点、条目分隔和大字号文本流。"
   - reader: kindle_previewer
     case: synthetic-city-field-notes

@@ -288,6 +288,8 @@ def validate_source(check: Check) -> None:
     'class="parallel-entry-title"',
     'class="parallel-source"',
     'parallel-float-pair',
+    'parallel-ratio-balanced',
+    'parallel-ratio-source-wide',
     'parallel-stack-pair',
     'class="parallel-clear"',
     'class="classical-text book-song"',
@@ -304,6 +306,8 @@ def validate_source(check: Check) -> None:
     ".parallel-source",
     ".parallel-pair",
     ".parallel-float-pair",
+    ".parallel-float-pair.parallel-ratio-balanced",
+    ".parallel-float-pair.parallel-ratio-source-wide",
     ".parallel-stack-pair",
     ".parallel-clear",
     ".classical-text",
@@ -319,6 +323,22 @@ def validate_source(check: Check) -> None:
   stack_pair_block = selector_block(literary_css, ".parallel-stack-pair") or ""
   classical_width = percentage_width(literary_css, ".parallel-float-pair .classical-text")
   modern_width = percentage_width(literary_css, ".parallel-float-pair .modern-text")
+  balanced_classical_width = percentage_width(
+    literary_css,
+    ".parallel-float-pair.parallel-ratio-balanced .classical-text",
+  )
+  balanced_modern_width = percentage_width(
+    literary_css,
+    ".parallel-float-pair.parallel-ratio-balanced .modern-text",
+  )
+  source_wide_classical_width = percentage_width(
+    literary_css,
+    ".parallel-float-pair.parallel-ratio-source-wide .classical-text",
+  )
+  source_wide_modern_width = percentage_width(
+    literary_css,
+    ".parallel-float-pair.parallel-ratio-source-wide .modern-text",
+  )
   check.require("display: flex" not in pair_block, "parallel-pair must not depend on display:flex")
   check.require("page-break-inside: avoid" not in pair_block, "parallel-pair default must allow long stacked pairs to paginate")
   check.require("page-break-inside: avoid" in float_pair_block, "parallel-float-pair must protect short source/translation pairs from page splits")
@@ -339,6 +359,14 @@ def validate_source(check: Check) -> None:
       56 <= modern_width <= 60,
       f"modern-text width must stay near the sample 38/58 split, found {modern_width:g}%",
     )
+  check.require(
+    balanced_classical_width == 48 and balanced_modern_width == 48,
+    "parallel-ratio-balanced must define a 48/48 split",
+  )
+  check.require(
+    source_wide_classical_width == 58 and source_wide_modern_width == 38,
+    "parallel-ratio-source-wide must define a 58/38 split",
+  )
 
 
 def validate_epub(epub_path: Path, check: Check) -> None:

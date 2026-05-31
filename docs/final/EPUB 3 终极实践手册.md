@@ -481,6 +481,19 @@ figure.img-right img {
     float: right;
     width: 58%;
   }
+
+  .parallel-float-pair.parallel-ratio-balanced .classical-text,
+  .parallel-float-pair.parallel-ratio-balanced .modern-text {
+    width: 48%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .classical-text {
+    width: 58%;
+  }
+
+  .parallel-float-pair.parallel-ratio-source-wide .modern-text {
+    width: 38%;
+  }
 }
 
 .parallel-clear {
@@ -492,6 +505,8 @@ figure.img-right img {
 ```
 
 这个结构刻意接近大部头文白书：每组直接放原文段落和译文段落；短组用 `.parallel-float-pair` 标记为可增强，但基础状态仍上下，只有 `min-width:40em` 以上才左右显示；长段或大字号探针用 `.parallel-stack-pair` 保持上下并允许正常分页。不要只在 `@media (orientation: landscape)` 里启用左右布局，也不要把 Kindle 主路径依赖在 `display:flex` 上；这类写法在 Kindle Previewer / KFX 中容易退化不可控。
+
+`38%/58%` 是文言 / 白话的默认起点，不是标准常量。原文和译文篇幅接近时，给 `.parallel-float-pair` 加 `.parallel-ratio-balanced` 使用 `48%/48%`；原文较长、译文较短时，加 `.parallel-ratio-source-wide` 使用 `58%/38%`。单书还可以在后加载 CSS 中写自己的比例类，但两栏总和建议不超过 `96%`，给自然 gutter 留至少 `4%`。比例只影响宽屏增强，不改变窄屏、大字号和长段默认上下的 fallback。
 
 Kindle 专用 AZW3 里可以见到 `table-layout: fixed` + 左右 `td` 的英汉对照做法，实际能显示左右栏。但它不适合作为 EPUB/KDP 源文件的默认建议：表格承载长正文会增加质量审核、大字号、窄屏和辅助技术风险。除非目标就是只交付 Kindle 成品格式并已经逐设备验收，否则优先用 source-order + float。
 
