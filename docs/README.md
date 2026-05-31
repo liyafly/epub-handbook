@@ -12,6 +12,7 @@
   - [05-case-study.md](getting-started/05-case-study.md)
   - [06-test-your-own.md](getting-started/06-test-your-own.md)
   - [07-faq.md](getting-started/07-faq.md)
+  - [08-epub2-epub3-compatibility.md](getting-started/08-epub2-epub3-compatibility.md)
   - [glossary.md](getting-started/glossary.md)
 
 ## 工程契约层

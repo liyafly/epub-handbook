@@ -10,8 +10,9 @@
 4. [06-test-your-own.md](06-test-your-own.md) - 测自己的 epub
 5. [04-skills.md](04-skills.md) - AI skills 是什么、怎么用
 6. [07-faq.md](07-faq.md) - 常见问题
-7. [05-case-study.md](05-case-study.md) - 自造 EPUB 清洗演示案例
-8. [glossary.md](glossary.md) - 术语表
+7. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md) - EPUB2 / EPUB3、XHTML、弹注 fallback 与平台兼容
+8. [05-case-study.md](05-case-study.md) - 自造 EPUB 清洗演示案例
+9. [glossary.md](glossary.md) - 术语表
 
 读完后，你就能进入：
 
@@ -60,5 +61,6 @@
 4. [06-test-your-own.md](06-test-your-own.md)
 5. [04-skills.md](04-skills.md)
 6. [07-faq.md](07-faq.md)
-7. [05-case-study.md](05-case-study.md)
-8. [glossary.md](glossary.md)
+7. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md)
+8. [05-case-study.md](05-case-study.md)
+9. [glossary.md](glossary.md)
