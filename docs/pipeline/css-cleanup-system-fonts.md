@@ -1,0 +1,82 @@
+# CSS 清洗、系统字体链与括注样式
+
+> 状态：流程文档；用于在 EPUB3 基线上收口重复 CSS、旧字体声明和可证明的正文括注样式。
+
+## 适用范围
+
+这一步适合重复携带每册样式表、旧平台字体名较多、正文需要轻量括注层级的合订 EPUB。它不嵌入字体，不改写正文，不把某一本书的复杂括号模式推广为全局默认。
+
+## 公共清洗
+
+先保留不可修改的 before，再生成 EPUB3 基线。基线通过 preflight 后运行：
+
+```sh
+python3 scripts/epub_css_cleanup.py \
+  work/book-a/intermediate/step-1-epub3.epub \
+  --output work/book-a/after/final.epub \
+  --mark-parentheticals \
+  --format json > work/book-a/reports/css-cleanup.json
+```
+
+公共脚本只做可复用且可验证的变换：
+
+- 合并完全重复 CSS；
+- 将结构相同、少量属性不同的样式拆成公共层和 override；
+- 将旧式宋体、黑体、楷体声明替换为四段以内的系统优先字体链；
+- 同步 XHTML `<link>` 和 OPF CSS manifest；
+- 可选标记同一正文文本节点内的中文圆括注；
+- 默认排除脚注括注，避免在已经缩小的注释中再次缩小。
+
+默认括注样式保持克制：
+
+```css
+.type-parenthetical {
+  color: #6f5a50;
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-size: 0.92em;
+}
+```
+
+## 书目专用补标
+
+公共脚本之后仍可能存在复杂括注：
+
+- 脚注中的括注；
+- 括注内部包含 noteref、强调、链接等内联标签；
+- 诗行或长说明跨多个段落；
+- 列表序号 `a）`、`b）`；
+- 源文只有单边括号。
+
+处理顺序固定为：先统计未标记括号，再按 XHTML 文件核对配对关系，只对能够证明的范围补标。脚注已经比正文小，补标时只换颜色和字体，使用 `.footnote .type-parenthetical { font-size: 1em; }` 避免二次缩小。列表序号与孤立括号保持原样。
+
+书目专用规则留在本地工作目录和审计报告，不进入公共脚本。这样公共入口仍可批量复用，单书精排也不会丢失必要的人工判断。
+
+## 验证
+
+每次写出后至少运行：
+
+```sh
+unzip -tqq work/book-a/after/final.epub
+python3 scripts/epub_preflight_harness.py \
+  work/book-a/after/final.epub \
+  --format json
+bash scripts/validate-popup-notes.sh \
+  --epub work/book-a/after/final.epub
+python3 scripts/validate_text_invariance.py \
+  work/book-a/intermediate/step-1-epub3.epub \
+  work/book-a/after/final.epub \
+  --check all
+```
+
+继续核对：
+
+- OPF 和 `nav.xhtml` 能被 `xmllint` 解析；
+- CSS link 不断链，OPF manifest 与 ZIP 内 CSS 数量一致；
+- 归一化后不再存在重复 CSS；
+- 图片、字体等二进制资源没有意外变化；
+- 在 Calibre Editor 或 VS Code 做五层 diff review；
+- 至少跑一个目标转换器或阅读器侧检查，并记录版本与日志摘要。
+
+## 排版取舍
+
+系统优先版适合作为第一阶段交付：正文宋体链、标题黑体链、括注楷体链彼此有层级，包体较小，也便于跨阅读器比较。嵌入字体应作为独立第二阶段：先确定哪些角色真正需要设计字体或生僻字补字，再做子集、manifest 和阅读器复测。

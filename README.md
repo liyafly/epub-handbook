@@ -2,6 +2,8 @@
 
 中文 EPUB 3 制作与 AI 协作工具集。围绕「硬约束 + 自造 demo + 阅读器实测 + 自动化 skill」四件套构建：所有规则都有 demo fixture 兜底，所有阅读器兼容性结论都从实测回写，所有 AI 行为都按写定的 skill 契约执行。
 
+A practical handbook for EPUB authoring, typography, compatibility, and reading-system behavior across Apple Books, Kindle, Readium, and Readest.
+
 适合：
 
 - 制作中文 EPUB 3 的工程师与编辑
@@ -185,6 +187,7 @@ python3 scripts/validate_text_invariance.py \
 | `scripts/epub_structure_tool.py` | 可选：先格式化目录，再按 OPF manifest id 做文件名反混淆 | 两阶段 `mappings`、`warnings`、normalized EPUB |
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
+| `scripts/epub_css_cleanup.py` | 可选合并重复 CSS、替换旧字体链并标记保守正文括注 | 清洗后 EPUB、CSS/字体/括注计数 |
 
 这些入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
 
