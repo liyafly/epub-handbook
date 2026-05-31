@@ -49,6 +49,9 @@ A：可以；走精细路径，用 `unzip` + `shasum` + `diff` 的 shell 组合�
 
 ## AI 协作
 
+**Q：AI 模型应该先读哪个文件？**
+A：先读根目录 [AGENTS.md](../../AGENTS.md)。`CLAUDE.md` 只是 Claude Code 的兼容入口，规则只维护一份。
+
 **Q：我没有 Claude Code / Codex，怎么用 skills？**
 A：`skills/` 本身就是 Markdown 文档，可以人工跟着走。
 

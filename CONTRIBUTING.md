@@ -31,7 +31,7 @@
    git checkout -b feat/your-topic
    ```
 
-3. 修改：遵守 [CLAUDE.md](CLAUDE.md) 的「修改优先级」。
+3. 修改：遵守 [AGENTS.md](AGENTS.md) 的规范来源优先级和最小验证矩阵。
 
 4. 跑校验：
 
@@ -40,6 +40,7 @@
    NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)
    bash scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/"$NEW"
    bash scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/"$NEW"
+   python3 scripts/validate_ai_entrypoints.py
    python3 scripts/validate_skills_basic.py
    ```
 

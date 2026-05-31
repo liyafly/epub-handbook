@@ -1,6 +1,6 @@
 # AI Skills 怎么用
 
-`skills/` 里的每个目录都是一个可读契约：它说明某类 EPUB 问题该怎么判断、怎么修、修完怎么验证。即使不用 AI，也可以人工按里面的步骤操作。
+`skills/` 里的每个目录都是一个可读契约：它说明某类 EPUB 问题该怎么判断、怎么修、修完怎么验证。AI 代理必须先阅读根目录 [AGENTS.md](../../AGENTS.md)，再选择专项 skill。即使不用 AI，也可以人工按里面的步骤操作。
 
 ## 基本流程
 
@@ -21,6 +21,7 @@
 | --- | --- |
 | `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 |
 | `epub-source-intake` | 从 txt/md/PDF/OCR 等源材料建立 EPUB source |
+| `epub-structure-normalizer` | 用纯 Python 标准库先格式化资源目录，再按 OPF manifest id 做文件名反混淆 |
 | `epub-css-layering-optimizer` | CSS 分层与内联样式迁移 |
 | `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体策略 |
 | `epub-english-typography-optimizer` | 英文小说排版 |
@@ -40,6 +41,7 @@
 | --- | --- |
 | 拿到一本 epub 不知从哪下手，先看大局 | `epub-layout-auditor` |
 | 我有 txt / md / PDF，需要先变成 epub source | `epub-source-intake` |
+| epub 内部目录散乱 / 文件名不可读，先格式化再反混淆 | `epub-structure-normalizer` |
 | 把弹注做规范 | `epub-popup-footnote-converter` |
 | 多看 / 旧版阅读器看不到弹注，加 fallback | `epub-legacy-footnote-fallback` |
 | 给生僻字加 Ruby 注音 / 整本竖排 | `epub-vertical-ruby-optimizer` |

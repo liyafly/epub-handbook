@@ -1,6 +1,6 @@
 # Skills × 流程步骤映射表
 
-> 14 个现有 skill 在「清洗流水线」与「新书制作」中的角色。
+> 15 个现有 skill 在「清洗流水线」与「新书制作」中的角色。
 >
 > `scripts/epub_ai_harness.py --mode cleanup` 输出的 `recommended_skills` 是候选清单，不是自动执行顺序。实际清洗顺序必须由操作者按 findings、[cleanup-patterns.md](cleanup-patterns.md) 和 SPEC §10 决定。
 >
@@ -12,6 +12,7 @@
 | --- | --- | --- | --- | --- |
 | `epub-layout-auditor` | yes | yes | 清洗 §2 分派；新书 review 前 | 审稿 |
 | `epub-source-intake` | no | yes | 新书：txt/md/PDF/OCR -> source | 接入 |
+| `epub-structure-normalizer` | maybe | no | 清洗 §1.5：先格式化，再文件名反混淆 | 结构清洗 |
 | `epub-css-layering-optimizer` | yes | yes | 清洗 §4 黄线；新书 finalize | 清洗 / 制作 |
 | `epub-popup-footnote-converter` | yes | yes | 清洗 §4 黄线；新书弹注 | 清洗 / 制作 |
 | `epub-legacy-footnote-fallback` | yes | yes | 清洗 §4；新书做多看兼容 | 清洗 / 制作 |
@@ -29,12 +30,13 @@
 
 以旧版 EPUB 2 升级为例：
 
-1. `epub-layout-auditor`
-2. `epub-package-nav-auditor`
-3. `epub-css-layering-optimizer`
-4. `epub-popup-footnote-converter`
-5. `epub-typography-optimizer`
-6. `epub-legacy-footnote-fallback`（可选）
-7. `epub-kindle-compatibility-checker`
+1. `epub-structure-normalizer`（目录散乱或文件名不可读时）
+2. `epub-layout-auditor`
+3. `epub-package-nav-auditor`
+4. `epub-css-layering-optimizer`
+5. `epub-popup-footnote-converter`
+6. `epub-typography-optimizer`
+7. `epub-legacy-footnote-fallback`（可选）
+8. `epub-kindle-compatibility-checker`
 
 每个 skill 执行前先做 dry-run 审查；每次实际写盘后立刻跑 `validate_text_invariance.py`。

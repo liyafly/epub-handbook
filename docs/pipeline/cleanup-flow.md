@@ -2,15 +2,15 @@
 
 > 状态：流程文档；用于把一本已存在的 EPUB 收拾干净。
 > 对应 SPEC：[§10 AI 改动边界](../final/SPEC-实现约束.md)。
-> 对应工具：`scripts/epub_preflight_harness.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
+> 对应工具：`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
 
 ## 整体流程
 
 ```text
-0. 准备 -> 1. preflight 健康检查 -> 2. EPUB3 迁移基线 ->
-3. 精排建议 harness -> 4. 红线预检 -> 5. 分派清洗 ->
-6. 文本校验 -> 7. diff 人工 review -> 8. 用户确认 ->
-9. reader-matrix 回写
+0. 准备 -> 1. preflight 健康检查 -> 1.5 可选结构规范化 ->
+2. EPUB3 迁移基线 -> 3. 精排建议 harness -> 4. 红线预检 ->
+5. 分派清洗 -> 6. 文本校验 -> 7. diff 人工 review ->
+8. 用户确认 -> 9. reader-matrix 回写
 ```
 
 ## 0. 准备
@@ -47,17 +47,56 @@ unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
 which epubcheck >/dev/null && epubcheck "$EPUB" || echo "epubcheck not installed; skip"
 ```
 
-输出 `META-INF/encryption.xml` 即有 DRM，立即停止。
+发现 `META-INF/encryption.xml` 时默认停止。若声明目标在 ZIP 中不存在，结构工具可移除该 stale 引用；若已确认只有 EPUB 标准字体混淆，可用下一节的 `inspect` 显式验证。正文、样式、图片或未知算法加密且目标真实存在时仍立即停止。
 
 `work/preflight.json` 里的 `preflight_status` 为 `fail` 时，不进入 EPUB3 迁移或 AI 清洗。
+
+## 1.5 可选：先格式化，再文件名反混淆
+
+如果 EPUB 内部目录散乱，或 manifest href 使用不可读文件名，先运行组合入口 dry-run：
+
+```sh
+python3 scripts/epub_structure_tool.py inspect "$EPUB" --report-format json
+python3 scripts/epub_structure_tool.py normalize \
+  "$EPUB" \
+  --output work/after/step-0-normalized.epub \
+  --dry-run \
+  --report-format json > work/step-0-normalize.dry-run.json
+```
+
+`normalize` 固定先执行 `format`，再执行 `deobfuscate-filenames`。确认两个阶段的 `mappings` 和 `warnings` 后移除 `--dry-run`，写出新 EPUB 并保存实际报告：
+
+```sh
+python3 scripts/epub_structure_tool.py normalize \
+  "$EPUB" \
+  --output work/after/step-0-normalized.epub \
+  --report-format json > work/step-0-normalize.json
+```
+
+立刻把实际报告作为路径映射传给红线 gate：
+
+```sh
+python3 scripts/validate_text_invariance.py \
+  "$EPUB" \
+  work/after/step-0-normalized.epub \
+  --check all \
+  --path-map work/step-0-normalize.json
+```
+
+脚本只依赖 Python 标准库，不提供 DRM 解密。若加密声明目标在 ZIP 中不存在，报告会记录并移除 stale 引用；如果 `inspect` 已确认只有 EPUB 标准字体混淆，在红线命令额外添加 `--allow-font-obfuscation`。若写出了 step-0 产物，后续 EPUB3 迁移基线使用该产物。
+
+结构规范化后再次运行 preflight。如果 CSS 仍引用 ZIP 中不存在的 `.ttf`、`.otf`、`.woff` 或 `.woff2`，harness 会记录 `missing-css-font-fallback` 警告：不要猜测该别名对应哪个嵌入字体，也不要自动删掉声明，保留 `local()` fallback 并人工复核。图片、样式等非字体资源断链仍是阻断错误。
 
 ## 2. EPUB3 迁移基线
 
 如果 preflight 发现 `package_version` 不是 `3.0`，或缺少 `properties="nav"` 的 nav item，先生成 EPUB3 基线：
 
 ```sh
+BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
+
 python3 scripts/epub3_migration_harness.py \
-  work/before/source.epub \
+  "$BASE" \
   --write-output work/after/step-1-epub3.epub \
   --format json > work/epub3-migration.json
 ```
@@ -67,14 +106,17 @@ python3 scripts/epub3_migration_harness.py \
 迁移后立刻跑红线：
 
 ```sh
+BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
+
 python3 scripts/validate_text_invariance.py \
-  work/before/source.epub \
+  "$BASE" \
   work/after/step-1-epub3.epub \
   --check text,metadata,spine,cover,anchors \
   --allow-list '*/nav*.xhtml'
 ```
 
-如果原书已经是 EPUB3 且 nav 正常，本步可跳过，后续基线仍使用 `work/before/source.epub`。
+如果当前基线已经是 EPUB3 且 nav 正常，本步可跳过。后续优先使用 step-0 产物，没有 step-0 才回退到 `work/before/source.epub`。
 
 ## 3. 精排建议 harness
 
@@ -82,6 +124,7 @@ python3 scripts/validate_text_invariance.py \
 
 ```sh
 BASE=work/after/step-1-epub3.epub
+test -f "$BASE" || BASE=work/after/step-0-normalized.epub
 test -f "$BASE" || BASE=work/before/source.epub
 
 python3 scripts/epub_refinement_harness.py "$BASE" --format json > work/refinement.json
@@ -106,7 +149,10 @@ python3 scripts/epub_ai_harness.py --mode cleanup "$BASE" --format json > work/f
 ## 5. harness 扫描
 
 ```sh
-python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --format json > work/findings.json
+BASE=work/after/step-1-epub3.epub
+test -f "$BASE" || BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
+python3 scripts/epub_ai_harness.py --mode cleanup "$BASE" --format json > work/findings.json
 cat work/findings.json | jq .recommended_skills
 ```
 
@@ -117,7 +163,10 @@ cat work/findings.json | jq .recommended_skills
 按 `recommended_skills` 顺序逐一执行。每次改动后跑：
 
 ```sh
-python3 scripts/validate_text_invariance.py work/before/source.epub work/after/step-N.epub --check all
+REDLINE_BASE=work/after/step-1-epub3.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/after/step-0-normalized.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/before/source.epub
+python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/step-N.epub --check all
 ```
 
 退出码 1 立即回滚该次 skill 改动。
@@ -125,7 +174,10 @@ python3 scripts/validate_text_invariance.py work/before/source.epub work/after/s
 ## 7. 文本校验（自动 gate）
 
 ```sh
-python3 scripts/validate_text_invariance.py work/before/source.epub work/after/cleaned.epub --check all
+REDLINE_BASE=work/after/step-1-epub3.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/after/step-0-normalized.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/before/source.epub
+python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/cleaned.epub --check all
 ```
 
 退出码必须 0。
@@ -266,7 +318,7 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --form
 ## 4. 完整红线校验
 
 ```sh
-python3 scripts/validate_text_invariance.py before/source.epub after/cleaned.epub --check all
+python3 scripts/validate_text_invariance.py <redline-base.epub> after/cleaned.epub --check all
 ```
 
 ## 5. Diff 概览

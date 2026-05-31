@@ -83,7 +83,7 @@
 
 强约束：
 
-- `docs/final/` 只放对外硬约束；新增前必须能被 `CLAUDE.md` 的优先级规则解释。
+- `docs/final/` 只放对外硬约束；新增前必须能被根目录 `AGENTS.md` 的规范来源优先级解释。
 - `docs/guides/` 只放场景指南；包含 plan、review、flow、pattern、tool 身份的文档应放到 `docs/plans/` 或 `docs/pipeline/`。
 - `docs/plans/` 不直接驱动行为；落地规则必须回写到 `docs/final/`、模板、脚本或 skills。
 - `docs/experiments/` 文件名必须带日期或 commit hash。

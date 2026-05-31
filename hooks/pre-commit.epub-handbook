@@ -7,6 +7,7 @@ cd "$ROOT"
 changed=$(git diff --cached --name-only)
 
 git diff --check --cached
+python3 scripts/validate_ai_entrypoints.py
 python3 scripts/validate_skills_basic.py
 python3 scripts/test_epub_ai_harness.py
 

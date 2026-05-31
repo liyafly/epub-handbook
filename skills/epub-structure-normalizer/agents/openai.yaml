@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 结构格式化与文件名反混淆"
+  short_description: "用纯 Python 标准库先格式化 EPUB，再还原混淆文件名。"
+  default_prompt: "使用 $epub-structure-normalizer 按固定流程先格式化这个 EPUB，再执行文件名反混淆，并在修改前后运行红线校验。"

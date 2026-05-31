@@ -1,14 +1,15 @@
 # EPUB 精排 harness
 
-> 面向「已有 EPUB -> EPUB3 基线 -> AI 精排建议 -> 分步清洗 -> diff review」的脚本入口。
+> 面向「已有 EPUB -> 可选结构规范化 -> EPUB3 基线 -> AI 精排建议 -> 分步清洗 -> diff review」的脚本入口。
 
-这些 harness 默认只读或 dry-run。只有 `epub3_migration_harness.py --write-output` 会写出新 EPUB；它不会原地覆盖输入文件。
+这些脚本默认只读或 dry-run。只有 `epub_structure_tool.py normalize` 和 `epub3_migration_harness.py --write-output` 会写出新 EPUB；它们都不会原地覆盖输入文件。
 
-## 三个入口
+## 四个入口
 
 | 脚本 | 做什么 | 何时运行 |
 | --- | --- | --- |
 | `scripts/epub_preflight_harness.py` | 检查 ZIP / mimetype / container / OPF / manifest / spine / XML / CSS url / DRM 标记，并复用 `epub_ai_harness.py` 的结构 findings | 拿到一本 EPUB 后第一步 |
+| `scripts/epub_structure_tool.py` | 可选：`normalize` 固定先格式化目录，再按 OPF manifest id 做文件名反混淆 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `scripts/epub3_migration_harness.py` | dry-run EPUB3 迁移计划；可选写出 `version="3.0"`、`dcterms:modified`、`nav.xhtml` 和 OPF nav item | preflight 没有 error 后 |
 | `scripts/epub_refinement_harness.py` | 输出精排建议：EPUB3、弹注、字体链 / 内嵌字体、图片格式、Ruby / 竖排、diff 与红线 gate、候选 skills | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
 
@@ -23,11 +24,14 @@ python3 scripts/epub_preflight_harness.py \
   --format json > work/preflight.json
 ```
 
-如果 `work/preflight.json` 里有 `error`，先修 package 错误，不进入 AI 清洗。没有 `error` 后，如果 `package_version` 不是 `3.0` 或缺 nav：
+如果 `work/preflight.json` 里有 `error`，先修 package 错误，不进入 AI 清洗。需要结构规范化时，先按 [cleanup-flow.md §1.5](cleanup-flow.md#15-可选先格式化再文件名反混淆) 运行 `epub_structure_tool.py normalize`。然后把 step-0 产物作为 `BASE`；没有 step-0 时回退到原始复制件：
 
 ```sh
+BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
+
 python3 scripts/epub3_migration_harness.py \
-  work/before/source.epub \
+  "$BASE" \
   --write-output work/after/step-1-epub3.epub \
   --format json > work/epub3-migration.json
 ```
@@ -35,8 +39,11 @@ python3 scripts/epub3_migration_harness.py \
 迁移后跑红线。新增的 nav 文件可以 allow-list；正文、核心 metadata、spine 和锚点仍要不变：
 
 ```sh
+BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
+
 python3 scripts/validate_text_invariance.py \
-  work/before/source.epub \
+  "$BASE" \
   work/after/step-1-epub3.epub \
   --check text,metadata,spine,cover,anchors \
   --allow-list '*/nav*.xhtml'
@@ -78,7 +85,7 @@ python3 scripts/epub_refinement_harness.py \
 
 ```sh
 python3 scripts/epub_preflight_harness.py work/after/step-N-images.epub --format json
-python3 scripts/validate_text_invariance.py work/before/source.epub work/after/step-N-images.epub --check all
+python3 scripts/validate_text_invariance.py <redline-base.epub> work/after/step-N-images.epub --check all
 ```
 
 ## 输出字段

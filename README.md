@@ -12,7 +12,7 @@
 
 1. **工程契约层** — [docs/final/](docs/final/)：SPEC、终极手册、HTML / CSS 属性速查表、阅读器兼容性实测矩阵 `reader-matrix.yaml`。这是对外硬约束。
 2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
-3. **AI 协作 skills** — [skills/](skills/)：14 个专项 skill（CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
+3. **AI 协作 skills** — [skills/](skills/)：15 个专项 skill（结构格式化、CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
 4. **可运行 demo** — [templates/](templates/) 与 [samples/demo-books/](samples/demo-books/)：每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
 5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
 
@@ -39,9 +39,9 @@
 | 查 HTML / CSS 属性 | [docs/final/EPUB 3 HTML CSS 属性速查表.md](docs/final/EPUB%203%20HTML%20CSS%20属性速查表.md) |
 | 看阅读器兼容性记录 | [docs/final/reader-matrix.yaml](docs/final/reader-matrix.yaml) |
 | 对比改前 / 改后 | [#epub-diff-review](#epub-diff-review) |
-| 给 AI 接入 | [skills/README.md](skills/README.md)；各 skill 的 metadata 在 `skills/*/agents/openai.yaml` |
+| 给 AI 接入 | 先读 [AGENTS.md](AGENTS.md)，再按 [skills/README.md](skills/README.md) 选择专项 skill；metadata 在 `skills/*/agents/openai.yaml` |
 | 看场景化指南 | [docs/guides/](docs/guides/) |
-| 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [CLAUDE.md](CLAUDE.md) |
+| 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [AGENTS.md](AGENTS.md) |
 
 ## 准备环境
 
@@ -112,11 +112,33 @@ cp /path/to/book.epub work/before/source.epub
 python3 scripts/epub_preflight_harness.py work/before/source.epub --format json > work/preflight.json
 ```
 
+如果 EPUB 内部目录散乱或文件名不可读，先按固定顺序执行“格式化 → 文件名反混淆”：
+
+```sh
+python3 scripts/epub_structure_tool.py normalize \
+  work/before/source.epub \
+  --output work/after/step-0-normalized.epub \
+  --dry-run \
+  --report-format json > work/step-0-normalize.dry-run.json
+# review mappings / warnings 后移除 --dry-run，并保存实际报告：
+python3 scripts/epub_structure_tool.py normalize \
+  work/before/source.epub \
+  --output work/after/step-0-normalized.epub \
+  --report-format json > work/step-0-normalize.json
+python3 scripts/validate_text_invariance.py \
+  work/before/source.epub \
+  work/after/step-0-normalized.epub \
+  --check all \
+  --path-map work/step-0-normalize.json
+```
+
 如果 preflight 没有 `error`，先把 EPUB2 或缺 nav 的包迁成 EPUB3 基线：
 
 ```sh
+BASE=work/after/step-0-normalized.epub
+test -f "$BASE" || BASE=work/before/source.epub
 python3 scripts/epub3_migration_harness.py \
-  work/before/source.epub \
+  "$BASE" \
   --write-output work/after/step-1-epub3.epub \
   --format json > work/epub3-migration.json
 ```
@@ -125,6 +147,7 @@ python3 scripts/epub3_migration_harness.py \
 
 ```sh
 BASE=work/after/step-1-epub3.epub
+test -f "$BASE" || BASE=work/after/step-0-normalized.epub
 test -f "$BASE" || BASE=work/before/source.epub
 python3 scripts/epub_refinement_harness.py "$BASE" --format json > work/refinement.json
 python3 scripts/epub_ai_harness.py --mode cleanup "$BASE" --format json > work/findings.json
@@ -133,8 +156,11 @@ python3 scripts/epub_ai_harness.py --mode cleanup "$BASE" --format json > work/f
 按 `work/refinement.json` 和 `work/findings.json` 分派 skill。每一步产物都存成 `work/after/step-N.epub`，并立即跑：
 
 ```sh
+REDLINE_BASE=work/after/step-1-epub3.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/after/step-0-normalized.epub
+test -f "$REDLINE_BASE" || REDLINE_BASE=work/before/source.epub
 python3 scripts/validate_text_invariance.py \
-  work/before/source.epub \
+  "$REDLINE_BASE" \
   work/after/step-N.epub \
   --check all
 ```
@@ -146,10 +172,11 @@ python3 scripts/validate_text_invariance.py \
 | harness | 作用 | 输出 |
 | --- | --- | --- |
 | `scripts/epub_preflight_harness.py` | 先检查 EPUB 格式 / package 是否可处理 | `preflight_status`、结构 findings、候选 skill |
+| `scripts/epub_structure_tool.py` | 可选：先格式化目录，再按 OPF manifest id 做文件名反混淆 | 两阶段 `mappings`、`warnings`、normalized EPUB |
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
 
-这三个入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
+这些入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
 
 ## EPUB diff review
 
@@ -253,7 +280,7 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 - `epub-layout-auditor` — 总审稿、风险分级、分派专项修复。
 - `epub-source-intake` — 从 txt / md / PDF / OCR 等源材料起步。
 
-专项 14 个见 [docs/getting-started/04-skills.md](docs/getting-started/04-skills.md) 反向查表。
+专项 15 个见 [docs/getting-started/04-skills.md](docs/getting-started/04-skills.md) 反向查表。
 
 无 AI 也可用：`SKILL.md` 本身就是 Markdown 步骤说明，人工跟着走即可。
 
@@ -275,7 +302,7 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 6. 同步（终极手册、速查表、相关 skills）
 ```
 
-详见 [CLAUDE.md](CLAUDE.md) 的「实测回写闭环」段。
+详见 [AGENTS.md](AGENTS.md) 的「阅读器实测闭环」段。
 
 ## 这个仓库不是什么
 
@@ -301,7 +328,7 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 
 ## 协作 / 贡献
 
-阅读 [CLAUDE.md](CLAUDE.md) 了解 AI 协作约定。本仓所有约束变更都走 demo → reader-matrix → SPEC → 手册 → 速查表 → skills 的实测闭环。
+阅读 [AGENTS.md](AGENTS.md) 了解 AI 协作约定。`CLAUDE.md` 仅作为 Claude Code 兼容入口。本仓所有约束变更都走 demo → reader-matrix → SPEC → 手册 → 速查表 → skills 的实测闭环。
 
 贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

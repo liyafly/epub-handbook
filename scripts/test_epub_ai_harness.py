@@ -80,24 +80,19 @@ def validate_demo_route() -> int:
   return 0
 
 
-def validate_missing_css_url_detection() -> int:
-  with TemporaryDirectory() as tmp:
-    root = Path(tmp)
-    (root / "OEBPS" / "Text").mkdir(parents=True)
-    (root / "OEBPS" / "Styles").mkdir(parents=True)
-    (root / "OEBPS" / "Styles" / "main.css").write_text(
-      '@font-face { font-family: "Missing"; src: url("../Fonts/Missing.otf"); }\n',
-      encoding="utf-8",
-    )
-    (root / "OEBPS" / "Text" / "chapter.xhtml").write_text(
+def write_css_url_fixture(root: Path, css: str) -> None:
+  (root / "OEBPS" / "Text").mkdir(parents=True)
+  (root / "OEBPS" / "Styles").mkdir(parents=True)
+  (root / "OEBPS" / "Styles" / "main.css").write_text(css, encoding="utf-8")
+  (root / "OEBPS" / "Text" / "chapter.xhtml").write_text(
       '''<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
 <head><title>Test</title><link rel="stylesheet" type="text/css" href="../Styles/main.css"/></head>
 <body><p>Test</p></body></html>
 ''',
-      encoding="utf-8",
-    )
-    (root / "OEBPS" / "content.opf").write_text(
+    encoding="utf-8",
+  )
+  (root / "OEBPS" / "content.opf").write_text(
       '''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -115,8 +110,14 @@ def validate_missing_css_url_detection() -> int:
   </spine>
 </package>
 ''',
-      encoding="utf-8",
-    )
+    encoding="utf-8",
+  )
+
+
+def validate_missing_css_url_detection() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    write_css_url_fixture(root, 'body { background-image: url("../Images/Missing.png"); }\n')
     returncode, data = run_harness(root)
     cleanup_returncode, cleanup_data = run_harness(root, "--mode", "cleanup")
   if returncode == 0:
@@ -137,7 +138,6 @@ def validate_missing_css_url_detection() -> int:
   error_skills = [
     "$epub-package-nav-auditor",
     "$epub-css-layering-optimizer",
-    "$epub-typography-optimizer",
   ]
   warn_skills = [
     "$epub-kindle-compatibility-checker",
@@ -159,8 +159,75 @@ def validate_missing_css_url_detection() -> int:
   return 0
 
 
+def validate_missing_css_font_url_warning() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    write_css_url_fixture(
+      root,
+      '@font-face { font-family: "Missing"; src: url("../Fonts/Missing.otf"), local("Missing"); }\n',
+    )
+    returncode, data = run_harness(root, "--mode", "cleanup")
+  if returncode:
+    print(json.dumps(data, ensure_ascii=False, indent=2), file=sys.stderr)
+    return returncode
+  findings = data.get("findings", [])
+  font_fallbacks = [item for item in findings if item.get("kind") == "missing-css-font-fallback"]
+  if not font_fallbacks or any(item.get("level") != "warn" for item in font_fallbacks):
+    print(f"ERROR: missing CSS font url should be a warning: {findings}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness CSS font fallback smoke test ok")
+  return 0
+
+
+def validate_obfuscated_filename_detection() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    (root / "OEBPS" / "Text").mkdir(parents=True)
+    (root / "OEBPS" / "Text" / "?mix.xhtml").write_text(
+      '''<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+<head><title>Test</title></head><body><p>Test</p></body></html>
+''',
+      encoding="utf-8",
+    )
+    (root / "OEBPS" / "content.opf").write_text(
+      '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:test</dc:identifier>
+    <dc:title>Test</dc:title>
+    <dc:language>zh-CN</dc:language>
+  </metadata>
+  <manifest>
+    <item id="chapter" href="Text/%3Fmix.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+  </manifest>
+  <spine><itemref idref="chapter"/></spine>
+</package>
+''',
+      encoding="utf-8",
+    )
+    returncode, data = run_harness(root, "--mode", "cleanup")
+  if returncode:
+    print(json.dumps(data, ensure_ascii=False, indent=2), file=sys.stderr)
+    return returncode
+  findings = data.get("findings", [])
+  if not any(item.get("kind") == "filename-obfuscation" for item in findings):
+    print(f"ERROR: filename obfuscation finding not present: {findings}", file=sys.stderr)
+    return 1
+  if "$epub-structure-normalizer" not in data.get("recommended_skills", []):
+    print(f"ERROR: structure normalizer not recommended: {data.get('recommended_skills')}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness filename obfuscation smoke test ok")
+  return 0
+
+
 def main() -> int:
-  for check in (validate_demo_route, validate_missing_css_url_detection):
+  for check in (
+    validate_demo_route,
+    validate_missing_css_url_detection,
+    validate_missing_css_font_url_warning,
+    validate_obfuscated_filename_detection,
+  ):
     result = check()
     if result:
       return result

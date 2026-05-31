@@ -1,6 +1,6 @@
 # Skills
 
-这个目录保存 Codex/Claude Code 可直接读取的 EPUB 排版与转换技能。这里的 skill 是“排版/转换契约”，不是下游 `epub-pro` 的实现代码。
+这个目录保存 Codex、Claude Code 和其他 AI 代理可直接读取的 EPUB 排版与转换技能。代理必须先阅读根目录 `AGENTS.md`，再按任务选择专项 skill。这里的 skill 是“排版/转换契约”，不是下游 `epub-pro` 的实现代码。
 
 ## 语言约定
 
@@ -38,6 +38,7 @@ scripts/epub_ai_harness.py <epub-or-source-path>
 |---|---|---|
 | `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 | `docs/final/SPEC-实现约束.md`、`SCENE_MATRIX.md` |
 | `epub-source-intake` | 从文本、Markdown、HTML、PDF 或 OCR 结果建立 EPUB 制作入口 | `scripts/epub_ai_harness.py` |
+| `epub-structure-normalizer` | 用纯 Python 标准库先格式化资源目录，再按 OPF manifest id 做文件名反混淆 | `scripts/epub_structure_tool.py`、`docs/pipeline/cleanup-flow.md` |
 | `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `docs/final/SPEC-实现约束.md` §7、`docs/guides/note-box-border-styles.md` |
 | `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体和生僻字 fallback | `Text/07-font-family-order.xhtml`、`Text/08-long-mixed-flow.xhtml` |
 | `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `Text/18-english-fiction.xhtml`、`docs/guides/english-fiction-layout.md`、`docs/guides/anthology-navigation.md` |
@@ -95,13 +96,27 @@ xmllint --noout \
 scripts/validate_skills_basic.py
 ```
 
+验证 AI 通用入口与兼容入口没有分叉：
+
+```sh
+python3 scripts/validate_ai_entrypoints.py
+```
+
+格式化已有 EPUB 的资源目录，再按 OPF manifest id 做文件名反混淆：
+
+```sh
+python3 scripts/epub_structure_tool.py normalize input.epub --output normalized.epub --dry-run --report-format json
+```
+
+确认 dry-run 两个阶段的 `mappings` 和 `warnings` 后，移除 `--dry-run` 写出新 EPUB，并把实际 JSON 报告传给 `scripts/validate_text_invariance.py --path-map <report.json>`。该脚本不提供 DRM 解密。
+
 可选安装本仓 hook 模板：
 
 ```sh
 scripts/install-hooks.sh
 ```
 
-这个 hook 会运行 `git diff --check --cached`、skill 基础校验和 harness smoke test，并在 demo、关键验证脚本或 `docs/final/` 变化时自动构建和验证 `templates/epub-style-demo/`。
+这个 hook 会运行 `git diff --check --cached`、AI 入口一致性校验、skill 基础校验和 harness smoke test，并在 demo、关键验证脚本或 `docs/final/` 变化时自动构建和验证 `templates/epub-style-demo/`。
 
 ## 两类常见场景
 

@@ -91,6 +91,20 @@
 
 推荐：不必清洗。绿线问题不值得动。
 
+## 模式 I：目录散乱 / 文件名混淆
+
+特征：manifest href 分散在非标准目录，或 URI 解码后的文件名含 `?`、`*`、`:` 等特殊字符，文件名不可读。
+
+推荐：在 EPUB3 迁移和精排前使用 `epub-structure-normalizer`，固定执行 `normalize`：
+
+```text
+format 目录格式化 -> deobfuscate-filenames 文件名反混淆
+```
+
+先 review dry-run 的 `mappings` 和 `warnings`，写盘后把实际 JSON 报告交给 `validate_text_invariance.py --path-map <report.json>`。
+
+如果规范化后只剩 `missing-css-font-fallback` 警告，保留 CSS 中的 `local()` fallback 并人工复核。不要把缺失字体别名自动绑定到任意嵌入字体；非字体资源断链仍必须修复。
+
 ## 通用建议
 
 - 永远不要并行执行多个 skill。

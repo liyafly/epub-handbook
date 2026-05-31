@@ -11,12 +11,15 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
+import json
+import posixpath
 import re
 import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree as ET
 
 
@@ -26,6 +29,10 @@ CORE_METADATA = ("title", "creator", "identifier", "language")
 BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "blockquote", "pre", "div"}
 IGNORED_TEXT_TAGS = {"rt", "rp", "script", "style"}
 CHECKS = ("text", "metadata", "spine", "cover", "drm", "anchors")
+FONT_OBFUSCATION_ALGORITHMS = {
+  "http://www.idpf.org/2008/embedding",
+  "http://ns.adobe.com/pdf/enc#RC",
+}
 
 
 class InputError(Exception):
@@ -91,6 +98,72 @@ def has_drm(epub: EpubData) -> bool:
   return "META-INF/encryption.xml" in epub.names
 
 
+def manifest_font_paths(epub: EpubData) -> set[str]:
+  root = require_opf(epub)
+  base = posixpath.dirname(epub.opf_path or "")
+  paths: set[str] = set()
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    href = item.attrib.get("href", "")
+    media_type = item.attrib.get("media-type", "").lower()
+    path = unquote(urlsplit(href).path)
+    if not path:
+      continue
+    if "font" in media_type or path.lower().endswith((".otf", ".ttf", ".woff", ".woff2")):
+      paths.add(posixpath.normpath(posixpath.join(base, path)))
+  return paths
+
+
+def has_only_standard_font_obfuscation(epub: EpubData) -> bool:
+  if not has_drm(epub):
+    return True
+  root = parse_xml(epub.zf.read("META-INF/encryption.xml"), "META-INF/encryption.xml")
+  fonts = manifest_font_paths(epub)
+  records = 0
+  for encrypted_data in root.iter():
+    if local_name(encrypted_data.tag) != "EncryptedData":
+      continue
+    algorithm = ""
+    for elem in encrypted_data.iter():
+      if local_name(elem.tag) == "EncryptionMethod":
+        algorithm = elem.attrib.get("Algorithm", "")
+        break
+    if algorithm not in FONT_OBFUSCATION_ALGORITHMS:
+      return False
+    references = 0
+    for elem in encrypted_data.iter():
+      if local_name(elem.tag) != "CipherReference":
+        continue
+      uri = elem.attrib.get("URI", "")
+      if not uri:
+        return False
+      archive_path = posixpath.normpath(unquote(urlsplit(uri).path).lstrip("/"))
+      if archive_path not in fonts:
+        return False
+      references += 1
+      records += 1
+    if not references:
+      return False
+  return records > 0
+
+
+def has_only_stale_encryption_references(epub: EpubData) -> bool:
+  if not has_drm(epub):
+    return True
+  root = parse_xml(epub.zf.read("META-INF/encryption.xml"), "META-INF/encryption.xml")
+  records = 0
+  for elem in root.iter():
+    if local_name(elem.tag) != "CipherReference":
+      continue
+    uri = elem.attrib.get("URI", "")
+    if not uri:
+      return False
+    archive_path = posixpath.normpath(unquote(urlsplit(uri).path).lstrip("/"))
+    if archive_path in epub.names:
+      return False
+    records += 1
+  return records > 0
+
+
 def xhtml_paths(epub: EpubData) -> set[str]:
   return {name for name in epub.names if name.lower().endswith((".xhtml", ".html"))}
 
@@ -146,29 +219,38 @@ def block_hashes(blocks: list[str]) -> list[str]:
   return [hashlib.sha256(block.encode("utf-8")).hexdigest() for block in blocks]
 
 
-def compare_text(before: EpubData, after: EpubData, allow_list: list[str], verbose: bool) -> list[str]:
+def mapped_path(path_map: dict[str, str], name: str) -> str:
+  return path_map.get(name, name)
+
+
+def compare_text(
+  before: EpubData,
+  after: EpubData,
+  allow_list: list[str],
+  path_map: dict[str, str],
+  verbose: bool,
+) -> list[str]:
   problems: list[str] = []
   before_paths = xhtml_paths(before)
   after_paths = xhtml_paths(after)
-  for name in sorted(before_paths | after_paths):
-    if skipped(name, allow_list):
+  expected_after_paths = {mapped_path(path_map, name) for name in before_paths}
+  for name in sorted(before_paths):
+    after_name = mapped_path(path_map, name)
+    if skipped(name, allow_list) or skipped(after_name, allow_list):
       continue
-    if name not in before_paths:
-      problems.append(f"text: added XHTML file: {name}")
-      continue
-    if name not in after_paths:
+    if after_name not in after_paths:
       problems.append(f"text: deleted XHTML file: {name}")
       continue
     before_blocks = extract_text_blocks(before.zf.read(name), f"{before.path}:{name}")
-    after_blocks = extract_text_blocks(after.zf.read(name), f"{after.path}:{name}")
+    after_blocks = extract_text_blocks(after.zf.read(after_name), f"{after.path}:{after_name}")
     before_hashes = block_hashes(before_blocks)
     after_hashes = block_hashes(after_blocks)
     if before_hashes == after_hashes:
       if verbose:
-        problems.append(f"verbose: text unchanged: {name} ({len(before_hashes)} blocks)")
+        problems.append(f"verbose: text unchanged: {name} -> {after_name} ({len(before_hashes)} blocks)")
       continue
     problems.append(
-      f"text: modified {name}: {len(before_hashes)} blocks before, {len(after_hashes)} after"
+      f"text: modified {name} -> {after_name}: {len(before_hashes)} blocks before, {len(after_hashes)} after"
     )
     for index, (before_hash, after_hash) in enumerate(zip(before_hashes, after_hashes)):
       if before_hash != after_hash:
@@ -178,6 +260,9 @@ def compare_text(before: EpubData, after: EpubData, allow_list: list[str], verbo
         break
     if len(before_hashes) != len(after_hashes):
       problems.append("  block count differs")
+  for name in sorted(after_paths - expected_after_paths):
+    if not skipped(name, allow_list):
+      problems.append(f"text: added XHTML file: {name}")
   return [p for p in problems if not p.startswith("verbose:")] if not verbose else problems
 
 
@@ -191,18 +276,25 @@ def extract_anchor_ids(content: bytes, label: str) -> set[str]:
   return ids
 
 
-def compare_anchors(before: EpubData, after: EpubData, allow_list: list[str], verbose: bool) -> list[str]:
+def compare_anchors(
+  before: EpubData,
+  after: EpubData,
+  allow_list: list[str],
+  path_map: dict[str, str],
+  verbose: bool,
+) -> list[str]:
   problems: list[str] = []
   before_paths = xhtml_paths(before)
   after_paths = xhtml_paths(after)
   for name in sorted(before_paths):
-    if skipped(name, allow_list):
+    after_name = mapped_path(path_map, name)
+    if skipped(name, allow_list) or skipped(after_name, allow_list):
       continue
-    if name not in after_paths:
+    if after_name not in after_paths:
       problems.append(f"anchors: XHTML file deleted: {name}")
       continue
     before_ids = extract_anchor_ids(before.zf.read(name), f"{before.path}:{name}")
-    after_ids = extract_anchor_ids(after.zf.read(name), f"{after.path}:{name}")
+    after_ids = extract_anchor_ids(after.zf.read(after_name), f"{after.path}:{after_name}")
     missing = sorted(before_ids - after_ids)
     if missing:
       shown = ", ".join(missing[:12])
@@ -266,7 +358,7 @@ def cover_path(epub: EpubData) -> str | None:
     props = set((item.attrib.get("properties") or "").split())
     href = item.attrib.get("href")
     if "cover-image" in props and href:
-      return base + href
+      return posixpath.normpath(posixpath.join(base, unquote(urlsplit(href).path)))
   return None
 
 
@@ -274,20 +366,50 @@ def sha256_bytes(data: bytes) -> str:
   return hashlib.sha256(data).hexdigest()
 
 
-def compare_cover(before: EpubData, after: EpubData) -> list[str]:
+def compare_cover(before: EpubData, after: EpubData, path_map: dict[str, str]) -> list[str]:
   b_cover = cover_path(before)
   a_cover = cover_path(after)
-  if b_cover != a_cover:
+  if mapped_path(path_map, b_cover or "") != a_cover:
     return [f"cover: cover-image path changed: {b_cover!r} -> {a_cover!r}"]
   if not b_cover:
     return []
-  if b_cover not in before.names or b_cover not in after.names:
-    return [f"cover: cover-image missing from zip: {b_cover}"]
+  if b_cover not in before.names or not a_cover or a_cover not in after.names:
+    return [f"cover: cover-image missing from zip: {b_cover!r} -> {a_cover!r}"]
   b_hash = sha256_bytes(before.zf.read(b_cover))
   a_hash = sha256_bytes(after.zf.read(a_cover))
   if b_hash != a_hash:
     return [f"cover: cover-image bytes changed: {b_hash[:12]} != {a_hash[:12]} ({b_cover})"]
   return []
+
+
+def add_path_mapping(path_map: dict[str, str], source: str, target: str) -> None:
+  for key, value in list(path_map.items()):
+    if value == source:
+      path_map[key] = target
+  path_map[source] = target
+
+
+def load_path_map(path: Path | None) -> dict[str, str]:
+  if path is None:
+    return {}
+  try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+  except (OSError, json.JSONDecodeError) as exc:
+    raise InputError(f"cannot read --path-map JSON: {path}: {exc}") from exc
+  stages = data.get("stages") if isinstance(data, dict) else None
+  sources = stages if isinstance(stages, list) else [data]
+  path_map: dict[str, str] = {}
+  for source in sources:
+    mappings = source.get("mappings") if isinstance(source, dict) else None
+    if mappings is None:
+      continue
+    if not isinstance(mappings, list):
+      raise InputError(f"{path}: mappings must be a list")
+    for item in mappings:
+      if not isinstance(item, dict) or not isinstance(item.get("from"), str) or not isinstance(item.get("to"), str):
+        raise InputError(f"{path}: each mapping must contain string from/to paths")
+      add_path_mapping(path_map, item["from"], item["to"])
+  return path_map
 
 
 def parse_checks(value: str, legacy_redlines: str | None) -> set[str]:
@@ -313,20 +435,30 @@ def write_report(lines: list[str], output: Path | None) -> None:
 def validate(args: argparse.Namespace) -> int:
   try:
     checks = parse_checks(args.check, args.redlines)
+    path_map = load_path_map(args.path_map)
     before = open_epub(args.before)
     after = open_epub(args.after)
     try:
       if "drm" in checks and (has_drm(before) or has_drm(after)):
-        write_report(["DRM detected, refusing to process."], args.output)
-        return 2
+        stale_allowed = all(
+          has_only_stale_encryption_references(epub)
+          for epub in (before, after)
+        )
+        font_allowed = args.allow_font_obfuscation and all(
+          has_only_standard_font_obfuscation(epub)
+          for epub in (before, after)
+        )
+        if not stale_allowed and not font_allowed:
+          write_report(["DRM detected, refusing to process."], args.output)
+          return 2
       problems: list[str] = []
       verbose_lines: list[str] = []
       if "text" in checks:
-        text_results = compare_text(before, after, args.allow_list, args.verbose)
+        text_results = compare_text(before, after, args.allow_list, path_map, args.verbose)
         verbose_lines.extend(line for line in text_results if line.startswith("verbose:"))
         problems.extend(line for line in text_results if not line.startswith("verbose:"))
       if "anchors" in checks:
-        anchor_results = compare_anchors(before, after, args.allow_list, args.verbose)
+        anchor_results = compare_anchors(before, after, args.allow_list, path_map, args.verbose)
         verbose_lines.extend(line for line in anchor_results if line.startswith("verbose:"))
         problems.extend(line for line in anchor_results if not line.startswith("verbose:"))
       if "metadata" in checks:
@@ -334,7 +466,7 @@ def validate(args: argparse.Namespace) -> int:
       if "spine" in checks:
         problems.extend(compare_spine(before, after))
       if "cover" in checks:
-        problems.extend(compare_cover(before, after))
+        problems.extend(compare_cover(before, after, path_map))
       if problems:
         write_report(verbose_lines + problems if args.verbose else problems, args.output)
         return 1
@@ -356,6 +488,8 @@ def main(argv: list[str]) -> int:
   parser.add_argument("--check", default="all", help="text,metadata,spine,cover,drm,anchors,all or comma list")
   parser.add_argument("--redlines", choices=("all", "text"), help="legacy alias for --check")
   parser.add_argument("--allow-list", action="append", default=[], help="fnmatch pattern for XHTML paths")
+  parser.add_argument("--path-map", type=Path, help="epub_structure_tool.py JSON report with expected path renames")
+  parser.add_argument("--allow-font-obfuscation", action="store_true", help="allow only verified standard EPUB font obfuscation")
   parser.add_argument("--output", type=Path, help="write report to file instead of stderr")
   parser.add_argument("--verbose", action="store_true")
   return validate(parser.parse_args(argv))

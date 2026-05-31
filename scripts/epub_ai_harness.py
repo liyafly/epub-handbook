@@ -12,6 +12,7 @@ import shutil
 import sys
 import zipfile
 from pathlib import Path
+from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
 
@@ -41,11 +42,16 @@ def split_props(value: str | None) -> set[str]:
 
 def norm_join(base: str, href: str) -> str:
   href = href.split("#", 1)[0]
-  return posixpath.normpath(posixpath.join(base, href))
+  return posixpath.normpath(posixpath.join(base, unquote(href)))
 
 
 def is_external_url(value: str) -> bool:
   return bool(re.match(r"^(?:[a-z][a-z0-9+.-]*:|//|#)", value, re.I))
+
+
+def has_obfuscated_filename(href: str) -> bool:
+  basename = posixpath.basename(unquote(href.split("#", 1)[0]))
+  return bool(re.search(r"[\x00-\x1f\\:*?\"<>|]", basename))
 
 
 def css_url_values(css: str) -> list[str]:
@@ -151,6 +157,7 @@ def inspect_opf(
   image_items: list[ET.Element] = []
   xhtml_text_chars = 0
   xhtml_image_refs = 0
+  obfuscated_filenames = 0
 
   for item in manifest:
     item_id = item.attrib.get("id")
@@ -160,6 +167,8 @@ def inspect_opf(
       href_by_id[item_id] = href
     if href:
       manifest_paths.add(norm_join(opf_dir, href))
+      if has_obfuscated_filename(href):
+        obfuscated_filenames += 1
     if media_type == "application/xhtml+xml" or href.endswith(".xhtml"):
       media_counts["xhtml"] += 1
       xhtml_items.append(item)
@@ -177,6 +186,19 @@ def inspect_opf(
   report.summary["manifest_items"] = len(manifest)
   report.summary["spine_items"] = len(spine)
   report.summary["media_counts"] = media_counts
+  if obfuscated_filenames:
+    report.summary["obfuscated_filenames"] = obfuscated_filenames
+    report.findings.append(finding(
+      "warn",
+      "Manifest filenames contain decoded special characters; run structure normalization before richer cleanup",
+      kind="filename-obfuscation",
+    ))
+    report.add_skill("epub-structure-normalizer", "warn")
+    if report.input_kind == "existing-epub":
+      report.add_command(
+        f"python3 scripts/epub_structure_tool.py normalize {shell_path(Path(report.input))} "
+        "--output work/after/step-0-normalized.epub --dry-run --report-format json"
+      )
   package_version = root.attrib.get("version", "")
   if package_version:
     report.summary["package_version"] = package_version
@@ -250,11 +272,21 @@ def inspect_opf(
     for raw_url in css_url_values(css):
       linked = norm_join(posixpath.dirname(target), raw_url)
       if not exists(linked):
-        report.findings.append(finding("error", "CSS url() target missing", f"{href} -> {raw_url}"))
-        report.add_skill("epub-css-layering-optimizer", "error")
-        report.add_skill("epub-package-nav-auditor", "error")
-        if Path(raw_url.split("#", 1)[0]).suffix.lower() in FONT_EXTS:
-          report.add_skill("epub-typography-optimizer", "error")
+        extension = Path(unquote(raw_url.split("#", 1)[0].split("?", 1)[0])).suffix.lower()
+        if extension in FONT_EXTS:
+          report.findings.append(finding(
+            "warn",
+            "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+            f"{href} -> {raw_url}",
+            kind="missing-css-font-fallback",
+          ))
+          report.add_skill("epub-css-layering-optimizer", "warn")
+          report.add_skill("epub-package-nav-auditor", "warn")
+          report.add_skill("epub-typography-optimizer", "warn")
+        else:
+          report.findings.append(finding("error", "CSS url() target missing", f"{href} -> {raw_url}"))
+          report.add_skill("epub-css-layering-optimizer", "error")
+          report.add_skill("epub-package-nav-auditor", "error")
       elif linked not in manifest_paths:
         report.findings.append(finding("error", "CSS url() target missing from OPF manifest", f"{href} -> {raw_url}"))
         report.add_skill("epub-package-nav-auditor", "error")

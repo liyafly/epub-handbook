@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import subprocess
 import sys
@@ -125,6 +127,71 @@ def change_anchor_id(before_src: Path, after_src: Path, _tmp: Path) -> None:
   (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(after_body), encoding="utf-8")
 
 
+def rename_paths(after_src: Path, tmp: Path) -> Path:
+  (after_src / "OEBPS/Text/chap1.xhtml").rename(after_src / "OEBPS/Text/chapter-one.xhtml")
+  (after_src / "OEBPS/Images/cover.png").rename(after_src / "OEBPS/Images/cover-image.png")
+  opf = (after_src / "OEBPS/package.opf").read_text(encoding="utf-8")
+  opf = opf.replace('href="Text/chap1.xhtml"', 'href="Text/chapter-one.xhtml"')
+  opf = opf.replace('href="Images/cover.png"', 'href="Images/cover-image.png"')
+  (after_src / "OEBPS/package.opf").write_text(opf, encoding="utf-8")
+  path_map = tmp / "path-map.json"
+  path_map.write_text(json.dumps({
+    "stages": [
+      {
+        "mappings": [
+          {"from": "OEBPS/Text/chap1.xhtml", "to": "OEBPS/Text/intermediate.xhtml"},
+          {"from": "OEBPS/Images/cover.png", "to": "OEBPS/Images/intermediate.png"},
+        ],
+      },
+      {
+        "mappings": [
+          {"from": "OEBPS/Text/intermediate.xhtml", "to": "OEBPS/Text/chapter-one.xhtml"},
+          {"from": "OEBPS/Images/intermediate.png", "to": "OEBPS/Images/cover-image.png"},
+        ],
+      },
+    ],
+  }), encoding="utf-8")
+  return path_map
+
+
+def add_font_obfuscation(src: Path, *, font_uri: str = "OEBPS/Fonts/book.ttf") -> None:
+  (src / "OEBPS/Fonts").mkdir(exist_ok=True)
+  (src / "OEBPS/Fonts/book.ttf").write_bytes(b"font-bytes")
+  opf_path = src / "OEBPS/package.opf"
+  opf = opf_path.read_text(encoding="utf-8").replace(
+    "  </manifest>",
+    '    <item id="font" href="Fonts/book.ttf" media-type="font/ttf"/>\n  </manifest>',
+  )
+  opf_path.write_text(opf, encoding="utf-8")
+  (src / "META-INF/encryption.xml").write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
+<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"
+    xmlns:enc="http://www.w3.org/2001/04/xmlenc#">
+  <enc:EncryptedData>
+    <enc:EncryptionMethod Algorithm="http://www.idpf.org/2008/embedding"/>
+    <enc:CipherData><enc:CipherReference URI="{font_uri}"/></enc:CipherData>
+  </enc:EncryptedData>
+</encryption>
+''', encoding="utf-8")
+
+
+def remove_font_cipher_reference(src: Path) -> None:
+  encryption = src / "META-INF/encryption.xml"
+  text = encryption.read_text(encoding="utf-8")
+  encryption.write_text(re.sub(r"<enc:CipherReference\b[^>]*/>", "", text), encoding="utf-8")
+
+
+def add_stale_encryption_reference(src: Path) -> None:
+  (src / "META-INF/encryption.xml").write_text('''<?xml version="1.0" encoding="UTF-8"?>
+<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"
+    xmlns:enc="http://www.w3.org/2001/04/xmlenc#">
+  <enc:EncryptedData>
+    <enc:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-ctr"/>
+    <enc:CipherData><enc:CipherReference URI="OEBPS/Styles/dkagent.css"/></enc:CipherData>
+  </enc:EncryptedData>
+</encryption>
+''', encoding="utf-8")
+
+
 def main() -> int:
   tests = [
     ("TC1 self", noop, 0, []),
@@ -174,7 +241,62 @@ def main() -> int:
     if result.returncode or elapsed > 5:
       raise AssertionError(f"TC9 22 XHTML failed: rc={result.returncode}, elapsed={elapsed:.2f}\n{result.stderr}")
 
-  print("validate_text_invariance tests ok (22 cases)")
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    path_map = rename_paths(after_src, tmp)
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    result = run(before, after, "--path-map", str(path_map))
+    if result.returncode:
+      raise AssertionError(f"TC23 path map failed: rc={result.returncode}\n{result.stderr}")
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    add_font_obfuscation(before_src)
+    add_font_obfuscation(after_src)
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    result = run(before, after, "--allow-font-obfuscation")
+    if result.returncode:
+      raise AssertionError(f"TC24 standard font obfuscation failed: rc={result.returncode}\n{result.stderr}")
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    add_font_obfuscation(before_src, font_uri="OEBPS/Text/chap1.xhtml")
+    add_font_obfuscation(after_src, font_uri="OEBPS/Text/chap1.xhtml")
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    result = run(before, after, "--allow-font-obfuscation")
+    if result.returncode != 2 or "DRM detected" not in result.stderr:
+      raise AssertionError(f"TC25 non-font encryption was not rejected: rc={result.returncode}\n{result.stderr}")
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    add_font_obfuscation(before_src)
+    add_font_obfuscation(after_src)
+    remove_font_cipher_reference(before_src)
+    remove_font_cipher_reference(after_src)
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    result = run(before, after, "--allow-font-obfuscation")
+    if result.returncode != 2 or "DRM detected" not in result.stderr:
+      raise AssertionError(f"TC26 empty font encryption was not rejected: rc={result.returncode}\n{result.stderr}")
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    add_stale_encryption_reference(before_src)
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    result = run(before, after)
+    if result.returncode:
+      raise AssertionError(f"TC27 stale encryption reference failed: rc={result.returncode}\n{result.stderr}")
+
+  print("validate_text_invariance tests ok (27 cases)")
   return 0
 
 
