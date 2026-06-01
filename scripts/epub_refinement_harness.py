@@ -326,7 +326,7 @@ def build_recommendations(path: Path, facts: dict[str, object], ai_data: dict[st
     "AI can suggest structure and styling, but text, metadata, spine, anchors, and cover are red lines.",
     [
       f"python3 scripts/validate_text_invariance.py work/before/source.epub work/after/step-N.epub --check all",
-      "Use Calibre Editor or VS Code as documented in README #epub-diff-review.",
+      "Use Calibre Editor or VS Code as documented in docs/pipeline/epub-diff-review.md.",
     ],
     ["$epub-layout-auditor"],
   ))

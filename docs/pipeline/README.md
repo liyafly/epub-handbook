@@ -10,7 +10,7 @@
 4. [refinement-harnesses.md](refinement-harnesses.md)：预检、EPUB3 迁移与精排建议 harness
 5. [cleanup-patterns.md](cleanup-patterns.md)：典型脏 EPUB 模式识别与 skill 推荐顺序
 6. [asset-optimization.md](asset-optimization.md)：图片与字体优化（精排建议的资源附件）
-7. EPUB diff review：见 [根 README #epub-diff-review](../../README.md#epub-diff-review)（Calibre / VS Code）
+7. EPUB diff review：见 [epub-diff-review.md](epub-diff-review.md)（Calibre / VS Code）
 8. [skills-matrix.md](skills-matrix.md)：15 个 skill 在清洗 / 新书流程中的角色
 9. [decisions.md](decisions.md)：Stage 落地决策与偏差记录
 10. [reference-font-role-patterns.md](reference-font-role-patterns.md)：本地文学 EPUB 的脱敏字体角色分析

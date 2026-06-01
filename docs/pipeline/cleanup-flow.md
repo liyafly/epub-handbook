@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于把一本已存在的 EPUB 收拾干净。
 > 对应 SPEC：[§10 AI 改动边界](../final/SPEC-实现约束.md)。
-> 对应工具：`scripts/epub_cleanup_pipeline.py`、`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）。
+> 对应工具：`scripts/epub_cleanup_pipeline.py`、`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [EPUB diff review](epub-diff-review.md)）。
 
 ## 整体流程
 
@@ -23,7 +23,7 @@ python3 scripts/epub_cleanup_pipeline.py \
   --work-dir work/book-a
 ```
 
-它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、红线子集校验、精排建议和 AI findings。人工 diff review、文本角色 class 分派和阅读器实测仍必须继续执行。
+它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、metadata / DRM / anchors 红线子集校验、独立正文文本 gate、精排建议和 AI findings。人工 diff review、文本角色 class 分派和阅读器实测仍必须继续执行。
 
 默认只落盘 `reports/pipeline.json` 汇总报告，步骤 stdout/stderr 会保留在该 JSON 中。排障或需要逐项归档时加 `--keep-step-reports`，再额外写出 preflight、conversion、popup、redline、refinement 和 findings 分步报告。结构规范化的 dry-run/apply JSON 始终单独保留，因为前者需要 review，后者还要传给 `validate_text_invariance.py --path-map`。
 
@@ -200,7 +200,7 @@ python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/cleaned.e
 
 ## 8. Diff 人工 review
 
-按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 的两条路径做：
+按 [EPUB diff review](epub-diff-review.md) 的两条路径做：
 
 - 主路径（推荐）：Calibre Editor → Tweak Book → File → Compare to another book → 选 `work/after/cleaned.epub`。
 - 精细路径：`unzip` 解压两侧到 `work/before-extracted` / `work/after-extracted`，再用 `git diff --no-index` 整树概览 / `code --diff` 逐文件 / `shasum -a 256` 列表对资源层。

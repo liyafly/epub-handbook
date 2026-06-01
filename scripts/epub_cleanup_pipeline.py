@@ -304,6 +304,23 @@ def run_pipeline(
     )
     run_step(
       report,
+      "validate-redline-text",
+      [
+        sys.executable,
+        str(SCRIPTS / "validate_text_invariance.py"),
+        str(base_path),
+        str(output_path),
+        "--check",
+        "text",
+        "--allow-list",
+        "*/nav.xhtml",
+        "--allow-list",
+        "*/toc.ncx",
+      ],
+      optional_report(reports_dir, "validate-redline-text.txt", keep_step_reports),
+    )
+    run_step(
+      report,
       "refinement",
       [sys.executable, str(SCRIPTS / "epub_refinement_harness.py"), str(output_path), "--format", "json"],
       optional_report(reports_dir, "refinement.json", keep_step_reports),

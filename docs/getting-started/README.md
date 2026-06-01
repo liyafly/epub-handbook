@@ -2,23 +2,13 @@
 
 本目录给第一次接触本仓的人。按顺序读完这些页面，你会知道如何构建 demo、如何检查自己的 EPUB、何时使用 AI skills，以及清洗后怎么用外部 diff 工具 review。
 
-## 如何使用
-
-1. [01-first-epub.md](01-first-epub.md) - 5 分钟做一本最小 EPUB
-2. [02-anatomy.md](02-anatomy.md) - 一本 epub 到底由什么组成
-3. [03-readers.md](03-readers.md) - 我应该在哪些阅读器上测
-4. [06-test-your-own.md](06-test-your-own.md) - 测自己的 epub
-5. [04-skills.md](04-skills.md) - AI skills 是什么、怎么用
-6. [07-faq.md](07-faq.md) - 常见问题
-7. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md) - EPUB2 / EPUB3、XHTML、弹注 fallback 与平台兼容
-8. [05-case-study.md](05-case-study.md) - 自造 EPUB 清洗演示案例
-9. [glossary.md](glossary.md) - 术语表
+> 文件名前缀（01、02…）只是稳定 ID，**不代表阅读顺序**。请按下面的推荐顺序读。
 
 读完后，你就能进入：
 
 - 工程契约（[docs/final/](../final/)）查看硬规则与速查表；
 - 批处理流水线（[docs/pipeline/](../pipeline/)）做批量清洗；
-- 外部 Diff 工具（按 [根 README #epub-diff-review](../../README.md#epub-diff-review) 用 Calibre / VS Code）对比改前 / 改后。
+- 外部 Diff 工具（按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre / VS Code）对比改前 / 改后。
 
 ## 速查：一定要做 / 一定不要
 
@@ -49,19 +39,18 @@
 - **合集 / 大部头**：[docs/guides/anthology-navigation.md](../guides/anthology-navigation.md)
 - **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/pipeline/cleanup-flow.md](../pipeline/cleanup-flow.md)
 - **现成 EPUB 精排建议**：[docs/pipeline/refinement-harnesses.md](../pipeline/refinement-harnesses.md)
-- **review 改前改后差异**：按 [根 README #epub-diff-review](../../README.md#epub-diff-review) 用 Calibre / VS Code
+- **review 改前改后差异**：按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre / VS Code
 - **贡献回本仓**：[CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ## 推荐阅读顺序
 
-文件名只是编号，实际推荐：
-
-1. [01-first-epub.md](01-first-epub.md)
-2. [02-anatomy.md](02-anatomy.md)
-3. [03-readers.md](03-readers.md)
-4. [06-test-your-own.md](06-test-your-own.md)
-5. [04-skills.md](04-skills.md)
-6. [07-faq.md](07-faq.md)
-7. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md)
-8. [05-case-study.md](05-case-study.md)
-9. [glossary.md](glossary.md)
+1. [00-what-is-epub.md](00-what-is-epub.md) - EPUB 是什么、这个仓库解决什么问题
+2. [01-first-epub.md](01-first-epub.md) - 5 分钟构建示例，再裁出自己的最小书
+3. [02-anatomy.md](02-anatomy.md) - 一本 epub 到底由什么组成
+4. [03-readers.md](03-readers.md) - 我应该在哪些阅读器上测
+5. [06-test-your-own.md](06-test-your-own.md) - 测自己的 epub
+6. [04-skills.md](04-skills.md) - AI skills 是什么、怎么用
+7. [07-faq.md](07-faq.md) - 常见问题
+8. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md) - EPUB2 / EPUB3、XHTML、弹注 fallback 与平台兼容
+9. [05-case-study.md](05-case-study.md) - 自造 EPUB 清洗演示案例
+10. [glossary.md](glossary.md) - 术语表

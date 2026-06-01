@@ -2,6 +2,8 @@
 
 不同阅读器对 EPUB 3 和 CSS 的支持差异很大。本仓把兼容性实测写进 [reader-matrix.yaml](../final/reader-matrix.yaml)，不要只凭直觉改规则。
 
+> matrix 现状以 `warn`（待复测 / provisional）为主，`pass` 较少。`warn` 不代表坏，而是「尚未在该 reader + 版本上确认」。把它当「已知风险地图」，不要当「全绿放行清单」。
+
 ## 常用基线
 
 | 阅读器 | 用途 | 优点 | 风险 |

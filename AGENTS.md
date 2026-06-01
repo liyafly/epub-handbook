@@ -26,7 +26,7 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 10. `samples/demo-books/`：自造清洗和 diff 演示样本；生成的 `.epub` 不入 git。
 11. `samples/third-party/`：公版书样本与许可记录；实体 `.epub` 不入 git。
 
-`tools/` 已于 2026-05-28 移除。人工 diff review 使用 Calibre Editor 或 VS Code，见根 `README.md` 的 `#epub-diff-review` 段。
+`tools/` 已于 2026-05-28 移除。人工 diff review 使用 Calibre Editor 或 VS Code，见 `docs/pipeline/epub-diff-review.md`。
 
 ## 已有 EPUB 固定流程
 

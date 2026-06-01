@@ -11,7 +11,7 @@ description: 审核 EPUB、XHTML、CSS、OPF、nav 和模板改动的排版质�
 
 1. 确定范围：
    - 在本仓库工作时，先与用户指定的基线分支对比。
-   - 若用户场景是「改造已有 EPUB」（而非「从零做新书」），本 skill 是入口；按 [SPEC §10](../../docs/final/SPEC-实现约束.md) 的红 / 黄 / 绿规则决定改动范围；每次改动跑 `scripts/validate_text_invariance.py` 红线 gate，红线触发立即回滚。人工 review 通过外部 diff 工具（Calibre Editor / VS Code，见 [根 README #epub-diff-review](../../README.md#epub-diff-review)）完成。
+   - 若用户场景是「改造已有 EPUB」（而非「从零做新书」），本 skill 是入口；按 [SPEC §10](../../docs/final/SPEC-实现约束.md) 的红 / 黄 / 绿规则决定改动范围；每次改动跑 `scripts/validate_text_invariance.py` 红线 gate，红线触发立即回滚。人工 review 通过外部 diff 工具（Calibre Editor / VS Code，见 [EPUB diff review](../../docs/pipeline/epub-diff-review.md)）完成。
    - 典型脏 epub 模式对照 [docs/pipeline/cleanup-patterns.md](../../docs/pipeline/cleanup-patterns.md)。
    - 读取改动过的 XHTML、CSS、OPF、nav、NCX、图片/字体资源和相关文档。
    - 区分用户是只要审稿，还是要审稿后直接修复。

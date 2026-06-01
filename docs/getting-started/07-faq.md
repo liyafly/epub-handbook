@@ -50,7 +50,7 @@ A：检查字体文件、OPF manifest、CSS `@font-face` 引用，以及阅读�
 ## EPUB Diff
 
 **Q：怎么对比两个 EPUB？**
-A：见根 [README.md#epub-diff-review](../../README.md#epub-diff-review)。主路径用 Calibre Editor 的「Compare to another book」；精细路径用 `unzip` + `git diff --no-index` 或 VS Code。
+A：见 [EPUB diff review](../pipeline/epub-diff-review.md)。主路径用 Calibre Editor 的「Compare to another book」；精细路径用 `unzip` + `git diff --no-index` 或 VS Code。
 
 **Q：Calibre 的 Compare 菜单是灰的？**
 A：Tweak Book 必须先进入编辑状态；随便存一次（Cmd+S）再 Compare。

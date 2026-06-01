@@ -20,7 +20,9 @@ bash samples/demo-books/build.sh
 2. `after` 拆成 `base.css` / `media.css` / `notes.css` / `tables.css`。
 3. 正文、核心元数据、spine 和封面不变。
 4. 用 `validate_text_invariance.py --check all` 做红线 gate。
-5. 按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 对比结构、文本、样式、资源、元数据五层。
+5. 按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 或 VS Code 对比结构、文本、样式、资源、元数据五层。
+
+> 说明：这里的 `base/media/notes/tables.css` 是该样本书自身的简化拆分；模板 `templates/epub-style-demo/` 用的是更细的 8 层方案（`fonts/base/notes/effects/literary/media/vertical/poster.css`，见 SPEC §7）。两者都合法，按书的复杂度选。新书从模板起步时以 8 层为参考。
 
 ## 案例 2：纸上花园观察录
 
@@ -44,4 +46,4 @@ bash samples/demo-books/build.sh
 ## 下一步
 
 - 拿你自己的 epub，跟着 [cleanup-flow.md](../pipeline/cleanup-flow.md) 跑一遍。
-- 按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 看自己的清洗结果。
+- 按 [EPUB diff review](../pipeline/epub-diff-review.md) 看自己的清洗结果。

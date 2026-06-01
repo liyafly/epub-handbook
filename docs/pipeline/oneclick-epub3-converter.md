@@ -35,7 +35,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 1. 复制输入为 `work/book-a/before/source.epub`，保留不可修改基线。
 2. 跑前置 preflight；有阻断错误立即停止。
 3. 调用底层 EPUB3 转换器。
-4. 跑产物 preflight、弹注 validator、红线子集 gate。
+4. 跑产物 preflight、弹注 validator、红线子集 gate 和独立正文文本 gate。
 5. 生成精排建议和 AI findings。
 6. 写入 `work/book-a/reports/pipeline.json`。
 
@@ -187,9 +187,16 @@ python3 scripts/validate_text_invariance.py \
   work/book-a/after/cleaned.epub \
   --check metadata,drm,anchors \
   --allow-list '*/nav.xhtml'
+
+python3 scripts/validate_text_invariance.py \
+  work/book-a/before/source.epub \
+  work/book-a/after/cleaned.epub \
+  --check text \
+  --allow-list '*/nav.xhtml' \
+  --allow-list '*/toc.ncx'
 ```
 
-如果启用弹注转换，普通 `--check text` 会因为 `[1]` 被图片触发器替换而失败。此时追加一条“去注释编号/回跳符后文本等价”的专用检查，确认正文与注释内容没有被改写。
+正文文本 gate 是硬门禁。若转换触发它，流水线立即停止，不把该产物当作可交付结果。
 
 Kindle Previewer 可选：
 

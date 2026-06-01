@@ -222,7 +222,7 @@ AI 检测到自己将要触发以下任一改动时，必须停止并询问用�
 
 ### §10.2 黄线（默认可改，但人工 review 必须看见）
 
-AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Code，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）可视化确认：
+AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Code，见 [EPUB diff review](../pipeline/epub-diff-review.md)）可视化确认：
 
 | 黄线 | 说明 |
 | --- | --- |
@@ -264,7 +264,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 封面红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check cover` | 退出码 0 |
 | 全量红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 退出码 0 |
 
-人工可视化 review 通过外部 diff 工具（Calibre Editor 主路径，VS Code + `unzip` 精细路径，见 [../../README.md#epub-diff-review](../../README.md#epub-diff-review)）完成，不在自动化范畴。
+人工可视化 review 通过外部 diff 工具（Calibre Editor 主路径，VS Code + `unzip` 精细路径，见 [EPUB diff review](../pipeline/epub-diff-review.md)）完成，不在自动化范畴。
 
 ### §10.6 能力清单（What this pipeline can / can't do）
 

@@ -70,7 +70,7 @@ python3 scripts/epub_refinement_harness.py \
 4. `typography-fonts` 需要 AI 判断：默认系统优先字体链；内嵌字体只用于标题、题签、生僻字或明确的全字符集例外。
 5. `images` 只负责识别格式和版式风险；真实压缩 / 转码交给外部工具，完成后再回到 package/nav audit。
 6. 每个写出步骤都生成 `work/after/step-N-*.epub`，立刻跑 `validate_text_invariance.py`。
-7. 最终交付前按根 README 的 `#epub-diff-review` 做五层人工 review。
+7. 最终交付前按 [EPUB diff review](epub-diff-review.md) 做五层人工 review。
 
 ## 图片转化工具建议
 

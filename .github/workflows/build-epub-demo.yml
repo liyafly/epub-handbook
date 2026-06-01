@@ -40,8 +40,14 @@ jobs:
           python3 scripts/test_epub_ai_harness.py
           python3 scripts/test_validate_text_invariance.py
           python3 scripts/test_epub_cleanup_harnesses.py
+          python3 scripts/test_epub_cleanup_pipeline.py
+          python3 scripts/test_epub3_oneclick_converter.py
+          python3 scripts/test_epub_css_cleanup.py
+          python3 scripts/test_epub_structure_tool.py
+          python3 scripts/test_epub_anthology_refinement.py
           python3 scripts/test_validate_popup_notes.py
           python3 scripts/test_build_demo_epubs.py
+          python3 scripts/validate_ai_entrypoints.py
           scripts/validate-epub-style-demo.sh --epub "$epub"
           scripts/validate-popup-notes.sh --epub "$epub"
 

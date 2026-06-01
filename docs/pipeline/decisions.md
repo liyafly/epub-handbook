@@ -36,6 +36,6 @@
 | Q7 | 是否继续自维护 epub-diff web app | 移除整个 `tools/` 目录 | 1) 1344 行手写代码（含手写 SHA-256）维护成本高；2) Calibre Compare to another book 提供字符级 HTML/CSS diff、图片像素 overlay、文件树着色，是上位替代；3) `file://` 模块限制和 vendor 抓取流程违背仓库「双击即用」原则；4) 红线 gate 与本工具完全解耦，移除不影响自动化 |
 | Q8 | 替代工作流落地点 | 不创建独立 guide；diff 工作流唯一权威写进根 `README.md` 的 `## EPUB diff review` 段 | 减少跳转层；让根 README 成为单一入口文档 |
 | Q9 | 根 README 是否同步丰富 | 是；扩为多段结构化入口（仓库做什么 / 准备环境 / 5 分钟 / diff review / 清洗 / skills / 实测回写 / 文档地图） | 旧 README 仅 50 行场景表，承载不了「单一入口」定位 |
-| Q10 | SPEC §10.2 / §10.4 / §10.5 提到的 web app 怎么改 | 字样全部替换为「外部 diff 工具」，并指向 README 锚点 `#epub-diff-review` | `docs/final/` 是硬约束层，必须与实际工具状态对齐 |
+| Q10 | SPEC §10.2 / §10.4 / §10.5 提到的 web app 怎么改 | 字样全部替换为「外部 diff 工具」，并指向 `docs/pipeline/epub-diff-review.md` | `docs/final/` 是硬约束层，必须与实际工具状态对齐 |
 
 执行记录见 [../plans/2026-05-28-remove-epub-diff.md](../plans/2026-05-28-remove-epub-diff.md)。

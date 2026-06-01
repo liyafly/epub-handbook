@@ -45,7 +45,7 @@ bash templates/epub-style-demo/build.sh
 ls -t templates/epub-style-demo/dist/*.epub | head -2
 ```
 
-按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 或 VS Code 对比这两个 epub。
+按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 或 VS Code 对比这两个 epub。
 
 ### 5. 用阅读器打开
 
@@ -53,6 +53,144 @@ ls -t templates/epub-style-demo/dist/*.epub | head -2
 - **iOS**：通过 iCloud Drive 或 AirDrop 发到手机。
 - **Kindle**：拖入 Kindle Previewer 3。
 - **任何浏览器**：用 epub.js reader 或 Readest。
+
+## 做你自己的最小书
+
+上面的 demo 故意包含很多场景，用来测试兼容性。它不是新书的空白模板。第一次做自己的书时，可以复制 demo，再裁成只剩一章的最小骨架。
+
+### 1. 复制并裁掉演示场景
+
+```sh
+cp -R templates/epub-style-demo work/my-first-book
+rm -rf work/my-first-book/dist
+find work/my-first-book/OEBPS/Text -type f ! -name '01-body.xhtml' -delete
+find work/my-first-book/OEBPS/Styles -type f ! -name 'base.css' -delete
+rm -rf work/my-first-book/OEBPS/Images
+```
+
+保留后的结构应为：
+
+```text
+work/my-first-book/
+├── mimetype
+├── META-INF/container.xml
+└── OEBPS/
+    ├── package.opf
+    ├── nav.xhtml
+    ├── toc.ncx
+    ├── Styles/base.css
+    └── Text/01-body.xhtml
+```
+
+`META-INF/container.xml` 不需要改。它仍然指向 `OEBPS/package.opf`。
+
+### 2. 把 OPF 改成最小清单
+
+用下面内容替换 `work/my-first-book/OEBPS/package.opf`。原 demo 中除 `nav`、`ncx`、`css-base`、`body` 之外的 manifest item 都要删除；spine 中只保留 `body`。
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:replace-with-your-id</dc:identifier>
+    <dc:title>我的第一本 EPUB</dc:title>
+    <dc:creator>你的名字</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <meta property="dcterms:modified">2026-06-01T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="css-base" href="Styles/base.css" media-type="text/css"/>
+    <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="body"/>
+  </spine>
+</package>
+```
+
+### 3. 把目录改成只剩一章
+
+用下面内容替换 `work/my-first-book/OEBPS/nav.xhtml`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-CN">
+  <head><title>目录</title></head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <h1>目录</h1>
+      <ol><li><a href="Text/01-body.xhtml">第一章</a></li></ol>
+    </nav>
+  </body>
+</html>
+```
+
+用下面内容替换 `work/my-first-book/OEBPS/toc.ncx`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:replace-with-your-id"/></head>
+  <docTitle><text>我的第一本 EPUB</text></docTitle>
+  <navMap>
+    <navPoint id="navpoint-1" playOrder="1">
+      <navLabel><text>第一章</text></navLabel>
+      <content src="Text/01-body.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>
+```
+
+### 4. 写第一章和基础样式
+
+用下面内容替换 `work/my-first-book/OEBPS/Text/01-body.xhtml`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">
+  <head>
+    <title>第一章</title>
+    <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  </head>
+  <body>
+    <h1>第一章</h1>
+    <p>这是我的第一段正文。</p>
+  </body>
+</html>
+```
+
+用下面内容替换 `work/my-first-book/OEBPS/Styles/base.css`：
+
+```css
+body {
+  margin: 0 5%;
+  line-height: 1.7;
+}
+
+p {
+  margin: 0;
+  text-indent: 2em;
+}
+```
+
+### 5. 校验并打包
+
+```sh
+xmllint --noout \
+  work/my-first-book/OEBPS/package.opf \
+  work/my-first-book/OEBPS/nav.xhtml \
+  work/my-first-book/OEBPS/toc.ncx
+
+cd work/my-first-book
+zip -X0 ../my-first-book.epub mimetype
+zip -Xr9D ../my-first-book.epub META-INF OEBPS
+cd ../..
+python3 scripts/epub_preflight_harness.py work/my-first-book.epub --format json
+```
+
+`preflight_status` 没有 `fail` 后，再用 Apple Books 或目标阅读器打开 `work/my-first-book.epub`。
 
 ## 下一步
 

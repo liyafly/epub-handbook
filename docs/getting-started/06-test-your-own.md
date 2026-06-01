@@ -38,7 +38,7 @@ bash scripts/validate-epub-style-demo.sh --epub work/source.epub
 cp work/source.epub work/source-copy.epub
 ```
 
-按 [../../README.md#epub-diff-review](../../README.md#epub-diff-review) 用 Calibre Editor 比较 `work/source.epub` 与 `work/source-copy.epub`。
+按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 比较 `work/source.epub` 与 `work/source-copy.epub`。
 
 - 期望：所有文件 unchanged。
 - 如果 Calibre 报差异：说明拷贝过程中改动了文件，重新拷贝。
