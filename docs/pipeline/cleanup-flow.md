@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于把一本已存在的 EPUB 收拾干净。
 > 对应 SPEC：[§10 AI 改动边界](../final/SPEC-实现约束.md)。
-> 对应工具：`scripts/epub_cleanup_pipeline.py`、`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [EPUB diff review](epub-diff-review.md)）。
+> 对应工具：`scripts/epub_cleanup_pipeline.py`（一命令一键）、`scripts/epub_cleanup_loop.py`（多轮自动收敛）、`scripts/epub_preflight_harness.py`、`scripts/epub_structure_tool.py`、`scripts/epub3_migration_harness.py`、`scripts/epub_refinement_harness.py`、`scripts/epub_ai_harness.py`、`scripts/validate_text_invariance.py`、外部 diff 工具（Calibre / VS Code，见 [EPUB diff review](epub-diff-review.md)）。
 
 ## 整体流程
 
@@ -383,3 +383,58 @@ python3 scripts/validate_text_invariance.py \
 ```
 
 前两条必须通过；反例必须失败。
+
+## 18. 自动循环清洗（`epub_cleanup_loop.py`）
+
+在 `epub_cleanup_pipeline.py` 的一命令一键纪律之上，本命令增加**确定性多轮自动收敛**：每轮由 Planner 产出受白名单约束的 Action，脚本执行后立即跑正文红线 gate，收敛或触上限自动停机。
+
+**默认零模型：**
+
+```sh
+python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir work/book-a
+```
+
+默认 `--planner rules` 不调用任何模型，纯标准库，可离线/气隙运行。脚本只会做**确定性可判定**的改动：
+
+- 补充缺失的 `xml:lang` / `epub:type`（lane ② 甲，默认开启）
+- class 值重命名（lane ② 甲，需提供 mapping）
+
+需要结构改写时显式开启：
+
+```sh
+python3 scripts/epub_cleanup_loop.py /path/book.epub \
+  --work-dir work/book-a \
+  --enable-structural
+```
+
+此时额外允许 `div.quote → blockquote` 等白名单内的标签改写（lane ② 乙'），但正文文本仍然逐字不动。
+
+**AI 辅助模式（handshake）：**
+
+```sh
+python3 scripts/epub_cleanup_loop.py /path/book.epub \
+  --work-dir work/book-a \
+  --planner handshake
+```
+
+工具在每轮写出 `plan-request.json` 后暂停，等待本地 AI host 填入 `plan.json` 再继续。工具自身从不主动联网；AI 每轮所见与所提全部落盘在 `reports/`，可审计。
+
+**报告三分类：**
+
+清洗结束后输出 Markdown 报告，分三栏：
+
+- ✅ **已自动改**：脚本已执行并通过红线验证的改动
+- 💡 **建议你改**：排版优化建议（不进自动循环）
+- 👁 **需人工校对 / 实测**：需人工判断或阅读器实测的项
+
+**与 `epub_cleanup_pipeline.py` 的关系：**
+
+`epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 在其纪律之上增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。两者共享 preflight、红线 gate、epubcheck 等组件，不互相替代。
+
+### 18.1 模型与隐私（说明）
+
+本工具的清洗主体是**确定性脚本**，AI 只是辅助——默认 `--planner rules` **完全不调用任何模型**，纯标准库、可离线/气隙运行，稿件不出本机。
+
+⚠️ **风险提示**：出版社及专业制作团队的稿件常涉及机密与版权。把正文交给**云端大模型**存在泄露风险。
+
+✅ **推荐**：确需 AI 辅助判断时，使用**本地部署的大模型**，通过 `--planner handshake` 在本机内完成「`plan-request.json` → `plan.json`」握手；工具自身从不主动联网，AI 每轮所见与所提全部落盘在 `reports/`，可审计。
