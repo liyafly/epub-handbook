@@ -64,6 +64,7 @@ class PipelineReport:
   status: str = "running"
   base: str = ""
   reports_dir: str = ""
+  keep_step_reports: bool = False
   steps: list[Step] = field(default_factory=list)
   manual_review: list[str] = field(default_factory=lambda: [
     "Review the EPUB diff in Calibre Editor or VS Code.",
@@ -81,6 +82,7 @@ class PipelineReport:
       "base": self.base,
       "output": self.output,
       "reports_dir": self.reports_dir,
+      "keep_step_reports": self.keep_step_reports,
       "normalize": self.normalize,
       "steps": [step.as_dict() for step in self.steps],
       "manual_review": self.manual_review,
@@ -144,6 +146,10 @@ def preserve_before(input_path: Path, before_path: Path) -> None:
   shutil.copy2(input_path, before_path)
 
 
+def optional_report(reports_dir: Path, name: str, keep_step_reports: bool) -> Path | None:
+  return reports_dir / name if keep_step_reports else None
+
+
 def run_pipeline(
   input_path: Path,
   work_dir: Path,
@@ -151,6 +157,7 @@ def run_pipeline(
   approve_normalize: bool = False,
   popup_notes: bool = True,
   typography: bool = True,
+  keep_step_reports: bool = False,
 ) -> PipelineReport:
   input_path = input_path.resolve()
   work_dir = work_dir.resolve()
@@ -166,6 +173,7 @@ def run_pipeline(
     output=str(output_path),
     reports_dir=str(reports_dir),
     normalize=normalize,
+    keep_step_reports=keep_step_reports,
   )
 
   try:
@@ -184,7 +192,7 @@ def run_pipeline(
       report,
       "preflight-before",
       [sys.executable, str(SCRIPTS / "epub_preflight_harness.py"), str(before_path), "--format", "json"],
-      reports_dir / "preflight-before.json",
+      optional_report(reports_dir, "preflight-before.json", keep_step_reports),
       expect_json=True,
       allowed_codes=(0, 1),
     )
@@ -234,7 +242,7 @@ def run_pipeline(
           "--path-map",
           str(reports_dir / "normalize-apply.json"),
         ],
-        reports_dir / "validate-normalized-text.txt",
+        optional_report(reports_dir, "validate-normalized-text.txt", keep_step_reports),
       )
 
     report.base = str(base_path)
@@ -256,7 +264,7 @@ def run_pipeline(
       report,
       "convert-epub3",
       convert_command,
-      reports_dir / "conversion.json",
+      optional_report(reports_dir, "conversion.json", keep_step_reports),
       expect_json=True,
     )
 
@@ -264,7 +272,7 @@ def run_pipeline(
       report,
       "preflight-after",
       [sys.executable, str(SCRIPTS / "epub_preflight_harness.py"), str(output_path), "--format", "json"],
-      reports_dir / "preflight-after.json",
+      optional_report(reports_dir, "preflight-after.json", keep_step_reports),
       expect_json=True,
       allowed_codes=(0, 1),
     )
@@ -276,7 +284,7 @@ def run_pipeline(
         report,
         "validate-popup-notes",
         ["bash", str(SCRIPTS / "validate-popup-notes.sh"), "--epub", str(output_path)],
-        reports_dir / "validate-popup-notes.txt",
+        optional_report(reports_dir, "validate-popup-notes.txt", keep_step_reports),
       )
 
     run_step(
@@ -292,20 +300,20 @@ def run_pipeline(
         "--allow-list",
         "*/nav.xhtml",
       ],
-      reports_dir / "validate-redline-subset.txt",
+      optional_report(reports_dir, "validate-redline-subset.txt", keep_step_reports),
     )
     run_step(
       report,
       "refinement",
       [sys.executable, str(SCRIPTS / "epub_refinement_harness.py"), str(output_path), "--format", "json"],
-      reports_dir / "refinement.json",
+      optional_report(reports_dir, "refinement.json", keep_step_reports),
       expect_json=True,
     )
     run_step(
       report,
       "ai-findings",
       [sys.executable, str(SCRIPTS / "epub_ai_harness.py"), "--mode", "cleanup", str(output_path), "--format", "json"],
-      reports_dir / "findings.json",
+      optional_report(reports_dir, "findings.json", keep_step_reports),
       expect_json=True,
     )
     report.status = "complete"
@@ -331,6 +339,11 @@ def main(argv: list[str]) -> int:
   parser.add_argument("--approve-normalize", action="store_true", help="Confirm that the normalization dry-run was reviewed")
   parser.add_argument("--no-popup-notes", action="store_true", help="Skip plain/duokan footnote normalization")
   parser.add_argument("--no-typography", action="store_true", help="Skip CJK typography role stylesheet injection")
+  parser.add_argument(
+    "--keep-step-reports",
+    action="store_true",
+    help="Write detailed per-step reports in addition to the compact reports/pipeline.json summary",
+  )
   parser.add_argument("--format", choices=("json", "text"), default="text")
   args = parser.parse_args(argv)
 
@@ -342,6 +355,7 @@ def main(argv: list[str]) -> int:
       approve_normalize=args.approve_normalize,
       popup_notes=not args.no_popup_notes,
       typography=not args.no_typography,
+      keep_step_reports=args.keep_step_reports,
     )
   except PipelineError as exc:
     data = {"harness": "epub_cleanup_pipeline", "status": "failed", "error": str(exc)}

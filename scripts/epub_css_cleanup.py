@@ -41,6 +41,8 @@ COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 RULE_RE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
 FONT_FAMILY_RE = re.compile(r"(font-family\s*:\s*)([^;}}]+)", re.I)
 LINK_RE = re.compile(r"<link\b[^>]*\bhref=(?P<quote>[\"'])(?P<href>[^\"']+\.css)(?P=quote)[^>]*/?>", re.I)
+BODY_RE = re.compile(r"<body\b(?P<attrs>[^>]*)>", re.I)
+CLASS_RE = re.compile(r"\bclass=(?P<quote>[\"'])(?P<classes>[^\"']*)(?P=quote)", re.I)
 TAG_RE = re.compile(r"<!--.*?-->|<![^>]*>|<[^>]+>", re.S)
 OPEN_TAG_RE = re.compile(r"<\s*([A-Za-z][\w:-]*)\b([^>]*)>", re.S)
 CLOSE_TAG_RE = re.compile(r"</\s*([A-Za-z][\w:-]*)\s*>", re.S)
@@ -74,6 +76,8 @@ class CleanupReport:
   xhtml_files_updated: int = 0
   css_manifest_items_removed: int = 0
   css_manifest_items_added: int = 0
+  scoped_local_stylesheets_merged: int = 0
+  scope_classes_added: int = 0
   warnings: list[str] = field(default_factory=list)
 
   def as_dict(self) -> dict[str, object]:
@@ -92,6 +96,8 @@ class CleanupReport:
       "xhtml_files_updated": self.xhtml_files_updated,
       "css_manifest_items_removed": self.css_manifest_items_removed,
       "css_manifest_items_added": self.css_manifest_items_added,
+      "scoped_local_stylesheets_merged": self.scoped_local_stylesheets_merged,
+      "scope_classes_added": self.scope_classes_added,
       "warnings": self.warnings,
     }
 
@@ -160,6 +166,11 @@ def stylesheet_shape(rules: list[Rule]) -> tuple[tuple[str, tuple[str, ...]], ..
   return tuple((rule.selector, tuple(name.lower() for name, _ in rule.declarations)) for rule in rules)
 
 
+def is_cleanup_generated_css(css_path: str) -> bool:
+  name = posixpath.basename(css_path)
+  return name.startswith(("clean-shared-", "clean-override-", "clean-scoped-local"))
+
+
 def format_rules(rules: list[Rule]) -> bytes:
   chunks: list[str] = []
   for rule in rules:
@@ -226,6 +237,123 @@ def rewrite_css_links(text: str, xhtml_path: str, mapping: dict[str, list[str]])
   return LINK_RE.sub(replace, text), changed
 
 
+def linked_css_paths(text: str, xhtml_path: str) -> list[str]:
+  return [
+    posixpath.normpath(posixpath.join(posixpath.dirname(xhtml_path), match.group("href")))
+    for match in LINK_RE.finditer(text)
+  ]
+
+
+def add_body_class(text: str, class_name: str) -> tuple[str, bool]:
+  def replace_body(match: re.Match[str]) -> str:
+    attrs = match.group("attrs")
+    class_match = CLASS_RE.search(attrs)
+    if class_match:
+      classes = class_match.group("classes").split()
+      if class_name in classes:
+        return match.group(0)
+      classes.append(class_name)
+      updated = " ".join(classes)
+      attrs = CLASS_RE.sub(f'class="{updated}"', attrs, count=1)
+      return f"<body{attrs}>"
+    return f'<body{attrs} class="{class_name}">'
+
+  updated, count = BODY_RE.subn(replace_body, text, count=1)
+  return updated, bool(count and updated != text)
+
+
+def scoped_selector(selector: str, scope_class: str) -> str:
+  scoped: list[str] = []
+  for part in selector.split(","):
+    part = part.strip()
+    if re.match(r"^body(?:\b|[.#:[ ])", part, re.I):
+      scoped.append(re.sub(r"^body", f"body.{scope_class}", part, count=1, flags=re.I))
+    else:
+      scoped.append(f"body.{scope_class} {part}")
+  return ",\n".join(scoped)
+
+
+def format_scoped_rules(scope_class: str, css_path: str, rules: list[Rule]) -> list[str]:
+  chunks = [f"/* Scoped from {css_path}. */"]
+  for rule in rules:
+    chunks.append(f"{scoped_selector(rule.selector, scope_class)} {{")
+    chunks.extend(f"  {name}: {value};" for name, value in rule.declarations)
+    chunks.append("}")
+    chunks.append("")
+  return chunks
+
+
+def consolidate_scoped_local_css(
+  files: dict[str, bytes],
+  xhtml_paths: list[str],
+  opf_dir: str,
+  removed: set[str],
+  generated: dict[str, bytes],
+  report: CleanupReport,
+) -> None:
+  refs: dict[str, set[str]] = defaultdict(set)
+  for xhtml_path in xhtml_paths:
+    if xhtml_path not in files:
+      continue
+    text = files[xhtml_path].decode("utf-8", errors="replace")
+    for css_path in linked_css_paths(text, xhtml_path):
+      refs[css_path].add(xhtml_path)
+
+  excluded_names = {"epub3-enhancements.css", "parentheticals.css", "clean-scoped-local.css"}
+  candidates: dict[str, list[Rule]] = {}
+  for css_path, pages in refs.items():
+    name = posixpath.basename(css_path)
+    if not pages or css_path not in files:
+      continue
+    if name in excluded_names or name.startswith("clean-shared-"):
+      continue
+    rules = parse_stylesheet(files[css_path].decode("utf-8", errors="replace"))
+    if rules:
+      candidates[css_path] = rules
+
+  overlapping: set[str] = set()
+  paths = sorted(candidates)
+  for index, css_path in enumerate(paths):
+    for other in paths[index + 1:]:
+      if refs[css_path] & refs[other]:
+        overlapping.update({css_path, other})
+  if overlapping:
+    report.warnings.append(
+      "skipped overlapping local stylesheets: " + ", ".join(sorted(overlapping))
+    )
+
+  merge_paths = [path for path in paths if path not in overlapping]
+  if not merge_paths:
+    return
+
+  scoped_path = unique_zip_path({**files, **generated}, norm_join(opf_dir, "Styles/clean-scoped-local.css"))
+  chunks: list[str] = []
+  scope_by_path: dict[str, str] = {}
+  for index, css_path in enumerate(merge_paths, start=1):
+    scope_class = f"css-local-{index:02d}"
+    scope_by_path[css_path] = scope_class
+    chunks.extend(format_scoped_rules(scope_class, css_path, candidates[css_path]))
+
+  generated[scoped_path] = ("\n".join(chunks).rstrip() + "\n").encode("utf-8")
+  files[scoped_path] = generated[scoped_path]
+  mapping = {css_path: [scoped_path] for css_path in merge_paths}
+  affected_pages = sorted({page for css_path in merge_paths for page in refs[css_path]})
+  for xhtml_path in affected_pages:
+    text = files[xhtml_path].decode("utf-8", errors="replace")
+    for css_path in merge_paths:
+      if xhtml_path in refs[css_path]:
+        text, added = add_body_class(text, scope_by_path[css_path])
+        report.scope_classes_added += int(added)
+    text, _ = rewrite_css_links(text, xhtml_path, mapping)
+    files[xhtml_path] = text.encode("utf-8")
+
+  for css_path in merge_paths:
+    files.pop(css_path, None)
+    generated.pop(css_path, None)
+    removed.add(css_path)
+  report.scoped_local_stylesheets_merged += len(merge_paths)
+
+
 def start_tag_is_excluded(tag: str, attrs: str) -> bool:
   if tag in {"head", "aside", "script", "style"}:
     return True
@@ -283,7 +411,12 @@ def add_css_manifest_item(root: ET.Element, opf_dir: str, css_path: str, report:
   report.css_manifest_items_added += 1
 
 
-def clean_epub_css(input_path: Path, output_path: Path, mark_parentheticals: bool = False) -> CleanupReport:
+def clean_epub_css(
+  input_path: Path,
+  output_path: Path,
+  mark_parentheticals: bool = False,
+  merge_scoped_local_css: bool = False,
+) -> CleanupReport:
   report = CleanupReport(input=str(input_path), output=str(output_path))
   files, original_order = read_epub_files(input_path)
   opf_path = opf_path_from_container(files)
@@ -311,6 +444,8 @@ def clean_epub_css(input_path: Path, output_path: Path, mark_parentheticals: boo
   generated: dict[str, bytes] = {}
   groups: dict[tuple[tuple[str, tuple[str, ...]], ...], list[str]] = defaultdict(list)
   for css_path, rules in parsed.items():
+    if is_cleanup_generated_css(css_path):
+      continue
     groups[stylesheet_shape(rules)].append(css_path)
 
   shared_index = 1
@@ -366,7 +501,8 @@ def clean_epub_css(input_path: Path, output_path: Path, mark_parentheticals: boo
     parenthetical_css_path = unique_zip_path(files, norm_join(opf_dir, "Styles/parentheticals.css"))
     files[parenthetical_css_path] = PARENTHETICAL_CSS.encode("utf-8")
 
-  for xhtml_path in xhtml_zip_paths(root, opf_dir):
+  xhtml_paths = xhtml_zip_paths(root, opf_dir)
+  for xhtml_path in xhtml_paths:
     if xhtml_path not in files:
       continue
     text = files[xhtml_path].decode("utf-8", errors="replace")
@@ -381,6 +517,9 @@ def clean_epub_css(input_path: Path, output_path: Path, mark_parentheticals: boo
       files[xhtml_path] = text.encode("utf-8")
       report.xhtml_files_updated += 1
       report.parentheticals_marked += marked
+
+  if merge_scoped_local_css:
+    consolidate_scoped_local_css(files, xhtml_paths, opf_dir, removed, generated, report)
 
   for item in list(root.findall("opf:manifest/opf:item", OPF_NS)):
     href = item.attrib.get("href")
@@ -408,10 +547,20 @@ def main(argv: list[str]) -> int:
   parser.add_argument("input", type=Path, help="Input EPUB")
   parser.add_argument("--output", type=Path, required=True, help="Output EPUB")
   parser.add_argument("--mark-parentheticals", action="store_true", help="Mark body text in Chinese round parentheses")
+  parser.add_argument(
+    "--merge-scoped-local-css",
+    action="store_true",
+    help="Merge disjoint local stylesheets into one body-scoped stylesheet",
+  )
   parser.add_argument("--format", choices=("json", "text"), default="text")
   args = parser.parse_args(argv)
   try:
-    report = clean_epub_css(args.input, args.output, mark_parentheticals=args.mark_parentheticals)
+    report = clean_epub_css(
+      args.input,
+      args.output,
+      mark_parentheticals=args.mark_parentheticals,
+      merge_scoped_local_css=args.merge_scoped_local_css,
+    )
   except CleanupError as exc:
     if args.format == "json":
       print(json.dumps({"harness": "epub_css_cleanup", "error": str(exc)}, ensure_ascii=False, indent=2))

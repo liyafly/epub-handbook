@@ -24,13 +24,24 @@ def main() -> int:
     assert Path(report.before).exists(), report
     assert Path(report.output).exists(), report
     assert (root / "audit" / "reports" / "pipeline.json").exists(), report
-    assert (root / "audit" / "reports" / "preflight-before.json").exists(), report
-    assert (root / "audit" / "reports" / "conversion.json").exists(), report
-    assert (root / "audit" / "reports" / "preflight-after.json").exists(), report
-    assert (root / "audit" / "reports" / "validate-popup-notes.txt").exists(), report
-    assert (root / "audit" / "reports" / "validate-redline-subset.txt").exists(), report
-    assert (root / "audit" / "reports" / "refinement.json").exists(), report
-    assert (root / "audit" / "reports" / "findings.json").exists(), report
+    assert not (root / "audit" / "reports" / "preflight-before.json").exists(), report
+    assert not (root / "audit" / "reports" / "conversion.json").exists(), report
+    assert not (root / "audit" / "reports" / "preflight-after.json").exists(), report
+    assert not (root / "audit" / "reports" / "validate-popup-notes.txt").exists(), report
+    assert not (root / "audit" / "reports" / "validate-redline-subset.txt").exists(), report
+    assert not (root / "audit" / "reports" / "refinement.json").exists(), report
+    assert not (root / "audit" / "reports" / "findings.json").exists(), report
+
+    detailed = run_pipeline(source, root / "detailed-audit", keep_step_reports=True)
+    assert detailed.status == "complete", detailed
+    assert (root / "detailed-audit" / "reports" / "pipeline.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "preflight-before.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "conversion.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "preflight-after.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "validate-popup-notes.txt").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "validate-redline-subset.txt").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "refinement.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "findings.json").exists(), detailed
 
     dry_run = run_pipeline(source, root / "normalize-audit", normalize="dry-run")
     assert dry_run.status == "normalize-review-required", dry_run
@@ -46,7 +57,7 @@ def main() -> int:
     else:
       raise AssertionError("pipeline must stop on blocking preflight findings")
     assert (root / "blocked-audit" / "reports" / "pipeline.json").exists()
-    assert (root / "blocked-audit" / "reports" / "preflight-before.json").exists()
+    assert not (root / "blocked-audit" / "reports" / "preflight-before.json").exists()
     assert not (root / "blocked-audit" / "after" / "cleaned.epub").exists()
 
   print("epub cleanup pipeline tests ok")

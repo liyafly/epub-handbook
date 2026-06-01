@@ -114,17 +114,26 @@ def main() -> int:
     source = Path(raw) / "source.epub"
     output = Path(raw) / "cleaned.epub"
     write_epub(source)
-    report = clean_epub_css(source, output, mark_parentheticals=True)
+    report = clean_epub_css(
+      source,
+      output,
+      mark_parentheticals=True,
+      merge_scoped_local_css=True,
+    )
 
     assert report.css_files_before == 5, report
     assert report.factored_stylesheets == 3, report
     assert report.duplicate_stylesheets_removed == 1, report
     assert report.parentheticals_marked == 3, report
+    assert report.scoped_local_stylesheets_merged == 2, report
+    assert report.scope_classes_added == 3, report
 
     with zipfile.ZipFile(output) as zf:
       names = set(zf.namelist())
       assert "OEBPS/Styles/clean-shared-01.css" in names
-      assert "OEBPS/Styles/clean-override-style0006.css" in names
+      assert "OEBPS/Styles/clean-scoped-local.css" in names
+      assert "OEBPS/Styles/clean-override-style0006.css" not in names
+      assert "OEBPS/Styles/style0003.css" not in names
       assert "OEBPS/Styles/style0005.css" not in names
       assert "OEBPS/Styles/parentheticals.css" in names
 
@@ -134,14 +143,19 @@ def main() -> int:
       assert '"Kaiti SC", "STKaiti", "KaiTi", serif' in shared
       assert "————————————————" not in shared
 
-      override = zf.read("OEBPS/Styles/clean-override-style0006.css").decode("utf-8")
-      assert "#3fbbd6" in override
-      assert "body" not in override
+      scoped = zf.read("OEBPS/Styles/clean-scoped-local.css").decode("utf-8")
+      assert "#3fbbd6" in scoped
+      assert "body.css-local-01 h1" in scoped
+      assert "body.css-local-02 .toc" in scoped
 
       chapter1 = zf.read("OEBPS/Text/chapter1.xhtml").decode("utf-8")
       chapter3 = zf.read("OEBPS/Text/chapter3.xhtml").decode("utf-8")
+      toc1 = zf.read("OEBPS/Text/toc1.xhtml").decode("utf-8")
       assert 'href="../Styles/clean-shared-01.css"' in chapter1
-      assert 'href="../Styles/clean-override-style0006.css"' in chapter3
+      assert 'href="../Styles/clean-scoped-local.css"' in chapter3
+      assert 'class="css-local-01"' in chapter3
+      assert 'href="../Styles/clean-scoped-local.css"' in toc1
+      assert 'class="css-local-02"' in toc1
       assert '<span class="type-parenthetical">（补充说明）</span>' in chapter1
       assert '<span class="type-parenthetical">（不要二次缩小）</span>' not in chapter1
       assert visible_text(chapter1) == visible_text(chapter("style0002.css"))
@@ -153,9 +167,20 @@ def main() -> int:
         if item.attrib.get("media-type") == "text/css"
       }
       assert "Styles/clean-shared-01.css" in css_hrefs
-      assert "Styles/clean-override-style0006.css" in css_hrefs
+      assert "Styles/clean-scoped-local.css" in css_hrefs
+      assert "Styles/clean-override-style0006.css" not in css_hrefs
+      assert "Styles/style0003.css" not in css_hrefs
       assert "Styles/parentheticals.css" in css_hrefs
       assert "Styles/style0005.css" not in css_hrefs
+
+    second_output = Path(raw) / "cleaned-again.epub"
+    second_report = clean_epub_css(output, second_output, merge_scoped_local_css=True)
+    assert second_report.css_files_before == 3, second_report
+    assert second_report.css_files_after == 3, second_report
+    assert second_report.factored_stylesheets == 0, second_report
+    assert second_report.scoped_local_stylesheets_merged == 0, second_report
+    with zipfile.ZipFile(second_output) as zf:
+      assert "OEBPS/Styles/clean-shared-01-2.css" not in zf.namelist()
 
   print("epub css cleanup tests ok")
   return 0
