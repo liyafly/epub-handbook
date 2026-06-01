@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import zipfile
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
@@ -221,12 +222,174 @@ def validate_obfuscated_filename_detection() -> int:
   return 0
 
 
+def _make_min_epub(path: str, body: str, *, with_html_lang: bool = False,
+                   with_math: bool = False, calibre_class: str | None = None) -> str:
+  """Create a minimal EPUB 3 zip and return its path."""
+  lang_attr = ' xml:lang="zh-CN"' if with_html_lang else ""
+  body_class = f' class="{calibre_class}"' if calibre_class else ""
+  maybe_math = (
+      '<p><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math></p>'
+      if with_math else ""
+  )
+  container = (
+      '<?xml version="1.0" encoding="UTF-8"?>'
+      '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+      '  <rootfiles>'
+      '    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>'
+      '  </rootfiles>'
+      '</container>'
+  )
+  opf = (
+      '<?xml version="1.0" encoding="UTF-8"?>'
+      '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">'
+      '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+      '    <dc:identifier id="book-id">urn:uuid:test-harness-detector-01</dc:identifier>'
+      '    <dc:title>Detector Fixture</dc:title>'
+      '    <dc:language>zh-CN</dc:language>'
+      '  </metadata>'
+      '  <manifest>'
+      '    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+      '    <item id="ch1" href="chapter.xhtml" media-type="application/xhtml+xml"/>'
+      '  </manifest>'
+      '  <spine><itemref idref="ch1"/></spine>'
+      '</package>'
+  )
+  nav = (
+      '<?xml version="1.0" encoding="UTF-8"?>'
+      '<html xmlns="http://www.w3.org/1999/xhtml" '
+      'xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-CN">'
+      '<head><title>Nav</title></head>'
+      '<body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Ch</a></li></ol></nav></body>'
+      '</html>'
+  )
+  chapter = (
+      '<?xml version="1.0" encoding="UTF-8"?>'
+      '<html xmlns="http://www.w3.org/1999/xhtml"'
+      + lang_attr +
+      '><head><title>Chapter</title></head>'
+      '<body><p' + body_class + '>正文内容测试</p>' + maybe_math + '</body></html>'
+  )
+  with zipfile.ZipFile(path, "w") as zf:
+    zf.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+    zf.writestr("META-INF/container.xml", container)
+    zf.writestr("OEBPS/content.opf", opf)
+    zf.writestr("OEBPS/nav.xhtml", nav)
+    zf.writestr("OEBPS/chapter.xhtml", chapter)
+  return path
+
+
+def validate_actionable_findings_present() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    path = _make_min_epub(str(root / "missing-lang.epub"), "正文",
+                          with_html_lang=False)
+    returncode, data = run_harness(Path(path))
+  if returncode:
+    print(f"ERROR: harness should succeed on valid epub: {data}", file=sys.stderr)
+    return 1
+  # Backward compat keys
+  assert "findings" in data, "missing 'findings' key"
+  assert "findings_by_level" in data, "missing 'findings_by_level' key"
+  assert "recommended_skills" in data, "missing 'recommended_skills' key"
+  af = data.get("actionable_findings")
+  if af is None:
+    print("ERROR: actionable_findings key missing", file=sys.stderr)
+    return 1
+  if not any(f["kind"] == "missing-html-lang" and f.get("auto_fixable")
+             for f in af):
+    print(f"ERROR: missing-html-lang not found in actionable_findings: {af}", file=sys.stderr)
+    return 1
+  one = next(f for f in af if f["kind"] == "missing-html-lang")
+  if one["lane"] != "tag" or one["confidence"] not in ("high", "medium", "low"):
+    print(f"ERROR: bad lane/confidence in finding: {one}", file=sys.stderr)
+    return 1
+  if "file" not in one or "params" not in one:
+    print(f"ERROR: missing file/params in finding: {one}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness actionable_findings smoke test ok")
+  return 0
+
+
+def validate_detector_idempotent() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    path = _make_min_epub(str(root / "has-lang.epub"), "正文",
+                          with_html_lang=True)
+    returncode, data = run_harness(Path(path))
+  if returncode:
+    print(f"ERROR: harness should succeed: {data}", file=sys.stderr)
+    return 1
+  af = data.get("actionable_findings", [])
+  if any(f["kind"] == "missing-html-lang" for f in af):
+    print(f"ERROR: should not report missing-html-lang when already set: {af}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness detector idempotency ok")
+  return 0
+
+
+def validate_registry_lists_detectors() -> int:
+  sys.path.insert(0, str(Path(__file__).resolve().parent))
+  import epub_ai_harness as H  # noqa: E402
+  names = {d.kind for d in H.DETECTORS}
+  required = {"missing-html-lang", "obfuscated-class", "empty-paragraph",
+              "missing-manifest-properties"}
+  missing = required - names
+  if missing:
+    print(f"ERROR: DETECTORS missing kinds: {missing}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness detector registry ok")
+  return 0
+
+
+def validate_missing_manifest_properties_detector() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    path = _make_min_epub(str(root / "mathml-missing-prop.epub"), "正文",
+                          with_html_lang=True, with_math=True)
+    returncode, data = run_harness(Path(path))
+  # harness returns non-zero when error findings exist (expected for missing mathml props)
+  # actionable_findings should be present regardless of exit code
+  af = data.get("actionable_findings", [])
+  if not any(f["kind"] == "missing-manifest-properties"
+             and f["params"].get("properties") == "mathml" for f in af):
+    print(f"ERROR: missing mathml manifest properties not detected: {af}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness missing-manifest-properties detector ok")
+  return 0
+
+
+def validate_obfuscated_class_detector() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    path = _make_min_epub(str(root / "obfuscated.epub"), "正文",
+                          with_html_lang=True, calibre_class="calibre12")
+    returncode, data = run_harness(Path(path))
+  if returncode:
+    print(f"ERROR: harness should succeed: {data}", file=sys.stderr)
+    return 1
+  af = data.get("actionable_findings", [])
+  if not any(f["kind"] == "obfuscated-class" for f in af):
+    print(f"ERROR: obfuscated-class not detected: {af}", file=sys.stderr)
+    return 1
+  one = next(f for f in af if f["kind"] == "obfuscated-class")
+  if one.get("auto_fixable"):
+    print(f"ERROR: obfuscated-class should be auto_fixable=False: {one}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness obfuscated-class detector ok")
+  return 0
+
+
 def main() -> int:
   for check in (
     validate_demo_route,
     validate_missing_css_url_detection,
     validate_missing_css_font_url_warning,
     validate_obfuscated_filename_detection,
+    validate_actionable_findings_present,
+    validate_detector_idempotent,
+    validate_registry_lists_detectors,
+    validate_missing_manifest_properties_detector,
+    validate_obfuscated_class_detector,
   ):
     result = check()
     if result:

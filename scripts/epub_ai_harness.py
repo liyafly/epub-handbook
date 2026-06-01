@@ -11,7 +11,9 @@ import shlex
 import shutil
 import sys
 import zipfile
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
@@ -20,6 +22,7 @@ OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 CONTAINER_NS = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
 MATHML_URI = "http://www.w3.org/1998/Math/MathML"
 SVG_URI = "http://www.w3.org/2000/svg"
+XML_NS = "http://www.w3.org/XML/1998/namespace"
 TEXT_EXTS = {".txt", ".md", ".markdown", ".html", ".xhtml", ".xml"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif", ".tif", ".tiff"}
 FONT_EXTS = {".otf", ".ttf", ".woff", ".woff2"}
@@ -34,6 +37,232 @@ FONT_MEDIA_TYPES = {
 }
 PDF_EXTS = {".pdf"}
 LEVEL_ORDER = {"error": 0, "warn": 1, "info": 2}
+
+
+# ── EpubModel — lightweight in-memory EPUB view for detectors ─────────
+
+
+@dataclass
+class EpubModel:
+  xhtml_docs: dict[str, ET.Element] = field(default_factory=dict)
+  opf_root: ET.Element | None = None
+  opf_path: str = ""
+  css_docs: dict[str, str] = field(default_factory=dict)
+  book_language: str | None = None
+
+
+# ── Detector registry ───────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Detector:
+  kind: str
+  lane: str  # tag | css | package
+  fn: Callable[..., list[dict]]
+
+
+DETECTORS: list[Detector] = []
+
+
+def detector(kind: str, lane: str) -> Callable:
+  def reg(fn: Callable[..., list[dict]]) -> Callable[..., list[dict]]:
+    DETECTORS.append(Detector(kind, lane, fn))
+    return fn
+  return reg
+
+
+def collect_actionable_findings(model: EpubModel | None) -> list[dict]:
+  if model is None:
+    return []
+  found: list[dict] = []
+  for d in DETECTORS:
+    try:
+      found.extend(d.fn(model))
+    except Exception:
+      pass
+  return found
+
+
+# ── Detectors ───────────────────────────────────────────────────────────
+
+
+@detector("missing-html-lang", "tag")
+def _detect_missing_html_lang(model: EpubModel) -> list[dict]:
+  out: list[dict] = []
+  for path, root in model.xhtml_docs.items():
+    if not (root.get("lang") or root.get(f"{{{XML_NS}}}lang")):
+      out.append({
+        "kind": "missing-html-lang",
+        "file": path,
+        "locator": {"selector": "html"},
+        "params": {"value": model.book_language or "zh-Hans"},
+        "lane": "tag",
+        "auto_fixable": True,
+        "confidence": "high",
+        "evidence": "<html> root element missing lang/xml:lang",
+      })
+  return out
+
+
+@detector("obfuscated-class", "tag")
+def _detect_obfuscated_class(model: EpubModel) -> list[dict]:
+  out: list[dict] = []
+  for path, root in model.xhtml_docs.items():
+    for el in root.iter():
+      cls = el.get("class") or ""
+      obfuscated = [c for c in cls.split() if re.search(r"\bcalibre\d*\b", c)]
+      if obfuscated:
+        out.append({
+          "kind": "obfuscated-class",
+          "file": path,
+          "locator": {"id": el.get("id") or ""},
+          "params": {"mapping": {c: "" for c in obfuscated}},
+          "lane": "tag",
+          "auto_fixable": False,
+          "confidence": "medium",
+          "evidence": f"Found obfuscated class '{obfuscated[0]}' — target mapping requires human/AI judgment",
+        })
+        break
+  return out
+
+
+@detector("empty-paragraph", "tag")
+def _detect_empty_paragraph(model: EpubModel) -> list[dict]:
+  out: list[dict] = []
+  for path, root in model.xhtml_docs.items():
+    for el in root.iter():
+      tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
+      if tag == "p":
+        text = "".join(el.itertext()).strip()
+        if not text or text == " ":
+          out.append({
+            "kind": "empty-paragraph",
+            "file": path,
+            "locator": {"id": el.get("id") or ""},
+            "params": {"rule": "empty-paragraph"},
+            "lane": "tag",
+            "auto_fixable": True,
+            "confidence": "high",
+            "evidence": "Empty paragraph element (no visible text content)",
+          })
+  return out
+
+
+@detector("missing-manifest-properties", "package")
+def _detect_missing_manifest_properties(model: EpubModel) -> list[dict]:
+  out: list[dict] = []
+  if model.opf_root is None:
+    return out
+  manifest = model.opf_root.findall("opf:manifest/opf:item", OPF_NS)
+  opf_dir = posixpath.dirname(model.opf_path)
+  manifest_paths: dict[str, ET.Element] = {}
+  for item in manifest:
+    href = item.attrib.get("href", "")
+    if href:
+      manifest_paths[norm_join(opf_dir, href)] = item
+  for path, root in model.xhtml_docs.items():
+    item = manifest_paths.get(path)
+    if item is None:
+      continue
+    props = split_props(item.attrib.get("properties"))
+    serialized = ET.tostring(root, encoding="unicode")
+    has_math = MATHML_URI in serialized or any(
+      "}" in el.tag and "Math/MathML}" in el.tag for el in root.iter()
+    )
+    has_svg = SVG_URI in serialized or any(
+      "}" in el.tag and "2000/svg}" in el.tag for el in root.iter()
+    )
+    if has_math and "mathml" not in props:
+      out.append({
+        "kind": "missing-manifest-properties",
+        "file": path,
+        "locator": {"manifest_id": item.attrib.get("id", "")},
+        "params": {"properties": "mathml"},
+        "lane": "package",
+        "auto_fixable": True,
+        "confidence": "high",
+        "evidence": "XHTML contains MathML but manifest item lacks properties=\"mathml\"",
+      })
+    if has_svg and "svg" not in props:
+      out.append({
+        "kind": "missing-manifest-properties",
+        "file": path,
+        "locator": {"manifest_id": item.attrib.get("id", "")},
+        "params": {"properties": "svg"},
+        "lane": "package",
+        "auto_fixable": True,
+        "confidence": "high",
+        "evidence": "XHTML contains SVG but manifest item lacks properties=\"svg\"",
+      })
+  return out
+
+
+# ── Model builders ──────────────────────────────────────────────────────
+
+
+def build_model(zf: zipfile.ZipFile, opf_path: str, opf_root: ET.Element) -> EpubModel:
+  opf_dir = posixpath.dirname(opf_path)
+  manifest = opf_root.findall("opf:manifest/opf:item", OPF_NS)
+  names = set(zf.namelist())
+  xhtml_docs: dict[str, ET.Element] = {}
+  css_docs: dict[str, str] = {}
+  for item in manifest:
+    href = item.attrib.get("href", "")
+    media_type = item.attrib.get("media-type", "")
+    target = norm_join(opf_dir, href)
+    if target not in names:
+      continue
+    if media_type == "application/xhtml+xml" or href.endswith(".xhtml"):
+      try:
+        root = ET.fromstring(zf.read(target))
+        xhtml_docs[target] = root
+      except ET.ParseError:
+        pass
+    elif media_type == "text/css" or href.endswith(".css"):
+      try:
+        css_docs[target] = zf.read(target).decode("utf-8", errors="ignore")
+      except Exception:
+        pass
+  lang = opf_root.findtext(".//{http://purl.org/dc/elements/1.1/}language")
+  return EpubModel(
+    xhtml_docs=xhtml_docs,
+    opf_root=opf_root,
+    opf_path=opf_path,
+    css_docs=css_docs,
+    book_language=lang,
+  )
+
+
+def _build_model_from_tree(root_dir: Path, opf_path: str, opf_root: ET.Element) -> EpubModel:
+  opf_dir = posixpath.dirname(opf_path)
+  manifest = opf_root.findall("opf:manifest/opf:item", OPF_NS)
+  xhtml_docs: dict[str, ET.Element] = {}
+  css_docs: dict[str, str] = {}
+  for item in manifest:
+    href = item.attrib.get("href", "")
+    media_type = item.attrib.get("media-type", "")
+    target = root_dir / norm_join(opf_dir, href)
+    if not target.exists():
+      continue
+    if media_type == "application/xhtml+xml" or href.endswith(".xhtml"):
+      try:
+        root = ET.parse(str(target)).getroot()
+        xhtml_docs[norm_join(opf_dir, href)] = root
+      except ET.ParseError:
+        pass
+    elif media_type == "text/css" or href.endswith(".css"):
+      try:
+        css_docs[norm_join(opf_dir, href)] = target.read_text(encoding="utf-8", errors="ignore")
+      except Exception:
+        pass
+  lang = opf_root.findtext(".//{http://purl.org/dc/elements/1.1/}language")
+  return EpubModel(
+    xhtml_docs=xhtml_docs,
+    opf_root=opf_root,
+    opf_path=opf_path,
+    css_docs=css_docs,
+    book_language=lang,
+  )
 
 
 def split_props(value: str | None) -> set[str]:
@@ -88,6 +317,7 @@ class Report:
     self.skill_levels: dict[str, str] = {}
     self.commands: list[str] = []
     self.tools: dict[str, bool] = {}
+    self.model: EpubModel | None = None
 
   def add_skill(self, name: str, level: str = "info") -> None:
     skill = f"${name}"
@@ -119,6 +349,7 @@ class Report:
       "recommended_skills": self.skills,
       "suggested_commands": self.commands,
       "tool_availability": self.tools,
+      "actionable_findings": collect_actionable_findings(self.model),
     }
 
 
@@ -403,6 +634,7 @@ def inspect_epub(path: Path, report: Report) -> None:
       opf_dir = posixpath.dirname(opf_path)
       report.summary["opf"] = opf_path
       inspect_opf(report, opf_root, opf_dir, lambda p: p in names, zf.read)
+      report.model = build_model(zf, opf_path, opf_root)
   except zipfile.BadZipFile:
     report.findings.append(finding("error", "Input is not a valid zip/EPUB"))
 
@@ -433,6 +665,7 @@ def inspect_epub_tree(path: Path, report: Report, opf_path: Path) -> None:
 
   report.summary["opf"] = rel_opf
   inspect_opf(report, opf_root, opf_dir, exists, read)
+  report.model = _build_model_from_tree(root_dir, rel_opf, opf_root)
 
 
 def find_opf_in_tree(path: Path) -> Path | None:
