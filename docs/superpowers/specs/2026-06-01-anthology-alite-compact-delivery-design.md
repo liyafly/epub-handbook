@@ -18,8 +18,9 @@
 2. 将分卷海报页转成独立 A-lite 全页：整页显示、前后强制分页、内部不分页。
 3. 让海报背景在不裁切、不变形的前提下尽可能铺满页面。
 4. 优化版权页层级：去掉方块列表感，改为克制的信息页排版。
-5. 把可复用经验固化为公共脚本、测试和流水线文档。
-6. 默认生成精简报告；最终本地交付目录只保留核心 EPUB、JSON、TXT 和 MD。
+5. 继续收敛 CSS 文件：将局部 stylesheet 在作用域隔离后合并，避免文件分散和跨册串色。
+6. 把可复用经验固化为公共脚本、测试和流水线文档。
+7. 默认生成精简报告；最终本地交付目录只保留核心 EPUB、JSON、TXT 和 MD。
 
 ## 方案比较
 
@@ -178,10 +179,36 @@ body.poster-bg {
 - 分卷海报页不再继承普通正文的段落缩进和页边距。
 - 版权列表去掉方块项目符号和过宽默认缩进。
 - 海报 fallback 图片保持 `max-width: 100%; height: auto`。
+- 将局部 CSS 在页面作用域隔离后合并，减少碎片化文件。
 
 不改正文段落、章节标题、注释、图片资源、nav 文案或 spine 顺序。
 
-### 4. Demo 与阅读器记录
+### 4. CSS 二次收敛
+
+扩展 `scripts/epub_css_cleanup.py`，新增显式参数 `--merge-scoped-local-css`。它在既有去重逻辑之后处理仍然分散的局部 stylesheet：
+
+- 只合并被至少一个 XHTML 引用、但不是全书通用层的 stylesheet。
+- 排除 `clean-shared-*`、`epub3-enhancements.css`、`parentheticals.css` 和包含不支持规则的 stylesheet。
+- 每个被合并的局部 stylesheet 分配稳定作用域类，例如 `css-local-01`。
+- 给原本引用该 stylesheet 的 XHTML `<body>` 添加对应作用域类。
+- 将 selector 改写为 `body.css-local-01 ...` 后合入 `Styles/clean-scoped-local.css`。
+- 将页面原有局部 stylesheet link 替换为 `clean-scoped-local.css`。
+- 同步删除 OPF manifest 中不再使用的局部 CSS item。
+- 如果同一个页面同时引用多个待合并局部 stylesheet，跳过这些重叠 stylesheet 并报告，避免改变 cascade 顺序。
+
+目标书当前 12 个 CSS 中，可收敛的局部文件为 7 个 `clean-override-*` 和 2 个目录样式表。二次收敛后保留：
+
+```text
+Styles/clean-shared-01.css
+Styles/clean-scoped-local.css
+Styles/epub3-enhancements.css
+Styles/parentheticals.css
+Styles/anthology-refinement.css
+```
+
+目标书最终 CSS 文件数从 `12` 收敛到 `5`。其中 `anthology-refinement.css` 由合集精排转换器新增，职责是 A-lite 分卷页与版权页，不并入正文基础层。
+
+### 5. Demo 与阅读器记录
 
 在 `templates/epub-style-demo/` 增加 raster 海报 `contain` 对照 fixture。它与既有 `poster-bg-fullbleed` 的 `cover` fixture 并存：
 
@@ -199,7 +226,7 @@ body.poster-bg {
 
 新 fixture 在真实阅读器复测前标记为 `warn`，不虚构 `pass`。目标书至少运行 Kindle Previewer CLI；如 GUI 窗口可被 Computer Use 读取，再补视觉抽样。GUI 不可读时记录跳过理由。只有拿到 demo 和 reader-matrix 证据后，才同步修改 `docs/final/SPEC-实现约束.md`、终极手册、Markdown 速查表及其派生 HTML。
 
-### 5. 精简流水线报告
+### 6. 精简流水线报告
 
 修改 `scripts/epub_cleanup_pipeline.py`：
 
@@ -225,6 +252,7 @@ delivery/
 
 ```text
 既有 final.epub
+  -> CSS scoped consolidation
   -> 合集转换器 dry-run JSON
   -> 人工确认候选页计数和路径
   -> 合集转换器写出 refined EPUB
@@ -276,6 +304,7 @@ python3 scripts/validate_text_invariance.py \
 
 - 识别并改写 16 个分卷海报页。
 - 识别并润色 16 个版权信息页。
+- CSS 文件数从 12 收敛到 5。
 - 图片资源字节未变化。
 - spine 顺序未变化。
 - `delivery/` 只含四个约定文件。
