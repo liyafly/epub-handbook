@@ -165,3 +165,20 @@ def dom_rewrite_tag(
     if xhtml.lstrip().startswith("<?xml"):
         out = '<?xml version="1.0" encoding="utf-8"?>\n' + out
     return out, True
+
+
+def dom_set_root_attr(xhtml: str, attr: str, value: str) -> tuple[str, bool]:
+    """Set *attr* = *value* on the document root element.
+
+    Returns (serialized, changed).  Used when the locator references the
+    root ``<html>`` element, which rarely carries an id attribute.
+    """
+    _register_ns()
+    root = ET.fromstring(xhtml)
+    if root.get(attr) == value:
+        return xhtml, False
+    root.set(attr, value)
+    body = ET.tostring(root, encoding="unicode")
+    if xhtml.lstrip().startswith("<?xml"):
+        body = '<?xml version="1.0" encoding="utf-8"?>\n' + body
+    return body, True
