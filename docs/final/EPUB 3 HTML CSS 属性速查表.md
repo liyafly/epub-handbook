@@ -480,6 +480,8 @@ body {
 | `.fullframe` | 内容框 | 推荐 | 承载叠加文字 / 图片 |
 | `font-size` | `16px` | 推荐 | A-lite 内部基准 |
 | `body.poster-bg` | 背景 modifier | 推荐 | 海报背景容器 |
+| `body.poster-bg-contain` | 单图卷封 modifier | 推荐 | `background-size: contain`，不裁图 |
+| `.poster-fallback` | 原始图片 fallback | 推荐 | 背景图不可用时避免空白页 |
 | `.fullframe` | `padding: 0` | 推荐 | A-lite 骨架 |
 | `.fullframe` | `overflow: visible` | 推荐 | 避免竖排列被骨架裁切 |
 | `min-height` | `100%` | 推荐 | fullpage |
@@ -488,6 +490,7 @@ body {
 | `page-break-after` | `always` | 推荐 | 单独成页 |
 | `page-break-inside` | `avoid` | 推荐 | 避免内部断页 |
 | `background-image` | 海报背景 | 推荐 | 放在 body |
+| `background-size` | `contain` | 推荐 | 含边缘文字的单图卷封；不用 `cover` 或 `100% 100%` |
 | `writing-mode` | `vertical-rl` | 推荐 | 竖排标题 |
 | `float` | `right` | 推荐 | 多列从右往左堆 |
 

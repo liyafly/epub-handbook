@@ -114,7 +114,7 @@ python3 scripts/epub_cleanup_pipeline.py \
   --work-dir work/book-a
 ```
 
-它生成 before 备份、`after/cleaned.epub` 和 `reports/` 审计 bundle。结构规范化需要先 dry-run 再显式批准；人工 diff review 和阅读器实测仍然保留。完整说明见 [docs/pipeline/oneclick-epub3-converter.md](docs/pipeline/oneclick-epub3-converter.md)。
+它生成 before 备份、`after/cleaned.epub` 和默认单文件 `reports/pipeline.json` 审计汇总。排障时可加 `--keep-step-reports` 恢复完整分步报告。结构规范化需要先 dry-run 再显式批准；人工 diff review 和阅读器实测仍然保留。完整说明见 [docs/pipeline/oneclick-epub3-converter.md](docs/pipeline/oneclick-epub3-converter.md)。
 
 对用户给的 EPUB 只走复制件，不改原文件：
 
@@ -188,6 +188,7 @@ python3 scripts/validate_text_invariance.py \
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
 | `scripts/epub_css_cleanup.py` | 可选合并重复 CSS、替换旧字体链并标记保守正文括注 | 清洗后 EPUB、CSS/字体/括注计数 |
+| `scripts/epub_anthology_refinement.py` | 可选把合订书单图卷封改为 A-lite contain + fallback，并优化紧邻版权页 | 精排后 EPUB、卷封/版权页计数 |
 
 这些入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
 

@@ -106,3 +106,27 @@ body.poster-bg-fullbleed {
   background-position: center center;
   background-size: cover;
 }
+
+body.poster-bg-contain {
+  background-image: url("../Images/poster.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+}
+
+.poster-fallback {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  margin: 0 auto;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+@supports (background-size: contain) {
+  body.poster-bg-contain .poster-fallback {
+    visibility: hidden;
+  }
+}

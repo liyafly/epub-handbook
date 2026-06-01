@@ -38,6 +38,7 @@
     <item id="ruby-note" href="Text/02-ruby-note.xhtml" media-type="application/xhtml+xml"/>
     <item id="vertical-alite" href="Text/03-vertical-alite.xhtml" media-type="application/xhtml+xml"/>
     <item id="poster-fullbleed" href="Text/03b-poster-fullbleed.xhtml" media-type="application/xhtml+xml"/>
+    <item id="poster-contain" href="Text/03c-poster-contain.xhtml" media-type="application/xhtml+xml"/>
     <item id="lists-tables-code" href="Text/04-lists-tables-code.xhtml" media-type="application/xhtml+xml"/>
     <item id="legacy-note-fallback" href="Text/05-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="multi-legacy-note-fallback" href="Text/06-multi-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
@@ -64,6 +65,7 @@
     <itemref idref="ruby-note"/>
     <itemref idref="vertical-alite"/>
     <itemref idref="poster-fullbleed"/>
+    <itemref idref="poster-contain"/>
     <itemref idref="lists-tables-code"/>
     <itemref idref="legacy-note-fallback"/>
     <itemref idref="multi-legacy-note-fallback"/>

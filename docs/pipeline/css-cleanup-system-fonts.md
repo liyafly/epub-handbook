@@ -15,6 +15,7 @@ python3 scripts/epub_css_cleanup.py \
   work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
   --mark-parentheticals \
+  --merge-scoped-local-css \
   --format json > work/book-a/reports/css-cleanup.json
 ```
 
@@ -26,6 +27,9 @@ python3 scripts/epub_css_cleanup.py \
 - 同步 XHTML `<link>` 和 OPF CSS manifest；
 - 可选标记同一正文文本节点内的中文圆括注；
 - 默认排除脚注括注，避免在已经缩小的注释中再次缩小。
+- 可选把引用页面集合互不重叠的局部 CSS 改写为 `body.css-local-*` 作用域，并归并到一个 `clean-scoped-local.css`。
+
+`--merge-scoped-local-css` 只处理可证明互不交叠的局部样式。两个样式只要被同一个 XHTML 同时引用，就跳过这组并在报告中记录 warning，避免改变原有级联顺序。
 
 默认括注样式保持克制：
 

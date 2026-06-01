@@ -130,12 +130,33 @@
 }
 
 .copyright-page {
+  max-width: 36em;
+  margin: 0 auto;
   padding: 1.5em 0;
 }
 
 .copyright-page p {
   text-indent: 0;
   margin: .3em 0;
+}
+
+.copyright-heading {
+  margin: 0 0 1.2em;
+  text-indent: 0;
+  font-size: 1.25em;
+}
+
+.copyright-meta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copyright-meta-item {
+  margin: .38em 0;
+  padding: 0;
+  line-height: 1.55;
+  list-style: none;
 }
 
 .copyright-statement {

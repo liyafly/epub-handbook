@@ -28,8 +28,10 @@
 - `body.fullpage` 必须包含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
 - A-lite 页 `html` / `body.fullpage` / `.fullframe` 必须使用 `box-sizing:border-box`，避免 `width:100%` 叠加内外补白后被阅读器裁切。
 - `.fullframe` 必须保持 `padding: 0; overflow: visible`；页面留白由内部文字/图形元素的 `margin` 控制，不给整页骨架加 padding。
-- A-lite 推荐类白名单：`fullpage` / `poster-bg` / `fullframe` / `poster-title` / `poster-subtitle` / `vcol`。
-- 所有可见叠加文本必须为真实文本节点；不允许将全部可见文字仅以图片承载。
+- A-lite 推荐类白名单：`fullpage` / `poster-bg` / `poster-bg-contain` / `poster-bg-volume-*` / `fullframe` / `poster-fallback` / `poster-title` / `poster-subtitle` / `vcol`。
+- 从既有 EPUB 继承的单图卷封页，如果源文件没有独立文本节点，必须保留原图 `<img class="poster-fallback">`，并可把同一资源镜像为 `poster-bg-contain` 或 `poster-bg-volume-*` 背景；背景必须使用 `background-size:contain`，禁止改用会裁图的 `cover` 或会拉伸图片的 `100% 100%`。
+- 单图卷封页可用 `@supports (background-size: contain)` 在支持背景图的阅读器中隐藏 `.poster-fallback`；不支持背景图时必须回退到原始 `<img>`，不得出现空白页。
+- 源文件中已有的可见叠加文本必须保留为真实文本节点；不允许把可编辑文本重新栅格化到图片中。
 
 ## 3) 字体与 OPF
 

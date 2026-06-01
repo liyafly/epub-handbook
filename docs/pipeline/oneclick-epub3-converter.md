@@ -39,6 +39,8 @@ python3 scripts/epub_cleanup_pipeline.py \
 5. 生成精排建议和 AI findings。
 6. 写入 `work/book-a/reports/pipeline.json`。
 
+默认只落盘这一份汇总 JSON。需要逐项排障归档时加 `--keep-step-reports`，再额外保留 preflight、conversion、popup、redline、refinement 和 findings 文件。结构规范化报告不受此开关影响，始终单独保留。
+
 输出 EPUB 位于 `work/book-a/after/cleaned.epub`，包含：
 
 - EPUB3 `package version="3.0"`。
@@ -97,6 +99,7 @@ python3 scripts/epub_css_cleanup.py \
   work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
   --mark-parentheticals \
+  --merge-scoped-local-css \
   --format json > work/book-a/reports/css-cleanup.json
 ```
 
@@ -108,6 +111,7 @@ python3 scripts/epub_css_cleanup.py \
 - 同步更新 XHTML `<link>` 和 OPF CSS manifest；
 - 可选为正文同一文本节点内的中文圆括注添加 `.type-parenthetical`，使用系统楷体链、`0.92em` 和低对比度暖灰褐色；
 - 排除脚注中的括注，避免注释二次缩小。
+- 可选把引用页面集合互不重叠的局部样式归并为 `clean-scoped-local.css`，规则改写为 `body.css-local-*` 作用域；引用集合有交叠时跳过并报告。
 
 这是公共脚本的保守边界。脚注括注、跨内联标签括注、跨段诗行或源文不配对括号需要按书目单独审计：能够证明配对关系时再加本地补标层；列表序号和孤立括号保持原文，不把更激进的匹配逻辑固化为默认流程。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
 
@@ -118,6 +122,30 @@ python3 scripts/validate_text_invariance.py \
   work/book-a/intermediate/step-1-epub3.epub \
   work/book-a/after/final.epub \
   --check all
+```
+
+## 可选合集卷封与版权页精排
+
+既有合订 EPUB 如果每卷以“单图封面 + 紧邻版权信息页”开头，可在 CSS 清洗后单独运行：
+
+```sh
+python3 scripts/epub_anthology_refinement.py \
+  work/book-a/after/final.epub \
+  --output work/book-a/after/final-anthology.epub \
+  --expect-volumes <N> \
+  --format json > work/book-a/reports/anthology-refinement.json
+```
+
+脚本把单图卷封转换为 A-lite `contain` 背景并保留 `<img class="poster-fallback">`，避免裁图或空白页；版权信息页只增加紧凑排版容器和 class，不改书名、作者、ISBN 或链接文字。`--expect-volumes` 用来阻止漏识别时继续交付。
+
+完成验证后，面向交付方新建精简目录，不复制中间包和转换器日志：
+
+```text
+delivery/
+├── final.epub
+├── summary.json
+├── notes.md
+└── reader-check.txt
 ```
 
 ## 弹注结构

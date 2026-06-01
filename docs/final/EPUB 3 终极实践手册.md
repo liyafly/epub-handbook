@@ -630,7 +630,7 @@ body.poster-bg {
   background-size: 80% auto;
 }
 
-> 约束：`body.fullpage` 仅负责页面骨架，不直接挂背景图；背景通过 `body.poster-bg` 等 modifier 类提供。
+/* body.fullpage 仅负责页面骨架；背景通过 poster-bg 等 modifier 类提供。 */
 
 .fullframe {
   width: 100%;
@@ -680,6 +680,43 @@ body.poster-bg {
   letter-spacing: 0;
 }
 ```
+
+### 6.3 既有单图卷封
+
+如果既有 EPUB 的分卷海报只有一张包含全部设计内容的竖版图片，不要为了“铺满”而使用 `cover` 或 `100% 100%`。前者会裁掉边缘文字，后者会拉伸图片。使用 `contain`，并保留原图作为不支持背景图时的 fallback：
+
+```xml
+<body class="fullpage poster-bg-contain">
+  <section class="fullframe" epub:type="chapter">
+    <img class="poster-fallback" src="../Images/poster.png" alt="分卷海报"/>
+  </section>
+</body>
+```
+
+```css
+body.poster-bg-contain {
+  background-image: url("../Images/poster.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+}
+
+.poster-fallback {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+@supports (background-size: contain) {
+  body.poster-bg-contain .poster-fallback {
+    visibility: hidden;
+  }
+}
+```
+
+同一本合集有多张卷封时，为每张图增加 `poster-bg-volume-*` modifier，骨架规则只写一份。源文件若已有独立叠加文字，文字仍保留为真实节点；不要重新栅格化。
 
 ---
 

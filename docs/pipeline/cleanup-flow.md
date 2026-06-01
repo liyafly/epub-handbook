@@ -25,6 +25,8 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、红线子集校验、精排建议和 AI findings。人工 diff review、文本角色 class 分派和阅读器实测仍必须继续执行。
 
+默认只落盘 `reports/pipeline.json` 汇总报告，步骤 stdout/stderr 会保留在该 JSON 中。排障或需要逐项归档时加 `--keep-step-reports`，再额外写出 preflight、conversion、popup、redline、refinement 和 findings 分步报告。结构规范化的 dry-run/apply JSON 始终单独保留，因为前者需要 review，后者还要传给 `validate_text_invariance.py --path-map`。
+
 如果需要 §1.5 结构规范化，用同一个入口先跑 `--normalize dry-run`，人工确认报告后在新的工作目录使用 `--normalize apply --approve-normalize`。详细命令见 [oneclick-epub3-converter.md](oneclick-epub3-converter.md)。
 
 ## 0. 准备

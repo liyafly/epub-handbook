@@ -20,6 +20,9 @@ NAV = OEBPS / "nav.xhtml"
 NCX = OEBPS / "toc.ncx"
 MEDIA_CSS = OEBPS / "Styles" / "media.css"
 FONTS_CSS = OEBPS / "Styles" / "fonts.css"
+POSTER_CSS = OEBPS / "Styles" / "poster.css"
+POSTER_CONTAIN_PAGE = OEBPS / "Text" / "03c-poster-contain.xhtml"
+FRONTMATTER_PAGE = OEBPS / "Text" / "15-frontmatter.xhtml"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
 ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
 NOTE_BOXES_PAGE = OEBPS / "Text" / "19-border-shadow-notes.xhtml"
@@ -158,6 +161,10 @@ def validate_source(check: Check) -> None:
     href_to_item.get("Text/21-classical-modern.xhtml") is not None,
     "21-classical-modern.xhtml must be in manifest",
   )
+  check.require(
+    href_to_item.get("Text/03c-poster-contain.xhtml") is not None,
+    "03c-poster-contain.xhtml must be in manifest",
+  )
 
   nav_root = parse_xml(NAV, check)
   if nav_root is not None:
@@ -179,6 +186,27 @@ def validate_source(check: Check) -> None:
     "../Fonts/" not in active_fonts_css,
     "fonts.css default @font-face skeleton leaked an active missing font URL",
   )
+
+  poster_css = POSTER_CSS.read_text(encoding="utf-8")
+  active_poster_css = strip_css_comments(poster_css)
+  poster_contain_text = POSTER_CONTAIN_PAGE.read_text(encoding="utf-8")
+  for token in [
+    "body.poster-bg-contain",
+    "background-size: contain",
+    ".poster-fallback",
+    "max-height: 100%",
+    "@supports (background-size: contain)",
+    "visibility: hidden",
+  ]:
+    check.require(token in poster_css, f"poster.css missing single-image contain fallback style: {token}")
+  for token in [
+    'body class="fullpage poster-bg-contain"',
+    'section class="fullframe"',
+    'class="poster-fallback"',
+  ]:
+    check.require(token in poster_contain_text, f"03c-poster-contain.xhtml missing marker: {token}")
+  check.require("position: absolute" not in active_poster_css, "poster.css must not use position:absolute")
+  check.require(re.search(r"\b[0-9.]+v[hw]\b", active_poster_css) is None, "poster.css must not use vh/vw units")
 
   media_css = MEDIA_CSS.read_text(encoding="utf-8")
   image_layout = IMAGE_LAYOUT.read_text(encoding="utf-8")
@@ -230,6 +258,23 @@ def validate_source(check: Check) -> None:
     "float: left",
   ]:
     check.require(token in literary_css, f"literary.css missing English fiction style: {token}")
+
+  frontmatter_text = FRONTMATTER_PAGE.read_text(encoding="utf-8")
+  for token in [
+    'class="frontmatter copyright-page"',
+    'class="copyright-heading"',
+    'class="copyright-meta"',
+    'class="copyright-meta-item"',
+  ]:
+    check.require(token in frontmatter_text, f"15-frontmatter.xhtml missing copyright marker: {token}")
+  for token in [
+    ".copyright-page",
+    ".copyright-heading",
+    ".copyright-meta",
+    ".copyright-meta-item",
+    "list-style: none",
+  ]:
+    check.require(token in literary_css, f"literary.css missing copyright page style: {token}")
 
   effects_css = (OEBPS / "Styles" / "effects.css").read_text(encoding="utf-8")
   active_effects_css = strip_css_comments(effects_css)

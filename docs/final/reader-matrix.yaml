@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-05-31
+updated_at: 2026-06-01
 owner: epub-handbook
 
 lanes:
@@ -41,6 +41,9 @@ cases:
   - id: 03b-poster-fullbleed
     title: 海报全幅 cover 对照
     fixture: templates/epub-style-demo/OEBPS/Text/03b-poster-fullbleed.xhtml
+  - id: 03c-poster-contain
+    title: 单图卷封 contain + fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/03c-poster-contain.xhtml
   - id: 04-table-code
     title: 表格与代码
     fixture: templates/epub-style-demo/OEBPS/Text/04-lists-tables-code.xhtml
@@ -123,6 +126,17 @@ expectations:
     issue: "conversionLog 只有表头、没有错误行；用户端反馈转换后文档仍打不开。"
     action: "已新增 toc.ncx、spine toc、Kindle 风险页和场景矩阵；完整 demo 已改为 PNG 资源路径，待用新构建产物复测。"
     workaround: "若新包仍打不开，先用 templates/kindle-minimal-repro/dist/kindle-minimal-repro-20260520-235314.epub 对照；minimal 可打开而完整 demo 不可打开时，继续二分页面级 CSS / Ruby / footnote / A-lite 特性。"
+  - reader: kindle_previewer
+    case: 03c-poster-contain
+    status: warn
+    reader_version: "3.104.0"
+    profile: "CLI conversion"
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260601-090203.epub
+    conversion_log: templates/epub-style-demo/dist/kp-out-poster-contain-20260601/Logs/epub-style-demo-20260601-090203_log.csv
+    failed_page: 03c-poster-contain
+    issue: "Kindle Previewer CLI 转换成功，Enhanced Typesetting 支持，Summary_Log 记录 0 errors / 0 quality issues。contain 背景和 img fallback 未破坏 KFX 转换。"
+    action: "保留单图卷封的 background-size:contain 与 .poster-fallback；继续用 GUI 检查不同设备视口下的留白与单页显示。"
+    workaround: "含边缘文字的单图卷封不要使用 cover 或 100% 100%；优先接受 contain 留白，背景不支持时回退到原始 img。"
 
   - reader: kindle_previewer
     case: 17-image-layout

@@ -19,6 +19,7 @@ description: 将 EPUB 封面式页面、卷首、章首或海报页转换为项�
 - `overflow: hidden`。
 - `page-break-before/after/inside`。
 - 背景属于 `body.poster-bg` 或其他 `poster-*` modifier，不属于 `body.fullpage`。
+- 既有单图卷封默认使用 `background-size: contain`，并保留 `.poster-fallback` 原图回退。
 - 竖排文字使用 `writing-mode: vertical-rl`。
 - 竖排列使用 `float: right`。
 - 不转成 FXL。
@@ -71,6 +72,10 @@ description: 将 EPUB 封面式页面、卷首、章首或海报页转换为项�
 8. 保持 CSS 分层：A-lite CSS 必须放入 `Styles/poster.css`，不要写进 `base.css`。
 9. OPF manifest 只为实际使用的 assets/CSS/fonts 增减条目；存在 A-lite 时分开声明 `fonts.css` / `base.css` / `poster.css`。保留已有 `nav.xhtml`、`toc.ncx`、`spine toc="ncx"` 和 cover-image metadata。
 10. 读取输出 XHTML/CSS，确认所有必须保留的叠加文字和图片没有丢失。
+11. 如果源页是单张包含全部设计内容的卷封图：
+   - 使用 `poster-bg-contain` 或 `poster-bg-volume-*` modifier。
+   - 使用 `background-size: contain`，不要使用会裁图的 `cover` 或会拉伸图片的 `100% 100%`。
+   - 在 `.fullframe` 内保留 `<img class="poster-fallback">`，并只在 `@supports (background-size: contain)` 中隐藏它。
 
 ## A-lite CSS 骨架
 
@@ -131,6 +136,31 @@ body.poster-bg {
 }
 ```
 
+单图卷封补充：
+
+```css
+body.poster-bg-contain {
+  background-image: url("../Images/poster.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+}
+
+.poster-fallback {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+@supports (background-size: contain) {
+  body.poster-bg-contain .poster-fallback {
+    visibility: hidden;
+  }
+}
+```
+
 ## 禁止事项
 
 - 不转成 fixed layout。
@@ -141,7 +171,7 @@ body.poster-bg {
 
 ## 验证 fixture
 
-使用 `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` 作为本地 A-lite 输出参考。转换页应满足这些不变量：
+使用 `templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml` 作为文本叠加 A-lite 输出参考，使用 `Text/03c-poster-contain.xhtml` 作为单图卷封参考。转换页应满足这些不变量：
 
 - 有海报背景时使用 `<body class="fullpage poster-bg">`。
 - `body.fullpage` 承载 shell 规则，`body.poster-bg` 承载背景规则。
@@ -150,6 +180,7 @@ body.poster-bg {
 - `.fullframe` 保持 `padding:0`；叠加文字用元素 margin 定位，不给页面骨架加 padding。
 - 竖排叠加文字使用 `writing-mode: vertical-rl` 和前缀 fallback。
 - 不引入 absolute positioning 或 fixed-layout package metadata。
+- 单图卷封保留 `.poster-fallback`，并使用 `contain` 防止边缘文字被裁切。
 
 ## Dry-run 约定
 
