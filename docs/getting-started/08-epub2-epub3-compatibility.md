@@ -511,4 +511,69 @@ bash scripts/validate-popup-notes.sh --epub book.epub
 - [Readest documentation](https://readest.com/docs/getting-started)
 - [KOReader](https://github.com/koreader/koreader)
 
+## 12. EPUB 标准演进与平台分化史
+
+下面从时间线角度解释"为什么同一本书在不同阅读器会不一样"——不是看图说话，而是理解每个平台当初做了什么选择、这些选择今天以什么形式影响你做的 EPUB。
+
+### 12.1 时间线
+
+```
+2007  IDPF 发布 EPUB 2.0
+      → OPF + NCX + XHTML 确立为基本架构
+      → Sony Reader、早期 Nook 等设备采用
+2010  苹果发布 iBooks (后改名 Apple Books)
+      → iPad 发布，EPUB 从电子墨水走向全彩触屏
+      → 苹果选择拥抱 EPUB 标准（而不是自建格式），推动 EPUB 3 的诞生
+2011  IDPF 发布 EPUB 3.0
+      → nav.xhtml、epub:type 语义、MathML、Ruby、CSS 3 子集加入
+      → 苹果是 EPUB 3 的第一批支持者
+2011  Amazon 发布 Kindle Format 8 (KF8 / AZW3)
+      → 基于 EPUB 3 的容器，但做了一套 Amazon 私有扩展
+      → Kindle 继续走自建生态路线，不原生支持 EPUB 3
+2014  EPUB 3.0.1 维护修订
+2015  Amazon 推出 Enhanced Typesetting（增强排版引擎）和 KFX 格式
+      → 排版能力提升，但 CSS 子集更保守（不支持 float、部分 text-decoration 等降级为普通样式）
+2017  IDPF 与 W3C 合并
+      → EPUB 标准从出版业主导转向 Web 标准主导
+2023  W3C 发布 EPUB 3.3 推荐标准
+      → 清理过时引用，更贴近现代 Web 标准
+      → 但阅读器实现更新远比标准慢，大量存量设备仍跑旧引擎
+```
+
+### 12.2 三条路线
+
+三条路线一直并行至今：
+
+**路线一：Apple Books — 标准路线的标杆**
+
+苹果从 2010 年起就是 EPUB 标准的积极推动者。Apple Books（原 iBooks）的渲染引擎基于 WebKit，因此对 CSS 3 的支持在阅读器中最为完整：`text-decoration-style`、`writing-mode`、`box-shadow`、`hanging-punctuation` 等都能正常渲染。但它有两个特点值得注意：
+- iBooks 时代引入的 `ibooks:specified-fonts` 等私有 metadata 至今仍被 Apple Books 识别——这是苹果在标准之外加的"厂商前缀"。
+- Apple Books 的强缓存机制曾导致无数制作者以为"改了没生效"。
+
+**路线二：Amazon Kindle — 自建生态，输入 EPUB 但输出不是**
+
+Amazon 从未让自己的设备原生支持 EPUB。作者上传 EPUB，由 Kindle Previewer 内部转换为 KFX（或转 MOBI / KF8），再分发到 Kindle 设备。这意味着：
+- 你写的 CSS 不直接送达读者，而是经过一轮转换。
+- Amazon 的转换器有自己的 CSS 子集：不支持的属性被静默丢弃或降级。
+- 导航方面，Kindle 主要依赖 NCX，不依赖 `nav.xhtml`。
+- Enhanced Typesetting（KFX 的排版引擎）改善了连字符、字距和换页，但进一步收窄了支持的 CSS 范围。
+
+这是 Kindle 兼容性问题比其他平台更频繁的根本原因。
+
+**路线三：中文阅读器 — 起步晚、需求特殊、兼容机制被滥用**
+
+多看阅读、微信读书等中文平台面临特有的中文排版需求：竖排、Ruby 注音、弹注、中英混排字距。它们在 EPUB 2 基础上叠加了私有兼容机制（如多看的 `duokan-footnote` class），在 EPUB 2 外壳里做 EPUB 3 才有的功能。
+
+这产生了大量"既不严格 EPUB 2 也不完整 EPUB 3"的混搭包，客观上增加了中文 EPUB 生态的碎片化。本仓的立场是：主包做标准 EPUB 3 + legacy fallback，多看兼容作为增强层单独叠加，不混在标准路径里。
+
+### 12.3 开源生态
+
+EPUB 的开源工具链主要围绕 Readium 项目展开：
+
+- **Readium SDK / Readium Desktop**：EPUB 3 渲染和解析的开源实现，Thorium Reader 基于它构建。
+- **KOReader**：面向电子墨水设备（Kobo、Kindle 越狱等）的开源阅读器，有自己的渲染引擎，支持 EPUB 但不走 Readium 路线。CSS 策略更保守，适合作为"最低兼容"对照。
+- **Readest**：较新的跨平台阅读器（Tauri + 系统 WebView），对中文 EPUB 体验做了专门优化。
+
+> 溯源：reader-matrix.yaml；本仓 demo 的 reader-matrix 以 Apple Books / Kindle Previewer / Thorium / Readest / KOReader 为实测基线。
+
 本地参考材料 `_epub_reference/epub-guide/OEBPS/Text/Chapter10-6.xhtml` 记录了历史兼容经验，但 `_epub_reference/` 不进入 git，也不替代标准文档和 reader matrix 实测。
