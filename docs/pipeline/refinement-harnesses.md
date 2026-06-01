@@ -13,8 +13,11 @@
 | `scripts/epub_structure_tool.py` | 可选：`normalize` 固定先格式化目录，再按 OPF manifest id 做文件名反混淆 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `scripts/epub3_migration_harness.py` | dry-run EPUB3 迁移计划；可选写出 `version="3.0"`、`dcterms:modified`、`nav.xhtml` 和 OPF nav item | preflight 没有 error 后 |
 | `scripts/epub_refinement_harness.py` | 输出精排建议：EPUB3、弹注、字体链 / 内嵌字体、图片格式、Ruby / 竖排、diff 与红线 gate、候选 skills | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
+<<<<<<< ours
 | `scripts/epub_image_layout_advisor.py` | 只读扫描正文/封面等真实图片，输出 2–3 个布局候选、出处与决策记录命令模板；排除 noteref 图标控件 | refinement 之后；有人需要逐图选择时运行 |
 | `scripts/epub_style_preset_tool.py` | 预览 class coverage，并可写入选定预设的 CSS、OPF 声明和 XHTML link | EPUB3 基线与 refinement 建议确认后，专项清洗前 |
+=======
+>>>>>>> theirs
 | `scripts/epub_css_cleanup.py` | 合并重复 CSS、替换旧字体链；可选把不交叠局部样式归并为一个 body-scoped CSS | EPUB3 基线通过 preflight 后 |
 | `scripts/epub_anthology_refinement.py` | 把“单图卷封 + 紧邻版权页”转换为 A-lite contain 背景、原图 fallback 和紧凑版权排版 | 只在合订 EPUB 明确需要时运行 |
 
