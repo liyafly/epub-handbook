@@ -2,7 +2,7 @@
 
 ## 背景
 
-本轮在已有 EPUB 清洗结果上继续精排，不重跑或推翻既有 EPUB3、弹注、系统字体链、CSS 去重和括注标记逻辑。
+本轮在已有 EPUB 清洗结果上继续精排，不重跑或推翻既有 EPUB3、弹注、系统字体链和 CSS 去重逻辑。
 
 目标书属于多册合订 EPUB。当前可审计事实：
 
@@ -188,7 +188,7 @@ body.poster-bg {
 扩展 `scripts/epub_css_cleanup.py`，新增显式参数 `--merge-scoped-local-css`。它在既有去重逻辑之后处理仍然分散的局部 stylesheet：
 
 - 只合并被至少一个 XHTML 引用、但不是全书通用层的 stylesheet。
-- 排除 `clean-shared-*`、`epub3-enhancements.css`、`parentheticals.css` 和包含不支持规则的 stylesheet。
+- 排除 `clean-shared-*`、`epub3-enhancements.css`、多数页面共用层和包含不支持规则的 stylesheet。
 - 每个被合并的局部 stylesheet 分配稳定作用域类，例如 `css-local-01`。
 - 给原本引用该 stylesheet 的 XHTML `<body>` 添加对应作用域类。
 - 将 selector 改写为 `body.css-local-01 ...` 后合入 `Styles/clean-scoped-local.css`。
@@ -202,7 +202,7 @@ body.poster-bg {
 Styles/clean-shared-01.css
 Styles/clean-scoped-local.css
 Styles/epub3-enhancements.css
-Styles/parentheticals.css
+<existing-book-local-stylesheet>
 Styles/anthology-refinement.css
 ```
 
@@ -315,5 +315,5 @@ python3 scripts/validate_text_invariance.py \
 - 不嵌入字体。
 - 不压缩、裁切或替换海报图片。
 - 不修改正文、注释正文、元数据、nav 文案或 spine 顺序。
-- 不把目标书专用括注匹配逻辑并入公共转换器。
+- 不把目标书专用视觉规则并入公共转换器。
 - 不删除旧工作目录中的历史调试证据。

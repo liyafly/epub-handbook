@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Consolidate repeated EPUB CSS and add conservative text-role markup."""
+"""Consolidate repeated EPUB CSS and normalize legacy font chains."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from xml.etree import ElementTree as ET
 from epub3_oneclick_converter import (
   OPF_NS,
   OPF_URI,
-  ensure_stylesheet_link,
   norm_join,
   opf_path_from_container,
   parse_xml,
@@ -30,12 +29,6 @@ from epub3_oneclick_converter import (
 SONG_CHAIN = '"Songti SC", "SimSun", "Noto Serif CJK SC", serif'
 HEI_CHAIN = '"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif'
 KAI_CHAIN = '"Kaiti SC", "STKaiti", "KaiTi", serif'
-PARENTHETICAL_CSS = f'''.type-parenthetical {{
-  color: #6f5a50;
-  font-family: {KAI_CHAIN};
-  font-size: 0.92em;
-}}
-'''
 
 COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 RULE_RE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
@@ -43,10 +36,6 @@ FONT_FAMILY_RE = re.compile(r"(font-family\s*:\s*)([^;}}]+)", re.I)
 LINK_RE = re.compile(r"<link\b[^>]*\bhref=(?P<quote>[\"'])(?P<href>[^\"']+\.css)(?P=quote)[^>]*/?>", re.I)
 BODY_RE = re.compile(r"<body\b(?P<attrs>[^>]*)>", re.I)
 CLASS_RE = re.compile(r"\bclass=(?P<quote>[\"'])(?P<classes>[^\"']*)(?P=quote)", re.I)
-TAG_RE = re.compile(r"<!--.*?-->|<![^>]*>|<[^>]+>", re.S)
-OPEN_TAG_RE = re.compile(r"<\s*([A-Za-z][\w:-]*)\b([^>]*)>", re.S)
-CLOSE_TAG_RE = re.compile(r"</\s*([A-Za-z][\w:-]*)\s*>", re.S)
-PARENTHETICAL_RE = re.compile(r"（[^（）\n]+）")
 ORNAMENT_RE = re.compile(r"(?m)^\s*[—-]{3,}.*?标题.*?[—-]{3,}\s*$")
 MISSING_SEMICOLON_RE = re.compile(r"(?m)(^\s*[-\w]+\s*:\s*[^;{}\n]+)\n(?=\s*[-\w]+\s*:)")
 
@@ -72,7 +61,6 @@ class CleanupReport:
   duplicate_stylesheets_removed: int = 0
   overrides_created: int = 0
   font_declarations_rewritten: int = 0
-  parentheticals_marked: int = 0
   xhtml_files_updated: int = 0
   css_manifest_items_removed: int = 0
   css_manifest_items_added: int = 0
@@ -92,7 +80,6 @@ class CleanupReport:
       "duplicate_stylesheets_removed": self.duplicate_stylesheets_removed,
       "overrides_created": self.overrides_created,
       "font_declarations_rewritten": self.font_declarations_rewritten,
-      "parentheticals_marked": self.parentheticals_marked,
       "xhtml_files_updated": self.xhtml_files_updated,
       "css_manifest_items_removed": self.css_manifest_items_removed,
       "css_manifest_items_added": self.css_manifest_items_added,
@@ -299,13 +286,13 @@ def consolidate_scoped_local_css(
     for css_path in linked_css_paths(text, xhtml_path):
       refs[css_path].add(xhtml_path)
 
-  excluded_names = {"epub3-enhancements.css", "parentheticals.css", "clean-scoped-local.css"}
+  excluded_names = {"epub3-enhancements.css", "anthology-refinement.css", "clean-scoped-local.css"}
   candidates: dict[str, list[Rule]] = {}
   for css_path, pages in refs.items():
     name = posixpath.basename(css_path)
     if not pages or css_path not in files:
       continue
-    if name in excluded_names or name.startswith("clean-shared-"):
+    if name in excluded_names or name.startswith("clean-shared-") or len(pages) * 2 > len(xhtml_paths):
       continue
     rules = parse_stylesheet(files[css_path].decode("utf-8", errors="replace"))
     if rules:
@@ -354,45 +341,6 @@ def consolidate_scoped_local_css(
   report.scoped_local_stylesheets_merged += len(merge_paths)
 
 
-def start_tag_is_excluded(tag: str, attrs: str) -> bool:
-  if tag in {"head", "aside", "script", "style"}:
-    return True
-  return tag == "span" and re.search(r'class=[\"\'][^\"\']*\btype-parenthetical\b', attrs, re.I) is not None
-
-
-def mark_parenthetical_text(text: str) -> tuple[str, int]:
-  chunks = TAG_RE.split(text)
-  tags = TAG_RE.findall(text)
-  stack: list[tuple[str, bool]] = []
-  marked = 0
-
-  def replace_text(value: str) -> str:
-    nonlocal marked
-    if any(excluded for _, excluded in stack):
-      return value
-    updated, count = PARENTHETICAL_RE.subn(r'<span class="type-parenthetical">\g<0></span>', value)
-    marked += count
-    return updated
-
-  output = [replace_text(chunks[0])]
-  for tag_text, chunk in zip(tags, chunks[1:]):
-    close = CLOSE_TAG_RE.fullmatch(tag_text)
-    if close:
-      tag = close.group(1).lower()
-      if stack and stack[-1][0] == tag:
-        stack.pop()
-      output.append(tag_text)
-      output.append(replace_text(chunk))
-      continue
-    opened = OPEN_TAG_RE.fullmatch(tag_text)
-    output.append(tag_text)
-    if opened and not tag_text.rstrip().endswith("/>"):
-      tag = opened.group(1).lower()
-      stack.append((tag, start_tag_is_excluded(tag, opened.group(2))))
-    output.append(replace_text(chunk))
-  return "".join(output), marked
-
-
 def add_css_manifest_item(root: ET.Element, opf_dir: str, css_path: str, report: CleanupReport) -> None:
   href = posixpath.relpath(css_path, opf_dir) if opf_dir else css_path
   if any(item.attrib.get("href") == href for item in root.findall("opf:manifest/opf:item", OPF_NS)):
@@ -414,7 +362,6 @@ def add_css_manifest_item(root: ET.Element, opf_dir: str, css_path: str, report:
 def clean_epub_css(
   input_path: Path,
   output_path: Path,
-  mark_parentheticals: bool = False,
   merge_scoped_local_css: bool = False,
 ) -> CleanupReport:
   report = CleanupReport(input=str(input_path), output=str(output_path))
@@ -496,27 +443,15 @@ def clean_epub_css(
     files.pop(css_path, None)
   files.update(generated)
 
-  parenthetical_css_path = ""
-  if mark_parentheticals:
-    parenthetical_css_path = unique_zip_path(files, norm_join(opf_dir, "Styles/parentheticals.css"))
-    files[parenthetical_css_path] = PARENTHETICAL_CSS.encode("utf-8")
-
   xhtml_paths = xhtml_zip_paths(root, opf_dir)
   for xhtml_path in xhtml_paths:
     if xhtml_path not in files:
       continue
     text = files[xhtml_path].decode("utf-8", errors="replace")
     text, links_changed = rewrite_css_links(text, xhtml_path, mapping)
-    marked = 0
-    if mark_parentheticals:
-      text, marked = mark_parenthetical_text(text)
-      if marked:
-        href = rel_href(xhtml_path, parenthetical_css_path)
-        text, _ = ensure_stylesheet_link(text, href)
-    if links_changed or marked:
+    if links_changed:
       files[xhtml_path] = text.encode("utf-8")
       report.xhtml_files_updated += 1
-      report.parentheticals_marked += marked
 
   if merge_scoped_local_css:
     consolidate_scoped_local_css(files, xhtml_paths, opf_dir, removed, generated, report)
@@ -533,8 +468,6 @@ def clean_epub_css(
 
   for css_path in sorted(generated):
     add_css_manifest_item(root, opf_dir, css_path, report)
-  if parenthetical_css_path:
-    add_css_manifest_item(root, opf_dir, parenthetical_css_path, report)
 
   files[opf_path] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
   report.css_files_after = len([name for name in files if name.lower().endswith(".css")])
@@ -543,10 +476,9 @@ def clean_epub_css(
 
 
 def main(argv: list[str]) -> int:
-  parser = argparse.ArgumentParser(description="Consolidate repeated EPUB CSS and add conservative text-role markup")
+  parser = argparse.ArgumentParser(description="Consolidate repeated EPUB CSS and normalize legacy font chains")
   parser.add_argument("input", type=Path, help="Input EPUB")
   parser.add_argument("--output", type=Path, required=True, help="Output EPUB")
-  parser.add_argument("--mark-parentheticals", action="store_true", help="Mark body text in Chinese round parentheses")
   parser.add_argument(
     "--merge-scoped-local-css",
     action="store_true",
@@ -558,7 +490,6 @@ def main(argv: list[str]) -> int:
     report = clean_epub_css(
       args.input,
       args.output,
-      mark_parentheticals=args.mark_parentheticals,
       merge_scoped_local_css=args.merge_scoped_local_css,
     )
   except CleanupError as exc:
@@ -572,7 +503,6 @@ def main(argv: list[str]) -> int:
   else:
     print(f"Wrote cleaned EPUB: {args.output}")
     print(f"CSS files: {report.css_files_before} -> {report.css_files_after}")
-    print(f"Parentheticals marked: {report.parentheticals_marked}")
   return 0
 
 

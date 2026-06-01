@@ -18,7 +18,7 @@
 
 - [ ] Add fixture coverage for two disjoint local stylesheets and assert that opt-in cleanup emits one `Styles/clean-scoped-local.css`, body classes `css-local-01` / `css-local-02`, scoped selectors, updated links, and removed manifest items.
 - [ ] Add `merge_scoped_local_css: bool = False` to `clean_epub_css(...)` and CLI flag `--merge-scoped-local-css`.
-- [ ] Identify merge candidates after ordinary deduplication: referenced parseable CSS excluding `clean-shared-*`, `clean-scoped-local.css`, `epub3-enhancements.css`, and `parentheticals.css`.
+- [ ] Identify merge candidates after ordinary deduplication: referenced parseable CSS excluding `clean-shared-*`, `clean-scoped-local.css`, `epub3-enhancements.css`, and stylesheets shared by most XHTML pages.
 - [ ] Skip candidate stylesheets whose referencing XHTML sets overlap. Prefix supported selectors with `body.css-local-NN`, add stable body classes, rewrite links, remove old CSS items, and add one scoped-local manifest item.
 - [ ] Record `scoped_local_stylesheets_merged`, `scope_classes_added`, and warnings in the JSON report.
 - [ ] Run:

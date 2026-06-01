@@ -45,6 +45,7 @@ def write_epub(path: Path) -> None:
     <item id="s4" href="Styles/style0004.css" media-type="text/css"/>
     <item id="s5" href="Styles/style0005.css" media-type="text/css"/>
     <item id="s6" href="Styles/style0006.css" media-type="text/css"/>
+    <item id="component" href="Styles/component.css" media-type="text/css"/>
   </manifest>
   <spine>
     <itemref idref="c1"/>
@@ -55,9 +56,9 @@ def write_epub(path: Path) -> None:
   </spine>
 </package>
 ''',
-    "OEBPS/Text/chapter1.xhtml": chapter("style0002.css"),
-    "OEBPS/Text/chapter2.xhtml": chapter("style0004.css"),
-    "OEBPS/Text/chapter3.xhtml": chapter("style0006.css"),
+    "OEBPS/Text/chapter1.xhtml": chapter("style0002.css", extra_css="component.css"),
+    "OEBPS/Text/chapter2.xhtml": chapter("style0004.css", extra_css="component.css"),
+    "OEBPS/Text/chapter3.xhtml": chapter("style0006.css", extra_css="component.css"),
     "OEBPS/Text/toc1.xhtml": chapter("style0003.css", body="<p class=\"toc\">目录甲</p>"),
     "OEBPS/Text/toc2.xhtml": chapter("style0005.css", body="<p class=\"toc\">目录乙</p>"),
     "OEBPS/Styles/style0002.css": legacy_css("#876c4f"),
@@ -65,6 +66,7 @@ def write_epub(path: Path) -> None:
     "OEBPS/Styles/style0004.css": legacy_css("#876c4f"),
     "OEBPS/Styles/style0005.css": ".toc { margin-left: 0; }\n",
     "OEBPS/Styles/style0006.css": legacy_css("#3fbbd6"),
+    "OEBPS/Styles/component.css": ".component { margin: 0 auto; }\n",
   }
   with zipfile.ZipFile(path, "w") as zf:
     zf.writestr("mimetype", b"application/epub+zip", compress_type=zipfile.ZIP_STORED)
@@ -72,17 +74,18 @@ def write_epub(path: Path) -> None:
       zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
 
 
-def chapter(css_name: str, body: str | None = None) -> str:
+def chapter(css_name: str, body: str | None = None, extra_css: str | None = None) -> str:
   body = body or '''<h1>标题</h1>
     <p>正文（补充说明）继续。</p>
     <aside epub:type="footnote" role="doc-footnote"><p>脚注（不要二次缩小）</p></aside>'''
+  extra_link = f'    <link href="../Styles/{extra_css}" type="text/css" rel="stylesheet"/>\n' if extra_css else ""
   return f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
   <head>
     <title>Fixture</title>
     <link href="../Styles/{css_name}" type="text/css" rel="stylesheet"/>
-  </head>
+{extra_link}  </head>
   <body>
     {body}
   </body>
@@ -117,14 +120,12 @@ def main() -> int:
     report = clean_epub_css(
       source,
       output,
-      mark_parentheticals=True,
       merge_scoped_local_css=True,
     )
 
-    assert report.css_files_before == 5, report
+    assert report.css_files_before == 6, report
     assert report.factored_stylesheets == 3, report
     assert report.duplicate_stylesheets_removed == 1, report
-    assert report.parentheticals_marked == 3, report
     assert report.scoped_local_stylesheets_merged == 2, report
     assert report.scope_classes_added == 3, report
 
@@ -135,7 +136,7 @@ def main() -> int:
       assert "OEBPS/Styles/clean-override-style0006.css" not in names
       assert "OEBPS/Styles/style0003.css" not in names
       assert "OEBPS/Styles/style0005.css" not in names
-      assert "OEBPS/Styles/parentheticals.css" in names
+      assert "OEBPS/Styles/component.css" in names
 
       shared = zf.read("OEBPS/Styles/clean-shared-01.css").decode("utf-8")
       assert '"Songti SC", "SimSun", "Noto Serif CJK SC", serif' in shared
@@ -152,13 +153,13 @@ def main() -> int:
       chapter3 = zf.read("OEBPS/Text/chapter3.xhtml").decode("utf-8")
       toc1 = zf.read("OEBPS/Text/toc1.xhtml").decode("utf-8")
       assert 'href="../Styles/clean-shared-01.css"' in chapter1
+      assert 'href="../Styles/component.css"' in chapter1
       assert 'href="../Styles/clean-scoped-local.css"' in chapter3
       assert 'class="css-local-01"' in chapter3
       assert 'href="../Styles/clean-scoped-local.css"' in toc1
       assert 'class="css-local-02"' in toc1
-      assert '<span class="type-parenthetical">（补充说明）</span>' in chapter1
-      assert '<span class="type-parenthetical">（不要二次缩小）</span>' not in chapter1
-      assert visible_text(chapter1) == visible_text(chapter("style0002.css"))
+      assert "正文（补充说明）继续。" in chapter1
+      assert visible_text(chapter1) == visible_text(chapter("style0002.css", extra_css="component.css"))
 
       opf = ET.fromstring(zf.read("OEBPS/content.opf"))
       css_hrefs = {
@@ -170,7 +171,7 @@ def main() -> int:
       assert "Styles/clean-scoped-local.css" in css_hrefs
       assert "Styles/clean-override-style0006.css" not in css_hrefs
       assert "Styles/style0003.css" not in css_hrefs
-      assert "Styles/parentheticals.css" in css_hrefs
+      assert "Styles/component.css" in css_hrefs
       assert "Styles/style0005.css" not in css_hrefs
 
     second_output = Path(raw) / "cleaned-again.epub"

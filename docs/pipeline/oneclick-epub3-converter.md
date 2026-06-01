@@ -90,7 +90,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 角色拆分和本地文学 EPUB 的脱敏分析见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
 
-## 可选 CSS 去重与括注样式
+## 可选 CSS 去重与局部样式合并
 
 合订 EPUB 如果重复携带每册 CSS，可在 EPUB3 基线通过 preflight 后运行：
 
@@ -98,7 +98,6 @@ python3 scripts/epub_cleanup_pipeline.py \
 python3 scripts/epub_css_cleanup.py \
   work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
-  --mark-parentheticals \
   --merge-scoped-local-css \
   --format json > work/book-a/reports/css-cleanup.json
 ```
@@ -109,11 +108,9 @@ python3 scripts/epub_css_cleanup.py \
 - 把结构相同但少量属性不同的样式拆成公共层与小型 override；
 - 将旧式 `cnepub`、`SimSun`、`SimHei`、`STKaiti` 声明替换为短系统字体链；
 - 同步更新 XHTML `<link>` 和 OPF CSS manifest；
-- 可选为正文同一文本节点内的中文圆括注添加 `.type-parenthetical`，使用系统楷体链、`0.92em` 和低对比度暖灰褐色；
-- 排除脚注中的括注，避免注释二次缩小。
 - 可选把引用页面集合互不重叠的局部样式归并为 `clean-scoped-local.css`，规则改写为 `body.css-local-*` 作用域；引用集合有交叠时跳过并报告。
 
-这是公共脚本的保守边界。脚注括注、跨内联标签括注、跨段诗行或源文不配对括号需要按书目单独审计：能够证明配对关系时再加本地补标层；列表序号和孤立括号保持原文，不把更激进的匹配逻辑固化为默认流程。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
+这是公共脚本的保守边界。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
 
 清洗前后必须运行完整红线 gate：
 
