@@ -359,18 +359,22 @@ def _stage_input(
     work: Path,
     normalize: str = "skip",
     approve_normalize: bool = False,
-) -> Path:
+) -> tuple[Path, list[dict]]:
     """Run preflight, safe package repair, optional normalize, and EPUB3 staging."""
     immutable = work / "before" / "source.epub"
     immutable.parent.mkdir(parents=True, exist_ok=True)
     if immutable.exists():
-        raise P.PipelineError(f"cleanup loop before copy already exists: {immutable}")
+        raise P.PipelineError(
+            f"cleanup loop before copy already exists: {immutable}"
+            " — use a fresh --work-dir or remove it before re-running"
+        )
     shutil.copy2(input_epub, immutable)
     reports = work / "reports"
     original_preflight = _preflight(immutable)
     _write_json(reports / "staging-preflight-original.json", original_preflight)
 
     stage_input = immutable
+    staging_applied: list[dict] = []
     package_plan = RulesPlanner().plan(0, original_preflight, {}, False)
     package_actions = [
         action for action in package_plan["actions"]
@@ -382,6 +386,7 @@ def _stage_input(
         rejected = [result for result in results if result["status"] not in {"applied", "noop"}]
         if rejected:
             raise P.PipelineError(f"staging package repair failed: {rejected}")
+        staging_applied = [result["action"] for result in results if result["status"] == "applied"]
         stage_input = work / "staging-input" / "step-0-package-properties.epub"
         stage_input.parent.mkdir(parents=True, exist_ok=True)
         _repack(files, immutable, stage_input)
@@ -402,7 +407,7 @@ def _stage_input(
     )
     if report.status != "complete":
         raise P.PipelineError(f"cleanup loop staging stopped with status: {report.status}")
-    return Path(report.output)
+    return Path(report.output), staging_applied
 
 
 def _prev_anchor(work: Path, current_round: int, baseline: Path) -> Path:
@@ -461,7 +466,7 @@ def run_loop(
     reports.mkdir(parents=True, exist_ok=True)
 
     input_path = Path(input_epub)
-    baseline = _stage_input(input_path, work, normalize, approve_normalize)
+    baseline, staging_applied = _stage_input(input_path, work, normalize, approve_normalize)
 
     # Read editable text and OPF members of the staged baseline into memory
     files = _read_xhtml_members(baseline)
@@ -542,6 +547,7 @@ def run_loop(
         "stopped_by": stopped,
         "rounds_run": len(log),
         "output": str(cleaned),
+        "staging_applied": staging_applied,
         "round_log": log,
     }
     _write_json(reports / "cleanup-loop.json", report)
@@ -555,6 +561,7 @@ def render_report(rep: dict) -> str:
     auto: list[dict] = []
     sugg: list[dict] = []
     human: list[dict] = []
+    auto += rep.get("staging_applied", [])
     for r in rep.get("round_log", []):
         auto += r.get("applied", [])
         for x in r.get("needs_human", []):
@@ -628,16 +635,26 @@ def main(argv: list[str] | None = None) -> int:
     else:
         planner = RulesPlanner()
 
-    rep = run_loop(
-        args.input,
-        work,
-        planner,
-        args.max_rounds,
-        args.dry_limit,
-        args.enable_structural,
-        args.normalize,
-        args.approve_normalize,
-    )
+    try:
+        rep = run_loop(
+            args.input,
+            work,
+            planner,
+            args.max_rounds,
+            args.dry_limit,
+            args.enable_structural,
+            args.normalize,
+            args.approve_normalize,
+        )
+    except (P.PipelineError, ValueError) as exc:
+        print(f"[cleanup-loop] 已停止：{exc}", file=sys.stderr)
+        if "before copy already exists" in str(exc):
+            print(
+                "[cleanup-loop] 该 work-dir 已被用过；before/source.epub 是不可变基线，"
+                "工具不会覆盖。请换一个新的 --work-dir，或先删除该目录再重跑。",
+                file=sys.stderr,
+            )
+        return 2
     if args.format == "json":
         print(json.dumps(rep, ensure_ascii=False, indent=2))
     else:
