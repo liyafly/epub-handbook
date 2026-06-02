@@ -52,7 +52,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 必需 | 用途 |
 | --- | --- |
 | bash / zip / unzip | 打包 / 解压 EPUB |
-| python3 ≥ 3.9 | 红线脚本、harness、validator |
+| Python 3.14（经 uv/mise 固定） | 红线脚本、harness、validator |
 | git | 仓库 + `git diff --no-index` 当 diff 引擎 |
 
 推荐：

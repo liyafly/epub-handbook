@@ -3,7 +3,7 @@
 ## 你需要
 
 - 一台装了 `zip` 命令的电脑（macOS / Linux 自带；Windows 用 Git Bash 或 WSL）。
-- Python 3.10+。
+- Python 3.14（推荐用 uv 或 mise 安装：`uv python install 3.14`）。
 - Calibre 5+ 或 VS Code（用来做 EPUB diff review）。
 
 ## 步骤
