@@ -344,6 +344,21 @@ def test_loop_converges_for_missing_html_lang() -> None:
         assert applied >= 1, f"should have fixed missing lang: {rep['round_log']}"
 
 
+def test_loop_converges_for_missing_manifest_mathml_property() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "missing-mathml-property.epub"
+        math = '<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math>'
+        _make_min_epub(src, math, with_html_lang=True)
+        rep = L.run_loop(src, root / "work-math", L.RulesPlanner(), max_rounds=4, dry_limit=2)
+        repair_report = root / "work-math" / "reports" / "staging-package-properties.json"
+        repair = json.loads(repair_report.read_text(encoding="utf-8"))
+        assert any(a.get("op") == "add-manifest-properties" for a in repair["actions"]), repair
+        with zipfile.ZipFile(rep["output"]) as zf:
+            opf = zf.read("OEBPS/content.opf").decode("utf-8")
+        assert 'properties="mathml"' in opf
+
+
 def test_loop_fingerprint_guard_breaks_oscillation() -> None:
     class FlipFlopPlanner:
         source = "test"
@@ -397,6 +412,39 @@ def test_apply_action_rewrite_tag() -> None:
     assert res["status"] == "applied", f"unexpected: {res}"
     assert "<blockquote" in files["OEBPS/chapter.xhtml"]
     assert "引文不变" in files["OEBPS/chapter.xhtml"]
+
+
+def test_apply_action_adds_manifest_properties() -> None:
+    opf = (
+        '<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+        '<item id="ch1" href="chapter.xhtml" media-type="application/xhtml+xml"/>'
+        '</manifest></package>'
+    )
+    files = {"OEBPS/content.opf": opf}
+    action = {
+        "op": "add-manifest-properties",
+        "file": "OEBPS/chapter.xhtml",
+        "params": {"locator": {"manifest_id": "ch1"}, "properties": "mathml"},
+        "lane": "package",
+        "source": "rules",
+    }
+    res = L.apply_action(files, action)
+    assert res["status"] == "applied", f"unexpected: {res}"
+    assert 'properties="mathml"' in files["OEBPS/content.opf"]
+    assert L.apply_action(files, action)["status"] == "noop"
+
+
+def test_finalize_writes_cleanup_round_marker() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "source.epub"
+        dst = root / "cleaned.epub"
+        _make_min_epub(src, "文本不变")
+        L._finalize(src, dst, 3)
+        with zipfile.ZipFile(dst) as zf:
+            opf = zf.read("OEBPS/content.opf").decode("utf-8")
+        assert 'prefix="epub-handbook: https://github.com/epub-handbook/meta#"' in opf
+        assert 'property="epub-handbook:cleanup-rounds">3</' in opf
 
 
 def test_apply_action_empty_mapping_rejected() -> None:

@@ -386,7 +386,7 @@ python3 scripts/validate_text_invariance.py \
 
 ## 18. 自动循环清洗（`epub_cleanup_loop.py`）
 
-在 `epub_cleanup_pipeline.py` 的一命令一键纪律之上，本命令增加**确定性多轮自动收敛**：每轮由 Planner 产出受白名单约束的 Action，脚本执行后立即跑正文红线 gate，收敛或触上限自动停机。
+在 `epub_cleanup_pipeline.py` 的一命令一键纪律之上，本命令增加**确定性多轮自动收敛**：入口会先保留不可修改的 before、执行原始输入 preflight，并在只缺 MathML / SVG manifest `properties` 时先做可审计的安全包清单修复；随后复用单次流水线完成 preflight、可选结构规范化和 EPUB3 迁移，再以迁移后的 EPUB3 作为不可变文本基线。每轮由 Planner 产出受白名单约束的 Action，脚本执行后立即跑正文红线 gate 和可用时的 `epubcheck`；任一 gate 失败都会回滚到上一锚点，收敛或触上限自动停机。
 
 **默认零模型：**
 
@@ -394,10 +394,11 @@ python3 scripts/validate_text_invariance.py \
 python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir work/book-a
 ```
 
-默认 `--planner rules` 不调用任何模型，纯标准库，可离线/气隙运行。脚本只会做**确定性可判定**的改动：
+默认 `--planner rules` 不调用任何模型，纯标准库，可离线/气隙运行。结构规范化仍保持显式批准：需要时先用 `--normalize dry-run` 检查报告，再在新的工作目录以 `--normalize apply --approve-normalize` 执行。脚本只会做**确定性可判定**的改动：
 
 - 补充缺失的 `xml:lang` / `epub:type`（lane ② 甲，默认开启）
 - class 值重命名（lane ② 甲，需提供 mapping）
+- 为含内联 MathML / SVG 的 XHTML 补齐 OPF manifest `properties`（package lane，只改包清单，不碰正文）
 
 需要结构改写时显式开启：
 
@@ -429,7 +430,7 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub \
 
 **与 `epub_cleanup_pipeline.py` 的关系：**
 
-`epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 在其纪律之上增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。两者共享 preflight、红线 gate、epubcheck 等组件，不互相替代。
+`epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 先复用该入口建立干净 EPUB3 基线，再增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。循环收尾会在 OPF metadata 写入 `epub-handbook:cleanup-rounds` 审计标记。两者共享 preflight、红线 gate、epubcheck 等组件，不互相替代。
 
 ### 18.1 模型与隐私（说明）
 

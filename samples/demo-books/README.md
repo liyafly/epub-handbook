@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | `city-field-notes` | 样式分层、脚注、表格、代码、资源改动 | 文本不变，红线应通过 |
 | `paper-garden` | 诗段、Ruby、blockquote、竖排增强 | 文本不变，红线应通过 |
+| `loop-auto-fix` | 多轮 loop 正向演示：章节根元素故意漏语言属性 | loop 应自动应用 `add-xml-lang`，正文不变 |
 | `redline-trap` | 故意改写正文的反例 | 红线应失败 |
 
 ## 生成
@@ -50,3 +51,15 @@ python3 scripts/validate_text_invariance.py \
 - `city-field-notes`：应看到样式、资源和结构层变化；文本层保持一致。
 - `paper-garden`：应看到 CSS 与资源变化；文本层保持一致。
 - `redline-trap`：应看到文本层变化；这对文件只用于反例演示，不是合法清洗结果。
+
+## 多轮 loop 正向演示
+
+```sh
+bash samples/demo-books/build.sh
+python3 scripts/epub_cleanup_loop.py \
+  samples/demo-books/dist/loop-auto-fix-before.epub \
+  --work-dir work/loop-auto-fix \
+  --format json
+```
+
+报告中应至少有一项 `add-xml-lang` 自动动作；最终产物为 `work/loop-auto-fix/after/cleaned.epub`。
