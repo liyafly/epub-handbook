@@ -17,3 +17,7 @@ demo-fxl/
 templates/**/dist/
 
 work-epub/
+
+# Python 缓存
+__pycache__/
+*.pyc
