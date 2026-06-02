@@ -396,7 +396,8 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir work/book-a
 
 默认 `--planner rules` 不调用任何模型，纯标准库，可离线/气隙运行。结构规范化仍保持显式批准：需要时先用 `--normalize dry-run` 检查报告，再在新的工作目录以 `--normalize apply --approve-normalize` 执行。脚本只会做**确定性可判定**的改动：
 
-- 补充缺失的 `xml:lang` / `epub:type`（lane ② 甲，默认开启）
+- 补充缺失的 `xml:lang`（lane ② 甲，默认开启）
+- `epub:type` 加注仅 handshake 模式按 AI 计划执行（rules 模式不臆测语义角色）
 - class 值重命名（lane ② 甲，需提供 mapping）
 - 为含内联 MathML / SVG 的 XHTML 补齐 OPF manifest `properties`（package lane，只改包清单，不碰正文）
 
@@ -408,7 +409,7 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub \
   --enable-structural
 ```
 
-此时额外允许 `div.quote → blockquote` 等白名单内的标签改写（lane ② 乙'），但正文文本仍然逐字不动。
+`--enable-structural` 为预留开关；结构改写白名单（如 `div.quote → blockquote`）尚未接入 detector，开启后当前不产生结构动作。后续若接入 detector，结构动作仍必须遵守 lane ② 乙' 的正文文本逐字不动红线。
 
 **AI 辅助模式（handshake）：**
 

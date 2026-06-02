@@ -44,11 +44,17 @@ _KIND_TO_OP: dict[str, str] = {
     "missing-html-lang": "add-xml-lang",
     "missing-lang": "add-xml-lang",
     "obfuscated-class": "rename-class",
-    "div-quote": "rewrite-tag",
     "empty-paragraph": "rewrite-tag",
     "missing-manifest-properties": "add-manifest-properties",
 }
-_STRUCTURAL_KINDS: set[str] = {"div-quote", "empty-paragraph"}
+_STRUCTURAL_KINDS: set[str] = {"empty-paragraph"}
+
+SCHEMA_HINT = {
+    "actions": "list of {op, file, params, lane:'css|tag|package', source:'ai'} — "
+               "whitelisted ops only: add-epub-type, add-xml-lang, rename-class, "
+               "rewrite-tag, add-manifest-properties",
+    "suggestions": "list of {kind, file?, note} — subjective/layout/needs-human; never auto-executed",
+}
 
 DRY_LIMIT = 2
 MAX_ROUNDS = 6
@@ -281,6 +287,14 @@ def _epub_fingerprint(files: dict[str, str]) -> str:
     return h.hexdigest()
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _repack(files: dict[str, str], src: Path, dst: Path) -> Path:
     """Copy a source EPUB and replace its in-memory members to produce dst."""
     # Rebuild the zip: read original entries, replace members from `files`
@@ -363,13 +377,26 @@ def _stage_input(
     """Run preflight, safe package repair, optional normalize, and EPUB3 staging."""
     immutable = work / "before" / "source.epub"
     immutable.parent.mkdir(parents=True, exist_ok=True)
+    reports = work / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    stamp = reports / "staging.json"
+    input_sha = _sha256_file(Path(input_epub))
+
+    # Resumable staging: handshake re-runs must reuse the immutable EPUB3
+    # baseline when the input is unchanged, but never overwrite another book.
+    if stamp.exists():
+        prev = json.loads(stamp.read_text(encoding="utf-8"))
+        if prev.get("input_sha256") == input_sha and Path(prev.get("baseline", "")).exists():
+            return Path(prev["baseline"]), prev.get("staging_applied", [])
+        raise P.PipelineError(
+            f"work-dir {work} 已从另一个输入 stage 过；请换一个新的 --work-dir。"
+        )
     if immutable.exists():
         raise P.PipelineError(
-            f"cleanup loop before copy already exists: {immutable}"
-            " — use a fresh --work-dir or remove it before re-running"
+            f"work-dir 残留 before 但缺 staging 标记：{immutable}；"
+            "目录可能写到一半——换一个新的 --work-dir 或先删除它。"
         )
     shutil.copy2(input_epub, immutable)
-    reports = work / "reports"
     original_preflight = _preflight(immutable)
     _write_json(reports / "staging-preflight-original.json", original_preflight)
 
@@ -407,7 +434,13 @@ def _stage_input(
     )
     if report.status != "complete":
         raise P.PipelineError(f"cleanup loop staging stopped with status: {report.status}")
-    return Path(report.output), staging_applied
+    baseline = Path(report.output)
+    _write_json(stamp, {
+        "input_sha256": input_sha,
+        "baseline": str(baseline),
+        "staging_applied": staging_applied,
+    })
+    return baseline, staging_applied
 
 
 def _prev_anchor(work: Path, current_round: int, baseline: Path) -> Path:
@@ -479,9 +512,11 @@ def run_loop(
     for rnd in range(1, max_rounds + 1):
         findings = _audit(current_base)
         refine = _refine(current_base)
-        plan = planner.plan(rnd, findings, refine, enable_structural)
+        # Write the request before asking the planner: HandshakePlanner exits
+        # when plan.json is absent, so the local AI host needs this file first.
         _write_json(reports / f"round-{rnd}.plan-request.json",
-                     {"findings": findings, "refinement": refine})
+                     {"findings": findings, "refinement": refine, "schema": SCHEMA_HINT})
+        plan = planner.plan(rnd, findings, refine, enable_structural)
         _write_json(reports / f"round-{rnd}.plan.json", plan)
 
         applied: list[dict] = []
@@ -648,12 +683,6 @@ def main(argv: list[str] | None = None) -> int:
         )
     except (P.PipelineError, ValueError) as exc:
         print(f"[cleanup-loop] 已停止：{exc}", file=sys.stderr)
-        if "before copy already exists" in str(exc):
-            print(
-                "[cleanup-loop] 该 work-dir 已被用过；before/source.epub 是不可变基线，"
-                "工具不会覆盖。请换一个新的 --work-dir，或先删除该目录再重跑。",
-                file=sys.stderr,
-            )
         return 2
     if args.format == "json":
         print(json.dumps(rep, ensure_ascii=False, indent=2))
