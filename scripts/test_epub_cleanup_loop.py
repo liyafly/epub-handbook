@@ -449,21 +449,110 @@ def test_finalize_writes_cleanup_round_marker() -> None:
         assert 'property="epub-handbook:cleanup-rounds">3</' in opf
 
 
-def test_main_reports_clean_error_on_reused_work_dir() -> None:
+def test_stage_input_resumes_same_input_same_work_dir() -> None:
     with TemporaryDirectory() as d:
         root = Path(d)
         src = root / "book.epub"
         _make_min_epub(src, "文本不变")
+        work = root / "w"
+        rep1 = L.run_loop(src, work, L.RulesPlanner())
+        rep2 = L.run_loop(src, work, L.RulesPlanner())
+        assert rep1["status"] == "complete"
+        assert rep2["status"] == "complete"
+
+
+def test_stage_input_refuses_different_input_same_work_dir() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        a = root / "a.epub"
+        b = root / "b.epub"
+        _make_min_epub(a, "甲")
+        _make_min_epub(b, "乙")
+        work = root / "w"
+        L.run_loop(a, work, L.RulesPlanner())
+        try:
+            L.run_loop(b, work, L.RulesPlanner())
+            raise AssertionError("不同输入复用同一 work-dir 应被拒绝")
+        except L.P.PipelineError:
+            pass
+
+
+def test_main_reports_clean_error_for_different_input_in_reused_work_dir() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        a = root / "a.epub"
+        b = root / "b.epub"
+        _make_min_epub(a, "甲")
+        _make_min_epub(b, "乙")
         work = root / "work"
         with redirect_stdout(io.StringIO()):
-            assert L.main([str(src), "--work-dir", str(work), "--format", "json"]) == 0
-        # Reusing the same work directory returns a clean CLI error, not a traceback.
+            assert L.main([str(a), "--work-dir", str(work), "--format", "json"]) == 0
         stderr = io.StringIO()
         with redirect_stderr(stderr):
-            assert L.main([str(src), "--work-dir", str(work), "--format", "json"]) == 2
+            assert L.main([str(b), "--work-dir", str(work), "--format", "json"]) == 2
         detail = stderr.getvalue()
-        assert "不可变基线" in detail
+        assert "另一个输入" in detail
         assert "Traceback" not in detail
+
+
+def test_handshake_writes_plan_request_before_pausing() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "book.epub"
+        _make_min_epub(src, "文本不变", with_html_lang=True)
+        work = root / "hs"
+        planner = L.HandshakePlanner(work / "reports")
+        paused = False
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                L.run_loop(src, work, planner)
+        except SystemExit:
+            paused = True
+        assert paused, "缺 plan.json 时 handshake 应暂停"
+        request = work / "reports" / "round-1.plan-request.json"
+        assert request.exists(), "暂停前必须已写出 plan-request.json"
+        assert "schema" in json.loads(request.read_text(encoding="utf-8"))
+
+
+def test_handshake_resumes_and_consumes_filled_plan() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "book.epub"
+        _make_min_epub(src, "文本不变", with_html_lang=True)
+        work = root / "hs"
+        planner = L.HandshakePlanner(work / "reports")
+        try:
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                L.run_loop(src, work, planner)
+        except SystemExit:
+            pass
+        for rnd in (1, 2):
+            (work / "reports" / f"round-{rnd}.plan.json").write_text(
+                json.dumps({"round": rnd, "actions": [], "suggestions": []}),
+                encoding="utf-8",
+            )
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            rep = L.run_loop(src, work, L.HandshakePlanner(work / "reports"), dry_limit=2)
+        assert rep["status"] == "complete"
+        assert rep["stopped_by"] == "dry"
+
+
+def test_loop_rolls_back_on_epubcheck_failure() -> None:
+    orig = L._epubcheck
+    L._epubcheck = lambda path: (False, "stub epubcheck failure")
+    try:
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            src = root / "b.epub"
+            _make_min_epub(src, "x", with_html_lang=False)
+            rep = L.run_loop(src, root / "w", L.RulesPlanner(), max_rounds=3, dry_limit=2)
+            assert rep["status"] == "complete"
+            assert any(
+                nh.get("reason") == "round-gate-failed"
+                for r in rep["round_log"] for nh in r["needs_human"]
+            )
+    finally:
+        L._epubcheck = orig
 
 
 def test_report_counts_staging_package_fixes_as_auto() -> None:
