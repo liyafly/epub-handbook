@@ -120,6 +120,31 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 对用户给的 EPUB 只走复制件，不改原文件。需要逐步执行 preflight、结构规范化、EPUB3 迁移、精排建议、红线 gate 和人工 review 时，按 [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) 的完整流程操作。
 
+## 自动循环清洗（确定性多轮，AI 可选）
+
+`scripts/epub_cleanup_loop.py` 在上面单次 pipeline 的纪律之上，加一段**确定性多轮自动收敛**：先复用单次入口建立干净 EPUB3 基线，再每轮由 planner 产出受白名单约束的改写计划，脚本执行后立即跑正文红线 gate，红则回滚；收敛或触上限自动停机，最后产出 `after/cleaned.epub` 和「已自动改 / 建议你改 / 需人工」三分类报告。AI 全程**不碰正文**，只产受白名单约束的 JSON。
+
+```sh
+# 默认 rules：零模型、纯标准库、可离线 / 气隙运行，正文一字不改
+python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a
+
+# 机读三分类报告
+python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a --format json
+```
+
+需要 AI 辅助判断时用**本地模型**走文件握手，稿件不出本机：
+
+```sh
+# 1) 先跑一轮：工具在 reports/round-1.plan-request.json 写出请求并暂停
+python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a --planner handshake
+# 2) 让本地 AI host 按请求填出 reports/round-1.plan.json（仅白名单 op）
+# 3) 重跑同一命令：工具读回并执行，逐轮推进到收敛
+python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a --planner handshake
+```
+
+默认 `rules` 全程不联网；AI 每轮所见与所提全部落盘在 `work/book-a/reports/` 可审计。与单次 `epub_cleanup_pipeline.py` 的关系、模型与隐私说明见 [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) §18。
+
+
 ## 精排 harness
 
 | harness | 作用 | 输出 |
