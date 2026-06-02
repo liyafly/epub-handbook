@@ -2,7 +2,7 @@
 
 本目录放完全由本仓自造的 EPUB demo。它们用于演示清洗流水线、红线 gate 和 外部 diff 工具（Calibre / VS Code，见 [EPUB diff review](../../docs/pipeline/epub-diff-review.md)），不依赖公版书来源。
 
-`dist/` 下的自造 `.epub` 和 `manifest.json` 可以入 Git，方便用户不构建也能直接打开 diff 工具演示。
+`dist/` 下的 `.epub` 是本地生成物，不入 Git。需要演示或验证时先运行构建脚本；`manifest.json` 保留在仓库中，作为可审计的预期产物索引。
 
 ## 样本
 
@@ -11,6 +11,7 @@
 | `city-field-notes` | 样式分层、脚注、表格、代码、资源改动 | 文本不变，红线应通过 |
 | `paper-garden` | 诗段、Ruby、blockquote、竖排增强 | 文本不变，红线应通过 |
 | `redline-trap` | 故意改写正文的反例 | 红线应失败 |
+| `loop-package-properties` | 内联 SVG / MathML 的 OPF properties 漏声明 | loop 应自动修复并在两轮 DRY 后收敛 |
 
 ## 生成
 
@@ -18,7 +19,7 @@
 bash samples/demo-books/build.sh
 ```
 
-输出在 `samples/demo-books/dist/`。如果脚本逻辑变化，需要重新生成并提交这些 demo EPUB。
+输出在 `samples/demo-books/dist/`。如果脚本逻辑变化，需要重新生成 demo EPUB 做本地验证，但不要提交 `.epub` 生成物。
 
 ## 验证
 

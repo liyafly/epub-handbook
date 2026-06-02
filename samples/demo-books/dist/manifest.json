@@ -29,6 +29,11 @@
       "slug": "redline-trap",
       "variant": "after",
       "path": "samples/demo-books/dist/redline-trap-after-text-changed.epub"
+    },
+    {
+      "slug": "loop-package-properties",
+      "variant": "before",
+      "path": "samples/demo-books/dist/loop-package-properties-before.epub"
     }
   ]
 }

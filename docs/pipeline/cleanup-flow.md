@@ -383,3 +383,15 @@ python3 scripts/validate_text_invariance.py \
 ```
 
 前两条必须通过；反例必须失败。
+
+## 确定性多轮 package 清洗
+
+完成 preflight 与 EPUB3 基线迁移后，可用 loop 继续修复白名单内的 package 问题：
+
+```sh
+python3 scripts/epub_cleanup_loop.py input.epub --work-dir work/loop --format json
+```
+
+loop 自己会保留 `before/source.epub`、运行 preflight、在需要时迁移 EPUB3，并对迁移与每轮写入执行正文文本红线。结构规范化仍然需要人工确认 dry-run：先用 `--normalize dry-run`，review 报告后再在新的 work 目录中使用 `--normalize apply --approve-normalize`。当前可自动写入的 package 操作是 `add-manifest-properties`：当 XHTML 含内联 SVG 或 MathML 时补齐 manifest `properties="svg"` / `properties="mathml"`。
+
+每轮报告显式记录 `epubcheck` 状态；环境没有安装 `epubcheck` 时写入 `skipped`，安装后若检查失败则整轮回滚到上一个锚点。收敛产物位于 `after/cleaned.epub`，并在 OPF metadata 写入 `epub-handbook:cleanup-rounds` 轮次标记。正向演示见 [`samples/demo-books/loop-package-properties.md`](../../samples/demo-books/loop-package-properties.md)。

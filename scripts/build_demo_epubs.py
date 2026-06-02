@@ -512,6 +512,20 @@ h1 { text-align: center; }
 """
 
 
+LOOP_PACKAGE_CHAPTERS = (
+  Chapter(
+    "chapter.xhtml",
+    "内联图形与公式",
+    """    <section>
+      <h1>内联图形与公式</h1>
+      <p>正文保持不变。</p>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>
+      <math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math>
+    </section>""",
+  ),
+)
+
+
 def demo_specs() -> list[EpubSpec]:
   return [
     EpubSpec(
@@ -598,6 +612,17 @@ def demo_specs() -> list[EpubSpec]:
       css={"base.css": REDLINE_CSS + "\np { text-indent: 2em; }\n"},
       images={"cover.png": png_cover("#9d4c4c")},
       output_name="redline-trap-after-text-changed.epub",
+    ),
+    EpubSpec(
+      slug="loop-package-properties",
+      variant="before",
+      title="Loop package properties 正向样本",
+      creator="epub-handbook demo",
+      identifier="urn:uuid:epub-handbook-demo-loop-package-properties",
+      chapters=LOOP_PACKAGE_CHAPTERS,
+      css={},
+      images={},
+      output_name="loop-package-properties-before.epub",
     ),
   ]
 

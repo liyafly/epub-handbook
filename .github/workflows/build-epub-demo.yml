@@ -11,6 +11,8 @@ on:
       - 'docs/final/**'
       - 'docs/guides/**'
       - '.github/workflows/build-epub-demo.yml'
+      - '.python-version'
+      - 'requirements.txt'
   pull_request:
     paths:
       - 'templates/epub-style-demo/**'
@@ -19,6 +21,8 @@ on:
       - 'docs/final/**'
       - 'docs/guides/**'
       - '.github/workflows/build-epub-demo.yml'
+      - '.python-version'
+      - 'requirements.txt'
 
 jobs:
   build:
@@ -26,6 +30,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
 
       - name: Clean dist
         run: rm -rf templates/epub-style-demo/dist
@@ -41,6 +50,7 @@ jobs:
           python3 scripts/test_validate_text_invariance.py
           python3 scripts/test_epub_cleanup_harnesses.py
           python3 scripts/test_epub_cleanup_pipeline.py
+          python3 scripts/test_epub_cleanup_loop.py
           python3 scripts/test_epub3_oneclick_converter.py
           python3 scripts/test_epub_css_cleanup.py
           python3 scripts/test_epub_structure_tool.py

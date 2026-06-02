@@ -53,6 +53,7 @@ def main() -> int:
   # TC4：redline-trap before/after 对存在
   slugs = {spec.slug for spec in specs}
   assert "redline-trap" in slugs, "缺 redline-trap 反例样本"
+  assert "loop-package-properties" in slugs, "缺 loop-package-properties 正向 loop 样本"
   variants = {spec.variant for spec in specs if spec.slug == "redline-trap"}
   assert {"before", "after"} <= variants, f"redline-trap 缺 before/after，实际 {variants}"
 

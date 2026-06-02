@@ -68,12 +68,24 @@ def shell_path(path: Path) -> str:
   return shlex.quote(str(path))
 
 
-def finding(level: str, message: str, path: str | None = None, kind: str | None = None) -> dict[str, str]:
-  data = {"level": level, "message": message}
+def finding(
+  level: str,
+  message: str,
+  path: str | None = None,
+  kind: str | None = None,
+  *,
+  auto_fixable: bool = False,
+  confidence: str | None = None,
+) -> dict[str, object]:
+  data: dict[str, object] = {"level": level, "message": message}
   if path:
     data["path"] = path
   if kind:
     data["kind"] = kind
+  if auto_fixable:
+    data["auto_fixable"] = True
+  if confidence:
+    data["confidence"] = confidence
   return data
 
 
@@ -83,7 +95,7 @@ class Report:
     self.mode = workflow_mode
     self.input_kind = "unknown"
     self.summary: dict[str, object] = {}
-    self.findings: list[dict[str, str]] = []
+    self.findings: list[dict[str, object]] = []
     self.skills: list[str] = []
     self.skill_levels: dict[str, str] = {}
     self.commands: list[str] = []
@@ -115,6 +127,7 @@ class Report:
       "input_kind": self.input_kind,
       "summary": self.summary,
       "findings": self.findings,
+      "actionable_findings": [item for item in self.findings if item.get("auto_fixable")],
       "findings_by_level": self.findings_by_level(),
       "recommended_skills": self.skills,
       "suggested_commands": self.commands,
@@ -321,12 +334,18 @@ def inspect_opf(
       report.add_skill("epub-english-typography-optimizer")
     has_math = "<math" in text or MATHML_URI in text
     if has_math and "mathml" not in props:
-      report.findings.append(finding("error", "MathML XHTML item missing properties=\"mathml\"", href))
+      report.findings.append(finding(
+        "error", "MathML XHTML item missing properties=\"mathml\"", href,
+        kind="missing-manifest-properties", auto_fixable=True, confidence="high",
+      ))
       report.add_skill("epub-package-nav-auditor", "error")
       report.add_skill("epub-kindle-compatibility-checker", "error")
     has_svg = "<svg" in text or SVG_URI in text
     if has_svg and "svg" not in props:
-      report.findings.append(finding("error", "Inline SVG XHTML item missing properties=\"svg\"", href))
+      report.findings.append(finding(
+        "error", "Inline SVG XHTML item missing properties=\"svg\"", href,
+        kind="missing-manifest-properties", auto_fixable=True, confidence="high",
+      ))
       report.add_skill("epub-package-nav-auditor", "error")
     if "epub:type=\"noteref\"" in text or "epub:type='noteref'" in text:
       report.add_skill("epub-popup-footnote-converter")
