@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -445,6 +447,37 @@ def test_finalize_writes_cleanup_round_marker() -> None:
             opf = zf.read("OEBPS/content.opf").decode("utf-8")
         assert 'prefix="epub-handbook: https://github.com/epub-handbook/meta#"' in opf
         assert 'property="epub-handbook:cleanup-rounds">3</' in opf
+
+
+def test_main_reports_clean_error_on_reused_work_dir() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "book.epub"
+        _make_min_epub(src, "文本不变")
+        work = root / "work"
+        with redirect_stdout(io.StringIO()):
+            assert L.main([str(src), "--work-dir", str(work), "--format", "json"]) == 0
+        # Reusing the same work directory returns a clean CLI error, not a traceback.
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            assert L.main([str(src), "--work-dir", str(work), "--format", "json"]) == 2
+        detail = stderr.getvalue()
+        assert "不可变基线" in detail
+        assert "Traceback" not in detail
+
+
+def test_report_counts_staging_package_fixes_as_auto() -> None:
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        src = root / "missing-svg-property.epub"
+        svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'
+        _make_min_epub(src, svg, with_html_lang=True)
+        rep = L.run_loop(src, root / "work-svg", L.RulesPlanner(), max_rounds=4, dry_limit=2)
+        assert rep["staging_applied"], "staging 的 svg-property 修复应被记录"
+        assert any(a.get("op") == "add-manifest-properties" for a in rep["staging_applied"])
+        report_text = L.render_report(rep)
+        assert "add-manifest-properties" in report_text
+        assert "已自动改（0）" not in report_text
 
 
 def test_apply_action_empty_mapping_rejected() -> None:
