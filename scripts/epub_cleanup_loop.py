@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import epub_cleanup_pipeline as P  # noqa: E402
 import epub_text_gate as G  # noqa: E402
 import epub_xhtml_transforms as T  # noqa: E402
 
@@ -180,6 +181,8 @@ def apply_action(files: dict[str, str], action: dict) -> dict:
     path = action["file"]
     op = action["op"]
     p = action.get("params", {})
+    if op == "add-manifest-properties":
+        return apply_package_action(files, action)
     if path not in files:
         return {"status": "skipped", "reason": "file-missing", "action": action}
 
@@ -208,9 +211,6 @@ def apply_action(files: dict[str, str], action: dict) -> dict:
             after, changed = T.dom_rewrite_tag(
                 before, p.get("match", {}), p.get("new_tag", "")
             )
-        elif op == "add-manifest-properties":
-            # Package-level action — handled by the loop, not per-file
-            return {"status": "skipped", "reason": "package-op-not-inline", "action": action}
         else:
             return {"status": "rejected", "reason": "op-not-whitelisted", "action": action}
     except T.ForbiddenTextChange:
@@ -224,6 +224,38 @@ def apply_action(files: dict[str, str], action: dict) -> dict:
     return {"status": "applied", "action": action}
 
 
+def apply_package_action(files: dict[str, str], action: dict) -> dict:
+    """Apply a whitelisted OPF manifest edit without touching publication text."""
+    import xml.etree.ElementTree as ET
+
+    if action.get("op") != "add-manifest-properties":
+        return {"status": "rejected", "reason": "package-op-not-whitelisted", "action": action}
+    manifest_id = action.get("params", {}).get("locator", {}).get("manifest_id", "")
+    additions = set(action.get("params", {}).get("properties", "").split())
+    if not manifest_id or not additions:
+        return {"status": "rejected", "reason": "invalid-manifest-properties", "action": action}
+    opf_paths = [path for path in files if path.endswith(".opf")]
+    if len(opf_paths) != 1:
+        return {"status": "skipped", "reason": "package-opf-not-unique", "action": action}
+    opf_path = opf_paths[0]
+    try:
+        root = ET.fromstring(files[opf_path])
+    except ET.ParseError:
+        return {"status": "rejected", "reason": "package-opf-invalid-xml", "action": action}
+    ns = {"opf": "http://www.idpf.org/2007/opf"}
+    item = next((candidate for candidate in root.findall("opf:manifest/opf:item", ns)
+                 if candidate.attrib.get("id") == manifest_id), None)
+    if item is None:
+        return {"status": "skipped", "reason": "manifest-item-missing", "action": action}
+    properties = set(item.attrib.get("properties", "").split())
+    if additions <= properties:
+        return {"status": "noop", "action": action}
+    item.set("properties", " ".join(sorted(properties | additions)))
+    ET.register_namespace("", ns["opf"])
+    files[opf_path] = ET.tostring(root, encoding="unicode")
+    return {"status": "applied", "action": action}
+
+
 # ── Loop helpers ──────────────────────────────────────────────────────────
 
 
@@ -232,7 +264,7 @@ def _read_xhtml_members(epub_path: Path) -> dict[str, str]:
     members: dict[str, str] = {}
     with zipfile.ZipFile(epub_path) as zf:
         for name in zf.namelist():
-            if name.endswith((".xhtml", ".html", ".htm", ".xml", ".css")):
+            if name.endswith((".xhtml", ".html", ".htm", ".xml", ".opf", ".css")):
                 try:
                     members[name] = zf.read(name).decode("utf-8", errors="replace")
                 except Exception:
@@ -251,9 +283,6 @@ def _epub_fingerprint(files: dict[str, str]) -> str:
 
 def _repack(files: dict[str, str], src: Path, dst: Path) -> Path:
     """Copy a source EPUB and replace its in-memory members to produce dst."""
-    shutil.copy2(src, dst)
-    with zipfile.ZipFile(dst, "a" if dst.exists() else "w") as zf_out:
-        pass
     # Rebuild the zip: read original entries, replace members from `files`
     tmp = dst.with_suffix(dst.suffix + ".tmp")
     with zipfile.ZipFile(src) as src_zf, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst_zf:
@@ -271,6 +300,19 @@ def _audit(epub_path: Path) -> dict:
     r = subprocess.run(
         [sys.executable, str(SCRIPTS / "epub_ai_harness.py"),
          "--mode", "cleanup", str(epub_path), "--format", "json"],
+        cwd=str(ROOT), capture_output=True, text=True,
+    )
+    try:
+        return json.loads(r.stdout) if r.stdout else {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def _preflight(epub_path: Path) -> dict:
+    """Run the conservative preflight harness and return its JSON report."""
+    r = subprocess.run(
+        [sys.executable, str(SCRIPTS / "epub_preflight_harness.py"),
+         str(epub_path), "--format", "json"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     try:
@@ -312,28 +354,90 @@ def _write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _stage_input(input_epub: Path, work: Path) -> Path:
-    """Copy the input EPUB into work/before/source.epub (the immutable baseline)."""
-    before_dir = work / "before"
-    before_dir.mkdir(parents=True, exist_ok=True)
-    staged = before_dir / "source.epub"
-    shutil.copy2(input_epub, staged)
-    return staged
+def _stage_input(
+    input_epub: Path,
+    work: Path,
+    normalize: str = "skip",
+    approve_normalize: bool = False,
+) -> Path:
+    """Run preflight, safe package repair, optional normalize, and EPUB3 staging."""
+    immutable = work / "before" / "source.epub"
+    immutable.parent.mkdir(parents=True, exist_ok=True)
+    if immutable.exists():
+        raise P.PipelineError(f"cleanup loop before copy already exists: {immutable}")
+    shutil.copy2(input_epub, immutable)
+    reports = work / "reports"
+    original_preflight = _preflight(immutable)
+    _write_json(reports / "staging-preflight-original.json", original_preflight)
+
+    stage_input = immutable
+    package_plan = RulesPlanner().plan(0, original_preflight, {}, False)
+    package_actions = [
+        action for action in package_plan["actions"]
+        if action.get("op") == "add-manifest-properties"
+    ]
+    if package_actions:
+        files = _read_xhtml_members(immutable)
+        results = [apply_package_action(files, action) for action in package_actions]
+        rejected = [result for result in results if result["status"] not in {"applied", "noop"}]
+        if rejected:
+            raise P.PipelineError(f"staging package repair failed: {rejected}")
+        stage_input = work / "staging-input" / "step-0-package-properties.epub"
+        stage_input.parent.mkdir(parents=True, exist_ok=True)
+        _repack(files, immutable, stage_input)
+        ok_text, detail = _gate_text(immutable, stage_input)
+        if not ok_text:
+            raise P.PipelineError(f"staging package repair changed text: {detail[:500]}")
+        _write_json(reports / "staging-package-properties.json", {"actions": package_actions, "results": results})
+
+    stage_work = work / "staging"
+    report = P.run_pipeline(
+        stage_input,
+        stage_work,
+        normalize=normalize,
+        approve_normalize=approve_normalize,
+        popup_notes=False,
+        typography=False,
+        keep_step_reports=True,
+    )
+    if report.status != "complete":
+        raise P.PipelineError(f"cleanup loop staging stopped with status: {report.status}")
+    return Path(report.output)
 
 
-def _prev_anchor(work: Path, current_round: int) -> Path | None:
-    """Return the last successful step EPUB, or the baseline."""
+def _prev_anchor(work: Path, current_round: int, baseline: Path) -> Path:
+    """Return the last successful step EPUB, or the staged EPUB3 baseline."""
     for rnd in range(current_round - 1, 0, -1):
         candidate = work / "after" / f"step-{rnd}.epub"
         if candidate.exists():
             return candidate
-    return work / "before" / "source.epub"
+    return baseline
 
 
 def _finalize(base: Path, cleaned: Path, rounds_run: int) -> Path:
-    """Write the final cleaned.epub with an idempotency marker in OPF metadata."""
-    shutil.copy2(base, cleaned)
-    return cleaned
+    """Write cleaned.epub and record the auditable loop-round marker in OPF metadata."""
+    import xml.etree.ElementTree as ET
+
+    files = _read_xhtml_members(base)
+    opf_paths = [path for path in files if path.endswith(".opf")]
+    if len(opf_paths) != 1:
+        raise ValueError("expected exactly one OPF package document during finalize")
+    opf_path = opf_paths[0]
+    root = ET.fromstring(files[opf_path])
+    ns = {"opf": "http://www.idpf.org/2007/opf"}
+    prefixes = root.attrib.get("prefix", "").split()
+    if "epub-handbook:" not in prefixes:
+        root.set("prefix", (root.attrib.get("prefix", "") + " epub-handbook: https://github.com/epub-handbook/meta#").strip())
+    metadata = root.find("opf:metadata", ns)
+    if metadata is None:
+        raise ValueError("OPF package is missing metadata during finalize")
+    marker = metadata.find("opf:meta[@property='epub-handbook:cleanup-rounds']", ns)
+    if marker is None:
+        marker = ET.SubElement(metadata, "{" + ns["opf"] + "}meta", {"property": "epub-handbook:cleanup-rounds"})
+    marker.text = str(rounds_run)
+    ET.register_namespace("", ns["opf"])
+    files[opf_path] = ET.tostring(root, encoding="unicode")
+    return _repack(files, base, cleaned)
 
 
 # ── Core loop ─────────────────────────────────────────────────────────────
@@ -346,6 +450,8 @@ def run_loop(
     max_rounds: int = MAX_ROUNDS,
     dry_limit: int = DRY_LIMIT,
     enable_structural: bool = False,
+    normalize: str = "skip",
+    approve_normalize: bool = False,
 ) -> dict:
     work = Path(work_dir)
     work.mkdir(parents=True, exist_ok=True)
@@ -355,9 +461,9 @@ def run_loop(
     reports.mkdir(parents=True, exist_ok=True)
 
     input_path = Path(input_epub)
-    baseline = _stage_input(input_path, work)
+    baseline = _stage_input(input_path, work, normalize, approve_normalize)
 
-    # Read XHTML/CSS members of the baseline into memory
+    # Read editable text and OPF members of the staged baseline into memory
     files = _read_xhtml_members(baseline)
     seen: set[str] = set()
     dry = 0
@@ -392,24 +498,18 @@ def run_loop(
         ok_text, txt = _gate_text(baseline, current_base)
         ok_check, check_txt = _epubcheck(current_base)
 
-        if not ok_text:
-            anchor = _prev_anchor(work, rnd)
-            if anchor and anchor != current_base:
+        if not (ok_text and ok_check):
+            anchor = _prev_anchor(work, rnd, baseline)
+            if anchor != current_base:
                 current_base = anchor
                 files = _read_xhtml_members(current_base)
             needs_human.append({
                 "round": rnd,
-                "reason": "round-gate-failed-text",
-                "detail": txt[:500],
+                "reason": "round-gate-failed",
+                "text": txt[:500],
+                "epubcheck": check_txt[:500],
             })
-
-        if not applied:
-            dry += 1
-            if dry >= dry_limit:
-                stopped = "dry"
-                break
-        else:
-            dry = 0
+            applied = []
 
         fp = _epub_fingerprint(files)
         round_log = {
@@ -420,6 +520,14 @@ def run_loop(
             "epubcheck_ok": ok_check if ok_check else check_txt[:200],
         }
         log.append(round_log)
+
+        if not applied:
+            dry += 1
+            if dry >= dry_limit:
+                stopped = "dry"
+                break
+        else:
+            dry = 0
 
         if fp in seen:
             stopped = "fingerprint"
@@ -503,6 +611,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Allow structural tag rewrites (div.quote→blockquote, etc.)",
     )
+    ap.add_argument(
+        "--normalize", choices=("skip", "dry-run", "apply"), default="skip",
+        help="Optional staging normalization; apply requires --approve-normalize",
+    )
+    ap.add_argument("--approve-normalize", action="store_true")
     ap.add_argument("--max-rounds", type=int, default=MAX_ROUNDS)
     ap.add_argument("--dry-limit", type=int, default=DRY_LIMIT)
     ap.add_argument("--format", choices=("text", "json"), default="text")
@@ -522,6 +635,8 @@ def main(argv: list[str] | None = None) -> int:
         args.max_rounds,
         args.dry_limit,
         args.enable_structural,
+        args.normalize,
+        args.approve_normalize,
     )
     if args.format == "json":
         print(json.dumps(rep, ensure_ascii=False, indent=2))

@@ -35,6 +35,7 @@ class EpubSpec:
   css: dict[str, str]
   images: dict[str, bytes | str]
   output_name: str
+  chapter_language: bool = True
 
 
 def xml_id(value: str) -> str:
@@ -135,11 +136,11 @@ def chapter_xhtml(spec: EpubSpec, chapter: Chapter) -> str:
     f'    <link rel="stylesheet" type="text/css" href="../Styles/{name}"/>'
     for name in spec.css
   )
+  language_attrs = ' xml:lang="zh-CN" lang="zh-CN"' if spec.chapter_language else ""
   return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:epub="http://www.idpf.org/2007/ops"
-      xml:lang="zh-CN" lang="zh-CN">
+      xmlns:epub="http://www.idpf.org/2007/ops"{language_attrs}>
   <head>
     <title>{chapter.title}</title>
 {css_links}
@@ -507,6 +508,21 @@ blockquote { border-left: .25em solid #8aa17c; padding-left: 1em; color: #333; }
 """
 
 
+LOOP_AUTO_FIX_CHAPTERS = (
+  Chapter(
+    "chapter.xhtml",
+    "自动修复演示",
+    """      <h1>自动修复演示</h1>
+      <p>这一段正文保持不变，但章节根元素故意漏写语言属性。</p>""",
+  ),
+)
+
+
+LOOP_AUTO_FIX_CSS = """body { margin: 0 8%; line-height: 1.8; font-family: serif; }
+h1 { text-align: center; }
+"""
+
+
 REDLINE_CSS = """body { margin: 0 8%; line-height: 1.8; font-family: serif; }
 h1 { text-align: center; }
 """
@@ -576,6 +592,18 @@ def demo_specs() -> list[EpubSpec]:
         "leaf.svg": leaf_svg("#b9a862"),
       },
       output_name="paper-garden-after-clean.epub",
+    ),
+    EpubSpec(
+      slug="loop-auto-fix",
+      variant="before",
+      title="自动清洗正向演示",
+      creator="epub-handbook demo",
+      identifier="urn:uuid:epub-handbook-demo-loop-auto-fix",
+      chapters=LOOP_AUTO_FIX_CHAPTERS,
+      css={"base.css": LOOP_AUTO_FIX_CSS},
+      images={"cover.png": png_cover("#6f5b8f")},
+      output_name="loop-auto-fix-before.epub",
+      chapter_language=False,
     ),
     EpubSpec(
       slug="redline-trap",
