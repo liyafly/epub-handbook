@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -70,6 +71,23 @@ def run(oebps: Path) -> subprocess.CompletedProcess[str]:
   )
 
 
+def run_epub(epub: Path) -> subprocess.CompletedProcess[str]:
+  return subprocess.run(
+    [sys.executable, str(SCRIPT), "--epub", str(epub)],
+    cwd=ROOT,
+    check=False,
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+  )
+
+
+def build_epub_with_zip_slip(path: Path) -> None:
+  with zipfile.ZipFile(path, "w") as zf:
+    zf.writestr("mimetype", "application/epub+zip")
+    zf.writestr("../../etc/passwd", "not really passwd")
+
+
 def main() -> int:
   # TC1：合法弹注 → 退出码 0
   with TemporaryDirectory() as raw:
@@ -109,7 +127,15 @@ def main() -> int:
     if result.returncode != 1:
       raise AssertionError(f"TC5 缺 xmlns:epub 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  print("validate_popup_notes tests ok (5 cases)")
+  # TC6：EPUB zip 成员路径包含 ../ → 拒绝 zip-slip
+  with TemporaryDirectory() as raw:
+    epub = Path(raw) / "evil.epub"
+    build_epub_with_zip_slip(epub)
+    result = run_epub(epub)
+    if result.returncode == 0 or "zip-slip attempt" not in result.stderr:
+      raise AssertionError(f"TC6 zip-slip 应失败，实际 rc={result.returncode}\n{result.stderr}")
+
+  print("validate_popup_notes tests ok (6 cases)")
   return 0
 
 

@@ -451,6 +451,34 @@ def rewrite_css_references(
   return CSS_IMPORT_RE.sub(replace_import, text)
 
 
+def rewrite_srcset_urls(
+  text: str,
+  old_document: str,
+  new_document: str,
+  path_map: dict[str, str],
+  files: dict[str, bytes],
+  report: RewriteReport,
+) -> str:
+  """Rewrite comma-separated srcset URL candidates."""
+  srcset_re = re.compile(
+    r"(?P<prefix>\bsrcset\s*=\s*)(?P<quote>[\"'])(?P<uri>.*?)(?P=quote)",
+    flags=re.IGNORECASE | re.DOTALL,
+  )
+
+  def replace_srcset(match: re.Match[str]) -> str:
+    candidates: list[str] = []
+    for candidate in match.group("uri").split(","):
+      parts = candidate.strip().split()
+      if not parts:
+        continue
+      url = rewrite_uri(parts[0], old_document, new_document, path_map, files, report)
+      descriptor = " ".join(parts[1:])
+      candidates.append(f"{url} {descriptor}".strip())
+    return f"{match.group('prefix')}{match.group('quote')}{', '.join(candidates)}{match.group('quote')}"
+
+  return srcset_re.sub(replace_srcset, text)
+
+
 def rewrite_markup_references(
   text: str,
   old_document: str,
@@ -463,6 +491,7 @@ def rewrite_markup_references(
     uri = rewrite_uri(match.group("uri"), old_document, new_document, path_map, files, report)
     return f"{match.group('prefix')}{match.group('quote')}{uri}{match.group('quote')}"
 
+  text = rewrite_srcset_urls(text, old_document, new_document, path_map, files, report)
   return rewrite_css_references(
     URI_ATTRIBUTE_RE.sub(replace_attr, text),
     old_document,

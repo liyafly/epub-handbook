@@ -16,6 +16,44 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9-]{1,63}$")
 CONTRACTS: dict[str, list[tuple[str, str]]] = {
+  "epub-layout-auditor": [
+    ("skills/epub-layout-auditor/SKILL.md", "EPUB 排版审稿"),
+    ("docs/final/SPEC-实现约束.md", "红线"),
+  ],
+  "epub-source-intake": [
+    ("skills/epub-source-intake/SKILL.md", "source bundle"),
+  ],
+  "epub-structure-normalizer": [
+    ("skills/epub-structure-normalizer/SKILL.md", "scripts/epub_structure_tool.py"),
+  ],
+  "epub-image-layout-optimizer": [
+    ("skills/epub-image-layout-optimizer/SKILL.md", "figure"),
+    ("templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml", "img-left"),
+  ],
+  "epub-vertical-ruby-optimizer": [
+    ("skills/epub-vertical-ruby-optimizer/SKILL.md", "writing-mode: vertical-rl"),
+    ("templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml", "vrl-section"),
+  ],
+  "epub-kindle-compatibility-checker": [
+    ("skills/epub-kindle-compatibility-checker/SKILL.md", "Kindle/KDP"),
+    ("templates/epub-style-demo/OEBPS/Text/09-kindle-risk.xhtml", "Kindle"),
+  ],
+  "epub-alite-converter": [
+    ("skills/epub-alite-converter/SKILL.md", "body.fullpage"),
+    ("templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml", "fullpage"),
+  ],
+  "epub-popup-footnote-converter": [
+    ("skills/epub-popup-footnote-converter/SKILL.md", "popup footnote"),
+    ("templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml", "doc-noteref"),
+  ],
+  "epub-legacy-footnote-fallback": [
+    ("skills/epub-legacy-footnote-fallback/SKILL.md", "duokan-footnote"),
+    ("templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml", "duokan-footnote"),
+  ],
+  "epub-style-demo-maintainer": [
+    ("skills/epub-style-demo-maintainer/SKILL.md", "reader matrix"),
+    ("templates/epub-style-demo/SCENE_MATRIX.md", "场景矩阵"),
+  ],
   "epub-css-layering-optimizer": [
     ("skills/epub-css-layering-optimizer/SKILL.md", "docs/guides/note-box-border-styles.md"),
     ("docs/guides/note-box-border-styles.md", "便签、边框与阴影文本框"),
@@ -135,11 +173,34 @@ def validate_skill(folder: Path) -> list[str]:
   return errors
 
 
+def validate_skill_tables(skill_folders: list[Path]) -> list[str]:
+  errors: list[str] = []
+  expected = {p.name for p in skill_folders}
+
+  def parse_table(path: Path) -> set[str]:
+    names: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+      if line.startswith("| `epub-"):
+        cell = line.split("|")[1].strip().strip("`")
+        if cell.startswith("epub-"):
+          names.add(cell)
+    return names
+
+  readme = parse_table(ROOT / "skills" / "README.md")
+  getting_started = parse_table(ROOT / "docs" / "getting-started" / "04-skills.md")
+  if readme != expected:
+    errors.append(f"skills/README.md 表格与目录不一致: 缺 {sorted(expected - readme)} 多 {sorted(readme - expected)}")
+  if getting_started != expected:
+    errors.append(f"04-skills.md 表格与目录不一致: 缺 {sorted(expected - getting_started)} 多 {sorted(getting_started - expected)}")
+  return errors
+
+
 def main() -> int:
   errors: list[str] = []
   folders = [p for p in sorted(SKILLS.iterdir()) if (p / "SKILL.md").exists()]
   for folder in folders:
     errors.extend(validate_skill(folder))
+  errors.extend(validate_skill_tables(folders))
   if errors:
     for error in errors:
       print(f"ERROR: {error}", file=sys.stderr)

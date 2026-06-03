@@ -2,7 +2,7 @@
 
 > 第一次接触、还不懂 EPUB？先读 [docs/getting-started/00-what-is-epub.md](docs/getting-started/00-what-is-epub.md)，5 分钟搞懂这仓库能帮你做什么。
 
-中文 EPUB 3 制作与 AI 协作工具集。围绕「硬约束 + 自造 demo + 阅读器实测 + 自动化 skill」四件套构建：所有规则都有 demo fixture 兜底，确认后的阅读器兼容性结论会回写 `reader-matrix.yaml`，尚未复测的假设保留为 `warn`，所有 AI 行为都按写定的 skill 契约执行。
+中文 EPUB 3 制作与 AI 协作工具集。围绕「硬约束 + 自造 demo + 阅读器实测 + 自动化 skill」四件套构建：所有规则都有 demo fixture 兜底，通过阅读器实测确认的兼容性结论会写入 `reader-matrix.yaml` 并标为 `pass` 或 `fail`；尚未完成复测的条目保留为 `warn`，warn 不等于已验证，所有 AI 行为都按写定的 skill 契约执行。
 
 A practical handbook for EPUB authoring, typography, compatibility, and reading-system behavior across Apple Books, Kindle, Readium, and Readest.
 
@@ -17,7 +17,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 1. **工程契约层** — [docs/final/](docs/final/)：SPEC、终极手册、HTML / CSS 属性速查表、阅读器兼容性实测矩阵 `reader-matrix.yaml`。这是对外硬约束。
 2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
 3. **AI 协作 skills** — [skills/](skills/)：共 15 个 skill（2 个主入口 `epub-layout-auditor` / `epub-source-intake` + 13 个专项：结构格式化、CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
-4. **可运行 demo** — [templates/](templates/) 与 [samples/demo-books/](samples/demo-books/)：每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
+4. **可运行 demo** — [templates/](templates/) 与 [samples/demo-books/](samples/demo-books/)：每条规则都必须有 demo 复现，不允许只靠手册推断改规则。`samples/fixtures-tiny/` 是快速迭代的极简槽位；最终产品仍按 `templates/` + `samples/demo-books/` 的完整 demo 标准验证。
 5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
 
 ## 项目目标与完成标准

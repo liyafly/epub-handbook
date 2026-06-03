@@ -168,9 +168,19 @@ class HandshakePlanner:
             "rewrite-tag",
             "add-manifest-properties",
         }
-        plan["actions"] = [
-            a for a in plan.get("actions", []) if a.get("op") in allowed_ops
-        ]
+        filtered_actions = []
+        filtered_out = []
+        for action in plan.get("actions", []):
+            if action.get("op") in allowed_ops:
+                filtered_actions.append(action)
+            else:
+                filtered_out.append({"op": action.get("op"), "file": action.get("file")})
+        if filtered_out:
+            plan.setdefault("suggestions", []).append({
+                "kind": "filtered-disallowed-op",
+                "note": f"Filtered out {len(filtered_out)} disallowed ops: {filtered_out}",
+            })
+        plan["actions"] = filtered_actions
         plan["source"] = self.source
         return plan
 
@@ -550,6 +560,9 @@ def run_loop(
                 "epubcheck": check_txt[:500],
             })
             applied = []
+        else:
+            if applied:
+                files = _read_xhtml_members(current_base)
 
         fp = _epub_fingerprint(files)
         round_log = {
@@ -557,7 +570,8 @@ def run_loop(
             "applied": [a["action"] for a in applied if "action" in a],
             "needs_human": needs_human,
             "text_ok": ok_text,
-            "epubcheck_ok": ok_check if ok_check else check_txt[:200],
+            "epubcheck_ok": ok_check,
+            "epubcheck_message": check_txt[:200] if not ok_check else "",
         }
         log.append(round_log)
 

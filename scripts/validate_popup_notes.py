@@ -232,6 +232,14 @@ def validate_oebps(root: Path, oebps: Path, check: Check) -> None:
     validate_manifest(oebps, opf_path, check)
 
 
+def safe_extractall(zf: zipfile.ZipFile, target: Path) -> None:
+  """Extract EPUB members after rejecting absolute or parent-traversal paths."""
+  for member in zf.namelist():
+    if member.startswith("/") or ".." in member.split("/"):
+      raise ValueError(f"zip-slip attempt: {member}")
+    zf.extract(member, target)
+
+
 def main(argv: list[str]) -> int:
   parser = argparse.ArgumentParser()
   parser.add_argument("--oebps", type=Path, default=DEFAULT_OEBPS, help="OEBPS directory to validate")
@@ -243,7 +251,7 @@ def main(argv: list[str]) -> int:
     with TemporaryDirectory() as tmp:
       extracted = Path(tmp)
       with zipfile.ZipFile(args.epub) as zf:
-        zf.extractall(extracted)
+        safe_extractall(zf, extracted)
       validate_oebps(extracted, extracted / "OEBPS", check)
   else:
     validate_oebps(args.oebps.parent, args.oebps, check)

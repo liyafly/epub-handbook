@@ -5,19 +5,41 @@ on:
   push:
     branches: [main, develop]
     paths:
+      - 'AGENTS.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'README.md'
+      - '.markdownlint-cli2.jsonc'
+      - '.python-version'
+      - 'pyproject.toml'
+      - 'requirements.txt'
       - 'templates/epub-style-demo/**'
+      - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
+      - 'docs/getting-started/**'
       - 'docs/guides/**'
+      - 'docs/pipeline/**'
       - '.github/workflows/build-epub-demo.yml'
   pull_request:
     paths:
+      - 'AGENTS.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'README.md'
+      - '.markdownlint-cli2.jsonc'
+      - '.python-version'
+      - 'pyproject.toml'
+      - 'requirements.txt'
       - 'templates/epub-style-demo/**'
+      - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
+      - 'docs/getting-started/**'
       - 'docs/guides/**'
+      - 'docs/pipeline/**'
       - '.github/workflows/build-epub-demo.yml'
 
 jobs:
@@ -38,6 +60,14 @@ jobs:
       - name: Build demo EPUB
         run: sh templates/epub-style-demo/build.sh
 
+      - name: Lint Markdown
+        run: |
+          npm install -g markdownlint-cli2
+          markdownlint-cli2 --config .markdownlint-cli2.jsonc \
+            'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' \
+            'docs/final/**/*.md' 'docs/getting-started/**/*.md' \
+            'docs/guides/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
+
       - name: Validate local fixtures and skills
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
@@ -55,6 +85,12 @@ jobs:
           python3 scripts/test_epub_xhtml_transforms.py
           python3 scripts/test_epub_text_gate.py
           python3 scripts/test_epub_cleanup_loop.py
+          python3 scripts/test_epub3_migration_harness.py
+          python3 scripts/test_epub_preflight_harness.py
+          python3 scripts/test_epub_refinement_harness.py
+          python3 scripts/test_validate_epub_style_demo.py
+          python3 scripts/test_validate_skills_basic.py
+          python3 scripts/test_validate_ai_entrypoints.py
           python3 scripts/validate_ai_entrypoints.py
           scripts/validate-epub-style-demo.sh --epub "$epub"
           scripts/validate-popup-notes.sh --epub "$epub"
@@ -88,6 +124,18 @@ jobs:
             exit 1
           fi
           echo "EPUBCheck: 通过（退出码 0）"
+
+      - name: Build & EPUBCheck demo-books samples
+        run: |
+          bash samples/demo-books/build.sh
+          for epub in samples/demo-books/dist/*.epub; do
+            case "$(basename "$epub")" in
+              redline-trap-after-text-changed.epub)
+                echo "[expected-fail sample] skip EPUBCheck: $epub" ;;
+              *)
+                java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default || { echo "FAIL: $epub" >&2; exit 1; } ;;
+            esac
+          done
 
       - name: Upload EPUB artifact
         uses: actions/upload-artifact@v4

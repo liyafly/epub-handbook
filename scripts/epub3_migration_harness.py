@@ -242,8 +242,10 @@ def plan_epub3(path: Path) -> dict[str, object]:
       actions.append({"kind": "opf", "message": f"Set package version from {version or '<missing>'} to 3.0"})
     if not has_modified_meta(root):
       actions.append({"kind": "metadata", "message": "Add meta property=\"dcterms:modified\""})
-    if len(navs) != 1:
+    if len(navs) == 0:
       actions.append({"kind": "nav", "message": "Generate nav.xhtml and add manifest item with properties=\"nav\""})
+    elif len(navs) > 1:
+      actions.append({"kind": "nav", "message": "Replace existing nav manifest items with one generated nav.xhtml item"})
     if ncx is None:
       warnings.append("No toc.ncx found; this harness will not synthesize legacy NCX.")
     if "META-INF/encryption.xml" in names:
@@ -284,12 +286,15 @@ def migrate_epub3(input_path: Path, output_path: Path) -> dict[str, object]:
       add_modified_meta(new_root)
 
     if len(nav_items(new_root)) != 1:
+      manifest_elem = manifest(new_root)
+      for old_nav in nav_items(new_root):
+        manifest_elem.remove(old_nav)
       generated_nav_href = choose_nav_href(opf_dir, names)
       entries = ncx_entries(zin, new_root, opf_dir) or spine_entries(new_root)
       if not entries:
         raise Epub3Error("cannot generate nav.xhtml: no NCX navPoint or spine entries")
       generated_nav_bytes = build_nav_xhtml(package_title(new_root), language(new_root), entries)
-      ET.SubElement(manifest(new_root), tag(OPF_URI, "item"), {
+      ET.SubElement(manifest_elem, tag(OPF_URI, "item"), {
         "id": unique_item_id(new_root, "nav"),
         "href": generated_nav_href,
         "media-type": "application/xhtml+xml",

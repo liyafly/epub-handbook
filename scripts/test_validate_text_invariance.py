@@ -127,6 +127,11 @@ def change_anchor_id(before_src: Path, after_src: Path, _tmp: Path) -> None:
   (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(after_body), encoding="utf-8")
 
 
+def nfc_equivalent_text(before_src: Path, after_src: Path, _tmp: Path) -> None:
+  (before_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml("<p>café</p><p>第二段文字。</p>"), encoding="utf-8")
+  (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml("<p>café</p><p>第二段文字。</p>"), encoding="utf-8")
+
+
 def rename_paths(after_src: Path, tmp: Path) -> Path:
   (after_src / "OEBPS/Text/chap1.xhtml").rename(after_src / "OEBPS/Text/chapter-one.xhtml")
   (after_src / "OEBPS/Images/cover.png").rename(after_src / "OEBPS/Images/cover-image.png")
@@ -214,6 +219,7 @@ def main() -> int:
     ("TC20 verbose pass", noop, 0, ["--verbose"], "All requested red-line checks passed."),
     ("TC21 anchor explicit", change_anchor_id, 1, ["--check", "anchors"], "anchors: deleted id"),
     ("TC22 anchor all", change_anchor_id, 1, [], "anchors: deleted id"),
+    ("TC28 NFC equivalent text", nfc_equivalent_text, 0, []),
   ]
 
   for name, mutator, expected, args, *rest in tests:
@@ -296,7 +302,7 @@ def main() -> int:
     if result.returncode:
       raise AssertionError(f"TC27 stale encryption reference failed: rc={result.returncode}\n{result.stderr}")
 
-  print("validate_text_invariance tests ok (27 cases)")
+  print("validate_text_invariance tests ok (28 cases)")
   return 0
 
 

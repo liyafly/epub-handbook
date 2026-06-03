@@ -75,11 +75,14 @@ def collect_actionable_findings(model: EpubModel | None) -> list[dict]:
   if model is None:
     return []
   found: list[dict] = []
+  detector_errors: list[dict[str, str]] = []
   for d in DETECTORS:
     try:
       found.extend(d.fn(model))
-    except Exception:
-      pass
+    except Exception as exc:
+      detector_errors.append({"detector": d.kind, "error": str(exc)})
+  for err in detector_errors:
+    print(f"WARNING: detector {err['detector']} failed: {err['error']}", file=sys.stderr)
   return found
 
 
@@ -216,13 +219,13 @@ def build_model(zf: zipfile.ZipFile, opf_path: str, opf_root: ET.Element) -> Epu
       try:
         root = ET.fromstring(zf.read(target))
         xhtml_docs[target] = root
-      except ET.ParseError:
-        pass
+      except ET.ParseError as exc:
+        print(f"WARNING: cannot parse XHTML {target}: {exc}", file=sys.stderr)
     elif media_type == "text/css" or href.endswith(".css"):
       try:
         css_docs[target] = zf.read(target).decode("utf-8", errors="ignore")
-      except Exception:
-        pass
+      except Exception as exc:
+        print(f"WARNING: cannot read CSS {target}: {exc}", file=sys.stderr)
   lang = opf_root.findtext(".//{http://purl.org/dc/elements/1.1/}language")
   return EpubModel(
     xhtml_docs=xhtml_docs,
@@ -248,13 +251,13 @@ def _build_model_from_tree(root_dir: Path, opf_path: str, opf_root: ET.Element) 
       try:
         root = ET.parse(str(target)).getroot()
         xhtml_docs[norm_join(opf_dir, href)] = root
-      except ET.ParseError:
-        pass
+      except ET.ParseError as exc:
+        print(f"WARNING: cannot parse XHTML {target}: {exc}", file=sys.stderr)
     elif media_type == "text/css" or href.endswith(".css"):
       try:
         css_docs[norm_join(opf_dir, href)] = target.read_text(encoding="utf-8", errors="ignore")
-      except Exception:
-        pass
+      except Exception as exc:
+        print(f"WARNING: cannot read CSS {target}: {exc}", file=sys.stderr)
   lang = opf_root.findtext(".//{http://purl.org/dc/elements/1.1/}language")
   return EpubModel(
     xhtml_docs=xhtml_docs,

@@ -382,7 +382,7 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 - [ ] **Step 1：确认在干净工作目录**
 
 ```sh
-cd /Users/yafeili/Developer/epub-handbook
+cd $PROJECT_ROOT
 git status --porcelain
 ```
 Expected: 空输出。

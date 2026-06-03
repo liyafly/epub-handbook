@@ -30,6 +30,11 @@ def preflight(path: Path) -> tuple[int, dict[str, object], str]:
     report.add_command(f"python3 scripts/epub_refinement_harness.py {shell_path(path)} --format json")
 
   data = report.as_dict()
+  summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+  if path.suffix.lower() == ".epub" and summary.get("spine_items") == 0:
+    data.setdefault("findings", []).append({"level": "error", "message": "OPF spine is missing or empty"})
+    data.setdefault("findings_by_level", {}).setdefault("error", 0)
+    data["findings_by_level"]["error"] += 1
   counts = data["findings_by_level"]
   status = "fail" if counts.get("error", 0) else "warn" if counts.get("warn", 0) else "pass"
   data.update({

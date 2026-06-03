@@ -72,10 +72,7 @@ description: 将 EPUB 封面式页面、卷首、章首或海报页转换为项�
 8. 保持 CSS 分层：A-lite CSS 必须放入 `Styles/poster.css`，不要写进 `base.css`。
 9. OPF manifest 只为实际使用的 assets/CSS/fonts 增减条目；存在 A-lite 时分开声明 `fonts.css` / `base.css` / `poster.css`。保留已有 `nav.xhtml`、`toc.ncx`、`spine toc="ncx"` 和 cover-image metadata。
 10. 读取输出 XHTML/CSS，确认所有必须保留的叠加文字和图片没有丢失。
-11. 如果源页是单张包含全部设计内容的卷封图：
-   - 使用 `poster-bg-contain` 或 `poster-bg-volume-*` modifier。
-   - 使用 `background-size: contain`，不要使用会裁图的 `cover` 或会拉伸图片的 `100% 100%`。
-   - 在 `.fullframe` 内保留 `<img class="poster-fallback">`，并只在 `@supports (background-size: contain)` 中隐藏它。
+11. 如果源页是单张包含全部设计内容的卷封图，使用 `poster-bg-contain` 或 `poster-bg-volume-*` modifier；使用 `background-size: contain`，不要使用会裁图的 `cover` 或会拉伸图片的 `100% 100%`；在 `.fullframe` 内保留 `<img class="poster-fallback">`，并只在 `@supports (background-size: contain)` 中隐藏它。
 
 ## A-lite CSS 骨架
 

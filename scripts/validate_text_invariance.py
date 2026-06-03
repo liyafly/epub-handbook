@@ -15,6 +15,7 @@ import json
 import posixpath
 import re
 import sys
+import unicodedata
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,7 +59,7 @@ def local_name(tag: object) -> str:
 
 
 def normalize_text(value: str) -> str:
-  return re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip()
+  return unicodedata.normalize("NFC", re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip())
 
 
 def sanitize_xml(data: bytes) -> bytes:
@@ -409,6 +410,8 @@ def load_path_map(path: Path | None) -> dict[str, str]:
       if not isinstance(item, dict) or not isinstance(item.get("from"), str) or not isinstance(item.get("to"), str):
         raise InputError(f"{path}: each mapping must contain string from/to paths")
       add_path_mapping(path_map, item["from"], item["to"])
+  if not path_map:
+    print(f"warning: --path-map {path} is empty or contains no valid mappings; assuming no file renames", file=sys.stderr)
   return path_map
 
 

@@ -379,6 +379,32 @@ def validate_obfuscated_class_detector() -> int:
   return 0
 
 
+def validate_detector_exception_warning() -> int:
+  sys.path.insert(0, str(Path(__file__).resolve().parent))
+  import epub_ai_harness as H  # noqa: E402
+  from io import StringIO
+  from contextlib import redirect_stderr
+
+  def broken_detector(_model):
+    raise RuntimeError("boom")
+
+  model = H.EpubModel(xhtml_docs={}, opf_root=None, opf_path="", css_docs={}, book_language=None)
+  original = list(H.DETECTORS)
+  H.DETECTORS[:] = [H.Detector("broken-test", "tag", broken_detector)]
+  stderr = StringIO()
+  try:
+    with redirect_stderr(stderr):
+      findings = H.collect_actionable_findings(model)
+  finally:
+    H.DETECTORS[:] = original
+  warning = stderr.getvalue()
+  if findings or "WARNING: detector broken-test failed: boom" not in warning:
+    print(f"ERROR: detector exception was not reported correctly: findings={findings}, stderr={warning!r}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness detector exception warning ok")
+  return 0
+
+
 def main() -> int:
   for check in (
     validate_demo_route,
@@ -390,6 +416,7 @@ def main() -> int:
     validate_registry_lists_detectors,
     validate_missing_manifest_properties_detector,
     validate_obfuscated_class_detector,
+    validate_detector_exception_warning,
   ):
     result = check()
     if result:

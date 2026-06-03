@@ -78,7 +78,7 @@ tools/.DS_Store
 
 `docs/plans/2026-05-28-remove-epub-diff-followup.md` 在第一份正文结束后，又从第二个 `# Follow-up...` 重新开始了一遍；第二个标题当前还贴在上一行表格末尾。这个文件已经 tracked，但重复内容会误导后续 review，也会让计划目录显得不干净。
 
-建议只保留第一份完整正文，删除重复的第二份；同时可以顺手去掉不适用于本仓的外部路径示例，例如 `/Users/yafeili/Developer/epub-handbook`。
+建议只保留第一份完整正文，删除重复的第二份；同时可以顺手去掉不适用于本仓的外部路径示例，例如 `$PROJECT_ROOT`。
 
 ### P2：`docs/plans/README.md` 归档段落此前自相矛盾
 

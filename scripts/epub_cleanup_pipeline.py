@@ -260,24 +260,32 @@ def run_pipeline(
       convert_command.append("--no-popup-notes")
     if not typography:
       convert_command.append("--no-typography")
-    run_step(
-      report,
-      "convert-epub3",
-      convert_command,
-      optional_report(reports_dir, "conversion.json", keep_step_reports),
-      expect_json=True,
-    )
+    try:
+      run_step(
+        report,
+        "convert-epub3",
+        convert_command,
+        optional_report(reports_dir, "conversion.json", keep_step_reports),
+        expect_json=True,
+      )
 
-    preflight_after = run_step(
-      report,
-      "preflight-after",
-      [sys.executable, str(SCRIPTS / "epub_preflight_harness.py"), str(output_path), "--format", "json"],
-      optional_report(reports_dir, "preflight-after.json", keep_step_reports),
-      expect_json=True,
-      allowed_codes=(0, 1),
-    )
-    if preflight_after and preflight_after.get("preflight_status") == "fail":
-      raise PipelineError("preflight-after: converter produced blocking findings")
+      preflight_after = run_step(
+        report,
+        "preflight-after",
+        [sys.executable, str(SCRIPTS / "epub_preflight_harness.py"), str(output_path), "--format", "json"],
+        optional_report(reports_dir, "preflight-after.json", keep_step_reports),
+        expect_json=True,
+        allowed_codes=(0, 1),
+      )
+      if preflight_after and preflight_after.get("preflight_status") == "fail":
+        raise PipelineError("preflight-after: converter produced blocking findings")
+    except PipelineError:
+      if output_path.exists():
+        if output_path.is_dir():
+          shutil.rmtree(output_path)
+        else:
+          output_path.unlink()
+      raise
 
     if popup_notes:
       run_step(

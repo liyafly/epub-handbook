@@ -35,6 +35,10 @@
 
 4. 跑校验：
 
+   如果修改 `scripts/`，请先本地运行对应的 `scripts/test_*.py`；pre-commit hook 只提供快反馈，CI 会运行更完整的验证矩阵。
+
+   修改 `docs/final/EPUB 3 HTML CSS 属性速查表.md` 时，必须同步重新生成或手工同步同名 `.html` 派生文件，并核对主体内容一致。
+
    ```sh
    bash templates/epub-style-demo/build.sh
    NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)

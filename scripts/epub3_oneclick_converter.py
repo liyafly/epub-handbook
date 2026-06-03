@@ -480,11 +480,12 @@ def ncx_entries(files: dict[str, bytes], root: ET.Element, opf_dir: str, report:
     report.warnings.append(f"NCX manifest item does not resolve: {ncx_href}")
     return []
   sanitized = sanitize_ncx_text(files[ncx_zip], report)
-  files[ncx_zip] = sanitized.encode("utf-8")
   ncx_root = parse_xml(sanitized, ncx_zip)
   base = posixpath.dirname(ncx_href)
   points = ncx_root.findall("ncx:navMap/ncx:navPoint", NCX_NS)
-  return [entry for entry in (parse_nav_points(point, base) for point in points) if entry is not None]
+  entries = [entry for entry in (parse_nav_points(point, base) for point in points) if entry is not None]
+  files[ncx_zip] = sanitized.encode("utf-8")
+  return entries
 
 
 def spine_entries(root: ET.Element) -> list[dict[str, object]]:
@@ -1030,12 +1031,19 @@ def write_epub(output_path: Path, files: dict[str, bytes], original_order: list[
   ordered: list[str] = ["mimetype"]
   ordered.extend(name for name in original_order if name != "mimetype" and name in files)
   ordered.extend(name for name in sorted(files) if name not in set(ordered))
-  with zipfile.ZipFile(output_path, "w") as zf:
-    for name in ordered:
-      data = files[name]
-      info = zipfile.ZipInfo(name, FIXED_ZIP_TIME)
-      info.compress_type = zipfile.ZIP_STORED if name == "mimetype" else zipfile.ZIP_DEFLATED
-      zf.writestr(info, data)
+  tmp = output_path.with_suffix(output_path.suffix + ".tmp")
+  try:
+    with zipfile.ZipFile(tmp, "w") as zf:
+      for name in ordered:
+        data = files[name]
+        info = zipfile.ZipInfo(name, FIXED_ZIP_TIME)
+        info.compress_type = zipfile.ZIP_STORED if name == "mimetype" else zipfile.ZIP_DEFLATED
+        zf.writestr(info, data)
+    tmp.replace(output_path)
+  except Exception:
+    if tmp.exists():
+      tmp.unlink()
+    raise
 
 
 def default_output_path(input_path: Path) -> Path:
