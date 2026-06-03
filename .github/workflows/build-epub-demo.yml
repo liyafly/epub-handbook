@@ -7,17 +7,20 @@ on:
     paths:
       - 'AGENTS.md'
       - 'CHANGELOG.md'
+      - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
       - 'pyproject.toml'
       - 'requirements.txt'
+      - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
+      - 'docs/README.md'
       - 'docs/getting-started/**'
       - 'docs/guides/**'
       - 'docs/pipeline/**'
@@ -26,17 +29,20 @@ on:
     paths:
       - 'AGENTS.md'
       - 'CHANGELOG.md'
+      - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
       - 'pyproject.toml'
       - 'requirements.txt'
+      - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
+      - 'docs/README.md'
       - 'docs/getting-started/**'
       - 'docs/guides/**'
       - 'docs/pipeline/**'
@@ -64,7 +70,8 @@ jobs:
         run: |
           npm install -g markdownlint-cli2
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
-            'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' \
+            'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
+            'docs/README.md' \
             'docs/final/**/*.md' 'docs/getting-started/**/*.md' \
             'docs/guides/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
 

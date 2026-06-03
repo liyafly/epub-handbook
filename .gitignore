@@ -19,5 +19,6 @@ templates/**/dist/
 work-epub/
 
 # Python 缓存
+.venv/
 __pycache__/
 *.pyc

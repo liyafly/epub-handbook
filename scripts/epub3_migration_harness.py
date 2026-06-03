@@ -166,6 +166,21 @@ def spine_entries(root: ET.Element) -> list[tuple[str, str]]:
   return entries
 
 
+def replace_spine_idrefs(root: ET.Element, old_ids: set[str], new_id: str) -> None:
+  spine = root.find("opf:spine", NS)
+  if spine is None or not old_ids:
+    return
+  replaced = False
+  for itemref in list(spine.findall("opf:itemref", NS)):
+    if itemref.attrib.get("idref") not in old_ids:
+      continue
+    if not replaced:
+      itemref.set("idref", new_id)
+      replaced = True
+    else:
+      spine.remove(itemref)
+
+
 def ncx_entries(zf: zipfile.ZipFile, root: ET.Element, opf_dir: str) -> list[tuple[str, str]]:
   item = ncx_item(root)
   href = item.attrib.get("href") if item is not None else None
@@ -281,25 +296,40 @@ def migrate_epub3(input_path: Path, output_path: Path) -> dict[str, object]:
     new_root.set("version", "3.0")
     generated_nav_href: str | None = None
     generated_nav_bytes: bytes | None = None
+    removed_nav_zip_paths: set[str] = set()
+    removed_nav_ids: set[str] = set()
 
     if not has_modified_meta(new_root):
       add_modified_meta(new_root)
 
     if len(nav_items(new_root)) != 1:
       manifest_elem = manifest(new_root)
-      for old_nav in nav_items(new_root):
+      old_navs = nav_items(new_root)
+      removed_nav_zip_paths = {
+        norm_join(opf_dir, old_nav.attrib["href"])
+        for old_nav in old_navs
+        if old_nav.attrib.get("href")
+      }
+      removed_nav_ids = {
+        old_nav.attrib["id"]
+        for old_nav in old_navs
+        if old_nav.attrib.get("id")
+      }
+      for old_nav in old_navs:
         manifest_elem.remove(old_nav)
       generated_nav_href = choose_nav_href(opf_dir, names)
       entries = ncx_entries(zin, new_root, opf_dir) or spine_entries(new_root)
       if not entries:
         raise Epub3Error("cannot generate nav.xhtml: no NCX navPoint or spine entries")
       generated_nav_bytes = build_nav_xhtml(package_title(new_root), language(new_root), entries)
+      nav_id = unique_item_id(new_root, "nav")
       ET.SubElement(manifest_elem, tag(OPF_URI, "item"), {
-        "id": unique_item_id(new_root, "nav"),
+        "id": nav_id,
         "href": generated_nav_href,
         "media-type": "application/xhtml+xml",
         "properties": "nav",
       })
+      replace_spine_idrefs(new_root, removed_nav_ids, nav_id)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     opf_bytes = ET.tostring(new_root, encoding="utf-8", xml_declaration=True)
@@ -311,7 +341,7 @@ def migrate_epub3(input_path: Path, output_path: Path) -> dict[str, object]:
       info.compress_type = zipfile.ZIP_STORED
       zout.writestr(info, mimetype)
       for old_info in zin.infolist():
-        if old_info.filename in {"mimetype", opf_path, nav_zip_path}:
+        if old_info.filename in {"mimetype", opf_path, nav_zip_path} or old_info.filename in removed_nav_zip_paths:
           continue
         new_info = zipfile.ZipInfo(old_info.filename, old_info.date_time)
         new_info.compress_type = old_info.compress_type

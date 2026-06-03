@@ -16,12 +16,20 @@ SCRIPT = ROOT / "scripts" / "epub3_migration_harness.py"
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 
 
-def write_epub(path: Path, *, nav_count: int = 1, version: str = "3.0", modified: bool = True) -> None:
+def write_epub(
+  path: Path,
+  *,
+  nav_count: int = 1,
+  version: str = "3.0",
+  modified: bool = True,
+  nav_in_spine: bool = False,
+) -> None:
   nav_items = "\n".join(
     f'    <item id="nav{i}" href="nav{i}.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
     for i in range(1, nav_count + 1)
   )
   modified_meta = '    <meta property="dcterms:modified">2026-06-03T00:00:00Z</meta>\n' if modified else ""
+  spine_nav = '<itemref idref="nav1"/>' if nav_in_spine else ""
   opf = f'''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="{version}" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -34,7 +42,7 @@ def write_epub(path: Path, *, nav_count: int = 1, version: str = "3.0", modified
     <item id="chap1" href="Text/chap1.xhtml" media-type="application/xhtml+xml"/>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
   </manifest>
-  <spine toc="ncx"><itemref idref="chap1"/></spine>
+  <spine toc="ncx">{spine_nav}<itemref idref="chap1"/></spine>
 </package>
 '''
   with zipfile.ZipFile(path, "w") as zf:
@@ -76,6 +84,25 @@ def nav_manifest_count(epub: Path) -> int:
   )
 
 
+def zip_names(epub: Path) -> set[str]:
+  with zipfile.ZipFile(epub) as zf:
+    return set(zf.namelist())
+
+
+def missing_spine_idrefs(epub: Path) -> set[str]:
+  with zipfile.ZipFile(epub) as zf:
+    root = ET.fromstring(zf.read("OEBPS/package.opf"))
+  manifest_ids = {
+    item.attrib.get("id")
+    for item in root.findall("opf:manifest/opf:item", OPF_NS)
+  }
+  return {
+    itemref.attrib.get("idref", "")
+    for itemref in root.findall("opf:spine/opf:itemref", OPF_NS)
+    if itemref.attrib.get("idref") not in manifest_ids
+  }
+
+
 def main() -> int:
   with TemporaryDirectory() as raw:
     tmp = Path(raw)
@@ -87,6 +114,21 @@ def main() -> int:
       raise AssertionError(f"multi-nav migration failed: {result.stderr}\n{result.stdout}")
     if nav_manifest_count(output) != 1:
       raise AssertionError("migrated EPUB must contain exactly one nav manifest item")
+    stale_nav_files = {f"OEBPS/nav{i}.xhtml" for i in range(1, 4)} & zip_names(output)
+    if stale_nav_files:
+      raise AssertionError(f"migrated EPUB must not retain removed nav files: {sorted(stale_nav_files)}")
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
+    source = tmp / "multi-nav-spine.epub"
+    output = tmp / "out.epub"
+    write_epub(source, nav_count=2, nav_in_spine=True)
+    result = run(str(source), "--write-output", str(output), "--format", "json")
+    if result.returncode:
+      raise AssertionError(f"multi-nav spine migration failed: {result.stderr}\n{result.stdout}")
+    missing = missing_spine_idrefs(output)
+    if missing:
+      raise AssertionError(f"migrated EPUB must not leave stale spine idrefs: {sorted(missing)}")
 
   with TemporaryDirectory() as raw:
     source = Path(raw) / "plan.epub"

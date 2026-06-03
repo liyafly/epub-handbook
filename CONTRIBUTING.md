@@ -23,6 +23,8 @@
    ```sh
    git clone <your fork URL>
    cd epub-handbook
+   # 没装 uv 时，macOS 可先运行：brew install uv
+   uv sync
    ```
 
 2. 建分支：
@@ -44,8 +46,8 @@
    NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)
    bash scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/"$NEW"
    bash scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/"$NEW"
-   python3 scripts/validate_ai_entrypoints.py
-   python3 scripts/validate_skills_basic.py
+   uv run python scripts/validate_ai_entrypoints.py
+   uv run python scripts/validate_skills_basic.py
    ```
 
 5. commit：使用 [conventional commits](https://www.conventionalcommits.org/) 风格，如 `feat:` / `fix:` / `docs:` / `chore:`。

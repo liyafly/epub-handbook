@@ -92,7 +92,7 @@ def write_fixture(path: Path, encrypted: str | None = None) -> None:
   <body style="background-image: url('../assets/%2Acover.JPG')">
     <h1 id="start">第一章</h1>
     <p>正文保留。<a href="appendix.xhtml#end">附录</a></p>
-    <img src="../assets/%2Acover.JPG" srcset="../assets/%2Acover.JPG 1x, ../assets/%2Acover.JPG#hi 2x" alt="cover"/>
+    <img src="../assets/%2Acover.JPG" srcset="data:image/svg+xml,%3Csvg%3E 1x, ../assets/%2Acover.JPG 2x, ../assets/%2Acover.JPG#hi 3x" alt="cover"/>
   </body>
 </html>
 ''',
@@ -171,7 +171,7 @@ def test_format(root: Path) -> None:
     assert 'href="../Styles/theme.css"' in chapter
     assert 'href="appendix.xhtml#end"' in chapter
     assert 'src="../Images/%2Acover.JPG"' in chapter
-    assert 'srcset="../Images/%2Acover.JPG 1x, ../Images/%2Acover.JPG#hi 2x"' in chapter
+    assert 'srcset="data:image/svg+xml,%3Csvg%3E 1x, ../Images/%2Acover.JPG 2x, ../Images/%2Acover.JPG#hi 3x"' in chapter
     assert "正文保留。" in chapter
     assert "../Images/%2Acover.JPG" in zf.read("OPS/Styles/theme.css").decode("utf-8")
     assert 'src="Text/%3Fmix.xhtml#start"' in zf.read("OPS/book.ncx").decode("utf-8")
@@ -201,7 +201,7 @@ def test_deobfuscate_filenames(root: Path) -> None:
     chapter = zf.read("OPS/Text/chapter-one.xhtml").decode("utf-8")
     assert 'href="../Styles/main-css.css"' in chapter
     assert 'src="../Images/cover-image.jpg"' in chapter
-    assert 'srcset="../Images/cover-image.jpg 1x, ../Images/cover-image.jpg#hi 2x"' in chapter
+    assert 'srcset="data:image/svg+xml,%3Csvg%3E 1x, ../Images/cover-image.jpg 2x, ../Images/cover-image.jpg#hi 3x"' in chapter
     assert "正文保留。" in chapter
     encryption = zf.read("META-INF/encryption.xml").decode("utf-8")
     assert 'URI="OPS/Fonts/font-main.ttf"' in encryption

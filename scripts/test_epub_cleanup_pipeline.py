@@ -109,6 +109,24 @@ def main() -> int:
     text_gate = [step for step in failed["steps"] if step["name"] == "validate-redline-text"]
     assert len(text_gate) == 1 and text_gate[0]["returncode"] != 0, failed
 
+    def failing_preflight_after(*args: object, **kwargs: object) -> object:
+      result = original_run_step(*args, **kwargs)
+      if args[1] == "preflight-after":
+        return {"preflight_status": "fail"}
+      return result
+
+    pipeline.run_step = failing_preflight_after
+    try:
+      try:
+        run_pipeline(source, root / "preflight-after-fail-audit")
+      except PipelineError:
+        pass
+      else:
+        raise AssertionError("pipeline must stop when preflight-after reports fail")
+    finally:
+      pipeline.run_step = original_run_step
+    assert not (root / "preflight-after-fail-audit" / "after" / "cleaned.epub").exists()
+
   print("epub cleanup pipeline tests ok")
   return 0
 

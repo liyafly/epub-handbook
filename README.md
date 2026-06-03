@@ -52,8 +52,19 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 必需 | 用途 |
 | --- | --- |
 | bash / zip / unzip | 打包 / 解压 EPUB |
-| Python 3.14（经 uv/mise 固定） | 红线脚本、harness、validator |
+| uv + Python 3.14 | 红线脚本、harness、validator |
 | git | 仓库 + `git diff --no-index` 当 diff 引擎 |
+
+首次 clone 后，用 uv 复现本仓环境：
+
+```sh
+# 没装 uv 时，macOS 可先运行：brew install uv
+uv sync
+uv run python --version
+uv run python scripts/validate_skills_basic.py
+```
+
+`uv sync` 会按 `.python-version` / `pyproject.toml` 使用 Python 3.14，并在本地创建 `.venv/`。`.venv/` 是本机环境，不入 git。
 
 推荐：
 

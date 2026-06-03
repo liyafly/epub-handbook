@@ -3,7 +3,7 @@
 ## 你需要
 
 - 一台装了 `zip` 命令的电脑（macOS / Linux 自带；Windows 用 Git Bash 或 WSL）。
-- Python 3.14（推荐用 uv 或 mise 安装：`uv python install 3.14`）。
+- uv。没有 Python 3.14 也没关系，`uv sync` 会按仓库配置准备本地环境。
 - Calibre 5+ 或 VS Code（用来做 EPUB diff review）。
 
 ## 步骤
@@ -15,7 +15,17 @@ git clone https://github.com/liyafly/epub-handbook.git
 cd epub-handbook
 ```
 
-### 2. 构建示例 EPUB
+### 2. 准备 Python 环境
+
+```sh
+# 没装 uv 时，macOS 可先运行：brew install uv
+uv sync
+uv run python --version
+```
+
+期望看到 Python 3.14.x。uv 会在仓库内创建 `.venv/`，这是本机环境，不需要也不应该提交。
+
+### 3. 构建示例 EPUB
 
 ```sh
 bash templates/epub-style-demo/build.sh
@@ -27,7 +37,7 @@ bash templates/epub-style-demo/build.sh
 templates/epub-style-demo/dist/epub-style-demo-20260526-091234.epub
 ```
 
-### 3. 跑校验
+### 4. 跑校验
 
 ```sh
 EPUB="templates/epub-style-demo/dist/epub-style-demo-20260526-091234.epub"
@@ -37,7 +47,7 @@ bash scripts/validate-popup-notes.sh --epub "$EPUB"
 
 退出码 0 = 通过。
 
-### 4. 改一段文字，重新构建，再用外部 diff 工具看看改了什么
+### 5. 改一段文字，重新构建，再用外部 diff 工具看看改了什么
 
 ```sh
 # 编辑 templates/epub-style-demo/OEBPS/Text/01-body.xhtml，改一行文字
@@ -47,7 +57,7 @@ ls -t templates/epub-style-demo/dist/*.epub | head -2
 
 按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 或 VS Code 对比这两个 epub。
 
-### 5. 用阅读器打开
+### 6. 用阅读器打开
 
 - **macOS**：双击文件，用 Apple Books 打开。
 - **iOS**：通过 iCloud Drive 或 AirDrop 发到手机。

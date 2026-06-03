@@ -451,6 +451,24 @@ def rewrite_css_references(
   return CSS_IMPORT_RE.sub(replace_import, text)
 
 
+def split_srcset_candidates(value: str) -> list[str]:
+  candidates: list[str] = []
+  start = 0
+  in_url = True
+  for index, char in enumerate(value):
+    if char.isspace() and value[start:index].strip():
+      in_url = False
+    elif char == ",":
+      current_url = value[start:index].strip().split(None, 1)[0] if value[start:index].strip() else ""
+      if in_url and current_url.lower().startswith("data:"):
+        continue
+      candidates.append(value[start:index])
+      start = index + 1
+      in_url = True
+  candidates.append(value[start:])
+  return candidates
+
+
 def rewrite_srcset_urls(
   text: str,
   old_document: str,
@@ -467,7 +485,7 @@ def rewrite_srcset_urls(
 
   def replace_srcset(match: re.Match[str]) -> str:
     candidates: list[str] = []
-    for candidate in match.group("uri").split(","):
+    for candidate in split_srcset_candidates(match.group("uri")):
       parts = candidate.strip().split()
       if not parts:
         continue

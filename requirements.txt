@@ -1,4 +1,5 @@
-# Target runtime: Python 3.14 (pinned via .python-version; uv/mise).
+# Target runtime: Python 3.14 (pinned via .python-version; uv reads pyproject.toml).
+# Prefer `uv sync`; keep this file for pip/mise compatibility.
 # Recommended for guide snippets and future OPF/XHTML utilities.
 # Core red-line scripts currently use Python stdlib xml.etree and do not require it.
 lxml>=4.9
