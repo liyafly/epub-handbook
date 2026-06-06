@@ -89,6 +89,11 @@ def zip_names(epub: Path) -> set[str]:
     return set(zf.namelist())
 
 
+def read_zip_text(epub: Path, name: str) -> str:
+  with zipfile.ZipFile(epub) as zf:
+    return zf.read(name).decode("utf-8")
+
+
 def missing_spine_idrefs(epub: Path) -> set[str]:
   with zipfile.ZipFile(epub) as zf:
     root = ET.fromstring(zf.read("OEBPS/package.opf"))
@@ -112,6 +117,9 @@ def main() -> int:
     result = run(str(source), "--write-output", str(output), "--format", "json")
     if result.returncode:
       raise AssertionError(f"multi-nav migration failed: {result.stderr}\n{result.stdout}")
+    nav_text = read_zip_text(output, "OEBPS/nav.xhtml")
+    if not nav_text.startswith('<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n\n<html'):
+      raise AssertionError("generated nav.xhtml should use the editor-stable XHTML header")
     if nav_manifest_count(output) != 1:
       raise AssertionError("migrated EPUB must contain exactly one nav manifest item")
     stale_nav_files = {f"OEBPS/nav{i}.xhtml" for i in range(1, 4)} & zip_names(output)

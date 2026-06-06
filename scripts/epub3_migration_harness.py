@@ -209,9 +209,11 @@ def build_nav_xhtml(title: str, lang: str, entries: list[tuple[str, str]]) -> by
     f'        <li><a href="{attr_escape(href)}">{escape(label or href)}</a></li>'
     for href, label in entries
   )
-  return f'''<?xml version="1.0" encoding="UTF-8"?>
+  return f'''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+
 <html xmlns="{XHTML_URI}" xmlns:epub="{OPS_URI}" xml:lang="{safe_lang}" lang="{safe_lang}">
-  <head>
+<head>
     <title>{safe_title}</title>
   </head>
   <body>
@@ -221,7 +223,7 @@ def build_nav_xhtml(title: str, lang: str, entries: list[tuple[str, str]]) -> by
 {items}
       </ol>
     </nav>
-  </body>
+</body>
 </html>
 '''.encode("utf-8")
 
