@@ -37,6 +37,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 从零做一本新书 | [docs/getting-started/01-first-epub.md#做你自己的最小书](docs/getting-started/01-first-epub.md#做你自己的最小书) |
 | 改造一本现成 EPUB | [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) |
 | 给一本 EPUB 出精排建议 | [docs/pipeline/refinement-harnesses.md](docs/pipeline/refinement-harnesses.md) + `scripts/epub_refinement_harness.py` |
+| 合并 / 拆分 EPUB，或编辑封面 / 元数据 | [docs/pipeline/package-operations.md](docs/pipeline/package-operations.md) + `scripts/epub_package_tool.py` |
 | 跑自造清洗样本 | [samples/demo-books/README.md](samples/demo-books/README.md) |
 | 做实时样本 demo 实验 | [templates/epub-style-demo/README.md](templates/epub-style-demo/README.md) + [templates/epub-style-demo/SCENE_MATRIX.md](templates/epub-style-demo/SCENE_MATRIX.md) |
 | 看制作硬规则 | [docs/final/SPEC-实现约束.md](docs/final/SPEC-实现约束.md) |
@@ -88,6 +89,28 @@ bash scripts/validate-popup-notes.sh --epub "$EPUB"
 
 详细教程见 [docs/getting-started/01-first-epub.md](docs/getting-started/01-first-epub.md)。
 
+## 脚本速查
+
+所有 Python 工具都支持独立查看参数：
+
+```sh
+python3 scripts/<script>.py --help
+```
+
+常用单任务入口：
+
+| 我想做 | 直接入口 | 说明 |
+| --- | --- | --- |
+| 构建样式 demo EPUB | `bash templates/epub-style-demo/build.sh` | 输出到 `templates/epub-style-demo/dist/` |
+| 验证 demo 规则覆盖 | `bash scripts/validate-epub-style-demo.sh --epub <artifact.epub>` | 配合 `validate-popup-notes.sh` 使用 |
+| 一键清洗真实 EPUB | `python3 scripts/epub_cleanup_pipeline.py <input.epub> --work-dir work/book-a` | 默认保留 before、after 和单文件审计报告 |
+| 多轮自动收敛清洗 | `python3 scripts/epub_cleanup_loop.py <input.epub> --work-dir work/book-a` | 默认离线 rules planner，正文红线失败即回滚 |
+| 合并、拆分、封面、元数据 | `python3 scripts/epub_package_tool.py --help` | 子命令见 [docs/pipeline/package-operations.md](docs/pipeline/package-operations.md) |
+| 预检 EPUB 结构风险 | `python3 scripts/epub_preflight_harness.py <input.epub>` | 先判断 DRM、加密标记、包结构和候选 skill |
+| 输出精排建议 | `python3 scripts/epub_refinement_harness.py <input.epub>` | 只给建议和风险，不直接改正文 |
+| 校验改前 / 改后红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 已有 EPUB 清洗的正文安全 gate |
+| 校验 AI 入口和 skills | `python3 scripts/validate_ai_entrypoints.py` / `python3 scripts/validate_skills_basic.py` | 改维护文档或 skill 后运行 |
+
 ## 三条可执行路线
 
 ### A. 实时样本 demo 实验
@@ -116,6 +139,8 @@ python3 scripts/validate_text_invariance.py \
 ```
 
 再按 [docs/pipeline/epub-diff-review.md](docs/pipeline/epub-diff-review.md) 对 before / after 做五层 review。`redline-trap` 是故意失败的反例，用来确认正文改写会被挡住。
+
+`samples/demo-books/dist/` 是本地生成目录，不随仓库提交；下载后运行上面的 `build.sh` 即可生成 EPUB 和 manifest 作为查看、验证和 diff 参考。
 
 ### C. 真实 EPUB 清洗
 

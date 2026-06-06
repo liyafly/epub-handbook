@@ -14,6 +14,27 @@
 - 封面替换会同步更新 OPF cover 声明，并重写 XHTML/CSS 中指向旧封面的本地引用。
 - 所有写操作输出 JSON report，便于归档和后续验证。
 
+## 单任务直接运行
+
+可以。这个工具按子命令拆分能力，每次只做一个明确工作：
+
+```sh
+python3 scripts/epub_package_tool.py --help
+```
+
+常用入口：
+
+| 目标 | 子命令 |
+| --- | --- |
+| 合并多本 EPUB | `merge` |
+| 查看可拆分目录点 | `split-targets` |
+| 按目录索引拆分 EPUB | `split` |
+| 读取元数据 | `metadata-read` |
+| 写入元数据 | `metadata-write` |
+| 替换封面 | `replace-cover` |
+
+每个写操作都要求显式传入 `--output` 或 `--output-dir`，不会直接覆盖原 EPUB。需要正式交付时，按对应小节的验证建议检查输出。
+
 ## 合并 EPUB
 
 ```sh

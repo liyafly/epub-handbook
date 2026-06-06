@@ -41,6 +41,7 @@
 - [pipeline/README.md](pipeline/README.md)：流水线主入口
 - [pipeline/cleanup-flow.md](pipeline/cleanup-flow.md)：清洗流程
 - [pipeline/refinement-harnesses.md](pipeline/refinement-harnesses.md)：预检、EPUB3 迁移与精排建议 harness
+- [pipeline/package-operations.md](pipeline/package-operations.md)：EPUB 合并、按目录拆分、元数据编辑和封面替换
 - [pipeline/reference-font-role-patterns.md](pipeline/reference-font-role-patterns.md)：文学 EPUB 字体角色脱敏分析
 - [pipeline/cleanup-patterns.md](pipeline/cleanup-patterns.md)：典型脏 EPUB 模式
 - [pipeline/asset-optimization.md](pipeline/asset-optimization.md)：图片与字体优化
