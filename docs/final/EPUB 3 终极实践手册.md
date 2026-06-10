@@ -124,9 +124,11 @@ book.epub
 - 字体文件、注释图标、背景图都进入 `manifest`。
 - 无论是否嵌入字体，Apple Books 路径都保留 `ibooks:specified-fonts=true`，避免用户偏好字体覆盖 CSS 字体链。
 
-> OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**，但 `<meta property="ibooks:specified-fonts">true</meta>` 与是否嵌入字体无关：
-> - 默认（不嵌字体）：**保留** `ibooks:specified-fonts=true`（避免 Apple Books 用户字体覆盖书内系统字体链），**删除** `Fonts/*` item。
-> - 嵌入场景：保留 `ibooks:specified-fonts=true`，同时声明对应 `font/ttf` item，`fontspec` 切到 `auto` / `forceAll`（按 SPEC §4 / fonts-css-expansion-plan §5）。
+> OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**。
+> `ibooks:specified-fonts=true` 仅在正文字体锁定（`body.body-font-locked`）时添加：
+> - 自由模式（默认，body 不设 font-family）：**不加**，允许读者自由切换字体。
+> - 锁定模式（`body.body-font-locked`）：**添加**，阻止 Apple Books 用户字体覆盖。
+> - 嵌入场景：添加 `ibooks:specified-fonts=true`，同时声明对应 `font/ttf` item，`fontspec` 切到 `auto` / `forceAll`（按 SPEC §4 / fonts-css-expansion-plan §5）。
 
 ---
 
@@ -1151,7 +1153,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 封面图使用 JPEG/PNG，并同时声明 `properties="cover-image"` 与 `<meta name="cover">`。
 - [ ] 所有 XHTML / CSS / 图片 / 字体都进入 `manifest`。
 - [ ] `rendition:layout` 是 `reflowable`。
-- [ ] 有嵌入字体时写 `ibooks:specified-fonts=true`。
+- [ ] 正文字体锁定时写 `ibooks:specified-fonts=true`；自由模式（默认）不加。
 - [ ] `spine` 顺序正确。
 
 ### 字体

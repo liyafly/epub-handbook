@@ -21,10 +21,17 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 ## 字体链模式
 
-默认正文使用系统优先链：
+正文分两种模式，由 body 是否带 `font-family` 区分：
+
+**自由模式（默认，base.css 已采用）：** body 不设 `font-family`，读者可随意切换字体。
+
+**锁定模式：** 给 body 加 `class="body-font-locked"`，`fonts.css` 提供字体链，OPF 加 `<meta property="ibooks:specified-fonts">true</meta>`。
 
 ```css
-body {
+/* 自由模式——body 不设 font-family，这是 base.css 的默认行为 */
+
+/* 锁定模式——给 body 加 class="body-font-locked" */
+.body-font-locked {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```

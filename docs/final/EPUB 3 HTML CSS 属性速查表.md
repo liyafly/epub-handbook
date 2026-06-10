@@ -240,18 +240,20 @@
 ### 4.1 正文字体链
 
 ```css
-/* 默认（不嵌字体） */
-body {
+/* 自由模式（默认，body 不设 font-family），读者可自由切换字体 */
+
+/* 锁定模式：给 body 加 class="body-font-locked" */
+.body-font-locked {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 /* 模式 C1-body（含生僻字 + 全字符集嵌入字体） */
-body {
+body.body-font-locked {
   font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
-> 第一组是默认路径；第二组仅当全书含生僻字、且嵌入"全字符集"字体（`fontspec=forceAll`）时启用，详见 SPEC §8 模式 C1-body。
+> 自由模式是默认；锁定模式需要同步 OPF `ibooks:specified-fonts=true`。C1-body 仅当全书含生僻字且嵌入全字符集字体（`fontspec=forceAll`）时启用，详见 SPEC §8。
 
 ### 4.2 标题 / 特殊字体
 
