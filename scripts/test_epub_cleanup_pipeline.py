@@ -52,6 +52,9 @@ def main() -> int:
     assert not (root / "audit" / "reports" / "validate-redline-text.txt").exists(), report
     assert not (root / "audit" / "reports" / "refinement.json").exists(), report
     assert not (root / "audit" / "reports" / "findings.json").exists(), report
+    compact_data = json.loads((root / "audit" / "reports" / "pipeline.json").read_text(encoding="utf-8"))
+    assert compact_data["image_layout_advisor"]["version"] == "1", compact_data
+    assert any(step["name"] == "image-layout-advisor" for step in compact_data["steps"]), compact_data
 
     detailed = run_pipeline(source, root / "detailed-audit", keep_step_reports=True)
     assert detailed.status == "complete", detailed
@@ -64,6 +67,14 @@ def main() -> int:
     assert (root / "detailed-audit" / "reports" / "validate-redline-text.txt").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "refinement.json").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "findings.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "image-layout-advisor.json").exists(), detailed
+
+    without_advisor = run_pipeline(source, root / "no-advisor-audit", image_advisor=False)
+    without_data = json.loads(
+      (root / "no-advisor-audit" / "reports" / "pipeline.json").read_text(encoding="utf-8")
+    )
+    assert "image_layout_advisor" not in without_data, without_data
+    assert not any(step["name"] == "image-layout-advisor" for step in without_data["steps"]), without_data
 
     dry_run = run_pipeline(source, root / "normalize-audit", normalize="dry-run")
     assert dry_run.status == "normalize-review-required", dry_run

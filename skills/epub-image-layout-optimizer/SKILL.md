@@ -46,7 +46,9 @@ description: 优化 EPUB 图片版式、figure 环绕、图注、栅格格式、
 
 ## 工作流
 
-1. 读取目标 XHTML、`media.css`、`base.css`、OPF manifest 和图片资源。
+机器判断入口是 `scripts/epub_image_layout_advisor.py`：它只读扫描 EPUB，列出逐图候选和可追溯风险，不直接修改文件。
+
+1. 先运行图片布局 advisor，读取目标 XHTML、`media.css`、`base.css`、OPF manifest 和图片资源。
 2. 分类图片：
    - 封面图。
    - 正文内联图。

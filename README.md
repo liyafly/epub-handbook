@@ -108,6 +108,7 @@ python3 scripts/<script>.py --help
 | 合并、拆分、封面、元数据 | `python3 scripts/epub_package_tool.py --help` | 子命令见 [docs/pipeline/package-operations.md](docs/pipeline/package-operations.md) |
 | 预检 EPUB 结构风险 | `python3 scripts/epub_preflight_harness.py <input.epub>` | 先判断 DRM、加密标记、包结构和候选 skill |
 | 输出精排建议 | `python3 scripts/epub_refinement_harness.py <input.epub>` | 只给建议和风险，不直接改正文 |
+| 输出逐图布局候选 | `python3 scripts/epub_image_layout_advisor.py <input.epub> --format md` | 只读扫描问题图，给候选菜单和决策记录模板 |
 | 校验改前 / 改后红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 已有 EPUB 清洗的正文安全 gate |
 | 校验 AI 入口和 skills | `python3 scripts/validate_ai_entrypoints.py` / `python3 scripts/validate_skills_basic.py` | 改维护文档或 skill 后运行 |
 
@@ -189,6 +190,7 @@ python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a 
 | `scripts/epub_structure_tool.py` | 可选：先格式化目录，再按 OPF manifest id 做文件名反混淆 | 两阶段 `mappings`、`warnings`、normalized EPUB |
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
+| `scripts/epub_image_layout_advisor.py` | 给问题图片生成逐图候选菜单 | 文件、selector、图片路径、候选布局、可追溯风险与决策命令模板 |
 | `scripts/epub_css_cleanup.py` | 可选合并重复 CSS、替换旧字体链并收敛互不交叠的局部样式 | 清洗后 EPUB、CSS/字体计数 |
 | `scripts/epub_anthology_refinement.py` | 可选把合订书单图卷封改为 A-lite contain + fallback，并优化紧邻版权页 | 精排后 EPUB、卷封/版权页计数 |
 

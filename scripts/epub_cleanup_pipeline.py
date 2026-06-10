@@ -65,6 +65,7 @@ class PipelineReport:
   base: str = ""
   reports_dir: str = ""
   keep_step_reports: bool = False
+  image_layout_advisor: dict[str, Any] | None = None
   steps: list[Step] = field(default_factory=list)
   manual_review: list[str] = field(default_factory=lambda: [
     "Review the EPUB diff in Calibre Editor or VS Code.",
@@ -73,7 +74,7 @@ class PipelineReport:
   ])
 
   def as_dict(self) -> dict[str, object]:
-    return {
+    data: dict[str, object] = {
       "harness": "epub_cleanup_pipeline",
       "status": self.status,
       "input": self.input,
@@ -87,6 +88,9 @@ class PipelineReport:
       "steps": [step.as_dict() for step in self.steps],
       "manual_review": self.manual_review,
     }
+    if self.image_layout_advisor is not None:
+      data["image_layout_advisor"] = self.image_layout_advisor
+    return data
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
@@ -157,6 +161,7 @@ def run_pipeline(
   approve_normalize: bool = False,
   popup_notes: bool = True,
   typography: bool = True,
+  image_advisor: bool = True,
   keep_step_reports: bool = False,
 ) -> PipelineReport:
   input_path = input_path.resolve()
@@ -334,6 +339,20 @@ def run_pipeline(
       optional_report(reports_dir, "refinement.json", keep_step_reports),
       expect_json=True,
     )
+    if image_advisor:
+      report.image_layout_advisor = run_step(
+        report,
+        "image-layout-advisor",
+        [
+          sys.executable,
+          str(SCRIPTS / "epub_image_layout_advisor.py"),
+          str(output_path),
+          "--format",
+          "json",
+        ],
+        optional_report(reports_dir, "image-layout-advisor.json", keep_step_reports),
+        expect_json=True,
+      )
     run_step(
       report,
       "ai-findings",
@@ -364,6 +383,7 @@ def main(argv: list[str]) -> int:
   parser.add_argument("--approve-normalize", action="store_true", help="Confirm that the normalization dry-run was reviewed")
   parser.add_argument("--no-popup-notes", action="store_true", help="Skip plain/duokan footnote normalization")
   parser.add_argument("--no-typography", action="store_true", help="Skip CJK typography role stylesheet injection")
+  parser.add_argument("--no-image-advisor", action="store_true", help="Skip image-layout findings and suggestions")
   parser.add_argument(
     "--keep-step-reports",
     action="store_true",
@@ -380,6 +400,7 @@ def main(argv: list[str]) -> int:
       approve_normalize=args.approve_normalize,
       popup_notes=not args.no_popup_notes,
       typography=not args.no_typography,
+      image_advisor=not args.no_image_advisor,
       keep_step_reports=args.keep_step_reports,
     )
   except PipelineError as exc:
