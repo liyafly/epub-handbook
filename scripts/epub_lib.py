@@ -8,6 +8,7 @@ This module is used by multiple scripts. Changes must run every
 from __future__ import annotations
 
 import posixpath
+import re
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -31,6 +32,7 @@ XHTML_NS = {"xhtml": XHTML_URI}
 EPUB_NS = {"epub": OPS_URI}
 
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
+HEAD_END_RE = re.compile(r"</head\s*>", re.I)
 
 
 ET.register_namespace("", OPF_URI)
@@ -74,6 +76,44 @@ def rel_href(from_zip_path: str, to_zip_path: str) -> str:
 
 def split_props(value: str | None) -> list[str]:
   return [part for part in (value or "").split() if part]
+
+
+def manifest(root: ET.Element) -> ET.Element:
+  node = root.find("opf:manifest", OPF_NS)
+  if node is None:
+    raise EpubLibError("OPF missing manifest")
+  return node
+
+
+def spine(root: ET.Element) -> ET.Element:
+  node = root.find("opf:spine", OPF_NS)
+  if node is None:
+    raise EpubLibError("OPF missing spine")
+  return node
+
+
+def item_id_exists(root: ET.Element, item_id: str) -> bool:
+  return any(item.attrib.get("id") == item_id for item in root.findall("opf:manifest/opf:item", OPF_NS))
+
+
+def unique_id(root: ET.Element, base: str) -> str:
+  candidate = re.sub(r"[^A-Za-z0-9_.-]+", "-", base).strip("-") or "item"
+  if candidate[0].isdigit():
+    candidate = f"x-{candidate}"
+  index = 2
+  result = candidate
+  while item_id_exists(root, result):
+    result = f"{candidate}-{index}"
+    index += 1
+  return result
+
+
+def ensure_stylesheet_link(text: str, href: str) -> tuple[str, bool]:
+  if href in text:
+    return text, False
+  link = f'  <link href="{href}" type="text/css" rel="stylesheet"/>\n'
+  updated, count = HEAD_END_RE.subn(link + "</head>", text, count=1)
+  return updated, bool(count)
 
 
 def read_epub_files(input_path: Path) -> tuple[dict[str, bytes], list[str]]:

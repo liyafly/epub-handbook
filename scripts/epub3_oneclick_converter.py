@@ -41,7 +41,9 @@ from epub_lib import (
   OPS_URI,
   RENDITION_PREFIX,
   XHTML_URI,
+  ensure_stylesheet_link,
   local_name,
+  manifest,
   norm_join,
   opf_path_from_container,
   parse_xml,
@@ -49,6 +51,8 @@ from epub_lib import (
   read_epub_files,
   rel_href,
   split_props,
+  spine,
+  unique_id,
   write_epub,
 )
 
@@ -184,36 +188,6 @@ def metadata(root: ET.Element) -> ET.Element:
   if node is None:
     raise ConversionError("OPF missing metadata")
   return node
-
-
-def manifest(root: ET.Element) -> ET.Element:
-  node = root.find("opf:manifest", OPF_NS)
-  if node is None:
-    raise ConversionError("OPF missing manifest")
-  return node
-
-
-def spine(root: ET.Element) -> ET.Element:
-  node = root.find("opf:spine", OPF_NS)
-  if node is None:
-    raise ConversionError("OPF missing spine")
-  return node
-
-
-def item_id_exists(root: ET.Element, item_id: str) -> bool:
-  return any(item.attrib.get("id") == item_id for item in root.findall("opf:manifest/opf:item", OPF_NS))
-
-
-def unique_id(root: ET.Element, base: str) -> str:
-  candidate = re.sub(r"[^A-Za-z0-9_.-]+", "-", base).strip("-") or "item"
-  if candidate[0].isdigit():
-    candidate = f"x-{candidate}"
-  index = 2
-  result = candidate
-  while item_id_exists(root, result):
-    result = f"{candidate}-{index}"
-    index += 1
-  return result
 
 
 def href_exists(root: ET.Element, href: str) -> ET.Element | None:
@@ -842,14 +816,6 @@ def normalize_xhtml_shell(text: str) -> tuple[str, bool]:
     text = re.sub(r"</big\s*>", "</span>", text, flags=re.I)
     changed = True
   return text, changed
-
-
-def ensure_stylesheet_link(text: str, href: str) -> tuple[str, bool]:
-  if href in text:
-    return text, False
-  link = f'  <link href="{href}" type="text/css" rel="stylesheet"/>\n'
-  updated, count = HEAD_END_RE.subn(link + "</head>", text, count=1)
-  return updated, bool(count)
 
 
 PLAIN_NOTEREF_RE = re.compile(

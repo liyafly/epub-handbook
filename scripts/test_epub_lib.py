@@ -43,6 +43,32 @@ def test_parse_xml() -> None:
     raise AssertionError("invalid XML must raise ET.ParseError")
 
 
+def test_opf_helpers() -> None:
+  root = E.parse_xml(
+    f"""<package xmlns="{E.OPF_URI}">
+  <metadata/>
+  <manifest><item id="chapter" href="chapter.xhtml"/></manifest>
+  <spine><itemref idref="chapter"/></spine>
+</package>""",
+    "content.opf",
+  )
+  assert E.manifest(root).tag == E.q(E.OPF_URI, "manifest")
+  assert E.spine(root).tag == E.q(E.OPF_URI, "spine")
+  assert E.unique_id(root, "chapter") == "chapter-2"
+  assert E.unique_id(root, "12 title") == "x-12-title"
+
+
+def test_ensure_stylesheet_link() -> None:
+  source = "<html><head><title>Test</title></head><body/></html>"
+  updated, changed = E.ensure_stylesheet_link(source, "../Styles/base.css")
+  assert changed is True
+  assert '<link href="../Styles/base.css" type="text/css" rel="stylesheet"/>' in updated
+  assert updated.index("<link ") < updated.index("</head>")
+  unchanged, changed_again = E.ensure_stylesheet_link(updated, "../Styles/base.css")
+  assert changed_again is False
+  assert unchanged == updated
+
+
 def test_read_write_roundtrip() -> None:
   files = {
     "mimetype": b"application/epub+zip",
@@ -92,6 +118,8 @@ def main() -> int:
   test_path_helpers()
   test_split_props()
   test_parse_xml()
+  test_opf_helpers()
+  test_ensure_stylesheet_link()
   test_read_write_roundtrip()
   print("epub_lib tests ok")
   return 0
