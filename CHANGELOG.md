@@ -1,6 +1,14 @@
 # Changelog
 
-## v0.2.0 - [待发布]
+## v0.2.0 - 2026-06-10
+
+### Highlights
+
+- Add reusable typesetting decision records with validated JSONL add/list/match commands.
+- Add a read-only image layout advisor with traceable candidates, Markdown decision templates, and cleanup-pipeline integration.
+- Add literary, classical annotated, and academic Chinese style presets with class coverage analysis and redline-safe application.
+- Extract shared standard-library EPUB package helpers into `scripts/epub_lib.py`.
+- Archive obsolete plans, tighten popup-note rule drift checks, and clarify the newcomer reading path.
 
 ### Fixes
 
@@ -21,6 +29,7 @@
 
 - Add regression tests for preflight, EPUB3 migration, refinement, popup-note validation, text invariance, detector failures, and `srcset` rewriting.
 - Add Markdown lint and demo-books EPUBCheck gates to CI.
+- Run every `scripts/test_*.py` test in CI and trigger it for style-preset changes.
 - Document local hook vs CI coverage and docs/final quick-reference HTML sync expectations.
 
 ## v0.1.0 - 2026-06-01

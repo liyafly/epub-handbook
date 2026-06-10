@@ -16,6 +16,7 @@ on:
       - 'requirements.txt'
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
+      - 'templates/style-presets/**'
       - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
@@ -38,6 +39,7 @@ on:
       - 'requirements.txt'
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
+      - 'templates/style-presets/**'
       - 'samples/demo-books/**'
       - 'scripts/**'
       - 'skills/**'
@@ -79,25 +81,9 @@ jobs:
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
           python3 scripts/validate_skills_basic.py
-          python3 scripts/test_epub_ai_harness.py
-          python3 scripts/test_validate_text_invariance.py
-          python3 scripts/test_epub_cleanup_harnesses.py
-          python3 scripts/test_epub_cleanup_pipeline.py
-          python3 scripts/test_epub3_oneclick_converter.py
-          python3 scripts/test_epub_css_cleanup.py
-          python3 scripts/test_epub_structure_tool.py
-          python3 scripts/test_epub_anthology_refinement.py
-          python3 scripts/test_validate_popup_notes.py
-          python3 scripts/test_build_demo_epubs.py
-          python3 scripts/test_epub_xhtml_transforms.py
-          python3 scripts/test_epub_text_gate.py
-          python3 scripts/test_epub_cleanup_loop.py
-          python3 scripts/test_epub3_migration_harness.py
-          python3 scripts/test_epub_preflight_harness.py
-          python3 scripts/test_epub_refinement_harness.py
-          python3 scripts/test_validate_epub_style_demo.py
-          python3 scripts/test_validate_skills_basic.py
-          python3 scripts/test_validate_ai_entrypoints.py
+          for test_file in scripts/test_*.py; do
+            python3 "$test_file"
+          done
           python3 scripts/validate_ai_entrypoints.py
           scripts/validate-epub-style-demo.sh --epub "$epub"
           scripts/validate-popup-notes.sh --epub "$epub"
