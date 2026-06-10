@@ -1,0 +1,45 @@
+@charset "utf-8";
+
+@page { margin: .8em; padding: 0; }
+
+html { margin: 0; padding: 0; }
+
+body {
+  margin: 0;
+  padding: 1em;
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-size: 100%;
+  line-height: 1.82;
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.4em 0 .8em;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  line-height: 1.35;
+  text-indent: 0;
+}
+
+p { margin: .42em 0; text-align: justify; text-indent: 2em; }
+ul, ol { margin: .8em 0; padding-left: 2em; }
+dl { margin: .8em 0; }
+dt { margin-top: .5em; font-weight: 700; }
+dd { margin-left: 2em; }
+a { color: inherit; }
+em { font-style: normal; text-emphasis: filled dot; -webkit-text-emphasis: filled dot; }
+strong { font-weight: 700; }
+blockquote { margin: 1.1em 1em; padding-left: 1em; border-left: .12em solid #9b9488; }
+figure { margin: 1.2em 0; text-align: center; page-break-inside: avoid; }
+img { max-width: 100%; height: auto; }
+figcaption { margin-top: .4em; font-size: .85em; text-indent: 0; }
+table { width: 100%; border-collapse: collapse; font-size: .92em; }
+th, td { padding: .4em .5em; border: 1px solid #9b9488; vertical-align: top; }
+pre { margin: 1em 0; padding: .8em; overflow-x: auto; border: 1px solid #d8d0c3; }
+code, kbd, samp, pre { font-family: "SF Mono", Consolas, "Source Code Pro", monospace; }
+ruby { ruby-align: center; }
+rt { font-size: .5em; line-height: 1; }
+rp { display: none; }
+.has-ruby { line-height: 2; }
+.table-wrap { margin: 1em 0; overflow-x: auto; }
+.title-page { min-height: 88%; padding-top: 18%; text-align: center; page-break-after: always; }
+.title-page p { text-align: center; text-indent: 0; }

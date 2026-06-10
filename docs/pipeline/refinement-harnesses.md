@@ -4,7 +4,7 @@
 
 底层 harness 默认只读或 dry-run。`epub_cleanup_pipeline.py` 会复制 before 基线后调用写出步骤；所有写出步骤都不会原地覆盖输入文件。
 
-## 八个入口
+## 九个入口
 
 | 脚本 | 做什么 | 何时运行 |
 | --- | --- | --- |
@@ -14,6 +14,7 @@
 | `scripts/epub3_migration_harness.py` | dry-run EPUB3 迁移计划；可选写出 `version="3.0"`、`dcterms:modified`、`nav.xhtml` 和 OPF nav item | preflight 没有 error 后 |
 | `scripts/epub_refinement_harness.py` | 输出精排建议：EPUB3、弹注、字体链 / 内嵌字体、图片格式、Ruby / 竖排、diff 与红线 gate、候选 skills | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
 | `scripts/epub_image_layout_advisor.py` | 只读扫描逐图问题，输出 2–3 个布局候选、出处与决策记录命令模板 | refinement 之后；有人需要逐图选择时运行 |
+| `scripts/epub_style_preset_tool.py` | 预览 class coverage，并可写入选定预设的 CSS、OPF 声明和 XHTML link | EPUB3 基线与 refinement 建议确认后，专项清洗前 |
 | `scripts/epub_css_cleanup.py` | 合并重复 CSS、替换旧字体链；可选把不交叠局部样式归并为一个 body-scoped CSS | EPUB3 基线通过 preflight 后 |
 | `scripts/epub_anthology_refinement.py` | 把“单图卷封 + 紧邻版权页”转换为 A-lite contain 背景、原图 fallback 和紧凑版权排版 | 只在合订 EPUB 明确需要时运行 |
 
@@ -67,6 +68,20 @@ python3 scripts/epub_image_layout_advisor.py \
 ```
 
 `epub_refinement_harness.py` 负责整本书的全局事实与阶段建议；`epub_image_layout_advisor.py` 只处理图片专项，把问题图变成逐图候选菜单。候选仍由人选择，确认后用报告末尾的 `epub_decision_log.py add` 模板把结果写入决策记录。
+
+若书型已确定，可在 refinement 后先预览风格预设：
+
+```sh
+python3 scripts/epub_style_preset_tool.py apply \
+  work/after/step-1-epub3.epub \
+  --preset literary-cn \
+  --output work/after/step-2-literary-cn.epub \
+  --dry-run
+```
+
+coverage 低于 30% 时先完成 class 体系迁移；coverage 足够且人工确认后移除
+`--dry-run`。写出产物必须立刻跑 `validate_text_invariance.py --check all`。
+预设视觉效果尚未完成 reader-matrix 实测，不能把结构合规当作阅读器视觉结论。
 
 ## AI 应该怎么用
 

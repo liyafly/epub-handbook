@@ -109,6 +109,7 @@ python3 scripts/<script>.py --help
 | 预检 EPUB 结构风险 | `python3 scripts/epub_preflight_harness.py <input.epub>` | 先判断 DRM、加密标记、包结构和候选 skill |
 | 输出精排建议 | `python3 scripts/epub_refinement_harness.py <input.epub>` | 只给建议和风险，不直接改正文 |
 | 输出逐图布局候选 | `python3 scripts/epub_image_layout_advisor.py <input.epub> --format md` | 只读扫描问题图，给候选菜单和决策记录模板 |
+| 预览或应用风格预设 | `python3 scripts/epub_style_preset_tool.py apply <input.epub> --preset literary-cn --output <out.epub> --dry-run` | 先看 class coverage，再写 CSS、OPF 和 stylesheet link |
 | 校验改前 / 改后红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 已有 EPUB 清洗的正文安全 gate |
 | 校验 AI 入口和 skills | `python3 scripts/validate_ai_entrypoints.py` / `python3 scripts/validate_skills_basic.py` | 改维护文档或 skill 后运行 |
 
@@ -191,10 +192,29 @@ python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a 
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
 | `scripts/epub_image_layout_advisor.py` | 给问题图片生成逐图候选菜单 | 文件、selector、图片路径、候选布局、可追溯风险与决策命令模板 |
+| `scripts/epub_style_preset_tool.py` | 预览或应用三种中文书型风格预设 | coverage、CSS add/replace 清单、OPF/link 写入结果 |
 | `scripts/epub_css_cleanup.py` | 可选合并重复 CSS、替换旧字体链并收敛互不交叠的局部样式 | 清洗后 EPUB、CSS/字体计数 |
 | `scripts/epub_anthology_refinement.py` | 可选把合订书单图卷封改为 A-lite contain + fallback，并优化紧邻版权页 | 精排后 EPUB、卷封/版权页计数 |
 
 这些入口是给“已有 EPUB 精致排版工具”准备的，不替代人工确认。尤其是弹注正文保留、多字体策略、图片有损压缩质量和阅读器效果，仍需要 AI dry-run + 人工 review + reader-matrix 实测。
+
+## 风格预设
+
+`templates/style-presets/` 提供 `literary-cn`、`classical-annotated-cn` 和
+`academic-cn` 三种菜单。工具默认先 dry-run，并报告书内 class 被预设 selector
+覆盖的比例；低于 30% 时应先走 cleanup pipeline，避免样式静默无效。
+
+```sh
+python3 scripts/epub_style_preset_tool.py list
+python3 scripts/epub_style_preset_tool.py apply input.epub \
+  --preset literary-cn \
+  --output styled.epub \
+  --dry-run
+```
+
+预设只改 CSS、OPF stylesheet 声明和 XHTML `<head>` link，不改正文。结构规则已
+自动验证，视觉效果仍需按 `reader-matrix` 闭环实测。完整说明见
+[templates/style-presets/README.md](templates/style-presets/README.md)。
 
 ## EPUB diff review
 

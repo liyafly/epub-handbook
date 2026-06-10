@@ -1,0 +1,12 @@
+@charset "utf-8";
+
+sup { vertical-align: middle; line-height: 1; }
+.noteref-icon img,
+a.duokan-footnote img { width: .9em; height: .9em; vertical-align: text-top; }
+.footnote-line { margin: 1.2em 0 .8em; }
+.footnote-list,
+ol.duokan-footnote-content { margin: 0; padding: 0; list-style: none; }
+.footnote-item,
+.footnote-item.duokan-footnote-item { margin: .45em 0; padding: 0; list-style: none; }
+.footnote { margin: .4em 0; text-align: left; text-indent: 0; font-size: .9em; line-height: 1.45; }
+.footnote-back { margin-right: .25em; text-decoration: none; }
