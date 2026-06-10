@@ -37,20 +37,20 @@
 
 ## M
 
-- **manifest**：OPF 中列出所有 epub 内文件的清单。
+- <a id="manifest"></a>**manifest**：OPF 中列出所有 epub 内文件的清单。
 - **MathML**：数学公式标记语言。
 - **MOBI**：Mobipocket 电子书格式，Amazon Kindle 早期的私有格式，KF8/AZW3 的前身。
 
 ## N
 
-- **NCX**：EPUB 2 时代的导航文件。
-- **nav.xhtml**：EPUB 3 的目录文件。
+- <a id="ncx"></a>**NCX**：EPUB 2 时代的导航文件。
+- <a id="navxhtml"></a>**nav.xhtml**：EPUB 3 的目录文件。
 - **namespace / 命名空间**：XML 中用 URI 区分元素或属性词汇的机制；`xmlns:epub="http://www.idpf.org/2007/ops"` 用来声明 `epub:` 前缀。
 - **noteref**：正文中指向注释目标的链接语义，常写作 `epub:type="noteref"`。
 
 ## O
 
-- **OPF**：EPUB 的项目文件，包含 metadata、manifest、spine。
+- <a id="opf"></a>**OPF**：EPUB 的项目文件，包含 metadata、manifest、spine。
 - **OEBPS**：EPUB 内放正文的常用目录名。
 
 ## P
@@ -68,7 +68,7 @@
 ## S
 
 - **Sigil**：开源 EPUB 编辑器。
-- **spine**：OPF 中声明 EPUB 的阅读顺序。
+- <a id="spine"></a>**spine**：OPF 中声明 EPUB 的阅读顺序。
 - **SubtleCrypto**：浏览器 Web Crypto API；diff 工具用它做 SHA-256。
 
 ## T

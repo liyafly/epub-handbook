@@ -68,6 +68,11 @@ ls -t templates/epub-style-demo/dist/*.epub | head -2
 
 上面的 demo 故意包含很多场景，用来测试兼容性。它不是新书的空白模板。第一次做自己的书时，可以复制 demo，再裁成只剩一章的最小骨架。
 
+先认识后面会反复出现的五个词：[OPF](glossary.md#opf) 是项目文件，
+[manifest](glossary.md#manifest) 列资源，[spine](glossary.md#spine) 定阅读顺序，
+[nav.xhtml](glossary.md#navxhtml) 是 EPUB 3 目录，[NCX](glossary.md#ncx) 是 EPUB 2
+兼容导航。
+
 ### 1. 复制并裁掉演示场景
 
 ```sh

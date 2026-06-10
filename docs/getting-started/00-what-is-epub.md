@@ -13,12 +13,15 @@ EPUB 是一个装着 HTML、CSS、图片和目录的 zip 包。电子书阅读�
 当你双击一本 `.epub`，阅读器做了这 5 件事：
 
 1. **验证身份** — 读 ZIP 的第一个 entry（`mimetype`），确认是 `application/epub+zip`。不是的话直接拒绝。
-2. **找到入口** — 解包 `META-INF/container.xml`，找到 OPF 文件（项目文件）的位置，通常是 `OEBPS/package.opf`。
-3. **建立清单** — 解析 OPF 的 manifest，知道这本书有哪些文件（正文、样式、图片、字体）。
-4. **按顺序加载** — 按 OPF 的 spine 顺序逐个打开正文 XHTML 文件。
+2. **找到入口** — 解包 `META-INF/container.xml`，找到 [OPF](glossary.md#opf) 文件（项目文件）的位置，通常是 `OEBPS/package.opf`。
+3. **建立清单** — 解析 OPF 的 [manifest](glossary.md#manifest)，知道这本书有哪些文件（正文、样式、图片、字体）。
+4. **按顺序加载** — 按 OPF 的 [spine](glossary.md#spine) 顺序逐个打开正文 XHTML 文件。
 5. **渲染** — 对每个 XHTML，加载它引用的 CSS、图片、字体，按屏幕尺寸和用户字号设置重新排版。
 
 任何一步出错，书就可能打不开或显示异常。这也就是为什么同一本书在不同阅读器里表现不一样——每个阅读器实现这 5 步的方式不完全相同。
+
+目录通常由 EPUB 3 的 [nav.xhtml](glossary.md#navxhtml) 提供；兼容 EPUB 2 或 Kindle
+转换路径时，还会遇到 [NCX](glossary.md#ncx)。
 
 ## 为什么同一本书在不同阅读器里会不一样
 

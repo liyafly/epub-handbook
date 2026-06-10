@@ -53,7 +53,7 @@
 
 ### 计划与架构参考
 
-- [plans/README.md](plans/README.md)：计划、review 与仓库维护说明
+- [plans/README.md](plans/README.md)：面向贡献者的计划、review 与维护说明，新人无需阅读
 - [architecture/README.md](architecture/README.md)：下游 / 周边架构副本
 
 ### 样本与工具
@@ -64,8 +64,8 @@
 
 ### 推导与实验
 
-- [source/README.md](source/README.md)：早期推导稿和补充材料
-- [experiments/](experiments/)：实测、复盘和实验快照
+- [source/README.md](source/README.md)：面向贡献者的早期推导稿和补充材料，新人无需阅读
+- [experiments/](experiments/)：面向贡献者的实测、复盘和实验快照，新人无需阅读
 
 ## 新文档放哪
 

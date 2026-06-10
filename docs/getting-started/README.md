@@ -44,13 +44,15 @@
 
 ## 推荐阅读顺序
 
-1. [00-what-is-epub.md](00-what-is-epub.md) - EPUB 是什么、这个仓库解决什么问题
-2. [01-first-epub.md](01-first-epub.md) - 5 分钟构建示例，再裁出自己的最小书
-3. [02-anatomy.md](02-anatomy.md) - 一本 epub 到底由什么组成
-4. [03-readers.md](03-readers.md) - 我应该在哪些阅读器上测
-5. [06-test-your-own.md](06-test-your-own.md) - 测自己的 epub
-6. [04-skills.md](04-skills.md) - AI skills 是什么、怎么用
-7. [07-faq.md](07-faq.md) - 常见问题
-8. [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md) - EPUB2 / EPUB3、XHTML、弹注 fallback 与平台兼容
-9. [05-case-study.md](05-case-study.md) - 自造 EPUB 清洗演示案例
-10. [glossary.md](glossary.md) - 术语表
+| 顺序 | 页面 | 读完你能做什么 |
+| --- | --- | --- |
+| 00 | [EPUB 是什么](00-what-is-epub.md) | 用白话解释 EPUB、PDF 和阅读器差异 |
+| 01 | [5 分钟做一本最小 EPUB](01-first-epub.md) | 构建 demo，并裁出自己的最小书 |
+| 02 | [EPUB 内部结构](02-anatomy.md) | 看懂容器、OPF、正文、样式和资源的关系 |
+| 03 | [阅读器与测试范围](03-readers.md) | 选择需要验证的阅读器和转换器 |
+| 06 | [测试自己的 EPUB](06-test-your-own.md) | 对自己的书运行 validator 与基础检查 |
+| 04 | [AI skills](04-skills.md) | 按问题选择主入口和专项 skill |
+| 07 | [常见问题](07-faq.md) | 快速排查高频制作与兼容性问题 |
+| 08 | [EPUB2 / EPUB3 兼容](08-epub2-epub3-compatibility.md) | 判断版本、导航、XHTML 和弹注 fallback |
+| 05 | [清洗案例](05-case-study.md) | 跟完一套 before / after 清洗与 review |
+| 术语表 | [glossary](glossary.md) | 随时回查本仓使用的核心术语 |
