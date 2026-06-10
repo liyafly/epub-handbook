@@ -3,25 +3,24 @@
 /* ============================================================
  * fonts.css —— 字体声明与字体工具类
  *
- * 仅放：@font-face、字体工具类（.rare / .title-special 等）。
+ * 仅放：@font-face、字体工具类（.body-font-locked / .rare / .title-special 等）。
  * 不放：排版、颜色、分页、布局（这些在 base.css / poster.css）。
  *
- * 策略（同一份 EPUB 跑遍所有阅读器）：
- *   1. 默认正文、标题、引用、等宽 **不嵌字体**，直接用各平台系统字体链
- *      （默认链 ≤ 4 段：Apple + Windows + Android/开源 + generic）。
- *   2. 嵌入字体只用于：(a) 大量生僻字；(b) 设计必须特定字体；(c) 二者同时存在。
- *   3. 嵌入字体单独挂专用类（.rare / .title-special / .book-*-deluxe …），
- *      按场景选模式 A / B / C（详见配套文档 §1）：
+ * 策略：
+ *   1. 正文默认不设 font-family（自由模式），读者可随意切换字体。
+ *      需要锁定时给 body 加 class="body-font-locked"，并同步 OPF 加
+ *      <meta property="ibooks:specified-fonts">true</meta>。
+ *   2. 标题、引用、等宽等语义元素使用系统字体链（≤ 4 段）。
+ *   3. 嵌入字体只用于：(a) 大量生僻字；(b) 设计必须特定字体；(c) 二者同时存在。
+ *   4. 嵌入字体单独挂专用类（.rare / .title-special / .book-*-deluxe …），
+ *      按场景选模式 A / B / C：
  *        - 模式 A 设计专用：链 ≤ 2 段，嵌入 + generic；
  *        - 模式 B 生僻字专用：链 ≤ 2 段，嵌入 + generic；
  *        - 模式 C 嵌入 + 系统字体复合：链 ≤ 5 段，嵌入只出现 1 次
  *          （第 1 位或倒数第 2 位，二选一）。
- *   4. 没有专用类用到 @font-face 时，整段 @font-face 必须保持注释。
+ *   5. 没有专用类用到 @font-face 时，整段 @font-face 必须保持注释。
  *
  * 详见 SPEC §7 CSS 分层、SPEC §8 字体链规则、终极手册 §四。
- * 嵌入字体启用后，记得同步 OPF manifest item。
- * OPF metadata 的 <meta property="ibooks:specified-fonts">true</meta>
- * 作为通用预防默认始终保留（未嵌字体也保留，详见配套 fonts-css-expansion-plan.md §4）。
  * ============================================================ */
 
 
@@ -151,6 +150,11 @@
  * 通过 `font-family: inherit` 与 class 组合来控制，不写在 fonts.css 里。
  * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="book-kai" 即可。
  */
+
+/* ===== 正文锁定模式（body.font-body-locked 专用） ===== */
+.body-font-locked {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
 
 /* ===== 宋体 / serif（正文衬线） ===== */
 .book-song,

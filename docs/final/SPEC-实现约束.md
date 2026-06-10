@@ -171,7 +171,13 @@
 
 - 同一份 EPUB 默认走跨平台系统字体链，不嵌入字体；嵌入字体仅用于
   (a) 大量生僻字、(b) 设计上必须的特定字体、(c) (a) 与 (b) 同时存在。
-- **默认 `font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
+- **正文字体分两种模式**，由 `body` 是否有 `font-family` 区分：
+  - **自由模式（默认）**：`body` 不设 `font-family`，正文使用阅读器默认字体，
+    读者可随时切换。这是最兼容的默认值。
+  - **锁定模式**：给 `body` 加 `class="body-font-locked"`，强制指定字体链，
+    同时 OPF 必须加 `<meta property="ibooks:specified-fonts">true</meta>`。
+  - `base.css` 默认不设 body `font-family`；`.body-font-locked` 定义在 `fonts.css`。
+- **`font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
   → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
 - 嵌入字体不允许出现在默认 `body` / `h*` / `code` 等元素选择器链中，必须挂在
   专用类（`.rare` / `.title-special` / `.book-song-deluxe` 等）上。
@@ -196,7 +202,7 @@
 - "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有专用类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
-- `<meta property="ibooks:specified-fonts">true</meta>` 作为通用预防默认始终保留，与是否嵌入字体无关——未嵌字体时它表示"用我指定的系统字体链"，避免 Apple Books 里用户的第三方字体覆盖书内排版。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 
