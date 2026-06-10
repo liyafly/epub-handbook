@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from epub3_oneclick_converter import (
+from epub_lib import (
   OPF_NS,
   OPF_URI,
   ensure_stylesheet_link,
@@ -21,6 +21,7 @@ from epub3_oneclick_converter import (
   norm_join,
   opf_path_from_container,
   parse_xml,
+  q,
   read_epub_files,
   rel_href,
   spine,
@@ -66,10 +67,6 @@ class RefinementReport:
       "copyright_pages": self.copyright_pages,
       "warnings": self.warnings,
     }
-
-
-def q(uri: str, name: str) -> str:
-  return f"{{{uri}}}{name}"
 
 
 def visible_text(value: str) -> str:
