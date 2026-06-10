@@ -46,7 +46,8 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告。
 5. 将 normalized EPUB 作为后续输入。运行迁移 harness、精排 harness 和相关专项 skill。
 6. 运行 `python3 scripts/validate_text_invariance.py before.epub after.epub --path-map <normalize-report.json>`，再用 Calibre Editor 或 VS Code 做人工 diff review。
-7. 留下输入、输出、preflight、迁移结果或跳过理由、结构规范化报告、精排建议、红线结果、diff review 结论、阅读器实测或跳过理由、需要回写的文档和 skill 清单。
+7. 把值得复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书的判断写入 `work/<book>/reports/decisions.json`，两者都禁止保存正文文本。
+8. 留下输入、输出、preflight、迁移结果或跳过理由、结构规范化报告、精排建议、红线结果、diff review 结论、阅读器实测或跳过理由、需要回写的文档和 skill 清单。
 
 边界：
 
@@ -113,6 +114,7 @@ scripts/install-hooks.sh
 - 已有 EPUB 的流程、工具和模式写入 `docs/pipeline/`。
 - 计划、review 和维护说明写入 `docs/plans/`，不直接驱动行为。
 - 推导和实验记录写入 `docs/source/` 或 `docs/experiments/`。
+- 排版决策记录写入 `records/`；仓库级文件只保存脱敏、可复用的机器可读判断。
 - 新增第三方来源说明写入 `THIRD_PARTY.md`。
 
 历史计划和实验快照只在任务明确要求时修改。不要为了统一措辞重写历史记录。

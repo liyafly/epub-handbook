@@ -17,6 +17,7 @@ demo-fxl/
 templates/**/dist/
 
 work-epub/
+work/
 
 # Python 缓存
 .venv/

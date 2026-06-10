@@ -208,6 +208,24 @@ python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/cleaned.e
 
 这一步只看文件差异，不是阅读器效果验收。阅读器效果通过 reader-matrix 单独覆盖。
 
+### 记录 review 决策
+
+把值得跨书复用的判断追加到仓库级记录：
+
+```sh
+uv run python scripts/epub_decision_log.py add \
+  --file records/typeset-decisions.jsonl \
+  --scene image-layout \
+  --finding lone-image-no-figure \
+  --candidates figure.img-left,figure.img-right,figure-fullwidth \
+  --chosen figure.img-right \
+  --rationale "说明选择理由，不粘贴正文" \
+  --scope global \
+  --source manual-review
+```
+
+只属于当前书的判断写到 `work/<book>/reports/decisions.json`，把同一命令的 `--file` 指向该路径并使用 `--scope book`。两层记录都禁止保存正文文本；完整 schema 和隐私红线见 [`records/README.md`](../../records/README.md)。
+
 ## 9. 用户确认
 
 把 diff 摘要、截图或导出 JSON 发给用户。用户确认后，`work/after/cleaned.epub` 作为交付。
