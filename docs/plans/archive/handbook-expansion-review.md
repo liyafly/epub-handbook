@@ -1,3 +1,5 @@
+> **已归档（2026-06-10）**：本文为历史计划快照。文中引用的 `tools/epub-diff/` 已于 2026-05-28 整体移除，人工 diff review 现行方案见 `docs/pipeline/epub-diff-review.md`。正文按"不重写历史"原则保留原样。
+
 # 手册扩展计划落地 Review 与续做指南
 > **2026-05-28 更新**：本 review 中关于 `tools/epub-diff/` 的所有 P0 / P2 条目（流式 SHA-256、@pierre/diffs、AbortSignal、modified 图片缩略图、vendor 升级流程文档）均已**作废**，因为整个 `tools/` 目录于 2026-05-28 整体移除。后续 diff review 走 Calibre / VS Code，见根 `README.md` 的 `#epub-diff-review` 段与 [2026-05-28-remove-epub-diff.md](./2026-05-28-remove-epub-diff.md)。正文保留为历史快照。
 >
