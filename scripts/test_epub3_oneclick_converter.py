@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from epub3_oneclick_converter import convert_epub  # noqa: E402
+import epub3_oneclick_converter as C  # noqa: E402
 
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -107,7 +107,7 @@ def main() -> int:
     source = Path(raw) / "legacy.epub"
     output = Path(raw) / "converted.epub"
     write_legacy_epub(source)
-    report = convert_epub(source, output)
+    report = C.convert_epub(source, output)
 
     assert report.plain_notes_converted == 1, report
     assert report.nav_entries == 1, report
