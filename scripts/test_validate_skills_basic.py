@@ -75,10 +75,49 @@ def test_validate_skill_tables_detects_missing_entries() -> None:
     V.ROOT = original_root
 
 
+def test_footnote_class_tokens_reject_unknown_token() -> None:
+  with TemporaryDirectory() as raw:
+    root = Path(raw)
+    spec = root / "SPEC.md"
+    target = root / "guide.md"
+    spec.write_text(
+      """# SPEC
+
+## 1) 弹注
+
+`ol.footnote-list > li.footnote-item`
+`<ol class="footnote-list duokan-footnote-content">`
+`<li class="footnote-item duokan-footnote-item">`
+
+## 2) Other
+""",
+      encoding="utf-8",
+    )
+    target.write_text(
+      '<ol class="footnote-list duokan-footnote-typo"></ol>\n',
+      encoding="utf-8",
+    )
+    errors = V.validate_footnote_class_tokens(spec, [target])
+    if len(errors) != 1:
+      raise AssertionError(f"expected one unknown footnote token: {errors}")
+    if str(target) not in errors[0] or "duokan-footnote-typo" not in errors[0]:
+      raise AssertionError(f"error must identify file and token: {errors}")
+
+
+def test_repository_footnote_class_tokens_match_spec() -> None:
+  spec = ROOT / "docs" / "final" / "SPEC-实现约束.md"
+  targets = V.footnote_contract_markdown_paths(ROOT)
+  errors = V.validate_footnote_class_tokens(spec, targets)
+  if errors:
+    raise AssertionError(f"repository footnote tokens should match SPEC §1: {errors}")
+
+
 def main() -> int:
   test_validate_skill_accepts_minimal_valid_skill()
   test_validate_skill_rejects_extra_frontmatter()
   test_validate_skill_tables_detects_missing_entries()
+  test_footnote_class_tokens_reject_unknown_token()
+  test_repository_footnote_class_tokens_match_spec()
   print("validate_skills_basic tests ok")
   return 0
 

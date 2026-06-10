@@ -9,6 +9,8 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 
 ## 固定目标
 
+权威结构源是 `docs/final/SPEC-实现约束.md` §1；以下内容保持 skill 可独立执行，并不得与该节分叉。
+
 使用这个结构：
 
 - 任何使用 `epub:type` 的 XHTML 根 `<html>` 都声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。

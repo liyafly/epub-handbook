@@ -29,6 +29,8 @@ scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/<artifact>
 
 ## 当前兼容规则
 
+权威弹注结构源是 `docs/final/SPEC-实现约束.md` §1；以下兼容规则不得单方面新增或改名同族 class。
+
 - 图片环绕主路径使用 `figure.img-left` / `figure.img-right`。float 和百分比 `width` 挂在 `figure` 上，先从 `25%` 到 `35%` 调整，再结合目标阅读器、视口和字号实测。
 - 不固定图片高度，也不把 `aspect-ratio` 作为主路径。真实图片通过 `height:auto` 保持宽高比，`figure` 也需要自然高度以承载图注。
 - direct `img` float 不是主路径，因为部分阅读器会把图片渲染得过小。

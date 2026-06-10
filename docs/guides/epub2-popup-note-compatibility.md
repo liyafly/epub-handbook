@@ -3,6 +3,8 @@
 > 范围：已有 OPF `version="2.0"` 的 EPUB，因为目标阅读器兼容需求，暂时不能完整迁移 EPUB3，但希望尝试 `epub:type="noteref"` / `epub:type="footnote"` 弹注识别。
 >
 > 这是一条需要实测的兼容路径，不是本仓默认发行路径。新书和允许迁移的旧书仍应优先交付 EPUB3 主包。
+>
+> 完整 EPUB3 弹注结构定义以 `docs/final/SPEC-实现约束.md` §1 为准；本指南只说明 EPUB2 外壳的兼容差异。
 
 ## 1. 先判断你要解决什么问题
 
@@ -126,37 +128,7 @@
 
 ## 6. EPUB3 主包仍应使用项目标准结构
 
-本仓 EPUB3 默认不是每条注释各放一个 `<aside>`，而是同一 XHTML 内聚合：
-
-```html
-<p>
-  正文
-  <sup>
-    <a id="note-ref-1"
-       class="noteref-icon"
-       epub:type="noteref"
-       role="doc-noteref"
-       href="#note-1">
-      <img alt="注" src="../Images/note.png"/>
-    </a>
-  </sup>
-</p>
-
-<aside epub:type="footnote" role="doc-footnote">
-  <ol class="footnote-list">
-    <li class="footnote-item" id="note-1">
-      <p class="footnote">
-        <a epub:type="backlink"
-           role="doc-backlink"
-           href="#note-ref-1">◎</a>
-        注释正文。
-      </p>
-    </li>
-  </ol>
-</aside>
-```
-
-这个结构用于本仓 demo、validator 和转换 skill。EPUB2 兼容实验不要反向改变 EPUB3 主路径。
+完整结构定义以 `docs/final/SPEC-实现约束.md` §1 为准，并由本仓 demo、validator 和转换 skill 共同约束。EPUB2 兼容实验只允许调整外壳与降级元素，不得反向改变 EPUB3 主路径，也不得把每条注释拆成独立容器。
 
 ## 7. 验证清单
 

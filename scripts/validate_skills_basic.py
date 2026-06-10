@@ -15,6 +15,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9-]{1,63}$")
+FOOTNOTE_CLASS_RE = re.compile(r"^(?:noteref-|footnote-|duokan-footnote-)[a-z0-9_-]+$")
+CLASS_ATTR_RE = re.compile(r"""\bclass\s*=\s*["']([^"']+)["']""")
+CSS_CLASS_RE = re.compile(r"(?<![\w-])\.((?:noteref-|footnote-|duokan-footnote-)[a-z0-9_-]+)")
+INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+# These stable presentation hooks are outside SPEC §1's structural vocabulary.
+FOOTNOTE_PRESENTATION_CLASSES = {"noteref-icon", "footnote-back", "footnote-line"}
 CONTRACTS: dict[str, list[tuple[str, str]]] = {
   "epub-layout-auditor": [
     ("skills/epub-layout-auditor/SKILL.md", "EPUB 排版审稿"),
@@ -195,12 +201,59 @@ def validate_skill_tables(skill_folders: list[Path]) -> list[str]:
   return errors
 
 
+def _spec_footnote_section(text: str) -> str:
+  match = re.search(r"(?ms)^## 1\) 弹注.*?(?=^## )", text)
+  if not match:
+    raise ValueError("missing SPEC §1 footnote section")
+  return match.group(0)
+
+
+def _footnote_class_tokens(text: str) -> set[str]:
+  tokens: set[str] = set()
+  for value in CLASS_ATTR_RE.findall(text):
+    tokens.update(token for token in value.split() if FOOTNOTE_CLASS_RE.fullmatch(token))
+  tokens.update(CSS_CLASS_RE.findall(text))
+  tokens.update(
+    value.strip()
+    for value in INLINE_CODE_RE.findall(text)
+    if FOOTNOTE_CLASS_RE.fullmatch(value.strip())
+  )
+  return tokens
+
+
+def footnote_contract_markdown_paths(root: Path) -> list[Path]:
+  return [
+    *sorted((root / "skills").glob("*/SKILL.md")),
+    *sorted((root / "docs" / "guides").glob("*.md")),
+  ]
+
+
+def validate_footnote_class_tokens(spec_path: Path, targets: list[Path]) -> list[str]:
+  try:
+    section = _spec_footnote_section(spec_path.read_text(encoding="utf-8"))
+  except ValueError as exc:
+    return [f"{spec_path}: {exc}"]
+  canonical = _footnote_class_tokens(section) | FOOTNOTE_PRESENTATION_CLASSES
+  errors: list[str] = []
+  for path in targets:
+    unknown = sorted(_footnote_class_tokens(path.read_text(encoding="utf-8")) - canonical)
+    for token in unknown:
+      errors.append(f"{path}: footnote class token not declared by SPEC §1: {token}")
+  return errors
+
+
 def main() -> int:
   errors: list[str] = []
   folders = [p for p in sorted(SKILLS.iterdir()) if (p / "SKILL.md").exists()]
   for folder in folders:
     errors.extend(validate_skill(folder))
   errors.extend(validate_skill_tables(folders))
+  errors.extend(
+    validate_footnote_class_tokens(
+      ROOT / "docs" / "final" / "SPEC-实现约束.md",
+      footnote_contract_markdown_paths(ROOT),
+    )
+  )
   if errors:
     for error in errors:
       print(f"ERROR: {error}", file=sys.stderr)

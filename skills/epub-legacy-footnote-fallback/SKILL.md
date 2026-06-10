@@ -9,6 +9,8 @@ description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版
 
 ## 固定目标
 
+权威结构源是 `docs/final/SPEC-实现约束.md` §1；以下内容保持 skill 可独立执行，并不得与该节分叉。
+
 保留项目标准结构作为主形态：
 
 - XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
