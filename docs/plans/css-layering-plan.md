@@ -1,5 +1,7 @@
 # CSS 分层指南
 
+> **从属关系**：本文是推导/计划记录。分层与字体链的现行硬规则以 `docs/final/SPEC-实现约束.md` §7 / §8 为准；两者冲突时本文不作为依据。
+
 > 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/OEBPS/Styles/`、`package.opf`、各 XHTML `<head>` 的 link 顺序，以及 `docs/final/SPEC-实现约束.md §7`。  
 > 上位约束：现有 SPEC §7 已有 3 层（`fonts.css` / `base.css` / `poster.css`），但 `base.css` 在 demo 扩张后会超过 300 行；本文档把它拆成可独立维护、可按页选择性引入的更细粒度文件。  
 > 协同：[demo-scene-expansion-plan.md §4](./demo-scene-expansion-plan.md) 改为按本文层级安放视觉类，不再把所有内容写进 `base.css`。

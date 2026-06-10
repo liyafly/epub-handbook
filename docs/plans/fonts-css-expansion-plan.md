@@ -1,5 +1,7 @@
 # fonts.css 扩展与字体回退模板
 
+> **从属关系**：本文是推导/计划记录。分层与字体链的现行硬规则以 `docs/final/SPEC-实现约束.md` §7 / §8 为准；两者冲突时本文不作为依据。
+
 > 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/OEBPS/Styles/fonts.css`（以及真实书的 `Styles/fonts.css`）。  
 > 范围：补全系统字体回退清单 + `@font-face` 注释骨架 + 字体工具类 + 与 OPF 配合的检查清单。  
 > 上位约束：`docs/final/SPEC-实现约束.md §7 / §8`、终极手册 §四。  
