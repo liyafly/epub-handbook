@@ -20,7 +20,6 @@ import json
 import posixpath
 import re
 import sys
-import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,23 +27,34 @@ from typing import Iterable
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
+from epub_lib import (
+  CONTAINER_NS,
+  CONTAINER_URI,
+  DC_URI,
+  DCTERMS_URI,
+  EpubLibError as ConversionError,
+  IBOOKS_PREFIX,
+  NCX_NS,
+  NCX_URI,
+  OPF_NS,
+  OPF_URI,
+  OPS_URI,
+  RENDITION_PREFIX,
+  XHTML_URI,
+  local_name,
+  norm_join,
+  opf_path_from_container,
+  parse_xml,
+  q,
+  read_epub_files,
+  rel_href,
+  split_props,
+  write_epub,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTE_ASSET = ROOT / "skills" / "epub-popup-footnote-converter" / "assets" / "note.png"
-
-CONTAINER_URI = "urn:oasis:names:tc:opendocument:xmlns:container"
-OPF_URI = "http://www.idpf.org/2007/opf"
-DC_URI = "http://purl.org/dc/elements/1.1/"
-DCTERMS_URI = "http://purl.org/dc/terms/"
-NCX_URI = "http://www.daisy.org/z3986/2005/ncx/"
-XHTML_URI = "http://www.w3.org/1999/xhtml"
-OPS_URI = "http://www.idpf.org/2007/ops"
-IBOOKS_PREFIX = "http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/"
-RENDITION_PREFIX = "http://www.idpf.org/vocab/rendition/#"
-
-CONTAINER_NS = {"c": CONTAINER_URI}
-OPF_NS = {"opf": OPF_URI, "dc": DC_URI}
-NCX_NS = {"ncx": NCX_URI}
 
 FONT_MEDIA_TYPES = {
   "application/x-font-ttf",
@@ -63,7 +73,6 @@ IMAGE_MEDIA_BY_EXT = {
   ".webp": "image/webp",
 }
 
-FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 TYPOGRAPHY_ROLES = [
   "type-body",
   "type-title",
@@ -73,16 +82,6 @@ TYPOGRAPHY_ROLES = [
   "type-emphasis",
   "type-meta",
 ]
-
-
-ET.register_namespace("", OPF_URI)
-ET.register_namespace("dc", DC_URI)
-ET.register_namespace("dcterms", DCTERMS_URI)
-ET.register_namespace("opf", OPF_URI)
-
-
-class ConversionError(Exception):
-  """The input cannot be converted safely by this script."""
 
 
 @dataclass
@@ -122,31 +121,12 @@ class ConversionReport:
     }
 
 
-def q(uri: str, name: str) -> str:
-  return f"{{{uri}}}{name}"
-
-
-def local_name(tag: object) -> str:
-  if not isinstance(tag, str):
-    return ""
-  return tag.rsplit("}", 1)[-1]
-
-
 def sha256_file(path: Path) -> str:
   digest = hashlib.sha256()
   with path.open("rb") as handle:
     for chunk in iter(lambda: handle.read(1024 * 1024), b""):
       digest.update(chunk)
   return digest.hexdigest()
-
-
-def parse_xml(data: bytes | str, label: str) -> ET.Element:
-  if isinstance(data, str):
-    data = data.encode("utf-8")
-  try:
-    return ET.fromstring(data)
-  except ET.ParseError as exc:
-    raise ConversionError(f"{label}: XML parse failed: {exc}") from exc
 
 
 def sanitize_xml_text(data: bytes) -> str:
@@ -169,24 +149,10 @@ def sanitize_ncx_text(data: bytes, report: ConversionReport) -> str:
   return fixed
 
 
-def norm_join(base: str, href: str) -> str:
-  clean = href.split("#", 1)[0]
-  return posixpath.normpath(posixpath.join(base, clean))
-
-
 def href_with_fragment(base: str, href: str) -> str:
   clean, sep, fragment = href.partition("#")
   path = posixpath.normpath(posixpath.join(base, clean)) if clean else ""
   return f"{path}{sep}{fragment}" if sep else path
-
-
-def rel_href(from_zip_path: str, to_zip_path: str) -> str:
-  base = posixpath.dirname(from_zip_path)
-  return posixpath.relpath(to_zip_path, base) if base else to_zip_path
-
-
-def split_props(value: str | None) -> list[str]:
-  return [part for part in (value or "").split() if part]
 
 
 def add_props(elem: ET.Element, *props: str) -> bool:
@@ -1007,45 +973,6 @@ def update_xhtml_files(
       report.xhtml_files_updated += 1
 
 
-def read_epub_files(input_path: Path) -> tuple[dict[str, bytes], list[str]]:
-  try:
-    with zipfile.ZipFile(input_path) as zf:
-      return {name: zf.read(name) for name in zf.namelist()}, zf.namelist()
-  except zipfile.BadZipFile as exc:
-    raise ConversionError(f"not a valid EPUB zip: {input_path}") from exc
-
-
-def opf_path_from_container(files: dict[str, bytes]) -> str:
-  if "META-INF/container.xml" not in files:
-    raise ConversionError("missing META-INF/container.xml")
-  container = parse_xml(files["META-INF/container.xml"], "META-INF/container.xml")
-  rootfile = container.find(".//c:rootfile", CONTAINER_NS)
-  opf_path = rootfile.attrib.get("full-path") if rootfile is not None else None
-  if not opf_path or opf_path not in files:
-    raise ConversionError(f"container rootfile does not resolve: {opf_path or '<missing>'}")
-  return opf_path
-
-
-def write_epub(output_path: Path, files: dict[str, bytes], original_order: list[str]) -> None:
-  output_path.parent.mkdir(parents=True, exist_ok=True)
-  ordered: list[str] = ["mimetype"]
-  ordered.extend(name for name in original_order if name != "mimetype" and name in files)
-  ordered.extend(name for name in sorted(files) if name not in set(ordered))
-  tmp = output_path.with_suffix(output_path.suffix + ".tmp")
-  try:
-    with zipfile.ZipFile(tmp, "w") as zf:
-      for name in ordered:
-        data = files[name]
-        info = zipfile.ZipInfo(name, FIXED_ZIP_TIME)
-        info.compress_type = zipfile.ZIP_STORED if name == "mimetype" else zipfile.ZIP_DEFLATED
-        zf.writestr(info, data)
-    tmp.replace(output_path)
-  except Exception:
-    if tmp.exists():
-      tmp.unlink()
-    raise
-
-
 def default_output_path(input_path: Path) -> Path:
   return input_path.with_name(f"{input_path.stem}_epub3_clean.epub")
 
@@ -1118,7 +1045,7 @@ def main(argv: list[str]) -> int:
       popup_notes=not args.no_popup_notes,
       typography=not args.no_typography,
     )
-  except ConversionError as exc:
+  except (ConversionError, ET.ParseError) as exc:
     data = {"harness": "epub3_oneclick_converter", "error": str(exc)}
     if args.format == "json":
       print(json.dumps(data, ensure_ascii=False, indent=2))
