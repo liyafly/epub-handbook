@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.1 - 2026-06-10
+
+### Changed
+
+- **Body font is now free by default.** `base.css` no longer sets `font-family` on `body`, letting reader font settings take effect. This is the more reader-friendly behavior seen in well-made Chinese EPUBs.
+- `ibooks:specified-fonts` is now conditional: only set to `true` when the publisher opts into font locking via `body.body-font-locked`.
+
+### Added
+
+- `.body-font-locked` utility class in all `fonts.css` presets. Add it to `<body>` to lock the text font to the cross-platform system chain and prevent reader font switching.
+- Demo page `07-font-family-order.xhtml` now uses `body-font-locked` to demonstrate the locked mode in action.
+
+### Updated
+
+- SPEC §8 documents the free/locked body font distinction.
+- EPUB 3 handbook §三, quick-reference cheatsheet §4.1, and the typography-optimizer skill all reflect the new free-by-default behavior.
+
 ## v0.2.0 - 2026-06-10
 
 ### Highlights
