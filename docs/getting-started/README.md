@@ -30,7 +30,7 @@
 
 ## 读完入门后去哪？
 
-- **字体策略**：[docs/plans/fonts-css-expansion-plan.md](../plans/fonts-css-expansion-plan.md)
+- **字体策略**：[docs/final/SPEC-实现约束.md §8](../final/SPEC-实现约束.md#8-字体链规则)
 - **弹注 / 注释**：[docs/guides/duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)
 - **EPUB2 外壳弹注兼容实验**：[docs/guides/epub2-popup-note-compatibility.md](../guides/epub2-popup-note-compatibility.md)
 - **图片混排**：[docs/guides/chapter-head-image.md](../guides/chapter-head-image.md)

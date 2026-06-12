@@ -45,7 +45,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 - EPUB3 `package version="3.0"`。
 - `dcterms:modified`。
-- `ibooks:specified-fonts`。
+- `ibooks:specified-fonts`（仅当检测到 `body-font-locked` 页时添加；若输入已存在但未检测到锁定页则保留并提示人工复核，见 `docs/final/SPEC-实现约束.md` §8）。
 - 新建 `nav.xhtml`，保留 `toc.ncx` 和 `spine toc="ncx"`。
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。

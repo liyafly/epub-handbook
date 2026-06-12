@@ -136,7 +136,7 @@ D / E / F：等触发条件，互相独立；E 的视觉验收依赖 F
 
 ### W1.3 历史推导与过时架构文档加状态标注
 
-**目标**：`docs/plans/css-layering-plan.md`（八层 CSS）和 `docs/plans/fonts-css-expansion-plan.md`（字体链推导）与 SPEC §7/§8 存在重复维护风险；`docs/architecture/epub-pro-v1.md` 已确认过时（2026-06-10 决定），不再作为任何设计依据。三份都不删（保留参考价值），但要明确状态。
+**目标**：`docs/plans/archive/css-layering-plan.md`（八层 CSS）和 `docs/plans/archive/fonts-css-expansion-plan.md`（字体链推导）与 SPEC §7/§8 存在重复维护风险；`docs/architecture/epub-pro-v1.md` 已确认过时（2026-06-10 决定），不再作为任何设计依据。三份都不删（保留参考价值），但要明确状态。
 
 **步骤**：
 

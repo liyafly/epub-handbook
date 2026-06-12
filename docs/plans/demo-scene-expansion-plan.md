@@ -1,8 +1,8 @@
 # demo 场景扩展计划
 
-> 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/`。  
-> 范围：在现有 00–09 之上，新增 10–17 共 8 个 demo 页，并补 `base.css` 的视觉类、`fonts.css`（见 [fonts-css-expansion-plan.md](./fonts-css-expansion-plan.md)）、`nav.xhtml`、`package.opf`、`toc.ncx`、`SCENE_MATRIX.md`、`docs/final/reader-matrix.yaml`。  
-> 协同文档：[duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)（13 号页直接采用新 fallback 结构）、[fonts-css-expansion-plan.md](./fonts-css-expansion-plan.md)（字体类放在 fonts.css，本文档不重复字体声明）。
+> 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/`。
+> 范围：在现有 00–09 之上，新增 10–17 共 8 个 demo 页，并补 `base.css` 的视觉类、`fonts.css`（见 [fonts-css-expansion-plan.md](./archive/fonts-css-expansion-plan.md)）、`nav.xhtml`、`package.opf`、`toc.ncx`、`SCENE_MATRIX.md`、`docs/final/reader-matrix.yaml`。
+> 协同文档：[duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)（13 号页直接采用新 fallback 结构）、[fonts-css-expansion-plan.md](./archive/fonts-css-expansion-plan.md)（字体类放在 fonts.css，本文档不重复字体声明）。
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## 3. 各页面 XHTML（直接落库）
 
-> 通用规则：所有页面声明 `<?xml version="1.0" encoding="UTF-8"?>` + `<!DOCTYPE html>` + `xmlns:epub`；`<head>` 至少引 `../Styles/fonts.css` + `../Styles/base.css`，其余按 [css-layering-plan.md §2.3 矩阵](./css-layering-plan.md) 选用对应的 `notes / effects / literary / media / vertical` 层。下面各页 XHTML 的 `<link>` 已按矩阵填齐。
+> 通用规则：所有页面声明 `<?xml version="1.0" encoding="UTF-8"?>` + `<!DOCTYPE html>` + `xmlns:epub`；`<head>` 至少引 `../Styles/fonts.css` + `../Styles/base.css`，其余按 [css-layering-plan.md §2.3 矩阵](./archive/css-layering-plan.md) 选用对应的 `notes / effects / literary / media / vertical` 层。下面各页 XHTML 的 `<link>` 已按矩阵填齐。
 
 ### 3.1 `Text/10-text-effects.xhtml`
 
@@ -508,7 +508,7 @@
 
 ---
 
-## 4. CSS 样式落点（按 [css-layering-plan.md](./css-layering-plan.md) §2 的 8 文件分层）
+## 4. CSS 样式落点（按 [css-layering-plan.md](./archive/css-layering-plan.md) §2 的 8 文件分层）
 
 > 本节按 CSS 文件分组列出 10–17 各页需要的视觉类。所有"哪个类放哪个文件"的归属决策遵循 `css-layering-plan.md §2.1` 的契约表，不要再把这些类堆回 `base.css`。
 
@@ -985,7 +985,7 @@ body.page-vrl {
 
 ### 4.7 `fonts.css`
 
-按 [fonts-css-expansion-plan.md §2](./fonts-css-expansion-plan.md) 整体替换，不在此重复。
+按 [fonts-css-expansion-plan.md §2](./archive/fonts-css-expansion-plan.md) 整体替换，不在此重复。
 
 ### 4.8 拆分后整体自检
 
@@ -1038,7 +1038,7 @@ manifest 段追加 8 条 XHTML item：
     <item id="image-layout"        href="Text/17-image-layout.xhtml"        media-type="application/xhtml+xml"/>
 ```
 
-manifest 段同时追加 5 条新 CSS item（按 [css-layering-plan.md §4.1](./css-layering-plan.md) 的 8 文件分层）：
+manifest 段同时追加 5 条新 CSS item（按 [css-layering-plan.md §4.1](./archive/css-layering-plan.md) 的 8 文件分层）：
 
 ```xml
     <item id="css-notes"           href="Styles/notes.css"                   media-type="text/css"/>
@@ -1061,7 +1061,7 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
     <itemref idref="image-layout"/>
 ```
 
-> 备注：当前 OPF 的 `<meta property="ibooks:specified-fonts">true</meta>` 作为通用预防默认保留（理由见 [fonts-css-expansion-plan.md §4](./fonts-css-expansion-plan.md)）。即便 demo 未实际嵌字体，也不要删它。
+> 备注：当前 OPF 的 `<meta property="ibooks:specified-fonts">true</meta>` 作为通用预防默认保留（理由见 [fonts-css-expansion-plan.md §4](./archive/fonts-css-expansion-plan.md)）。即便 demo 未实际嵌字体，也不要删它。
 
 ---
 
@@ -1171,9 +1171,9 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
 
 > 与项目 CLAUDE.md "demo 先行、文档后补"一致。
 
-1. 先按 [css-layering-plan.md §6](./css-layering-plan.md) 在 `OEBPS/Styles/` 下创建 `notes.css / effects.css / literary.css / media.css / vertical.css` 五个新文件，按 §4.1 清理 `base.css` 重复段并把弹注规则迁出；OPF manifest 同步加 5 条 CSS item（见本文 §6）。
+1. 先按 [css-layering-plan.md §6](./archive/css-layering-plan.md) 在 `OEBPS/Styles/` 下创建 `notes.css / effects.css / literary.css / media.css / vertical.css` 五个新文件，按 §4.1 清理 `base.css` 重复段并把弹注规则迁出；OPF manifest 同步加 5 条 CSS item（见本文 §6）。
 2. 按 §3 写入 8 个 XHTML（10–17；**不动** 05/06，由 [duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md) §4.4 单独处理）。
-3. 按 §4.2–§4.6 把 demo 视觉类填入对应 CSS 层；按 [fonts-css-expansion-plan.md §2](./fonts-css-expansion-plan.md) 整体替换 `fonts.css`；OPF 的 `<meta property="ibooks:specified-fonts">true</meta>` **保留**为通用预防默认（见 fonts-css-expansion-plan.md §4）。
+3. 按 §4.2–§4.6 把 demo 视觉类填入对应 CSS 层；按 [fonts-css-expansion-plan.md §2](./archive/fonts-css-expansion-plan.md) 整体替换 `fonts.css`；OPF 的 `<meta property="ibooks:specified-fonts">true</meta>` **保留**为通用预防默认（见 fonts-css-expansion-plan.md §4）。
 4. 同步 §5–§9 的 nav / opf / ncx / SCENE_MATRIX / reader-matrix（**仅 cases / readers**，不预填 expectations）。
 5. 跑 `sh templates/epub-style-demo/build.sh`，产物落 dist。
 6. 执行：
@@ -1204,10 +1204,10 @@ spine 段追加（顺序：放在 `kindle-risk` 之后）：
 - [ ] `OEBPS/Styles/` 下出现 8 个 CSS 文件，且各文件 ≤ 500 行（400 行提示规划拆分）。
 - [ ] base.css 重复块已删除，弹注规则已迁到 notes.css，未保留任何组件类。
 - [ ] fonts.css 已整体替换为新模板，且 demo 仍能不依赖第三方字体打包。
-- [ ] 每个 XHTML 的 `<link>` 顺序符合 [css-layering-plan.md §2.2](./css-layering-plan.md)，且只 link 自己用到的层。
+- [ ] 每个 XHTML 的 `<link>` 顺序符合 [css-layering-plan.md §2.2](./archive/css-layering-plan.md)，且只 link 自己用到的层。
 - [ ] SCENE_MATRIX.md 表格扩展（含 16 / 17 行）。
 - [ ] reader-matrix.yaml 增加 cases（10–17），readers 增加 duokan，expectations 留空待实测。
 - [ ] dist 包能在 Apple Books / Kindle Previewer 打开；13 号页待多看实测确认；16 号页 MathML 部分在 Kindle / 多看 / KOReader 可允许空白；17 号页四角浮动在窄屏下退化为块级。
 - [ ] 多看实测通过后，再触发 duokan-footnote-fallback-fix.md §4.1–4.3 的 SPEC/手册/skill 同步。
-- [ ] SPEC §7 已按 [css-layering-plan.md §5](./css-layering-plan.md) 替换为 8 行新表。
-- [ ] SPEC §8 与终极手册 §四 已按 [fonts-css-expansion-plan.md §6](./fonts-css-expansion-plan.md) 改写。
+- [ ] SPEC §7 已按 [css-layering-plan.md §5](./archive/css-layering-plan.md) 替换为 8 行新表。
+- [ ] SPEC §8 与终极手册 §四 已按 [fonts-css-expansion-plan.md §6](./archive/fonts-css-expansion-plan.md) 改写。
