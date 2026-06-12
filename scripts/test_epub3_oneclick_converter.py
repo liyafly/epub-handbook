@@ -16,7 +16,7 @@ import epub3_oneclick_converter as C  # noqa: E402
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 
 
-def write_legacy_epub(path: Path) -> None:
+def write_legacy_epub(path: Path, body_class: str = "") -> None:
   files = {
     "META-INF/container.xml": '''<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -96,6 +96,11 @@ def write_legacy_epub(path: Path) -> None:
 ''',
     "OEBPS/Images/cover.jpg": b"jpeg",
   }
+  if body_class:
+    chapter = files["OEBPS/Text/chapter.xhtml"]
+    assert "<body>" in chapter
+    files["OEBPS/Text/chapter.xhtml"] = chapter.replace("<body>", f'<body class="{body_class}">', 1)
+
   with zipfile.ZipFile(path, "w") as zf:
     for name, data in files.items():
       zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
@@ -130,6 +135,11 @@ def main() -> int:
 
       opf = ET.fromstring(zf.read("OEBPS/content.opf"))
       assert opf.attrib.get("version") == "3.0"
+      metas = opf.findall("opf:metadata/opf:meta", OPF_NS)
+      assert not any(
+        m.attrib.get("property") == "ibooks:specified-fonts" for m in metas
+      ), "free-mode book must not get ibooks:specified-fonts"
+      assert "ibooks:" not in opf.attrib.get("prefix", ""), "free-mode book must not get ibooks prefix"
       items = opf.findall("opf:manifest/opf:item", OPF_NS)
       navs = [item for item in items if "nav" in (item.attrib.get("properties") or "").split()]
       assert len(navs) == 1
@@ -153,8 +163,24 @@ def main() -> int:
       assert 'role="doc-backlink"' in chapter
       assert "注释正文保留。" in chapter
 
+  locked_mode_case()
   print("epub3 oneclick converter tests ok")
   return 0
+
+
+def locked_mode_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-locked.epub"
+    output = Path(raw) / "converted-locked.epub"
+    write_legacy_epub(source, body_class="body-font-locked")
+    report = C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      opf = ET.fromstring(zf.read("OEBPS/content.opf"))
+      metas = opf.findall("opf:metadata/opf:meta", OPF_NS)
+      locked = [m for m in metas if m.attrib.get("property") == "ibooks:specified-fonts"]
+      assert len(locked) == 1 and locked[0].text == "true", "locked book must get ibooks:specified-fonts=true"
+      assert "ibooks:" in opf.attrib.get("prefix", ""), "locked book must get ibooks prefix"
+    assert "added ibooks:specified-fonts (body-font-locked detected)" in report.metadata_updates, report
 
 
 if __name__ == "__main__":

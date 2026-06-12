@@ -83,7 +83,7 @@ book.epub
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
-    <meta property="ibooks:specified-fonts">true</meta>
+    <!-- 仅锁定模式 / 嵌入字体时添加：<meta property="ibooks:specified-fonts">true</meta> -->
     <meta name="cover" content="cover-img"/>
   </metadata>
 
@@ -122,10 +122,10 @@ book.epub
 - 全书默认 `reflowable`。
 - A-lite 海报页仍是普通 spine item。
 - 字体文件、注释图标、背景图都进入 `manifest`。
-- 无论是否嵌入字体，Apple Books 路径都保留 `ibooks:specified-fonts=true`，避免用户偏好字体覆盖 CSS 字体链。
+- `ibooks:specified-fonts=true` 仅在正文字体锁定或启用嵌入字体时添加；自由模式（默认）不加，见下方说明与 SPEC §8。嵌入分支尚未实测，暂按保守口径添加，待 Apple Books 实测后修订（见 reader-matrix `07-font-family-order` 待测条目）。
 
 > OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**。
-> `ibooks:specified-fonts=true` 仅在正文字体锁定（`body.body-font-locked`）时添加：
+> `ibooks:specified-fonts=true` 仅在正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加：
 > - 自由模式（默认，body 不设 font-family）：**不加**，允许读者自由切换字体。
 > - 锁定模式（`body.body-font-locked`）：**添加**，阻止 Apple Books 用户字体覆盖。
 > - 嵌入场景：添加 `ibooks:specified-fonts=true`，同时声明对应 `font/ttf` item，`fontspec` 切到 `auto` / `forceAll`（按 SPEC §4 / fonts-css-expansion-plan §5）。
@@ -167,17 +167,22 @@ book.epub
 
 ### 4.2 正文字体
 
+正文分自由 / 锁定两种模式（规则见 SPEC §8）：
+
 ```css
-body {
+/* 自由模式（默认）：body 不设 font-family，读者可自由切换字体 */
+
+/* 锁定模式：给 body 加 class="body-font-locked"，并同步 OPF 加 ibooks:specified-fonts=true */
+.body-font-locked {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
-> 反例：上面的长链别名堆叠（如 `STSongti-*` / `NSimSun` / `宋体`）违反 SPEC §8，仅用于说明 anti-pattern。
+> 反例：不要把链写成同平台别名堆叠（如追加 `STSongti-*` / `NSimSun` / `宋体`），违反 SPEC §8。
 
-默认路径：正文走各平台系统中文字体链（Apple `Songti SC` + Windows `SimSun` + Android / 跨平台开源 `Noto Serif CJK SC` + `serif`）。iOS / Apple Books 对 `Songti SC` 命中稳定；Android 系统已预装 `Noto Serif CJK SC`；Windows 走 `SimSun` 兜底。
+锁定模式的字体链走各平台系统中文字体链（Apple `Songti SC` + Windows `SimSun` + Android / 跨平台开源 `Noto Serif CJK SC` + `serif`）。iOS / Apple Books 对 `Songti SC` 命中稳定；Android 系统已预装 `Noto Serif CJK SC`；Windows 走 `SimSun` 兜底。
 
-例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在链首：`"BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
+例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在锁定链链首：`body.body-font-locked { font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
 
 ### 4.3 特殊标题字体
 
@@ -852,7 +857,7 @@ sup {
   font-size: 0.9em;
   line-height: 1.35;
   text-align: left;
-  /* font-family 继承 body：默认系统宋体链；C1-body 模式下继承嵌入全字符集字体 */
+  /* font-family 继承 body：自由模式下为阅读器默认字体；锁定 / C1-body 模式下继承对应字体链 */
 }
 
 .footnote-back {
@@ -1132,7 +1137,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 ## 十一、制作流程
 
 1. 准备文本、封面、海报背景、注释图标、授权字体。
-2. 写 `content.opf`，声明 reflowable、字体、图片、CSS、`ibooks:specified-fonts=true`。
+2. 写 `content.opf`，声明 reflowable、字体、图片、CSS；仅在正文字体锁定或启用嵌入字体时声明 `ibooks:specified-fonts=true`。
 3. 写 `fonts.css`，正文内嵌字体、标题字体、生僻字字体分开。
 4. 写 `base.css`，正文、图片、注释、ruby、文字效果。
 5. 写 `poster.css`，A-lite 海报页。

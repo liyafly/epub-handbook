@@ -177,7 +177,7 @@
 | `rendition:layout` | `reflowable` | 推荐 | 全书默认可重排 |
 | `rendition:orientation` | `auto` | 推荐 | 不锁横竖屏 |
 | `rendition:spread` | `auto` | 推荐 | 不强制单双页 |
-| `ibooks:specified-fonts` | `true` | 推荐 | Apple Books 嵌入字体声明 |
+| `ibooks:specified-fonts` | `true` | 条件推荐 | Apple Books 正文锁定 / 嵌入字体声明 |
 | `<meta name="cover">` | `cover-img` | 推荐 | 兼容封面识别 |
 | `spine toc="ncx"` | `toc` / `ncx` item id | 推荐 | Kindle / 旧工具链兼容目录 |
 
@@ -503,7 +503,7 @@ body.body-font-locked {
 | 特性 | Apple Books | Thorium | Calibre | Kindle KFX | KOReader | 状态 |
 |---|---|---|---|---|---|---|
 | `.ttf/.otf @font-face` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
-| `ibooks:specified-fonts` | 必需 | N/A | N/A | N/A | N/A | 推荐 |
+| `ibooks:specified-fonts` | 条件必需 | N/A | N/A | N/A | N/A | 推荐 |
 | A-lite 海报 | 实测可用 | 可用 | 可用 | 实测可用 | 可用 | 推荐 |
 | 图片图标弹注 | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `text-emphasis` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |

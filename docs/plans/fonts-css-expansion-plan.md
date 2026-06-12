@@ -1,5 +1,7 @@
 # fonts.css 扩展与字体回退模板
 
+> 2026-06-12 注：本文 §4「ibooks:specified-fonts 始终保留」已被 v0.2.1 条件规则取代，现行规则见 `docs/final/SPEC-实现约束.md` §8。其余内容为历史设计记录。
+
 > **从属关系**：本文是推导/计划记录。分层与字体链的现行硬规则以 `docs/final/SPEC-实现约束.md` §7 / §8 为准；两者冲突时本文不作为依据。
 
 > 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/OEBPS/Styles/fonts.css`（以及真实书的 `Styles/fonts.css`）。  
