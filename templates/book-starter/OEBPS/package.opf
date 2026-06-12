@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid"
+         prefix="rendition: http://www.idpf.org/vocab/rendition/#">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:00000000-0000-4000-8000-000000000001</dc:identifier>
+    <dc:title>书名（请修改）</dc:title>
+    <dc:creator>作者（请修改）</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <meta property="dcterms:modified">2026-06-12T00:00:00Z</meta>
+    <meta property="rendition:layout">reflowable</meta>
+  </metadata>
+  <manifest>
+    <item id="nav"         href="nav.xhtml"             media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx"         href="toc.ncx"               media-type="application/x-dtbncx+xml"/>
+    <item id="title-page"  href="Text/00-title.xhtml"   media-type="application/xhtml+xml"/>
+    <item id="chapter-1"   href="Text/01-chapter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="css-base"    href="Styles/base.css"       media-type="text/css"/>
+    <item id="css-fonts"   href="Styles/fonts.css"      media-type="text/css"/>
+    <item id="css-notes"   href="Styles/notes.css"      media-type="text/css"/>
+    <item id="css-effects" href="Styles/effects.css"    media-type="text/css"/>
+    <item id="css-media"   href="Styles/media.css"      media-type="text/css"/>
+    <item id="css-theme"   href="Styles/literary.css"   media-type="text/css"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="title-page"/>
+    <itemref idref="chapter-1"/>
+  </spine>
+</package>

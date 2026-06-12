@@ -1,0 +1,35 @@
+@charset "utf-8";
+
+.body-font-locked,
+.book-song,
+.song,
+.book-body {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.book-hei,
+.hei,
+.book-heading {
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
+.book-kai,
+.kai,
+.book-kaiti,
+.kaiti {
+  font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
+}
+
+.book-fangsong,
+.fangsong {
+  font-family: "STFangsong", "FangSong", serif;
+}
+
+.book-mono,
+.mono {
+  font-family: "SF Mono", Consolas, "Source Code Pro", monospace;
+}
+
+.book-latin-serif {
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+}
