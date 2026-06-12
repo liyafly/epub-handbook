@@ -16,7 +16,7 @@ import epub3_oneclick_converter as C  # noqa: E402
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 
 
-def write_legacy_epub(path: Path, body_class: str = "") -> None:
+def write_legacy_epub(path: Path, body_class: str = "", extra_metadata: str = "") -> None:
   files = {
     "META-INF/container.xml": '''<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -34,7 +34,7 @@ def write_legacy_epub(path: Path, body_class: str = "") -> None:
     <dc:language>zh-CN</dc:language>
     <dc:date opf:event="publication">2026-01-01</dc:date>
     <meta name="cover" content="cover-img"/>
-  </metadata>
+{extra_metadata}  </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/>
@@ -96,6 +96,11 @@ def write_legacy_epub(path: Path, body_class: str = "") -> None:
 ''',
     "OEBPS/Images/cover.jpg": b"jpeg",
   }
+  if extra_metadata:
+    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(extra_metadata=extra_metadata)
+  else:
+    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(extra_metadata="")
+
   if body_class:
     chapter = files["OEBPS/Text/chapter.xhtml"]
     assert "<body>" in chapter
@@ -164,8 +169,25 @@ def main() -> int:
       assert "注释正文保留。" in chapter
 
   locked_mode_case()
+  ibooks_prefix_case()
   print("epub3 oneclick converter tests ok")
   return 0
+
+
+def ibooks_prefix_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-ibooks-version.epub"
+    output = Path(raw) / "converted-ibooks-version.epub"
+    write_legacy_epub(source, extra_metadata='    <meta property="ibooks:version">1.0</meta>\n')
+    report = C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      opf = ET.fromstring(zf.read("OEBPS/content.opf"))
+      metas = opf.findall("opf:metadata/opf:meta", OPF_NS)
+      assert not any(
+        m.attrib.get("property") == "ibooks:specified-fonts" for m in metas
+      ), "free-mode book with other ibooks meta must not get ibooks:specified-fonts"
+      assert "ibooks:" in opf.attrib.get("prefix", ""), "other ibooks properties must retain ibooks prefix"
+    assert "kept existing ibooks:specified-fonts" not in report.metadata_updates, report
 
 
 def locked_mode_case() -> None:

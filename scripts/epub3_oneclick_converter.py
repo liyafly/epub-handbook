@@ -309,7 +309,10 @@ def normalize_metadata(root: ET.Element, report: ConversionReport, body_font_loc
   elif not body_font_locked:
     report.metadata_updates.append("kept existing ibooks:specified-fonts (no body-font-locked page; review manually)")
 
-  if specified_fonts is not None:
+  if any(
+    (child.attrib.get("property") or "").startswith("ibooks:")
+    for child in meta.findall("opf:meta", OPF_NS)
+  ):
     add_package_prefix(root, "ibooks", IBOOKS_PREFIX)
 
 
