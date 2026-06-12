@@ -42,6 +42,7 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 24. `21-classical-modern.xhtml`：文白 / 原译对照条目结构、局部目录、默认上下、宽屏 38/58、48/48、58/38 preset 和大字号回归测试。
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
+
 > 注：本 demo 因包含正文锁定演示页（场景 07），`package.opf` 保留书级
 > `<meta property="ibooks:specified-fonts">true</meta>`，整书按锁定模式书处理。
 > 真实书籍应全书统一自由或锁定模式，见 `docs/final/SPEC-实现约束.md` §8。
