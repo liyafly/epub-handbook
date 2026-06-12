@@ -489,6 +489,10 @@ def run_epubcheck(epub_path: Path, check: Check) -> None:
   else:
     jar = os.environ.get("EPUBCHECK_JAR")
     java = shutil.which("java")
+    if java:
+      probe = subprocess.run([java, "-version"], capture_output=True, check=False)
+      if probe.returncode != 0:
+        java = None
     if jar and java:
       command = [java, "-jar", jar, str(epub_path)]
     elif not java:

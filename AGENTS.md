@@ -100,6 +100,8 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 | 已有 EPUB 清洗 | preflight、结构规范化 dry-run 或跳过理由、`validate_text_invariance.py`、人工 diff review |
 | demo、validator 或 `docs/final/` | build demo、`scripts/validate-epub-style-demo.sh --epub <artifact>`、`scripts/validate-popup-notes.sh --epub <artifact>` |
 | OPF、nav、NCX | 额外运行 `xmllint --noout ...`；本机没有 `xmllint` 时记录跳过理由 |
+| 任意 EPUB 产物 | `python3 scripts/epub_lint.py <artifact>`，error 必须清零或逐条给出豁免理由 |
+| demo / starter 构建产物 | epubcheck：PATH 有 `epubcheck` 或设 `EPUBCHECK_JAR` 时由 validator 自动运行；本机没有 Java 时记录跳过理由（`brew install epubcheck` 可一并安装 JDK） |
 
 可选安装 hook 模板：
 

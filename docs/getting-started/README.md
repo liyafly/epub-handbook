@@ -54,5 +54,6 @@
 | 04 | [AI skills](04-skills.md) | 按问题选择主入口和专项 skill |
 | 07 | [常见问题](07-faq.md) | 快速排查高频制作与兼容性问题 |
 | 08 | [EPUB2 / EPUB3 兼容](08-epub2-epub3-compatibility.md) | 判断版本、导航、XHTML 和弹注 fallback |
+| 09 | [用 book-starter 十分钟出一本书](09-make-a-book.md) | 复制最小骨架、改元数据、构建并用 epub-lint 体检 |
 | 05 | [清洗案例](05-case-study.md) | 跟完一套 before / after 清洗与 review |
 | 术语表 | [glossary](glossary.md) | 随时回查本仓使用的核心术语 |

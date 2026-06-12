@@ -19,7 +19,7 @@ scripts/epub_ai_harness.py <epub-or-source-path>
 2. 已有 EPUB 时，用 `epub-layout-auditor` 做总审稿：看 diff、识别页面类型、列出风险、分派专项 skill。
 3. 没有 EPUB、只有文本/PDF/HTML/扫描件时，用 `epub-source-intake` 做源材料接入，再进入排版链路。
 4. 再按问题类型使用专项 skill：中文字体、英文排版、CSS 分层、图文、竖排、弹注、Kindle、OPF/nav 等。
-5. 修改模板或规则后，运行 demo build 和 validator。
+5. 修改模板或规则后，运行 demo build 和 validator；对任意 EPUB 产物运行 `python3 scripts/epub_lint.py` 做 SPEC 规则机检。
 6. 阅读器实测后，把结果回写 `docs/final/reader-matrix.yaml`，再更新 SPEC、手册和速查表。
 
 示例提示：

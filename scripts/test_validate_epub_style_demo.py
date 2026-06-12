@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+import io
+import subprocess
 import sys
 import zipfile
+from contextlib import redirect_stderr
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -90,12 +94,46 @@ def test_body_font_mode_contract_rejects_meta_mismatch() -> None:
   if not any("body-font-locked pages and OPF ibooks:specified-fonts meta must match" in err for err in check.errors):
     raise AssertionError(f"locked/meta mismatch was not reported: {check.errors}")
 
+
+def test_run_epubcheck_treats_unusable_java_as_unavailable() -> None:
+  check = V.Check()
+  stderr = io.StringIO()
+
+  def which(command: str) -> str | None:
+    return "/usr/bin/java" if command == "java" else None
+
+  probe = subprocess.CompletedProcess(
+    args=["/usr/bin/java", "-version"],
+    returncode=1,
+    stdout=b"",
+    stderr=b"No Java runtime present",
+  )
+  with (
+    mock.patch.object(V.shutil, "which", side_effect=which),
+    mock.patch.object(V.subprocess, "run", return_value=probe) as run_mock,
+    mock.patch.dict(V.os.environ, {}, clear=True),
+    redirect_stderr(stderr),
+  ):
+    V.run_epubcheck(Path("fixture.epub"), check)
+
+  run_mock.assert_called_once_with(
+    ["/usr/bin/java", "-version"],
+    capture_output=True,
+    check=False,
+  )
+  if check.errors:
+    raise AssertionError(f"unusable java should skip epubcheck without errors: {check.errors}")
+  if "java is not installed" not in stderr.getvalue():
+    raise AssertionError(f"unusable java was not reported as unavailable: {stderr.getvalue()!r}")
+
+
 def main() -> int:
   test_source_fixture()
   test_epub_manifest_missing_member()
   test_body_font_mode_contract_accepts_locked_book()
   test_body_font_mode_contract_rejects_body_font_family()
   test_body_font_mode_contract_rejects_meta_mismatch()
+  test_run_epubcheck_treats_unusable_java_as_unavailable()
   print("validate_epub_style_demo tests ok")
   return 0
 

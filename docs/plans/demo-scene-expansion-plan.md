@@ -1,6 +1,7 @@
 # demo 场景扩展计划
 
 > 状态：仅文档；待执行模型按本文落地到 `templates/epub-style-demo/`。
+> 2026-06-12 注：10–17 场景已落地，本文保留作推导与补测跟踪。文中「`ibooks:specified-fonts` 作为通用预防默认保留」的旧口径（§6 备注、§9 第 3 步）已被 SPEC §8 条件规则取代，以 SPEC 为准。
 > 范围：在现有 00–09 之上，新增 10–17 共 8 个 demo 页，并补 `base.css` 的视觉类、`fonts.css`（见 [fonts-css-expansion-plan.md](./archive/fonts-css-expansion-plan.md)）、`nav.xhtml`、`package.opf`、`toc.ncx`、`SCENE_MATRIX.md`、`docs/final/reader-matrix.yaml`。
 > 协同文档：[duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)（13 号页直接采用新 fallback 结构）、[fonts-css-expansion-plan.md](./archive/fonts-css-expansion-plan.md)（字体类放在 fonts.css，本文档不重复字体声明）。
 
