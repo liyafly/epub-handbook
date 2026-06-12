@@ -41,9 +41,61 @@ def test_epub_manifest_missing_member() -> None:
       raise AssertionError(f"missing manifest member was not reported: {check.errors}")
 
 
+
+def _package(with_meta: bool):
+  meta = '<meta property="ibooks:specified-fonts">true</meta>' if with_meta else ''
+  return V.ET.fromstring(
+    f'<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata>{meta}</metadata></package>'
+  )
+
+
+def test_body_font_mode_contract_accepts_locked_book() -> None:
+  check = V.Check()
+  V.validate_body_font_mode_contract(
+    _package(with_meta=True),
+    "body { margin: 0; line-height: 1.75; }",
+    ".body-font-locked, .book-song { font-family: Songti, serif; }",
+    {"Text/07.xhtml": '<body class="body-font-locked"><p>x</p></body>'},
+    check,
+    "test fixture",
+  )
+  if check.errors:
+    raise AssertionError(f"locked book should validate cleanly: {check.errors}")
+
+
+def test_body_font_mode_contract_rejects_body_font_family() -> None:
+  check = V.Check()
+  V.validate_body_font_mode_contract(
+    _package(with_meta=False),
+    "body { margin: 0; font-family: Songti, serif; }",
+    ".body-font-locked { font-family: Songti, serif; }",
+    {"Text/01.xhtml": "<body><p>x</p></body>"},
+    check,
+    "test fixture",
+  )
+  if not any("base.css body block must not set font-family" in err for err in check.errors):
+    raise AssertionError(f"body font-family regression was not reported: {check.errors}")
+
+
+def test_body_font_mode_contract_rejects_meta_mismatch() -> None:
+  check = V.Check()
+  V.validate_body_font_mode_contract(
+    _package(with_meta=False),
+    "body { margin: 0; }",
+    ".body-font-locked { font-family: Songti, serif; }",
+    {"Text/07.xhtml": '<body class="body-font-locked"><p>x</p></body>'},
+    check,
+    "test fixture",
+  )
+  if not any("body-font-locked pages and OPF ibooks:specified-fonts meta must match" in err for err in check.errors):
+    raise AssertionError(f"locked/meta mismatch was not reported: {check.errors}")
+
 def main() -> int:
   test_source_fixture()
   test_epub_manifest_missing_member()
+  test_body_font_mode_contract_accepts_locked_book()
+  test_body_font_mode_contract_rejects_body_font_family()
+  test_body_font_mode_contract_rejects_meta_mismatch()
   print("validate_epub_style_demo tests ok")
   return 0
 

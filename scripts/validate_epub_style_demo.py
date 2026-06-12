@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 import posixpath
 import re
+import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -19,6 +22,7 @@ PACKAGE = OEBPS / "package.opf"
 NAV = OEBPS / "nav.xhtml"
 NCX = OEBPS / "toc.ncx"
 MEDIA_CSS = OEBPS / "Styles" / "media.css"
+BASE_CSS = OEBPS / "Styles" / "base.css"
 FONTS_CSS = OEBPS / "Styles" / "fonts.css"
 POSTER_CSS = OEBPS / "Styles" / "poster.css"
 POSTER_CONTAIN_PAGE = OEBPS / "Text" / "03c-poster-contain.xhtml"
@@ -97,6 +101,56 @@ def percentage_width(css: str, selector: str) -> float | None:
 def strip_css_comments(css: str) -> str:
   return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
+
+
+def has_ibooks_specified_fonts(package_root: ET.Element) -> bool:
+  for meta in package_root.findall("opf:metadata/opf:meta", OPF_NS):
+    if meta.attrib.get("property") == "ibooks:specified-fonts":
+      return (meta.text or "").strip().lower() == "true"
+  return False
+
+
+def has_body_font_locked_markup(xhtml: str) -> bool:
+  return re.search(
+    r"<body[^>]*\bclass\s*=\s*(['\"])[^'\"]*\bbody-font-locked\b[^'\"]*\1",
+    xhtml,
+    re.I,
+  ) is not None
+
+
+def validate_body_font_mode_contract(
+  package_root: ET.Element,
+  base_css: str,
+  fonts_css: str,
+  xhtml_texts: dict[str, str],
+  check: Check,
+  context: str,
+) -> None:
+  active_base_css = strip_css_comments(base_css)
+  body_block = selector_block(active_base_css, "body")
+  check.require(body_block is not None, f"{context}: base.css must define a body block")
+  if body_block is not None:
+    check.require(
+      re.search(r"\bfont-family\s*:", body_block, re.I) is None,
+      f"{context}: base.css body block must not set font-family; use fonts.css .body-font-locked for locked mode",
+    )
+
+  active_fonts_css = strip_css_comments(fonts_css)
+  check.require(
+    re.search(r"\.body-font-locked\b[^{}]*\{[^}]*\bfont-family\s*:", active_fonts_css, re.S | re.I) is not None,
+    f"{context}: fonts.css must define .body-font-locked with a font-family chain",
+  )
+
+  locked_hrefs = sorted(href for href, text in xhtml_texts.items() if has_body_font_locked_markup(text))
+  has_locked_pages = bool(locked_hrefs)
+  has_meta = has_ibooks_specified_fonts(package_root)
+  check.require(
+    has_locked_pages == has_meta,
+    (
+      f"{context}: body-font-locked pages and OPF ibooks:specified-fonts meta must match; "
+      f"locked_pages={locked_hrefs or 'none'}, meta={has_meta}"
+    ),
+  )
 
 def validate_source(check: Check) -> None:
   package_root = parse_xml(PACKAGE, check)
@@ -180,11 +234,25 @@ def validate_source(check: Check) -> None:
       if src:
         check.require(href_path(src).exists(), f"toc.ncx content missing: {src}")
 
+  base_css = BASE_CSS.read_text(encoding="utf-8")
   fonts_css = FONTS_CSS.read_text(encoding="utf-8")
   active_fonts_css = strip_css_comments(fonts_css)
   check.require(
     "../Fonts/" not in active_fonts_css,
     "fonts.css default @font-face skeleton leaked an active missing font URL",
+  )
+  xhtml_texts = {
+    href: href_path(href).read_text(encoding="utf-8")
+    for href in href_to_item
+    if href and href.endswith(".xhtml") and href_path(href).exists()
+  }
+  validate_body_font_mode_contract(
+    package_root,
+    base_css,
+    fonts_css,
+    xhtml_texts,
+    check,
+    "source fixture",
   )
 
   poster_css = POSTER_CSS.read_text(encoding="utf-8")
@@ -414,6 +482,31 @@ def validate_source(check: Check) -> None:
   )
 
 
+def run_epubcheck(epub_path: Path, check: Check) -> None:
+  command: list[str] | None = None
+  if shutil.which("epubcheck"):
+    command = ["epubcheck", str(epub_path)]
+  else:
+    jar = os.environ.get("EPUBCHECK_JAR")
+    java = shutil.which("java")
+    if jar and java:
+      command = [java, "-jar", jar, str(epub_path)]
+    elif not java:
+      print("WARN: epubcheck skipped: java is not installed", file=sys.stderr)
+      return
+    else:
+      print(
+        "WARN: epubcheck skipped: java is installed but neither epubcheck nor EPUBCHECK_JAR is configured",
+        file=sys.stderr,
+      )
+      return
+
+  result = subprocess.run(command, text=True, capture_output=True, check=False)
+  if result.returncode != 0:
+    output = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
+    check.fail(f"epubcheck failed for {epub_path}: {output[:2000]}")
+
+
 def validate_epub(epub_path: Path, check: Check) -> None:
   if not epub_path.exists():
     check.fail(f"EPUB does not exist: {epub_path}")
@@ -436,12 +529,27 @@ def validate_epub(epub_path: Path, check: Check) -> None:
       check.require(package_name in names, "EPUB missing OEBPS/package.opf")
       if package_name in names:
         root = ET.fromstring(zf.read(package_name))
+        xhtml_texts: dict[str, str] = {}
         for item in root.findall("opf:manifest/opf:item", OPF_NS):
           href = item.attrib.get("href")
           if href:
             full = posixpath.normpath(posixpath.join("OEBPS", href))
             check.require(full in names, f"EPUB manifest href missing in zip: {href}")
-  except (zipfile.BadZipFile, ET.ParseError, KeyError) as exc:
+            if href.endswith(".xhtml") and full in names:
+              xhtml_texts[href] = zf.read(full).decode("utf-8")
+        if "OEBPS/Styles/base.css" in names and "OEBPS/Styles/fonts.css" in names:
+          validate_body_font_mode_contract(
+            root,
+            zf.read("OEBPS/Styles/base.css").decode("utf-8"),
+            zf.read("OEBPS/Styles/fonts.css").decode("utf-8"),
+            xhtml_texts,
+            check,
+            "EPUB artifact",
+          )
+        else:
+          check.fail("EPUB artifact missing Styles/base.css or Styles/fonts.css")
+    run_epubcheck(epub_path, check)
+  except (zipfile.BadZipFile, ET.ParseError, KeyError, UnicodeDecodeError) as exc:
     check.fail(f"EPUB validation failed: {epub_path}: {exc}")
 
 

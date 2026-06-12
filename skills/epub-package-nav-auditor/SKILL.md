@@ -85,7 +85,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 
 - 不通过从 spine 删除页面来掩盖 package 错误，除非该页面确实废弃。
 - 不重命名文件，除非用户要求或当前命名破坏打包规则。
-- 清理时不删除 `ibooks:specified-fonts` metadata。
+- 清理时不自动删除 `ibooks:specified-fonts` metadata；自由模式书是否移除交人工判断，见 `docs/final/SPEC-实现约束.md` §8。
 - 不依赖浏览器 HTML 容错；XHTML 必须 XML-valid。
 - 不让 nav/NCX 指向已删除或重命名文件。
 
