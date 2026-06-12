@@ -250,11 +250,22 @@ def attr_escape(value: str) -> str:
   return escape(value, {'"': "&quot;"})
 
 
-def normalize_metadata(root: ET.Element, report: ConversionReport) -> None:
+BODY_FONT_LOCKED_RE = re.compile(
+  rb"<body[^>]*\bclass\s*=\s*(['\"])[^'\"]*\bbody-font-locked\b[^'\"]*\1"
+)
+
+
+def has_body_font_locked(files: dict[str, bytes]) -> bool:
+  return any(
+    name.lower().endswith((".xhtml", ".html", ".htm")) and BODY_FONT_LOCKED_RE.search(data)
+    for name, data in files.items()
+  )
+
+
+def normalize_metadata(root: ET.Element, report: ConversionReport, body_font_locked: bool = False) -> None:
   meta = metadata(root)
   root.set("version", "3.0")
   add_package_prefix(root, "rendition", RENDITION_PREFIX)
-  add_package_prefix(root, "ibooks", IBOOKS_PREFIX)
 
   for child in list(meta):
     if child.tag != q(DC_URI, "date"):
@@ -291,9 +302,15 @@ def normalize_metadata(root: ET.Element, report: ConversionReport) -> None:
   modified.text = now
 
   if specified_fonts is None:
-    specified_fonts = ET.SubElement(meta, q(OPF_URI, "meta"), {"property": "ibooks:specified-fonts"})
-    specified_fonts.text = "true"
-    report.metadata_updates.append("added ibooks:specified-fonts")
+    if body_font_locked:
+      specified_fonts = ET.SubElement(meta, q(OPF_URI, "meta"), {"property": "ibooks:specified-fonts"})
+      specified_fonts.text = "true"
+      report.metadata_updates.append("added ibooks:specified-fonts (body-font-locked detected)")
+  elif not body_font_locked:
+    report.metadata_updates.append("kept existing ibooks:specified-fonts (no body-font-locked page; review manually)")
+
+  if specified_fonts is not None:
+    add_package_prefix(root, "ibooks", IBOOKS_PREFIX)
 
 
 def manifest_maps(root: ET.Element, opf_dir: str) -> tuple[dict[str, ET.Element], dict[str, ET.Element]]:
@@ -958,7 +975,7 @@ def convert_epub(
   report.package_version_before = root.attrib.get("version")
   opf_dir = posixpath.dirname(opf_path)
 
-  normalize_metadata(root, report)
+  normalize_metadata(root, report, body_font_locked=has_body_font_locked(files))
   normalize_manifest_media(root, report)
   ensure_cover_properties(root, report)
   ensure_spine_toc(root)

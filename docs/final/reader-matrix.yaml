@@ -404,7 +404,7 @@ untested_cases:
     note: "列表 / 表格 / 代码；尚未实测。"
   - case: 07-font-family-order
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
-    note: "字体链顺序；尚未实测。"
+    note: "字体链顺序 + 正文锁定模式（body-font-locked + OPF ibooks:specified-fonts=true）；尚未实测。待验证：(a) 此 meta 是否真的阻止 Apple Books 读者切换字体，还是只把'原版'设为默认；(b) 自由模式（body 无 font-family、无此 meta）能否正常切换；(c) 嵌入字体 + 自由正文且无此 meta 时，挂专用类的嵌入字体在用户切换字体后是否被覆盖或忽略。"
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"

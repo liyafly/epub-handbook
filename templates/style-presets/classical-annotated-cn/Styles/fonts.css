@@ -1,9 +1,6 @@
 @charset "utf-8";
 
-.body-font-locked {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
-}
-
+.body-font-locked,
 .book-song,
 .song,
 .book-body {

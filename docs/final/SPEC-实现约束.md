@@ -37,7 +37,7 @@
 
 ## 3) 字体与 OPF
 
-- 无论是否启用书内字体嵌入，OPF `<package>` 都必须在 `prefix` 声明 ibooks 命名空间，并保留：`<meta property="ibooks:specified-fonts">true</meta>`。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅在正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加；添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由模式（默认）两者都不需要。判定规则见 §8。
 - 标题字体来源仅允许：书内嵌入字体 + 通用族回退（serif/sans-serif/monospace 等）。
 - 字体策略必须与 `fontspec` 三态一致：`auto | forceAll | none`。
 
@@ -202,7 +202,8 @@
 - "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有专用类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。「嵌入字体 + 自由正文」组合暂按此保守口径添加；其实际行为是待实测假设，见 reader-matrix `07-font-family-order` 待测条目，实测后以结果为准回修本条。
+- 正文字体模式是**全书级决策**：同一本书要么全书自由（所有正文页 body 都不带 `body-font-locked`、OPF 无此 meta），要么全书锁定（所有正文页 body 都带 class、OPF 加一份 meta）。不按页混用；演示/测试用书（如 epub-style-demo 含锁定演示页）按锁定书处理，并在其场景矩阵中注明。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 

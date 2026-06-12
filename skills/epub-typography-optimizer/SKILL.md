@@ -17,7 +17,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 - 默认不把嵌入字体放进 `body` / `h*`；唯一例外是含生僻字且使用全字符集字体的 C1-body 路径。
 - 生僻字子集使用 `.rare` 等专用类。
 - 设计字体使用 `.title-special`、`.signature` 等专用类。
-- 即使没有嵌入字体，OPF 也保留 `ibooks:specified-fonts` metadata。
+- `ibooks:specified-fonts` 仅在正文锁定（`body-font-locked`）或启用嵌入字体时写入 OPF；自由模式（默认）不加。
 
 ## 字体链模式
 
@@ -83,6 +83,7 @@ body {
    - 长英文 token 换行保护。
 6. 规则位置也有问题时，配合 `epub-css-layering-optimizer`。
 7. OPF 只声明实际使用的字体文件。
+8. 保持既有书的字体模式：body 无 `font-family` 视为自由模式，不要替它加 `body-font-locked` 或 `ibooks:specified-fonts`；已锁定的书保持锁定，并检查 class 与 OPF meta 成对出现。
 
 ## 正文节奏清单
 

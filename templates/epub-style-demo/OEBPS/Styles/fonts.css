@@ -151,12 +151,8 @@
  * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="book-kai" 即可。
  */
 
-/* ===== 正文锁定模式（body.font-body-locked 专用） ===== */
-.body-font-locked {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
-}
-
-/* ===== 宋体 / serif（正文衬线） ===== */
+/* ===== 宋体 / serif（正文衬线；.body-font-locked 为正文锁定模式入口，加在 body 上） ===== */
+.body-font-locked,
 .book-song,
 .song,
 .book-body {                            /* .book-body 保留为向后兼容别名 */
@@ -201,8 +197,8 @@
 /* ---------- 三 B、嵌入字体专用类（按 §1 模式 A / B / C 选用） ----------
  *
  * 只在有嵌入字体 (@font-face 已取消注释) 且 OPF manifest 已加 font item 时，
- * 才取消下面对应类的注释。（OPF metadata 的 ibooks:specified-fonts=true
- * 是通用预防默认，与是否嵌字体无关，参见配套文档 §4。）
+ * 才取消下面对应类的注释。（嵌入字体启用后，OPF 需同步加
+ * ibooks:specified-fonts=true，规则见 SPEC §8。）
  */
 
 /* —— 模式 A：设计字体专用（≤ 2 段，嵌入 + generic） ——
