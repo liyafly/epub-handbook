@@ -12,6 +12,7 @@
 
 ## 当前计划
 
+- `2026-06-12-lint-and-quickstart-plan.md`：epub-lint v0 + book-starter 快速上手执行计划
 - `demo-scene-expansion-plan.md`：demo 模板场景扩展与未测场景补测跟踪
 - `skills-and-templates.md`：skills 维护方式与模板目录约定
 

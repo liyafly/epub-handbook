@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.3 - 2026-06-12
+
+### Added
+
+- `scripts/epub_lint.py`：通用 SPEC 规则机检（v0 共 10 条规则，覆盖 §1/§2/§3/§5.7/§5.8/§8），可对任意 EPUB 运行；配套回归测试。
+- `templates/book-starter/`：最小成书骨架（标题页 + 一章 + nav + NCX，预装 literary-cn preset，自由模式），新增入门页 09 讲解十分钟出书路径。
+
+### Changed
+
+- AGENTS.md 最小验证矩阵纳入 epub-lint 与 epubcheck 运行政策；skills/README 推荐顺序同步。
+- demo-scene-expansion-plan 标注旧 `ibooks:specified-fonts` 口径已被 SPEC §8 取代；demo validator 的 Java 探测对 macOS 占位 java 免疫。
+
 ## v0.2.2 - 2026-06-12
 
 ### Fixed
