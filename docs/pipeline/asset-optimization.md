@@ -138,7 +138,7 @@ pyftsubset OEBPS/Fonts/NotoSerifSC.otf \
 ! find OEBPS -name "*.webp" -o -name "*.avif" | grep .
 grep -rn "\.webp" OEBPS/ || true
 grep -E "media-type=\"image/webp\"" OEBPS/package.opf && echo "WebP MIME still in OPF" || echo "OPF clean"
-which epubcheck >/dev/null && epubcheck . || echo "epubcheck not installed; skip"
+python3 scripts/epub_lint.py <artifact.epub>
 ```
 
 ## 7. 不做的

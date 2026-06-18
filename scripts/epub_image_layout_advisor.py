@@ -114,7 +114,7 @@ CANDIDATES: dict[str, list[dict[str, str]]] = {
     {
       "id": "alite-fullbleed",
       "summary": "A-lite fullbleed，允许按视口裁切",
-      "risk": "SPEC §2；reader-matrix 03b-poster-fullbleed 标记为未实测。",
+      "risk": "SPEC §2；03b-poster-fullbleed 已退役为历史对照，默认主路径优先 alite-contain。",
     },
     {
       "id": "figure-fullwidth",

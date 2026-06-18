@@ -1,18 +1,18 @@
 # 自造 EPUB 清洗演示案例
 
-本页汇总 Stage 4 的自造 before / after EPUB。`samples/demo-books/dist/` 下的生成产物可入 Git，方便直接演示；每个样本目录提供 `notes.md` 复现流程。
+本页汇总 Stage 4 的自造 before / after EPUB。`templates/cleanup-demo-books/dist/` 下的生成产物由本地脚本生成，不随仓库提交；每个样本目录提供 `notes.md` 复现流程。
 
 ## 先生成样本
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 ```
 
-输出目录：`samples/demo-books/dist/`。
+输出目录：`templates/cleanup-demo-books/dist/`。
 
 ## 案例 1：明日城巡游手记
 
-样本记录：[samples/demo-books/city-field-notes/notes.md](../../samples/demo-books/city-field-notes/notes.md)。
+样本记录：[templates/cleanup-demo-books/city-field-notes/notes.md](../../templates/cleanup-demo-books/city-field-notes/notes.md)。
 
 ### 做了什么
 
@@ -60,13 +60,13 @@ python3 scripts/validate_text_invariance.py before.epub after.epub
 
 ## 案例 2：纸上花园观察录
 
-样本记录：[samples/demo-books/paper-garden/notes.md](../../samples/demo-books/paper-garden/notes.md)。
+样本记录：[templates/cleanup-demo-books/paper-garden/notes.md](../../templates/cleanup-demo-books/paper-garden/notes.md)。
 
 本案例重点看诗段、Ruby、blockquote、列表和宽屏竖排增强。after 只调整 CSS 和非封面插图资源，文本红线应通过。
 
 ## 反例：红线变更反例
 
-样本记录：[samples/demo-books/redline-trap/notes.md](../../samples/demo-books/redline-trap/notes.md)。
+样本记录：[templates/cleanup-demo-books/redline-trap/notes.md](../../templates/cleanup-demo-books/redline-trap/notes.md)。
 
 这对文件故意改写正文，用来验证红线 gate 会失败。它不是合法清洗结果，只用于教学和 diff 文本层演示。
 

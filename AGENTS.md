@@ -23,8 +23,8 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 7. `docs/plans/`：计划、review 和维护说明，不直接驱动行为。
 8. `docs/architecture/`：下游或周边架构副本，不属于对外硬约束。
 9. `docs/source/`、`docs/experiments/`：推导与实验区，可补充但不应反向覆盖约束层。
-10. `samples/demo-books/`：自造清洗和 diff 演示样本；生成的 `.epub` 不入 git。
-11. `samples/third-party/`：公版书样本与许可记录；实体 `.epub` 不入 git。
+10. `templates/cleanup-demo-books/`：自造清洗和 diff 演示样本；生成的 `.epub` 不入 git。
+11. 第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。
 
 `tools/` 已于 2026-05-28 移除。人工 diff review 使用 Calibre Editor 或 VS Code，见 `docs/pipeline/epub-diff-review.md`。
 
@@ -101,7 +101,7 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 | demo、validator 或 `docs/final/` | build demo、`scripts/validate-epub-style-demo.sh --epub <artifact>`、`scripts/validate-popup-notes.sh --epub <artifact>` |
 | OPF、nav、NCX | 额外运行 `xmllint --noout ...`；本机没有 `xmllint` 时记录跳过理由 |
 | 任意 EPUB 产物 | `python3 scripts/epub_lint.py <artifact>`，error 必须清零或逐条给出豁免理由 |
-| demo / starter 构建产物 | epubcheck：PATH 有 `epubcheck` 或设 `EPUBCHECK_JAR` 时由 validator 自动运行；本机没有 Java 时记录跳过理由（`brew install epubcheck` 可一并安装 JDK） |
+| demo / starter 构建产物 | 本地跑 demo validator、popup note validator 与 `scripts/epub_lint.py`；EPUBCheck 只在 GitHub Actions 作为 CI gate 运行 |
 
 可选安装 hook 模板：
 

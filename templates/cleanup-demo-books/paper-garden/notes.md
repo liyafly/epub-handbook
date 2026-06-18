@@ -1,7 +1,7 @@
 # 清洗记录：纸上花园观察录
 
 > 类型：自造 demo
-> 生成命令：`bash samples/demo-books/build.sh`
+> 生成命令：`bash templates/cleanup-demo-books/build.sh`
 
 ## 目标
 
@@ -20,8 +20,8 @@
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/paper-garden-before.epub \
-  samples/demo-books/dist/paper-garden-after-clean.epub \
+  templates/cleanup-demo-books/dist/paper-garden-before.epub \
+  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub \
   --check all
 ```
 

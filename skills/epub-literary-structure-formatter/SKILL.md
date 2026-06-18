@@ -87,8 +87,6 @@ description: 格式化 EPUB 文学结构，包括章首、卷首、题记、题�
 
 ## 验证 fixture
 
-- `Text/11-chapter-opening.xhtml`
-- `Text/12-literary-fiction.xhtml`
 - `Text/15-frontmatter.xhtml`
 - `Text/18-english-fiction.xhtml`
 - `Text/20-chapter-head-image.xhtml`

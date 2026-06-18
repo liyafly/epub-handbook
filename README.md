@@ -17,7 +17,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 1. **工程契约层** — [docs/final/](docs/final/)：SPEC、终极手册、HTML / CSS 属性速查表、阅读器兼容性实测矩阵 `reader-matrix.yaml`。这是对外硬约束。
 2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
 3. **AI 协作 skills** — [skills/](skills/)：共 15 个 skill（2 个主入口 `epub-layout-auditor` / `epub-source-intake` + 13 个专项：结构格式化、CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
-4. **可运行 demo** — [templates/](templates/) 与 [samples/demo-books/](samples/demo-books/)：每条规则都必须有 demo 复现，不允许只靠手册推断改规则。`samples/fixtures-tiny/` 是快速迭代的极简槽位；最终产品仍按 `templates/` + `samples/demo-books/` 的完整 demo 标准验证。
+4. **可运行 demo / 模板** — [templates/](templates/)：统一放样式 demo、清洗 demo、starter 模板和极简 fixture 槽位。每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
 5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
 
 ## 项目目标与完成标准
@@ -38,7 +38,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 改造一本现成 EPUB | [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) |
 | 给一本 EPUB 出精排建议 | [docs/pipeline/refinement-harnesses.md](docs/pipeline/refinement-harnesses.md) + `scripts/epub_refinement_harness.py` |
 | 合并 / 拆分 EPUB，或编辑封面 / 元数据 | [docs/pipeline/package-operations.md](docs/pipeline/package-operations.md) + `scripts/epub_package_tool.py` |
-| 跑自造清洗样本 | [samples/demo-books/README.md](samples/demo-books/README.md) |
+| 跑自造清洗样本 | [templates/cleanup-demo-books/README.md](templates/cleanup-demo-books/README.md) |
 | 做实时样本 demo 实验 | [templates/epub-style-demo/README.md](templates/epub-style-demo/README.md) + [templates/epub-style-demo/SCENE_MATRIX.md](templates/epub-style-demo/SCENE_MATRIX.md) |
 | 看制作硬规则 | [docs/final/SPEC-实现约束.md](docs/final/SPEC-实现约束.md) |
 | 查 HTML / CSS 属性 | [docs/final/EPUB 3 HTML CSS 属性速查表.md](docs/final/EPUB%203%20HTML%20CSS%20属性速查表.md) |
@@ -71,12 +71,13 @@ uv run python scripts/validate_skills_basic.py
 
 - **Calibre 5+** — 主路径 diff review（macOS / Windows / Linux 均有官方安装包）
 - **VS Code** — 精细 diff review
-- **epubcheck**（W3C 官方）— EPUB 合法性兜底；`brew install epubcheck` 或下载 zip
 - **Kindle Previewer 3** — Kindle 转换风险预检
 - **Apple Books** — macOS / iOS 实测
 - **ImageMagick `magick`** — WebP / TIFF / GIF / SVG 等图片转 JPEG / PNG
 - **oxipng / pngquant / jpegoptim / svgo** — PNG、JPEG、SVG 外部优化；本仓只检测和复查，不内置压缩器
 - **lxml** — 可选，为未来的 OPF/XHTML 解析工具预留；当前所有脚本仅用标准库 `xml.etree`，无需安装即可运行
+
+EPUBCheck 不要求本机安装；GitHub Actions 会安装并作为发布前 gate 运行。
 
 ## 5 分钟跑通
 
@@ -133,16 +134,16 @@ bash scripts/validate-popup-notes.sh --epub "$EPUB"
 先用本仓自造 before / after EPUB 演练清洗流程，确认红线 gate 和 diff review 都能工作：
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/city-field-notes-before.epub \
-  samples/demo-books/dist/city-field-notes-after-clean.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-before.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub \
   --check all
 ```
 
 再按 [docs/pipeline/epub-diff-review.md](docs/pipeline/epub-diff-review.md) 对 before / after 做五层 review。`redline-trap` 是故意失败的反例，用来确认正文改写会被挡住。
 
-`samples/demo-books/dist/` 是本地生成目录，不随仓库提交；下载后运行上面的 `build.sh` 即可生成 EPUB 和 manifest 作为查看、验证和 diff 参考。
+`templates/cleanup-demo-books/dist/` 是本地生成目录，不随仓库提交；下载后运行上面的 `build.sh` 即可生成 EPUB 和 manifest 作为查看、验证和 diff 参考。
 
 ### C. 真实 EPUB 清洗
 

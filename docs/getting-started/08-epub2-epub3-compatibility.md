@@ -440,7 +440,7 @@ CSS 也采用同样原则：
 1. EPUB3 主包：标准语义 + legacy fallback。
 2. EPUB2 fallback：NCX + XHTML 1.1 安全结构 + 双向链接注释 + 基础 CSS。
 
-不要长期维护一个“既不是严格 EPUB2，也不是完整 EPUB3”的混搭包。短期兼容实验可以做，但要在 reader matrix 中明确记录目标阅读器、版本、artifact 和是否通过 epubcheck。
+不要长期维护一个“既不是严格 EPUB2，也不是完整 EPUB3”的混搭包。短期兼容实验可以做，但要在 reader matrix 中明确记录目标阅读器、版本、artifact、本地 lint 和 CI EPUBCheck 结果。
 
 ## 8. 从 EPUB2 升级到 EPUB3 时改什么
 
@@ -453,7 +453,7 @@ CSS 也采用同样原则：
 5. XHTML 根元素需要使用 `epub:type` 时，补 `xmlns:epub="http://www.idpf.org/2007/ops"`。
 6. 把普通脚注改成双向链接保底的标准弹注结构。
 7. 含 MathML 的 XHTML 在 OPF manifest 声明 `properties="mathml"`。
-8. 运行 preflight、validator、epubcheck 和目标阅读器实测。
+8. 运行 preflight、本地 lint、validator、CI EPUBCheck 和目标阅读器实测。
 
 已有书不要手工批量替换。优先走：
 

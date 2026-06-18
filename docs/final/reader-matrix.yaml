@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-06-12
+updated_at: 2026-06-18
 owner: epub-handbook
 
 lanes:
@@ -38,9 +38,6 @@ cases:
   - id: 03-alite-poster
     title: A-lite 海报
     fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
-  - id: 03b-poster-fullbleed
-    title: 海报全幅 cover 对照
-    fixture: templates/epub-style-demo/OEBPS/Text/03b-poster-fullbleed.xhtml
   - id: 03c-poster-contain
     title: 单图卷封 contain + fallback
     fixture: templates/epub-style-demo/OEBPS/Text/03c-poster-contain.xhtml
@@ -50,9 +47,6 @@ cases:
   - id: 05-duokan-fallback
     title: 多看 fallback
     fixture: templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml
-  - id: 06-multi-duokan-fallback
-    title: 多条多看 fallback
-    fixture: templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml
   - id: 07-font-family-order
     title: font-family 顺序
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
@@ -65,15 +59,6 @@ cases:
   - id: 10-text-effects
     title: 文字效果合集（着重 / 波浪线 / 首字下沉 / Ruby）
     fixture: templates/epub-style-demo/OEBPS/Text/10-text-effects.xhtml
-  - id: 11-chapter-opening
-    title: 章首结构
-    fixture: templates/epub-style-demo/OEBPS/Text/11-chapter-opening.xhtml
-  - id: 12-literary-fiction
-    title: 小说体综合
-    fixture: templates/epub-style-demo/OEBPS/Text/12-literary-fiction.xhtml
-  - id: 13-duokan-rich-fallback
-    title: 多看富文本 fallback 一体页
-    fixture: templates/epub-style-demo/OEBPS/Text/13-duokan-rich-fallback.xhtml
   - id: 14-vertical-body
     title: 整页正文竖排
     fixture: templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml
@@ -100,10 +85,37 @@ cases:
     fixture: templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml
   - id: synthetic-city-field-notes
     title: 自造清洗 demo：明日城巡游手记
-    fixture: samples/demo-books/dist/city-field-notes-after-clean.epub
+    fixture: templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
   - id: synthetic-paper-garden
     title: 自造清洗 demo：纸上花园观察录
-    fixture: samples/demo-books/dist/paper-garden-after-clean.epub
+    fixture: templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
+
+retired_cases:
+  - id: 03b-poster-fullbleed
+    title: 海报全幅 cover 对照
+    fixture: templates/epub-style-demo/retired/03b-poster-fullbleed.xhtml
+    retired_at: 2026-06-18
+    reason: "主构建保留 contain 单图卷封；全幅 cover 裁切风险只作历史对照。"
+  - id: 06-multi-duokan-fallback
+    title: 多条多看 fallback
+    fixture: templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml
+    retired_at: 2026-06-18
+    reason: "多看主路径由 05 单条 fallback 覆盖；历史实测记录继续保留。"
+  - id: 11-chapter-opening
+    title: 章首结构
+    fixture: templates/epub-style-demo/retired/11-chapter-opening.xhtml
+    retired_at: 2026-06-18
+    reason: "章首图规则已由 20-chapter-head-image 吸收。"
+  - id: 12-literary-fiction
+    title: 小说体综合
+    fixture: templates/epub-style-demo/retired/12-literary-fiction.xhtml
+    retired_at: 2026-06-18
+    reason: "综合小说页拆分为更具体的英文小说、文白对照、边框便签和前置页场景。"
+  - id: 13-duokan-rich-fallback
+    title: 多看富文本 fallback 一体页
+    fixture: templates/epub-style-demo/retired/13-duokan-rich-fallback.xhtml
+    retired_at: 2026-06-18
+    reason: "多看兼容主路径保留 05 单条 fallback；富文本组合只作历史对照。"
 
 retest_priorities:
   # 控制“待复测”池子只进不出的风险；完成后同步更新 expectations 或 untested_cases。
@@ -366,16 +378,16 @@ expectations:
     case: synthetic-city-field-notes
     status: warn
     reader_version: pending-kindle-previewer-version
-    artifact: samples/demo-books/dist/city-field-notes-after-clean.epub
+    artifact: templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
     failed_page: n/a
     issue: "自造清洗 demo 已通过红线 gate；Kindle Previewer 视觉复测未执行。"
     action: "保持 warn，不虚构 pass；待导入 Kindle Previewer 记录版本和结果。"
-    workaround: "复测前先运行 samples/demo-books/build.sh，并重新跑 validate_text_invariance.py --check all。"
+    workaround: "复测前先运行 templates/cleanup-demo-books/build.sh，并重新跑 validate_text_invariance.py --check all。"
   - reader: ibooks_macos
     case: synthetic-city-field-notes
     status: warn
     reader_version: pending-apple-books-version
-    artifact: samples/demo-books/dist/city-field-notes-after-clean.epub
+    artifact: templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
     failed_page: n/a
     issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
     action: "待本地导入后记录默认字号、大字号、表格、脚注和插图结果。"
@@ -384,7 +396,7 @@ expectations:
     case: synthetic-paper-garden
     status: warn
     reader_version: pending-kindle-previewer-version
-    artifact: samples/demo-books/dist/paper-garden-after-clean.epub
+    artifact: templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
     failed_page: n/a
     issue: "自造清洗 demo 已通过红线 gate；Kindle Previewer 视觉复测未执行。"
     action: "保持 warn，不虚构 pass；重点复测诗段、Ruby、blockquote 和竖排增强降级。"
@@ -393,7 +405,7 @@ expectations:
     case: synthetic-paper-garden
     status: warn
     reader_version: pending-apple-books-version
-    artifact: samples/demo-books/dist/paper-garden-after-clean.epub
+    artifact: templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
     failed_page: n/a
     issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
     action: "待本地导入后记录默认字号、大字号、Ruby 和宽屏竖排增强结果。"
@@ -415,9 +427,6 @@ untested_cases:
   - case: 03-alite-poster
     fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
     note: "竖排 + A-lite；尚未实测。"
-  - case: 03b-poster-fullbleed
-    fixture: templates/epub-style-demo/OEBPS/Text/03b-poster-fullbleed.xhtml
-    note: "整版海报页；尚未实测。"
   - case: 04-table-code
     fixture: templates/epub-style-demo/OEBPS/Text/04-lists-tables-code.xhtml
     note: "列表 / 表格 / 代码；尚未实测。"
@@ -427,15 +436,6 @@ untested_cases:
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"
-  - case: 11-chapter-opening
-    fixture: templates/epub-style-demo/OEBPS/Text/11-chapter-opening.xhtml
-    note: "章首页；尚未实测。"
-  - case: 12-literary-fiction
-    fixture: templates/epub-style-demo/OEBPS/Text/12-literary-fiction.xhtml
-    note: "文学小说排版；尚未实测。"
-  - case: 13-duokan-rich-fallback
-    fixture: templates/epub-style-demo/OEBPS/Text/13-duokan-rich-fallback.xhtml
-    note: "多看富 fallback；尚未实测。"
   - case: 14-vertical-body
     fixture: templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml
     note: "竖排正文；尚未实测。"

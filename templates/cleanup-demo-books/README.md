@@ -16,10 +16,10 @@
 ## 生成
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 ```
 
-输出在 `samples/demo-books/dist/`。如果脚本逻辑变化，需要重新生成并本地验证这些 demo EPUB。
+输出在 `templates/cleanup-demo-books/dist/`。如果脚本逻辑变化，需要重新生成并本地验证这些 demo EPUB。
 
 `dist/` 里的 `.epub` 和 `manifest.json` 都是可再生文件；不要提交生成产物，只提交 `src/`、`build.sh`、测试或说明文档的变化。
 
@@ -27,13 +27,13 @@ bash samples/demo-books/build.sh
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/city-field-notes-before.epub \
-  samples/demo-books/dist/city-field-notes-after-clean.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-before.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub \
   --check all
 
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/paper-garden-before.epub \
-  samples/demo-books/dist/paper-garden-after-clean.epub \
+  templates/cleanup-demo-books/dist/paper-garden-before.epub \
+  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub \
   --check all
 ```
 
@@ -41,8 +41,8 @@ python3 scripts/validate_text_invariance.py \
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/redline-trap-before.epub \
-  samples/demo-books/dist/redline-trap-after-text-changed.epub \
+  templates/cleanup-demo-books/dist/redline-trap-before.epub \
+  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
   --check all
 ```
 
@@ -57,9 +57,9 @@ python3 scripts/validate_text_invariance.py \
 ## 多轮 loop 正向演示
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 python3 scripts/epub_cleanup_loop.py \
-  samples/demo-books/dist/loop-auto-fix-before.epub \
+  templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
   --work-dir work/loop-auto-fix \
   --format json
 ```

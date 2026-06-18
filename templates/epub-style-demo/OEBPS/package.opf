@@ -37,18 +37,13 @@
     <item id="body" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/>
     <item id="ruby-note" href="Text/02-ruby-note.xhtml" media-type="application/xhtml+xml"/>
     <item id="vertical-alite" href="Text/03-vertical-alite.xhtml" media-type="application/xhtml+xml"/>
-    <item id="poster-fullbleed" href="Text/03b-poster-fullbleed.xhtml" media-type="application/xhtml+xml"/>
     <item id="poster-contain" href="Text/03c-poster-contain.xhtml" media-type="application/xhtml+xml"/>
     <item id="lists-tables-code" href="Text/04-lists-tables-code.xhtml" media-type="application/xhtml+xml"/>
     <item id="legacy-note-fallback" href="Text/05-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
-    <item id="multi-legacy-note-fallback" href="Text/06-multi-legacy-note-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="font-family-order" href="Text/07-font-family-order.xhtml" media-type="application/xhtml+xml"/>
     <item id="long-mixed-flow" href="Text/08-long-mixed-flow.xhtml" media-type="application/xhtml+xml"/>
     <item id="kindle-risk" href="Text/09-kindle-risk.xhtml" media-type="application/xhtml+xml"/>
     <item id="text-effects" href="Text/10-text-effects.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chapter-opening" href="Text/11-chapter-opening.xhtml" media-type="application/xhtml+xml"/>
-    <item id="literary-fiction" href="Text/12-literary-fiction.xhtml" media-type="application/xhtml+xml"/>
-    <item id="duokan-rich" href="Text/13-duokan-rich-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="vertical-body" href="Text/14-vertical-body.xhtml" media-type="application/xhtml+xml"/>
     <item id="frontmatter" href="Text/15-frontmatter.xhtml" media-type="application/xhtml+xml"/>
     <item id="math" href="Text/16-math.xhtml" media-type="application/xhtml+xml" properties="mathml"/>
@@ -64,18 +59,13 @@
     <itemref idref="body"/>
     <itemref idref="ruby-note"/>
     <itemref idref="vertical-alite"/>
-    <itemref idref="poster-fullbleed"/>
     <itemref idref="poster-contain"/>
     <itemref idref="lists-tables-code"/>
     <itemref idref="legacy-note-fallback"/>
-    <itemref idref="multi-legacy-note-fallback"/>
     <itemref idref="font-family-order"/>
     <itemref idref="long-mixed-flow"/>
     <itemref idref="kindle-risk"/>
     <itemref idref="text-effects"/>
-    <itemref idref="chapter-opening"/>
-    <itemref idref="literary-fiction"/>
-    <itemref idref="duokan-rich"/>
     <itemref idref="vertical-body"/>
     <itemref idref="frontmatter"/>
     <itemref idref="math"/>

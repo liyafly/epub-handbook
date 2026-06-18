@@ -124,7 +124,7 @@
 
 - `<aside>` 是 EPUB3 / HTML5 语义路径，不是严格 EPUB2 XHTML 主路径；
 - OPF 仍写 `version="2.0"` 时，这是混合兼容包；
-- 目标阅读器、版本、artifact、epubcheck 输出和降级表现必须记录。
+- 目标阅读器、版本、artifact、本仓 lint / CI EPUBCheck 结果和降级表现必须记录。
 
 ## 6. EPUB3 主包仍应使用项目标准结构
 
@@ -137,13 +137,7 @@
 ```sh
 unzip -t book.epub
 python3 scripts/epub_preflight_harness.py book.epub --format json
-epubcheck book.epub
-```
-
-本机未安装 epubcheck 时：
-
-```sh
-brew install epubcheck
+python3 scripts/epub_lint.py book.epub
 ```
 
 ### 7.2 注释行为
@@ -165,7 +159,7 @@ brew install epubcheck
 - 使用 `<p>/<div>` 还是 `<aside>`；
 - reader 名称和版本；
 - artifact 路径；
-- epubcheck 结果；
+- 本仓 lint 结果；发布前以 GitHub Actions EPUBCheck 结果为准；
 - 弹窗、跳转或失败现象；
 - 回跳是否成功。
 

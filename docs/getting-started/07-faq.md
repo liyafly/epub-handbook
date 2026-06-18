@@ -17,10 +17,10 @@ A：本仓运行时不需要。Calibre / VS Code 也不依赖 Node.js。
 ## Validator / 校验
 
 **Q：`validate-epub-style-demo.sh` 对我的 epub 报 fixture token？**
-A：那个脚本是给本仓 demo 用的；真实 epub 以 epubcheck 和 `validate_text_invariance.py` 为准。
+A：那个脚本是给本仓 demo 用的；真实 epub 以 `scripts/epub_preflight_harness.py`、`scripts/epub_lint.py` 和 `validate_text_invariance.py` 为准，EPUBCheck 交给 GitHub Actions 跑。
 
-**Q：epubcheck 报 fatal？**
-A：先确认 zip 完整、`mimetype` 是第一个 entry、`META-INF/container.xml` 存在且能解析。
+**Q：CI 里的 EPUBCheck 报 fatal？**
+A：先确认 zip 完整、`mimetype` 是第一个 entry、`META-INF/container.xml` 存在且能解析。本地先跑 `scripts/epub_lint.py` 定位包结构问题。
 
 **Q：`validate_text_invariance.py` 报文本变化？**
 A：这是红线触发。除非用户明确授权，否则回滚这次清洗。

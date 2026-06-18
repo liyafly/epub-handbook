@@ -17,7 +17,9 @@ on:
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
-      - 'samples/demo-books/**'
+      - 'templates/book-starter/**'
+      - 'templates/fixtures-tiny/**'
+      - 'templates/cleanup-demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
@@ -40,7 +42,9 @@ on:
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
-      - 'samples/demo-books/**'
+      - 'templates/book-starter/**'
+      - 'templates/fixtures-tiny/**'
+      - 'templates/cleanup-demo-books/**'
       - 'scripts/**'
       - 'skills/**'
       - 'docs/final/**'
@@ -118,10 +122,10 @@ jobs:
           fi
           echo "EPUBCheck: 通过（退出码 0）"
 
-      - name: Build & EPUBCheck demo-books samples
+      - name: Build & EPUBCheck cleanup demo books
         run: |
-          bash samples/demo-books/build.sh
-          for epub in samples/demo-books/dist/*.epub; do
+          bash templates/cleanup-demo-books/build.sh
+          for epub in templates/cleanup-demo-books/dist/*.epub; do
             case "$(basename "$epub")" in
               redline-trap-after-text-changed.epub)
                 echo "[expected-fail sample] skip EPUBCheck: $epub" ;;

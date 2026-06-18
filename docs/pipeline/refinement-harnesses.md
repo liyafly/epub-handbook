@@ -131,5 +131,5 @@ python3 scripts/validate_text_invariance.py <redline-base.epub> work/after/step-
 `epub_refinement_harness.py`：
 
 - `facts`: 版本、nav、图片、字体、弹注、Ruby / 竖排等统计
-- `tool_availability`: 本机是否有 `magick`、`oxipng`、`pngquant`、`jpegoptim`、`svgo`、`epubcheck`
+- `tool_availability`: 本机是否有 `magick`、`oxipng`、`pngquant`、`jpegoptim`、`svgo`；EPUBCheck 在 GitHub Actions 中检查
 - `recommendations`: 分阶段建议与候选 skills

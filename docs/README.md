@@ -56,10 +56,10 @@
 - [plans/README.md](plans/README.md)：面向贡献者的计划、review 与维护说明，新人无需阅读
 - [architecture/README.md](architecture/README.md)：下游 / 周边架构副本
 
-### 样本与工具
+### 模板、样本与工具
 
-- 自造清洗 / diff demo：[../samples/demo-books/](../samples/demo-books/)
-- 第三方样本占位：[../samples/third-party/](../samples/third-party/)
+- 自造清洗 / diff demo：[../templates/cleanup-demo-books/](../templates/cleanup-demo-books/)
+- 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/](../references/)
 - EPUB diff review 工作流：[pipeline/epub-diff-review.md](pipeline/epub-diff-review.md)（Calibre / VS Code）
 
 ### 推导与实验

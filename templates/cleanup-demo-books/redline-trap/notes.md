@@ -1,7 +1,7 @@
 # 清洗记录：红线变更反例
 
 > 类型：自造反例 demo
-> 生成命令：`bash samples/demo-books/build.sh`
+> 生成命令：`bash templates/cleanup-demo-books/build.sh`
 
 ## 目标
 
@@ -17,8 +17,8 @@
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/redline-trap-before.epub \
-  samples/demo-books/dist/redline-trap-after-text-changed.epub \
+  templates/cleanup-demo-books/dist/redline-trap-before.epub \
+  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
   --check all
 ```
 

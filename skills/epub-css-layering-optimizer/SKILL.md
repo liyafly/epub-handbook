@@ -74,7 +74,7 @@ fonts.css -> base.css -> notes/effects/literary/media/vertical/poster.css
 - `Text/02-ruby-note.xhtml`：notes + Ruby 默认。
 - `Text/10-text-effects.xhtml`：effects 层。
 - `Text/19-border-shadow-notes.xhtml`：effects 层中的 `.note-box` 边框/阴影视觉增强。
-- `Text/11-chapter-opening.xhtml`、`Text/12-literary-fiction.xhtml`、`Text/15-frontmatter.xhtml`：literary 层。
+- `Text/15-frontmatter.xhtml`、`Text/18-english-fiction.xhtml`、`Text/20-chapter-head-image.xhtml`、`Text/21-classical-modern.xhtml`：literary 层。
 - `Text/17-image-layout.xhtml`：media 层。
 - `Text/14-vertical-body.xhtml`：vertical 层。
 - `Text/03-vertical-alite.xhtml`：poster 层。

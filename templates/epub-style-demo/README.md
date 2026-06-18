@@ -20,26 +20,23 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 2. `01-body.xhtml`：中文正文、引用、着重、图片。
 3. `02-ruby-note.xhtml`：Ruby 注音和标准弹出注释结构。
 4. `03-vertical-alite.xhtml`：A-lite 整页海报样本（title + subtitle）。
-5. `03b-poster-fullbleed.xhtml`：海报全幅 cover 对照样本。
-6. `03c-poster-contain.xhtml`：单图卷封 contain + `<img>` fallback 对照样本。
-7. `04-lists-tables-code.xhtml`：列表、表格、代码块和键盘文本。
-8. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
-9. `06-multi-legacy-note-fallback.xhtml`：同一 XHTML 文件内多条 fallback 弹注。
-10. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证；同时演示正文锁定模式（`body class="body-font-locked"`）。
-11. `08-long-mixed-flow.xhtml`：长段落、中英混排、大字号标题与右侧裁切压力测试。
-12. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
-13. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
-14. `11-chapter-opening.xhtml`：章首结构。
-15. `12-literary-fiction.xhtml`：小说体综合排版。
-16. `13-duokan-rich-fallback.xhtml`：多看富文本 fallback 一体页。
-17. `14-vertical-body.xhtml`：整页正文竖排。
-18. `15-frontmatter.xhtml`：版权信息、题献与题记。
-19. `16-math.xhtml`：数学公式与 MathML。
-20. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试。
-21. `18-english-fiction.xhtml`：英文小说正文、轻量首字、手写体下沉首字、居中插图与大字号回归测试。
-22. `19-border-shadow-notes.xhtml`：边框、阴影、斜角感、SVG 花边实验、长条投影和不规则便签文本框。
-23. `20-chapter-head-image.xhtml`：小型章节头图、满栏横幅头图、kicker、真实标题、窄屏保守宽度与单书 fallback。
-24. `21-classical-modern.xhtml`：文白 / 原译对照条目结构、局部目录、默认上下、宽屏 38/58、48/48、58/38 preset 和大字号回归测试。
+5. `03c-poster-contain.xhtml`：单图卷封 contain + `<img>` fallback 对照样本。
+6. `04-lists-tables-code.xhtml`：列表、表格、代码块和键盘文本。
+7. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
+8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证；同时演示正文锁定模式（`body class="body-font-locked"`）。
+9. `08-long-mixed-flow.xhtml`：长段落、中英混排、大字号标题与右侧裁切压力测试。
+10. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
+11. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
+12. `14-vertical-body.xhtml`：整页正文竖排。
+13. `15-frontmatter.xhtml`：版权信息、题献与题记。
+14. `16-math.xhtml`：数学公式与 MathML。
+15. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试。
+16. `18-english-fiction.xhtml`：英文小说正文、轻量首字、手写体下沉首字、居中插图与大字号回归测试。
+17. `19-border-shadow-notes.xhtml`：边框、阴影、斜角感、SVG 花边实验、长条投影和不规则便签文本框。
+18. `20-chapter-head-image.xhtml`：小型章节头图、满栏横幅头图、kicker、真实标题、窄屏保守宽度与单书 fallback。
+19. `21-classical-modern.xhtml`：文白 / 原译对照条目结构、局部目录、默认上下、宽屏 38/58、48/48、58/38 preset 和大字号回归测试。
+
+退役对照页放在 `retired/`，不进入默认 OPF/nav/toc：`03b-poster-fullbleed.xhtml`、`06-multi-legacy-note-fallback.xhtml`、`11-chapter-opening.xhtml`、`12-literary-fiction.xhtml`、`13-duokan-rich-fallback.xhtml`。这些页面只保留历史对照价值；新增规则优先补活跃页或场景指南。
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
 

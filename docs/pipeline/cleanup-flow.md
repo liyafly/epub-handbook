@@ -60,7 +60,7 @@ print('mimetype OK')
 
 unzip -p "$EPUB" META-INF/container.xml | head -5 >/dev/null && echo "container.xml OK" || { echo "container.xml missing"; exit 1; }
 unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
-which epubcheck >/dev/null && epubcheck "$EPUB" || echo "epubcheck not installed; skip"
+python3 scripts/epub_lint.py "$EPUB"
 ```
 
 发现 `META-INF/encryption.xml` 时默认停止。若声明目标在 ZIP 中不存在，结构工具可移除该 stale 引用；若已确认只有 EPUB 标准字体混淆，可用下一节的 `inspect` 显式验证。正文、样式、图片或未知算法加密且目标真实存在时仍立即停止。
@@ -275,12 +275,12 @@ cp work/after/step-K-*.epub work/after/cleaned.epub
 | --- | --- | --- |
 | 红线触发数 | `validate_text_invariance.py --check all` | 必须 0 |
 | 黄线条数 | Calibre Compare 文件树 modified 计数（或 `git diff --no-index --stat` 行数） | 记录 |
-| epubcheck error 数（after） | `epubcheck` | 不多于 before |
+| EPUB 包结构错误数（after） | `scripts/epub_lint.py` | 清零，或逐条记录豁免理由 |
 | 阅读器兼容性回归 | reader-matrix 复测 | 不变差 |
 
 结论：
 
-- 红线 0 + 必须 review 项 0 + epubcheck 不变差 -> 自动通过。
+- 红线 0 + 必须 review 项 0 + 本地 lint 清零 -> 自动通过。
 - 红线 0 + 有必须 review 项 -> 人工 review。
 - 红线 > 0 -> 重做。
 
@@ -331,7 +331,7 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --form
 - mimetype：OK
 - container.xml：OK
 - DRM：无
-- epubcheck：N error / N warning
+- epub_lint：N error / N warning
 
 ## 1. harness findings
 
@@ -374,20 +374,20 @@ python3 scripts/validate_text_invariance.py <redline-base.epub> after/cleaned.ep
 首轮端到端演示不依赖公版书。先生成仓库自造样本：
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 ```
 
 合法清洗对：
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/city-field-notes-before.epub \
-  samples/demo-books/dist/city-field-notes-after-clean.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-before.epub \
+  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub \
   --check all
 
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/paper-garden-before.epub \
-  samples/demo-books/dist/paper-garden-after-clean.epub \
+  templates/cleanup-demo-books/dist/paper-garden-before.epub \
+  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub \
   --check all
 ```
 
@@ -395,8 +395,8 @@ python3 scripts/validate_text_invariance.py \
 
 ```sh
 python3 scripts/validate_text_invariance.py \
-  samples/demo-books/dist/redline-trap-before.epub \
-  samples/demo-books/dist/redline-trap-after-text-changed.epub \
+  templates/cleanup-demo-books/dist/redline-trap-before.epub \
+  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
   --check all
 ```
 
@@ -404,7 +404,7 @@ python3 scripts/validate_text_invariance.py \
 
 ## 18. 自动循环清洗（`epub_cleanup_loop.py`）
 
-在 `epub_cleanup_pipeline.py` 的一命令一键纪律之上，本命令增加**确定性多轮自动收敛**：入口会先保留不可修改的 before、执行原始输入 preflight，并在只缺 MathML / SVG manifest `properties` 时先做可审计的安全包清单修复；随后复用单次流水线完成 preflight、可选结构规范化和 EPUB3 迁移，再以迁移后的 EPUB3 作为不可变文本基线。每轮由 Planner 产出受白名单约束的 Action，脚本执行后立即跑正文红线 gate 和可用时的 `epubcheck`；任一 gate 失败都会回滚到上一锚点，收敛或触上限自动停机。
+在 `epub_cleanup_pipeline.py` 的一命令一键纪律之上，本命令增加**确定性多轮自动收敛**：入口会先保留不可修改的 before、执行原始输入 preflight，并在只缺 MathML / SVG manifest `properties` 时先做可审计的安全包清单修复；随后复用单次流水线完成 preflight、可选结构规范化和 EPUB3 迁移，再以迁移后的 EPUB3 作为不可变文本基线。每轮由 Planner 产出受白名单约束的 Action，脚本执行后立即跑正文红线 gate 和本仓 lint；任一 gate 失败都会回滚到上一锚点，收敛或触上限自动停机。
 
 **默认零模型：**
 
@@ -449,7 +449,7 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub \
 
 **与 `epub_cleanup_pipeline.py` 的关系：**
 
-`epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 先复用该入口建立干净 EPUB3 基线，再增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。循环收尾会在 OPF metadata 写入 `epub-handbook:cleanup-rounds` 审计标记。两者共享 preflight、红线 gate、epubcheck 等组件，不互相替代。
+`epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 先复用该入口建立干净 EPUB3 基线，再增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。循环收尾会在 OPF metadata 写入 `epub-handbook:cleanup-rounds` 审计标记。两者共享 preflight、红线 gate 和本仓 lint 等组件，不互相替代。
 
 ### 18.1 模型与隐私（说明）
 

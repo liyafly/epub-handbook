@@ -26,7 +26,7 @@ def preflight(path: Path) -> tuple[int, dict[str, object], str]:
     if report.tools["epubcheck"]:
       report.add_command(f"epubcheck {shell_path(path)}")
     else:
-      report.add_command("# optional: install epubcheck, then run epubcheck <book.epub>")
+      report.add_command("# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable.")
     report.add_command(f"python3 scripts/epub_refinement_harness.py {shell_path(path)} --format json")
 
   data = report.as_dict()

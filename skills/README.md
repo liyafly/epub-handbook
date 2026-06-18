@@ -42,14 +42,14 @@ scripts/epub_ai_harness.py <epub-or-source-path>
 | `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `docs/final/SPEC-实现约束.md` §7、`docs/guides/note-box-border-styles.md` |
 | `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体和生僻字 fallback | `Text/07-font-family-order.xhtml`、`Text/08-long-mixed-flow.xhtml` |
 | `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `Text/18-english-fiction.xhtml`、`docs/guides/english-fiction-layout.md`、`docs/guides/anthology-navigation.md` |
-| `epub-literary-structure-formatter` | 章首、章节头图、题记、前置页、对话、诗、信件、文白对照、场景分隔 | `Text/11-chapter-opening.xhtml`、`Text/20-chapter-head-image.xhtml`、`Text/21-classical-modern.xhtml`、`Text/12-literary-fiction.xhtml`、`Text/15-frontmatter.xhtml`、`docs/guides/chapter-head-image.md`、`docs/guides/anthology-navigation.md`、`docs/guides/classical-modern-layout.md` |
+| `epub-literary-structure-formatter` | 章首、章节头图、题记、前置页、对话、诗、信件、文白对照、场景分隔 | `Text/20-chapter-head-image.xhtml`、`Text/21-classical-modern.xhtml`、`Text/18-english-fiction.xhtml`、`Text/15-frontmatter.xhtml`、`docs/guides/chapter-head-image.md`、`docs/guides/anthology-navigation.md`、`docs/guides/classical-modern-layout.md` |
 | `epub-image-layout-optimizer` | figure 环绕、图注、封面声明、图片格式兼容 | `Text/17-image-layout.xhtml` |
 | `epub-vertical-ruby-optimizer` | 竖排正文、Ruby 注音、中西文方向 | `Text/02-ruby-note.xhtml`、`Text/14-vertical-body.xhtml` |
 | `epub-kindle-compatibility-checker` | Kindle/KDP 风险、转换日志、WebP/SVG/cover/MathML 检查 | `Text/09-kindle-risk.xhtml` |
 | `epub-package-nav-auditor` | OPF manifest/spine、nav、NCX、cover、MathML/SVG properties | `OEBPS/package.opf`、`nav.xhtml`、`toc.ncx`、`docs/guides/anthology-navigation.md` |
 | `epub-alite-converter` | 封面、卷首、章首或海报页转 A-lite 可重排全页方案 | `Text/03-vertical-alite.xhtml` |
 | `epub-popup-footnote-converter` | 普通注释/尾注/旧注释转标准 grouped popup footnote | `Text/02-ruby-note.xhtml` |
-| `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `Text/05-legacy-note-fallback.xhtml`、`Text/06-multi-legacy-note-fallback.xhtml` |
+| `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `Text/05-legacy-note-fallback.xhtml`；历史多条样例见 `retired/06-multi-legacy-note-fallback.xhtml` |
 | `epub-style-demo-maintainer` | 维护 demo fixture、reader matrix、SPEC 和最终文档同步 | `templates/epub-style-demo/` |
 
 ## 怎么运行

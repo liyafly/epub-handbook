@@ -95,7 +95,7 @@ description: 优化 EPUB 图片版式、figure 环绕、图注、栅格格式、
 ## 验证 fixture
 
 - `Text/01-body.xhtml`：基础 figure。
-- `Text/03b-poster-fullbleed.xhtml`：全幅海报对照。
+- `Text/03c-poster-contain.xhtml`：单图卷封 contain + fallback。
 - `Text/09-kindle-risk.xhtml`：Kindle 图片风险页。
 - `Text/17-image-layout.xhtml`：figure 环绕和大字号回归。
 

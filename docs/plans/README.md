@@ -12,8 +12,6 @@
 
 ## 当前计划
 
-- `2026-06-12-lint-and-quickstart-plan.md`：epub-lint v0 + book-starter 快速上手执行计划
-- `demo-scene-expansion-plan.md`：demo 模板场景扩展与未测场景补测跟踪
 - `skills-and-templates.md`：skills 维护方式与模板目录约定
 
 ## 近期复核优先级
@@ -31,8 +29,13 @@
 - `archive/2026-05-28-remove-epub-diff.md`：移除整个 `tools/` 目录、把 diff workflow 写进根 README、丰富 README 的 review + 执行计划（2026-05-28）
 - `archive/2026-05-28-remove-epub-diff-followup.md`：上一条计划落地后补提缺失的主计划文件、修复 4 处死链（2026-05-28）
 - `archive/2026-05-28-readme-tools-followup-review.md`：复查并落地 README 断链、空 `tools/` 本地残留和 follow-up 正文去重（2026-05-28）
+- `archive/2026-06-01-ai-assisted-cleanup-loop-plan.md`：AI 辅助清洗 loop 的历史执行计划（2026-06-01，2026-06-18 归档）
+- `archive/2026-06-01-newcomer-onboarding-review.md`：新人路径复核 review（2026-06-01，2026-06-18 归档）
 - `archive/2026-06-03-audit-remediation-plan.md`：仓库审计发现的修复清单与 v0.2.0 收尾依据（2026-06-03）
 - `archive/2026-06-10-repo-improvement-execution-plan.md`：文档治理、公共模块、排版决策、图片候选、风格预设与 v0.2.0 发版执行记录（2026-06-10）
+- `archive/2026-06-10-repo-improvement-execution-plan-main-copy.md`：归档主 checkout 遗留副本，保留与既有 archive 文件的差异（2026-06-18）
+- `archive/2026-06-12-lint-and-quickstart-plan.md`：epub-lint v0 + book-starter 快速上手执行计划（2026-06-12，2026-06-18 归档）
 - `archive/css-layering-plan.md`：`Styles/` 八层 CSS 骨架计划；核心分层已由 demo 与 SPEC §7 吸收，保留作历史推导（2026-06-12 归档）
 - `archive/fonts-css-expansion-plan.md`：`fonts.css` 系统字体优先策略；核心条款已由 SPEC §8 和 demo validator 接管，旧的无条件 `ibooks:specified-fonts` 清单不再作为现行规则（2026-06-12 归档）
 - `archive/2026-06-12-body-font-mode-review-fixes.md`：正文字体模式 review 修复清单；15 项已执行，后续只保留 reader-matrix 复测项（2026-06-12）
+- `archive/demo-scene-expansion-plan.md`：demo 场景扩展历史计划；主 demo 已精简，退役页移入 `templates/epub-style-demo/retired/`（2026-06-18）

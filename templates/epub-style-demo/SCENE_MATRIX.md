@@ -8,18 +8,13 @@
 | 普通正文 | `Text/01-body.xhtml` | 段落缩进、行高、引用、着重、图片 figure | 全部 |
 | 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距 | Apple Books / Thorium / KOReader |
 | A-lite 海报 | `Text/03-vertical-alite.xhtml` | `body.fullpage`、`.fullframe padding:0`、背景、竖排标题 | Apple Books / Kindle Previewer |
-| 海报全幅对照 | `Text/03b-poster-fullbleed.xhtml` | `body.poster-bg-fullbleed`、`background-size: cover`、整页满铺 | Apple Books / Kindle App / Kindle Previewer |
 | 单图卷封 contain 对照 | `Text/03c-poster-contain.xhtml` | `body.poster-bg-contain`、`background-size: contain`、`.poster-fallback`、单页不裁图 | Apple Books / Kindle App / Kindle Previewer |
 | 表格与代码 | `Text/04-lists-tables-code.xhtml` | 列表、表格滚动、代码块、kbd | Kindle Previewer / KOReader / Thorium |
 | 多看 fallback | `Text/05-legacy-note-fallback.xhtml` | `duokan-footnote`、`ol.duokan-footnote-content`、单注释 | 多看 / 标准阅读器回退 |
-| 多条 fallback | `Text/06-multi-legacy-note-fallback.xhtml` | 多 noteref 指向同一 `aside` 内不同 `li` | 多看 / 标准阅读器回退 |
 | font-family 顺序 + 正文锁定 | `Text/07-font-family-order.xhtml` | 正文锁定模式（`body class="body-font-locked"` + OPF `ibooks:specified-fonts=true`）、系统优先、书内优先、楷体混合链、生僻字 fallback | Apple Books / Windows 阅读器 |
 | 长段落与中英混排 | `Text/08-long-mixed-flow.xhtml` | 普通正文盒模型、右侧裁切、长 token 换行、大字号标题 | Kindle Previewer / Apple Books |
 | Kindle 风险项 | `Text/09-kindle-risk.xhtml` | cover metadata、nav + NCX、PNG、长串、表格、代码 | Kindle Previewer |
 | 文字效果合集 | `Text/10-text-effects.xhtml` | `.emp` / `.wavy` / `.dropcap` / Ruby 行距 | 全部 |
-| 章首结构 | `Text/11-chapter-opening.xhtml` | 章首图、标题副标题、卷头引文 | Apple Books / Thorium |
-| 小说体综合 | `Text/12-literary-fiction.xhtml` | 对话、诗节、场景分隔、信件块 | 全部 |
-| 多看富文本 fallback | `Text/13-duokan-rich-fallback.xhtml` | `ol.duokan-footnote-content` + `li.duokan-footnote-item` | 多看 / 标准阅读器 |
 | 整页正文竖排 | `Text/14-vertical-body.xhtml` | `body.page-vrl`、`.vrl-section` | Apple Books / KOReader |
 | 前置页 | `Text/15-frontmatter.xhtml` | `epub:type="frontmatter"`、题献与题记 | 全部 |
 | 数学公式与 MathML | `Text/16-math.xhtml` | KDP MathML 支持标签：分式、根式、上下标、矩阵、semantics/annotation | Kindle App / Kindle Previewer / Apple Books / Thorium |
@@ -28,6 +23,18 @@
 | 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、SVG 花边实验、长条投影、不规则边缘、手剪纸边框 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
 | 章节头图设置 | `Text/20-chapter-head-image.xhtml` | 小型头图、满栏横幅头图、真实 h1、kicker/副标题、35% 单书 fallback、40% 复测增强类、大字号不裁切、横向不溢出 | Kindle Previewer / Apple Books / Thorium |
 | 文白 / 原译对照 | `Text/21-classical-modern.xhtml` | 条目级 section、局部目录、样本式双文本段落、默认上下、短组 40em 以上双 float 增强；文白默认 38/58、原译接近 48/48、原文较长 58/38，单书可后加载覆盖；长组 `.parallel-stack-pair` 上下并允许分页、轻量回目录链接；必测字号 1/3/4/5/6/7，日夜模式，默认/Publisher Font/Bookerly 或 Original 字体；失败态必须上下，不能半宽错位 | Kindle Previewer / Kindle 设备 KFX / Kindle App / Apple Books / Readest / Thorium |
+
+## 退役对照页
+
+这些页面保留在 `templates/epub-style-demo/retired/` 供历史对照，不进入默认 EPUB 构建。若后续要恢复，必须重新接入 OPF/nav/toc、构建 artifact，并按 reader-matrix 流程复测。
+
+| 场景 | XHTML | 退役原因 |
+|---|---|---|
+| 海报全幅对照 | `retired/03b-poster-fullbleed.xhtml` | 主路径改为 contain 单图卷封；全幅 cover 裁切风险只保留历史对照。 |
+| 多条 fallback | `retired/06-multi-legacy-note-fallback.xhtml` | 单条 fallback 已覆盖结构规则；多条组合不再占用主 demo。 |
+| 章首结构 | `retired/11-chapter-opening.xhtml` | 已由 `Text/20-chapter-head-image.xhtml` 和前置页场景吸收。 |
+| 小说体综合 | `retired/12-literary-fiction.xhtml` | 已拆分到英文小说、文白对照、边框便签和前置页等更具体场景。 |
+| 多看富文本 fallback | `retired/13-duokan-rich-fallback.xhtml` | 多看兼容主路径保留 `Text/05-legacy-note-fallback.xhtml`。 |
 
 ## 外部人工场景
 

@@ -66,7 +66,7 @@ ol.duokan-footnote-content {
 ## 4. 仓库参考
 
 - `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`：单条 fallback；
-- `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml`：多条注释共享一个 grouped list；
+- `templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml`：历史多条注释 grouped list 对照；
 - `skills/epub-legacy-footnote-fallback/SKILL.md`：可执行行为契约；
 - `docs/final/reader-matrix.yaml`：阅读器实测记录。
 

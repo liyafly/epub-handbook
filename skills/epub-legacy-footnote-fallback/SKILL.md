@@ -120,7 +120,7 @@ ol.duokan-footnote-content {
 使用这些本地参考：
 
 - `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`：单条兼容样例。
-- `templates/epub-style-demo/OEBPS/Text/06-multi-legacy-note-fallback.xhtml`：同一 XHTML 内多条 fallback notes 共用一个 grouped list。
+- `templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml`：历史多条 fallback notes 对照，不进入默认 demo 构建。
 
 应用 fallback 后运行 stdlib-only validator：
 

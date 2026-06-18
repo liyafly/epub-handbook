@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "samples" / "demo-books" / "dist"
+OUT_DIR = ROOT / "templates" / "cleanup-demo-books" / "dist"
 FIXED_ZIP_TIME = (2026, 5, 27, 0, 0, 0)
 
 

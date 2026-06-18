@@ -5,9 +5,9 @@
 运行：
 
 ```sh
-bash samples/demo-books/build.sh
+bash templates/cleanup-demo-books/build.sh
 python3 scripts/epub_cleanup_loop.py \
-  samples/demo-books/dist/loop-auto-fix-before.epub \
+  templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
   --work-dir work/loop-auto-fix \
   --format json
 ```

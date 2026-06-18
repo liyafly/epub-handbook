@@ -26,83 +26,63 @@
       <navLabel><text>竖排与 A-lite</text></navLabel>
       <content src="Text/03-vertical-alite.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-poster-fullbleed" playOrder="5">
-      <navLabel><text>海报全幅对照</text></navLabel>
-      <content src="Text/03b-poster-fullbleed.xhtml"/>
-    </navPoint>
-    <navPoint id="navpoint-poster-contain" playOrder="6">
+    <navPoint id="navpoint-poster-contain" playOrder="5">
       <navLabel><text>单图卷封 contain 对照</text></navLabel>
       <content src="Text/03c-poster-contain.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-5" playOrder="7">
+    <navPoint id="navpoint-5" playOrder="6">
       <navLabel><text>列表、表格与代码</text></navLabel>
       <content src="Text/04-lists-tables-code.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-6" playOrder="8">
+    <navPoint id="navpoint-6" playOrder="7">
       <navLabel><text>旧版弹注 fallback</text></navLabel>
       <content src="Text/05-legacy-note-fallback.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-7" playOrder="9">
-      <navLabel><text>多条旧版弹注 fallback</text></navLabel>
-      <content src="Text/06-multi-legacy-note-fallback.xhtml"/>
-    </navPoint>
-    <navPoint id="navpoint-8" playOrder="10">
+    <navPoint id="navpoint-8" playOrder="8">
       <navLabel><text>font-family 顺序验证</text></navLabel>
       <content src="Text/07-font-family-order.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-9" playOrder="11">
+    <navPoint id="navpoint-9" playOrder="9">
       <navLabel><text>长段落与中英混排</text></navLabel>
       <content src="Text/08-long-mixed-flow.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-10" playOrder="12">
+    <navPoint id="navpoint-10" playOrder="10">
       <navLabel><text>Kindle 风险项</text></navLabel>
       <content src="Text/09-kindle-risk.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-11" playOrder="13">
+    <navPoint id="navpoint-11" playOrder="11">
       <navLabel><text>文字效果合集</text></navLabel>
       <content src="Text/10-text-effects.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-12" playOrder="14">
-      <navLabel><text>章首结构</text></navLabel>
-      <content src="Text/11-chapter-opening.xhtml"/>
-    </navPoint>
-    <navPoint id="navpoint-13" playOrder="15">
-      <navLabel><text>小说体综合</text></navLabel>
-      <content src="Text/12-literary-fiction.xhtml"/>
-    </navPoint>
-    <navPoint id="navpoint-14" playOrder="16">
-      <navLabel><text>多看 fallback 富文本一体页</text></navLabel>
-      <content src="Text/13-duokan-rich-fallback.xhtml"/>
-    </navPoint>
-    <navPoint id="navpoint-15" playOrder="17">
+    <navPoint id="navpoint-15" playOrder="12">
       <navLabel><text>整页正文竖排</text></navLabel>
       <content src="Text/14-vertical-body.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-16" playOrder="18">
+    <navPoint id="navpoint-16" playOrder="13">
       <navLabel><text>版权题献题记</text></navLabel>
       <content src="Text/15-frontmatter.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-17" playOrder="19">
+    <navPoint id="navpoint-17" playOrder="14">
       <navLabel><text>数学公式与 MathML</text></navLabel>
       <content src="Text/16-math.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-18" playOrder="20">
+    <navPoint id="navpoint-18" playOrder="15">
       <navLabel><text>图文环绕</text></navLabel>
       <content src="Text/17-image-layout.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-19" playOrder="21">
+    <navPoint id="navpoint-19" playOrder="16">
       <navLabel><text>英文小说正文</text></navLabel>
       <content src="Text/18-english-fiction.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-20" playOrder="22">
+    <navPoint id="navpoint-20" playOrder="17">
       <navLabel><text>边框与阴影便签</text></navLabel>
       <content src="Text/19-border-shadow-notes.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-21" playOrder="23">
+    <navPoint id="navpoint-21" playOrder="18">
       <navLabel><text>章节头图设置</text></navLabel>
       <content src="Text/20-chapter-head-image.xhtml"/>
     </navPoint>
-    <navPoint id="navpoint-22" playOrder="24">
+    <navPoint id="navpoint-22" playOrder="19">
       <navLabel><text>文白对照</text></navLabel>
       <content src="Text/21-classical-modern.xhtml"/>
     </navPoint>

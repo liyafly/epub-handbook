@@ -11,16 +11,16 @@ cp /path/to/your-book.epub work/source.epub
 
 不要原地覆盖原始 epub。
 
-## 1. 用 epubcheck 跑一次（推荐）
+## 1. 用本仓预检和 lint 跑一次
 
-[epubcheck](https://www.w3.org/publishing/epubcheck/) 是 W3C 官方校验工具，是「合法 EPUB」的最低底线。
+本机不要求安装 EPUBCheck。日常先用本仓脚本检查 ZIP、container、OPF、manifest 引用和清洗风险；EPUBCheck 只在 GitHub Actions 里作为 CI gate 跑。
 
 ```sh
-brew install epubcheck
-epubcheck work/source.epub
+python3 scripts/epub_preflight_harness.py work/source.epub --format json
+python3 scripts/epub_lint.py work/source.epub
 ```
 
-fatal 必须修；error 一般要修；warning 看情况。
+error 必须修，warning 看情况记录。
 
 ## 2. 用本仓 validator 跑一次
 
