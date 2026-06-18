@@ -32,6 +32,8 @@ VALID_NOTE_XHTML = '''<?xml version="1.0" encoding="UTF-8"?>
 </body></html>
 '''
 
+CUSTOM_NOTE_XHTML = VALID_NOTE_XHTML.replace("Images/note.png", "Images/custom-note.png")
+
 PACKAGE_OPF = '''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -42,21 +44,29 @@ PACKAGE_OPF = '''<?xml version="1.0" encoding="UTF-8"?>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="c1" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
-    <item id="note-png" href="Images/note.png" media-type="image/png"/>
+    <item id="note-png" href="{icon_href}" media-type="image/png"/>
   </manifest>
   <spine><itemref idref="c1"/></spine>
 </package>
 '''
 
 
-def build_oebps(root: Path, note_xhtml: str, *, with_note_png: bool = True) -> Path:
+def build_oebps(
+  root: Path,
+  note_xhtml: str,
+  *,
+  icon_href: str = "Images/note.png",
+  with_note_png: bool = True,
+) -> Path:
   oebps = root / "OEBPS"
   (oebps / "Text").mkdir(parents=True)
   (oebps / "Images").mkdir(parents=True)
   (oebps / "Text" / "notes.xhtml").write_text(note_xhtml, encoding="utf-8")
-  (oebps / "package.opf").write_text(PACKAGE_OPF, encoding="utf-8")
+  (oebps / "package.opf").write_text(PACKAGE_OPF.format(icon_href=icon_href), encoding="utf-8")
   if with_note_png:
-    (oebps / "Images" / "note.png").write_bytes(PNG_1X1)
+    icon_path = oebps / icon_href
+    icon_path.parent.mkdir(parents=True, exist_ok=True)
+    icon_path.write_bytes(PNG_1X1)
   return oebps
 
 
@@ -96,46 +106,65 @@ def main() -> int:
     if result.returncode != 0:
       raise AssertionError(f"TC1 合法弹注应通过，实际 rc={result.returncode}\n{result.stderr}")
 
-  # TC2：noteref 缺 role=doc-noteref → 退出码 1
+  # TC2：合法弹注使用已有自定义图片图标 → 退出码 0
+  with TemporaryDirectory() as raw:
+    oebps = build_oebps(Path(raw), CUSTOM_NOTE_XHTML, icon_href="Images/custom-note.png")
+    result = run(oebps)
+    if result.returncode != 0:
+      raise AssertionError(f"TC2 自定义图标弹注应通过，实际 rc={result.returncode}\n{result.stderr}")
+
+  # TC3：noteref 缺 role=doc-noteref → 退出码 1
   broken = VALID_NOTE_XHTML.replace(' role="doc-noteref"', '')
   with TemporaryDirectory() as raw:
     oebps = build_oebps(Path(raw), broken)
     result = run(oebps)
     if result.returncode != 1:
-      raise AssertionError(f"TC2 缺 role 应失败，实际 rc={result.returncode}\n{result.stdout}")
+      raise AssertionError(f"TC3 缺 role 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  # TC3：footnote 目标 li 缺 class=footnote-item → 退出码 1
+  # TC4：footnote 目标 li 缺 class=footnote-item → 退出码 1
   broken = VALID_NOTE_XHTML.replace(' class="footnote-item"', '')
   with TemporaryDirectory() as raw:
     oebps = build_oebps(Path(raw), broken)
     result = run(oebps)
     if result.returncode != 1:
-      raise AssertionError(f"TC3 li 缺 class 应失败，实际 rc={result.returncode}\n{result.stdout}")
+      raise AssertionError(f"TC4 li 缺 class 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  # TC4：含 note 且 manifest 声明 note.png，但磁盘缺 note.png → 退出码 1
+  # TC5：含 note 且 manifest 声明 note.png，但磁盘缺 note.png → 退出码 1
   with TemporaryDirectory() as raw:
     oebps = build_oebps(Path(raw), VALID_NOTE_XHTML, with_note_png=False)
     result = run(oebps)
     if result.returncode != 1:
-      raise AssertionError(f"TC4 缺 note.png 应失败，实际 rc={result.returncode}\n{result.stdout}")
+      raise AssertionError(f"TC5 缺 note.png 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  # TC5：使用 epub:type 但根元素缺 xmlns:epub → XML 解析必须失败
+  # TC6：自定义图标被 noteref 引用但磁盘缺文件 → 退出码 1
+  with TemporaryDirectory() as raw:
+    oebps = build_oebps(
+      Path(raw),
+      CUSTOM_NOTE_XHTML,
+      icon_href="Images/custom-note.png",
+      with_note_png=False,
+    )
+    result = run(oebps)
+    if result.returncode != 1:
+      raise AssertionError(f"TC6 缺 custom-note.png 应失败，实际 rc={result.returncode}\n{result.stdout}")
+
+  # TC7：使用 epub:type 但根元素缺 xmlns:epub → XML 解析必须失败
   broken = VALID_NOTE_XHTML.replace(' xmlns:epub="http://www.idpf.org/2007/ops"', '')
   with TemporaryDirectory() as raw:
     oebps = build_oebps(Path(raw), broken)
     result = run(oebps)
     if result.returncode != 1:
-      raise AssertionError(f"TC5 缺 xmlns:epub 应失败，实际 rc={result.returncode}\n{result.stdout}")
+      raise AssertionError(f"TC7 缺 xmlns:epub 应失败，实际 rc={result.returncode}\n{result.stdout}")
 
-  # TC6：EPUB zip 成员路径包含 ../ → 拒绝 zip-slip
+  # TC8：EPUB zip 成员路径包含 ../ → 拒绝 zip-slip
   with TemporaryDirectory() as raw:
     epub = Path(raw) / "evil.epub"
     build_epub_with_zip_slip(epub)
     result = run_epub(epub)
     if result.returncode == 0 or "zip-slip attempt" not in result.stderr:
-      raise AssertionError(f"TC6 zip-slip 应失败，实际 rc={result.returncode}\n{result.stderr}")
+      raise AssertionError(f"TC8 zip-slip 应失败，实际 rc={result.returncode}\n{result.stderr}")
 
-  print("validate_popup_notes tests ok (6 cases)")
+  print("validate_popup_notes tests ok (8 cases)")
   return 0
 
 

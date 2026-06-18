@@ -534,8 +534,8 @@
         <thead><tr><th>项</th><th>推荐写法</th><th>状态</th><th>备注</th></tr></thead>
         <tbody>
           <tr><td>XHTML 根声明</td><td><code>&lt;html ... xmlns:epub="http://www.idpf.org/2007/ops"&gt;</code></td><td><span class="status">必须</span></td><td>声明 <code>epub:</code> 前缀；不会单独把 OPF2 升级成 EPUB3</td></tr>
-          <tr><td>触发元素</td><td><code>&lt;a epub:type="noteref" role="doc-noteref"&gt;</code></td><td><span class="status">推荐</span></td><td>放图片图标</td></tr>
-          <tr><td>触发图标</td><td><code>&lt;img alt="注" src="../Images/note.png"/&gt;</code></td><td><span class="status">推荐</span></td><td>项目默认</td></tr>
+          <tr><td>触发元素</td><td><code>&lt;a epub:type="noteref" role="doc-noteref"&gt;</code></td><td><span class="status">推荐</span></td><td>放图片图标；外层 <code>&lt;sup&gt;</code> 可保留但不做高位上标</td></tr>
+          <tr><td>触发图标</td><td><code>&lt;img alt="注" src="../Images/note.png"/&gt;</code></td><td><span class="status">推荐</span></td><td>项目默认；已有本地图标时保留原 <code>src</code></td></tr>
           <tr><td>注释容器</td><td><code>&lt;aside epub:type="footnote" role="doc-footnote"&gt;</code></td><td><span class="status">推荐</span></td><td>每个 XHTML 一个</td></tr>
           <tr><td>注释列表</td><td><code>&lt;ol class="footnote-list"&gt;</code></td><td><span class="status">推荐</span></td><td>承载本文件全部注释</td></tr>
           <tr><td>单条注释</td><td><code>&lt;li class="footnote-item" id="footnote-1"&gt;</code></td><td><span class="status">推荐</span></td><td>noteref 跳转目标</td></tr>

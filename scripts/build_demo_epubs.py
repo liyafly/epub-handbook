@@ -453,7 +453,7 @@ h1 { text-align: center; border-bottom: 1px solid #999; }
 .lead { font-size: 1.1em; }
 .legacy-image img, figure img { width: 100%; height: auto; }
 .caption { color: #666; font-size: .9em; text-align: center; }
-.noteref-icon img { width: 1em; height: 1em; vertical-align: text-top; }
+.noteref-icon img { width: 1em; height: 1em; vertical-align: baseline; }
 table { width: 100%; border-collapse: collapse; }
 td, th { border: 1px solid #999; padding: .35em; }
 pre { background: #eee; padding: .7em; white-space: pre-wrap; }
@@ -471,7 +471,7 @@ MEDIA_CSS = """figure { margin: 1.2em auto; text-align: center; }
 figure img { max-width: 100%; height: auto; }
 .map { width: 78%; }
 .caption { color: #555; font-size: .9em; text-align: center; }
-.noteref-icon img { width: 1em; height: 1em; vertical-align: text-top; }
+.noteref-icon img { width: 1em; height: 1em; vertical-align: baseline; }
 """
 
 

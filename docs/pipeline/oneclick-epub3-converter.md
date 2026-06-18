@@ -50,7 +50,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。
 - 新增 `Styles/epub3-enhancements.css`。
-- 新增 `Images/note.png`。
+- 仅在纯文本/数字上标注释标记需要图标化时新增 `Images/note.png`；已有图片 noteref 保留原图标。
 - 普通尾注转为同文件 grouped popup footnote。
 
 流水线不会替代人工 diff review 和真实阅读器复测。`reports/pipeline.json` 会把它们列为剩余步骤。
@@ -175,6 +175,8 @@ delivery/
   </ol>
 </aside>
 ```
+
+如果原 noteref 已经是图片触发器，转换器只整理 note body 为同文件 grouped `aside/ol/li`，保留原 `img src` 和 OPF 资源；不会无差别替换为默认 `Images/note.png`。默认图标只用于纯文本或数字上标标记。
 
 ## 验证
 

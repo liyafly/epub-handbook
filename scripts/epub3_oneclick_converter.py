@@ -853,17 +853,20 @@ PLAIN_NOTE_RE = re.compile(
 HR_BEFORE_NOTES_RE = re.compile(r"\s*<hr\b[^>]*/?>\s*$", re.I | re.S)
 
 
-def convert_plain_notes(text: str, note_href: str) -> tuple[str, int]:
+def convert_plain_notes(text: str, note_href: str) -> tuple[str, int, int]:
   matches = list(PLAIN_NOTE_RE.finditer(text))
   if not matches:
-    return text, 0
+    return text, 0, 0
 
   note_ids = {match.group("num") for match in matches}
+  marker_replacements = 0
 
   def marker_repl(match: re.Match[str]) -> str:
+    nonlocal marker_replacements
     num = match.group("num")
     if num not in note_ids:
       return match.group(0)
+    marker_replacements += 1
     return (
       f'<sup><a id="w{num}" class="noteref-icon" epub:type="noteref" '
       f'role="doc-noteref" href="#m{num}"><img alt="注" src="{note_href}"/></a></sup>'
@@ -893,7 +896,7 @@ def convert_plain_notes(text: str, note_href: str) -> tuple[str, int]:
   lines.extend(["    </ol>", "  </aside>"])
   rebuilt = prefix + "\n" + "\n".join(lines) + suffix
   rebuilt = PLAIN_NOTEREF_RE.sub(marker_repl, rebuilt)
-  return rebuilt, len(matches)
+  return rebuilt, len(matches), marker_replacements
 
 
 def normalize_duokan_notes(text: str) -> tuple[str, int]:
@@ -923,9 +926,10 @@ def update_xhtml_files(
   report: ConversionReport,
   popup_notes: bool,
   typography: bool,
-) -> None:
+) -> bool:
   opf_dir = posixpath.dirname(opf_path)
   _, by_zip = manifest_maps(root, opf_dir)
+  default_note_icon_used = False
   for zip_path, item in sorted(by_zip.items()):
     if item.attrib.get("media-type") != "application/xhtml+xml" or zip_path not in files:
       continue
@@ -940,10 +944,12 @@ def update_xhtml_files(
         changed = True
     if popup_notes:
       note_href = rel_href(zip_path, note_zip_path)
-      text, notes = convert_plain_notes(text, note_href)
+      text, notes, marker_replacements = convert_plain_notes(text, note_href)
       if notes:
         report.plain_notes_converted += notes
         changed = True
+      if marker_replacements:
+        default_note_icon_used = True
       text, normalized = normalize_duokan_notes(text)
       if normalized:
         report.duokan_notes_normalized += normalized
@@ -957,6 +963,15 @@ def update_xhtml_files(
     if changed:
       files[zip_path] = text.encode("utf-8")
       report.xhtml_files_updated += 1
+  return default_note_icon_used
+
+
+def default_note_href(files: dict[str, bytes], root: ET.Element, opf_dir: str) -> str:
+  default_href = "Images/note.png"
+  default_zip = norm_join(opf_dir, default_href)
+  if href_exists(root, default_href) is not None or default_zip in files:
+    return default_href
+  return unique_href(files, opf_dir, default_href)
 
 
 def default_output_path(input_path: Path) -> Path:
@@ -986,18 +1001,14 @@ def convert_epub(
 
   style_href = unique_href(files, opf_dir, "Styles/epub3-enhancements.css")
   style_zip = norm_join(opf_dir, style_href)
-  note_href = unique_href(files, opf_dir, "Images/note.png")
+  note_href = default_note_href(files, root, opf_dir)
   note_zip = norm_join(opf_dir, note_href)
 
   if typography:
     report.typography_roles = list(TYPOGRAPHY_ROLES)
     files[style_zip] = enhancement_css()
     add_manifest_item(root, report, "epub3-enhancements-css", style_href, "text/css")
-  if popup_notes:
-    files[note_zip] = note_png_bytes()
-    add_manifest_item(root, report, "note-icon", note_href, "image/png")
-
-  update_xhtml_files(
+  default_note_icon_used = update_xhtml_files(
     files,
     root,
     opf_path,
@@ -1007,6 +1018,10 @@ def convert_epub(
     popup_notes=popup_notes,
     typography=typography,
   )
+  if popup_notes and default_note_icon_used:
+    if note_zip not in files:
+      files[note_zip] = note_png_bytes()
+    add_manifest_item(root, report, "note-icon", note_href, "image/png")
 
   ensure_nav(files, root, opf_path, report)
   files[opf_path] = ET.tostring(root, encoding="utf-8", xml_declaration=True)

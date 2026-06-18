@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import posixpath
 import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree as ET
 
 
@@ -54,6 +56,15 @@ class NoteContext:
   ids: dict[str, ET.Element]
 
 
+@dataclass
+class FileNoteResult:
+  found_notes: bool = False
+  icon_refs: list[tuple[Path, str]] | None = None
+
+  def icons(self) -> list[tuple[Path, str]]:
+    return self.icon_refs or []
+
+
 class Check:
   def __init__(self) -> None:
     self.errors: list[str] = []
@@ -86,7 +97,7 @@ def collect_ids(root: ET.Element, path: Path, check: Check) -> dict[str, ET.Elem
   return ids
 
 
-def validate_noteref(ctx: NoteContext, anchor: ET.Element, check: Check) -> str | None:
+def validate_noteref(ctx: NoteContext, anchor: ET.Element, check: Check) -> tuple[str | None, str | None]:
   prefix = f"{ctx.path}: noteref"
   note_id = anchor.attrib.get("id")
   target_id = href_fragment(anchor.attrib.get("href"))
@@ -98,17 +109,20 @@ def validate_noteref(ctx: NoteContext, anchor: ET.Element, check: Check) -> str 
   check.require("noteref-icon" in classes(anchor), f"{prefix} must include class=noteref-icon")
   images = iter_elems(anchor, "img")
   check.require(len(images) == 1, f"{prefix} must contain exactly one img icon")
+  icon_src = None
   if images:
     check.require(images[0].attrib.get("alt") is not None, f"{prefix} img icon must have alt")
+    icon_src = images[0].attrib.get("src")
+    check.require(bool(icon_src), f"{prefix} img icon must have src")
 
   if target_id is None:
-    return None
+    return None, icon_src
   target = ctx.ids.get(target_id)
   check.require(target is not None, f"{prefix} target missing: #{target_id}")
   if target is not None:
     check.require(local_name(target.tag) == "li", f"{prefix} target must be li: #{target_id}")
     check.require("footnote-item" in classes(target), f"{prefix} target li must have class=footnote-item")
-  return target_id
+  return target_id, icon_src
 
 
 def validate_backlink(ctx: NoteContext, backlink: ET.Element, note_ids: set[str], check: Check) -> None:
@@ -121,10 +135,10 @@ def validate_backlink(ctx: NoteContext, backlink: ET.Element, note_ids: set[str]
     check.require(target_id in note_ids, f"{prefix} target must be a noteref id: #{target_id}")
 
 
-def validate_file(path: Path, check: Check) -> bool:
+def validate_file(path: Path, check: Check) -> FileNoteResult:
   root = parse_xml(path, check)
   if root is None:
-    return False
+    return FileNoteResult()
   ctx = NoteContext(path=path, root=root, ids=collect_ids(root, path, check))
 
   noterefs = [
@@ -137,7 +151,7 @@ def validate_file(path: Path, check: Check) -> bool:
   ]
 
   if not noterefs and not footnote_asides:
-    return False
+    return FileNoteResult()
 
   check.require(len(footnote_asides) == 1, f"{path}: files with notes must have exactly one grouped footnote aside")
   if footnote_asides:
@@ -151,12 +165,15 @@ def validate_file(path: Path, check: Check) -> bool:
 
   target_ids = set()
   note_ids = set()
+  icon_refs: list[tuple[Path, str]] = []
   for anchor in noterefs:
     if anchor.attrib.get("id"):
       note_ids.add(anchor.attrib["id"])
-    target_id = validate_noteref(ctx, anchor, check)
+    target_id, icon_src = validate_noteref(ctx, anchor, check)
     if target_id:
       target_ids.add(target_id)
+    if icon_src:
+      icon_refs.append((path, icon_src))
 
   if lists:
     note_list = lists[0]
@@ -185,7 +202,7 @@ def validate_file(path: Path, check: Check) -> bool:
         li_classes = classes(li)
         check.require("duokan-footnote-item" in li_classes, f"{path}: Duokan fallback li missing class=duokan-footnote-item")
         check.require("duokan-footnote-content" not in li_classes, f"{path}: duokan-footnote-content must not be on li")
-  return True
+  return FileNoteResult(found_notes=True, icon_refs=icon_refs)
 
 
 def find_opf(root: Path, oebps: Path) -> Path | None:
@@ -206,7 +223,33 @@ def find_opf(root: Path, oebps: Path) -> Path | None:
   return opfs[0] if opfs else None
 
 
-def validate_manifest(oebps: Path, opf_path: Path | None, check: Check) -> None:
+def resolve_local_icon_href(opf_dir: Path, source: Path, src: str, check: Check) -> str | None:
+  parsed = urlsplit(src)
+  prefix = f"{source}: noteref img"
+  if parsed.scheme or parsed.netloc:
+    check.fail(f"{prefix} src must be a local EPUB resource: {src}")
+    return None
+  if not parsed.path:
+    check.fail(f"{prefix} src missing local path")
+    return None
+  try:
+    source_rel = source.relative_to(opf_dir).as_posix()
+  except ValueError:
+    check.fail(f"{prefix} source XHTML is outside OPF directory")
+    return None
+  target = posixpath.normpath(posixpath.join(posixpath.dirname(source_rel), unquote(parsed.path)))
+  if target == "." or target.startswith("../") or target.startswith("/"):
+    check.fail(f"{prefix} src escapes OPF directory: {src}")
+    return None
+  return target
+
+
+def validate_manifest(
+  oebps: Path,
+  opf_path: Path | None,
+  icon_refs: list[tuple[Path, str]],
+  check: Check,
+) -> None:
   if opf_path is None:
     check.fail(f"{oebps}: OPF package document not found")
     return
@@ -215,21 +258,33 @@ def validate_manifest(oebps: Path, opf_path: Path | None, check: Check) -> None:
   root = parse_xml(package, check)
   if root is None:
     return
-  note_items = [
-    item for item in root.findall("opf:manifest/opf:item", OPF_NS)
-    if item.attrib.get("href") == "Images/note.png"
-  ]
-  check.require(note_items, f"{package}: manifest must include Images/note.png")
-  check.require((opf_dir / "Images" / "note.png").exists(), f"{opf_dir}: Images/note.png missing on disk")
+  manifest_items: dict[str, ET.Element] = {}
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    href = item.attrib.get("href")
+    if href:
+      manifest_items[posixpath.normpath(unquote(href))] = item
+  for source, src in icon_refs:
+    href = resolve_local_icon_href(opf_dir, source, src, check)
+    if href is None:
+      continue
+    item = manifest_items.get(href)
+    check.require(item is not None, f"{package}: manifest must include noteref icon {href}")
+    if item is not None:
+      media_type = item.attrib.get("media-type", "")
+      check.require(media_type.startswith("image/"), f"{package}: noteref icon {href} must be image media-type")
+    check.require((opf_dir / href).exists(), f"{opf_dir}: noteref icon missing on disk: {href}")
 
 
 def validate_oebps(root: Path, oebps: Path, check: Check) -> None:
   opf_path = find_opf(root, oebps)
   found_notes = False
+  icon_refs: list[tuple[Path, str]] = []
   for path in sorted((oebps / "Text").glob("*.xhtml")):
-    found_notes = validate_file(path, check) or found_notes
+    result = validate_file(path, check)
+    found_notes = result.found_notes or found_notes
+    icon_refs.extend(result.icons())
   if found_notes:
-    validate_manifest(oebps, opf_path, check)
+    validate_manifest(oebps, opf_path, icon_refs, check)
 
 
 def safe_extractall(zf: zipfile.ZipFile, target: Path) -> None:

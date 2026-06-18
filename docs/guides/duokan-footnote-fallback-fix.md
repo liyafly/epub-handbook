@@ -20,7 +20,7 @@
 1. noteref 锚增加 `duokan-footnote`，并保留图片图标作为可见触发热区；
 2. grouped `ol.footnote-list` 增加 `duokan-footnote-content`；
 3. 每个 `li.footnote-item` 增加 `duokan-footnote-item`；
-4. 图标资源不存在时加入 `Images/note.png`，并同步 OPF manifest；
+4. 已有本地图标资源时保留原 `img src`；缺少图标资源时加入 `Images/note.png`，并同步 OPF manifest；
 5. 相关 CSS 写入 `Styles/notes.css`，不写入 `base.css` 或 `effects.css`。
 
 最小差异应类似：

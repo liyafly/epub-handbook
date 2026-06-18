@@ -69,10 +69,10 @@ description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版
 2. 确保 XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
 3. 尽量保留 id。确保 noteref id 和 note target id 在当前 XHTML 内唯一。
 4. 给每个 noteref anchor 增加 `duokan-footnote`，但不要删除 `epub:type`、`role`、`id` 或 `href`。
-5. 确保 noteref anchor 包含图片图标。新增 legacy fallback 资源时使用 `../Images/note.png`。
+5. 确保 noteref anchor 包含图片图标。已有本地图标时保留原 `img src`；只有缺少图片热区且需要新增 legacy fallback 资源时，才使用 `../Images/note.png`。
 6. 给 grouped `ol.footnote-list` 增加 `duokan-footnote-content`；不要把它放到 `li` 上。
 7. 给每个 `li.footnote-item` 增加 `duokan-footnote-item`。
-8. 如果 OPF manifest 未声明 `Images/note.png`，补上。
+8. 确保 noteref 实际引用的图标资源已在 OPF manifest 声明且文件存在；只有新增默认图标时才补 `Images/note.png`。
 9. 验证所有 href/backlink target 都解析到同一 XHTML 文件内。
 
 ## CSS

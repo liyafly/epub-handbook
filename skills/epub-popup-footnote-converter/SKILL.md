@@ -15,7 +15,7 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 
 - 任何使用 `epub:type` 的 XHTML 根 `<html>` 都声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
 - noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`。
-- noteref 内容是图片图标，通常为 `../Images/note.png`；本 skill 的 `assets/note.png` 是默认图标。
+- noteref 内容是图片图标，通常为 `../Images/note.png`；已有本地图标资源时保留原 `img src`，本 skill 的 `assets/note.png` 只作为纯文本标记转换时的默认图标。
 - 每个 XHTML 文件最多一个 grouped note body：`<aside epub:type="footnote" role="doc-footnote">`。
 - 该 XHTML 文件内所有 notes 放进 `ol.footnote-list`。
 - 每条 note target 是带目标 `id` 的 `li.footnote-item`。
@@ -30,7 +30,7 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 1. 读取包含 note reference 和 note body 的 XHTML 文件。
 2. 确保 XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。已有声明则保留，不重复添加。
 3. 尽量保留已有 note id。只有缺失或冲突时才规范化。
-4. 把 `[1]`、`*`、`注` 等文本标记替换为图片 noteref。`href` 必须指向最终 `li.footnote-item` target id：
+4. 把 `[1]`、`*`、`注` 等文本标记替换为图片 noteref；如果原 noteref 已经包含图片图标，保留原 `img src` 和 `alt`，不替换为默认图标。`href` 必须指向最终 `li.footnote-item` target id：
 
 ```html
 <sup>
@@ -65,7 +65,7 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 ```
 
 6. 源文件使用旧 `duokan-*` note 类时，保留 grouped `ol/li` 结构，但改成 `footnote-list`、`footnote-item` 等中性类。不要把 `duokan-*` 类作为主输出。
-7. 如果 OPF manifest 未列出 `Images/note.png`，补上该资源。EPUB 还没有注释图标时，把本 skill 的 `assets/note.png` 复制进 EPUB 的 `Images/` 目录。
+7. 校验每个 noteref 图标都在 OPF manifest 中声明且文件存在。只有 EPUB 还没有可用注释图标、且需要从纯文本标记生成图片触发器时，才把本 skill 的 `assets/note.png` 复制进 EPUB 的 `Images/` 目录并补 manifest。
 8. 把下面 CSS 加入活动 stylesheet，或合并进已有 note section。
 9. 验证每个 noteref `href="#footnote-x"` 都指向 `li.footnote-item`，每个 backlink 都能回跳，每个有 notes 的文件只有一个 grouped footnote aside，且每条 note 都留在同一 XHTML 文件。
 
@@ -131,6 +131,7 @@ sup {
 ## 禁止事项
 
 - 除非没有图标资源且用户同意，不把图片图标替换为纯文本。
+- 已有图片图标不得无差别替换为默认 `Images/note.png`；默认图标只用于纯文本/数字上标标记转换。
 - 不对 footnote body 使用 `display:none`。
 - 不把 notes 移到另一个 XHTML 文件。
 - 同一文件包含多条 notes 时，不输出每条一个 aside；必须用一个 aside + `ol/li` 分组。

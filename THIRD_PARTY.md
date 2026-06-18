@@ -20,11 +20,13 @@ license obligations.
 ## Behavioral Reference: cnwxi/epub_tool
 
 [`cnwxi/epub_tool`](https://github.com/cnwxi/epub_tool) is an MIT-licensed EPUB
-desktop tool. `scripts/epub_structure_tool.py` is a new Python stdlib-only
-implementation informed by its `reformat` and filename `decrypt` workflows,
-especially `utils/reformat_epub.py` and `utils/decrypt_epub.py`. The local
-reference checkout inspected during implementation was commit
-`ca2978b156b7c321a0988c5ef62c21d20612e749`.
+desktop tool. Thanks to that project for the practical reference. The handbook's
+`scripts/epub_structure_tool.py` is a new Python stdlib-only implementation
+informed by its `reformat` and filename `decrypt` workflows, especially
+`utils/reformat_epub.py` and `utils/decrypt_epub.py`. The local reference
+checkout inspected during the initial implementation was commit
+`ca2978b156b7c321a0988c5ef62c21d20612e749`; the latest local comparison on
+2026-06-18 inspected `ff8c171d0b9dfd3c44c0e2621e1054b39feaa0a0`.
 
 The handbook implementation does not provide DRM decryption and does not copy
 the reference project's desktop UI or third-party Python dependencies.

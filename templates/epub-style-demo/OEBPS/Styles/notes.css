@@ -9,7 +9,7 @@ sup {
 a.duokan-footnote img {
   width: 0.9em;
   height: 0.9em;
-  vertical-align: text-top;
+  vertical-align: baseline;
 }
 
 .footnote-line {

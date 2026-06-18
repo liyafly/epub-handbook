@@ -10,6 +10,8 @@
 - `a[epub:type="noteref"]` 与对应 `aside[epub:type="footnote"]` 必须位于**同一 XHTML 文件**。
 - 每个章节文件最多一个注释容器：`<aside epub:type="footnote" role="doc-footnote">`。
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
+- noteref 的可见触发主路径是图片图标。已有本地图标资源时必须保留原 `img src`，不得无差别替换为项目默认图标；只有纯文本、数字上标、`[1]`、`注` 等无图片标记转换时，才补入默认 `Images/note.png`。
+- 图片触发器可以保留外层 `<sup>` 作为旧书兼容包裹，但 CSS 必须把它处理为普通行内图标，不做高位数字上标效果；`sup { vertical-align: middle; line-height: 1; }`，图标自身使用 `vertical-align: baseline` 或 `middle`。
 - 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
 - 当需要兼容多看旧版本时，必须在标准结构基础上同步：

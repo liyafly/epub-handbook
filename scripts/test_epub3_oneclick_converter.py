@@ -16,7 +16,19 @@ import epub3_oneclick_converter as C  # noqa: E402
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
 
 
-def write_legacy_epub(path: Path, body_class: str = "", extra_metadata: str = "") -> None:
+def write_legacy_epub(
+  path: Path,
+  body_class: str = "",
+  extra_metadata: str = "",
+  chapter_note_markup: str | None = None,
+  extra_manifest_items: str = "",
+  extra_files: dict[str, bytes | str] | None = None,
+) -> None:
+  note_markup = chapter_note_markup or (
+    '<p>正文<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a>继续。</p>\n'
+    '    <hr/>\n'
+    '    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>'
+  )
   files = {
     "META-INF/container.xml": '''<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -41,7 +53,7 @@ def write_legacy_epub(path: Path, body_class: str = "", extra_metadata: str = ""
     <item id="css" href="Styles/main.css" media-type="text/css"/>
     <item id="cover-page" href="Text/cover.xhtml" media-type="application/xhtml+xml"/>
     <item id="cover-img" href="Images/cover.jpg" media-type="image/jpeg"/>
-  </manifest>
+{extra_manifest_items}  </manifest>
   <spine toc="ncx">
     <itemref idref="cover-page"/>
     <itemref idref="chapter"/>
@@ -83,9 +95,7 @@ def write_legacy_epub(path: Path, body_class: str = "", extra_metadata: str = ""
   </head>
   <body>
     <h1 id="c1">第一章</h1>
-    <p>正文<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a>继续。</p>
-    <hr/>
-    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>
+    {note_markup}
   </body>
 </html>
 ''',
@@ -97,9 +107,19 @@ def write_legacy_epub(path: Path, body_class: str = "", extra_metadata: str = ""
     "OEBPS/Images/cover.jpg": b"jpeg",
   }
   if extra_metadata:
-    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(extra_metadata=extra_metadata)
+    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(
+      extra_metadata=extra_metadata,
+      extra_manifest_items=extra_manifest_items,
+    )
   else:
-    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(extra_metadata="")
+    files["OEBPS/content.opf"] = files["OEBPS/content.opf"].format(
+      extra_metadata="",
+      extra_manifest_items=extra_manifest_items,
+    )
+  files["OEBPS/Text/chapter.xhtml"] = files["OEBPS/Text/chapter.xhtml"].format(
+    note_markup=note_markup,
+  )
+  files.update(extra_files or {})
 
   if body_class:
     chapter = files["OEBPS/Text/chapter.xhtml"]
@@ -170,6 +190,7 @@ def main() -> int:
 
   locked_mode_case()
   ibooks_prefix_case()
+  custom_image_noteref_case()
   print("epub3 oneclick converter tests ok")
   return 0
 
@@ -203,6 +224,35 @@ def locked_mode_case() -> None:
       assert len(locked) == 1 and locked[0].text == "true", "locked book must get ibooks:specified-fonts=true"
       assert "ibooks:" in opf.attrib.get("prefix", ""), "locked book must get ibooks prefix"
     assert "added ibooks:specified-fonts (body-font-locked detected)" in report.metadata_updates, report
+
+
+def custom_image_noteref_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-image-note.epub"
+    output = Path(raw) / "converted-image-note.epub"
+    write_legacy_epub(
+      source,
+      chapter_note_markup=(
+        '<p>正文<a id="w1" class="noteref-icon" epub:type="noteref" role="doc-noteref" href="#m1">'
+        '<img alt="注" src="../Images/custom-note.png"/></a>继续。</p>\n'
+        '    <hr/>\n'
+        '    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>'
+      ),
+      extra_manifest_items='    <item id="custom-note" href="Images/custom-note.png" media-type="image/png"/>\n',
+      extra_files={"OEBPS/Images/custom-note.png": b"png"},
+    )
+
+    report = C.convert_epub(source, output)
+    assert report.plain_notes_converted == 1, report
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      opf = ET.fromstring(zf.read("OEBPS/content.opf"))
+      items = opf.findall("opf:manifest/opf:item", OPF_NS)
+      assert 'src="../Images/custom-note.png"' in chapter
+      assert 'src="../Images/note.png"' not in chapter
+      assert "OEBPS/Images/custom-note.png" in zf.namelist()
+      assert "OEBPS/Images/note.png" not in zf.namelist()
+      assert not any(item.attrib.get("href") == "Images/note.png" for item in items)
 
 
 if __name__ == "__main__":

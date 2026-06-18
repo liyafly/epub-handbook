@@ -2,7 +2,7 @@
 
 sup { vertical-align: middle; line-height: 1; }
 .noteref-icon img,
-a.duokan-footnote img { width: .9em; height: .9em; vertical-align: text-top; }
+a.duokan-footnote img { width: .9em; height: .9em; vertical-align: baseline; }
 .footnote-line { margin: 1em 0 .65em; border: 0; border-top: 1px solid #716b63; }
 .footnote-list,
 ol.duokan-footnote-content { margin: 0; padding: 0; list-style: none; }
