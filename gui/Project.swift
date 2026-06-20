@@ -16,6 +16,7 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "CFBundleDisplayName": "EPUB Handbook",
                 "NSPrincipalClass": "NSApplication",
+                "NSMainStoryboardFile": "",
             ]),
             sources: ["Targets/HandbookMac/Sources/**"],
             resources: [],
