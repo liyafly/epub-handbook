@@ -719,19 +719,25 @@ a {
   color: inherit;
 }
 
-sup {
-  vertical-align: middle;
-  line-height: 1;
+sup.note-marker {
+  font-size: 1em;
+  line-height: 0;
+  vertical-align: baseline;
 }
 
-.noteref-icon {
+sup.note-marker > .noteref-icon {
+  display: inline-block;
+  line-height: 0;
+  position: relative;
+  top: -0.14em;
   text-decoration: none;
 }
 
-.noteref-icon img {
+sup.note-marker > .noteref-icon > img {
+  display: block;
   width: auto;
-  height: 1em;
-  vertical-align: baseline;
+  height: 0.72em;
+  max-width: none;
 }
 
 aside[epub|type~="footnote"],
@@ -795,7 +801,7 @@ META_HTTP_RE = re.compile(
 )
 
 
-def normalize_xhtml_shell(text: str) -> tuple[str, bool]:
+def normalize_xhtml_shell(text: str, default_language: str | None = None) -> tuple[str, bool]:
   changed = False
   if DOCTYPE_RE.search(text):
     text = DOCTYPE_RE.sub("", text, count=1)
@@ -817,11 +823,17 @@ def normalize_xhtml_shell(text: str) -> tuple[str, bool]:
     if "xmlns:epub" not in attrs:
       attrs += f' xmlns:epub="{OPS_URI}"'
       changed = True
-    if "lang=" not in attrs and "xml:lang=" in attrs:
-      lang_match = re.search(r'xml:lang=(["\'])(.*?)\1', attrs)
-      if lang_match:
-        attrs += f' lang="{lang_match.group(2)}"'
-        changed = True
+    lang_match = re.search(r'(?<![:\w-])lang\s*=\s*(["\'])(.*?)\1', attrs)
+    xml_lang_match = re.search(r'xml:lang\s*=\s*(["\'])(.*?)\1', attrs)
+    language = default_language.strip() if default_language else ""
+    if not lang_match and (xml_lang_match or language):
+      value = xml_lang_match.group(2) if xml_lang_match else language
+      attrs += f' lang="{attr_escape(value)}"'
+      changed = True
+    if not xml_lang_match and (lang_match or language):
+      value = lang_match.group(2) if lang_match else language
+      attrs += f' xml:lang="{attr_escape(value)}"'
+      changed = True
     return f"<html{attrs}>"
 
   text = HTML_TAG_RE.sub(html_repl, text, count=1)
@@ -850,7 +862,50 @@ PLAIN_NOTE_RE = re.compile(
   r'(?P<body>.*?)</p>',
   re.S,
 )
+SIGIL_LEGACY_NOTE_SECTION_RE = re.compile(
+  r'<section\b(?=[^>]*\bepub:type\s*=\s*["\']footnotes["\'])[^>]*>'
+  r'(?P<body>.*?)</section>',
+  re.I | re.S,
+)
+SIGIL_LEGACY_NOTE_RE = re.compile(
+  r'<aside\b(?=[^>]*\bid\s*=\s*["\']footnote_(?P<num>\d+)["\'])[^>]*>\s*'
+  r'<p\b[^>]*>\s*'
+  r'<a\b(?=[^>]*\bhref\s*=\s*["\']#noteref_(?P=num)["\'])[^>]*>'
+  r'\s*\[(?P=num)\]\s*</a>(?P<body>.*?)</p>\s*</aside>',
+  re.I | re.S,
+)
+SIGIL_LEGACY_NOTEREF_RE = re.compile(
+  r'<a\b(?=[^>]*\bid\s*=\s*["\']noteref_(?P<num>\d+)["\'])[^>]*>'
+  r'\s*\[(?P=num)\]\s*</a>',
+  re.I | re.S,
+)
+NOTE_MARKER_SUP_RE = re.compile(
+  r'<sup(?P<attrs>\s[^>]*)?>(?P<content>\s*<a\b'
+  r'(?=[^>]*\bclass\s*=\s*["\'][^"\']*\bnoteref-icon\b)[^>]*>.*?</a>\s*)</sup>',
+  re.I | re.S,
+)
+CLASS_ATTR_RE = re.compile(r'\bclass\s*=\s*(?P<quote>["\'])(?P<value>[^"\']*)(?P=quote)', re.I)
 HR_BEFORE_NOTES_RE = re.compile(r"\s*<hr\b[^>]*/?>\s*$", re.I | re.S)
+
+
+def mark_note_marker_sup(text: str) -> str:
+  """Mark only superscripts that wrap an image-backed popup-note trigger."""
+
+  def repl(match: re.Match[str]) -> str:
+    attrs = match.group("attrs") or ""
+    class_match = CLASS_ATTR_RE.search(attrs)
+    if class_match:
+      classes = class_match.group("value").split()
+      if "note-marker" not in classes:
+        classes.append("note-marker")
+      quote = class_match.group("quote")
+      replacement = f'class={quote}{" ".join(classes)}{quote}'
+      attrs = attrs[:class_match.start()] + replacement + attrs[class_match.end():]
+    else:
+      attrs += ' class="note-marker"'
+    return f'<sup{attrs}>{match.group("content")}</sup>'
+
+  return NOTE_MARKER_SUP_RE.sub(repl, text)
 
 
 def convert_plain_notes(text: str, note_href: str) -> tuple[str, int, int]:
@@ -868,7 +923,7 @@ def convert_plain_notes(text: str, note_href: str) -> tuple[str, int, int]:
       return match.group(0)
     marker_replacements += 1
     return (
-      f'<sup><a id="w{num}" class="noteref-icon" epub:type="noteref" '
+      f'<sup class="note-marker"><a id="w{num}" class="noteref-icon" epub:type="noteref" '
       f'role="doc-noteref" href="#m{num}"><img alt="注" src="{note_href}"/></a></sup>'
     )
 
@@ -895,8 +950,62 @@ def convert_plain_notes(text: str, note_href: str) -> tuple[str, int, int]:
     ])
   lines.extend(["    </ol>", "  </aside>"])
   rebuilt = prefix + "\n" + "\n".join(lines) + suffix
-  rebuilt = PLAIN_NOTEREF_RE.sub(marker_repl, rebuilt)
+  rebuilt = mark_note_marker_sup(PLAIN_NOTEREF_RE.sub(marker_repl, rebuilt))
   return rebuilt, len(matches), marker_replacements
+
+
+def convert_sigil_legacy_notes(text: str, note_href: str) -> tuple[str, int, int]:
+  """Convert Sigil's per-note aside output without changing note text or IDs."""
+  converted_ids: set[str] = set()
+  converted_count = 0
+
+  def section_repl(match: re.Match[str]) -> str:
+    nonlocal converted_count
+    body = match.group("body")
+    notes = list(SIGIL_LEGACY_NOTE_RE.finditer(body))
+    if not notes:
+      return match.group(0)
+    residual = SIGIL_LEGACY_NOTE_RE.sub("", body)
+    if residual.strip():
+      return match.group(0)
+
+    converted_ids.update(note.group("num") for note in notes)
+    converted_count += len(notes)
+    lines = [
+      '  <aside epub:type="footnote" role="doc-footnote">',
+      '    <div><hr class="footnote-line xian"/></div>',
+      '    <ol class="footnote-list">',
+    ]
+    for note in notes:
+      number = note.group("num")
+      note_body = note.group("body").strip()
+      lines.extend([
+        f'      <li class="footnote-item" id="footnote_{number}">',
+        f'        <p class="footnote"><a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#noteref_{number}">◎</a>{note_body}</p>',
+        "      </li>",
+      ])
+    lines.extend(["    </ol>", "  </aside>"])
+    return "\n".join(lines)
+
+  rebuilt = SIGIL_LEGACY_NOTE_SECTION_RE.sub(section_repl, text)
+  if not converted_ids:
+    return text, 0, 0
+
+  marker_replacements = 0
+
+  def marker_repl(match: re.Match[str]) -> str:
+    nonlocal marker_replacements
+    number = match.group("num")
+    if number not in converted_ids:
+      return match.group(0)
+    marker_replacements += 1
+    return (
+      f'<a id="noteref_{number}" class="noteref-icon" epub:type="noteref" '
+      f'role="doc-noteref" href="#footnote_{number}"><img alt="注" src="{note_href}"/></a>'
+    )
+
+  rebuilt = mark_note_marker_sup(SIGIL_LEGACY_NOTEREF_RE.sub(marker_repl, rebuilt))
+  return rebuilt, converted_count, marker_replacements
 
 
 def normalize_duokan_notes(text: str) -> tuple[str, int]:
@@ -917,6 +1026,13 @@ def normalize_duokan_notes(text: str) -> tuple[str, int]:
   return updated, count
 
 
+def package_language(root: ET.Element) -> str | None:
+  for child in metadata(root):
+    if local_name(child.tag) == "language" and child.text and child.text.strip():
+      return child.text.strip()
+  return None
+
+
 def update_xhtml_files(
   files: dict[str, bytes],
   root: ET.Element,
@@ -926,6 +1042,7 @@ def update_xhtml_files(
   report: ConversionReport,
   popup_notes: bool,
   typography: bool,
+  default_language: str | None,
 ) -> bool:
   opf_dir = posixpath.dirname(opf_path)
   _, by_zip = manifest_maps(root, opf_dir)
@@ -935,7 +1052,7 @@ def update_xhtml_files(
       continue
     original = files[zip_path]
     text = original.decode("utf-8", errors="replace")
-    text, changed = normalize_xhtml_shell(text)
+    text, changed = normalize_xhtml_shell(text, default_language=default_language)
     if typography:
       style_href = rel_href(zip_path, style_zip_path)
       text, linked = ensure_stylesheet_link(text, style_href)
@@ -945,6 +1062,8 @@ def update_xhtml_files(
     if popup_notes:
       note_href = rel_href(zip_path, note_zip_path)
       text, notes, marker_replacements = convert_plain_notes(text, note_href)
+      if not notes:
+        text, notes, marker_replacements = convert_sigil_legacy_notes(text, note_href)
       if notes:
         report.plain_notes_converted += notes
         changed = True
@@ -1017,6 +1136,7 @@ def convert_epub(
     report,
     popup_notes=popup_notes,
     typography=typography,
+    default_language=package_language(root),
   )
   if popup_notes and default_note_icon_used:
     if note_zip not in files:

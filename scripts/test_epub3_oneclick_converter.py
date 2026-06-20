@@ -23,6 +23,7 @@ def write_legacy_epub(
   chapter_note_markup: str | None = None,
   extra_manifest_items: str = "",
   extra_files: dict[str, bytes | str] | None = None,
+  missing_html_language: bool = False,
 ) -> None:
   note_markup = chapter_note_markup or (
     '<p>正文<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a>继续。</p>\n'
@@ -126,6 +127,10 @@ def write_legacy_epub(
     assert "<body>" in chapter
     files["OEBPS/Text/chapter.xhtml"] = chapter.replace("<body>", f'<body class="{body_class}">', 1)
 
+  if missing_html_language:
+    for xhtml_path in ("OEBPS/Text/cover.xhtml", "OEBPS/Text/chapter.xhtml"):
+      files[xhtml_path] = files[xhtml_path].replace(' xml:lang="zh-CN"', "")
+
   with zipfile.ZipFile(path, "w") as zf:
     for name, data in files.items():
       zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
@@ -183,6 +188,7 @@ def main() -> int:
       assert 'xmlns:epub="http://www.idpf.org/2007/ops"' in chapter
       assert 'href="../Styles/epub3-enhancements.css"' in chapter
       assert ".type-quote" in zf.read("OEBPS/Styles/epub3-enhancements.css").decode("utf-8")
+      assert '<sup class="note-marker">' in chapter
       assert 'class="noteref-icon" epub:type="noteref" role="doc-noteref"' in chapter
       assert 'class="footnote-list"' in chapter
       assert 'role="doc-backlink"' in chapter
@@ -191,6 +197,9 @@ def main() -> int:
   locked_mode_case()
   ibooks_prefix_case()
   custom_image_noteref_case()
+  sigil_legacy_notes_case()
+  missing_html_language_case()
+  non_note_sup_case()
   print("epub3 oneclick converter tests ok")
   return 0
 
@@ -253,6 +262,74 @@ def custom_image_noteref_case() -> None:
       assert "OEBPS/Images/custom-note.png" in zf.namelist()
       assert "OEBPS/Images/note.png" not in zf.namelist()
       assert not any(item.attrib.get("href") == "Images/note.png" for item in items)
+
+
+def sigil_legacy_notes_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "sigil-legacy-notes.epub"
+    output = Path(raw) / "converted-sigil-legacy-notes.epub"
+    write_legacy_epub(
+      source,
+      chapter_note_markup=(
+        '<p>正文<sup><a id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a></sup>'
+        '继续<sup><a id="noteref_2" href="#footnote_2" epub:type="noteref">[2]</a></sup>。</p>\n'
+        '    <section class="fnote" epub:type="footnotes">\n'
+        '      <aside id="footnote_1" epub:type="footnote"><p>'
+        '<a href="#noteref_1" epub:type="noteref">[1]</a> 第一条注释正文保留。</p></aside>\n'
+        '      <aside id="footnote_2" epub:type="footnote"><p>'
+        '<a href="#noteref_2" epub:type="noteref">[2]</a> 第二条注释正文保留。</p></aside>\n'
+        '    </section>'
+      ),
+    )
+
+    report = C.convert_epub(source, output)
+    assert report.plain_notes_converted == 2, report
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      assert chapter.count('<aside epub:type="footnote" role="doc-footnote">') == 1
+      assert chapter.count('class="footnote-item"') == 2
+      assert chapter.count('<sup class="note-marker">') == 2
+      assert '<sup><a id="noteref_1"' not in chapter
+      assert 'id="noteref_1" class="noteref-icon"' in chapter
+      assert 'id="noteref_2" class="noteref-icon"' in chapter
+      assert 'id="footnote_1"' in chapter
+      assert 'id="footnote_2"' in chapter
+      assert 'href="#noteref_1">◎</a>第一条注释正文保留。' in chapter
+      assert 'href="#noteref_2">◎</a>第二条注释正文保留。' in chapter
+
+
+def missing_html_language_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-missing-language.epub"
+    output = Path(raw) / "converted-missing-language.epub"
+    write_legacy_epub(source, missing_html_language=True)
+
+    C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      cover = zf.read("OEBPS/Text/cover.xhtml").decode("utf-8")
+      for page in (chapter, cover):
+        assert 'lang="zh-CN"' in page
+        assert 'xml:lang="zh-CN"' in page
+
+
+def non_note_sup_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-non-note-sup.epub"
+    output = Path(raw) / "converted-non-note-sup.epub"
+    write_legacy_epub(
+      source,
+      chapter_note_markup=(
+        '<p>水的式子是 H<sup>2</sup>O。<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a></p>\n'
+        '    <hr/>\n'
+        '    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>'
+      ),
+    )
+    C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      assert 'H<sup>2</sup>O' in chapter
+      assert 'H<sup class="note-marker">2</sup>O' not in chapter
 
 
 if __name__ == "__main__":
