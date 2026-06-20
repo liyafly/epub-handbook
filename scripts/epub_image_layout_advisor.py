@@ -192,6 +192,19 @@ def selector_for(elem: ET.Element, parent_map: dict[ET.Element, ET.Element], bod
   return "body" + "".join(f" > {segment}" for segment in reversed(segments))
 
 
+def is_noteref_icon(elem: ET.Element, parent_map: dict[ET.Element, ET.Element]) -> bool:
+  current = parent_map.get(elem)
+  while current is not None:
+    if "noteref-icon" in class_tokens(current):
+      return True
+    if local_name(current.tag) == "a":
+      for attribute, value in current.attrib.items():
+        if local_name(attribute) == "type" and "noteref" in value.split():
+          return True
+    current = parent_map.get(current)
+  return False
+
+
 def nav_paths(files: dict[str, bytes], root: ET.Element, opf_dir: str) -> tuple[set[str], set[str]]:
   chapters: set[str] = set()
   covers: set[str] = set()
@@ -275,7 +288,11 @@ def analyze_epub(path: Path) -> dict[str, object]:
       warnings.append(f"body missing: {xhtml_path}")
       continue
     parent_map = {child: parent for parent in xhtml_root.iter() for child in list(parent)}
-    images = [elem for elem in body.iter() if local_name(elem.tag) == "img"]
+    images = [
+      elem
+      for elem in body.iter()
+      if local_name(elem.tag) == "img" and not is_noteref_icon(elem, parent_map)
+    ]
     body_children = [child for child in list(body) if isinstance(child.tag, str)]
     body_classes = class_tokens(body)
     fixed_layout = bool(
@@ -286,7 +303,7 @@ def analyze_epub(path: Path) -> dict[str, object]:
     cover_page = xhtml_path in cover_paths
     first_child = body_children[0] if body_children else None
     first_images = (
-      [elem for elem in first_child.iter() if local_name(elem.tag) == "img"]
+      [elem for elem in images if elem in first_child.iter()]
       if first_child is not None and local_name(first_child.tag) in {"img", "figure"}
       else []
     )

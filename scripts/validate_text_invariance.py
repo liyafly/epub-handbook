@@ -29,6 +29,7 @@ OPF_NS = {"opf": "http://www.idpf.org/2007/opf", "dc": "http://purl.org/dc/eleme
 CORE_METADATA = ("title", "creator", "identifier", "language")
 BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "blockquote", "pre", "div"}
 IGNORED_TEXT_TAGS = {"rt", "rp", "script", "style"}
+CONTROL_TEXT_EPUB_TYPES = {"noteref", "backlink"}
 CHECKS = ("text", "metadata", "spine", "cover", "drm", "anchors")
 FONT_OBFUSCATION_ALGORITHMS = {
   "http://www.idpf.org/2008/embedding",
@@ -173,11 +174,20 @@ def skipped(path: str, patterns: Iterable[str]) -> bool:
   return any(fnmatch.fnmatch(path, pattern) for pattern in patterns)
 
 
+def is_note_control(node: ET.Element) -> bool:
+  if local_name(node.tag) != "a":
+    return False
+  for attribute, value in node.attrib.items():
+    if local_name(attribute) == "type" and CONTROL_TEXT_EPUB_TYPES.intersection(value.split()):
+      return True
+  return False
+
+
 def element_text_without_ignored(elem: ET.Element) -> str:
   chunks: list[str] = []
 
   def walk(node: ET.Element) -> None:
-    if local_name(node.tag) in IGNORED_TEXT_TAGS:
+    if local_name(node.tag) in IGNORED_TEXT_TAGS or is_note_control(node):
       if node.tail:
         chunks.append(node.tail)
       return

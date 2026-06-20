@@ -132,6 +132,30 @@ def nfc_equivalent_text(before_src: Path, after_src: Path, _tmp: Path) -> None:
   (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml("<p>café</p><p>第二段文字。</p>"), encoding="utf-8")
 
 
+def popup_note_control_transition(before_src: Path, after_src: Path, _tmp: Path) -> None:
+  before_body = (
+    '<p>正文<sup><a id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a></sup>继续。</p>'
+    '<aside epub:type="footnote"><ol><li id="footnote_1"><p>'
+    '<a href="#noteref_1" epub:type="noteref">[1]</a>注释正文。</p></li></ol></aside>'
+  )
+  after_body = (
+    '<p>正文<sup><a id="noteref_1" class="noteref-icon" epub:type="noteref" role="doc-noteref" '
+    'href="#footnote_1"><img alt="注" src="../Images/note.png"/></a></sup>继续。</p>'
+    '<aside epub:type="footnote" role="doc-footnote"><ol class="footnote-list">'
+    '<li class="footnote-item" id="footnote_1"><p class="footnote">'
+    '<a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#noteref_1">◎</a>注释正文。'
+    '</p></li></ol></aside>'
+  )
+  (before_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(before_body), encoding="utf-8")
+  (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(after_body), encoding="utf-8")
+
+
+def popup_note_body_change(before_src: Path, after_src: Path, tmp: Path) -> None:
+  popup_note_control_transition(before_src, after_src, tmp)
+  chapter = after_src / "OEBPS/Text/chap1.xhtml"
+  chapter.write_text(chapter.read_text(encoding="utf-8").replace("注释正文。", "注释正文改。"), encoding="utf-8")
+
+
 def rename_paths(after_src: Path, tmp: Path) -> Path:
   (after_src / "OEBPS/Text/chap1.xhtml").rename(after_src / "OEBPS/Text/chapter-one.xhtml")
   (after_src / "OEBPS/Images/cover.png").rename(after_src / "OEBPS/Images/cover-image.png")
@@ -220,6 +244,8 @@ def main() -> int:
     ("TC21 anchor explicit", change_anchor_id, 1, ["--check", "anchors"], "anchors: deleted id"),
     ("TC22 anchor all", change_anchor_id, 1, [], "anchors: deleted id"),
     ("TC28 NFC equivalent text", nfc_equivalent_text, 0, []),
+    ("TC29 popup note controls", popup_note_control_transition, 0, []),
+    ("TC30 popup note body change", popup_note_body_change, 1, [], "text: modified"),
   ]
 
   for name, mutator, expected, args, *rest in tests:
@@ -302,7 +328,7 @@ def main() -> int:
     if result.returncode:
       raise AssertionError(f"TC27 stale encryption reference failed: rc={result.returncode}\n{result.stderr}")
 
-  print("validate_text_invariance tests ok (28 cases)")
+  print("validate_text_invariance tests ok (30 cases)")
   return 0
 
 

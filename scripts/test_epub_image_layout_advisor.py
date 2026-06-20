@@ -159,6 +159,23 @@ def test_missing_alt() -> None:
     assert not findings(report, "missing-alt", "present.xhtml")
 
 
+def test_noteref_icon_is_not_a_layout_candidate() -> None:
+  with TemporaryDirectory() as raw:
+    path = Path(raw) / "fixture.epub"
+    make_epub(
+      path,
+      {
+        "notes.xhtml": xhtml(
+          '<p>正文<sup><a class="noteref-icon" href="#note"><img src="../Images/test.png" alt="注"/>'
+          "</a></sup>继续。</p>"
+        ),
+      },
+      ["notes.xhtml"],
+    )
+    report = A.analyze_epub(path)
+    assert not [item for item in report["findings"] if item["file"].endswith("notes.xhtml")]
+
+
 def test_chapter_head_candidate_requires_first_content_and_nav_entry() -> None:
   with TemporaryDirectory() as raw:
     path = Path(raw) / "fixture.epub"
@@ -247,6 +264,7 @@ def main() -> int:
   test_caption_detection()
   test_float_width_risk()
   test_missing_alt()
+  test_noteref_icon_is_not_a_layout_candidate()
   test_chapter_head_candidate_requires_first_content_and_nav_entry()
   test_fullpage_alite_candidate()
   test_cli_json_markdown_and_read_only()
