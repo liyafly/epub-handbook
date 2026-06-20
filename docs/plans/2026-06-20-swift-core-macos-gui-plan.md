@@ -1,12 +1,12 @@
 # Swift 核心库与 macOS GUI 实施计划
 
-> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座和 S2 的 AppKit 只读垂直切片已实现。写入 transaction、text invariance 和 popup normalize 仍未实现。
+> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。原生 transaction、XHTML leaf-block / anchor redline 与 archive rewriter 已实现；完整 package redline、popup normalize、GUI apply 流程仍未实现。
 >
-> 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift runtime 的 registry / harness 接口必须服从该计划的 contract。
+> 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift 只消费 contract，绝不实现或调用 Python skill / harness。
 
 ## 目标与边界
 
-本计划只负责用 Swift 实现 agent-neutral core、generic plugin runtime 的首批 provider，以及 AppKit-first macOS 产品表面。它不删除 Python，不重写现有 skill，也不把 GUI 做成 Python subprocess 前端。
+本计划只负责用 Swift 实现 agent-neutral core、原生 transaction / gate 与 AppKit-first macOS 产品表面。它不删除 Python，不重写现有 skill / harness，也不把 GUI 做成 Python subprocess 前端。
 
 首个可交付闭环是：
 
@@ -33,7 +33,7 @@
 
 ### 2026-06-20 已实施基线
 
-- `swift/` 是 Swift tools 6.3 / language mode 6 的 package，已实现 `EPUBContracts`、`EPUBRuntime`、`EPUBArchive`、`EPUBPackage`、`EPUBInspection` 与 `EPUBStructuredTransforms`；SwiftPM unit tests 覆盖 report/plan、provider policy、安全 archive path、container/OPF、inspection 和 SwiftSoup XML-mode XHTML attribute transform。
+- `swift/` 是 Swift tools 6.3 / language mode 6 的 package，已实现 `EPUBContracts`、`EPUBRuntime`、`EPUBArchive`、`EPUBPackage`、`EPUBInspection`、`EPUBValidation` 与 `EPUBStructuredTransforms`；SwiftPM unit tests 覆盖 report/plan、provider policy、安全 archive path、archive rewrite、transaction rollback、container/OPF、inspection、text / anchor redline 和 SwiftSoup XML-mode XHTML attribute transform。
 - 读取 XML 固定结构直接使用 Foundation `XMLParser`；可接受规范化 XHTML 写回的 transform 使用 SwiftSoup `2.13.5` `parseXML(...)`。写入能力进入产品前仍必须补齐 transaction、红线 validator、EPUB lint 和 fixture 双跑。
 - `gui/Project.swift` + `Tuist.swift` 已生成 `HandbookMac` 和 `HandbookMacTests`。初始窗口是 AppKit，使用 sandbox security-scoped file access；它只调用 Swift `PackageInspector` 并显示 `InspectionReport`，不调用 Python 或读取 `SKILL.md`。
 
@@ -51,8 +51,6 @@ swift/
 │   ├── EPUBValidation/      # text/anchors/metadata/cover redlines
 │   ├── EPUBStructuredTransforms/ # SwiftSoup XML-mode XHTML 结构化变换
 │   ├── EPUBRuntime/         # registry、workspace、gate、transaction、events
-│   ├── EPUBSkills/          # Swift SkillPlugin implementations
-│   ├── EPUBHarnesses/       # Swift HarnessPlugin implementations
 │   └── EPUBHandbookCLI/     # JSON / JSONL command surface
 ├── Tests/
 │   ├── EPUBContractsTests/
@@ -62,8 +60,6 @@ swift/
 │   ├── EPUBValidationTests/
 │   ├── EPUBStructuredTransformsTests/
 │   ├── EPUBRuntimeTests/
-│   ├── EPUBSkillsTests/
-│   ├── EPUBHarnessesTests/
 │   ├── EPUBHandbookCLITests/
 │   └── Fixtures/
 └── README.md
@@ -80,13 +76,10 @@ flowchart LR
     P --> V[EPUBValidation]
     V --> T[EPUBStructuredTransforms]
     C --> R[EPUBRuntime]
-    I --> S[EPUBSkills]
-    V --> S
-    T --> S
-    R --> S
-    S --> H[EPUBHarnesses]
-    R --> H
-    H --> CLI[EPUBHandbookCLI]
+    I --> CLI[EPUBHandbookCLI]
+    V --> CLI
+    T --> CLI
+    R --> CLI
 ```
 
 | Module | 责任 | 禁止依赖 |
@@ -98,41 +91,33 @@ flowchart LR
 | `EPUBValidation` | 正文不变性、锚点、metadata、spine、cover、加密标记。 | 修改输入以掩盖错误。 |
 | `EPUBStructuredTransforms` | SwiftSoup XML-mode 的白名单 XHTML DOM 变换和 path map。 | 未经批准的语义改写、任意 HTML 编辑器。 |
 | `EPUBRuntime` | registry、workspace、gate、transaction、取消、event stream。 | 具体 EPUB 规则、shell 路径、UI。 |
-| `EPUBSkills` | `PackageInspectSkill`、`TextInvarianceSkill`、`PopupFootnoteNormalizeSkill`。 | GUI 状态、Markdown skill parsing。 |
-| `EPUBHarnesses` | `PreflightHarness`、首个 `CleanupHarness`。 | agent prompt、Python command array。 |
 | `EPUBHandbookCLI` | 参数、JSON result、JSONL event、exit code。 | 业务算法复制。 |
 
 基础包使用 `ZIPFoundation`；`EPUBStructuredTransforms` 额外固定 `SwiftSoup 2.13.5`，只用于明确授权的 XHTML DOM 结构化变换；Swift CLI 接入时再引入 `swift-argument-parser`。使用 `Foundation`、`FoundationXML`、`Codable`、Swift Testing；不使用 PythonKit、CocoaPods、Carthage 或大型 DI / reactive framework。
 
 2026-06-20 决定：可接受 XHTML 规范化重写，不要求 source-level 最小 diff。因此 SwiftSoup 可调用 `parseXML(...)` 与 DOM serialization；但每次 apply 仍必须写入新的 output artifact，并保留 before、红线校验、EPUB lint 与人工 diff review。`EPUBArchive`、`EPUBPackage` 的 ZIP / OPF 读取仍直接使用 ZIPFoundation / Foundation `XMLParser`，不依赖 SwiftSoup。
 
-## Swift runtime 与 Python 的关系
+## Swift 与 Python 的关系
 
-Swift runtime 遵守项目重构计划中的 manifest / registry 设计。它不读取 `SKILL.md`，也不调用 `scripts/*.py`。
+Swift 只消费项目 contract、fixture 与 validator 定义。它不读取 `SKILL.md`，不实现 / 调用 harness，也不调用 `scripts/*.py`。Python skill / harness 仅服务现有 CLI 与 AI Agent。
 
 | 场景 | 允许的 provider | 原因 |
 |---|---|---|
-| Swift 单元、CLI integration、parity test | Swift + PythonProviderAdapter | 双跑对比，Python 是 agent / CLI provider 与 oracle。 |
+| Swift 单元、Swift CLI integration | Swift only | 原生 core 不依赖 Python entrypoint。 |
+| 外部 parity test | 独立 test runner 调度 Python 与 Swift JSON artifact | 只比较标准化输出；不将 Python bridge 链接进 Swift package。 |
 | macOS App 正常运行 | Swift provider only | 避免 Sandbox、环境版本与取消语义问题。 |
 | iOS App | Swift provider only | iOS 不存在可依赖的 Python runtime。 |
 | 未迁移 capability | Python CLI / agent 继续可用；GUI 显示 unavailable。 | 不伪装支持，也不分裂行为。 |
 
-Python bridge 只使用 request/result JSON 文件：
-
-```text
-Swift parity runner → request.json → PythonProviderAdapter
-Swift parity runner ← result.json  ← PythonProviderAdapter
-```
-
-request 包含 artifact、mode、workspace、approval token；result 包含 normalized report、plan、output digest、exit code。它不传递 Swift object、GUI object 或 Python object。
+Python adapter 的 request / result JSON 文件属于 Python CLI / Agent 层。Swift 只读写统一 report / plan JSON；不会传递 Swift object、GUI object 或 Python object。
 
 ## 首批 Swift capability
 
 | Capability ID | Swift provider | Python 对照 | 进入 GUI 的门槛 |
 |---|---|---|---|
-| `epub.package.inspect` | `PackageInspectSkill` + `PreflightHarness` | `epub_preflight_harness.py` / `epub_ai_harness.py`。 | blocker、finding severity、exit code 对齐。 |
-| `epub.text.invariance` | `TextInvarianceSkill` | `validate_text_invariance.py`。 | text、anchors、metadata、spine、cover 对照通过。 |
-| `epub.notes.popup-normalize` | `PopupFootnoteNormalizeSkill` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
+| `epub.package.nav.audit` | `PackageInspector` | `epub_preflight_harness.py` / `epub_ai_harness.py`。 | blocker、finding severity、exit code 对齐。 |
+| `epub.text.invariance` | 原生 `TextInvarianceValidator` | `validate_text_invariance.py`。 | text、anchors、metadata、spine、cover 对照通过。 |
+| `epub.notes.popup-normalize` | 原生 `PopupNoteTransformer` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
 | `epub.structure.normalize` | 后续。 | `epub_structure_tool.py`。 | 先只有 dry-run / path map；apply 后置。 |
 | `epub.package.merge-split` | 后续。 | `epub_package_tool.py`。 | 不在首个 GUI 范围。 |
 
@@ -145,7 +130,7 @@ request 包含 artifact、mode、workspace、approval token；result 包含 norm
 ```text
 gui/
 ├── Project.swift
-├── Tuist/Config.swift
+├── Tuist.swift
 ├── Config/
 │   ├── Debug.xcconfig
 │   └── Release.xcconfig
@@ -186,7 +171,7 @@ open *.xcworkspace
 | 报告详情、设置、简短表单、空状态 | SwiftUI + `NSHostingController` | 局部复用高，不接管 AppKit navigation。 |
 | 长任务进度、取消、错误 | AppKit feature controller 订阅 `RunEvent` | 保留明确的取消 / rollback / retry 状态。 |
 
-View 只消费 feature view model；view model 调用 `EPUBHarnesses` / `EPUBRuntime` 的公开 API。任何 EPUB 规则、XML 修改、ZIP 写入或 prompt 生成都不出现在 UI target。
+View 只消费 feature view model；view model 直接调用原生 `EPUBInspection`、`EPUBValidation`、`EPUBStructuredTransforms` 与 `EPUBRuntime` transaction API。任何 Python skill / harness、XML 规则实现、ZIP 写入细节或 prompt 生成都不出现在 UI target。
 
 ### Sandbox 与输出纪律
 
@@ -208,7 +193,7 @@ View 只消费 feature view model；view model 调用 `EPUBHarnesses` / `EPUBRun
 ### S1 — archive / package / inspection
 
 - 实现 archive path 安全、ZIP entry 规则、container、OPF、manifest、spine、nav / NCX。
-- 实现 `PackageInspectSkill` 与 `PreflightHarness` 的只读模式。
+- 实现 `PackageInspector` 的只读模式与结构化 `InspectionReport`。
 - 提供 `epub-handbook-swift inspect <input> --format json`、`plan <input> --format json`。
 - 运行 Python 与 Swift baseline 对比。
 
@@ -218,14 +203,14 @@ View 只消费 feature view model；view model 调用 `EPUBHarnesses` / `EPUBRun
 
 - 创建 `mise.toml`、Tuist project、`HandbookMac`、unit test 和 UI test target。
 - 完成 AppKit 主窗口、文件选择、Sandbox entitlement、security scope 生命周期和 report 展示。
-- GUI 调用 Swift `PreflightHarness`，不调用 Python。
+- GUI 调用 Swift `PackageInspector`，不调用 Python、skill 或 harness。
 
 **完成标准：** 用户可选择 demo EPUB，查看 report，取消任务或文件授权失败时得到结构化错误；输入文件字节不变。
 
 ### S3 — redline 与 popup footnote Skill
 
-- 实现 `TextInvarianceSkill` 与可选择 checks。
-- 实现 `PopupFootnoteNormalizeSkill`，只接受 manifest 声明的白名单变换。
+- 实现原生 `TextInvarianceValidator` 与可选择 checks。
+- 实现原生 `PopupNoteTransformer`，只接受 manifest 声明的白名单变换。
 - 实现 `Workspace`、`Transaction`、approval gate、rollback 与 event stream。
 - 以 Python 对照、popup validator、EPUB lint、人工 diff review 验证输出。
 

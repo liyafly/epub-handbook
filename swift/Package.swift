@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "EPUBArchive", targets: ["EPUBArchive"]),
         .library(name: "EPUBPackage", targets: ["EPUBPackage"]),
         .library(name: "EPUBInspection", targets: ["EPUBInspection"]),
+        .library(name: "EPUBValidation", targets: ["EPUBValidation"]),
         .library(name: "EPUBStructuredTransforms", targets: ["EPUBStructuredTransforms"]),
     ],
     dependencies: [
@@ -49,6 +50,14 @@ let package = Package(
             name: "EPUBInspectionTests",
             dependencies: [
                 "EPUBInspection",
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+            ]
+        ),
+        .target(name: "EPUBValidation", dependencies: ["EPUBArchive", "EPUBContracts"]),
+        .testTarget(
+            name: "EPUBValidationTests",
+            dependencies: [
+                "EPUBValidation",
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ]
         ),

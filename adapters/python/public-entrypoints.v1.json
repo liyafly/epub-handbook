@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1",
+  "provider": "python",
+  "entrypoints": [
+    {"id": "python.ai-router", "path": "scripts/epub_ai_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.layout.audit", "epub.source.intake"], "status": "registered"},
+    {"id": "python.preflight", "path": "scripts/epub_preflight_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.package.nav.audit"], "status": "registered"},
+    {"id": "python.refinement", "path": "scripts/epub_refinement_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.layout.audit"], "status": "registered"},
+    {"id": "python.cleanup-pipeline", "path": "scripts/epub_cleanup_pipeline.py", "kind": "pipeline", "surfaces": ["cli", "agent"], "capabilities": [], "status": "registered"},
+    {"id": "python.cleanup-loop", "path": "scripts/epub_cleanup_loop.py", "kind": "pipeline", "surfaces": ["cli", "agent"], "capabilities": [], "status": "registered"},
+    {"id": "python.structure", "path": "scripts/epub_structure_tool.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": ["epub.structure.normalize"], "status": "registered"},
+    {"id": "python.epub3-migration", "path": "scripts/epub3_migration_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": [], "status": "legacy-only"},
+    {"id": "python.epub3-oneclick", "path": "scripts/epub3_oneclick_converter.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": [], "status": "legacy-only"},
+    {"id": "python.package-tool", "path": "scripts/epub_package_tool.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": [], "status": "legacy-only"},
+    {"id": "python.style-preset", "path": "scripts/epub_style_preset_tool.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": ["epub.css.layering.optimize", "epub.typography.optimize"], "status": "registered"},
+    {"id": "python.image-layout", "path": "scripts/epub_image_layout_advisor.py", "kind": "planner", "surfaces": ["cli", "agent"], "capabilities": ["epub.image.layout.optimize"], "status": "registered"},
+    {"id": "python.anthology-refinement", "path": "scripts/epub_anthology_refinement.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": ["epub.alite.convert"], "status": "registered"},
+    {"id": "python.css-cleanup", "path": "scripts/epub_css_cleanup.py", "kind": "transformer", "surfaces": ["cli", "agent"], "capabilities": ["epub.css.layering.optimize"], "status": "registered"},
+    {"id": "python.text-invariance", "path": "scripts/validate_text_invariance.py", "kind": "validator", "surfaces": ["cli", "agent"], "capabilities": [], "status": "legacy-only"},
+    {"id": "python.popup-note-validator", "path": "scripts/validate_popup_notes.py", "kind": "validator", "surfaces": ["cli", "agent"], "capabilities": ["epub.notes.popup.normalize"], "status": "registered"},
+    {"id": "python.epub-lint", "path": "scripts/epub_lint.py", "kind": "validator", "surfaces": ["cli", "agent"], "capabilities": ["epub.package.nav.audit"], "status": "registered"},
+    {"id": "python.decision-log", "path": "scripts/epub_decision_log.py", "kind": "utility", "surfaces": ["cli", "agent"], "capabilities": [], "status": "registered"}
+  ]
+}

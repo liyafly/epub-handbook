@@ -1,6 +1,6 @@
 # epub-handbook 三层项目重构计划
 
-> 状态：R1 已落地，R2 已有 registry / adapter catalog 基座；R0 的 harness / public CLI 全量 inventory、R3 transaction 与 R4 双跑仍待继续。
+> 状态：R0 已登记 Python 公开入口；R1 已落地；R2 已有 catalog 与 Python-only JSON bridge；R3 已有 Swift 原生 transaction 基座。Python / Swift 双跑、完整 redline 与 popup 写入仍待继续。
 >
 > 主方案来源：
 > - `/Users/xiaoxiao/Developer/docCs/epub-handbook/epub-handbook 架构重构深度研究报告.md`
@@ -15,8 +15,8 @@
 1. Agent-neutral core
    EPUB container、OPF/XHTML/CSS、注释替换、红线校验、报告与错误模型。
 
-2. Generic plugin layer
-   manifest 驱动的 SkillPlugin / HarnessPlugin、registry、workspace、gate、transaction、execution plan。
+2. Python plugin layer
+   manifest 驱动的 Python skill / harness、registry、workspace、gate、transaction、execution plan；只服务现有 CLI 与 AI Agent。
 
 3. Agent and product adapters
    OpenAI、Claude Code、MCP、CLI、未来 macOS/iOS GUI 的 prompt、工具清单、命令描述、schema 投影。
@@ -76,26 +76,11 @@ flowchart TB
 
 核心的错误模型分为：`Finding`（可报告）、`RecoverableError`（停止当前 capability，但可继续只读分析）和 `FatalError`（中止 transaction）。任何 apply 只能在显式 gate 通过后写入新的 output artifact。
 
-### 第二层：通用插件层
+### 第二层：Python 通用插件层
 
 这层吸收今天 skill/harness 的语义，但不删除它们。
 
-```swift
-public protocol SkillPlugin: Sendable {
-    var descriptor: SkillDescriptor { get }
-    func prepare(in context: SkillContext) async throws
-    func execute(in context: SkillContext) async throws -> SkillResult
-    func shutdown(in context: SkillContext) async
-}
-
-public protocol HarnessPlugin: Sendable {
-    var descriptor: HarnessDescriptor { get }
-    func inspect(_ artifact: ArtifactReference, in context: HarnessContext)
-        -> AsyncThrowingStream<RunEvent, Error>
-    func plan(from report: InspectionReport, in context: HarnessContext) async throws -> ExecutionPlan
-    func run(_ plan: ExecutionPlan, in transaction: Transaction) async throws -> RunReport
-}
-```
+这层以 Python 实现；它的 skill / harness 生命周期固定为 register、discover、prepare、inspect / plan、execute、validate、commit / rollback、shutdown。Swift GUI 不实现或调用任何 skill / harness。
 
 生命周期固定为：
 
@@ -108,8 +93,8 @@ register → discover → prepare → inspect / plan → execute → validate
 |---|---|---|
 | `CapabilityManifest` | 中立 ID、版本、输入输出 schema、redline、权限、旧 skill slug。 | 新增；不从 Markdown 自动猜测。 |
 | `SkillRegistry` | 注册 implementation、解析 capability 版本、探测可用性。 | `epub_ai_harness.py` 的 detector / routing 雏形。 |
-| `SkillPlugin` | 一个单一能力的 inspect、plan 或 transform。 | popup note、text invariance、package inspection 等。 |
-| `HarnessPlugin` | 多 capability 编排、依赖、人工确认、事务和 event stream。 | preflight、refinement、cleanup pipeline。 |
+| Python skill plugin | 一个单一能力的 inspect、plan 或 transform。 | popup note、text invariance、package inspection 等。 |
+| Python harness plugin | 多 capability 编排、依赖、人工确认、事务和 event stream。 | preflight、refinement、cleanup pipeline。 |
 | `Workspace` | before、after、reports、临时资源与 input digest。 | `epub_cleanup_pipeline.py` 的 work-dir 语义。 |
 | `Gate` | preflight、dry-run、redline、manual review 的阻断条件。 | 现有 Python validators 和 AGENTS 流程。 |
 | `Transaction` | staged output、commit / rollback、审计记录。 | pipeline 失败时删除 after 的现有行为。 |
@@ -199,8 +184,10 @@ Python 不会被改为 Swift shim，也不会在第一阶段移动目录。
 ```text
 $epub-popup-footnote-converter
   → epub.notes.popup-normalize
-  → PythonProviderAdapter (now) / Swift PopupNoteSkill (later)
+  → PythonProviderAdapter（CLI / Agent）
   → OpenAI / Claude / MCP / CLI adapters
+
+Swift 的 `PopupNoteTransformer` 是同一 contract / fixture / validator 下的原生实现，不是 skill，也不读取 `SKILL.md`。
 ```
 
 ### Harness
@@ -210,7 +197,7 @@ $epub-popup-footnote-converter
 | 现有 harness | 新的中立职责 | 第一阶段处理 |
 |---|---|---|
 | `epub_ai_harness.py` | capability discovery、finding collection、agent recommendation projection。 | 保留原 CLI；提炼 discovery contract。 |
-| `epub_preflight_harness.py` | `PreflightHarness`：只读 inspection + blocker gate。 | 首个 Swift Harness。 |
+| `epub_preflight_harness.py` | Python preflight harness：只读 inspection + blocker gate。 | 保持 Python，作为 CLI / Agent provider。 |
 | `epub_refinement_harness.py` | `RefinementHarness`：由 facts 生成 plan，不写入。 | 先保持 Python，等 contract 稳定再迁移。 |
 | `epub_cleanup_pipeline.py` | `CleanupHarness`：transaction、gate、commit / rollback。 | 保持 Python；Swift 仅实现安全子集。 |
 | `epub_cleanup_loop.py` | `IterationHarness`：可选 planner、重复收敛。 | 最后迁移，不作为 GUI 首发功能。 |
@@ -235,8 +222,10 @@ $epub-popup-footnote-converter
 
 - 新增 `contracts/schemas/v1/` 与 15 个 `contracts/capabilities/v1/*.json`，每个现有 skill slug 都有显式 capability 映射；`scripts/validate_contracts.py` 拒绝缺 schema、未知 skill、未知 capability dependency 和不合法 provider 表面。
 - `scripts/render_adapter_catalog.py` 从同一份 manifest 生成 OpenAI、Claude、MCP、CLI、GUI 投影；它不把 Python 脚本路径写入 capability 或 `ExecutionPlan`。
-- Swift `EPUBContracts` / `EPUBRuntime` 已实现 Codable report/plan、manifest catalog、provider policy（Agent / legacy CLI 优先 Python；GUI / Swift CLI 只接受 Swift）及 `SkillPlugin` / `HarnessPlugin` 协议。
-- Python 脚本、skill 目录、`agents/openai.yaml` 与 harness 均未移动或删除。实际 `PythonProviderAdapter` 的 JSON-file bridge、harness inventory 与 Python / Swift dual-run 仍属于后续 R2 / R4 工作，不能宣称已接管。
+- Swift `EPUBContracts` / `EPUBRuntime` 已实现 Codable report/plan、manifest catalog、provider policy（Agent / legacy CLI 优先 Python；GUI / Swift CLI 只接受 Swift）以及原生 workspace / transaction 基座；Swift 不实现 skill 或 harness。
+- `adapters/python/public-entrypoints.v1.json` 已登记 Python CLI / Agent 的公开 harness、pipeline、transformer、validator；`scripts/python_provider_adapter.py` 通过 request/result JSON allow-list 调度首批 preflight / layout provider，并将 Python preflight findings 投影为 shared `InspectionReport` JSON。Swift package、macOS GUI 与未来 iOS 不调用该 adapter。
+- 原生 Swift `Transaction` 已实现 before baseline、staging、gate、commit / rollback audit；`EPUBValidation` 已覆盖 XHTML 正文 leaf block 与 anchor 红线，`EPUBArchiveRewriter` 已能将替换资源重打包到新 EPUB。metadata / spine / cover / DRM 和 popup 写入仍未接管。
+- Python 脚本、skill 目录、`agents/openai.yaml` 与 harness 均未移动或删除。Python / Swift 双跑、完整 redline 与高风险 capability 接管仍属于后续 R4 / S3 工作，不能宣称已完成。
 
 ### R0 — 能力盘点与兼容基线
 
