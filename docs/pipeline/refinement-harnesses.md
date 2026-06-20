@@ -13,7 +13,7 @@
 | `scripts/epub_structure_tool.py` | 可选：`normalize` 固定先格式化目录，再按 OPF manifest id 做文件名反混淆 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `scripts/epub3_migration_harness.py` | dry-run EPUB3 迁移计划；可选写出 `version="3.0"`、`dcterms:modified`、`nav.xhtml` 和 OPF nav item | preflight 没有 error 后 |
 | `scripts/epub_refinement_harness.py` | 输出精排建议：EPUB3、弹注、字体链 / 内嵌字体、图片格式、Ruby / 竖排、diff 与红线 gate、候选 skills | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
-| `scripts/epub_image_layout_advisor.py` | 只读扫描逐图问题，输出 2–3 个布局候选、出处与决策记录命令模板 | refinement 之后；有人需要逐图选择时运行 |
+| `scripts/epub_image_layout_advisor.py` | 只读扫描正文/封面等真实图片，输出 2–3 个布局候选、出处与决策记录命令模板；排除 noteref 图标控件 | refinement 之后；有人需要逐图选择时运行 |
 | `scripts/epub_style_preset_tool.py` | 预览 class coverage，并可写入选定预设的 CSS、OPF 声明和 XHTML link | EPUB3 基线与 refinement 建议确认后，专项清洗前 |
 | `scripts/epub_css_cleanup.py` | 合并重复 CSS、替换旧字体链；可选把不交叠局部样式归并为一个 body-scoped CSS | EPUB3 基线通过 preflight 后 |
 | `scripts/epub_anthology_refinement.py` | 把“单图卷封 + 紧邻版权页”转换为 A-lite contain 背景、原图 fallback 和紧凑版权排版 | 只在合订 EPUB 明确需要时运行 |
@@ -89,7 +89,7 @@ coverage 低于 30% 时先完成 class 体系迁移；coverage 足够且人工�
 
 1. `preflight` 是硬门禁；有 error 就停。
 2. `epub3-migration` 优先于弹注、字体和图片精排。
-3. `popup-notes` 只允许 dry-run 后执行，注释正文必须保留。
+3. `popup-notes` 只允许 dry-run 后执行，注释正文必须保留。识别到 Sigil `noteref_N/footnote_N` 单条 `aside` 结构时，只有全部本地 notes 都能重组为一个 grouped `aside/ol/li` 才写出；图片触发器使用 `sup.note-marker` 的零行高外壳和相对上移，绝不使用全局 `sup img`。随后跑 `validate-popup-notes.sh` 和完整 `validate_text_invariance.py --check all`。文本 gate 只忽略 noteref/backlink 控件文字，不忽略注释正文。
 4. `typography-fonts` 需要 AI 判断：默认系统优先字体链；内嵌字体只用于标题、题签、生僻字或明确的全字符集例外。
 5. `images` 只负责识别格式和版式风险；真实压缩 / 转码交给外部工具，完成后再回到 package/nav audit。
 6. 每个写出步骤都生成 `work/after/step-N-*.epub`，立刻跑 `validate_text_invariance.py`。

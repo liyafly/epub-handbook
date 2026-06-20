@@ -30,10 +30,11 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 1. 读取包含 note reference 和 note body 的 XHTML 文件。
 2. 确保 XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。已有声明则保留，不重复添加。
 3. 尽量保留已有 note id。只有缺失或冲突时才规范化。
-4. 把 `[1]`、`*`、`注` 等文本标记替换为图片 noteref；如果原 noteref 已经包含图片图标，保留原 `img src` 和 `alt`，不替换为默认图标。`href` 必须指向最终 `li.footnote-item` target id：
+4. 识别 Sigil 旧结构：`section[epub:type="footnotes"]` 内含多个 `aside#footnote_N`，正文引用为 `a#noteref_N`。仅当该 section 的所有 aside 都能匹配时，保留原 ID 并合并为一个 grouped `aside/ol/li`；有任何无法识别的 aside 或附加内容时不做部分转换，改为人工 review。
+5. 把 `[1]`、`*`、`注` 等文本标记替换为图片 noteref；如果原 noteref 已经包含图片图标，保留原 `img src` 和 `alt`，不替换为默认图标。`href` 必须指向最终 `li.footnote-item` target id：
 
 ```html
-<sup>
+<sup class="note-marker">
   <a id="note-1"
      class="noteref-icon"
      epub:type="noteref"
@@ -44,7 +45,7 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 </sup>
 ```
 
-5. 把同一 XHTML 文件内所有 note body 转成一个 grouped aside：
+6. 把同一 XHTML 文件内所有 note body 转成一个 grouped aside：
 
 ```html
 <aside epub:type="footnote" role="doc-footnote">
@@ -64,27 +65,33 @@ description: 将 EPUB 普通注释、尾注、旧式注释或纯文本注释标�
 </aside>
 ```
 
-6. 源文件使用旧 `duokan-*` note 类时，保留 grouped `ol/li` 结构，但改成 `footnote-list`、`footnote-item` 等中性类。不要把 `duokan-*` 类作为主输出。
-7. 校验每个 noteref 图标都在 OPF manifest 中声明且文件存在。只有 EPUB 还没有可用注释图标、且需要从纯文本标记生成图片触发器时，才把本 skill 的 `assets/note.png` 复制进 EPUB 的 `Images/` 目录并补 manifest。
-8. 把下面 CSS 加入活动 stylesheet，或合并进已有 note section。
-9. 验证每个 noteref `href="#footnote-x"` 都指向 `li.footnote-item`，每个 backlink 都能回跳，每个有 notes 的文件只有一个 grouped footnote aside，且每条 note 都留在同一 XHTML 文件。
+7. 源文件使用旧 `duokan-*` note 类时，保留 grouped `ol/li` 结构，但改成 `footnote-list`、`footnote-item` 等中性类。不要把 `duokan-*` 类作为主输出。
+8. 校验每个 noteref 图标都在 OPF manifest 中声明且文件存在。只有 EPUB 还没有可用注释图标、且需要从纯文本标记生成图片触发器时，才把本 skill 的 `assets/note.png` 复制进 EPUB 的 `Images/` 目录并补 manifest。
+9. 把下面 CSS 加入活动 stylesheet，或合并进已有 note section。
+10. 验证每个 noteref `href="#footnote-x"` 都指向 `li.footnote-item`，每个 backlink 都能回跳，每个有 notes 的文件只有一个 grouped footnote aside，且每条 note 都留在同一 XHTML 文件。
 
 ## CSS
 
 ```css
-sup {
-  vertical-align: middle;
-  line-height: 1;
+sup.note-marker {
+  font-size: 1em;
+  line-height: 0;
+  vertical-align: baseline;
 }
 
-.noteref-icon {
+sup.note-marker > .noteref-icon {
+  display: inline-block;
+  line-height: 0;
+  position: relative;
+  top: -0.14em;
   text-decoration: none;
 }
 
-.noteref-icon img {
+sup.note-marker > .noteref-icon > img {
+  display: block;
   width: auto;
-  height: 1em;
-  vertical-align: baseline;
+  height: 0.72em;
+  max-width: none;
 }
 
 .footnote-line {
@@ -132,6 +139,7 @@ sup {
 
 - 除非没有图标资源且用户同意，不把图片图标替换为纯文本。
 - 已有图片图标不得无差别替换为默认 `Images/note.png`；默认图标只用于纯文本/数字上标标记转换。
+- 不使用无作用域的 `sup img` 或裸 `sup` 图标规则；只给图片 noteref 的 `sup.note-marker` 设置零行高和相对上移，普通文字上标保持原样。
 - 不对 footnote body 使用 `display:none`。
 - 不把 notes 移到另一个 XHTML 文件。
 - 同一文件包含多条 notes 时，不输出每条一个 aside；必须用一个 aside + `ol/li` 分组。
@@ -153,7 +161,10 @@ sup {
 
 ```sh
 scripts/validate-popup-notes.sh
+python3 scripts/validate_text_invariance.py before.epub after.epub --check all
 ```
+
+`validate_text_invariance.py` 只将 noteref/backlink 的数字、图标和 `◎` 当作表示控件；所有 `li.footnote-item` 的注释正文仍必须逐字相同。
 
 验证已构建产物：
 

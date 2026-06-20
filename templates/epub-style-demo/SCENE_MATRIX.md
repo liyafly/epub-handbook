@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 封面式标题页 | `Text/00-title.xhtml` | 标题页分页、landmark cover、标题居中 | Apple Books / Kindle Previewer / Thorium |
 | 普通正文 | `Text/01-body.xhtml` | 段落缩进、行高、引用、着重、图片 figure | 全部 |
-| 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距 | Apple Books / Thorium / KOReader |
+| 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距、图片脚注图标不抬高正文行距 | Apple Books / Thorium / KOReader |
 | A-lite 海报 | `Text/03-vertical-alite.xhtml` | `body.fullpage`、`.fullframe padding:0`、背景、竖排标题 | Apple Books / Kindle Previewer |
 | 单图卷封 contain 对照 | `Text/03c-poster-contain.xhtml` | `body.poster-bg-contain`、`background-size: contain`、`.poster-fallback`、单页不裁图 | Apple Books / Kindle App / Kindle Previewer |
 | 表格与代码 | `Text/04-lists-tables-code.xhtml` | 列表、表格滚动、代码块、kbd | Kindle Previewer / KOReader / Thorium |

@@ -14,6 +14,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 - `mimetype` 是 zip 第一项，且不压缩。
 - `META-INF/container.xml` 指向 OPF。
 - OPF metadata 有稳定 identifier 和必要阅读器提示。
+- XHTML 根同时声明 `lang` 和 `xml:lang`；两者都缺失时只能复制 OPF `dc:language`，不得猜测或覆盖已有值。
 - OPF manifest 声明所有被使用的 XHTML、CSS、图片、字体、nav、NCX 文件。
 - 只有一个带 `properties="nav"` 的 nav item。
 - Kindle/legacy 交付包包含 `toc.ncx` 和 `spine toc="ncx"`。
@@ -34,13 +35,15 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
    - XHTML link -> CSS/image/font/note target
 3. 检查每个 manifest href 存在，每个 spine idref 可解析。
 4. 检查 nav/NCX 中每个 XHTML 存在，并符合预期阅读顺序。
-5. 检查每个被 XHTML 引用的 CSS/image/font 在打包要求下进入 OPF。
-6. 检查特殊 properties：
+   如目录加入正文内真实标题（例如 `h2`），为标题补稳定 fragment，并在 nav 和 NCX 中使用同一树与相同目标。
+5. 检查每个 XHTML 根的 `lang` / `xml:lang` 与 OPF `dc:language`；缺一项时补齐另一项，缺两项且 OPF 无值时报告人工处理。
+6. 检查每个被 XHTML 引用的 CSS/image/font 在打包要求下进入 OPF。
+7. 检查特殊 properties：
    - `nav`
    - `cover-image`
    - `mathml`
    - `svg`
-7. 只修最小结构问题，然后重新验证。
+8. 只修最小结构问题，然后重新验证。
 
 ## 修复规则
 
@@ -51,6 +54,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 - CSS 不进入 nav landmarks。
 - 没有明确范围变化时，不从 Kindle/legacy fixture 删除 NCX。
 - 不因为文件在磁盘上存在，就把未使用文件加入 OPF。
+- 不以文件名、正文语言外观或阅读器猜测填充语言；OPF 缺失 `dc:language` 时保留 XHTML 现状并报告。
 
 ## 封面模式
 
@@ -88,6 +92,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 - 清理时不自动删除 `ibooks:specified-fonts` metadata；自由模式书是否移除交人工判断，见 `docs/final/SPEC-实现约束.md` §8。
 - 不依赖浏览器 HTML 容错；XHTML 必须 XML-valid。
 - 不让 nav/NCX 指向已删除或重命名文件。
+- 有明确删除授权时，同时从 ZIP、manifest、spine、nav 和 NCX 删除同一资源；把精确删除列表写入报告，并在文本 gate 只 allow-list 这些 XHTML 和重新生成的 nav。
 
 ## 验证
 

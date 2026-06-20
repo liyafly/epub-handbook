@@ -10,7 +10,7 @@
 
 - EPUB2 或缺少 `nav.xhtml` 的旧包。
 - `toc.ncx` 来自 Kindle/MOBI 反解，存在 `src="Text/file.xhtml"#id` 这类坏片段引号。
-- 注释是同文件 `wN -> mN` 普通尾注。
+- 注释是同文件 `wN -> mN` 普通尾注，或 Sigil 的 `noteref_N -> footnote_N` 单条 `aside` 尾注。
 - CSS 里正文使用不存在的 `cnepub` 或过旧的宋/黑/楷字体名。
 
 不处理：
@@ -49,8 +49,10 @@ python3 scripts/epub_cleanup_pipeline.py \
 - 新建 `nav.xhtml`，保留 `toc.ncx` 和 `spine toc="ncx"`。
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。
+- XHTML 根缺 `lang` 和 `xml:lang` 时，从 OPF `dc:language` 补入两者；不覆盖已有值，也不猜测缺失的 OPF 语言。
 - 新增 `Styles/epub3-enhancements.css`。
 - 仅在纯文本/数字上标注释标记需要图标化时新增 `Images/note.png`；已有图片 noteref 保留原图标。
+- 图片 noteref 的 `sup` 使用 `class="note-marker"`；其零行高外壳与相对上移图标只作用于脚注，避免 `sup img` 撑高正文行距。
 - 普通尾注转为同文件 grouped popup footnote。
 
 流水线不会替代人工 diff review 和真实阅读器复测。`reports/pipeline.json` 会把它们列为剩余步骤。
@@ -158,7 +160,7 @@ delivery/
 会转为：
 
 ```html
-<sup>
+<sup class="note-marker">
   <a id="w1" class="noteref-icon" epub:type="noteref" role="doc-noteref" href="#m1">
     <img alt="注" src="../Images/note.png"/>
   </a>
@@ -177,6 +179,19 @@ delivery/
 ```
 
 如果原 noteref 已经是图片触发器，转换器只整理 note body 为同文件 grouped `aside/ol/li`，保留原 `img src` 和 OPF 资源；不会无差别替换为默认 `Images/note.png`。默认图标只用于纯文本或数字上标标记。
+
+图标基线规则只使用 `sup.note-marker`、其直接 noteref 和 `img` 子元素；普通文字上标不应用零行高或相对位移。
+
+Sigil 的旧式 `section[epub:type="footnotes"]` 若包含多条 `aside#footnote_N`，且正文引用为 `a#noteref_N`，转换器会保留原 ID、合并为一个 grouped `aside/ol/li`，并逐条保留注释正文。若 section 内出现无法完整识别的内容，转换器不做部分合并，交由人工 review。
+
+完整文本 gate 不把 noteref 的数字、图标或 backlink 的 `◎` 当作正文，但仍逐字比较所有注释正文：
+
+```sh
+python3 scripts/validate_text_invariance.py \
+  work/book-a/before/source.epub \
+  work/book-a/after/cleaned.epub \
+  --check all
+```
 
 ## 验证
 

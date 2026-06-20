@@ -48,7 +48,7 @@ description: 优化 EPUB 图片版式、figure 环绕、图注、栅格格式、
 
 机器判断入口是 `scripts/epub_image_layout_advisor.py`：它只读扫描 EPUB，列出逐图候选和可追溯风险，不直接修改文件。
 
-1. 先运行图片布局 advisor，读取目标 XHTML、`media.css`、`base.css`、OPF manifest 和图片资源。
+1. 先运行图片布局 advisor，读取目标 XHTML、`media.css`、`base.css`、OPF manifest 和图片资源；祖先为 `.noteref-icon` 或 `a[epub:type~=noteref]` 的图片是注释交互控件，必须排除，不生成 figure / 浮动 / 图注 / alt 候选。
 2. 分类图片：
    - 封面图。
    - 正文内联图。
@@ -58,6 +58,7 @@ description: 优化 EPUB 图片版式、figure 环绕、图注、栅格格式、
    - 海报背景。
    - 公式或图表 fallback。
 3. 把 direct floated `img` 转成 `figure.img-left` 或 `figure.img-right`。
+   对尚未人工确认图文关系的插图，只规范为居中的 `figure.illustration`，不自动分配左/右浮动类；把候选写入决策记录，留待逐图 review。
 4. figure 宽度从 `30%` 起步；正式默认保持在 `25%` 到 `35%`，除非阅读器测试证明需要调整。
 5. 保留图注和 alt。只有图片角色明确时才补 alt。
 6. 图片环绕规则写进 `media.css`；通用 `figure/img` 默认写进 `base.css`。

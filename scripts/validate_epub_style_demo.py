@@ -24,8 +24,10 @@ NCX = OEBPS / "toc.ncx"
 MEDIA_CSS = OEBPS / "Styles" / "media.css"
 BASE_CSS = OEBPS / "Styles" / "base.css"
 FONTS_CSS = OEBPS / "Styles" / "fonts.css"
+NOTES_CSS = OEBPS / "Styles" / "notes.css"
 POSTER_CSS = OEBPS / "Styles" / "poster.css"
 POSTER_CONTAIN_PAGE = OEBPS / "Text" / "03c-poster-contain.xhtml"
+RUBY_NOTE_PAGE = OEBPS / "Text" / "02-ruby-note.xhtml"
 FRONTMATTER_PAGE = OEBPS / "Text" / "15-frontmatter.xhtml"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
 ENGLISH_PAGE = OEBPS / "Text" / "18-english-fiction.xhtml"
@@ -275,6 +277,23 @@ def validate_source(check: Check) -> None:
     check.require(token in poster_contain_text, f"03c-poster-contain.xhtml missing marker: {token}")
   check.require("position: absolute" not in active_poster_css, "poster.css must not use position:absolute")
   check.require(re.search(r"\b[0-9.]+v[hw]\b", active_poster_css) is None, "poster.css must not use vh/vw units")
+
+  note_css = NOTES_CSS.read_text(encoding="utf-8")
+  ruby_note_text = RUBY_NOTE_PAGE.read_text(encoding="utf-8")
+  check.require(
+    'class="note-marker"' in ruby_note_text,
+    "02-ruby-note.xhtml must scope image noteref in note-marker",
+  )
+  for token in [
+    "sup.note-marker",
+    "line-height: 0",
+    "position: relative",
+    "top: -0.14em",
+    "height: 0.72em",
+    "sup.note-marker > .noteref-icon > img",
+  ]:
+    check.require(token in note_css, f"notes.css missing scoped note-marker baseline rule: {token}")
+  check.require("sup img" not in note_css, "notes.css must not use a global sup img rule")
 
   media_css = MEDIA_CSS.read_text(encoding="utf-8")
   image_layout = IMAGE_LAYOUT.read_text(encoding="utf-8")

@@ -29,6 +29,14 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 如果需要 §1.5 结构规范化，用同一个入口先跑 `--normalize dry-run`，人工确认报告后在新的工作目录使用 `--normalize apply --approve-normalize`。详细命令见 [oneclick-epub3-converter.md](oneclick-epub3-converter.md)。
 
+### 弹注和语言壳层边界
+
+- 对 Sigil 旧结构 `a#noteref_N -> aside#footnote_N`（外层为 `section[epub:type="footnotes"]`）只有在该 section 内所有 `aside` 都可识别时，才合并为一个 grouped `aside/ol/li`；保留 `noteref_N` / `footnote_N` 与全部注释正文。不能完整识别时停止自动转换并人工 review。
+- XHTML 根同时缺 `lang` 和 `xml:lang` 时，只能从 OPF `dc:language` 复制同一值；OPF 也没有语言值时记录问题，不猜测。已有任一属性时补齐另一属性，不覆盖既有值。
+- `validate_text_invariance.py` 对 `a[epub:type~=noteref]` 和 `a[epub:type~=backlink]` 的可见控件文字不计入正文（数字触发器、图标、`◎` 是等价表示）；`li.footnote-item` 内的注释正文仍逐字校验。
+- 图片 noteref 的上标外壳使用 `sup.note-marker`：`line-height:0` 限制图标不撑高正文行框，内部图标用相对上移实现略高基线。不得用无作用域的 `sup img`，也不得影响普通文字上标。
+- 用户明确要求删除页面时，先建立精确删除白名单，并同步删除 ZIP、manifest、spine、nav、NCX 引用；文本 gate 只 allow-list 被授权删除的 XHTML 和重新生成的 nav，不能借此跳过其他正文页。
+
 ## 0. 准备
 
 ```sh

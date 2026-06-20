@@ -1,11 +1,26 @@
 @charset "utf-8";
 
-sup {
-  vertical-align: middle;
-  line-height: 1;
+sup.note-marker {
+  font-size: 1em;
+  line-height: 0;
+  vertical-align: baseline;
 }
 
-.noteref-icon img,
+sup.note-marker > .noteref-icon {
+  display: inline-block;
+  line-height: 0;
+  position: relative;
+  top: -0.14em;
+  text-decoration: none;
+}
+
+sup.note-marker > .noteref-icon > img {
+  display: block;
+  width: auto;
+  height: 0.72em;
+  max-width: none;
+}
+
 a.duokan-footnote img {
   width: 0.9em;
   height: 0.9em;
