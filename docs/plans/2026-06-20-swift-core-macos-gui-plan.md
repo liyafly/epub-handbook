@@ -1,6 +1,6 @@
 # Swift 核心库与 macOS GUI 实施计划
 
-> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。原生 transaction、XHTML leaf-block / anchor redline 与 archive rewriter 已实现；完整 package redline、popup normalize、GUI apply 流程仍未实现。
+> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、popup normalize、transaction JSON CLI 与 Python 双跑基线已实现；GUI apply 流程仍未实现，且不在本轮范围内。
 >
 > 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift 只消费 contract，绝不实现或调用 Python skill / harness。
 
@@ -33,8 +33,8 @@
 
 ### 2026-06-20 已实施基线
 
-- `swift/` 是 Swift tools 6.3 / language mode 6 的 package，已实现 `EPUBContracts`、`EPUBRuntime`、`EPUBArchive`、`EPUBPackage`、`EPUBInspection`、`EPUBValidation` 与 `EPUBStructuredTransforms`；SwiftPM unit tests 覆盖 report/plan、provider policy、安全 archive path、archive rewrite、transaction rollback、container/OPF、inspection、text / anchor redline 和 SwiftSoup XML-mode XHTML attribute transform。
-- 读取 XML 固定结构直接使用 Foundation `XMLParser`；可接受规范化 XHTML 写回的 transform 使用 SwiftSoup `2.13.5` `parseXML(...)`。写入能力进入产品前仍必须补齐 transaction、红线 validator、EPUB lint 和 fixture 双跑。
+- `swift/` 是 Swift tools 6.3 / language mode 6 的 package，已实现 `EPUBContracts`、`EPUBRuntime`、`EPUBArchive`、`EPUBPackage`、`EPUBInspection`、`EPUBValidation`、`EPUBStructuredTransforms`、`EPUBCLI` 与 `epub-handbook-swift` executable；SwiftPM unit tests 覆盖 report/plan、provider policy、安全 archive path、archive rewrite、transaction rollback、container/OPF、text / anchors / metadata / spine / cover / DRM、popup 结构 / 图标资源和 Swift CLI transaction。
+- 读取 XML 固定结构直接使用 Foundation `XMLParser`；可接受规范化 XHTML 写回的 transform 使用 SwiftSoup `2.13.5` `parseXML(...)`。`PopupFootnoteArchiveNormalizer` 仅处理已有图片图标且 OPF manifest 已登记的本地 noteref；它不注入默认图标、不调用 Python。`scripts/test_swift_python_parity.py` 独立运行 Python redline / popup validator 与 Swift CLI，覆盖 pass/fail、metadata、DRM 与 popup artifact。
 - `gui/Project.swift` + `Tuist.swift` 已生成 `HandbookMac` 和 `HandbookMacTests`。初始窗口是 AppKit，使用 sandbox security-scoped file access；它只调用 Swift `PackageInspector` 并显示 `InspectionReport`，不调用 Python 或读取 `SKILL.md`。
 
 ## Swift Package 结构
@@ -48,10 +48,11 @@ swift/
 │   ├── EPUBArchive/         # ZIP、mimetype、path safety
 │   ├── EPUBPackage/         # container、OPF、manifest、spine、nav/NCX
 │   ├── EPUBInspection/      # 只读 preflight facts
-│   ├── EPUBValidation/      # text/anchors/metadata/cover redlines
+│   ├── EPUBValidation/      # text/anchors/metadata/spine/cover/DRM/popup validators
 │   ├── EPUBStructuredTransforms/ # SwiftSoup XML-mode XHTML 结构化变换
 │   ├── EPUBRuntime/         # registry、workspace、gate、transaction、events
-│   └── EPUBHandbookCLI/     # JSON / JSONL command surface
+│   ├── EPUBCLI/             # native CLI service / transaction boundary
+│   └── EPUBHandbookSwiftCLI/# epub-handbook-swift JSON executable
 ├── Tests/
 │   ├── EPUBContractsTests/
 │   ├── EPUBArchiveTests/
@@ -60,7 +61,7 @@ swift/
 │   ├── EPUBValidationTests/
 │   ├── EPUBStructuredTransformsTests/
 │   ├── EPUBRuntimeTests/
-│   ├── EPUBHandbookCLITests/
+│   ├── EPUBCLITests/
 │   └── Fixtures/
 └── README.md
 ```
@@ -91,9 +92,9 @@ flowchart LR
 | `EPUBValidation` | 正文不变性、锚点、metadata、spine、cover、加密标记。 | 修改输入以掩盖错误。 |
 | `EPUBStructuredTransforms` | SwiftSoup XML-mode 的白名单 XHTML DOM 变换和 path map。 | 未经批准的语义改写、任意 HTML 编辑器。 |
 | `EPUBRuntime` | registry、workspace、gate、transaction、取消、event stream。 | 具体 EPUB 规则、shell 路径、UI。 |
-| `EPUBHandbookCLI` | 参数、JSON result、JSONL event、exit code。 | 业务算法复制。 |
+| `EPUBCLI` / `EPUBHandbookSwiftCLI` | 参数、JSON result、exit code 与 native transaction orchestration。 | 业务算法复制、Python bridge。 |
 
-基础包使用 `ZIPFoundation`；`EPUBStructuredTransforms` 额外固定 `SwiftSoup 2.13.5`，只用于明确授权的 XHTML DOM 结构化变换；Swift CLI 接入时再引入 `swift-argument-parser`。使用 `Foundation`、`FoundationXML`、`Codable`、Swift Testing；不使用 PythonKit、CocoaPods、Carthage 或大型 DI / reactive framework。
+基础包使用 `ZIPFoundation`；`EPUBStructuredTransforms` / popup validator 额外固定 `SwiftSoup 2.13.5`，只用于明确授权的 XHTML DOM 结构化变换与结构校验。CLI 只使用小型原生参数解析，避免再引入 command-parser dependency。使用 `Foundation`、`FoundationXML`、`Codable`、Swift Testing；不使用 PythonKit、CocoaPods、Carthage 或大型 DI / reactive framework。
 
 2026-06-20 决定：可接受 XHTML 规范化重写，不要求 source-level 最小 diff。因此 SwiftSoup 可调用 `parseXML(...)` 与 DOM serialization；但每次 apply 仍必须写入新的 output artifact，并保留 before、红线校验、EPUB lint 与人工 diff review。`EPUBArchive`、`EPUBPackage` 的 ZIP / OPF 读取仍直接使用 ZIPFoundation / Foundation `XMLParser`，不依赖 SwiftSoup。
 
@@ -117,7 +118,7 @@ Python adapter 的 request / result JSON 文件属于 Python CLI / Agent 层。S
 |---|---|---|---|
 | `epub.package.nav.audit` | `PackageInspector` | `epub_preflight_harness.py` / `epub_ai_harness.py`。 | blocker、finding severity、exit code 对齐。 |
 | `epub.text.invariance` | 原生 `TextInvarianceValidator` | `validate_text_invariance.py`。 | text、anchors、metadata、spine、cover 对照通过。 |
-| `epub.notes.popup-normalize` | 原生 `PopupNoteTransformer` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
+| `epub.notes.popup.normalize` | 原生 `PopupFootnoteArchiveNormalizer` + `PopupFootnoteValidator` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
 | `epub.structure.normalize` | 后续。 | `epub_structure_tool.py`。 | 先只有 dry-run / path map；apply 后置。 |
 | `epub.package.merge-split` | 后续。 | `epub_package_tool.py`。 | 不在首个 GUI 范围。 |
 
@@ -207,14 +208,14 @@ View 只消费 feature view model；view model 直接调用原生 `EPUBInspectio
 
 **完成标准：** 用户可选择 demo EPUB，查看 report，取消任务或文件授权失败时得到结构化错误；输入文件字节不变。
 
-### S3 — redline 与 popup footnote Skill
+### S3 — redline 与 popup footnote capability
 
-- 实现原生 `TextInvarianceValidator` 与可选择 checks。
-- 实现原生 `PopupNoteTransformer`，只接受 manifest 声明的白名单变换。
-- 实现 `Workspace`、`Transaction`、approval gate、rollback 与 event stream。
-- 以 Python 对照、popup validator、EPUB lint、人工 diff review 验证输出。
+- 已实现原生 `TextInvarianceValidator`、metadata / spine / cover / DRM redline 与 popup validator。
+- 已实现 `PopupFootnoteArchiveNormalizer`：same-file grouped aside、保留本地图标、OPF manifest / resource gate、拒绝 text-only icon injection 与加密包。
+- 已实现 `Workspace`、`Transaction`、gate、rollback、RunReport 及 `epub-handbook-swift` JSON CLI；显式 CLI 命令是本能力的 approval point。
+- 已完成一次 Python / Swift parity baseline；仍需三次 CI、`epub_lint.py` 和人工 diff review，才可把 popup 标记为 GUI 可用 / `swift-primary`。
 
-**完成标准：** Swift CLI 可完成一个可审计的 popup normalize transaction；macOS GUI 可在用户批准后执行该单一能力。
+**当前结果：** Swift CLI 已可完成一个可审计的 popup normalize transaction；macOS GUI 尚未绑定写入能力，继续保持只读。
 
 ### S4 — CleanupHarness 与 plan UI
 

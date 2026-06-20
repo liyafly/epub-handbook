@@ -2,6 +2,7 @@
   "schemaVersion": "1",
   "provider": "python",
   "entrypoints": [
+    {"id": "python.json-cli", "path": "scripts/epub_handbook_cli.py", "kind": "utility", "surfaces": ["cli", "agent"], "capabilities": ["epub.package.nav.audit", "epub.layout.audit"], "status": "registered"},
     {"id": "python.ai-router", "path": "scripts/epub_ai_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.layout.audit", "epub.source.intake"], "status": "registered"},
     {"id": "python.preflight", "path": "scripts/epub_preflight_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.package.nav.audit"], "status": "registered"},
     {"id": "python.refinement", "path": "scripts/epub_refinement_harness.py", "kind": "harness", "surfaces": ["cli", "agent"], "capabilities": ["epub.layout.audit"], "status": "registered"},

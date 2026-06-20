@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/swift-redline-validation.schema.json",
+  "title": "Swift full redline validation result",
+  "type": "object",
+  "required": ["schemaVersion", "status", "before", "after", "text", "package"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "status": {"type": "string", "enum": ["complete", "failed"]},
+    "before": {"$ref": "artifact-reference.schema.json"},
+    "after": {"$ref": "artifact-reference.schema.json"},
+    "text": {
+      "type": "object",
+      "required": ["issues"],
+      "additionalProperties": false,
+      "properties": {
+        "issues": {"type": "array"}
+      }
+    },
+    "package": {
+      "type": "object",
+      "required": ["issues"],
+      "additionalProperties": false,
+      "properties": {
+        "issues": {"type": "array"}
+      }
+    }
+  }
+}

@@ -26,6 +26,7 @@ class PythonEntrypointInventoryTests(unittest.TestCase):
     self.assertIn("scripts/epub_preflight_harness.py", paths)
     self.assertIn("scripts/epub_cleanup_pipeline.py", paths)
     self.assertIn("scripts/validate_text_invariance.py", paths)
+    self.assertIn("scripts/epub_handbook_cli.py", paths)
 
   def test_rejects_unknown_capability_reference(self) -> None:
     with tempfile.TemporaryDirectory() as raw:

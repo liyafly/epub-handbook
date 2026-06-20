@@ -116,6 +116,8 @@ python3 scripts/<script>.py --help
 | 输出逐图布局候选 | `python3 scripts/epub_image_layout_advisor.py <input.epub> --format md` | 只读扫描问题图，给候选菜单和决策记录模板 |
 | 预览或应用风格预设 | `python3 scripts/epub_style_preset_tool.py apply <input.epub> --preset literary-cn --output <out.epub> --dry-run` | 先看 class coverage，再写 CSS、OPF 和 stylesheet link |
 | 校验改前 / 改后红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 已有 EPUB 清洗的正文安全 gate |
+| 枚举或调用已登记 Python provider | `python3 scripts/epub_handbook_cli.py catalog --format json` | Python-only CLI / Agent JSON adapter；仅 allow-list capability 可执行 |
+| 原生 Swift 检查 / popup 事务 | `cd swift && swift run epub-handbook-swift --help` | Swift JSON CLI；不调用 Python，GUI 也不通过该 CLI |
 | 校验 AI 入口和 skills | `python3 scripts/validate_ai_entrypoints.py` / `python3 scripts/validate_skills_basic.py` | 改维护文档或 skill 后运行 |
 
 ## 三条可执行路线

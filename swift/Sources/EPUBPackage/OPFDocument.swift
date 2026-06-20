@@ -21,11 +21,18 @@ public struct OPFManifestItem: Hashable, Codable, Sendable {
 
 public struct OPFPackageSnapshot: Hashable, Codable, Sendable {
     public let uniqueIdentifier: String?
+    public let coreMetadata: [String: [String]]
     public let manifest: [OPFManifestItem]
     public let spineItemIDs: [String]
 
-    public init(uniqueIdentifier: String?, manifest: [OPFManifestItem], spineItemIDs: [String]) {
+    public init(
+        uniqueIdentifier: String?,
+        coreMetadata: [String: [String]] = [:],
+        manifest: [OPFManifestItem],
+        spineItemIDs: [String]
+    ) {
         self.uniqueIdentifier = uniqueIdentifier
+        self.coreMetadata = coreMetadata
         self.manifest = manifest
         self.spineItemIDs = spineItemIDs
     }
@@ -50,6 +57,7 @@ public enum OPFDocument {
         }
         return OPFPackageSnapshot(
             uniqueIdentifier: delegate.uniqueIdentifier,
+            coreMetadata: delegate.coreMetadata,
             manifest: delegate.manifest,
             spineItemIDs: delegate.spineItemIDs
         )
@@ -59,8 +67,11 @@ public enum OPFDocument {
 private final class OPFDelegate: NSObject, XMLParserDelegate {
     private(set) var foundPackage = false
     private(set) var uniqueIdentifier: String?
+    private(set) var coreMetadata = Dictionary(uniqueKeysWithValues: ["title", "creator", "identifier", "language"].map { ($0, [String]()) })
     private(set) var manifest: [OPFManifestItem] = []
     private(set) var spineItemIDs: [String] = []
+    private var currentMetadataName: String?
+    private var currentMetadataText = ""
 
     func parser(
         _ parser: XMLParser,
@@ -89,5 +100,36 @@ private final class OPFDelegate: NSObject, XMLParserDelegate {
         default:
             break
         }
+        let localName = elementName.split(separator: ":").last.map(String.init) ?? elementName
+        if coreMetadata[localName] != nil {
+            currentMetadataName = localName
+            currentMetadataText = ""
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        currentMetadataText.append(string)
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        let localName = elementName.split(separator: ":").last.map(String.init) ?? elementName
+        guard localName == currentMetadataName else {
+            return
+        }
+        let normalized = currentMetadataText
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .precomposedStringWithCanonicalMapping
+        if !normalized.isEmpty {
+            coreMetadata[localName, default: []].append(normalized)
+        }
+        currentMetadataName = nil
+        currentMetadataText = ""
     }
 }

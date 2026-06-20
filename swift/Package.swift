@@ -13,6 +13,8 @@ let package = Package(
         .library(name: "EPUBInspection", targets: ["EPUBInspection"]),
         .library(name: "EPUBValidation", targets: ["EPUBValidation"]),
         .library(name: "EPUBStructuredTransforms", targets: ["EPUBStructuredTransforms"]),
+        .library(name: "EPUBCLI", targets: ["EPUBCLI"]),
+        .executable(name: "epub-handbook-swift", targets: ["EPUBHandbookSwiftCLI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.20"),
@@ -53,7 +55,15 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ]
         ),
-        .target(name: "EPUBValidation", dependencies: ["EPUBArchive", "EPUBContracts"]),
+        .target(
+            name: "EPUBValidation",
+            dependencies: [
+                "EPUBArchive",
+                "EPUBContracts",
+                "EPUBPackage",
+                .product(name: "SwiftSoup", package: "SwiftSoup"),
+            ]
+        ),
         .testTarget(
             name: "EPUBValidationTests",
             dependencies: [
@@ -66,10 +76,23 @@ let package = Package(
             dependencies: [
                 "EPUBContracts",
                 "EPUBArchive",
+                "EPUBPackage",
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
             ]
         ),
         .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms"]),
+        .target(
+            name: "EPUBCLI",
+            dependencies: [
+                "EPUBContracts",
+                "EPUBInspection",
+                "EPUBRuntime",
+                "EPUBStructuredTransforms",
+                "EPUBValidation",
+            ]
+        ),
+        .testTarget(name: "EPUBCLITests", dependencies: ["EPUBCLI", "EPUBContracts", "EPUBArchive", "ZIPFoundation"]),
+        .executableTarget(name: "EPUBHandbookSwiftCLI", dependencies: ["EPUBCLI"]),
     ],
     swiftLanguageModes: [.v6]
 )
