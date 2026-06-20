@@ -224,7 +224,7 @@ Swift 的 `PopupNoteTransformer` 是同一 contract / fixture / validator 下的
 - `scripts/render_adapter_catalog.py` 从同一份 manifest 生成 OpenAI、Claude、MCP、CLI、GUI 投影；它不把 Python 脚本路径写入 capability 或 `ExecutionPlan`。
 - Swift `EPUBContracts` / `EPUBRuntime` 已实现 Codable report/plan、manifest catalog、provider policy（Agent / legacy CLI 优先 Python；GUI / Swift CLI 只接受 Swift）以及原生 workspace / transaction 基座；Swift 不实现 skill 或 harness。
 - `adapters/python/public-entrypoints.v1.json` 已登记 Python CLI / Agent 的公开 harness、pipeline、transformer、validator；`scripts/python_provider_adapter.py` 通过 request/result JSON allow-list 调度首批 preflight / layout provider，并将 Python preflight findings 投影为 shared `InspectionReport` JSON。Swift package、macOS GUI 与未来 iOS 不调用该 adapter。
-- 原生 Swift `Transaction` 已实现 before baseline、staging、gate、commit / rollback audit；`EPUBValidation` 已覆盖 XHTML 正文 leaf block 与 anchor 红线，`EPUBArchiveRewriter` 已能将替换资源重打包到新 EPUB。metadata / spine / cover / DRM 和 popup 写入仍未接管。
+- 原生 Swift `Transaction` 已实现 before baseline、staging、gate、commit / rollback audit；`EPUBValidation` 已覆盖 XHTML 正文 leaf block 与 anchor 红线，`EPUBArchiveRewriter` / `XHTMLAttributeArchiveTransformer` 已能将一个批准的 DOM 属性替换重打包到新 EPUB。metadata / spine / cover / DRM 和 popup 写入仍未接管。
 - Python 脚本、skill 目录、`agents/openai.yaml` 与 harness 均未移动或删除。Python / Swift 双跑、完整 redline 与高风险 capability 接管仍属于后续 R4 / S3 工作，不能宣称已完成。
 
 ### R0 — 能力盘点与兼容基线

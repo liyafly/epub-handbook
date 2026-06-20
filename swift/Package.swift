@@ -65,6 +65,7 @@ let package = Package(
             name: "EPUBStructuredTransforms",
             dependencies: [
                 "EPUBContracts",
+                "EPUBArchive",
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
             ]
         ),
