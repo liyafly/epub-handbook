@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/artifact-reference.schema.json",
+  "title": "Artifact reference",
+  "type": "object",
+  "required": ["uri", "kind"],
+  "additionalProperties": false,
+  "properties": {
+    "uri": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["epub", "source-directory", "markdown", "html", "pdf", "image-set", "unknown"]},
+    "contentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "logicalPath": {"type": "string"}
+  }
+}

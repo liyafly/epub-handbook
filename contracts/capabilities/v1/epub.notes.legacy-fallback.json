@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.notes.legacy-fallback",
+  "version": "1.0.0",
+  "kind": "transformer",
+  "legacySkillSlugs": ["epub-legacy-footnote-fallback"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/run-report.schema.json",
+  "redLines": ["text", "anchors", "metadata"],
+  "permissions": {"requiresWriteAccess": true, "network": "none"},
+  "requires": ["epub.notes.popup.normalize"],
+  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+}

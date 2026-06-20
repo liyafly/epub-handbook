@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.kindle.compatibility.check",
+  "version": "1.0.0",
+  "kind": "validator",
+  "legacySkillSlugs": ["epub-kindle-compatibility-checker"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
+  "redLines": [],
+  "permissions": {"requiresWriteAccess": false, "network": "none"},
+  "requires": ["epub.package.nav.audit"],
+  "adapters": ["openai", "claude", "mcp", "cli"]
+}

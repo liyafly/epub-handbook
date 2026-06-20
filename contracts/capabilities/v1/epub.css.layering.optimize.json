@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.css.layering.optimize",
+  "version": "1.0.0",
+  "kind": "transformer",
+  "legacySkillSlugs": ["epub-css-layering-optimizer"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/run-report.schema.json",
+  "redLines": ["text", "metadata", "spine", "anchors", "cover"],
+  "permissions": {"requiresWriteAccess": true, "network": "none"},
+  "requires": ["epub.layout.audit"],
+  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+}

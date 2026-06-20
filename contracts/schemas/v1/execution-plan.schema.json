@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/execution-plan.schema.json",
+  "title": "Execution plan",
+  "type": "object",
+  "required": ["schemaVersion", "artifact", "steps", "blockers"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "artifact": {"$ref": "artifact-reference.schema.json"},
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "capability", "kind", "dependsOn", "requiresApproval"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "capability": {"type": "string", "pattern": "^epub(?:\\.[a-z0-9][a-z0-9-]*){2,}$"},
+          "kind": {"type": "string", "enum": ["inspect", "transform", "validate", "review"]},
+          "dependsOn": {"type": "array", "items": {"type": "string"}},
+          "requiresApproval": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

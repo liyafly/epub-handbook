@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/run-report.schema.json",
+  "title": "Run report",
+  "type": "object",
+  "required": ["schemaVersion", "status", "input", "events"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "status": {"type": "string", "enum": ["complete", "failed", "cancelled", "approval-required"]},
+    "input": {"$ref": "artifact-reference.schema.json"},
+    "output": {"$ref": "artifact-reference.schema.json"},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "step": {"type": "string"},
+          "status": {"type": "string", "enum": ["started", "completed", "failed", "skipped"]},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

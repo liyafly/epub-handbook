@@ -22,7 +22,13 @@ on:
       - 'templates/cleanup-demo-books/**'
       - 'scripts/**'
       - 'skills/**'
+      - 'contracts/**'
+      - 'adapters/**'
+      - 'swift/**'
+      - 'gui/**'
+      - 'mise.toml'
       - 'docs/final/**'
+      - 'docs/experiments/**'
       - 'docs/README.md'
       - 'docs/getting-started/**'
       - 'docs/guides/**'
@@ -47,7 +53,13 @@ on:
       - 'templates/cleanup-demo-books/**'
       - 'scripts/**'
       - 'skills/**'
+      - 'contracts/**'
+      - 'adapters/**'
+      - 'swift/**'
+      - 'gui/**'
+      - 'mise.toml'
       - 'docs/final/**'
+      - 'docs/experiments/**'
       - 'docs/README.md'
       - 'docs/getting-started/**'
       - 'docs/guides/**'
@@ -150,3 +162,25 @@ jobs:
           path: templates/epub-style-demo/dist/*.epub.epubcheck.xml
           if-no-files-found: error
           retention-days: 30
+
+  swift-core:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Swift package
+        run: swift test --package-path swift
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+
+      - name: Install Tuist
+        run: mise install
+
+      - name: Generate and test AppKit macOS target
+        run: |
+          cd gui
+          mise exec -- tuist generate --no-open
+          xcodebuild -quiet -workspace EPUBHandbook.xcworkspace -scheme HandbookMac \
+            -destination 'platform=macOS' test CODE_SIGNING_ALLOWED=NO

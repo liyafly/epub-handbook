@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/inspection-report.schema.json",
+  "title": "Inspection report",
+  "type": "object",
+  "required": ["schemaVersion", "artifact", "findings", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "artifact": {"$ref": "artifact-reference.schema.json"},
+    "status": {"type": "string", "enum": ["pass", "warn", "fail"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "severity": {"type": "string", "enum": ["info", "warn", "error", "fatal"]},
+          "message": {"type": "string"},
+          "logicalPath": {"type": "string"},
+          "params": {"type": "object", "additionalProperties": {"type": "string"}}
+        }
+      }
+    },
+    "facts": {"type": "object"}
+  }
+}

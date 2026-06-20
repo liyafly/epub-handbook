@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v1/capability-manifest.schema.json",
+  "title": "Capability manifest",
+  "type": "object",
+  "required": ["schemaVersion", "id", "version", "kind", "legacySkillSlugs", "inputSchema", "outputSchema", "redLines", "permissions", "requires", "adapters"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "id": {"type": "string", "pattern": "^epub(?:\\.[a-z0-9][a-z0-9-]*){2,}$"},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "kind": {"type": "string", "enum": ["detector", "planner", "transformer", "validator"]},
+    "legacySkillSlugs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "inputSchema": {"type": "string", "pattern": "^contracts/schemas/v1/.+\\.schema\\.json$"},
+    "outputSchema": {"type": "string", "pattern": "^contracts/schemas/v1/.+\\.schema\\.json$"},
+    "redLines": {"type": "array", "items": {"type": "string", "enum": ["text", "metadata", "spine", "anchors", "cover", "drm"]}},
+    "permissions": {
+      "type": "object",
+      "required": ["requiresWriteAccess", "network"],
+      "additionalProperties": false,
+      "properties": {
+        "requiresWriteAccess": {"type": "boolean"},
+        "network": {"type": "string", "enum": ["none", "readonly", "full"]}
+      }
+    },
+    "requires": {"type": "array", "items": {"type": "string"}},
+    "adapters": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["openai", "claude", "mcp", "cli", "gui"]}}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.package.nav.audit",
+  "version": "1.0.0",
+  "kind": "validator",
+  "legacySkillSlugs": ["epub-package-nav-auditor"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
+  "redLines": ["metadata", "spine", "cover", "drm"],
+  "permissions": {"requiresWriteAccess": false, "network": "none"},
+  "requires": [],
+  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+}

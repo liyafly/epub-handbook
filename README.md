@@ -19,6 +19,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 3. **AI 协作 skills** — [skills/](skills/)：共 15 个 skill（2 个主入口 `epub-layout-auditor` / `epub-source-intake` + 13 个专项：结构格式化、CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
 4. **可运行 demo / 模板** — [templates/](templates/)：统一放样式 demo、清洗 demo、starter 模板和极简 fixture 槽位。每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
 5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
+6. **中立 contract 与 Apple 原生实现** — [contracts/](contracts/) 是 capability identity、schema 与 redline 的机器契约；[swift/](swift/) 是 Swift 6 核心；[gui/](gui/) 是 AppKit-first macOS 工程。既有 Python、skill 与 harness 仍是 agent / 旧 CLI 的默认 provider。
 
 ## 项目目标与完成标准
 
@@ -45,6 +46,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 看阅读器兼容性记录 | [docs/final/reader-matrix.yaml](docs/final/reader-matrix.yaml) |
 | 对比改前 / 改后 | [docs/pipeline/epub-diff-review.md](docs/pipeline/epub-diff-review.md) |
 | 给 AI 接入 | 先读 [AGENTS.md](AGENTS.md)，再按 [skills/README.md](skills/README.md) 选择专项 skill；metadata 在 `skills/*/agents/openai.yaml` |
+| 使用 Swift 核心或 macOS App | [swift/](swift/) + [gui/README.md](gui/README.md)；先运行 Swift package tests，再由 Tuist 生成 AppKit workspace |
 | 看场景化指南 | [docs/guides/](docs/guides/) |
 | 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [AGENTS.md](AGENTS.md) |
 
@@ -54,6 +56,8 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | --- | --- |
 | bash / zip / unzip | 打包 / 解压 EPUB |
 | uv + Python 3.14 | 红线脚本、harness、validator |
+| Xcode 26.5 / Swift 6.3.2 | Swift core、AppKit macOS target 与测试 |
+| mise + Tuist 4.200.5 | 以 `gui/Project.swift` 生成 Xcode workspace；生成物不入 Git |
 | git | 仓库 + `git diff --no-index` 当 diff 引擎 |
 
 首次 clone 后，用 uv 复现本仓环境：

@@ -24,3 +24,11 @@ docs/superpowers/
 .venv/
 __pycache__/
 *.pyc
+
+# SwiftPM / Tuist / Xcode generated state
+swift/.build/
+gui/*.xcodeproj/
+gui/*.xcworkspace/
+gui/Tuist/Dependencies/
+gui/DerivedData/
+gui/Derived/
