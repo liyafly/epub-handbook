@@ -33,7 +33,7 @@ def make_epub(path: Path, *, title: str = "Book", encryption: str | None = None,
   if legacy_popup:
     chapter = '''<html xmlns="http://www.w3.org/1999/xhtml"><body>
 <p>正文<a id="note-one" role="doc-noteref" href="#footnote-one"><img src="../Images/note.png" alt="注"/></a></p>
-<aside role="doc-footnote"><p id="footnote-one"><a href="#note-one">◎</a>注释正文。</p></aside>
+<aside role="doc-footnote"><p id="footnote-one">注释正文。</p></aside>
 </body></html>'''
   else:
     chapter = '<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="chapter">正文。</p></body></html>'

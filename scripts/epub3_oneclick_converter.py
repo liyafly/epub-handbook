@@ -1089,7 +1089,7 @@ def normalize_duokan_notes(text: str) -> tuple[str, int]:
   return updated, count
 
 
-def package_language(root: ET.Element) -> str | None:
+def xhtml_default_language(root: ET.Element) -> str | None:
   for child in metadata(root):
     if local_name(child.tag) == "language" and child.text and child.text.strip():
       return child.text.strip()
@@ -1201,7 +1201,7 @@ def convert_epub(
     report,
     popup_notes=popup_notes,
     typography=typography,
-    default_language=package_language(root),
+    default_language=xhtml_default_language(root),
   )
   if popup_notes and default_note_icon_used:
     if note_zip not in files:

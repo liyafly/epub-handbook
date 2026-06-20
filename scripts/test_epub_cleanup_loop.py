@@ -348,6 +348,12 @@ def test_loop_converges_for_missing_html_lang() -> None:
         assert applied >= 1 or 'xml:lang="zh-CN"' in chapter, (
             f"missing language was neither staged nor fixed in-loop: {rep['round_log']}"
         )
+        # EPUB3 staging now owns language-shell normalization. The loop should
+        # see a clean baseline instead of duplicating that repair in a round.
+        with zipfile.ZipFile(rep["output"]) as zf:
+            chapter = zf.read("OEBPS/chapter.xhtml").decode("utf-8")
+        assert 'lang="zh-CN"' in chapter
+        assert 'xml:lang="zh-CN"' in chapter
 
 
 def test_loop_converges_for_missing_manifest_mathml_property() -> None:

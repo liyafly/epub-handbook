@@ -211,6 +211,9 @@ def main() -> int:
   sigil_legacy_notes_case()
   missing_html_language_case()
   non_note_sup_case()
+  sigil_partial_section_case()
+  missing_html_language_case()
+  missing_package_language_case()
   print("epub3 oneclick converter tests ok")
   return 0
 
@@ -320,6 +323,31 @@ def sigil_legacy_notes_case() -> None:
       assert 'href="#noteref_2">◎</a>第二条注释正文保留。' in chapter
 
 
+def sigil_partial_section_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "sigil-partial-notes.epub"
+    output = Path(raw) / "converted-sigil-partial-notes.epub"
+    write_legacy_epub(
+      source,
+      chapter_note_markup=(
+        '<p>正文<sup><a id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a></sup>继续。</p>\n'
+        '    <section epub:type="footnotes">\n'
+        '      <aside id="footnote_1" epub:type="footnote"><p>'
+        '<a href="#noteref_1" epub:type="noteref">[1]</a> 注释正文保留。</p></aside>\n'
+        '      <p>不能自动识别的残余内容。</p>\n'
+        '    </section>'
+      ),
+    )
+
+    report = C.convert_epub(source, output)
+    assert report.plain_notes_converted == 0, report
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      assert '<section epub:type="footnotes">' in chapter
+      assert 'id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a>' in chapter
+      assert "不能自动识别的残余内容。" in chapter
+
+
 def missing_html_language_case() -> None:
   with TemporaryDirectory() as raw:
     source = Path(raw) / "legacy-missing-language.epub"
@@ -352,6 +380,27 @@ def non_note_sup_case() -> None:
       chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
       assert 'H<sup>2</sup>O' in chapter
       assert 'H<sup class="note-marker">2</sup>O' not in chapter
+def missing_package_language_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-missing-package-language.epub"
+    output = Path(raw) / "converted-missing-package-language.epub"
+    write_legacy_epub(source, missing_html_language=True)
+    stripped = Path(raw) / "legacy-without-package-language.epub"
+    with zipfile.ZipFile(source) as source_zip, zipfile.ZipFile(stripped, "w") as stripped_zip:
+      for info in source_zip.infolist():
+        data = source_zip.read(info.filename)
+        if info.filename == "OEBPS/content.opf":
+          data = data.replace(b"    <dc:language>zh-CN</dc:language>\n", b"")
+        stripped_zip.writestr(info, data)
+    stripped.replace(source)
+
+    C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
+      nav = zf.read("OEBPS/nav.xhtml").decode("utf-8")
+      assert 'lang="zh-CN"' not in chapter
+      assert 'xml:lang="zh-CN"' not in chapter
+      assert 'lang="und"' in nav
 
 
 if __name__ == "__main__":
