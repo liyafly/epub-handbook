@@ -1,6 +1,6 @@
 # Swift 核心库与 macOS GUI 实施计划
 
-> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、popup normalize、transaction JSON CLI 与 Python 双跑基线已实现；GUI apply 流程仍未实现，且不在本轮范围内。
+> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、Sigil popup normalize、默认图标/OPF 写入、语言壳层补齐、transaction JSON CLI 与 Python 双跑基线已实现；GUI apply 流程仍未实现，且不在本轮范围内。
 >
 > 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift 只消费 contract，绝不实现或调用 Python skill / harness。
 
@@ -34,7 +34,7 @@
 ### 2026-06-20 已实施基线
 
 - `swift/` 是 Swift tools 6.3 / language mode 6 的 package，已实现 `EPUBContracts`、`EPUBRuntime`、`EPUBArchive`、`EPUBPackage`、`EPUBInspection`、`EPUBValidation`、`EPUBStructuredTransforms`、`EPUBCLI` 与 `epub-handbook-swift` executable；SwiftPM unit tests 覆盖 report/plan、provider policy、安全 archive path、archive rewrite、transaction rollback、container/OPF、text / anchors / metadata / spine / cover / DRM、popup 结构 / 图标资源和 Swift CLI transaction。
-- 读取 XML 固定结构直接使用 Foundation `XMLParser`；可接受规范化 XHTML 写回的 transform 使用 SwiftSoup `2.13.5` `parseXML(...)`。`PopupFootnoteArchiveNormalizer` 仅处理已有图片图标且 OPF manifest 已登记的本地 noteref；它不注入默认图标、不调用 Python。`scripts/test_swift_python_parity.py` 独立运行 Python redline / popup validator 与 Swift CLI，覆盖 pass/fail、metadata、DRM 与 popup artifact。
+- 读取 XML 固定结构直接使用 Foundation `XMLParser`；可接受规范化 XHTML 写回的 transform 使用 SwiftSoup `2.13.5` `parseXML(...)`。`PopupFootnoteArchiveNormalizer` 保留既有图片图标；对完整 Sigil `noteref_N/footnote_N` 结构可生成 grouped aside，对文本标记只在同一 native transaction 内注入 `Images/note.png` 与 OPF manifest item，并从 OPF `dc:language` 补齐缺失的 XHTML `lang` / `xml:lang`。它不调用 Python。`scripts/test_swift_python_parity.py` 独立运行 Python redline / popup validator 与 Swift CLI，覆盖 pass/fail、metadata、DRM 与 popup artifact。
 - `gui/Project.swift` + `Tuist.swift` 已生成 `HandbookMac` 和 `HandbookMacTests`。初始窗口是 AppKit，使用 sandbox security-scoped file access；它只调用 Swift `PackageInspector` 并显示 `InspectionReport`，不调用 Python 或读取 `SKILL.md`。
 
 ## Swift Package 结构
@@ -211,7 +211,7 @@ View 只消费 feature view model；view model 直接调用原生 `EPUBInspectio
 ### S3 — redline 与 popup footnote capability
 
 - 已实现原生 `TextInvarianceValidator`、metadata / spine / cover / DRM redline 与 popup validator。
-- 已实现 `PopupFootnoteArchiveNormalizer`：same-file grouped aside、保留本地图标、OPF manifest / resource gate、拒绝 text-only icon injection 与加密包。
+- 已实现 `PopupFootnoteArchiveNormalizer`：same-file grouped aside、完整 Sigil section 识别/拒绝部分转换、保留本地图标、文本 marker 的默认图标和 OPF manifest 注入、XHTML 语言壳层补齐，以及加密包拒绝。
 - 已实现 `Workspace`、`Transaction`、gate、rollback、RunReport 及 `epub-handbook-swift` JSON CLI；显式 CLI 命令是本能力的 approval point。
 - 已完成一次 Python / Swift parity baseline；仍需三次 CI、`epub_lint.py` 和人工 diff review，才可把 popup 标记为 GUI 可用 / `swift-primary`。
 

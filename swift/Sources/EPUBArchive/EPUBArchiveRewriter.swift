@@ -5,6 +5,7 @@ public enum EPUBArchiveRewriterError: Error, Equatable, Sendable {
     case destinationAlreadyExists
     case missingMimetype
     case replacementPathMissing(String)
+    case additionPathAlreadyExists(String)
 }
 
 /// Repackages an EPUB into a new archive while preserving every unreplaced
@@ -14,7 +15,8 @@ public enum EPUBArchiveRewriter {
     public static func rewrite(
         source: URL,
         to destination: URL,
-        replacements: [ArchivePath: Data]
+        replacements: [ArchivePath: Data],
+        additions: [ArchivePath: Data] = [:]
     ) throws {
         guard !FileManager.default.fileExists(atPath: destination.path) else {
             throw EPUBArchiveRewriterError.destinationAlreadyExists
@@ -27,6 +29,9 @@ public enum EPUBArchiveRewriter {
         let sourcePathSet = Set(sourcePaths)
         for path in replacements.keys where !sourcePathSet.contains(path) {
             throw EPUBArchiveRewriterError.replacementPathMissing(path.value)
+        }
+        for path in additions.keys where sourcePathSet.contains(path) || replacements[path] != nil {
+            throw EPUBArchiveRewriterError.additionPathAlreadyExists(path.value)
         }
 
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -50,6 +55,19 @@ public enum EPUBArchiveRewriter {
                 type: .file,
                 uncompressedSize: Int64(data.count),
                 compressionMethod: path == mimetypePath ? .none : .deflate,
+                provider: { position, size in
+                    let offset = Int(position)
+                    return data.subdata(in: offset..<(offset + size))
+                }
+            )
+        }
+        for path in additions.keys.sorted(by: { $0.value < $1.value }) {
+            let data = additions[path]!
+            try archive.addEntry(
+                with: path.value,
+                type: .file,
+                uncompressedSize: Int64(data.count),
+                compressionMethod: .deflate,
                 provider: { position, size in
                     let offset = Int(position)
                     return data.subdata(in: offset..<(offset + size))

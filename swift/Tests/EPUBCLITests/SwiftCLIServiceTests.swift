@@ -25,8 +25,8 @@ func swiftCLIPopupRunIsTransactional() async throws {
     #expect(report.events.contains { $0.step == "package-redlines" && $0.status == .completed })
 }
 
-@Test("Swift CLI popup run rolls back when a missing backlink would change text")
-func swiftCLIPopupRunRespectsTextRedline() async throws {
+@Test("Swift CLI popup run treats generated backlink text as a note control")
+func swiftCLIPopupRunAllowsGeneratedBacklinkControl() async throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -37,9 +37,9 @@ func swiftCLIPopupRunRespectsTextRedline() async throws {
 
     let report = await SwiftCLIService.normalizePopup(input: input, output: output, workspaceRoot: workspace)
 
-    #expect(report.status == .failed)
-    #expect(!FileManager.default.fileExists(atPath: output.path))
-    #expect(report.events.contains { $0.step == "text-and-anchors" && $0.status == .failed })
+    #expect(report.status == .complete)
+    #expect(FileManager.default.fileExists(atPath: output.path))
+    #expect(report.events.contains { $0.step == "text-and-anchors" && $0.status == .completed })
     #expect(FileManager.default.fileExists(atPath: workspace.appending(path: "before/source.epub").path))
 }
 
@@ -50,7 +50,7 @@ private func makePopupEPUB(at url: URL, hasBacklinkSymbol: Bool = true) throws {
     try add("OEBPS/package.opf", """
     <package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Book</dc:title><dc:creator>A</dc:creator><dc:identifier>I</dc:identifier><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="icon" href="Images/note.png" media-type="image/png"/></manifest><spine><itemref idref="chapter"/></spine></package>
     """, .deflate, archive)
-    let backlink = hasBacklinkSymbol ? "<a href=\"#note-one\">◎</a>" : ""
+    let backlink = hasBacklinkSymbol ? "<a epub:type=\"backlink\" href=\"#note-one\">◎</a>" : ""
     try add("OEBPS/Text/chapter.xhtml", """
     <html xmlns="http://www.w3.org/1999/xhtml"><body><p>正文<a id="note-one" role="doc-noteref" href="#footnote-one"><img src="../Images/note.png" alt="注"/></a></p><aside role="doc-footnote"><p id="footnote-one">\(backlink)注释正文。</p></aside></body></html>
     """, .deflate, archive)

@@ -155,6 +155,7 @@ private final class XHTMLAnalysisDelegate: NSObject, XMLParserDelegate {
     private(set) var anchorIDs = Set<String>()
     private var blockContexts: [BlockContext] = []
     private var ignoredTextDepth = 0
+    private var controlElementStack: [Bool] = []
 
     func parser(
         _ parser: XMLParser,
@@ -167,7 +168,9 @@ private final class XHTMLAnalysisDelegate: NSObject, XMLParserDelegate {
         if let id = attributeDict["id"], !id.isEmpty {
             anchorIDs.insert(id)
         }
-        if Self.ignoredTextTags.contains(name) {
+        let isNoteControl = Self.isNoteControl(name, attributes: attributeDict)
+        controlElementStack.append(isNoteControl)
+        if Self.ignoredTextTags.contains(name) || isNoteControl {
             ignoredTextDepth += 1
         }
         if Self.blockTags.contains(name) {
@@ -200,7 +203,7 @@ private final class XHTMLAnalysisDelegate: NSObject, XMLParserDelegate {
                 blocks.append(text)
             }
         }
-        if Self.ignoredTextTags.contains(name) {
+        if Self.ignoredTextTags.contains(name) || controlElementStack.popLast() == true {
             ignoredTextDepth = max(0, ignoredTextDepth - 1)
         }
     }
@@ -212,5 +215,16 @@ private final class XHTMLAnalysisDelegate: NSObject, XMLParserDelegate {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
             .precomposedStringWithCanonicalMapping
+    }
+
+    private static func isNoteControl(_ name: String, attributes: [String: String]) -> Bool {
+        guard name == "a" else { return false }
+        for (attribute, value) in attributes {
+            let localName = attribute.split(separator: ":").last.map(String.init) ?? attribute
+            if localName == "type", ["noteref", "backlink"].contains(where: { value.split(whereSeparator: \.isWhitespace).contains(Substring($0)) }) {
+                return true
+            }
+        }
+        return false
     }
 }

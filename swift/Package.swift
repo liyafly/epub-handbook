@@ -80,7 +80,7 @@ let package = Package(
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
             ]
         ),
-        .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms"]),
+        .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms", "EPUBValidation"]),
         .target(
             name: "EPUBCLI",
             dependencies: [

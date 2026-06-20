@@ -30,6 +30,28 @@ func archiveRewriterWritesNewArtifact() throws {
     #expect(first?.compressedSize == first?.uncompressedSize)
 }
 
+@Test("archive rewriter appends explicit new resources after preserved source entries")
+func archiveRewriterAddsNewResource() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appending(path: "source.epub")
+    let destination = directory.appending(path: "output.epub")
+    let archive = try Archive(url: source, accessMode: .create)
+    try addEntry("mimetype", data: Data("application/epub+zip".utf8), compression: .none, to: archive)
+    try addEntry("OEBPS/chapter.xhtml", data: Data("<p>before</p>".utf8), compression: .deflate, to: archive)
+
+    try EPUBArchiveRewriter.rewrite(
+        source: source,
+        to: destination,
+        replacements: [:],
+        additions: [try ArchivePath("OEBPS/Images/note.png"): Data([0x89, 0x50])]
+    )
+
+    let rewritten = try EPUBArchiveReader(url: destination)
+    #expect(try rewritten.data(for: .init("OEBPS/Images/note.png")) == Data([0x89, 0x50]))
+}
+
 private func addEntry(_ path: String, data: Data, compression: CompressionMethod, to archive: Archive) throws {
     try archive.addEntry(
         with: path,

@@ -52,6 +52,39 @@ func textInvarianceReportsRemovedAnchors() throws {
     #expect(report.issues.contains { $0.kind == .anchorsRemoved && $0.path == "chapter.xhtml" })
 }
 
+@Test("text invariance ignores popup control labels but still compares footnote body text")
+func textInvarianceTreatsNoteControlsAsNonProse() throws {
+    let before = try makeArchive([
+        "chapter.xhtml": xhtml("<p>正文<a id=\"noteref-1\" epub:type=\"noteref\" href=\"#footnote-1\">[1]</a></p><aside epub:type=\"footnote\"><ol><li id=\"footnote-1\"><p><a href=\"#noteref-1\" epub:type=\"noteref\">[1]</a>注释正文。</p></li></ol></aside>"),
+    ])
+    let after = try makeArchive([
+        "chapter.xhtml": xhtml("<p>正文<a id=\"noteref-1\" epub:type=\"noteref\" role=\"doc-noteref\" href=\"#footnote-1\"><img alt=\"注\" src=\"note.png\"/></a></p><aside epub:type=\"footnote\" role=\"doc-footnote\"><ol class=\"footnote-list\"><li id=\"footnote-1\" class=\"footnote-item\"><p class=\"footnote\"><a epub:type=\"backlink\" role=\"doc-backlink\" href=\"#noteref-1\">◎</a>注释正文。</p></li></ol></aside>"),
+    ])
+    defer {
+        try? FileManager.default.removeItem(at: before)
+        try? FileManager.default.removeItem(at: after)
+    }
+
+    #expect(try TextInvarianceValidator.validate(before: before, after: after).isValid)
+}
+
+@Test("text invariance still reports popup footnote body text changes")
+func textInvarianceReportsPopupBodyChange() throws {
+    let before = try makeArchive([
+        "chapter.xhtml": xhtml("<p>正文<a id=\"noteref-1\" epub:type=\"noteref\" href=\"#footnote-1\">[1]</a></p><aside epub:type=\"footnote\"><ol><li id=\"footnote-1\"><p><a href=\"#noteref-1\" epub:type=\"noteref\">[1]</a>注释正文。</p></li></ol></aside>"),
+    ])
+    let after = try makeArchive([
+        "chapter.xhtml": xhtml("<p>正文<a id=\"noteref-1\" epub:type=\"noteref\" role=\"doc-noteref\" href=\"#footnote-1\"><img alt=\"注\" src=\"note.png\"/></a></p><aside epub:type=\"footnote\" role=\"doc-footnote\"><ol class=\"footnote-list\"><li id=\"footnote-1\" class=\"footnote-item\"><p class=\"footnote\"><a epub:type=\"backlink\" role=\"doc-backlink\" href=\"#noteref-1\">◎</a>注释正文改。</p></li></ol></aside>"),
+    ])
+    defer {
+        try? FileManager.default.removeItem(at: before)
+        try? FileManager.default.removeItem(at: after)
+    }
+
+    let report = try TextInvarianceValidator.validate(before: before, after: after)
+    #expect(report.issues.contains { $0.kind == .textModified })
+}
+
 private func makeArchive(_ entries: [String: String]) throws -> URL {
     let url = FileManager.default.temporaryDirectory.appending(path: "text-invariance-\(UUID().uuidString).epub")
     let archive = try Archive(url: url, accessMode: .create)
