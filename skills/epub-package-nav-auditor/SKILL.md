@@ -45,6 +45,10 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
    - `svg`
 8. 只修最小结构问题，然后重新验证。
 
+## 源文件可读性
+
+涉及 XHTML 重写时，输出保持 XML-valid 且可人工 diff：保留 XML 声明与 HTML doctype，使用两空格结构缩进；块级元素分行，不把整个文档压成单行。不得为了格式化拆分段落、标题或其他 mixed-content 中的实际文本节点。
+
 ## 修复规则
 
 - 尽量保留现有 id，避免无意义 churn。

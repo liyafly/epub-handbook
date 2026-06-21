@@ -50,6 +50,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。
 - XHTML 根缺 `lang` 和 `xml:lang` 时，从 OPF `dc:language` 补入两者；不覆盖已有值，也不猜测缺失的 OPF 语言。
+- 发生 XHTML 重写时，对 XML-valid 页面使用两空格缩进的多行输出；不压缩为单行，也不改写 mixed-content 中的正文文字。无法 XML 解析的遗留页面保留原格式并继续由其他校验报告问题。
 - 新增 `Styles/epub3-enhancements.css`。
 - 仅在纯文本/数字上标注释标记需要图标化时新增 `Images/note.png`；已有图片 noteref 保留原图标。
 - 图片 noteref 的 `sup` 使用 `class="note-marker"`；其零行高外壳与相对上移图标只作用于脚注，避免 `sup img` 撑高正文行距。

@@ -40,7 +40,7 @@ fonts.css -> base.css -> notes/effects/literary/media/vertical/poster.css
 4. 更新 XHTML `<link>` 顺序，先加载依赖，再加载组件覆盖。
 5. 新增或删除样式文件时同步 OPF manifest。
 6. 只有确认没有目标 XHTML 依赖后，才删除重复 selector。
-7. 保持 CSS 可读。某个层超过 400 行时开始评估职责是否过宽；超过 500 行必须按职责拆分或移入已有正确层。
+7. 保持 CSS 可读：selector、花括号和每条 declaration 分行，使用一致缩进；不输出压缩成单行的 CSS。某个层超过 400 行时开始评估职责是否过宽；超过 500 行必须按职责拆分或移入已有正确层。
 8. 清洗既有 EPUB 时，如果多个局部 CSS 的引用页面集合互不重叠，可把规则改写为 `body.css-local-*` 作用域并归并到一个 `clean-scoped-local.css`；引用集合有交叠时必须跳过并报告，不猜测级联优先级。
 
 ## EPUB 安全写法
