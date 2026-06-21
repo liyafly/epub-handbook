@@ -65,6 +65,10 @@ def norm_join(base: str, href: str) -> str:
   return posixpath.normpath(posixpath.join(base, href.split("#", 1)[0]))
 
 
+def is_macos_metadata_path(name: str) -> bool:
+  return posixpath.basename(name.rstrip("/")) == ".DS_Store"
+
+
 def parse_xml(data: bytes, label: str) -> ET.Element:
   try:
     return ET.fromstring(data)
@@ -343,7 +347,11 @@ def migrate_epub3(input_path: Path, output_path: Path) -> dict[str, object]:
       info.compress_type = zipfile.ZIP_STORED
       zout.writestr(info, mimetype)
       for old_info in zin.infolist():
-        if old_info.filename in {"mimetype", opf_path, nav_zip_path} or old_info.filename in removed_nav_zip_paths:
+        if (
+          old_info.filename in {"mimetype", opf_path, nav_zip_path}
+          or old_info.filename in removed_nav_zip_paths
+          or is_macos_metadata_path(old_info.filename)
+        ):
           continue
         new_info = zipfile.ZipInfo(old_info.filename, old_info.date_time)
         new_info.compress_type = old_info.compress_type

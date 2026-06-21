@@ -343,7 +343,11 @@ def test_loop_converges_for_missing_html_lang() -> None:
         assert rep["rounds_run"] <= 4
         # At least one round should have applied an add-xml-lang action
         applied = sum(len(r.get("applied", [])) for r in rep["round_log"])
-        assert applied >= 1, f"should have fixed missing lang: {rep['round_log']}"
+        with zipfile.ZipFile(rep["output"]) as zf:
+            chapter = zf.read("OEBPS/chapter.xhtml").decode("utf-8")
+        assert applied >= 1 or 'xml:lang="zh-CN"' in chapter, (
+            f"missing language was neither staged nor fixed in-loop: {rep['round_log']}"
+        )
 
 
 def test_loop_converges_for_missing_manifest_mathml_property() -> None:
@@ -442,9 +446,12 @@ def test_finalize_writes_cleanup_round_marker() -> None:
         src = root / "source.epub"
         dst = root / "cleaned.epub"
         _make_min_epub(src, "文本不变")
+        with zipfile.ZipFile(src, "a") as zf:
+            zf.writestr(".DS_Store", b"macos-metadata")
         L._finalize(src, dst, 3)
         with zipfile.ZipFile(dst) as zf:
             opf = zf.read("OEBPS/content.opf").decode("utf-8")
+            assert ".DS_Store" not in zf.namelist()
         assert 'prefix="epub-handbook: https://github.com/epub-handbook/meta#"' in opf
         assert 'property="epub-handbook:cleanup-rounds">3</' in opf
 

@@ -639,6 +639,10 @@ def output_order(original_order: list[str], path_map: dict[str, str], transforme
   return ordered
 
 
+def is_macos_metadata_path(name: str) -> bool:
+  return posixpath.basename(name.rstrip("/")) == ".DS_Store"
+
+
 def write_epub(path: Path, files: dict[str, bytes], order: list[str], force: bool) -> None:
   if path.exists() and not force:
     raise StructureToolError(f"output already exists; pass --force to replace it: {path}")
@@ -652,6 +656,8 @@ def write_epub(path: Path, files: dict[str, bytes], order: list[str], force: boo
       mimetype.compress_type = zipfile.ZIP_STORED
       zf.writestr(mimetype, b"application/epub+zip")
       for name in order:
+        if is_macos_metadata_path(name):
+          continue
         info = zipfile.ZipInfo(name)
         info.compress_type = zipfile.ZIP_DEFLATED
         zf.writestr(info, files[name])

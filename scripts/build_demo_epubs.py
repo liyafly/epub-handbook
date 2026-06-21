@@ -62,6 +62,8 @@ def write_epub(path: Path, files: dict[str, bytes]) -> None:
       b"application/epub+zip",
     )
     for name in sorted(files):
+      if Path(name).name == ".DS_Store":
+        continue
       zf.writestr(zip_info(name, zipfile.ZIP_DEFLATED), files[name])
 
 

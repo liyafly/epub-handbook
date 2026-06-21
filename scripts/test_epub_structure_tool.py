@@ -103,6 +103,7 @@ def write_fixture(path: Path, encrypted: str | None = None) -> None:
     "OPS/assets/*cover.JPG": b"jpeg-bytes",
     "OPS/assets/font.ttf": b"font-bytes",
     "OPS/extras/unlisted.bin": b"unlisted-bytes",
+    ".DS_Store": b"macos-metadata",
   }
   if encrypted == "font":
     files["META-INF/encryption.xml"] = encryption_xml(
@@ -153,6 +154,7 @@ def test_format(root: Path) -> None:
   with zipfile.ZipFile(output) as zf:
     assert_valid_mimetype(zf)
     names = set(zf.namelist())
+    assert ".DS_Store" not in names
     assert "OPS/Text/?mix.xhtml" in names
     assert "OPS/Text/nav.xhtml" in names
     assert "OPS/Styles/theme.css" in names

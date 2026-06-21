@@ -61,6 +61,7 @@ def write_epub(
   <navMap><navPoint id="n1"><navLabel><text>One</text></navLabel><content src="Text/chap1.xhtml"/></navPoint></navMap>
 </ncx>
 ''')
+    zf.writestr(".DS_Store", b"macos-metadata")
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -125,6 +126,8 @@ def main() -> int:
     stale_nav_files = {f"OEBPS/nav{i}.xhtml" for i in range(1, 4)} & zip_names(output)
     if stale_nav_files:
       raise AssertionError(f"migrated EPUB must not retain removed nav files: {sorted(stale_nav_files)}")
+    if ".DS_Store" in zip_names(output):
+      raise AssertionError("migrated EPUB must not retain .DS_Store")
 
   with TemporaryDirectory() as raw:
     tmp = Path(raw)

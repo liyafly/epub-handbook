@@ -74,6 +74,10 @@ def rel_href(from_zip_path: str, to_zip_path: str) -> str:
   return posixpath.relpath(to_zip_path, base) if base else to_zip_path
 
 
+def is_macos_metadata_path(name: str) -> bool:
+  return posixpath.basename(name.rstrip("/")) == ".DS_Store"
+
+
 def split_props(value: str | None) -> list[str]:
   return [part for part in (value or "").split() if part]
 
@@ -119,7 +123,7 @@ def ensure_stylesheet_link(text: str, href: str) -> tuple[str, bool]:
 def read_epub_files(input_path: Path) -> tuple[dict[str, bytes], list[str]]:
   try:
     with zipfile.ZipFile(input_path) as zf:
-      order = zf.namelist()
+      order = [name for name in zf.namelist() if not is_macos_metadata_path(name)]
       return {name: zf.read(name) for name in order}, order
   except zipfile.BadZipFile as exc:
     raise EpubLibError(f"not a valid EPUB zip: {input_path}") from exc
@@ -139,8 +143,14 @@ def opf_path_from_container(files: dict[str, bytes]) -> str:
 def write_epub(output_path: Path, files: dict[str, bytes], original_order: list[str]) -> None:
   output_path.parent.mkdir(parents=True, exist_ok=True)
   ordered: list[str] = ["mimetype"]
-  ordered.extend(name for name in original_order if name != "mimetype" and name in files)
-  ordered.extend(name for name in sorted(files) if name not in set(ordered))
+  ordered.extend(
+    name for name in original_order
+    if name != "mimetype" and name in files and not is_macos_metadata_path(name)
+  )
+  ordered.extend(
+    name for name in sorted(files)
+    if name not in set(ordered) and not is_macos_metadata_path(name)
+  )
   tmp = output_path.with_suffix(output_path.suffix + ".tmp")
   try:
     with zipfile.ZipFile(tmp, "w") as zf:

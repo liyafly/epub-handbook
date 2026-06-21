@@ -77,6 +77,7 @@ def write_book(path: Path, title: str, marker: str, *, cover_bytes: bytes = b"co
 ''',
     "OEBPS/Styles/main.css": "body { background: url('../Images/cover.jpg'); }\n",
     "OEBPS/Images/cover.jpg": cover_bytes,
+    ".DS_Store": b"macos-metadata",
   }
   with zipfile.ZipFile(path, "w") as zf:
     for name, data in files.items():
@@ -134,6 +135,7 @@ def test_merge_epubs_rewrites_conflicting_resources_and_combines_toc(root: Path)
     assert spine is not None
     assert spine.attrib["toc"] == "ncx"
     names = set(zf.namelist())
+    assert ".DS_Store" not in names
     assert "OEBPS/toc.ncx" in names
     assert "OEBPS/Text/chapter.xhtml" in names
     assert "OEBPS/Text/vol2_chapter.xhtml" in names
@@ -221,6 +223,7 @@ def test_metadata_read_write_preserves_existing_package_structure(root: Path) ->
   assert after.rights == "版权声明"
   with zipfile.ZipFile(output) as zf:
     assert_valid_mimetype(zf)
+    assert ".DS_Store" not in zf.namelist()
     assert "OEBPS/Text/chapter.xhtml" in zf.namelist()
     assert "meta 正文保留。" in text_for(zf, "OEBPS/Text/chapter.xhtml")
 

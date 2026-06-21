@@ -33,10 +33,13 @@ def main() -> int:
   # TC2：写出的 EPUB 是合法 zip，且 mimetype 是第一个条目且 stored（不压缩）
   with TemporaryDirectory() as raw:
     out = Path(raw) / "one.epub"
-    bd.write_epub(out, bd.files_for(specs[0]))
+    files = bd.files_for(specs[0])
+    files[".DS_Store"] = b"macos-metadata"
+    bd.write_epub(out, files)
     with zipfile.ZipFile(out) as zf:
       names = zf.namelist()
       assert names[0] == "mimetype", f"mimetype 必须是首个条目，实际 {names[0]}"
+      assert ".DS_Store" not in names
       info = zf.getinfo("mimetype")
       assert info.compress_type == zipfile.ZIP_STORED, "mimetype 必须 stored 不压缩"
       bad = zf.testzip()

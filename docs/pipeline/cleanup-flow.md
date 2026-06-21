@@ -36,6 +36,7 @@ python3 scripts/epub_cleanup_pipeline.py \
 - `validate_text_invariance.py` 对 `a[epub:type~=noteref]` 和 `a[epub:type~=backlink]` 的可见控件文字不计入正文（数字触发器、图标、`◎` 是等价表示）；`li.footnote-item` 内的注释正文仍逐字校验。
 - 图片 noteref 的上标外壳使用 `sup.note-marker`：`line-height:0` 限制图标不撑高正文行框，内部图标用相对上移实现略高基线。不得用无作用域的 `sup img`，也不得影响普通文字上标。
 - 用户明确要求删除页面时，先建立精确删除白名单，并同步删除 ZIP、manifest、spine、nav、NCX 引用；文本 gate 只 allow-list 被授权删除的 XHTML 和重新生成的 nav，不能借此跳过其他正文页。
+- 所有重打包输出排除任意路径中的 `.DS_Store`；清洗输出不得携带 Finder 元数据。
 
 ## 0. 准备
 

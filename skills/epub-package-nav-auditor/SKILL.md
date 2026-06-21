@@ -55,6 +55,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 - 新增 manifest item 使用稳定、描述性 id。
 - manifest/spine 排序保持可复现。
 - assets 不进入 spine。
+- 重打包时排除任意路径中的 `.DS_Store`；它既不是 EPUB 资源，也不得作为未声明文件留在交付包中。
 - CSS 不进入 nav landmarks。
 - 没有明确范围变化时，不从 Kindle/legacy fixture 删除 NCX。
 - 不因为文件在磁盘上存在，就把未使用文件加入 OPF。

@@ -246,13 +246,17 @@ def write_epub(output_path: Path, files: dict[str, bytes], order: list[str] | No
     zf.writestr("mimetype", b"application/epub+zip", compress_type=zipfile.ZIP_STORED)
     written.add("mimetype")
     for name in order or []:
-      if name in files and name not in written and name != "mimetype":
+      if name in files and name not in written and name != "mimetype" and not is_macos_metadata_path(name):
         zf.writestr(name, files[name])
         written.add(name)
     for name in sorted(files):
-      if name not in written and name != "mimetype":
+      if name not in written and name != "mimetype" and not is_macos_metadata_path(name):
         zf.writestr(name, files[name])
         written.add(name)
+
+
+def is_macos_metadata_path(name: str) -> bool:
+  return posixpath.basename(name.rstrip("/")) == ".DS_Store"
 
 
 def ensure_no_encryption(files: dict[str, bytes], action: str) -> None:

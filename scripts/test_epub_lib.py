@@ -113,6 +113,21 @@ def test_read_write_roundtrip() -> None:
         assert zf.read(name) == data
 
 
+def test_write_epub_ignores_ds_store() -> None:
+  files = {
+    "mimetype": b"application/epub+zip",
+    "META-INF/container.xml": b"container",
+    ".DS_Store": b"macos-metadata",
+    "OEBPS/.DS_Store": b"nested-macos-metadata",
+  }
+  with TemporaryDirectory() as raw:
+    output = Path(raw) / "without-ds-store.epub"
+    E.write_epub(output, files, list(files))
+    with zipfile.ZipFile(output) as zf:
+      assert ".DS_Store" not in zf.namelist()
+      assert "OEBPS/.DS_Store" not in zf.namelist()
+
+
 def main() -> int:
   test_namespace_helpers()
   test_path_helpers()
@@ -121,6 +136,7 @@ def main() -> int:
   test_opf_helpers()
   test_ensure_stylesheet_link()
   test_read_write_roundtrip()
+  test_write_epub_ignores_ds_store()
   print("epub_lib tests ok")
   return 0
 

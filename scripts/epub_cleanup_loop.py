@@ -311,6 +311,8 @@ def _repack(files: dict[str, str], src: Path, dst: Path) -> Path:
     tmp = dst.with_suffix(dst.suffix + ".tmp")
     with zipfile.ZipFile(src) as src_zf, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst_zf:
         for info in src_zf.infolist():
+            if Path(info.filename).name == ".DS_Store":
+                continue
             if info.filename in files:
                 dst_zf.writestr(info, files[info.filename])
             else:
