@@ -293,11 +293,11 @@ private func isCleanupGenerated(_ path: ArchivePath) -> Bool {
     return name.hasPrefix("clean-shared-") || name.hasPrefix("clean-override-") || name.hasPrefix("clean-scoped-local")
 }
 
-private func filename(_ path: ArchivePath) -> String {
+func filename(_ path: ArchivePath) -> String {
     path.value.split(separator: "/").last.map(String.init) ?? path.value
 }
 
-private func filenameStem(_ path: ArchivePath) -> String {
+func filenameStem(_ path: ArchivePath) -> String {
     let name = filename(path)
     guard let dot = name.lastIndex(of: ".") else { return name }
     return String(name[..<dot])

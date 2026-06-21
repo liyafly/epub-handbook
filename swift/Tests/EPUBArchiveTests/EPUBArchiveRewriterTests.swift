@@ -52,6 +52,28 @@ func archiveRewriterAddsNewResource() throws {
     #expect(try rewritten.data(for: .init("OEBPS/Images/note.png")) == Data([0x89, 0x50]))
 }
 
+@Test("archive rewriter removes explicitly selected non-mimetype resources")
+func archiveRewriterRemovesSelectedResource() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appending(path: "source.epub")
+    let destination = directory.appending(path: "output.epub")
+    let archive = try Archive(url: source, accessMode: .create)
+    try addEntry("mimetype", data: Data("application/epub+zip".utf8), compression: .none, to: archive)
+    try addEntry("OEBPS/obsolete.css", data: Data("p { color: red; }".utf8), compression: .deflate, to: archive)
+
+    try EPUBArchiveRewriter.rewrite(
+        source: source,
+        to: destination,
+        replacements: [:],
+        removals: [try ArchivePath("OEBPS/obsolete.css")]
+    )
+
+    let rewritten = try EPUBArchiveReader(url: destination)
+    #expect(!rewritten.entryPaths().contains(try ArchivePath("OEBPS/obsolete.css")))
+}
+
 private func addEntry(_ path: String, data: Data, compression: CompressionMethod, to archive: Archive) throws {
     try archive.addEntry(
         with: path,

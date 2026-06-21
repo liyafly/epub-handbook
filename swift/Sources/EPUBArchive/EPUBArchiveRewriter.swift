@@ -5,6 +5,9 @@ public enum EPUBArchiveRewriterError: Error, Equatable, Sendable {
     case destinationAlreadyExists
     case missingMimetype
     case replacementPathMissing(String)
+    case removalPathMissing(String)
+    case cannotRemoveMimetype
+    case replacementAndRemovalConflict(String)
     case additionPathAlreadyExists(String)
 }
 
@@ -16,7 +19,8 @@ public enum EPUBArchiveRewriter {
         source: URL,
         to destination: URL,
         replacements: [ArchivePath: Data],
-        additions: [ArchivePath: Data] = [:]
+        additions: [ArchivePath: Data] = [:],
+        removals: Set<ArchivePath> = []
     ) throws {
         guard !FileManager.default.fileExists(atPath: destination.path) else {
             throw EPUBArchiveRewriterError.destinationAlreadyExists
@@ -30,6 +34,15 @@ public enum EPUBArchiveRewriter {
         for path in replacements.keys where !sourcePathSet.contains(path) {
             throw EPUBArchiveRewriterError.replacementPathMissing(path.value)
         }
+        for path in removals where !sourcePathSet.contains(path) {
+            throw EPUBArchiveRewriterError.removalPathMissing(path.value)
+        }
+        guard !removals.contains(mimetypePath) else {
+            throw EPUBArchiveRewriterError.cannotRemoveMimetype
+        }
+        for path in replacements.keys where removals.contains(path) {
+            throw EPUBArchiveRewriterError.replacementAndRemovalConflict(path.value)
+        }
         for path in additions.keys where sourcePathSet.contains(path) || replacements[path] != nil {
             throw EPUBArchiveRewriterError.additionPathAlreadyExists(path.value)
         }
@@ -42,7 +55,7 @@ public enum EPUBArchiveRewriter {
             }
         }
         let archive = try Archive(url: destination, accessMode: .create)
-        let orderedPaths = [mimetypePath] + sourcePaths.filter { $0 != mimetypePath }
+        let orderedPaths = [mimetypePath] + sourcePaths.filter { $0 != mimetypePath && !removals.contains($0) }
         for path in orderedPaths {
             let data: Data
             if let replacement = replacements[path] {

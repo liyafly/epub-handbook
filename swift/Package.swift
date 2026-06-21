@@ -84,9 +84,21 @@ let package = Package(
         .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms", "EPUBValidation"]),
         .target(
             name: "EPUBStylesheets",
-            dependencies: ["EPUBArchive", "EPUBPackage"]
+            dependencies: [
+                "EPUBArchive",
+                "EPUBPackage",
+                .product(name: "SwiftSoup", package: "SwiftSoup"),
+            ]
         ),
-        .testTarget(name: "EPUBStylesheetsTests", dependencies: ["EPUBStylesheets", "EPUBArchive"]),
+        .testTarget(
+            name: "EPUBStylesheetsTests",
+            dependencies: [
+                "EPUBStylesheets",
+                "EPUBArchive",
+                "EPUBValidation",
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+            ]
+        ),
         .target(
             name: "EPUBCLI",
             dependencies: [
