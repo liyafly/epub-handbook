@@ -17,6 +17,7 @@ templates/**/dist/
 
 work-epub/
 work/
+docs/superpowers/
 
 # Python 缓存
 .venv/
