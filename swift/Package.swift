@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "EPUBInspection", targets: ["EPUBInspection"]),
         .library(name: "EPUBValidation", targets: ["EPUBValidation"]),
         .library(name: "EPUBStructuredTransforms", targets: ["EPUBStructuredTransforms"]),
+        .library(name: "EPUBStylesheets", targets: ["EPUBStylesheets"]),
         .library(name: "EPUBCLI", targets: ["EPUBCLI"]),
         .executable(name: "epub-handbook-swift", targets: ["EPUBHandbookSwiftCLI"]),
     ],
@@ -81,6 +82,8 @@ let package = Package(
             ]
         ),
         .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms", "EPUBValidation"]),
+        .target(name: "EPUBStylesheets"),
+        .testTarget(name: "EPUBStylesheetsTests", dependencies: ["EPUBStylesheets"]),
         .target(
             name: "EPUBCLI",
             dependencies: [
