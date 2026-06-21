@@ -270,6 +270,47 @@ def test_replace_cover_updates_manifest_metadata_and_removes_old_cover(root: Pat
     assert meta.attrib["content"] == "cover-image"
 
 
+def test_replace_cover_resizes_svg_cover_page_to_new_image_dimensions(root: Path) -> None:
+  source = root / "source.epub"
+  cover = root / "new-cover.png"
+  output = root / "cover.epub"
+  write_book(source, "封面书", "cover", cover_bytes=b"old-cover")
+  cover.write_bytes(
+    b"\x89PNG\r\n\x1a\n"
+    b"\x00\x00\x00\rIHDR"
+    b"\x00\x00\x04\x00\x00\x00\x06\x00"
+    b"\x08\x02\x00\x00\x00"
+  )
+  with zipfile.ZipFile(source) as zf:
+    files = {info.filename: zf.read(info.filename) for info in zf.infolist()}
+  files["OEBPS/content.opf"] = files["OEBPS/content.opf"].replace(
+    b'<item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>',
+    b'<item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>\n'
+    b'    <item id="cover-page" href="Text/cover.xhtml" media-type="application/xhtml+xml" properties="svg"/>',
+  )
+  files["OEBPS/Text/cover.xhtml"] = b'''<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <body><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1654 2362"><image width="1654" height="2362" href="../Images/cover.jpg"/></svg></body>
+</html>
+'''
+  with zipfile.ZipFile(source, "w") as zf:
+    zf.writestr(zip_info("mimetype", zipfile.ZIP_STORED), b"application/epub+zip")
+    for name, data in files.items():
+      if name != "mimetype":
+        zf.writestr(zip_info(name), data)
+
+  replace_cover(source, output, cover)
+
+  with zipfile.ZipFile(output) as zf:
+    root_el = ET.fromstring(zf.read("OEBPS/Text/cover.xhtml"))
+    svg = next(node for node in root_el.iter() if node.tag.endswith("svg"))
+    image = next(node for node in svg if node.tag.endswith("image"))
+    assert svg.attrib["viewBox"] == "0 0 1024 1536"
+    assert image.attrib["width"] == "1024"
+    assert image.attrib["height"] == "1536"
+    assert image.attrib["href"] == "../Images/cover.png"
+
+
 def main() -> int:
   with TemporaryDirectory() as raw:
     root = Path(raw)
@@ -277,6 +318,7 @@ def main() -> int:
     test_split_epub_builds_independent_segments_with_referenced_resources(root)
     test_metadata_read_write_preserves_existing_package_structure(root)
     test_replace_cover_updates_manifest_metadata_and_removes_old_cover(root)
+    test_replace_cover_resizes_svg_cover_page_to_new_image_dimensions(root)
   print("epub package tool tests ok")
   return 0
 

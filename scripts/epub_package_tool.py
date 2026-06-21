@@ -58,6 +58,11 @@ CSS_IMPORT_RE = re.compile(
   r"(?P<prefix>@import\s+)(?P<quote>[\"'])(?P<uri>.*?)(?P=quote)",
   flags=re.IGNORECASE | re.DOTALL,
 )
+SVG_BLOCK_RE = re.compile(
+  r"(?P<open><svg\b[^>]*>)(?P<body>.*?</svg\s*>)",
+  flags=re.IGNORECASE | re.DOTALL,
+)
+SVG_IMAGE_RE = re.compile(r"<image\b[^>]*>", flags=re.IGNORECASE | re.DOTALL)
 MARKUP_EXTENSIONS = {".html", ".htm", ".xhtml", ".xml", ".ncx", ".svg", ".smil"}
 IMAGE_MEDIA_BY_EXT = {
   ".gif": "image/gif",
@@ -459,6 +464,81 @@ def transform_resource(data: bytes, old_path: str, new_path: str, path_map: dict
   except UnicodeDecodeError:
     return data
   return rewrite_text_references(text, old_path, new_path, path_map, known_files).encode("utf-8")
+
+
+def cover_raster_dimensions(data: bytes) -> tuple[int, int] | None:
+  """Return PNG/JPEG pixel dimensions without adding an image dependency."""
+  if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24 and data[12:16] == b"IHDR":
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+  if not data.startswith(b"\xff\xd8"):
+    return None
+  index = 2
+  while index + 9 <= len(data):
+    if data[index] != 0xFF:
+      index += 1
+      continue
+    marker = data[index + 1]
+    if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+      return int.from_bytes(data[index + 7:index + 9], "big"), int.from_bytes(data[index + 5:index + 7], "big")
+    if marker in {0xD8, 0xD9}:
+      index += 2
+      continue
+    length = int.from_bytes(data[index + 2:index + 4], "big")
+    if length < 2:
+      return None
+    index += 2 + length
+  return None
+
+
+def set_xml_tag_attribute(tag: str, name: str, value: str) -> str:
+  pattern = re.compile(rf"(?P<prefix>\s{name}\s*=\s*)(?P<quote>[\"']).*?(?P=quote)", re.IGNORECASE | re.DOTALL)
+  if pattern.search(tag):
+    return pattern.sub(lambda match: f'{match.group("prefix")}{match.group("quote")}{value}{match.group("quote")}', tag, count=1)
+  closing = "/>" if tag.rstrip().endswith("/>") else ">"
+  return f'{tag[:-len(closing)]} {name}="{value}"{tag[-len(closing):]}'
+
+
+def uri_targets_archive(uri: str, document_path: str, target_path: str) -> bool:
+  if not uri or is_external_uri(uri):
+    return False
+  path = urlsplit(uri).path
+  if not path:
+    return False
+  try:
+    return resolve_relative_path(document_path, path) == target_path
+  except PackageToolError:
+    return False
+
+
+def resize_svg_cover_pages(data: bytes, document_path: str, cover_path: str, dimensions: tuple[int, int] | None) -> bytes:
+  """Keep inline SVG cover wrappers aligned to the replacement raster size."""
+  if dimensions is None or posixpath.splitext(document_path)[1].lower() not in MARKUP_EXTENSIONS:
+    return data
+  try:
+    text = data.decode("utf-8")
+  except UnicodeDecodeError:
+    return data
+  width, height = dimensions
+
+  def replace_svg(match: re.Match[str]) -> str:
+    has_cover_image = False
+
+    def replace_image(image_match: re.Match[str]) -> str:
+      nonlocal has_cover_image
+      tag = image_match.group(0)
+      for uri_match in URI_ATTRIBUTE_RE.finditer(tag):
+        if uri_targets_archive(uri_match.group("uri"), document_path, cover_path):
+          has_cover_image = True
+          return set_xml_tag_attribute(set_xml_tag_attribute(tag, "width", str(width)), "height", str(height))
+      return tag
+
+    body = SVG_IMAGE_RE.sub(replace_image, match.group("body"))
+    if not has_cover_image:
+      return match.group(0)
+    opening = set_xml_tag_attribute(match.group("open"), "viewBox", f"0 0 {width} {height}")
+    return opening + body
+
+  return SVG_BLOCK_RE.sub(replace_svg, text).encode("utf-8")
 
 
 def parse_toc_nav(files: dict[str, bytes], nav_path: str) -> list[TocEntry]:
@@ -1102,6 +1182,8 @@ def replace_cover(input_path: Path, output_path: Path, cover_path: Path) -> Oper
   new_rel_href = f"Images/cover{ext}"
   new_archive_path = validate_archive_path(posixpath.join(opf_dir, new_rel_href), "cover output")
   media_type = media_type_for_cover(cover_path)
+  cover_data = cover_path.read_bytes()
+  cover_dimensions = cover_raster_dimensions(cover_data)
   updated = dict(files)
 
   old_cover_paths: set[str] = set()
@@ -1128,14 +1210,15 @@ def replace_cover(input_path: Path, output_path: Path, cover_path: Path) -> Oper
   for old_path in old_cover_paths:
     if old_path != new_archive_path:
       updated.pop(old_path, None)
-  updated[new_archive_path] = cover_path.read_bytes()
+  updated[new_archive_path] = cover_data
   if old_cover_paths:
     path_map = {old_path: new_archive_path for old_path in old_cover_paths}
     known_files = set(files)
     for name, data in list(updated.items()):
       if name == package.opf_path or name == new_archive_path:
         continue
-      updated[name] = transform_resource(data, name, name, path_map, known_files)
+      transformed = transform_resource(data, name, name, path_map, known_files)
+      updated[name] = resize_svg_cover_pages(transformed, name, new_archive_path, cover_dimensions)
 
   for elem in list(meta.findall('opf:meta[@name="cover"]', OPF_NS)):
     meta.remove(elem)
