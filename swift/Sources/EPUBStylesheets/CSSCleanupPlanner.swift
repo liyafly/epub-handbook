@@ -136,7 +136,10 @@ public enum CSSCleanupPlanner {
 
         var canonicalByDigest: [String: ArchivePath] = [:]
         for path in sanitized.keys.sorted(by: { $0.value < $1.value }) where !removed.contains(path) {
-            guard let css = sanitized[path] else { continue }
+            // Opaque at-rules and malformed rules remain independent
+            // resources. A matching digest is not evidence that their
+            // conditional semantics can be merged.
+            guard parsedRules[path] != nil, let css = sanitized[path] else { continue }
             let digest = CSSFingerprint.make(css)
             if let canonical = canonicalByDigest[digest] {
                 initialLinkReplacements[path] = [canonical]

@@ -71,3 +71,23 @@ func plannerMergesDisjointLocalStylesheets() throws {
     #expect(plan.bodyClasses[thirdPage] == nil)
     #expect(plan.linkReplacements[localOne]?.last?.value.hasSuffix("clean-scoped-local.css") == true)
 }
+
+@Test("planner retains opaque at-rule stylesheets even when their normalized bytes match")
+func plannerDoesNotDedupeOpaqueStylesheets() throws {
+    let first = try ArchivePath("OEBPS/Styles/first.css")
+    let second = try ArchivePath("OEBPS/Styles/second.css")
+    let inventory = StylesheetInventory(
+        opfPath: try ArchivePath("OEBPS/content.opf"),
+        stylesheets: [
+            .init(path: first, css: "@media screen { p { color: red; } }"),
+            .init(path: second, css: "@media screen { p { color: red; } }"),
+        ],
+        xhtmlPaths: [],
+        references: []
+    )
+
+    let plan = try CSSCleanupPlanner.plan(inventory: inventory, options: .init())
+
+    #expect(plan.duplicateStylesheetsRemoved == 0)
+    #expect(plan.removedStylesheets.isEmpty)
+}

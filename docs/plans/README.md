@@ -15,6 +15,8 @@
 - `skills-and-templates.md`：skills 维护方式与模板目录约定
 - [2026-06-20-project-three-layer-refactor-plan.md](2026-06-20-project-three-layer-refactor-plan.md)：保留 Python、skills 与 harness 的三层项目重构，涵盖 contract、plugin runtime、adapter、目录和 CI 迁移。
 - [2026-06-20-swift-core-macos-gui-plan.md](2026-06-20-swift-core-macos-gui-plan.md)：基于三层 contract 的 Swift 核心、Tuist / AppKit macOS GUI 与未来 iOS 实施计划。
+- [2026-06-21-swift-native-css-cleanup-design.md](2026-06-21-swift-native-css-cleanup-design.md)：纯 Swift CSS cleanup 的无损解析、安全边界和原生 CLI 设计。
+- [2026-06-21-swift-native-css-cleanup-implementation-plan.md](2026-06-21-swift-native-css-cleanup-implementation-plan.md)：CSS scanner、plan、archive 写回与 Python 双跑的实施记录。
 
 ## 近期复核优先级
 

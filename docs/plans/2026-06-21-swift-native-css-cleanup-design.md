@@ -10,7 +10,7 @@
 
 不采用第三方 CSS parser。现有 Swift 候选不是过期、面向 UIKit 查询，便是 C++ / LGPL bridge，且会在 AST serializer 中丢失 comment 或未知 token。EPUB cleanup 的首要安全性是保留未知 CSS，而不是实现浏览器的 cascade 或 layout engine。
 
-新模块名为 `EPUBStylesheets`。它采用 lossless scanner：每个 top-level CSS statement 都保留原始文本；只有明确支持的 qualified rule 才解析 declaration。`@font-face`、`@media`、`@supports`、custom at-rule 与无法完整解析的规则保留为 opaque raw statement，不能被 factoring、dedupe rewrite 或 scope merge 删除。
+新模块名为 `EPUBStylesheets`。它采用 lossless scanner：每个 top-level CSS statement 都保留原始文本；只有明确支持的 qualified rule 才解析 declaration。`@font-face`、`@media`、`@supports`、custom at-rule 与无法完整解析的规则保留为 opaque raw statement，不能参与 factoring、dedupe 或 scope merge；字体 safelist 清洗仍可按现有 Python 行为作用于其 `font-family` 声明。
 
 ## 模块边界
 

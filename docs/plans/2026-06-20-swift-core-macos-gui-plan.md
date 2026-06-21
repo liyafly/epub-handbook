@@ -1,6 +1,6 @@
 # Swift 核心库与 macOS GUI 实施计划
 
-> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、Sigil popup normalize、默认图标/OPF 写入、语言壳层补齐、transaction JSON CLI 与 Python 双跑基线已实现；GUI apply 流程仍未实现，且不在本轮范围内。
+> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、Sigil popup normalize、默认图标/OPF 写入、语言壳层补齐、transaction JSON CLI 与 Python 双跑基线已实现。原生 CSS cleanup 已完成纯 Swift scanner、plan、archive/OPF/XHTML 写回和 CLI 双跑，但尚未达到 GUI 可用或 `swift-primary` 门槛；GUI apply 流程仍未实现，且不在本轮范围内。
 >
 > 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift 只消费 contract，绝不实现或调用 Python skill / harness。
 
@@ -50,6 +50,7 @@ swift/
 │   ├── EPUBInspection/      # 只读 preflight facts
 │   ├── EPUBValidation/      # text/anchors/metadata/spine/cover/DRM/popup validators
 │   ├── EPUBStructuredTransforms/ # SwiftSoup XML-mode XHTML 结构化变换
+│   ├── EPUBStylesheets/     # 无损 CSS scanner、cleanup plan、archive/OPF/XHTML 写回
 │   ├── EPUBRuntime/         # registry、workspace、gate、transaction、events
 │   ├── EPUBCLI/             # native CLI service / transaction boundary
 │   └── EPUBHandbookSwiftCLI/# epub-handbook-swift JSON executable
@@ -75,11 +76,14 @@ flowchart LR
     A --> P
     P --> I[EPUBInspection]
     P --> V[EPUBValidation]
+    A --> S[EPUBStylesheets]
+    P --> S
     V --> T[EPUBStructuredTransforms]
     C --> R[EPUBRuntime]
     I --> CLI[EPUBHandbookCLI]
     V --> CLI
     T --> CLI
+    S --> CLI
     R --> CLI
 ```
 
@@ -91,6 +95,7 @@ flowchart LR
 | `EPUBInspection` | preflight 与事实扫描。 | 写入 EPUB。 |
 | `EPUBValidation` | 正文不变性、锚点、metadata、spine、cover、加密标记。 | 修改输入以掩盖错误。 |
 | `EPUBStructuredTransforms` | SwiftSoup XML-mode 的白名单 XHTML DOM 变换和 path map。 | 未经批准的语义改写、任意 HTML 编辑器。 |
+| `EPUBStylesheets` | CSS lossless scanner、保守 declaration cleanup、stylesheet graph、OPF/XHTML link 写回。 | cascade / renderer、外部 CSS bridge、Python。 |
 | `EPUBRuntime` | registry、workspace、gate、transaction、取消、event stream。 | 具体 EPUB 规则、shell 路径、UI。 |
 | `EPUBCLI` / `EPUBHandbookSwiftCLI` | 参数、JSON result、exit code 与 native transaction orchestration。 | 业务算法复制、Python bridge。 |
 
@@ -119,6 +124,7 @@ Python adapter 的 request / result JSON 文件属于 Python CLI / Agent 层。S
 | `epub.package.nav.audit` | `PackageInspector` | `epub_preflight_harness.py` / `epub_ai_harness.py`。 | blocker、finding severity、exit code 对齐。 |
 | `epub.text.invariance` | 原生 `TextInvarianceValidator` | `validate_text_invariance.py`。 | text、anchors、metadata、spine、cover 对照通过。 |
 | `epub.notes.popup.normalize` | 原生 `PopupFootnoteArchiveNormalizer` + `PopupFootnoteValidator` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
+| `epub.css.layering.optimize` | `CSSCleanupArchiveTransformer` + `CSSCleanupValidator` | `epub_css_cleanup.py`。 | 同 fixture 双跑、EPUB lint、三次 CI 与人工 diff review 后才考虑 GUI。 |
 | `epub.structure.normalize` | 后续。 | `epub_structure_tool.py`。 | 先只有 dry-run / path map；apply 后置。 |
 | `epub.package.merge-split` | 后续。 | `epub_package_tool.py`。 | 不在首个 GUI 范围。 |
 
@@ -217,6 +223,15 @@ View 只消费 feature view model；view model 直接调用原生 `EPUBInspectio
 
 **当前结果：** Swift CLI 已可完成一个可审计的 popup normalize transaction；macOS GUI 尚未绑定写入能力，继续保持只读。
 
+### S3.1 — CSS cleanup capability
+
+- 已实现纯 Swift `EPUBStylesheets`：lossless top-level scanner，只解析保守 qualified-rule 子集；at-rule 和无法安全解析的 CSS 保留，不参与 factoring / dedupe / scope merge。
+- 已实现 Python cleanup 对应的标题装饰行、漏分号、三条系统字体链、normalized digest 去重、三份同 shape stylesheet factoring、override、可选互斥页面 scope merge，以及 `mimetype` 保持与 CSS archive removal。
+- 已实现 `normalize-css` 与 `run epub.css.layering.optimize`，在 native transaction 中依次执行 `preflight`、`css-cleanup`、`text-and-anchors`、`package-redlines`；不调用 Python、skill 或 harness。
+- 已在相同 fixture 下与 Python `epub_css_cleanup.py` 双跑，并对两个 output 分别运行 `epub_lint.py` 和 Python text/package redline。
+
+**当前结果：** native CLI 已可生成可审计 CSS cleanup artifact；GUI 继续只读。此 capability 仍是 dual-run，未完成连续三次 CI 和人工 diff review 前不得标记为 GUI available 或 `swift-primary`。
+
 ### S4 — CleanupHarness 与 plan UI
 
 - 实现 plan dependency、manual review gate、RunEvent、cancel / rollback。
@@ -228,7 +243,7 @@ View 只消费 feature view model；view model 直接调用原生 `EPUBInspectio
 ### S5 — 高风险能力逐项扩展
 
 - 先实现 structure normalize dry-run 与 path map。
-- 再按独立 capability 迁移 apply、EPUB3 migration、legacy note fallback、CSS cleanup。
+- 再按独立 capability 迁移 apply、EPUB3 migration、legacy note fallback；CSS cleanup 的原生 core 已完成，后续只补稳定性证据和产品接入决策。
 - merge / split、封面、字体、图片、Kindle 外部工具保持后置。
 
 **完成标准：** 每项能力都有 manifest、fixture、Python dual-run、redline、对应 validator 和人工 review 证据。

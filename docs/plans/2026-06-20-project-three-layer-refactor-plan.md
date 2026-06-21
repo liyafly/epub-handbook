@@ -1,6 +1,6 @@
 # epub-handbook 三层项目重构计划
 
-> 状态：R0 已登记 Python 公开入口；R1 已落地；R2 已有 catalog、Python-only JSON bridge 与统一 Python JSON CLI；R3 已有 Swift 原生 transaction；R4 已为 `epub.notes.popup.normalize` 建立 Swift/Python 双跑基线，并同步 Sigil footnotes、控件文本不变性和语言壳层语义。完整 cleanup harness、GUI apply 与其他 capability 的接管仍待继续。
+> 状态：R0 已登记 Python 公开入口；R1 已落地；R2 已有 catalog、Python-only JSON bridge 与统一 Python JSON CLI；R3 已有 Swift 原生 transaction；R4 已为 `epub.notes.popup.normalize` 和 `epub.css.layering.optimize` 建立 Swift/Python 双跑基线，并同步 Sigil footnotes、控件文本不变性、语言壳层语义与 CSS artifact redline。完整 cleanup harness、GUI apply 与其他 capability 的接管仍待继续。
 >
 > 主方案来源：
 > - `/Users/xiaoxiao/Developer/docCs/epub-handbook/epub-handbook 架构重构深度研究报告.md`
@@ -224,9 +224,9 @@ Swift 的 `PopupNoteTransformer` 是同一 contract / fixture / validator 下的
 - `scripts/render_adapter_catalog.py` 从同一份 manifest 生成 OpenAI、Claude、MCP、CLI、GUI 投影；它不把 Python 脚本路径写入 capability 或 `ExecutionPlan`。
 - Swift `EPUBContracts` / `EPUBRuntime` 已实现 Codable report/plan、manifest catalog、provider policy（Agent / legacy CLI 优先 Python；GUI / Swift CLI 只接受 Swift）以及原生 workspace / transaction 基座；Swift 不实现 skill 或 harness。
 - `adapters/python/public-entrypoints.v1.json` 已登记 Python CLI / Agent 的公开 harness、pipeline、transformer、validator；`scripts/python_provider_adapter.py` 通过 request/result JSON allow-list 调度首批 preflight / layout provider，并将 Python preflight findings 投影为 shared `InspectionReport` JSON。`scripts/epub_handbook_cli.py` 提供 Python-only catalog / run JSON 前端。Swift package、macOS GUI 与未来 iOS 不调用它们。
-- 原生 Swift `Transaction` 已实现 before baseline、staging、gate、commit / rollback audit；`EPUBValidation` 已覆盖 XHTML 文本 / anchors、核心 metadata、spine、cover path / bytes、DRM（stale 引用与显式 font-obfuscation 例外）以及 popup 结构 / 图标资源；`PopupFootnoteArchiveNormalizer` 仅用 SwiftSoup / ZIPFoundation 写入新 EPUB，支持完整 Sigil section、文本 marker 默认图标和 OPF manifest 写入，以及 OPF 语言到 XHTML 壳层的保守补齐。
-- `epub-handbook-swift` 提供 `inspect`、`validate-redlines` 和 `run epub.notes.popup.normalize` 的 JSON surface。`scripts/test_swift_python_parity.py` 独立运行 Python redline / popup validator 与 Swift CLI，比较 pass/fail、DRM、metadata 与 Swift popup artifact；两个 runtime 不互相调用。
-- Python 脚本、skill 目录、`agents/openai.yaml` 与 harness 均未移动或删除。R4 只完成 popup 候选的单次双跑基线，尚未达到三次 CI + 人工 diff review 的 `swift-primary` 切换门槛。
+- 原生 Swift `Transaction` 已实现 before baseline、staging、gate、commit / rollback audit；`EPUBValidation` 已覆盖 XHTML 文本 / anchors、核心 metadata、spine、cover path / bytes、DRM（stale 引用与显式 font-obfuscation 例外）以及 popup 结构 / 图标资源；`PopupFootnoteArchiveNormalizer` 仅用 SwiftSoup / ZIPFoundation 写入新 EPUB，支持完整 Sigil section、文本 marker 默认图标和 OPF manifest 写入，以及 OPF 语言到 XHTML 壳层的保守补齐。`EPUBStylesheets` 用纯 Swift 完成无损 CSS scanning、保守 cleanup plan、CSS replacement/addition/removal、OPF manifest 和 XHTML link/body scope 写回。
+- `epub-handbook-swift` 提供 `inspect`、`validate-redlines`、`run epub.notes.popup.normalize` 与 `run epub.css.layering.optimize` 的 JSON surface。`scripts/test_swift_python_parity.py` 独立运行 Python redline / popup validator / CSS cleanup 与 Swift CLI，比较 pass/fail、DRM、metadata、CSS manifest/link/generated stylesheet、EPUB lint 与 artifact redline；两个 runtime 不互相调用。
+- Python 脚本、skill 目录、`agents/openai.yaml` 与 harness 均未移动或删除。R4 已完成 popup 与 CSS cleanup 候选的单次双跑基线，尚未达到三次 CI + 人工 diff review 的 `swift-primary` 切换门槛；GUI 仍不得执行这两个写入 capability。
 
 ### R0 — 能力盘点与兼容基线
 
