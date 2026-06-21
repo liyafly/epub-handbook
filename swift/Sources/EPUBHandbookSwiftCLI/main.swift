@@ -76,14 +76,19 @@ struct EPUBHandbookSwiftCLI {
         case "normalize-popup":
             return await normalizePopup(options: parsed)
 
+        case "normalize-css":
+            return await normalizeCSS(options: parsed)
+
         case "run":
             guard let capability = parsed["_positional"] else {
                 return emitError(code: "capability", message: "run requires a capability id.")
             }
-            guard capability == "epub.notes.popup.normalize" else {
+            guard ["epub.notes.popup.normalize", "epub.css.layering.optimize"].contains(capability) else {
                 return emitError(code: "capability", message: "Swift CLI has not completed this capability: \(capability).")
             }
-            return await normalizePopup(options: parsed)
+            return capability == "epub.notes.popup.normalize"
+                ? await normalizePopup(options: parsed)
+                : await normalizeCSS(options: parsed)
 
         default:
             return emitError(code: "usage", message: usage)
@@ -102,6 +107,23 @@ struct EPUBHandbookSwiftCLI {
         return report.status == .complete ? 0 : 1
     }
 
+    private static func normalizeCSS(options: [String: String]) async -> Int {
+        guard let input = fileURL(options["input"]),
+              let output = fileURL(options["output"]),
+              let workspace = fileURL(options["workspace"])
+        else {
+            return emitError(code: "input", message: "normalize-css requires --input, --output, and --workspace.")
+        }
+        let report = await SwiftCLIService.normalizeCSS(
+            input: input,
+            output: output,
+            workspaceRoot: workspace,
+            options: .init(mergeScopedLocalStylesheets: options["merge-scoped-local-css"] == "true")
+        )
+        emit(report)
+        return report.status == .complete ? 0 : 1
+    }
+
     private static func parseOptions(_ arguments: [String]) throws -> [String: String] {
         var options: [String: String] = [:]
         var index = 0
@@ -109,7 +131,7 @@ struct EPUBHandbookSwiftCLI {
             let argument = arguments[index]
             if argument.hasPrefix("--") {
                 let name = String(argument.dropFirst(2))
-                if name == "allow-standard-font-obfuscation" {
+                if ["allow-standard-font-obfuscation", "merge-scoped-local-css"].contains(name) {
                     options[name] = "true"
                     index += 1
                     continue
@@ -162,5 +184,5 @@ struct EPUBHandbookSwiftCLI {
         }
     }
 
-    private static let usage = "Usage: epub-handbook-swift inspect --input <path> --format json | validate-redlines --before <path> --after <path> [--path-map <json>] [--allow-standard-font-obfuscation] --format json | normalize-popup --input <path> --output <path> --workspace <directory> --format json | run epub.notes.popup.normalize --input <path> --output <path> --workspace <directory> --format json"
+    private static let usage = "Usage: epub-handbook-swift inspect --input <path> --format json | validate-redlines --before <path> --after <path> [--path-map <json>] [--allow-standard-font-obfuscation] --format json | normalize-popup --input <path> --output <path> --workspace <directory> --format json | normalize-css --input <path> --output <path> --workspace <directory> [--merge-scoped-local-css] --format json | run epub.notes.popup.normalize|epub.css.layering.optimize --input <path> --output <path> --workspace <directory> [--merge-scoped-local-css] --format json"
 }

@@ -2,6 +2,7 @@ import Foundation
 import EPUBContracts
 import EPUBInspection
 import EPUBRuntime
+import EPUBStylesheets
 import EPUBStructuredTransforms
 import EPUBValidation
 
@@ -159,6 +160,92 @@ public enum SwiftCLIService {
             try await transaction.passGate("package-redlines")
             let artifact = try await transaction.commit(to: output)
             return .init(schemaVersion: "1", status: .complete, input: inputArtifact, output: artifact, events: await transaction.events())
+        } catch {
+            let currentEvents = await transaction.events()
+            if !currentEvents.contains(where: { $0.step == "unexpected-error" }) {
+                try? await transaction.rollback()
+            }
+            var events = await transaction.events()
+            events.append(.init(step: "unexpected-error", status: .failed, message: String(describing: error)))
+            return .init(schemaVersion: "1", status: .failed, input: inputArtifact, events: events)
+        }
+    }
+
+    /// Native CSS cleanup follows the same staged commit protocol as popup
+    /// normalization. Python remains an independent provider/oracle and is
+    /// never invoked from this execution path.
+    public static func normalizeCSS(
+        input: URL,
+        output: URL,
+        workspaceRoot: URL,
+        options: CSSCleanupOptions = .init()
+    ) async -> RunReport {
+        let inputArtifact = ArtifactReference(uri: input, kind: .epub)
+        let workspace = Workspace(root: workspaceRoot)
+        let transaction: Transaction
+        do {
+            transaction = try Transaction(
+                workspace: workspace,
+                requiredGateIDs: ["preflight", "css-cleanup", "text-and-anchors", "package-redlines"]
+            )
+        } catch {
+            return .init(
+                schemaVersion: "1",
+                status: .failed,
+                input: inputArtifact,
+                events: [.init(step: "transaction", status: .failed, message: String(describing: error))]
+            )
+        }
+
+        do {
+            let baseline = try await transaction.captureInput(inputArtifact)
+            let inspection = PackageInspector.inspect(baseline)
+            let preflight = try PackageRedlineValidator.validate(before: baseline.uri, after: baseline.uri)
+            guard inspection.status != .fail, preflight.isValid else {
+                let detail = inspection.findings.map(\.message).joined(separator: "; ")
+                try await transaction.failGate("preflight", message: detail.isEmpty ? "Native package preflight failed." : detail)
+                return try await rollbackReport(transaction: transaction, input: inputArtifact)
+            }
+            try await transaction.passGate("preflight")
+
+            let nativeOutput = workspaceRoot.appending(path: "staging/native-css-\(UUID().uuidString).epub")
+            let cleanup = try CSSCleanupArchiveTransformer.transform(
+                source: baseline.uri,
+                to: nativeOutput,
+                options: options
+            )
+            let staged = try await transaction.stage(
+                Data(contentsOf: nativeOutput),
+                filename: output.lastPathComponent.isEmpty ? "cleaned.epub" : output.lastPathComponent
+            )
+            let css = try CSSCleanupValidator.validate(epub: staged)
+            guard css.isValid else {
+                try await transaction.failGate("css-cleanup", message: css.issues.map(\.message).joined(separator: "; "))
+                return try await rollbackReport(transaction: transaction, input: inputArtifact)
+            }
+            let summary = "CSS files \(cleanup.cssFilesBefore) -> \(cleanup.cssFilesAfter); "
+                + "factored \(cleanup.factoredStylesheets), duplicates \(cleanup.duplicateStylesheetsRemoved)"
+            try await transaction.passGate("css-cleanup")
+
+            let text = try TextInvarianceValidator.validate(before: baseline.uri, after: staged)
+            guard text.isValid else {
+                try await transaction.failGate("text-and-anchors", message: text.issues.map(\.message).joined(separator: "; "))
+                return try await rollbackReport(transaction: transaction, input: inputArtifact)
+            }
+            try await transaction.passGate("text-and-anchors")
+
+            let package = try PackageRedlineValidator.validate(before: baseline.uri, after: staged)
+            guard package.isValid else {
+                try await transaction.failGate("package-redlines", message: package.issues.map(\.message).joined(separator: "; "))
+                return try await rollbackReport(transaction: transaction, input: inputArtifact)
+            }
+            try await transaction.passGate("package-redlines")
+            let artifact = try await transaction.commit(to: output)
+            var events = await transaction.events()
+            if let cssGate = events.lastIndex(where: { $0.step == "css-cleanup" }) {
+                events[cssGate] = .init(step: "css-cleanup", status: .completed, message: summary)
+            }
+            return .init(schemaVersion: "1", status: .complete, input: inputArtifact, output: artifact, events: events)
         } catch {
             let currentEvents = await transaction.events()
             if !currentEvents.contains(where: { $0.step == "unexpected-error" }) {

@@ -43,6 +43,24 @@ func swiftCLIPopupRunAllowsGeneratedBacklinkControl() async throws {
     #expect(FileManager.default.fileExists(atPath: workspace.appending(path: "before/source.epub").path))
 }
 
+@Test("Swift CSS cleanup transaction commits only after all native redlines pass")
+func swiftCLICSSCleanupIsTransactional() async throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let input = directory.appending(path: "source.epub")
+    let output = directory.appending(path: "cleaned.epub")
+    let workspace = directory.appending(path: "audit", directoryHint: .isDirectory)
+    try makeCSSEPUB(at: input)
+
+    let report = await SwiftCLIService.normalizeCSS(input: input, output: output, workspaceRoot: workspace, options: .init())
+
+    #expect(report.status == .complete)
+    #expect(FileManager.default.fileExists(atPath: output.path))
+    #expect(report.events.contains { $0.step == "css-cleanup" && $0.status == .completed })
+    #expect(report.events.contains { $0.step == "package-redlines" && $0.status == .completed })
+}
+
 private func makePopupEPUB(at url: URL, hasBacklinkSymbol: Bool = true) throws {
     let archive = try Archive(url: url, accessMode: .create)
     try add("mimetype", "application/epub+zip", .none, archive)
@@ -55,6 +73,17 @@ private func makePopupEPUB(at url: URL, hasBacklinkSymbol: Bool = true) throws {
     <html xmlns="http://www.w3.org/1999/xhtml"><body><p>正文<a id="note-one" role="doc-noteref" href="#footnote-one"><img src="../Images/note.png" alt="注"/></a></p><aside role="doc-footnote"><p id="footnote-one">\(backlink)注释正文。</p></aside></body></html>
     """, .deflate, archive)
     try addData("OEBPS/Images/note.png", Data([0x89, 0x50]), .deflate, archive)
+}
+
+private func makeCSSEPUB(at url: URL) throws {
+    let archive = try Archive(url: url, accessMode: .create)
+    try add("mimetype", "application/epub+zip", .none, archive)
+    try add("META-INF/container.xml", "<container><rootfiles><rootfile full-path=\"OEBPS/package.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>", .deflate, archive)
+    try add("OEBPS/package.opf", """
+    <package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Book</dc:title><dc:creator>A</dc:creator><dc:identifier>I</dc:identifier><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="css" href="Styles/book.css" media-type="text/css"/></manifest><spine><itemref idref="chapter"/></spine></package>
+    """, .deflate, archive)
+    try add("OEBPS/Text/chapter.xhtml", "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><link href=\"../Styles/book.css\" rel=\"stylesheet\" type=\"text/css\"/></head><body><p id=\"first\">Body text.</p></body></html>", .deflate, archive)
+    try add("OEBPS/Styles/book.css", "p { font-family: \"SimHei\"; }", .deflate, archive)
 }
 
 private func add(_ path: String, _ value: String, _ compression: CompressionMethod, _ archive: Archive) throws {

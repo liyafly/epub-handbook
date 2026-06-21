@@ -105,6 +105,7 @@ let package = Package(
                 "EPUBContracts",
                 "EPUBInspection",
                 "EPUBRuntime",
+                "EPUBStylesheets",
                 "EPUBStructuredTransforms",
                 "EPUBValidation",
             ]
