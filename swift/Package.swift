@@ -82,8 +82,11 @@ let package = Package(
             ]
         ),
         .testTarget(name: "EPUBStructuredTransformsTests", dependencies: ["EPUBStructuredTransforms", "EPUBValidation"]),
-        .target(name: "EPUBStylesheets"),
-        .testTarget(name: "EPUBStylesheetsTests", dependencies: ["EPUBStylesheets"]),
+        .target(
+            name: "EPUBStylesheets",
+            dependencies: ["EPUBArchive", "EPUBPackage"]
+        ),
+        .testTarget(name: "EPUBStylesheetsTests", dependencies: ["EPUBStylesheets", "EPUBArchive"]),
         .target(
             name: "EPUBCLI",
             dependencies: [
