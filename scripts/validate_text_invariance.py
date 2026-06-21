@@ -483,8 +483,11 @@ def validate(args: argparse.Namespace) -> int:
       if problems:
         write_report(verbose_lines + problems if args.verbose else problems, args.output)
         return 1
-      if args.verbose:
-        write_report(verbose_lines + ["All requested red-line checks passed."], args.output)
+      if args.verbose or args.output:
+        lines = verbose_lines + ["All requested red-line checks passed."] if args.verbose else [
+          "All requested red-line checks passed."
+        ]
+        write_report(lines, args.output)
       return 0
     finally:
       before.close()

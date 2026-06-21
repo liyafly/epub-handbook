@@ -253,6 +253,17 @@ def main() -> int:
 
   with TemporaryDirectory() as raw:
     tmp = Path(raw)
+    before_src, after_src, before, after = make_pair(tmp)
+    build_epub(before_src, before)
+    build_epub(after_src, after)
+    report = tmp / "report.txt"
+    report.write_text("stale failure report\n", encoding="utf-8")
+    result = run(before, after, "--output", str(report))
+    assert result.returncode == 0, result.stderr
+    assert report.read_text(encoding="utf-8") == "All requested red-line checks passed.\n"
+
+  with TemporaryDirectory() as raw:
+    tmp = Path(raw)
     nonzip = tmp / "not.epub"
     nonzip.write_text("not a zip", encoding="utf-8")
     result = run(nonzip, nonzip)

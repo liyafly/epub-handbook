@@ -87,6 +87,12 @@ TYPOGRAPHY_ROLES = [
   "type-meta",
 ]
 
+INLINE_CONTENT_TAGS = {
+  "a", "abbr", "b", "bdi", "bdo", "br", "cite", "code", "em", "i", "img",
+  "kbd", "label", "mark", "q", "ruby", "s", "samp", "small", "span", "strong",
+  "sub", "sup", "time", "u", "var", "wbr",
+}
+
 
 @dataclass
 class ConversionReport:
@@ -850,6 +856,63 @@ def normalize_xhtml_shell(text: str, default_language: str | None = None) -> tup
   return text, changed
 
 
+def format_xhtml_multiline(text: str) -> tuple[str, bool]:
+  """Pretty-print XML-valid XHTML without changing its element content.
+
+  EPUB XHTML is XML, so element-only containers can be indented safely.  Mixed
+  text content (including Ruby) is deliberately left untouched.  Invalid
+  legacy XHTML is also left as-is; the conversion must not turn a formatting
+  aid into a reason to reject an otherwise recoverable book.
+  """
+  stripped = XML_DECL_RE.sub("", text, count=1)
+  stripped = DOCTYPE_RE.sub("", stripped, count=1).strip()
+  try:
+    root = ET.fromstring(stripped)
+  except ET.ParseError:
+    return text, False
+
+  # Namespace registrations are process-global.  Use readable XHTML prefixes
+  # for this serialization only, then restore the OPF default required by the
+  # package serializer later in the conversion.
+  ET.register_namespace("", XHTML_URI)
+  ET.register_namespace("epub", OPS_URI)
+  try:
+    indent_element_only(root)
+    formatted = (
+      '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
+      + ET.tostring(root, encoding="unicode", short_empty_elements=True)
+      + "\n"
+    )
+  finally:
+    ET.register_namespace("", OPF_URI)
+    ET.register_namespace("dc", DC_URI)
+    ET.register_namespace("opf", OPF_URI)
+  return formatted, formatted != text
+
+
+def has_mixed_text_content(elem: ET.Element) -> bool:
+  if (elem.text or "").strip():
+    return True
+  return any(
+    (child.tail or "").strip() or local_name(child.tag) in INLINE_CONTENT_TAGS
+    for child in elem
+  )
+
+
+def indent_element_only(elem: ET.Element, level: int = 0) -> None:
+  """Indent element-only XML without introducing text into inline markup."""
+  children = list(elem)
+  if not children or has_mixed_text_content(elem):
+    return
+  child_indent = "\n" + "  " * (level + 1)
+  parent_indent = "\n" + "  " * level
+  elem.text = child_indent
+  for child in children:
+    indent_element_only(child, level + 1)
+    child.tail = child_indent
+  children[-1].tail = parent_indent
+
+
 PLAIN_NOTEREF_RE = re.compile(
   r'<a\s+id="w(?P<num>\d+)"></a>\s*'
   r'<a\s+href="(?P<href>[^"]*#m(?P=num))">\s*<sup>\[(?P=num)\]</sup>\s*</a>',
@@ -1079,6 +1142,8 @@ def update_xhtml_files(
       report.manifest_items_updated += 1
     if re.search(r"<script\b", text, re.I) and add_props(item, "scripted"):
       report.manifest_items_updated += 1
+    text, reformatted = format_xhtml_multiline(text)
+    changed = changed or reformatted
     if changed:
       files[zip_path] = text.encode("utf-8")
       report.xhtml_files_updated += 1

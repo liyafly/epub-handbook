@@ -24,6 +24,7 @@ def write_legacy_epub(
   extra_manifest_items: str = "",
   extra_files: dict[str, bytes | str] | None = None,
   missing_html_language: bool = False,
+  minified_chapter: bool = False,
 ) -> None:
   note_markup = chapter_note_markup or (
     '<p>正文<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a>继续。</p>\n'
@@ -120,6 +121,13 @@ def write_legacy_epub(
   files["OEBPS/Text/chapter.xhtml"] = files["OEBPS/Text/chapter.xhtml"].format(
     note_markup=note_markup,
   )
+  if minified_chapter:
+    files["OEBPS/Text/chapter.xhtml"] = (
+      '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html>'
+      '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN">'
+      '<head><title>第一章</title></head><body><h1 id="c1">第一章</h1>'
+      f'{note_markup}</body></html>'
+    )
   files.update(extra_files or {})
 
   if body_class:
@@ -138,10 +146,11 @@ def write_legacy_epub(
 
 
 def main() -> int:
+  inline_only_paragraph_formatting_case()
   with TemporaryDirectory() as raw:
     source = Path(raw) / "legacy.epub"
     output = Path(raw) / "converted.epub"
-    write_legacy_epub(source)
+    write_legacy_epub(source, minified_chapter=True)
     report = C.convert_epub(source, output)
 
     assert report.plain_notes_converted == 1, report
@@ -193,6 +202,8 @@ def main() -> int:
       assert 'class="footnote-list"' in chapter
       assert 'role="doc-backlink"' in chapter
       assert "注释正文保留。" in chapter
+      assert "\n  <head>" in chapter
+      assert "\n  <body>" in chapter
 
   locked_mode_case()
   ibooks_prefix_case()
@@ -202,6 +213,17 @@ def main() -> int:
   non_note_sup_case()
   print("epub3 oneclick converter tests ok")
   return 0
+
+
+def inline_only_paragraph_formatting_case() -> None:
+  source = (
+    '<?xml version="1.0"?><!DOCTYPE html>'
+    '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head>'
+    '<body><p><span>甲</span><span>乙</span></p></body></html>'
+  )
+  formatted, changed = C.format_xhtml_multiline(source)
+  assert changed
+  assert "<p><span>甲</span><span>乙</span></p>" in formatted, formatted
 
 
 def ibooks_prefix_case() -> None:
