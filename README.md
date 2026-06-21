@@ -198,11 +198,8 @@ python3 scripts/epub_cleanup_loop.py /path/to/input.epub --work-dir work/book-a 
 | `scripts/epub_structure_tool.py` | 可选：先格式化目录，再按 OPF manifest id 做文件名反混淆 | 两阶段 `mappings`、`warnings`、normalized EPUB |
 | `scripts/epub3_migration_harness.py` | dry-run 或写出保守 EPUB3 迁移包 | OPF/nav actions、warnings、`written_output` |
 | `scripts/epub_refinement_harness.py` | 给现成 EPUB 出精排建议 | 弹注、字体、图片、Ruby/竖排、红线/diff、AI skill 阶段建议 |
-<<<<<<< ours
 | `scripts/epub_image_layout_advisor.py` | 给问题图片生成逐图候选菜单 | 文件、selector、图片路径、候选布局、可追溯风险与决策命令模板 |
 | `scripts/epub_style_preset_tool.py` | 预览或应用三种中文书型风格预设 | coverage、CSS add/replace 清单、OPF/link 写入结果 |
-=======
->>>>>>> theirs
 | `scripts/epub_css_cleanup.py` | 可选合并重复 CSS、替换旧字体链并收敛互不交叠的局部样式 | 清洗后 EPUB、CSS/字体计数 |
 | `scripts/epub_anthology_refinement.py` | 可选把合订书单图卷封改为 A-lite contain + fallback，并优化紧邻版权页 | 精排后 EPUB、卷封/版权页计数 |
 
