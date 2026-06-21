@@ -139,6 +139,7 @@ public enum PopupFootnoteNormalizer {
                 try reference.attr("epub:type", "noteref")
                 try reference.attr("role", "doc-noteref")
                 try normalizeClasses(reference, required: "noteref-icon")
+                try ensureNoteMarkerSuperscript(reference)
                 imageSources.append(imageSource)
                 records.append(.init(referenceID: referenceID, targetID: targetID, target: target))
             }
@@ -325,3 +326,13 @@ private func normalizeClasses(_ element: Element, required: String) throws {
     }
     try element.addClass(required)
 }
+
+    /// Ensures the noteref `<a>` is wrapped in `<sup class="note-marker">`,
+    /// matching the Python `mark_note_marker_sup` contract.
+    private func ensureNoteMarkerSuperscript(_ reference: Element) throws {
+        if let parent = reference.parent(), parent.tagName().lowercased() == "sup" {
+            try parent.addClass("note-marker")
+        } else {
+            try reference.wrap("<sup class=\"note-marker\"></sup>")
+        }
+    }

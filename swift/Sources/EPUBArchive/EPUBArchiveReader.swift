@@ -16,12 +16,18 @@ public struct EPUBArchiveReader {
     public init(url: URL) throws {
         archive = try Archive(url: url, accessMode: .read)
         do {
-            paths = try archive.map { entry in
-                try ArchivePath(entry.path)
-            }
+            paths = try archive
+                .map { entry in try ArchivePath(entry.path) }
+                .filter { !Self.isMacOSMetadataPath($0) }
         } catch {
             throw EPUBArchiveReaderError.invalidArchivePath("archive entry")
         }
+    }
+
+    /// Mirrors the Python `is_macos_metadata_path` guard so `.DS_Store`
+    /// entries never reach inspection, validation, or rewrite layers.
+    public static func isMacOSMetadataPath(_ path: ArchivePath) -> Bool {
+        path.value.split(separator: "/").last.map(String.init) == ".DS_Store"
     }
 
     public func entryPaths() -> [ArchivePath] {
