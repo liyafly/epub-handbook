@@ -28,4 +28,10 @@ final class PreflightPresentationTests: XCTestCase {
             """
         )
     }
+
+    func testCleanupAvailabilityRequiresSuccessfulInspectionAndInput() {
+        XCTAssertFalse(CSSCleanupAvailability.isEnabled(reportStatus: .fail, hasInput: true))
+        XCTAssertFalse(CSSCleanupAvailability.isEnabled(reportStatus: .pass, hasInput: false))
+        XCTAssertTrue(CSSCleanupAvailability.isEnabled(reportStatus: .pass, hasInput: true))
+    }
 }

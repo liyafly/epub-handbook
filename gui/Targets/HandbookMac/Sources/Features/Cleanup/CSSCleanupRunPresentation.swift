@@ -21,3 +21,9 @@ enum CSSCleanupRunPresentation {
         return lines.joined(separator: "\n")
     }
 }
+
+enum CSSCleanupAvailability {
+    static func isEnabled(reportStatus: InspectionStatus, hasInput: Bool) -> Bool {
+        reportStatus == .pass && hasInput
+    }
+}
