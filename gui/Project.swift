@@ -23,6 +23,7 @@ let project = Project(
             entitlements: .file(path: "Targets/HandbookMac/HandbookMac.entitlements"),
             dependencies: [
                 .package(product: "EPUBContracts"),
+                .package(product: "EPUBCLI"),
                 .package(product: "EPUBInspection"),
                 .package(product: "EPUBRuntime"),
             ],
