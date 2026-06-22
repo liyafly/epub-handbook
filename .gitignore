@@ -27,6 +27,7 @@ __pycache__/
 
 # SwiftPM / Tuist / Xcode generated state
 swift/.build/
+swift/.swiftpm/
 gui/*.xcodeproj/
 gui/*.xcworkspace/
 gui/Tuist/Dependencies/
