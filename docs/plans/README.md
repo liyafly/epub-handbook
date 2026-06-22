@@ -17,6 +17,8 @@
 - [2026-06-20-swift-core-macos-gui-plan.md](2026-06-20-swift-core-macos-gui-plan.md)：基于三层 contract 的 Swift 核心、Tuist / AppKit macOS GUI 与未来 iOS 实施计划。
 - [2026-06-21-swift-native-css-cleanup-design.md](2026-06-21-swift-native-css-cleanup-design.md)：纯 Swift CSS cleanup 的无损解析、安全边界和原生 CLI 设计。
 - [2026-06-21-swift-native-css-cleanup-implementation-plan.md](2026-06-21-swift-native-css-cleanup-implementation-plan.md)：CSS scanner、plan、archive 写回与 Python 双跑的实施记录。
+- [2026-06-22-macos-gui-css-cleanup-design.md](2026-06-22-macos-gui-css-cleanup-design.md)：AppKit 单文件 CSS cleanup 写入路径的安全边界与交互设计。
+- [2026-06-22-macos-gui-css-cleanup-implementation-plan.md](2026-06-22-macos-gui-css-cleanup-implementation-plan.md)：上述 GUI 写入入口的测试与验证执行记录。
 
 ## 近期复核优先级
 

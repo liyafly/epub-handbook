@@ -1,6 +1,6 @@
 # Swift 核心库与 macOS GUI 实施计划
 
-> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、Sigil popup normalize、默认图标/OPF 写入、语言壳层补齐、transaction JSON CLI 与 Python 双跑基线已实现。原生 CSS cleanup 已完成纯 Swift scanner、plan、archive/OPF/XHTML 写回和 CLI 双跑，但尚未达到 GUI 可用或 `swift-primary` 门槛；GUI apply 流程仍未实现，且不在本轮范围内。
+> 状态：S0 已完成；S1 的 archive / container / OPF / package inspection 基座与 S2 的 AppKit 只读垂直切片已实现。S3 的原生全量红线、Sigil popup normalize、默认图标/OPF 写入、语言壳层补齐、transaction JSON CLI 与 Python 双跑基线已实现。原生 CSS cleanup 已完成纯 Swift scanner、plan、archive/OPF/XHTML 写回、CLI 双跑与首个 AppKit 单文件写入入口；它仍是 dual-run，尚未达到 `swift-primary` 门槛。除 CSS cleanup 外的 GUI apply 流程仍未实现。
 >
 > 前置：先完成 [三层项目重构计划](2026-06-20-project-three-layer-refactor-plan.md) 的 R0、R1；Swift 只消费 contract，绝不实现或调用 Python skill / harness。
 
@@ -124,7 +124,7 @@ Python adapter 的 request / result JSON 文件属于 Python CLI / Agent 层。S
 | `epub.package.nav.audit` | `PackageInspector` | `epub_preflight_harness.py` / `epub_ai_harness.py`。 | blocker、finding severity、exit code 对齐。 |
 | `epub.text.invariance` | 原生 `TextInvarianceValidator` | `validate_text_invariance.py`。 | text、anchors、metadata、spine、cover 对照通过。 |
 | `epub.notes.popup.normalize` | 原生 `PopupFootnoteArchiveNormalizer` + `PopupFootnoteValidator` | popup skill、converter、`validate-popup-notes.sh`。 | 保留既有图标、redline、popup validator 与 EPUB lint 全通过。 |
-| `epub.css.layering.optimize` | `CSSCleanupArchiveTransformer` + `CSSCleanupValidator` | `epub_css_cleanup.py`。 | 同 fixture 双跑、EPUB lint、三次 CI 与人工 diff review 后才考虑 GUI。 |
+| `epub.css.layering.optimize` | `CSSCleanupArchiveTransformer` + `CSSCleanupValidator` | `epub_css_cleanup.py`。 | 已有单文件 AppKit action；仍需三次 CI 与人工 diff review 才能标记 `swift-primary`。 |
 | `epub.structure.normalize` | 后续。 | `epub_structure_tool.py`。 | 先只有 dry-run / path map；apply 后置。 |
 | `epub.package.merge-split` | 后续。 | `epub_package_tool.py`。 | 不在首个 GUI 范围。 |
 
@@ -230,7 +230,7 @@ View 只消费 feature view model；view model 直接调用原生 `EPUBInspectio
 - 已实现 `normalize-css` 与 `run epub.css.layering.optimize`，在 native transaction 中依次执行 `preflight`、`css-cleanup`、`text-and-anchors`、`package-redlines`；不调用 Python、skill 或 harness。
 - 已在相同 fixture 下与 Python `epub_css_cleanup.py` 双跑，并对两个 output 分别运行 `epub_lint.py` 和 Python text/package redline。
 
-**当前结果：** native CLI 已可生成可审计 CSS cleanup artifact；GUI 继续只读。此 capability 仍是 dual-run，未完成连续三次 CI 和人工 diff review 前不得标记为 GUI available 或 `swift-primary`。
+**当前结果：** native CLI 与 `HandbookMac` 均可生成可审计 CSS cleanup artifact。GUI 只显示明确确认、Save Panel 选定的新输出路径和 native `RunReport`；不提供任意 CSS 编辑，且不调用 Python。此 capability 仍是 dual-run，未完成连续三次 CI 和人工 diff review 前不得标记为 `swift-primary`。
 
 ### S4 — CleanupHarness 与 plan UI
 

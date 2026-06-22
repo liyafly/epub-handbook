@@ -1,5 +1,7 @@
 # macOS GUI CSS Cleanup Implementation Plan
 
+> 执行状态：2026-06-22 已完成。保留这份测试驱动的执行记录，`HandbookMac` 只暴露单文件 CSS cleanup 写入动作。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an AppKit-only “执行 CSS Cleanup” write path that creates a new EPUB through the validated native Swift transaction.
@@ -18,7 +20,7 @@
 - Create: `gui/Targets/HandbookMac/Sources/Features/Cleanup/CSSCleanupRunPresentation.swift`
 - Create: `gui/Targets/HandbookMacTests/Sources/CSSCleanupRunPresentationTests.swift`
 
-- [ ] **Step 1: Write failing presentation tests**
+- [x] **Step 1: Write failing presentation tests**
 
 ```swift
 func testSuggestedOutputNameKeepsStemAndAddsCleanupSuffix() {
@@ -36,13 +38,13 @@ func testCompleteReportShowsOutputAndCompletedGates() {
 }
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `cd gui && mise exec -- tuist generate --no-open && xcodebuild test -workspace EPUBHandbook.xcworkspace -scheme HandbookMac -destination 'platform=macOS' -only-testing:HandbookMacTests/CSSCleanupRunPresentationTests`
 
 Expected: compile failure because `CSSCleanupRunPresentation` does not exist.
 
-- [ ] **Step 3: Add smallest GUI-facing formatter and package access**
+- [x] **Step 3: Add smallest GUI-facing formatter and package access**
 
 Add `EPUBCLI` to the app target dependency. Implement only:
 
@@ -55,7 +57,7 @@ enum CSSCleanupRunPresentation {
 
 Change the Sandbox entitlement from `com.apple.security.files.user-selected.read-only` to `com.apple.security.files.user-selected.read-write`.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Run the targeted test from Step 2.
 
@@ -67,7 +69,7 @@ Commit: `git commit -m "feat: prepare GUI CSS cleanup write access"`
 - Modify: `gui/Targets/HandbookMac/Sources/Features/Preflight/PreflightViewController.swift`
 - Modify: `gui/Targets/HandbookMacTests/Sources/PreflightPresentationTests.swift`
 
-- [ ] **Step 1: Write failing action-state test**
+- [x] **Step 1: Write failing action-state test**
 
 Extract a narrow pure state helper used by the controller:
 
@@ -79,13 +81,13 @@ func testCleanupAvailabilityRequiresSuccessfulInspectionAndInput() {
 }
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `cd gui && xcodebuild test -workspace EPUBHandbook.xcworkspace -scheme HandbookMac -destination 'platform=macOS' -only-testing:HandbookMacTests/PreflightPresentationTests`
 
 Expected: compile failure because `CSSCleanupAvailability` does not exist.
 
-- [ ] **Step 3: Implement the minimal AppKit flow**
+- [x] **Step 3: Implement the minimal AppKit flow**
 
 Add a disabled `执行 CSS Cleanup…` button. On click:
 
@@ -97,7 +99,7 @@ Add a disabled `执行 CSS Cleanup…` button. On click:
 
 The controller must retain no global panel or workspace state and must not replace its selected input with the output artifact.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Run the focused GUI test from Step 2, then the full `HandbookMac` test scheme.
 
@@ -108,11 +110,11 @@ Commit: `git commit -m "feat: add GUI CSS cleanup action"`
 **Files:**
 - Modify: `docs/plans/2026-06-20-swift-core-macos-gui-plan.md`
 
-- [ ] **Step 1: Update the Swift GUI plan**
+- [x] **Step 1: Update the Swift GUI plan**
 
 Record that native CSS cleanup is GUI-available only through the explicit one-file AppKit action; arbitrary CSS editing and other write capabilities remain unavailable.
 
-- [ ] **Step 2: Run every gate**
+- [x] **Step 2: Run every gate**
 
 Run:
 
@@ -129,6 +131,6 @@ xcodebuild test -workspace EPUBHandbook.xcworkspace -scheme HandbookMac -destina
 
 Expected: every command succeeds. EPUBCheck remains CI-only.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Commit: `git commit -m "test: validate GUI CSS cleanup action"`
