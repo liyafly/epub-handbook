@@ -5,7 +5,7 @@
 
 ## 使用前提
 
-预设选择器面向本仓 class 体系，例如 `.book-song`、`.chapter-head`、
+预设选择器面向本仓 class 体系，例如 `.font-st`、`.chapter-head`、
 `.parallel-float-pair`。先运行 `apply --dry-run` 查看 `coverage`；低于 30% 表示
 原书尚未迁入该体系，应先走 cleanup pipeline。低 coverage 不是错误，但直接应用
 很可能静默无效。

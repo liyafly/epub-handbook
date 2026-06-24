@@ -42,7 +42,7 @@
 
 | 场景 | Fixture 形态 | 主要检查点 | 目标阅读器 |
 |---|---|---|---|
-| C1-body 全字符集字体链 | 临时加入 `OEBPS/Fonts/BookSongFull.ttf`、OPF font item、`@font-face` 和 body/h* 链首嵌入字体 | 字体覆盖所有生僻字、`fontspec=forceAll`、链 ≤ 5 段、嵌入字体只出现 1 次、默认字号和大字号均不裁切 | Apple Books / Kindle Previewer / Thorium |
+| C1-body 全字符集字体链 | 临时加入 `OEBPS/Fonts/st-all.ttf`、OPF font item、`@font-face` 和 body/h* 链首嵌入字体 | 字体覆盖所有生僻字、`fontspec=forceAll`、链 ≤ 5 段、嵌入字体只出现 1 次、默认字号和大字号均不裁切 | Apple Books / Kindle Previewer / Thorium |
 
 ## 打包与记录
 

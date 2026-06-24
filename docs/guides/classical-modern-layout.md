@@ -23,8 +23,8 @@
   <p class="parallel-source">出处：示例出处。</p>
 
   <section class="parallel-pair parallel-float-pair">
-    <p class="classical-text book-song" xml:lang="lzh">文言原文。</p>
-    <p class="modern-text book-kai">白话译文。</p>
+    <p class="classical-text font-st" xml:lang="lzh">文言原文。</p>
+    <p class="modern-text font-kt">白话译文。</p>
     <div class="parallel-clear" aria-hidden="true"></div>
   </section>
 
@@ -102,8 +102,8 @@
 
 ```html
 <section class="parallel-pair parallel-float-pair parallel-ratio-balanced">
-  <p class="classical-text book-latin-serif" xml:lang="en">Original text.</p>
-  <p class="modern-text book-song">译文。</p>
+  <p class="classical-text font-en-serif" xml:lang="en">Original text.</p>
+  <p class="modern-text font-st">译文。</p>
   <div class="parallel-clear" aria-hidden="true"></div>
 </section>
 ```
@@ -128,7 +128,7 @@
 
 ## CSS 归属
 
-文白对照属于文学结构，样式放在 `literary.css`。字体链不要在 `literary.css` 里重复声明；原文和译文通过 `fonts.css` 的 `.book-song` / `.book-kai` 等工具类组合。
+文白对照属于文学结构，样式放在 `literary.css`。字体链不要在 `literary.css` 里重复声明；原文和译文通过 `fonts.css` 的 `.font-st` / `.font-kt` 等工具类组合。
 
 推荐职责：
 

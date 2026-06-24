@@ -177,7 +177,7 @@
 | `rendition:layout` | `reflowable` | 推荐 | 全书默认可重排 |
 | `rendition:orientation` | `auto` | 推荐 | 不锁横竖屏 |
 | `rendition:spread` | `auto` | 推荐 | 不强制单双页 |
-| `ibooks:specified-fonts` | `true` | 条件推荐 | Apple Books 正文锁定 / 嵌入字体声明 |
+| `ibooks:specified-fonts` | `true` | 条件推荐 | Apple Books 正文字体锁定声明 |
 | `<meta name="cover">` | `cover-img` | 推荐 | 兼容封面识别 |
 | `spine toc="ncx"` | `toc` / `ncx` item id | 推荐 | Kindle / 旧工具链兼容目录 |
 
@@ -249,7 +249,7 @@
 
 /* 模式 C1-body（含生僻字 + 全字符集嵌入字体） */
 body.body-font-locked {
-  font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
@@ -262,12 +262,12 @@ body.body-font-locked {
 .poster-title,
 .title-kai,
 .inscription {
-  font-family: "BookTitleKai", serif;
+  font-family: "kt-title", serif;
 }
 
 /* 模式 B：生僻字子集字库（链 ≤ 2 段） */
 .rare {
-  font-family: "RareSongSubset", serif;
+  font-family: "tszt-rare", serif;
 }
 ```
 

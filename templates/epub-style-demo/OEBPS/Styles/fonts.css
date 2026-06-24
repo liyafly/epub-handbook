@@ -33,24 +33,24 @@
 
 /*
 @font-face {
-  font-family: "RareSongSubset";
+  font-family: "tszt-rare";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/RareSongSubset.ttf") format("truetype");
+  src: url("../Fonts/tszt-rare.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: "BookTitleSpecial";
+  font-family: "tszt-title";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/BookTitleSpecial.ttf") format("truetype");
+  src: url("../Fonts/tszt-title.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: "BookSignature";
+  font-family: "tszt-sign";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/BookSignature.ttf") format("truetype");
+  src: url("../Fonts/tszt-sign.ttf") format("truetype");
 }
 */
 
@@ -144,52 +144,48 @@
  *
  * 链组装原则：每条链 **≤ 4 段**，覆盖
  *   Apple（macOS / iOS / Apple Books）→ Windows → Android / 开源 → generic family。
- *   特例：`.book-fangsong` 只有 3 段（Android 通常缺仿宋，直接落 serif）。
+ *   特例：`.font-fs` 只有 3 段（Android 通常缺仿宋，直接落 serif）。
  *
  * 注意：q / blockquote 等元素选择器属"排版规则"，应在 base.css / literary.css
  * 通过 `font-family: inherit` 与 class 组合来控制，不写在 fonts.css 里。
- * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="book-kai" 即可。
+ * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="font-kt" 即可。
  */
 
 /* ===== 宋体 / serif（正文衬线；.body-font-locked 为正文锁定模式入口，加在 body 上） ===== */
 .body-font-locked,
-.book-song,
-.song,
-.book-body {                            /* .book-body 保留为向后兼容别名 */
+.font-st,
+.st {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 /* ===== 黑体 / sans-serif（标题、UI） ===== */
-.book-hei,
-.hei,
-.book-heading {                         /* .book-heading 保留为向后兼容别名 */
+.font-ht,
+.ht {
   font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 }
 
 /* ===== 楷体（引文、题签、文学体） ===== */
-.book-kai,
-.kai,
-.book-kaiti,                            /* .book-kaiti / .kaiti 保留为向后兼容别名 */
-.kaiti {
+.font-kt,
+.kt {
   font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
 }
 
 /* ===== 仿宋（古籍、引文） ===== */
-.book-fangsong,
-.fangsong {
+.font-fs,
+.fs {
   /* Android 通常无内置仿宋；缺失时退到 serif（多为系统宋体兜底） */
   font-family: "STFangsong", "FangSong", serif;
 }
 
 /* ===== 等宽 ===== */
-.book-mono,
+.font-mono,
 .mono {
   /* Apple → Windows → 跨平台开源 → generic，恰好 4 段 */
   font-family: "SF Mono", Consolas, "Source Code Pro", monospace;
 }
 
 /* ===== 西文衬线（中英混排时给西文显式衬线，可选） ===== */
-.book-latin-serif {
+.font-en-serif {
   font-family: "Iowan Old Style", "Palatino", Georgia, serif;
 }
 
@@ -206,11 +202,11 @@
  */
 /*
 .title-special {
-  font-family: "BookTitleSpecial", serif;
+  font-family: "tszt-title", serif;
 }
 
 .signature {
-  font-family: "BookSignature", serif;
+  font-family: "tszt-sign", serif;
 }
 */
 
@@ -219,7 +215,7 @@
  */
 /*
 .rare {
-  font-family: "RareSongSubset", serif;
+  font-family: "tszt-rare", serif;
 }
 */
 
@@ -232,12 +228,12 @@
  * 适用：以设计字形为主，对生僻字不敏感
  */
 /*
-.book-song-deluxe {
-  font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+.font-st-design {
+  font-family: "st-design", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
-.book-kai-deluxe {
-  font-family: "BookKaiDesign", "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
+.font-kt-design {
+  font-family: "kt-design", "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
 }
 */
 
@@ -245,13 +241,13 @@
  * 适用：以可读为主，仅个别生僻字需要补字字库
  */
 /*
-.book-song-with-rare {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif;
+.font-st-tszt {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "tszt-rare", serif;
 }
 */
 
 /* 既要设计字形又要补字时：不要塞同一条链，请拆成两个类
- * - body / 章节标题挂 .book-song-deluxe（C1）
+ * - body / 章节标题挂 .font-st-design（C1）
  * - 生僻字单独 <span class="rare">…</span>（模式 B）
  */
 
@@ -260,8 +256,8 @@
  *
  * 这一组类**仅用于** 07 号 demo 演示在不同阅读器下"系统优先 / 嵌入优先 /
  * 混合链"三种字体链的实际命中差异，是教学样本，**不是**生产路径。
- * 生产请按 §三 A（默认）/ §三 B（专用类）的命名挂类，例如 .book-song /
- * .book-kai / .rare / .book-song-deluxe，不要直接挂这里的 demo-* 类。
+ * 生产请按 §三 A（默认）/ §三 B（专用类）的命名挂类，例如 .font-st /
+ * .font-kt / .rare / .font-st-design，不要直接挂这里的 demo-* 类。
  */
 
 .demo-system-first {
@@ -271,12 +267,12 @@
 
 .demo-embedded-first {
   /* 嵌入优先：演示嵌入字体放第 1 位时的命中差异。
-   * 与模式 C1 结构一致；生产请按模式 C1 挂在专用类（如 .book-song-deluxe）。 */
-  font-family: "BookBodySong", "Songti SC", "Source Han Serif SC", serif;
+   * 与模式 C1 结构一致；生产请按模式 C1 挂在专用类（如 .font-st-design）。 */
+  font-family: "st-body", "Songti SC", "Source Han Serif SC", serif;
 }
 
 .demo-mixed {
   /* 混合链：演示"嵌入字体 + 系统字体"混合时的命中差异。
    * 生产同样要按模式 C 挂在专用类，不要直接用本类。 */
-  font-family: "BookTitleKai", "Kaiti SC", "Source Han Serif SC", serif;
+  font-family: "kt-title", "Kaiti SC", "Source Han Serif SC", serif;
 }

@@ -58,7 +58,7 @@ def test_body_font_mode_contract_accepts_locked_book() -> None:
   V.validate_body_font_mode_contract(
     _package(with_meta=True),
     "body { margin: 0; line-height: 1.75; }",
-    ".body-font-locked, .book-song { font-family: Songti, serif; }",
+    ".body-font-locked, .font-st { font-family: Songti, serif; }",
     {"Text/07.xhtml": '<body class="body-font-locked"><p>x</p></body>'},
     check,
     "test fixture",

@@ -424,8 +424,8 @@ def validate_source(check: Check) -> None:
     'parallel-ratio-source-wide',
     'parallel-stack-pair',
     'class="parallel-clear"',
-    'class="classical-text book-song"',
-    'class="modern-text book-kai"',
+    'class="classical-text font-st"',
+    'class="modern-text font-kt"',
     'class="parallel-return"',
     'class="parallel-entry parallel-large-probe"',
   ]:

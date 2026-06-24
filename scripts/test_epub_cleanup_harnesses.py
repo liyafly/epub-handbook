@@ -38,7 +38,7 @@ def write_epub2(path: Path) -> None:
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/>
     <item id="css" href="Styles/main.css" media-type="text/css"/>
-    <item id="font" href="Fonts/BookSong.otf" media-type="font/otf"/>
+    <item id="font" href="Fonts/st.otf" media-type="font/otf"/>
     <item id="legacy-gif" href="Images/legacy.gif" media-type="image/gif"/>
   </manifest>
   <spine toc="ncx">
@@ -72,15 +72,15 @@ def write_epub2(path: Path) -> None:
 </html>
 ''',
     "OEBPS/Styles/main.css": '''@font-face {
-  font-family: "BookSong";
-  src: url("../Fonts/BookSong.otf");
+  font-family: "st";
+  src: url("../Fonts/st.otf");
 }
 body {
-  font-family: "BookSong", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
   line-height: 1.4;
 }
 ''',
-    "OEBPS/Fonts/BookSong.otf": b"fake-font",
+    "OEBPS/Fonts/st.otf": b"fake-font",
     "OEBPS/Images/legacy.gif": b"GIF89a",
   }
   with zipfile.ZipFile(path, "w") as zf:

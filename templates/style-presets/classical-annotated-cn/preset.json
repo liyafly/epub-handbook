@@ -3,6 +3,6 @@
   "version": "1",
   "description": "古文译注向：宋体原文、楷体译注、文白对照与强化弹注层次",
   "layers": ["fonts.css", "base.css", "notes.css", "effects.css", "literary.css", "media.css"],
-  "base_font_chain": "book-song",
+  "base_font_chain": "font-st",
   "notes": "视觉效果未经 reader-matrix 实测前，应用后状态标记为待实测"
 }

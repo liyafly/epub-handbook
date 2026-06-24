@@ -280,7 +280,7 @@ ul.task li.done { color: #888; text-decoration: line-through; }
 /* 中文宋体（正文） */
 .song, body {
   font-family:
-    "BookSongCJK",                                      /* 嵌入字体若有 */
+    "st",                                               /* 嵌入字体若有 */
     "Songti SC", "STSong",                              /* macOS/iOS */
     "SimSun", "NSimSun",                                /* Windows */
     "Source Han Serif SC", "Noto Serif CJK SC",         /* Android/Linux/开源 */
@@ -292,7 +292,7 @@ ul.task li.done { color: #888; text-decoration: line-through; }
 /* 中文黑体（标题） */
 .hei, h1, h2, h3, h4, h5, h6 {
   font-family:
-    "BookSansCJK",
+    "ht",
     "PingFang SC", "Heiti SC", "STHeiti",
     "Microsoft YaHei", "SimHei",
     "Source Han Sans SC", "Noto Sans CJK SC", "HarmonyOS Sans SC",
@@ -332,7 +332,7 @@ code, pre {
 **规则**：
 
 - 中文字体名必须用引号；`serif` / `sans-serif` / `monospace` 关键字**不**加引号
-- 嵌入字体名（`BookSongCJK` 等）放最前；通用关键字放最后
+- 嵌入字体别名（`st` 等）放最前；通用关键字放最后
 - Kindle 上把 `STSong` 写在 `"宋体"` 之前，避免误命中 Bookerly
 
 ---

@@ -3,6 +3,6 @@
   "version": "1",
   "description": "学术说明向：宋体正文、黑体标题、紧凑章首、清晰表格与代码块",
   "layers": ["fonts.css", "base.css", "notes.css", "effects.css", "literary.css", "media.css"],
-  "base_font_chain": "book-song",
+  "base_font_chain": "font-st",
   "notes": "视觉效果未经 reader-matrix 实测前，应用后状态标记为待实测"
 }

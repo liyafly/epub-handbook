@@ -13,7 +13,7 @@
 | 正文 | EPUB 3.3 可重排，默认走各平台系统中文字体链；含生僻字时允许嵌入"全字符集"字体走模式 C1-body 直接挂 body / h*（详见 §四） |
 | 整页海报 / 卷首 / 章节扉页 | A-lite：可重排整页、无 FXL、无 `vh/vw`、无绝对定位 |
 | 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
-| Apple Books 字体 | 嵌入字体 + OPF `ibooks:specified-fonts=true` + 测试“原版字体” |
+| Apple Books 字体 | 正文字体锁定时加 OPF `ibooks:specified-fonts=true` + 测试“原版字体”；嵌入字体通过专用类使用不受此 meta 影响 |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
 | 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
 | 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
@@ -48,9 +48,9 @@ book.epub
     │   ├── note.png
     │   └── poster-bg.png
     └── Fonts/
-        ├── BookBodySong.ttf
-        ├── BookTitleKai.ttf
-        └── RareSongSubset.ttf
+        ├── st-body.ttf
+        ├── kt-title.ttf
+        └── tszt-rare.ttf
 ```
 
 `fonts.css` 管字体，`base.css` 管正文组件，`poster.css` 管 A-lite 海报页。
@@ -58,9 +58,9 @@ book.epub
 > 上面 `Fonts/` 目录与三个示例字体文件**仅在嵌入字体场景下需要**：
 > - 默认路径（不嵌字体）：删掉 `Fonts/` 目录与 OPF 字体 item；`fonts.css` 内所有 `@font-face` 保持注释。
 > - 模式 A / B（专用类嵌入）：按需保留对应字体文件。
-> - 模式 C1-body（含生僻字 + 全字符集字体）：保留一份覆盖全书用字的 `Fonts/BookSongFull.ttf`（或同等命名）。
+> - 模式 C1-body（含生僻字 + 全字符集字体）：保留一份覆盖全书用字的 `Fonts/st-all.ttf`。
 >
-> 字体命名仅为示例；实际工程按授权字体名命名。
+> 字体 alias、文件名与 class 按 [字体别名命名规范](字体别名命名规范.md) 使用角色缩写；字体内部正式名称和授权信息不因 alias 而改变。
 
 ---
 
@@ -83,7 +83,7 @@ book.epub
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
-    <!-- 仅锁定模式 / 嵌入字体时添加：<meta property="ibooks:specified-fonts">true</meta> -->
+    <!-- 仅锁定模式时添加：<meta property="ibooks:specified-fonts">true</meta> -->
     <meta name="cover" content="cover-img"/>
   </metadata>
 
@@ -103,9 +103,9 @@ book.epub
     <item id="note-icon" href="Images/note.png" media-type="image/png"/>
     <item id="poster-bg" href="Images/poster-bg.png" media-type="image/png"/>
 
-    <item id="font-body-song" href="Fonts/BookBodySong.ttf" media-type="font/ttf"/>
-    <item id="font-title-kai" href="Fonts/BookTitleKai.ttf" media-type="font/ttf"/>
-    <item id="font-rare-song" href="Fonts/RareSongSubset.ttf" media-type="font/ttf"/>
+    <item id="font-st-body" href="Fonts/st-body.ttf" media-type="font/ttf"/>
+    <item id="font-kt-title" href="Fonts/kt-title.ttf" media-type="font/ttf"/>
+    <item id="font-tszt-rare" href="Fonts/tszt-rare.ttf" media-type="font/ttf"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -122,13 +122,13 @@ book.epub
 - 全书默认 `reflowable`。
 - A-lite 海报页仍是普通 spine item。
 - 字体文件、注释图标、背景图都进入 `manifest`。
-- `ibooks:specified-fonts=true` 仅在正文字体锁定或启用嵌入字体时添加；自由模式（默认）不加，见下方说明与 SPEC §8。嵌入分支尚未实测，暂按保守口径添加，待 Apple Books 实测后修订（见 reader-matrix `07-font-family-order` 待测条目）。
+- `ibooks:specified-fonts=true` 仅当正文字体锁定时添加；自由模式（默认）不加。嵌入字体通过专用类（`.rare`、`.font-st-design` 等）使用不需要此 meta——`ibooks:specified-fonts` 只控制 Apple Books 是否尊重 body `font-family`，不影响 `@font-face` + 专用类声明的嵌入字体（2026-06-24 聊斋志异 MA10 实测）。详见 SPEC §8。
 
 > OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**。
-> `ibooks:specified-fonts=true` 仅在正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加：
+> `ibooks:specified-fonts=true` 仅当正文字体锁定（`body.body-font-locked`）时添加：
 > - 自由模式（默认，body 不设 font-family）：**不加**，允许读者自由切换字体。
-> - 锁定模式（`body.body-font-locked`）：**添加**，阻止 Apple Books 用户字体覆盖。
-> - 嵌入场景：添加 `ibooks:specified-fonts=true`，同时声明对应 `font/ttf` item，`fontspec` 切到 `auto` / `forceAll`（按 SPEC §4 / fonts-css-expansion-plan §5）。
+> - 锁定模式（`body.body-font-locked`）：**添加**，告诉 Apple Books 尊重 body `font-family`。
+> - 嵌入字体通过专用类（`.rare`、`.font-st-design` 等）使用不需要此 meta——`ibooks:specified-fonts` 只控制 body `font-family` 的优先级，不影响 `@font-face` + 专用类的嵌入字体（2026-06-24 聊斋志异 MA10 实测：14 个嵌入字体、无 meta、正常渲染）。
 
 ---
 
@@ -144,24 +144,24 @@ book.epub
 @charset "utf-8";
 
 @font-face {
-  font-family: "BookBodySong";
+  font-family: "st-body";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/BookBodySong.ttf") format("truetype");
+  src: url("../Fonts/st-body.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: "BookTitleKai";
+  font-family: "kt-title";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/BookTitleKai.ttf") format("truetype");
+  src: url("../Fonts/kt-title.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: "RareSong";
+  font-family: "tszt-rare";
   font-style: normal;
   font-weight: 400;
-  src: url("../Fonts/RareSongSubset.ttf") format("truetype");
+  src: url("../Fonts/tszt-rare.ttf") format("truetype");
 }
 ```
 
@@ -182,7 +182,7 @@ book.epub
 
 锁定模式的字体链走各平台系统中文字体链（Apple `Songti SC` + Windows `SimSun` + Android / 跨平台开源 `Noto Serif CJK SC` + `serif`）。iOS / Apple Books 对 `Songti SC` 命中稳定；Android 系统已预装 `Noto Serif CJK SC`；Windows 走 `SimSun` 兜底。
 
-例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在锁定链链首：`body.body-font-locked { font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
+例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在锁定链链首：`body.body-font-locked { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
 
 ### 4.3 特殊标题字体
 
@@ -190,23 +190,23 @@ book.epub
 .poster-title,
 .inscription,
 .title-kai {
-  font-family: "BookTitleKai", serif;
+  font-family: "kt-title", serif;
 }
 ```
 
 特殊标题、题签、卷首页只写书内字体名 + 通用族兜底，避免系统字体提前替换设计字形。
 
-> 上述写法属于模式 A（链 ≤ 2 段，仅嵌入字体 + generic）。如果项目未嵌入 `BookTitleKai`，把这条规则改为系统楷体链 `.title-kai { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`（与 `fonts.css` 的 `.book-kai` 同源），不要保留死链。
+> 上述写法属于模式 A（链 ≤ 2 段，仅嵌入字体 + generic）。如果项目未嵌入 `kt-title`，把这条规则改为系统楷体链 `.title-kai { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`（与 `fonts.css` 的 `.font-kt` 同源），不要保留死链。
 
 ### 4.4 生僻字
 
 ```css
 .rare {
-  font-family: "RareSongSubset", serif;
+  font-family: "tszt-rare", serif;
 }
 ```
 
-> 旧写法 `"RareSong", "BookBodySong", serif` 是反例——生僻字字体后面挂正文嵌入宋体，缺字时落到系统宋体的豆腐。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "RareSongSubset", serif; }`；(模式 C1 设计前置) `.book-song-deluxe { font-family: "BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.book-song-with-rare { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif; }`。
+> 旧写法 `"tszt-rare", "st-body", serif` 是反例——生僻字字体后面挂正文嵌入宋体，缺字时落到系统宋体的豆腐。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "tszt-rare", serif; }`；(模式 C1 设计前置) `.font-st-design { font-family: "st-design", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.font-st-tszt { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "tszt-rare", serif; }`。
 
 
 ### 含生僻字的全字符集方案（模式 C1-body）
@@ -216,11 +216,11 @@ book.epub
 
 ```css
 body {
-  font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: "BookHeiFull", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: "ht-all", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 }
 ```
 
@@ -228,7 +228,7 @@ h1, h2, h3, h4, h5, h6 {
 
 - 嵌入字体必须覆盖书内所有生僻字（GB 18030 / CJK Ext-A 起，按书内用字裁切但不做子集压缩）；
 - OPF manifest 声明该字体 item，`fontspec` 切到 `forceAll`；
-- 不允许把子集字库（如 `RareSongSubset`）走本路径——子集挂 body 必然落豆腐；子集字库一律走 `.rare` 类（模式 B）；
+- 不允许把子集字库（如 `tszt-rare`）走本路径——子集挂 body 必然落豆腐；子集字库一律走 `.rare` 类（模式 B）；
 - 体积说明：全字符集 CJK 字体单 weight 约 8–15 MB；启用前评估包体增长是否可接受；
 - 这条路径与 `.rare` 类互斥：选了 C1-body 就不再需要 `.rare`；不嵌全字符集字体的项目继续走默认系统字体链。
 
@@ -455,8 +455,8 @@ figure.img-right img {
 
 ```html
 <section class="parallel-pair parallel-float-pair">
-  <p class="classical-text book-song" xml:lang="lzh">文言原文。</p>
-  <p class="modern-text book-kai">白话译文。</p>
+  <p class="classical-text font-st" xml:lang="lzh">文言原文。</p>
+  <p class="modern-text font-kt">白话译文。</p>
   <div class="parallel-clear" aria-hidden="true"></div>
 </section>
 ```
@@ -669,7 +669,7 @@ body.poster-bg {
   clear: right;
   margin: 2% 4% 0 0;
   padding: 0;
-  font-family: "BookTitleKai", serif;
+  font-family: "kt-title", serif;
   font-weight: normal;
   font-size: 260%;
   line-height: 1.12;
@@ -680,7 +680,7 @@ body.poster-bg {
   clear: none;
   margin: 15% 4% 0 0;
   padding: 0;
-  font-family: "BookTitleKai", serif;
+  font-family: "kt-title", serif;
   font-weight: normal;
   font-size: 160%;
   line-height: 1.25;
@@ -999,7 +999,7 @@ blockquote p {
 }
 ```
 
-> 引用走楷体是中文出版常见约定，与 `fonts.css` 的 `.book-kai` 同源。若项目希望引用走正文宋体，删掉这条 `font-family` 让它继承 body。
+> 引用走楷体是中文出版常见约定，与 `fonts.css` 的 `.font-kt` 同源。若项目希望引用走正文宋体，删掉这条 `font-family` 让它继承 body。
 
 ---
 
@@ -1100,7 +1100,7 @@ body.page-vrl {
 }
 
 .vrl-title {
-  font-family: "BookTitleKai", serif;
+  font-family: "kt-title", serif;
   font-weight: normal;
   line-height: 1.2;
   margin: 0 0 0 1.5em;
@@ -1137,7 +1137,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 ## 十一、制作流程
 
 1. 准备文本、封面、海报背景、注释图标、授权字体。
-2. 写 `content.opf`，声明 reflowable、字体、图片、CSS；仅在正文字体锁定或启用嵌入字体时声明 `ibooks:specified-fonts=true`。
+2. 写 `content.opf`，声明 reflowable、字体、图片、CSS；仅当正文字体锁定时声明 `ibooks:specified-fonts=true`。
 3. 写 `fonts.css`，正文内嵌字体、标题字体、生僻字字体分开。
 4. 写 `base.css`，正文、图片、注释、ruby、文字效果。
 5. 写 `poster.css`，A-lite 海报页。
@@ -1158,7 +1158,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 封面图使用 JPEG/PNG，并同时声明 `properties="cover-image"` 与 `<meta name="cover">`。
 - [ ] 所有 XHTML / CSS / 图片 / 字体都进入 `manifest`。
 - [ ] `rendition:layout` 是 `reflowable`。
-- [ ] 正文字体锁定时写 `ibooks:specified-fonts=true`；自由模式（默认）不加。
+- [ ] 正文字体锁定时写 `ibooks:specified-fonts=true`；自由模式（默认）不加。嵌入字体通过专用类使用不需要此 meta。
 - [ ] `spine` 顺序正确。
 
 ### 字体

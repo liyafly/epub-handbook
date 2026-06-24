@@ -17,7 +17,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 - 默认不把嵌入字体放进 `body` / `h*`；唯一例外是含生僻字且使用全字符集字体的 C1-body 路径。
 - 生僻字子集使用 `.rare` 等专用类。
 - 设计字体使用 `.title-special`、`.signature` 等专用类。
-- `ibooks:specified-fonts` 仅在正文锁定（`body-font-locked`）或启用嵌入字体时写入 OPF；自由模式（默认）不加。
+- `ibooks:specified-fonts` 仅当正文锁定（`body-font-locked`）时写入 OPF；自由模式（默认）不加。嵌入字体通过专用类使用不需要此 meta。
 
 ## 字体链模式
 
@@ -40,11 +40,11 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 ```css
 .title-special {
-  font-family: "BookTitleFace", serif;
+  font-family: "tszt-title", serif;
 }
 
 .rare {
-  font-family: "RareSongSubset", serif;
+  font-family: "tszt-rare", serif;
 }
 ```
 
@@ -58,7 +58,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 ```css
 body {
-  font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
@@ -98,6 +98,7 @@ body {
 
 - 不把版权字体放进模板或示例。
 - 不把多个嵌入字体塞进默认链来解决生僻字。
+- 新建字体 alias、文件名与 class 遵循 `docs/final/字体别名命名规范.md`；不使用 `Book*`、`RareSong*` 或 `.book-*` 命名。
 - 不把子集字库挂到 `body` / `h*`。
 - 有稳定英文 family/PostScript 名时，不依赖中文字体显示名。
 - 不删除 generic fallback。

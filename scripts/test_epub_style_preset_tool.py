@@ -100,7 +100,7 @@ def test_dry_run_coverage_actions_and_read_only() -> None:
     root = Path(raw)
     source = root / "palette.epub"
     output = root / "output.epub"
-    make_epub(source, "book-song chapter-head note-box img-left")
+    make_epub(source, "font-st chapter-head note-box img-left")
     before = hashlib.sha256(source.read_bytes()).hexdigest()
     result = run_cli(
       "apply",
@@ -144,7 +144,7 @@ def test_apply_updates_styles_manifest_links_and_preserves_text() -> None:
     root = Path(raw)
     source = root / "source.epub"
     output = root / "output.epub"
-    make_epub(source, "book-song chapter-head note-box img-left")
+    make_epub(source, "font-st chapter-head note-box img-left")
     result = run_cli(
       "apply",
       str(source),

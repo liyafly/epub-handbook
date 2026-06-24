@@ -118,11 +118,11 @@ retired_cases:
     reason: "多看兼容主路径保留 05 单条 fallback；富文本组合只作历史对照。"
 
 retest_priorities:
-  # 控制“待复测”池子只进不出的风险；完成后同步更新 expectations 或 untested_cases。
+  # 控制"待复测"池子只进不出的风险；完成后同步更新 expectations 或 untested_cases。
   - rank: 1
-    case: 07-font-family-order
-    readers: [ibooks_macos, ibooks_ios]
-    focus: "正文字体锁定 / 自由模式；确认 ibooks:specified-fonts 对 Apple Books 字体切换与嵌入专用类的实际影响。"
+    case: 00-cover-metadata
+    readers: [kindle_previewer]
+    focus: "用当前构建产物复测封面声明，确认旧 W14016 不再复现。"
   - rank: 2
     case: 00-cover-metadata
     readers: [kindle_previewer]
@@ -432,7 +432,7 @@ untested_cases:
     note: "列表 / 表格 / 代码；尚未实测。"
   - case: 07-font-family-order
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
-    note: "字体链顺序 + 正文锁定模式（body-font-locked + OPF ibooks:specified-fonts=true）；尚未实测。待验证：(a) 此 meta 是否真的阻止 Apple Books 读者切换字体，还是只把'原版'设为默认；(b) 自由模式（body 无 font-family、无此 meta）能否正常切换；(c) 嵌入字体 + 自由正文且无此 meta 时，挂专用类的嵌入字体在用户切换字体后是否被覆盖或忽略。"
+    note: "字体链顺序 + 正文锁定模式。2026-06-24 聊斋志异 MA10 实测结论：(a) ibooks:specified-fonts=true 告诉 Apple Books 尊重 body font-family，并非阻止切换；(b) 自由模式（body 无 font-family、无 meta）读者可正常切换字体；(c) 嵌入字体 + 自由正文 + 无 meta 时，挂专用类的嵌入字体正常工作不受影响。结论：ibooks:specified-fonts 只需在正文字体锁定（body font-family 已设置）时添加。"
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"

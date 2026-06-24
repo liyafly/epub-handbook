@@ -84,7 +84,7 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-art"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-banner"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".classical-modern"),
-    ("templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml", "classical-text book-song"),
+    ("templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml", "classical-text font-st"),
   ],
   "epub-package-nav-auditor": [
     ("skills/epub-package-nav-auditor/SKILL.md", "docs/guides/anthology-navigation.md"),
@@ -95,7 +95,7 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("skills/epub-typography-optimizer/SKILL.md", "C1-body"),
     ("skills/epub-typography-optimizer/SKILL.md", "默认 `font-family` 链最多 4 段"),
     ("docs/plans/archive/fonts-css-expansion-plan.md", "模式 C1-body"),
-    ("templates/epub-style-demo/OEBPS/Styles/fonts.css", ".book-song"),
+    ("templates/epub-style-demo/OEBPS/Styles/fonts.css", ".font-st"),
   ],
 }
 

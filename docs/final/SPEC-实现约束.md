@@ -39,7 +39,7 @@
 
 ## 3) 字体与 OPF
 
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅在正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加；添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由模式（默认）两者都不需要。判定规则见 §8。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）时添加；添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由模式（默认）两者都不需要。嵌入字体通过专用类（`.rare`、`.font-st-design` 等）使用不受此 meta 影响，不需要添加。判定规则见 §8。
 - 标题字体来源仅允许：书内嵌入字体 + 通用族回退（serif/sans-serif/monospace 等）。
 - 字体策略必须与 `fontspec` 三态一致：`auto | forceAll | none`。
 
@@ -150,7 +150,7 @@
 
 | 文件 | 职责 | 允许内容 | 禁止内容 |
 |---|---|---|---|
-| `fonts.css` | 字体声明 | `@font-face`、字体工具类（默认链 `.book-song` / `.book-hei` / `.book-kai` / `.book-fangsong` / `.book-mono` / `.book-latin-serif` 与对应短别名；嵌入专用类 `.rare` / `.title-special` / `.signature`） | 排版、颜色、分页、布局、元素选择器 |
+| `fonts.css` | 字体声明 | `@font-face`、字体工具类（默认链 `.font-st` / `.font-ht` / `.font-kt` / `.font-fs` / `.font-mono` / `.font-en-serif`；嵌入专用类 `.rare` / `.title-tszt` / `.signature-tszt`） | 排版、颜色、分页、布局、元素选择器 |
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
 | `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
@@ -182,30 +182,31 @@
 - **`font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
   → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
 - 嵌入字体不允许出现在默认 `body` / `h*` / `code` 等元素选择器链中，必须挂在
-  专用类（`.rare` / `.title-special` / `.book-song-deluxe` 等）上。
+  专用类（`.rare` / `.title-tszt` / `.font-st-design` 等）上。
 - 例外（模式 C1-body）：当正文确实含生僻字、且选择嵌入"全字符集"字体（非子集）时，
   允许把该嵌入字体按模式 C1 直接挂在 `body` / `h*` 链上，走单一字体链以保持设计统一。
   启用要求：
   - 嵌入字体必须覆盖书内所有生僻字（至少 GB 18030 / CJK Unified Ideographs + Ext-A，
-    按书内实际用字裁切但不再做子集压缩）；子集字库（如 `RareSongSubset`）禁止走本路径，
+    按书内实际用字裁切但不再做子集压缩）；子集字库（如 `tszt-rare`）禁止走本路径，
     必须改用模式 B `.rare` 类；
   - OPF manifest 声明对应字体 item；
   - `fontspec` 切到 `forceAll`（参考 fonts-css-expansion-plan §5）；
   - body / h* 链仍 ≤ 5 段，嵌入字体在第 1 位且只出现 1 次，其后 3 段系统字体，
     链尾 generic family；
-  - 示例：`body { font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。
+  - 示例：`body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。
 - 专用类按场景使用以下三种模式：
   - **模式 A 设计字体专用**（题签 / 卷头题字 / 签名档）：链 ≤ 2 段，嵌入字体 + generic family；
   - **模式 B 生僻字子集专用**（`.rare` 类）：链 ≤ 2 段，嵌入字体 + generic family；
   - **模式 C 嵌入 + 系统字体复合**：**链 ≤ 5 段**，嵌入字体在链里**只出现 1 次**，位置为第 1 位（C1 设计前置）或倒数第 2 位（C2 嵌入兜底），二选一；中间为 3 段系统字体（Apple + Windows + Android / 开源 CJK），链尾 generic family。
-    - C1 示例：`"BookSongDesign", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`
-    - C2 示例：`"Songti SC", "SimSun", "Noto Serif CJK SC", "RareSongSubset", serif`
+    - C1 示例：`"st-design", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`
+    - C2 示例：`"Songti SC", "SimSun", "Noto Serif CJK SC", "tszt-rare", serif`
 - 同一条链里嵌入字体出现 ≥ 2 次属反模式；若需"设计字形 + 生僻字兜底"双重支援，应拆成两个类（C1 类挂在正文 / 章节，模式 B `.rare` 类用 span 包住生僻字），不要塞进同一条链。
 - "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有专用类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）或启用嵌入字体时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。「嵌入字体 + 自由正文」组合暂按此保守口径添加；其实际行为是待实测假设，见 reader-matrix `07-font-family-order` 待测条目，实测后以结果为准回修本条。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定（`body.body-font-locked`）时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。嵌入字体通过专用类使用不需要此 meta——`ibooks:specified-fonts` 只控制 Apple Books 是否尊重 body `font-family`，不影响 `@font-face` + 专用类声明的嵌入字体（2026-06-24 聊斋志异 MA10 实测：14 个嵌入字体、无 meta、Apple Books 正常渲染）。
 - 正文字体模式是**全书级决策**：同一本书要么全书自由（所有正文页 body 都不带 `body-font-locked`、OPF 无此 meta），要么全书锁定（所有正文页 body 都带 class、OPF 加一份 meta）。不按页混用；演示/测试用书（如 epub-style-demo 含锁定演示页）按锁定书处理，并在其场景矩阵中注明。
+- 新建字体 alias、文件名和 class 必须遵循 [字体别名命名规范](字体别名命名规范.md)：使用 `en` / `st` / `kt` / `fs` / `ht` / `tszt-*` 等角色缩写；不得新增 `Book*`、`RareSong*` 或 `.book-*` 字体命名。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 

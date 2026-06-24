@@ -111,7 +111,7 @@ OPF 承担三个职责：metadata（描述书）、manifest（登记资源）、
 - **`dc:language` 影响阅读器的断字和字体选择。** 中英混排时值应为 `zh-CN`（主要语言），具体段落的语言切换用 XHTML 的 `xml:lang`。
 - **`dcterms:modified` 是 EPUB 3 必备。** EPUB 2 没有这项。缺了它 epubcheck 会报 error。
 - **`meta` 的 `refines` 机制：** 可以给某个 `dc:creator` 细化角色，如 `<meta refines="#creator01" property="role" scheme="marc:relators">aut</meta>`，表示作者（author）。
-- **`<meta property="ibooks:specified-fonts">true</meta>`：** Apple Books 专用，声明"按书内指定的字体渲染"，会阻止读者切换字体。仅在正文锁定（`body.body-font-locked`）或启用嵌入字体时添加；自由模式（默认）不加。嵌入字体分支为暂定保守规则，尚未实测，实测后可能调整。添加时需在 `<package>` 声明 `prefix="ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks-vocabulary-1.0/"`。
+- **`<meta property="ibooks:specified-fonts">true</meta>`：** Apple Books 专用，声明"按书内指定的字体渲染"，告诉 Apple Books 尊重 body `font-family`。仅当正文字体锁定（`body.body-font-locked`）时添加；自由模式（默认）不加。嵌入字体通过 `@font-face` + 专用类使用不受此 meta 影响——`ibooks:specified-fonts` 只控制 body 字体优先级（2026-06-24 聊斋志异 MA10 实测）。添加时需在 `<package>` 声明 `prefix="ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks-vocabulary-1.0/"`。
 
 > 溯源：SPEC §3、§5、§8；reader-matrix case 00-cover-metadata；demo `package.opf`。
 

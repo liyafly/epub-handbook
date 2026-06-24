@@ -21,6 +21,7 @@
 ### 工程契约层
 
 - [final/SPEC-实现约束.md](final/SPEC-实现约束.md)：实现硬规则
+- [final/字体别名命名规范.md](final/字体别名命名规范.md)：字体 alias、文件名与 class 的短别名规范
 - [final/EPUB 3 终极实践手册.md](final/EPUB 3 终极实践手册.md)：对外手册
 - [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB 3 HTML CSS 属性速查表.md)：属性速查表
 - [final/reader-matrix.yaml](final/reader-matrix.yaml)：阅读器兼容性实测矩阵
@@ -43,6 +44,7 @@
 - [pipeline/refinement-harnesses.md](pipeline/refinement-harnesses.md)：预检、EPUB3 迁移与精排建议 harness
 - [pipeline/package-operations.md](pipeline/package-operations.md)：EPUB 合并、按目录拆分、元数据编辑和封面替换
 - [pipeline/reference-font-role-patterns.md](pipeline/reference-font-role-patterns.md)：文学 EPUB 字体角色脱敏分析
+- [pipeline/font-chain-reader-compatibility.md](pipeline/font-chain-reader-compatibility.md)：嵌入字体链、阅读器差异与 Kindle 诊断
 - [pipeline/cleanup-patterns.md](pipeline/cleanup-patterns.md)：典型脏 EPUB 模式
 - [pipeline/asset-optimization.md](pipeline/asset-optimization.md)：图片与字体优化
 - [pipeline/epub-diff-review.md](pipeline/epub-diff-review.md)：人工 EPUB diff review（Calibre / VS Code）
