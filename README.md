@@ -18,7 +18,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
 3. **AI 协作 skills** — [skills/](skills/)：2 个主入口（`epub-layout-auditor` / `epub-source-intake`）+ 13 个专项 skill。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
 4. **入门教程** — [docs/learn/](docs/learn/)：第一次接触本仓的人按这里走。
-5. **场景指南** — [docs/how-to/](docs/how-to/)：特定排版场景的实操指南（英文小说、文白对照、章首图等）。
+5. **场景指南** — [docs/how-to/](docs/how-to/)：特定排版场景的实操指南（英文小说、文白对照、章首图等）。另有 ⭐ [Kindle 字体渲染深度参考](docs/how-to/kindle-font-rendering-deep-dive.md)——解释 `font-family` 回退链在 Kindle 上为什么会失灵、生僻字变方块的根因与三种应对策略。
 6. **双引擎执行层** — Python（`scripts/`）与 Swift（`swift/`）**按 capability 对等并存**：Python 是 AI agent / CLI / 验证基线的首要 provider；Swift 是 native 执行核心，GUI 能执行的大部分能力原生重写。两者通过 `contracts/` + `adapters/` 共享机器契约。GUI（`gui/`）当前 PARKED。字体/图片转换为独立 Python 项目。
 
 ## 项目目标与完成标准

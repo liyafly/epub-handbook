@@ -30,6 +30,7 @@
 ### 场景指南
 
 - [how-to/](how-to/)：针对特定排版场景的实操指南
+  - [kindle-font-rendering-deep-dive.md](how-to/kindle-font-rendering-deep-dive.md) ⭐ Kindle 字体渲染深度参考
   - [english-fiction-layout.md](how-to/english-fiction-layout.md)
   - [classical-modern-layout.md](how-to/classical-modern-layout.md)
   - [chapter-head-image.md](how-to/chapter-head-image.md)
