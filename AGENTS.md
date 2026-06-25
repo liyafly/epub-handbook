@@ -20,7 +20,7 @@ Python 与 Swift **按 capability 并存，不默认删除 Python**：
 |---|---|---|
 | AI / agent provider | **Python**（`scripts/` + `skills/`） | 给 AI agent 调用；CLI 与验证基线的首要 provider |
 | 执行核心 | **Swift**（`swift/`） | GUI 能执行的大部分能力，native 首要 provider |
-| 字体 / 图片转换 | **独立 Python 项目**（外部，`uv` 管理） | 字体覆盖/子集化、图片转换；Swift/GUI 起子进程调 CLI |
+| 字体 / 图片转换 | **`tools-font/`**（HTML 工具）+ **独立 Python 项目**（`uv` 管理） | 字体预览、覆盖/子集化、图片转换；Swift/GUI 起子进程调 CLI |
 | GUI | **Swift，薄**（`gui/`） | **PARKED**：当前非焦点，不投入、不作依赖；执行逻辑向 `swift/` 收口 |
 | 机器契约 | `contracts/` + `adapters/` | Python/Swift 按 capability 并存的契约与 agent 适配表面 |
 | 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |

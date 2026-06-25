@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字体预览</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --card: #fffdf8;
+    --ink: #23211d;
+    --muted: #716d64;
+    --line: #d8d0c3;
+    --accent: #8f4f20;
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+    line-height: 1.6;
+  }
+  h1 { font-size: 1.4em; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.85em; margin-bottom: 20px; }
+
+  /* drop zone */
+  .drop-zone {
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    margin-bottom: 20px;
+  }
+  .drop-zone.drag-over { border-color: var(--accent); background: #fdf6ee; }
+  .drop-zone p { color: var(--muted); font-size: 0.9em; }
+  .drop-zone .formats { font-size: 0.78em; color: #aaa; margin-top: 4px; }
+  .drop-zone input { display: none; }
+
+  /* controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .controls label { font-size: 0.85em; color: var(--muted); white-space: nowrap; }
+  .controls input[type=range] { width: 120px; }
+  .controls .size-val { font-size: 0.85em; min-width: 36px; }
+  .btn-clear {
+    margin-left: auto;
+    font-size: 0.82em;
+    padding: 4px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .btn-clear:hover { border-color: #c44; color: #c44; }
+
+  /* preview text */
+  textarea {
+    width: 100%;
+    height: 80px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-size: 0.9em;
+    font-family: inherit;
+    resize: vertical;
+    background: var(--card);
+    margin-bottom: 20px;
+  }
+
+  /* empty state */
+  .empty {
+    text-align: center;
+    color: #ccc;
+    padding: 40px 0;
+    font-size: 0.9em;
+  }
+
+  /* cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .card .info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    font-size: 0.88em;
+  }
+  .card .info-row .name { font-weight: 600; }
+  .card .info-row .version { color: var(--muted); }
+  .card .info-row .meta { color: #aaa; font-size: 0.82em; }
+  .card .info-row .warn { color: #c8912b; font-size: 0.82em; }
+  .card .info-row .btn-remove {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: #ccc;
+    padding: 0 4px;
+  }
+  .card .info-row .btn-remove:hover { color: #c44; }
+  .card .preview {
+    font-size: var(--preview-size, 32px);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    min-height: 1.2em;
+    border-top: 1px solid #f0ece4;
+    padding-top: 8px;
+    color: var(--ink);
+  }
+  .card .preview.loading { color: #ccc; font-size: 16px; }
+  .card .preview.failed { color: #c44; font-size: 14px; }
+
+  /* error toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>字体预览</h1>
+<p class="sub">拖入字体文件，实时对比同一段文字在不同字体下的显示效果。单文件、离线、零依赖。</p>
+
+<div class="drop-zone" id="dropZone">
+  <p>⬇ 把字体文件拖到这里，或点击选择（可多选）</p>
+  <p class="formats">支持 .ttf .otf .woff .ttc / .woff2（仅预览）</p>
+  <input type="file" id="fileInput" multiple accept=".ttf,.otf,.woff,.woff2,.ttc">
+</div>
+
+<div class="controls">
+  <label for="sizeSlider">字号</label>
+  <input type="range" id="sizeSlider" min="12" max="96" value="32">
+  <span class="size-val" id="sizeVal">32px</span>
+  <button class="btn-clear" id="btnClear">清空全部字体</button>
+</div>
+
+<textarea id="previewText" placeholder="输入预览文字…">永和九年，岁在癸丑，暮春之初。The quick brown fox jumps over 0123456789。</textarea>
+
+<div id="cardList"><p class="empty">还没有加载字体，拖入一个试试</p></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ DOM refs ============
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const sizeSlider = document.getElementById('sizeSlider');
+const sizeVal = document.getElementById('sizeVal');
+const previewText = document.getElementById('previewText');
+const cardList = document.getElementById('cardList');
+const btnClear = document.getElementById('btnClear');
+const toast = document.getElementById('toast');
+
+const loadedFonts = []; // { name, version, format, sizeBytes, uniqueName, face }
+
+// ============ Toast ============
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ============ Format detection ============
+function detectFormat(buffer) {
+  const sig = new Uint8Array(buffer.slice(0, 4));
+  const str = String.fromCharCode(...sig);
+  if (str === 'OTTO') return 'otf';
+  if (str === 'wOFF') return 'woff';
+  if (str === 'wOF2') return 'woff2';
+  if (str === 'ttcf') return 'ttc';
+  if (sig[0] === 0x00 && sig[1] === 0x01 && sig[2] === 0x00 && sig[3] === 0x00) return 'ttf';
+  if (str === 'true' || (sig[0] === 0x74 && sig[1] === 0x72 && sig[2] === 0x75 && sig[3] === 0x65)) return 'ttf';
+  return 'unknown';
+}
+
+// ============ SFNT name table parser (hand-written, DataView) ============
+function readNameVersion(buffer, format) {
+  try {
+    const dv = new DataView(buffer);
+    let offset = 0;
+
+    // ttc: jump to first face
+    if (format === 'ttc') {
+      if (dv.getUint32(0) !== 0x74746366) return null;
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1) return null;
+      offset = dv.getUint32(12); // first face offset
+    }
+
+    // sfnt header
+    const sfntVersion = dv.getUint32(offset);
+    const numTables = dv.getUint16(offset + 4);
+    // skip searchRange, entrySelector, rangeShift (6 bytes)
+    const tableDirOff = offset + 12;
+
+    // find name table
+    let nameOff = -1, nameLen = -1;
+    for (let i = 0; i < numTables; i++) {
+      const tag = String.fromCharCode(
+        dv.getUint8(tableDirOff + i*16),
+        dv.getUint8(tableDirOff + i*16 + 1),
+        dv.getUint8(tableDirOff + i*16 + 2),
+        dv.getUint8(tableDirOff + i*16 + 3)
+      );
+      if (tag === 'name') {
+        nameOff = dv.getUint32(tableDirOff + i*16 + 8);
+        nameLen = dv.getUint32(tableDirOff + i*16 + 12);
+        break;
+      }
+    }
+    if (nameOff < 0) return null;
+
+    // extract name table bytes (may be zlib-compressed for woff)
+    let nameBytes;
+    if (format === 'woff') {
+      // name table data block is zlib-compressed in woff
+      // We need the raw compressed bytes: they start at nameOff, length nameLen
+      // But wait — for woff, we need to decompress. Let's handle this differently.
+      // The woff name table is stored compressed, we need DecompressionStream.
+      return null; // handled async via readNameVersionWoff
+    }
+
+    nameBytes = new Uint8Array(buffer, nameOff, nameLen);
+    return parseNameTable(nameBytes);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function readNameVersionWoff(buffer) {
+  try {
+    const dv = new DataView(buffer);
+    // woff header: signature(4) + sfntVersion(4) + length(4) + numTables(2) + reserved(2) + totalSfntSize(4) + majorVersion(2) + minorVersion(2) + metaOffset(4) + metaLen(4) + metaOrigLen(4) + privOffset(4) + privLen(4)
+    // table directory starts at offset 44 (for woff 1.0)
+    const numTables = dv.getUint16(12);
+    // Each table record: tag(4) + offset(4) + compLen(4) + origLen(4) + origChecksum(4)
+    const tableDirOff = 44;
+
+    let nameCompOff = -1, nameCompLen = -1, nameOrigLen = -1;
+    for (let i = 0; i < numTables; i++) {
+      const recOff = tableDirOff + i * 20;
+      const tag = String.fromCharCode(
+        dv.getUint8(recOff), dv.getUint8(recOff+1),
+        dv.getUint8(recOff+2), dv.getUint8(recOff+3)
+      );
+      if (tag === 'name') {
+        nameCompOff = dv.getUint32(recOff + 4);
+        nameCompLen = dv.getUint32(recOff + 8);
+        nameOrigLen = dv.getUint32(recOff + 12);
+        break;
+      }
+    }
+    if (nameCompOff < 0) return null;
+
+    // decompress with DecompressionStream
+    const compBytes = new Uint8Array(buffer, nameCompOff, nameCompLen);
+    const ds = new DecompressionStream('deflate');
+    const writer = ds.writable.getWriter();
+    const reader = ds.readable.getReader();
+    writer.write(compBytes);
+    writer.close();
+
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const decompLen = chunks.reduce((s, c) => s + c.length, 0);
+    const decomp = new Uint8Array(decompLen);
+    let pos = 0;
+    for (const c of chunks) { decomp.set(c, pos); pos += c.length; }
+
+    return parseNameTable(decomp);
+  } catch (e) {
+    return null;
+  }
+}
+
+function parseNameTable(bytes) {
+  try {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const format = dv.getUint16(0);
+    const count = dv.getUint16(2);
+    const stringOffset = dv.getUint16(4);
+
+    let bestName = null, bestVersion = null, fallbackName = null, fallbackVersion = null;
+
+    for (let i = 0; i < count; i++) {
+      const recOff = 6 + i * 12;
+      const platformID = dv.getUint16(recOff);
+      const encodingID = dv.getUint16(recOff + 2);
+      const languageID = dv.getUint16(recOff + 4);
+      const nameID = dv.getUint16(recOff + 6);
+      const length = dv.getUint16(recOff + 8);
+      const offset = dv.getUint16(recOff + 10);
+
+      const strBytes = new Uint8Array(bytes.buffer, bytes.byteOffset + stringOffset + offset, length);
+
+      // Decode based on platform/encoding
+      let str = '';
+      if (platformID === 3 || (platformID === 0 && encodingID === 3)) {
+        // Windows / UTF-16BE
+        str = new TextDecoder('utf-16be').decode(strBytes).replace(/\0$/, '');
+      } else if (platformID === 1 && encodingID === 0) {
+        // Mac Roman
+        str = new TextDecoder('macintosh').decode(strBytes);
+      } else {
+        // fallback: try UTF-16BE, then ASCII
+        try { str = new TextDecoder('utf-16be').decode(strBytes).replace(/\0$/, ''); }
+        catch { str = new TextDecoder('utf-8').decode(strBytes); }
+      }
+      str = str.trim();
+
+      if (!str) continue;
+
+      const isWindowsEnglish = (platformID === 3 && languageID === 0x0409);
+      const isPreferred = isWindowsEnglish;
+
+      if (nameID === 1 || nameID === 4) {
+        if (isPreferred) bestName = str;
+        else if (!fallbackName) fallbackName = str;
+      }
+      if (nameID === 5) {
+        if (isPreferred) bestVersion = str;
+        else if (!fallbackVersion) fallbackVersion = str;
+      }
+    }
+
+    return {
+      name: bestName || fallbackName || null,
+      version: bestVersion || fallbackVersion || null
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ============ Font loading ============
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function loadFont(file) {
+  const buffer = await file.arrayBuffer();
+  const format = detectFormat(buffer);
+  const sizeBytes = file.size;
+  let name = null, version = null;
+  let infoNote = '';
+
+  if (format === 'unknown') {
+    showToast('「' + file.name + '」不是可识别的字体格式');
+    return null;
+  }
+
+  if (format === 'woff2') {
+    infoNote = '(woff2) 信息暂不支持';
+  } else if (format === 'ttc') {
+    infoNote = '合集，仅默认字重';
+  }
+
+  // Read name/version
+  if (format === 'woff') {
+    const nv = await readNameVersionWoff(buffer);
+    if (nv) { name = nv.name; version = nv.version; }
+  } else if (format !== 'woff2') {
+    const nv = readNameVersion(buffer, format);
+    if (nv) { name = nv.name; version = nv.version; }
+  }
+
+  if (!name) name = file.name.replace(/\.[^.]+$/, '');
+
+  // Load for preview via FontFace
+  const uniqueName = 'fp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  let face = null;
+  let previewOk = true;
+
+  if (['ttf', 'otf', 'woff', 'woff2', 'ttc'].includes(format)) {
+    try {
+      face = new FontFace(uniqueName, buffer);
+      await face.load();
+      document.fonts.add(face);
+    } catch (e) {
+      previewOk = false;
+    }
+  } else {
+    previewOk = false;
+  }
+
+  return {
+    name,
+    version: version || '',
+    format,
+    sizeBytes,
+    infoNote,
+    uniqueName,
+    face,
+    previewOk
+  };
+}
+
+// ============ Rendering ============
+function renderAll() {
+  const text = previewText.value;
+  const size = sizeSlider.value;
+
+  if (loadedFonts.length === 0) {
+    cardList.innerHTML = '<p class="empty">还没有加载字体，拖入一个试试</p>';
+    return;
+  }
+
+  cardList.innerHTML = loadedFonts.map((lf, i) => {
+    const infoParts = [];
+    if (lf.version) infoParts.push('v' + lf.version);
+    infoParts.push(lf.format);
+    infoParts.push(formatSize(lf.sizeBytes));
+    if (lf.infoNote) infoParts.push(lf.infoNote);
+
+    let previewHtml = '';
+    if (lf.previewOk && lf.face) {
+      previewHtml = `<div class="preview" style="font-family:'${lf.uniqueName}'">${escHtml(text)}</div>`;
+    } else if (lf.infoNote && lf.format === 'woff2') {
+      // woff2: preview should work via browser's built-in decoder
+      previewHtml = `<div class="preview loading">加载预览中…</div>`;
+      // Trigger async render
+      setTimeout(() => renderWoff2Preview(i, lf), 50);
+    } else {
+      previewHtml = `<div class="preview failed">无法渲染此字体</div>`;
+    }
+
+    return `<div class="card">
+      <div class="info-row">
+        <span class="name">${escHtml(lf.name)}</span>
+        <span class="version">${escHtml(lf.version)}</span>
+        <span class="meta">${infoParts.join(' · ')}</span>
+        <button class="btn-remove" data-idx="${i}" title="移除">✕</button>
+      </div>
+      ${previewHtml}
+    </div>`;
+  }).join('');
+
+  document.documentElement.style.setProperty('--preview-size', size + 'px');
+  sizeVal.textContent = size + 'px';
+
+  // bind remove buttons
+  cardList.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      removeFont(idx);
+    });
+  });
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function renderWoff2Preview(idx, lf) {
+  // woff2 font should already be loaded by FontFace (browser decodes internally)
+  // The initial render may show "loading" briefly; refresh the card after a tick
+  if (!lf.face) return;
+  try {
+    await lf.face.load();
+    // refresh just this card's preview
+    const cards = cardList.querySelectorAll('.card');
+    if (cards[idx]) {
+      const previewEl = cards[idx].querySelector('.preview');
+      if (previewEl) {
+        previewEl.className = 'preview';
+        previewEl.style.fontFamily = `'${lf.uniqueName}'`;
+        previewEl.textContent = previewText.value;
+      }
+    }
+  } catch (e) {
+    const cards = cardList.querySelectorAll('.card');
+    if (cards[idx]) {
+      const previewEl = cards[idx].querySelector('.preview');
+      if (previewEl) {
+        previewEl.className = 'preview failed';
+        previewEl.textContent = '无法渲染此字体';
+        previewEl.style.fontFamily = '';
+      }
+    }
+  }
+}
+
+function removeFont(idx) {
+  const lf = loadedFonts[idx];
+  if (lf && lf.face) {
+    document.fonts.delete(lf.face);
+  }
+  loadedFonts.splice(idx, 1);
+  renderAll();
+}
+
+function clearAll() {
+  loadedFonts.forEach(lf => { if (lf.face) document.fonts.delete(lf.face); });
+  loadedFonts.length = 0;
+  renderAll();
+}
+
+// ============ Event handlers ============
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+fileInput.addEventListener('change', () => {
+  handleFiles(fileInput.files);
+  fileInput.value = '';
+});
+
+async function handleFiles(fileList) {
+  for (const file of fileList) {
+    const lf = await loadFont(file);
+    if (lf) {
+      loadedFonts.push(lf);
+    }
+  }
+  renderAll();
+}
+
+sizeSlider.addEventListener('input', renderAll);
+previewText.addEventListener('input', renderAll);
+btnClear.addEventListener('click', clearAll);
+
+// ============ Init ============
+renderAll();
+</script>
+</body>
+</html>

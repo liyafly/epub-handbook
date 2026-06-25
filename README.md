@@ -47,6 +47,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 对比改前 / 改后 | [docs/pipeline/epub-diff-review.md](docs/pipeline/epub-diff-review.md) |
 | 给 AI 接入 | 先读 [AGENTS.md](AGENTS.md)，再按 [skills/README.md](skills/README.md) 选择专项 skill；metadata 在 `skills/*/agents/openai.yaml` |
 | 使用 Swift 核心（macOS App 已 PARKED） | [swift/](swift/)；gui/ 当前不投入，执行逻辑向 swift/ 收口 |
+| 字体预览工具 | 双击 [tools-font/font-preview.html](tools-font/font-preview.html) 用浏览器打开 |
 | 看场景化指南 | [docs/how-to/](docs/how-to/) |
 | 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [AGENTS.md](AGENTS.md) |
 
