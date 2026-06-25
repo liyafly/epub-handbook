@@ -799,20 +799,24 @@ def resolve_chains(
         for fname in families:
             lower = fname.lower()
             generic = lower in GENERIC_FAMILIES
-            embedded = lower in reg
-
+            embedded = False
             fpath: str | None = None
-            if embedded:
-                src = reg[lower].get('src', '') or ''
-                if src in font_set:
-                    fpath = src
-                elif src:
-                    for ff in font_set:
-                        if ff.endswith(src) or src.endswith(ff):
-                            fpath = ff
-                            break
-                if fpath is None and src:
-                    fpath = src  # keep URL as hint even if unmatchable
+
+            if lower in reg:
+                src = (reg[lower].get('src', '') or '').strip()
+                if src:
+                    # Verify src actually points to a real font file in the EPUB
+                    if src in font_set:
+                        embedded = True
+                        fpath = src
+                    else:
+                        for ff in font_set:
+                            if ff.endswith(src) or src.endswith(ff) or ff.endswith('/' + src.split('/')[-1]):
+                                embedded = True
+                                fpath = ff
+                                break
+                    if not embedded:
+                        fpath = src  # keep URL as hint but NOT embedded
 
             segments.append(ChainSegment(
                 family=fname,
