@@ -61,15 +61,18 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over
 fi.addEventListener('change',()=>handleFiles(fi.files));
 
 async function handleFiles(files){
+  let gotReport=false,gotFonts=false;
   for(const f of files){
     if(f.name.endsWith('.json')||f.type==='application/json'){
-      const r=new FileReader();r.onload=()=>{try{report=JSON.parse(r.result);renderAll()}catch(e){ct.innerHTML='<p class=empty style=color:var(--fail)>JSON parse error</p>'}};r.readAsText(f);return
+      await new Promise(r=>{const fr=new FileReader();fr.onload=()=>{try{report=JSON.parse(fr.result);gotReport=true}catch(e){ct.innerHTML='<p class=empty style=color:var(--fail)>JSON parse error</p>'}};fr.readAsText(f);setTimeout(r,100)});
     }
-    const ext=f.name.split('.').pop().toLowerCase();
-    if(f.name.endsWith('.epub')){await loadFromEpub(f);renderAll();continue}
-    if(/^(ttf|otf|woff|woff2)$/.test(ext))await loadFont(f);
   }
-  if(!report)return;
+  if(!gotReport){ct.innerHTML='<p class=empty style=color:var(--fail)>请拖入 coverage JSON 报告文件（.json）</p>';return}
+  for(const f of files){
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(f.name.endsWith('.epub')){await loadFromEpub(f);gotFonts=true}
+    else if(/^(ttf|otf|woff|woff2)$/.test(ext)){await loadFont(f);gotFonts=true}
+  }
   updateFontInfo();renderAll();
 }
 async function loadFont(f){
@@ -132,9 +135,23 @@ fz.addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTra
 fz.addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.accept='.ttf,.otf,.woff,.woff2,.epub';inp.onchange=async()=>{for(const f of inp.files)await loadFont(f);updateFontInfo();renderAll()};inp.click()});
 
 function findFont(name){
-  if(!name)return null;
+  if(!name||!Object.keys(loadedFonts).length)return null;
+  // Try exact match first
   const k=name.toLowerCase().replace(/[^a-z0-9]/g,'');
-  return loadedFonts[k]||null;
+  if(loadedFonts[k])return loadedFonts[k];
+  // Try partial match (font name within loaded font filename or vice versa)
+  const nk=name.toLowerCase();
+  for(const [key,lf] of Object.entries(loadedFonts)){
+    if(key.includes(nk)||nk.includes(key))return lf;
+    if(lf.name&&(lf.name.toLowerCase().includes(nk)||nk.includes(lf.name.toLowerCase())))return lf;
+  }
+  // Try fuzzy: check if the font file name is similar
+  for(const [key,lf] of Object.entries(loadedFonts)){
+    const fn=lf.name.toLowerCase().replace(/[^a-z]/g,'');
+    const sn=nk.replace(/[^a-z]/g,'');
+    if(fn&&sn&&(fn.includes(sn)||sn.includes(fn)))return lf;
+  }
+  return null;
 }
 
 function renderAll(){
@@ -206,24 +223,34 @@ function renderAll(){
 }
 
 function problemCard(ci,kind){
-  const cp=parseInt(ci.cp.slice(2),16),kchar=kind==='extb'?'tofu':'';
+  const cp=parseInt(ci.cp.slice(2),16);
   const cby=ci._covered_by,ctx=(ci.occurrences&&ci.occurrences[0])?ci.occurrences[0].context||'':'';
-  let fix='';
+  let fix='',glyph='';
+  // Try to render in any loaded font
+  if(Object.keys(loadedFonts).length){
+    const lf=cby?findFont(cby):null;
+    if(lf)glyph='<span style="font-size:2em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';
+    else{
+      // Try all loaded fonts
+      for(const [k,lf] of Object.entries(loadedFonts)){
+        glyph='<span style="font-size:2em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';
+        break; // Just try the first one
+      }
+    }
+  }
+  const isTofu=!cby||!glyph;
+  const charClass=isTofu&&kind==='extb'?'tofu':'';
   if(cby&&kind==='fixable'){
-    fix='<div class="fix">✅ 修复：把 <b>'+esc(cby)+'</b> 字体放到 font-family 链首位即可解决</div>';
+    fix='<div class="fix">✅ 修复：把 <b>'+esc(cby)+'</b> 字体放到 font-family 链首位</div>';
   }else if(kind==='extb'){
-    fix='<div class="fix" style="background:#fef3e0">⚠️ 该字在 Ext B 区，Kindle 系统字体可能缺。需要嵌入覆盖此字的字体到链首（见 Kindle 字体深度参考）</div>';
+    fix='<div class="fix" style="background:#fef3e0">⚠️ Ext B 区字，Kindle 系统字体可能缺。<br>需嵌入覆盖此字的字体到链首</div>';
   }
-  // Show embedded font render if available
-  let glyph='';
-  if(cby&&Object.keys(loadedFonts).length){
-    const lf=findFont(cby);
-    if(lf)glyph=' <span style="font-size:2em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';
-  }
+  const kv=ci._kindle||'fail';
   return '<div class="problem-card">'+
-    '<div class="char-big '+kchar+'">'+esc(ci.char)+glyph+'</div>'+
-    '<div class="meta">'+ci.cp+' ×'+ci.count+
-    (cby?' <span class="badge b-extb">字体：'+esc(cby)+'</span>':'')+
+    '<div class="char-big '+charClass+'">'+(glyph||esc(ci.char))+'</div>'+
+    '<div class="meta"><b>'+ci.cp+'</b> ×'+ci.count+
+    (cby?' <span class="badge b-extb">有字体：'+esc(cby)+'</span>':' <span class="badge b-fail">无内嵌字体</span>')+
+    '<span class="badge" style="background:'+(kv==='ok'?'#e8f5e9;color:var(--ok)':'#fde8e8;color:var(--fail)')+'">Kindle '+(kv==='ok'?'✅':'❌')+'</span>'+
     ((ci._causes||[]).map(c=>' <span class="badge '+(c==='true-missing'?'b-fail':'b-risk')+'">'+causeLabel(c)+'</span>').join(''))+
     '</div>'+
     (ctx?'<div class="meta">⋯'+esc(ctx)+'⋯</div>':'')+
@@ -250,17 +277,24 @@ function applyFilter(){
       :'<span class=badge style=background:#fef3e0;color:var(--risk)>⚠️ 风险</span>';
     const causes=(ci._causes||[]).map(c=>'<span style="font-size:.7em;padding:1px 4px;border-radius:4px;margin:0 1px;background:'+(c==='true-missing'?'#fde8e8':c==='subset-cut'?'#fde8f0':'#fef3e0')+'">'+causeLabel(c)+'</span>').join('');
     const cby=ci._covered_by;
-    let glyph='—',fix='—';
-    if(cby&&Object.keys(loadedFonts).length){
+    let glyph='<span style="color:#ccc">—</span>',fix='<span style="font-size:.72em;color:var(--muted)">—</span>';
+    const fontLoaded=Object.keys(loadedFonts).length>0;
+    if(cby&&fontLoaded){
       const lf=findFont(cby);
-      glyph=lf?'<span style="font-size:1.8em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>':'<span style="color:#ccc">未加载</span>';
+      glyph=lf?'<span style="font-size:1.8em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>'
+        :'<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
       fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首</span>';
     }else if(cby){
-      fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首（未加载字体）</span>';
-      glyph='<span style="color:#ccc">拖入 EPUB</span>';
+      glyph='<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
+      fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首（拖入 EPUB 加载字体）</span>';
+    }else if(fontLoaded){
+      // Try any loaded font
+      const lfs=Object.values(loadedFonts);
+      if(lfs.length)glyph='<span style="font-size:1.8em;line-height:1;font-family:\''+lfs[0].fontName+'\'">'+esc(ci.char)+'</span>';
+      fix='<span style="font-size:.72em;color:var(--muted)">无内嵌字体覆盖</span>';
     }else if(kv!=='ok'){
-      fix='<span style="font-size:.72em;color:var(--muted)">需嵌入覆盖此字的字体</span>';
-      glyph='<span style="color:#ccc">—</span>';
+      glyph='<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
+      fix='<span style="font-size:.72em;color:var(--muted)">需嵌入字体（拖入 EPUB 加载）</span>';
     }
     return '<tr><td style="font-size:2em;text-align:center;line-height:1">'+esc(ci.char)+'</td>'+
       '<td class=cp-mono>'+ci.cp+'</td><td style=text-align:right>'+ci.count+'</td>'+
