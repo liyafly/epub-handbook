@@ -15,5 +15,5 @@
 ## 相关目录
 
 - 批处理清洗流程和工具说明在 [../pipeline/](../pipeline/)。
-- 扩展计划、阶段 review 和维护说明在 [../plans/](../plans/)。
+- 扩展计划、阶段 review 和维护说明在 [../meta/](../meta/)。
 - 对外硬约束仍以 [../final/](../final/) 为准。

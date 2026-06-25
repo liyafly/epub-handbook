@@ -19,7 +19,7 @@
   - 注释容器必须使用 `<ol class="footnote-list duokan-footnote-content">`；
   - 每条 `<li class="footnote-item">` 仅挂 `duokan-footnote-item`，禁止在 `<li>` 上重复挂 `duokan-footnote-content`。
 - fallback 为次路径，禁止创建第二份注释容器。
-- 本节默认约束 EPUB3 主包。OPF `version="2.0"` 外壳中叠加 `xmlns:epub`、`epub:type` 或 `<aside>` 只能视为按目标阅读器验证的兼容模式，不得标为严格 EPUB2 标准路径；实操见 `docs/guides/epub2-popup-note-compatibility.md`。
+- 本节默认约束 EPUB3 主包。OPF `version="2.0"` 外壳中叠加 `xmlns:epub`、`epub:type` 或 `<aside>` 只能视为按目标阅读器验证的兼容模式，不得标为严格 EPUB2 标准路径；实操见 `docs/how-to/epub2-popup-note-compatibility.md`。
 
 ## 2) A-lite 页面约束
 
@@ -170,6 +170,8 @@
 - 跨层依赖通过类名契约，不允许下层文件引用上层组件类。
 
 ## 8) 字体链规则
+
+> **设计意图**：系统字体优先、嵌入字体仅作特定需求专用。原因：(1) 嵌入字体增加包体 6–10 MB，对大多数无生僻字的中文书不必要；(2) 系统字体已覆盖各平台常用 CJK 字符，且阅读器可为系统字体做渲染优化（Hinting、灰度子像素等）；(3) 默认自由模式让读者可切换字体，是最大兼容策略。只有在系统字体确实缺字（生僻字）或设计上必须特定字形（题签/卷头）时才嵌入。
 
 - 同一份 EPUB 默认走跨平台系统字体链，不嵌入字体；嵌入字体仅用于
   (a) 大量生僻字、(b) 设计上必须的特定字体、(c) (a) 与 (b) 同时存在。

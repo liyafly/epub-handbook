@@ -33,3 +33,4 @@ gui/*.xcworkspace/
 gui/Tuist/Dependencies/
 gui/DerivedData/
 gui/Derived/
+docs/superpowers/

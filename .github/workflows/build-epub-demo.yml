@@ -13,7 +13,6 @@ on:
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
@@ -30,8 +29,8 @@ on:
       - 'docs/final/**'
       - 'docs/experiments/**'
       - 'docs/README.md'
-      - 'docs/getting-started/**'
-      - 'docs/guides/**'
+      - 'docs/learn/**'
+      - 'docs/how-to/**'
       - 'docs/pipeline/**'
       - '.github/workflows/build-epub-demo.yml'
   pull_request:
@@ -44,7 +43,6 @@ on:
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
       - 'pyproject.toml'
-      - 'requirements.txt'
       - 'uv.lock'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
@@ -61,8 +59,8 @@ on:
       - 'docs/final/**'
       - 'docs/experiments/**'
       - 'docs/README.md'
-      - 'docs/getting-started/**'
-      - 'docs/guides/**'
+      - 'docs/learn/**'
+      - 'docs/how-to/**'
       - 'docs/pipeline/**'
       - '.github/workflows/build-epub-demo.yml'
 
@@ -90,8 +88,8 @@ jobs:
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
             'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
             'docs/README.md' \
-            'docs/final/**/*.md' 'docs/getting-started/**/*.md' \
-            'docs/guides/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
+            'docs/final/**/*.md' 'docs/learn/**/*.md' \
+            'docs/how-to/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
 
       - name: Validate local fixtures and skills
         run: |

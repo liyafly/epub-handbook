@@ -1,6 +1,6 @@
 # epub-handbook
 
-> 第一次接触、还不懂 EPUB？先读 [docs/getting-started/00-what-is-epub.md](docs/getting-started/00-what-is-epub.md)，5 分钟搞懂这仓库能帮你做什么。
+> 第一次接触、还不懂 EPUB？先读 [docs/learn/00-what-is-epub.md](docs/learn/00-what-is-epub.md)，5 分钟搞懂这仓库能帮你做什么。
 
 中文 EPUB 3 制作与 AI 协作工具集。围绕「硬约束 + 自造 demo + 阅读器实测 + 自动化 skill」四件套构建：所有规则都有 demo fixture 兜底，通过阅读器实测确认的兼容性结论会写入 `reader-matrix.yaml` 并标为 `pass` 或 `fail`；尚未完成复测的条目保留为 `warn`，warn 不等于已验证，所有 AI 行为都按写定的 skill 契约执行。
 
@@ -16,10 +16,10 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 
 1. **工程契约层** — [docs/final/](docs/final/)：SPEC、终极手册、HTML / CSS 属性速查表、阅读器兼容性实测矩阵 `reader-matrix.yaml`。这是对外硬约束。
 2. **清洗流水线** — [docs/pipeline/](docs/pipeline/)：已有 EPUB 的清洗工作流，含红线 gate `scripts/validate_text_invariance.py`、harness 扫描器、典型脏 EPUB 模式识别。
-3. **AI 协作 skills** — [skills/](skills/)：共 15 个 skill（2 个主入口 `epub-layout-auditor` / `epub-source-intake` + 13 个专项：结构格式化、CSS 分层、字体、Ruby、Kindle 兼容、弹注、英文小说排版等）。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
-4. **可运行 demo / 模板** — [templates/](templates/)：统一放样式 demo、清洗 demo、starter 模板和极简 fixture 槽位。每条规则都必须有 demo 复现，不允许只靠手册推断改规则。
-5. **入门教程** — [docs/getting-started/](docs/getting-started/)：第一次接触本仓的人按这里走。
-6. **中立 contract 与 Apple 原生实现** — [contracts/](contracts/) 是 capability identity、schema 与 redline 的机器契约；[swift/](swift/) 是 Swift 6 核心；[gui/](gui/) 是 AppKit-first macOS 工程。既有 Python、skill 与 harness 仍是 agent / 旧 CLI 的默认 provider。
+3. **AI 协作 skills** — [skills/](skills/)：2 个主入口（`epub-layout-auditor` / `epub-source-intake`）+ 13 个专项 skill。可被 Claude Code / Codex 直接调用，也可由人工照 `SKILL.md` 步骤执行。
+4. **入门教程** — [docs/learn/](docs/learn/)：第一次接触本仓的人按这里走。
+5. **场景指南** — [docs/how-to/](docs/how-to/)：特定排版场景的实操指南（英文小说、文白对照、章首图等）。
+6. **双引擎执行层** — Python（`scripts/`）与 Swift（`swift/`）**按 capability 对等并存**：Python 是 AI agent / CLI / 验证基线的首要 provider；Swift 是 native 执行核心，GUI 能执行的大部分能力原生重写。两者通过 `contracts/` + `adapters/` 共享机器契约。GUI（`gui/`）当前 PARKED。字体/图片转换为独立 Python 项目。
 
 ## 项目目标与完成标准
 
@@ -35,7 +35,7 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 场景 | 入口 |
 | --- | --- |
 | 第一次接手，判断怎么走 | 先看 [#项目目标与完成标准](#项目目标与完成标准)，再跑 [#5-分钟跑通](#5-分钟跑通) |
-| 从零做一本新书 | [docs/getting-started/01-first-epub.md#做你自己的最小书](docs/getting-started/01-first-epub.md#做你自己的最小书) |
+| 从零做一本新书 | [docs/learn/01-first-epub.md#做你自己的最小书](docs/learn/01-first-epub.md#做你自己的最小书) |
 | 改造一本现成 EPUB | [docs/pipeline/cleanup-flow.md](docs/pipeline/cleanup-flow.md) |
 | 给一本 EPUB 出精排建议 | [docs/pipeline/refinement-harnesses.md](docs/pipeline/refinement-harnesses.md) + `scripts/epub_refinement_harness.py` |
 | 合并 / 拆分 EPUB，或编辑封面 / 元数据 | [docs/pipeline/package-operations.md](docs/pipeline/package-operations.md) + `scripts/epub_package_tool.py` |
@@ -46,8 +46,8 @@ A practical handbook for EPUB authoring, typography, compatibility, and reading-
 | 看阅读器兼容性记录 | [docs/final/reader-matrix.yaml](docs/final/reader-matrix.yaml) |
 | 对比改前 / 改后 | [docs/pipeline/epub-diff-review.md](docs/pipeline/epub-diff-review.md) |
 | 给 AI 接入 | 先读 [AGENTS.md](AGENTS.md)，再按 [skills/README.md](skills/README.md) 选择专项 skill；metadata 在 `skills/*/agents/openai.yaml` |
-| 使用 Swift 核心或 macOS App | [swift/](swift/) + [gui/README.md](gui/README.md)；先运行 Swift package tests，再由 Tuist 生成 AppKit workspace |
-| 看场景化指南 | [docs/guides/](docs/guides/) |
+| 使用 Swift 核心（macOS App 已 PARKED） | [swift/](swift/)；gui/ 当前不投入，执行逻辑向 swift/ 收口 |
+| 看场景化指南 | [docs/how-to/](docs/how-to/) |
 | 维护与贡献 | [CONTRIBUTING.md](CONTRIBUTING.md) + [AGENTS.md](AGENTS.md) |
 
 ## 准备环境
@@ -92,7 +92,7 @@ bash scripts/validate-epub-style-demo.sh --epub "$EPUB"
 bash scripts/validate-popup-notes.sh --epub "$EPUB"
 ```
 
-详细教程见 [docs/getting-started/01-first-epub.md](docs/getting-started/01-first-epub.md)。
+详细教程见 [docs/learn/01-first-epub.md](docs/learn/01-first-epub.md)。
 
 ## 脚本速查
 
@@ -246,7 +246,7 @@ python3 scripts/epub_style_preset_tool.py apply input.epub \
 - `epub-layout-auditor` — 总审稿、风险分级、分派专项修复。
 - `epub-source-intake` — 从 txt / md / PDF / OCR 等源材料起步。
 
-全部 15 个 skill（2 个主入口 + 13 个专项）见 [docs/getting-started/04-skills.md](docs/getting-started/04-skills.md) 反向查表。
+全部 15 个 skill（2 个主入口 + 13 个专项）见 [docs/learn/04-skills.md](docs/learn/04-skills.md) 反向查表。
 
 无 AI 也可用：`SKILL.md` 本身就是 Markdown 步骤说明，人工跟着走即可。
 
@@ -272,7 +272,7 @@ python3 scripts/epub_style_preset_tool.py apply input.epub \
 
 ## 这个仓库不是什么
 
-- 不是零基础排版速成课：会教你做不崩的 EPUB，但不覆盖通用网页 CSS 基础。完全没接触过的人请先读 [docs/getting-started/00-what-is-epub.md](docs/getting-started/00-what-is-epub.md)。
+- 不是零基础排版速成课：会教你做不崩的 EPUB，但不覆盖通用网页 CSS 基础。完全没接触过的人请先读 [docs/learn/00-what-is-epub.md](docs/learn/00-what-is-epub.md)。
 - 不是封闭格式（mobi / AZW3）的制作工具。
 - 不是 epub.js 阅读器。
 - 不是 Kindle 自费出版的运营指南。
@@ -282,12 +282,11 @@ python3 scripts/epub_style_preset_tool.py apply input.epub \
 
 | 层 | 路径 | 角色 |
 | --- | --- | --- |
-| 入门 | [docs/getting-started/](docs/getting-started/) | 第一次接触本仓的人 |
+| 入门 | [docs/learn/](docs/learn/) | 第一次接触本仓的人 |
 | 工程契约 | [docs/final/](docs/final/) | SPEC、终极手册、速查表、reader-matrix；对外硬约束 |
-| 场景指南 | [docs/guides/](docs/guides/) | 英文小说 / 文白对照 / 章首图 / 弹注 fallback 等 |
+| 场景指南 | [docs/how-to/](docs/how-to/) | 英文小说 / 文白对照 / 章首图 / 弹注 fallback 等 |
 | 批处理流水线 | [docs/pipeline/](docs/pipeline/) | 拿到一本现成 EPUB 后的流程 |
-| 计划 / 审稿 | [docs/plans/](docs/plans/) | 多阶段重构、阶段 review、仓库维护说明 |
-| 下游架构 | [docs/architecture/](docs/architecture/) | 周边项目架构副本 |
+| 治理 | [docs/meta/](docs/meta/) | 架构分工、各桶入口索引、仓库维护说明 |
 | 推导 / 实验 | [docs/source/](docs/source/), [docs/experiments/](docs/experiments/) | 早期推导、实测复盘 |
 
 完整索引见 [docs/README.md](docs/README.md)。

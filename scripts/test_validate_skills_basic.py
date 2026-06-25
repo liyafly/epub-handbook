@@ -62,8 +62,8 @@ def test_validate_skill_tables_detects_missing_entries() -> None:
       root = Path(raw)
       skill = write_skill(root, "epub-test-skill")
       (root / "skills" / "README.md").write_text("| Skill | Purpose |\n| --- | --- |\n", encoding="utf-8")
-      (root / "docs" / "getting-started").mkdir(parents=True)
-      (root / "docs" / "getting-started" / "04-skills.md").write_text(
+      (root / "docs" / "learn").mkdir(parents=True)
+      (root / "docs" / "learn" / "04-skills.md").write_text(
         "| Skill | Purpose |\n| --- | --- |\n",
         encoding="utf-8",
       )

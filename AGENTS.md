@@ -12,21 +12,34 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 5. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
 6. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
 
-## 规范来源优先级
+## 架构分工
 
-1. `templates/`：可运行样式样本和机器消费源。遇到阅读器显示、打包、转换兼容性问题时，先补 demo fixture 并实测。
-2. `docs/final/`：对外约束层。任何改动都视为规范变更，必须由 demo fixture 或明确实测结果支撑。
-3. `skills/*/SKILL.md`：自动化行为契约，修改需保持向后兼容。
-4. `docs/guides/`：场景化实操指南，不承载计划、流水线或下游架构。
-5. `docs/getting-started/`：入门教程。与 `docs/final/` 冲突时，以 `docs/final/` 为准。
-6. `docs/pipeline/`：批处理流水线工作流，与 `docs/guides/` 同级。
-7. `docs/plans/`：计划、review 和维护说明，不直接驱动行为。
-8. `docs/architecture/`：下游或周边架构副本，不属于对外硬约束。
-9. `docs/source/`、`docs/experiments/`：推导与实验区，可补充但不应反向覆盖约束层。
-10. `templates/cleanup-demo-books/`：自造清洗和 diff 演示样本；生成的 `.epub` 不入 git。
-11. 第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。
+Python 与 Swift **按 capability 并存，不默认删除 Python**：
 
-`tools/` 已于 2026-05-28 移除。人工 diff review 使用 Calibre Editor 或 VS Code，见 `docs/pipeline/epub-diff-review.md`。
+| 层 | 用什么 | 职责 |
+|---|---|---|
+| AI / agent provider | **Python**（`scripts/` + `skills/`） | 给 AI agent 调用；CLI 与验证基线的首要 provider |
+| 执行核心 | **Swift**（`swift/`） | GUI 能执行的大部分能力，native 首要 provider |
+| 字体 / 图片转换 | **独立 Python 项目**（外部，`uv` 管理） | 字体覆盖/子集化、图片转换；Swift/GUI 起子进程调 CLI |
+| GUI | **Swift，薄**（`gui/`） | **PARKED**：当前非焦点，不投入、不作依赖；执行逻辑向 `swift/` 收口 |
+| 机器契约 | `contracts/` + `adapters/` | Python/Swift 按 capability 并存的契约与 agent 适配表面 |
+| 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |
+
+## 规范来源优先级（三档）
+
+**第一档 — 硬约束（违反即事故）：**
+`templates/` → `docs/final/` + `reader-matrix.yaml` → `skills/*/SKILL.md`
+实测 demo 优先于文档推断。遇到冲突以 demo fixture 与 reader-matrix 为准。
+
+**第二档 — 指南（提供方法，不设硬规则）：**
+`docs/how-to/`、`docs/learn/`、`docs/pipeline/`
+与 `docs/final/` 冲突时以 `docs/final/` 为准。
+
+**第三档 — 参考（不直接驱动行为）：**
+`docs/experiments/`、`docs/source/`、`docs/meta/`
+历史记录，可补充但不应反向覆盖约束层。
+
+第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。`tools/` 已于 2026-05-28 移除，人工 diff review 使用 Calibre Editor 或 VS Code。
 
 ## 已有 EPUB 固定流程
 
@@ -112,9 +125,9 @@ scripts/install-hooks.sh
 ## 文档落点
 
 - 对外硬约束写入 `docs/final/`。
-- 某类书的实操方式写入 `docs/guides/`。
+- 某类书的实操方式写入 `docs/how-to/`。
 - 已有 EPUB 的流程、工具和模式写入 `docs/pipeline/`。
-- 计划、review 和维护说明写入 `docs/plans/`，不直接驱动行为。
+- 计划、review 和维护说明写入 `docs/meta/`，不直接驱动行为。
 - 推导和实验记录写入 `docs/source/` 或 `docs/experiments/`。
 - 排版决策记录写入 `records/`；仓库级文件只保存脱敏、可复用的机器可读判断。
 - 新增第三方来源说明写入 `THIRD_PARTY.md`。

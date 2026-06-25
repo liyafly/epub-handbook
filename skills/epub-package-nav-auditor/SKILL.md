@@ -19,7 +19,7 @@ description: 审核和修复 EPUB package 结构、OPF metadata、manifest、spi
 - 只有一个带 `properties="nav"` 的 nav item。
 - Kindle/legacy 交付包包含 `toc.ncx` 和 `spine toc="ncx"`。
 - spine 顺序匹配预期阅读顺序。
-- 大合集、分卷文集和短篇全集的局部目录按 `docs/guides/anthology-navigation.md` 处理，局部目录只能作为辅助导航。
+- 大合集、分卷文集和短篇全集的局部目录按 `docs/how-to/anthology-navigation.md` 处理，局部目录只能作为辅助导航。
 - 封面图片在需要时同时声明 EPUB 3 与旧 Kindle metadata。
 - 含 MathML 的 manifest item 带 `properties="mathml"`。
 - 含内联 SVG 的 XHTML manifest item 带 `properties="svg"`。

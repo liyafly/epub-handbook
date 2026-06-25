@@ -31,7 +31,7 @@ def main() -> int:
   contributing = read_required(ROOT / "CONTRIBUTING.md", errors)
   docs_readme = read_required(ROOT / "docs" / "README.md", errors)
   skills_readme = read_required(ROOT / "skills" / "README.md", errors)
-  getting_started_skills = read_required(ROOT / "docs" / "getting-started" / "04-skills.md", errors)
+  getting_started_skills = read_required(ROOT / "docs" / "learn" / "04-skills.md", errors)
 
   require_tokens(
     "AGENTS.md",
@@ -53,7 +53,7 @@ def main() -> int:
   require_tokens("CONTRIBUTING.md", contributing, ("[AGENTS.md](AGENTS.md)",), errors)
   require_tokens("docs/README.md", docs_readme, ("`AGENTS.md`",), errors)
   require_tokens("skills/README.md", skills_readme, ("`AGENTS.md`",), errors)
-  require_tokens("docs/getting-started/04-skills.md", getting_started_skills, ("[AGENTS.md](../../AGENTS.md)",), errors)
+  require_tokens("docs/learn/04-skills.md", getting_started_skills, ("[AGENTS.md](../../AGENTS.md)",), errors)
 
   if errors:
     for error in errors:

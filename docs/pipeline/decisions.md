@@ -19,13 +19,12 @@
 
 ## 2026-05-27 文档重组
 
-按 `docs/plans/archive/handbook-expansion-review.md` §9 重组：
+按 2026-05-27 文档重组决策：
 
-- `docs/guides/` 拆为 guides（场景）、plans（计划）和 pipeline（流程）。
-- `docs/final/` 收回 `epub-pro` 架构副本到 `docs/architecture/`。
-- `docs/architecture/` 承接原 `docs/reference/` 的下游参考定位。
+- `docs/how-to/` 拆为 guides（场景）、plans（计划）和 pipeline（流程）。
+- `docs/final/` 收回 `epub-pro` 架构副本（后随 2026-06-25 仓库整合移除）。
 - `docs/final/fixtures.md` 删除。
-- `docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md` 归位到 `docs/source/`。
+- `docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md` 归位到 `docs/source/`（后随仓库整合移除，内容已并入 final/）。
 - `docs/README.md` 增加新文档分类决策树。
 
 
@@ -38,4 +37,4 @@
 | Q9 | 根 README 是否同步丰富 | 是；扩为多段结构化入口（仓库做什么 / 准备环境 / 5 分钟 / diff review / 清洗 / skills / 实测回写 / 文档地图） | 旧 README 仅 50 行场景表，承载不了「单一入口」定位 |
 | Q10 | SPEC §10.2 / §10.4 / §10.5 提到的 web app 怎么改 | 字样全部替换为「外部 diff 工具」，并指向 `docs/pipeline/epub-diff-review.md` | `docs/final/` 是硬约束层，必须与实际工具状态对齐 |
 
-执行记录见 [../plans/archive/2026-05-28-remove-epub-diff.md](../plans/archive/2026-05-28-remove-epub-diff.md)。
+执行记录原在 `plans/archive/`（2026-06-25 仓库整合中移除，完整历史见 git）。

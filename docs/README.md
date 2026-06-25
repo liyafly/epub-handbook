@@ -1,22 +1,23 @@
 # 文档目录
 
-本目录按读者任务分层。`docs/final/` 是稳定约束层；`docs/plans/` 和 `docs/source/` 只保留规划、推导与历史材料。
+本目录按读者任务分层。`docs/final/` 是稳定约束层，其余桶围绕它组织。
 
 ## 先读
 
 ### 入门层
 
-- [getting-started/](getting-started/)：第一次接触本仓时的阅读路径
-  - [00-what-is-epub.md](getting-started/00-what-is-epub.md)
-  - [01-first-epub.md](getting-started/01-first-epub.md)
-  - [02-anatomy.md](getting-started/02-anatomy.md)
-  - [03-readers.md](getting-started/03-readers.md)
-  - [06-test-your-own.md](getting-started/06-test-your-own.md)
-  - [04-skills.md](getting-started/04-skills.md)
-  - [07-faq.md](getting-started/07-faq.md)
-  - [08-epub2-epub3-compatibility.md](getting-started/08-epub2-epub3-compatibility.md)
-  - [05-case-study.md](getting-started/05-case-study.md)
-  - [glossary.md](getting-started/glossary.md)
+- [learn/](learn/)：第一次接触本仓时的阅读路径
+  - [00-what-is-epub.md](learn/00-what-is-epub.md)
+  - [01-first-epub.md](learn/01-first-epub.md)
+  - [02-anatomy.md](learn/02-anatomy.md)
+  - [03-readers.md](learn/03-readers.md)
+  - [04-skills.md](learn/04-skills.md)
+  - [05-case-study.md](learn/05-case-study.md)
+  - [06-test-your-own.md](learn/06-test-your-own.md)
+  - [07-faq.md](learn/07-faq.md)
+  - [08-epub2-epub3-compatibility.md](learn/08-epub2-epub3-compatibility.md)
+  - [09-make-a-book.md](learn/09-make-a-book.md)
+  - [glossary.md](learn/glossary.md)
 
 ### 工程契约层
 
@@ -28,73 +29,65 @@
 
 ### 场景指南
 
-- [guides/README.md](guides/README.md)：专题指南索引
-- [guides/english-fiction-layout.md](guides/english-fiction-layout.md)：英文小说排版
-- [guides/classical-modern-layout.md](guides/classical-modern-layout.md)：文白对照 / 原译对照
-- [guides/chapter-head-image.md](guides/chapter-head-image.md)：章首图
-- [guides/anthology-navigation.md](guides/anthology-navigation.md)：合集导航
-- [guides/note-box-border-styles.md](guides/note-box-border-styles.md)：便签框与边框
-- [guides/epub2-popup-note-compatibility.md](guides/epub2-popup-note-compatibility.md)：EPUB2 外壳 popup note 兼容模式
-- [guides/duokan-footnote-fallback-fix.md](guides/duokan-footnote-fallback-fix.md)：多看 fallback
+- [how-to/](how-to/)：针对特定排版场景的实操指南
+  - [english-fiction-layout.md](how-to/english-fiction-layout.md)
+  - [classical-modern-layout.md](how-to/classical-modern-layout.md)
+  - [chapter-head-image.md](how-to/chapter-head-image.md)
+  - [anthology-navigation.md](how-to/anthology-navigation.md)
+  - [note-box-border-styles.md](how-to/note-box-border-styles.md)
+  - [epub2-popup-note-compatibility.md](how-to/epub2-popup-note-compatibility.md)
+  - [duokan-footnote-fallback-fix.md](how-to/duokan-footnote-fallback-fix.md)
 
 ### 批处理流水线
 
-- [pipeline/README.md](pipeline/README.md)：流水线主入口
-- [pipeline/cleanup-flow.md](pipeline/cleanup-flow.md)：清洗流程
-- [pipeline/refinement-harnesses.md](pipeline/refinement-harnesses.md)：预检、EPUB3 迁移与精排建议 harness
-- [pipeline/package-operations.md](pipeline/package-operations.md)：EPUB 合并、按目录拆分、元数据编辑和封面替换
-- [pipeline/reference-font-role-patterns.md](pipeline/reference-font-role-patterns.md)：文学 EPUB 字体角色脱敏分析
-- [pipeline/font-chain-reader-compatibility.md](pipeline/font-chain-reader-compatibility.md)：嵌入字体链、阅读器差异与 Kindle 诊断
-- [pipeline/cleanup-patterns.md](pipeline/cleanup-patterns.md)：典型脏 EPUB 模式
-- [pipeline/asset-optimization.md](pipeline/asset-optimization.md)：图片与字体优化
-- [pipeline/epub-diff-review.md](pipeline/epub-diff-review.md)：人工 EPUB diff review（Calibre / VS Code）
-- [pipeline/skills-matrix.md](pipeline/skills-matrix.md)：skill 角色矩阵
-- [pipeline/decisions.md](pipeline/decisions.md)：决策记录
+- [pipeline/](pipeline/)：已有 EPUB 的清洗流程与工具
+  - [cleanup-flow.md](pipeline/cleanup-flow.md)
+  - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
+  - [refinement-harnesses.md](pipeline/refinement-harnesses.md)
+  - [package-operations.md](pipeline/package-operations.md)
+  - [epub-diff-review.md](pipeline/epub-diff-review.md)
+  - [skills-matrix.md](pipeline/skills-matrix.md)
+  - [decisions.md](pipeline/decisions.md)
 
 ## 按需 / 贡献者
 
-### 计划与架构参考
+### 治理
 
-- [plans/README.md](plans/README.md)：面向贡献者的计划、review 与维护说明，新人无需阅读
-- [architecture/README.md](architecture/README.md)：下游 / 周边架构副本
-
-### 模板、样本与工具
-
-- 自造清洗 / diff demo：[../templates/cleanup-demo-books/](../templates/cleanup-demo-books/)
-- 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/](../references/)
-- EPUB diff review 工作流：[pipeline/epub-diff-review.md](pipeline/epub-diff-review.md)（Calibre / VS Code）
+- [meta/](meta/)：仓库治理入口，指向 AGENTS.md 分工表与各桶索引
 
 ### 推导与实验
 
-- [source/README.md](source/README.md)：面向贡献者的早期推导稿和补充材料，新人无需阅读
-- [experiments/](experiments/)：面向贡献者的实测、复盘和实验快照，新人无需阅读
+- [source/](source/)：早期推导稿（已清空，历史在 git）
+- [experiments/](experiments/)：实测、复盘和实验快照
+
+### 模板与工具
+
+- 自造清洗 / diff demo：[../templates/cleanup-demo-books/](../templates/cleanup-demo-books/)
+- 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/](../references/)
 
 ## 新文档放哪
 
 ```text
 文档是给谁看的、什么角色？
 |
-|- 第一次接触本仓的人 / AI -> docs/getting-started/
+|- 第一次接触本仓的人 / AI -> docs/learn/
 |
 |- 对外硬约束（违反等于事故）-> docs/final/
-|  仅放 SPEC、终极手册、速查表、reader-matrix
 |
-|- 某类书的实操指南（英文小说、文白对照、章首图等）-> docs/guides/
+|- 某类书的实操指南 -> docs/how-to/
 |
-|- 拿到一本现成 EPUB 后的流程 / 工具 / 模式 -> docs/pipeline/
+|- 已有 EPUB 的清洗流程 / 工具 / 模式 -> docs/pipeline/
 |
-|- 历史、在做或未来扩展计划；阶段 review；维护说明 -> docs/plans/
+|- 治理、索引、架构分工 -> docs/meta/
 |
-|- 下游 / 周边项目架构副本 -> docs/architecture/
+|- 实测复盘、实验快照 -> docs/experiments/
 |
-|- 早期推导稿、补充材料 -> docs/source/
-|
-`- 某次实测 / 复盘 / 实验快照 -> docs/experiments/
+`- 早期推导稿（历史在 git）-> docs/source/
 ```
 
 强约束：
 
-- `docs/final/` 只放对外硬约束；新增前必须能被根目录 `AGENTS.md` 的规范来源优先级解释。
-- `docs/guides/` 只放场景指南；包含 plan、review、flow、pattern、tool 身份的文档应放到 `docs/plans/` 或 `docs/pipeline/`。
-- `docs/plans/` 不直接驱动行为；落地规则必须回写到 `docs/final/`、模板、脚本或 skills。
+- `docs/final/` 只放对外硬约束；新增前必须能被 `AGENTS.md` 的规范来源优先级解释。
+- `docs/how-to/` 只放场景指南，不承载计划、流水线或架构。
+- `docs/pipeline/` 只放流程、工具和模式文档。
 - `docs/experiments/` 文件名必须带日期或 commit hash。

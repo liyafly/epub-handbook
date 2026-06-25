@@ -31,12 +31,12 @@
 ## 读完入门后去哪？
 
 - **字体策略**：[docs/final/SPEC-实现约束.md §8](../final/SPEC-实现约束.md#8-字体链规则)
-- **弹注 / 注释**：[docs/guides/duokan-footnote-fallback-fix.md](../guides/duokan-footnote-fallback-fix.md)
-- **EPUB2 外壳弹注兼容实验**：[docs/guides/epub2-popup-note-compatibility.md](../guides/epub2-popup-note-compatibility.md)
-- **图片混排**：[docs/guides/chapter-head-image.md](../guides/chapter-head-image.md)
-- **英文小说**：[docs/guides/english-fiction-layout.md](../guides/english-fiction-layout.md)
-- **文白对照 / 古典文本**：[docs/guides/classical-modern-layout.md](../guides/classical-modern-layout.md)
-- **合集 / 大部头**：[docs/guides/anthology-navigation.md](../guides/anthology-navigation.md)
+- **弹注 / 注释**：[docs/how-to/duokan-footnote-fallback-fix.md](../how-to/duokan-footnote-fallback-fix.md)
+- **EPUB2 外壳弹注兼容实验**：[docs/how-to/epub2-popup-note-compatibility.md](../how-to/epub2-popup-note-compatibility.md)
+- **图片混排**：[docs/how-to/chapter-head-image.md](../how-to/chapter-head-image.md)
+- **英文小说**：[docs/how-to/english-fiction-layout.md](../how-to/english-fiction-layout.md)
+- **文白对照 / 古典文本**：[docs/how-to/classical-modern-layout.md](../how-to/classical-modern-layout.md)
+- **合集 / 大部头**：[docs/how-to/anthology-navigation.md](../how-to/anthology-navigation.md)
 - **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/pipeline/cleanup-flow.md](../pipeline/cleanup-flow.md)
 - **现成 EPUB 精排建议**：[docs/pipeline/refinement-harnesses.md](../pipeline/refinement-harnesses.md)
 - **review 改前改后差异**：按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre / VS Code

@@ -61,25 +61,25 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("templates/epub-style-demo/SCENE_MATRIX.md", "场景矩阵"),
   ],
   "epub-css-layering-optimizer": [
-    ("skills/epub-css-layering-optimizer/SKILL.md", "docs/guides/note-box-border-styles.md"),
-    ("docs/guides/note-box-border-styles.md", "便签、边框与阴影文本框"),
+    ("skills/epub-css-layering-optimizer/SKILL.md", "docs/how-to/note-box-border-styles.md"),
+    ("docs/how-to/note-box-border-styles.md", "便签、边框与阴影文本框"),
     ("templates/epub-style-demo/OEBPS/Styles/effects.css", ".note-box"),
     ("templates/epub-style-demo/OEBPS/Text/19-border-shadow-notes.xhtml", "note-box note-shadow"),
   ],
   "epub-english-typography-optimizer": [
-    ("docs/guides/english-fiction-layout.md", "templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml"),
-    ("docs/guides/anthology-navigation.md", "局部目录"),
+    ("docs/how-to/english-fiction-layout.md", "templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml"),
+    ("docs/how-to/anthology-navigation.md", "局部目录"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".english-fiction"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".en-noindent"),
   ],
   "epub-literary-structure-formatter": [
-    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/chapter-head-image.md"),
-    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/anthology-navigation.md"),
-    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/guides/classical-modern-layout.md"),
-    ("docs/guides/anthology-navigation.md", "回本卷目录"),
-    ("docs/guides/chapter-head-image.md", "chapter-head-art"),
-    ("docs/guides/chapter-head-image.md", "chapter-head-banner"),
-    ("docs/guides/classical-modern-layout.md", "文白对照"),
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/how-to/chapter-head-image.md"),
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/how-to/anthology-navigation.md"),
+    ("skills/epub-literary-structure-formatter/SKILL.md", "docs/how-to/classical-modern-layout.md"),
+    ("docs/how-to/anthology-navigation.md", "回本卷目录"),
+    ("docs/how-to/chapter-head-image.md", "chapter-head-art"),
+    ("docs/how-to/chapter-head-image.md", "chapter-head-banner"),
+    ("docs/how-to/classical-modern-layout.md", "文白对照"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-art"),
     ("templates/epub-style-demo/OEBPS/Styles/literary.css", ".chapter-head-banner"),
@@ -87,8 +87,8 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml", "classical-text font-st"),
   ],
   "epub-package-nav-auditor": [
-    ("skills/epub-package-nav-auditor/SKILL.md", "docs/guides/anthology-navigation.md"),
-    ("docs/guides/anthology-navigation.md", "局部目录"),
+    ("skills/epub-package-nav-auditor/SKILL.md", "docs/how-to/anthology-navigation.md"),
+    ("docs/how-to/anthology-navigation.md", "局部目录"),
     ("templates/epub-style-demo/OEBPS/package.opf", 'properties="svg"'),
   ],
   "epub-typography-optimizer": [
@@ -193,7 +193,7 @@ def validate_skill_tables(skill_folders: list[Path]) -> list[str]:
     return names
 
   readme = parse_table(ROOT / "skills" / "README.md")
-  getting_started = parse_table(ROOT / "docs" / "getting-started" / "04-skills.md")
+  getting_started = parse_table(ROOT / "docs" / "learn" / "04-skills.md")
   if readme != expected:
     errors.append(f"skills/README.md 表格与目录不一致: 缺 {sorted(expected - readme)} 多 {sorted(readme - expected)}")
   if getting_started != expected:

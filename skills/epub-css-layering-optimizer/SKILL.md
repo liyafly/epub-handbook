@@ -35,7 +35,7 @@ fonts.css -> base.css -> notes/effects/literary/media/vertical/poster.css
 3. 把规则移动到正确层级：
    - 通用元素规则留在 `base.css`。
    - 可复用组件类放进拥有该组件的层。
-   - 便签、摘录框、资料卡和装饰边框先按 `docs/guides/note-box-border-styles.md` 判断是否属于 `.note-box` 容器视觉。
+   - 便签、摘录框、资料卡和装饰边框先按 `docs/how-to/note-box-border-styles.md` 判断是否属于 `.note-box` 容器视觉。
    - A-lite shell 规则不要进入普通正文 CSS。
 4. 更新 XHTML `<link>` 顺序，先加载依赖，再加载组件覆盖。
 5. 新增或删除样式文件时同步 OPF manifest。

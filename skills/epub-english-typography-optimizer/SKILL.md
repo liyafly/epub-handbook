@@ -17,8 +17,8 @@ description: 优化英文 EPUB 书籍排版，包括书籍类型判断、英语�
 - 非虚构保留标题层级、列表、表格和引用结构，段落节奏比小说更疏。
 - 插图默认用居中 `figure`；只有需要图文并列时才走图片环绕专项 skill。
 - `justify`、浮动 drop cap、复杂装饰都必须有阅读器复测，不作为未验证主路径。
-- 大合集、分卷目录和 `(•)` 回目录点按 `docs/guides/anthology-navigation.md` 处理，不混入普通英文正文排版。
-- 便签、资料卡和装饰边框按 `docs/guides/note-box-border-styles.md` 处理。
+- 大合集、分卷目录和 `(•)` 回目录点按 `docs/how-to/anthology-navigation.md` 处理，不混入普通英文正文排版。
+- 便签、资料卡和装饰边框按 `docs/how-to/note-box-border-styles.md` 处理。
 
 ## 类型判断
 
@@ -110,8 +110,8 @@ description: 优化英文 EPUB 书籍排版，包括书籍类型判断、英语�
 
 ## 专题分流
 
-- 大合集/分卷导航：使用 `docs/guides/anthology-navigation.md`。
-- 便签/边框/阴影：使用 `docs/guides/note-box-border-styles.md`。
+- 大合集/分卷导航：使用 `docs/how-to/anthology-navigation.md`。
+- 便签/边框/阴影：使用 `docs/how-to/note-box-border-styles.md`。
 - 图文环绕：切到 `epub-image-layout-optimizer`。
 - OPF/nav/NCX：切到 `epub-package-nav-auditor`。
 

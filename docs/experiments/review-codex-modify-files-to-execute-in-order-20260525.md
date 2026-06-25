@@ -41,15 +41,15 @@
 
 ### P1：需要在合并前处理
 
-1. **`docs/guides/note-box-border-styles.md` 展示了 `.note-handcut`，但 `effects.css` 没有这个类。**
+1. **`docs/how-to/note-box-border-styles.md` 展示了 `.note-handcut`，但 `effects.css` 没有这个类。**
    guide 给的 CSS 看起来是实现示例，但读者会以为这是仓库内已存在的类。
    - 建议：要么把 `.note-handcut` 加入 `effects.css` 并补一个对应 fixture 段（最好挂在 `19-border-shadow-notes.xhtml` 末尾），要么在 guide 的代码块上方加一行「以下是建议落地模式，仓库当前 fixture 暂未使用」。
 
 2. **`pre-commit.epub-handbook` 没有安装路径说明。**
    仓库根有 `hooks/pre-commit.epub-handbook`，但没有 `scripts/install-hooks.sh`、`README.md` 也没有说明应该如何把它链接到 `.git/hooks/pre-commit`。
-   - 建议：在 `README.md` 或 `docs/plans/skills-and-templates.md` 末尾补一句 install 指令（`ln -sf ../../hooks/pre-commit.epub-handbook .git/hooks/pre-commit`），或者干脆加一个一行的 `scripts/install-hooks.sh`。否则团队/外部贡献者拿到分支只能看 hook，没有触发它的办法。
+   - 建议：在 `README.md` 或 `skills 维护文档（原 plans/，2026-06-25 仓库整合中移除）` 末尾补一句 install 指令（`ln -sf ../../hooks/pre-commit.epub-handbook .git/hooks/pre-commit`），或者干脆加一个一行的 `scripts/install-hooks.sh`。否则团队/外部贡献者拿到分支只能看 hook，没有触发它的办法。
 
-3. **`docs/plans/fonts-css-expansion-plan.md §6` 自引用分支名 `codex/modify-files-to-execute-in-order`。**
+3. **`原 fonts-css-expansion-plan（2026-06-25 仓库整合中移除，内容已并入 SPEC §8） §6` 自引用分支名 `codex/modify-files-to-execute-in-order`。**
    合并后这个分支名会消失，引用会成为悬空指针。
    - 建议：去掉分支名，只保留 commit hash（`c7f8617` / `a6f1902` / `f8481177`），或者改成「已合并入 main」。
 
@@ -95,7 +95,7 @@
     harness 输出格式（findings / recommended_skills / commands）目前没有 unit/fixture 测试。改它时容易引入静默回归。
     - 建议：加一个 `scripts/test_epub_ai_harness.py` 或 doctest，至少跑一次 `epub_ai_harness.py templates/epub-style-demo` 并断言关键 skill 出现（如 `$epub-popup-footnote-converter` / `$epub-vertical-ruby-optimizer`）。
 
-13. **`docs/guides/note-box-border-styles.md` 没列「字号/夜间模式回归」检查项。**
+13. **`docs/how-to/note-box-border-styles.md` 没列「字号/夜间模式回归」检查项。**
     SPEC §5.10 已经强调便签必须在大字号、夜间模式下保持可读，但 guide 末尾的「Demo 补充建议」段没明确列出回归项。
     - 建议：在 guide 末尾补一小段「验证清单」：默认字号 / 大字号 / 夜间模式 / Kindle KFX 转换 / Apple Books 原版字体。
 

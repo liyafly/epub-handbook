@@ -294,6 +294,19 @@ code, pre, kbd, samp {
 }
 ```
 
+### 墨水屏适配要点
+
+电子墨水屏（Kindle / Kobo / 墨案等）只有灰阶，渲染速度慢于 LCD/OLED，CSS 需额外注意：
+
+| 做 | 不要做 |
+|---|---|
+| 用 `#000` / `#222` / `#555` 等高对比度灰 | 用 `#aaa` / `#bbb` 浅灰文字（墨水屏几乎看不见） |
+| 用线条 / 边框 / 加粗 / 间距区分层级 | 用颜色区分层级（墨水屏只有灰阶） |
+| 给图片留白边 | 给图片做阴影（墨水屏渲染慢） |
+| `font-weight: bold` 区分标题 | `text-shadow` 区分文字（墨水屏不显示） |
+| 段间距用 `margin` | 用 `<br/><br/>` 凑空白 |
+| 隔行背景用 `#f0f0f0` | 用更浅的灰（如 `#fafafa`，墨水屏上看不出差异） |
+
 ---
 
 ## 五点二、英文小说正文
@@ -757,7 +770,7 @@ body.poster-bg-contain {
       lang="zh-CN">
 ```
 
-`xmlns:epub` 只负责声明 `epub:` 前缀，不会单独把 OPF2 包升级成 EPUB3。已有 EPUB2 因目标阅读器兼容需求暂时不能迁移时，可以尝试带双向链接 fallback 的混合写法，但必须按阅读器实测；见 [EPUB2 外壳中的 Popup Note 兼容写法](../guides/epub2-popup-note-compatibility.md)。
+`xmlns:epub` 只负责声明 `epub:` 前缀，不会单独把 OPF2 包升级成 EPUB3。已有 EPUB2 因目标阅读器兼容需求暂时不能迁移时，可以尝试带双向链接 fallback 的混合写法，但必须按阅读器实测；见 [EPUB2 外壳中的 Popup Note 兼容写法](../how-to/epub2-popup-note-compatibility.md)。
 
 同一个 XHTML 文件内只放一个注释容器：`aside epub:type="footnote"`。多条注释放在容器内的 `ol.footnote-list`，每条注释用 `li.footnote-item` 承载，正文 `noteref` 直接指向对应 `li` 的 `id`。这样保留 EPUB 3 标准弹注识别点，也保留 demo 的多注释聚合结构。
 
@@ -1204,7 +1217,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - Amazon: [Kindle Publishing Guidelines](https://kindlegen.s3.amazonaws.com/AmazonKindlePublishingGuidelines.pdf?rw_useCurrentProtocol=1)
 - W3C: [EPUB 3.3](https://www.w3.org/TR/epub-33/)
 - MDN: [text-decoration-style](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/text-decoration-style)
-- 本项目：`docs/source/EPUB 3 章节扉页与竖排实战 · 补充 05.md`
+- 本项目：实测素材来自 `wang-chapterpage-demo-v2.epub`，决策痕迹见 `docs/experiments/`
 
 
 ### 自检补充（A-lite / 弹注 / 字体）

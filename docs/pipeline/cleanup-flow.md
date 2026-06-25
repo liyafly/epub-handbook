@@ -460,6 +460,8 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub \
 
 `epub_cleanup_pipeline.py` 是单次一键入口（preflight → 迁移 → 精排 → 红线 → 报告）；`epub_cleanup_loop.py` 先复用该入口建立干净 EPUB3 基线，再增加多轮 Planning-Execution-Gate 循环，适合「脏书扔进去，一条命令跑到收敛」。循环收尾会在 OPF metadata 写入 `epub-handbook:cleanup-rounds` 审计标记。两者共享 preflight、红线 gate 和本仓 lint 等组件，不互相替代。
 
+**循环架构要点**：循环、收敛、gate、回滚全在 Python（确定、可测、可 CI）。每轮 Planner 产 Action 计划 → 脚本执行 → 红线 gate 验证。收敛判据：连续 `DRY_LIMIT=2` 轮无新动作或达到 `MAX_ROUNDS=6` 硬上限即停机。AI 全程不碰正文文字，只通过 `handshake` 模式产 JSON 计划（脚本写 `plan-request.json` → 外部 AI host 填 `plan.json` → 脚本读回执行），默认 `rules` 模式零模型调用。
+
 ### 18.1 模型与隐私（说明）
 
 本工具的清洗主体是**确定性脚本**，AI 只是辅助——默认 `--planner rules` **完全不调用任何模型**，纯标准库、可离线/气隙运行，稿件不出本机。

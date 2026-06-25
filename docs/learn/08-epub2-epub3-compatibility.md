@@ -12,7 +12,7 @@
 2. **正文文件能写什么？** EPUB2 和 EPUB3 都可以使用 XHTML；但两代标准允许的元素、属性和导航方式不同。
 3. **阅读器最终会怎样显示？** 标准合规、阅读器容错和平台私有兼容是三件不同的事。某个阅读器能弹窗，不等于所有阅读器都会弹，也不等于 EPUB2 校验器会接受这份混合写法。
 
-本页先讲结构，再讲版本，最后讲“EPUB2 外壳中尝试 EPUB3 弹注语义”的兼容模式。需要直接照着改文件时，看 [EPUB2 外壳中的 popup note 兼容写法](../guides/epub2-popup-note-compatibility.md)。
+本页先讲结构，再讲版本，最后讲“EPUB2 外壳中尝试 EPUB3 弹注语义”的兼容模式。需要直接照着改文件时，看 [EPUB2 外壳中的 popup note 兼容写法](../how-to/epub2-popup-note-compatibility.md)。
 
 ## 1. EPUB 不是一个 HTML 文件
 
@@ -356,7 +356,7 @@ CSS 也采用同样原则：
 - 真实注释文本；
 - 不支持弹窗时仍可完成阅读的 fallback。
 
-完整可复制模板见 [EPUB2 外壳中的 popup note 兼容写法](../guides/epub2-popup-note-compatibility.md)。
+完整可复制模板见 [EPUB2 外壳中的 popup note 兼容写法](../how-to/epub2-popup-note-compatibility.md)。
 
 ### 5.4 不要把 EPUB3 语义冒充成严格 EPUB2
 
@@ -508,7 +508,7 @@ bash scripts/validate-popup-notes.sh --epub book.epub
 - [KDP: Kindle Previewer](https://kdp.amazon.com/help/topic/G202131170)
 - [Readium CSS](https://readium.org/css/)
 - [Thorium Reader](https://github.com/edrlab/thorium-reader)
-- [Readest documentation](https://readest.com/docs/getting-started)
+- [Readest documentation](https://readest.com/docs/learn)
 - [KOReader](https://github.com/koreader/koreader)
 
 ## 12. EPUB 标准演进与平台分化史
