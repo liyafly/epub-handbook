@@ -76,15 +76,11 @@ async function handleFiles(files){
   updateFontInfo();renderAll();
 }
 async function loadFont(f){
-  try{
-    const buf=await f.arrayBuffer(),name=f.name.replace(/\.[^.]+$/,''),ext=f.name.split('.').pop().toLowerCase(),
-      fmt=ext==='otf'?'opentype':ext==='woff'?'woff':'truetype',fn='fp-'+Math.random().toString(36).slice(2,8);
-    const face=new FontFace(fn,buf,{style:'normal',weight:'normal'});await face.load();document.fonts.add(face);
-    loadedFonts[name.toLowerCase().replace(/[^a-z0-9]/g,'')]={face,fontName:fn,name};
-  }catch(e){console.warn('font fail:',f.name)}
+  const buf=await f.arrayBuffer();
+  await loadFontFile(new Blob([buf]),f.name);
 }
 
-// Minimal ZIP reader for EPUB font extraction
+// ZIP reader for EPUB font extraction
 async function* zipEntries(buf){
   const dv=new DataView(buf);let eocd=buf.byteLength-22;
   while(eocd>0){if(dv.getUint32(eocd,true)===0x06054b50)break;eocd--}
@@ -94,35 +90,90 @@ async function* zipEntries(buf){
   for(let i=0;i<total;i++){
     if(dv.getUint32(pos,true)!==0x02014b50)break;
     const method=dv.getUint16(pos+10,true),cSize=dv.getUint32(pos+20,true),
-      uSize=dv.getUint32(pos+24,true),nLen=dv.getUint16(pos+28,true),
-      exLen=dv.getUint16(pos+30,true),cmLen=dv.getUint16(pos+32,true),
-      lhOff=dv.getUint32(pos+42,true);
+      nLen=dv.getUint16(pos+28,true),exLen=dv.getUint16(pos+30,true),
+      cmLen=dv.getUint16(pos+32,true),lhOff=dv.getUint32(pos+42,true);
     const name=new TextDecoder().decode(new Uint8Array(buf,pos+46,nLen));
     pos+=46+nLen+exLen+cmLen;
-    // local header: skip signature(4)+version(2)+flags(2)+method(2)+times(8)+crc(4)
-    const dataOff=lhOff+30+dv.getUint16(lhOff+26,true)+dv.getUint16(lhOff+28,true);
-    if(/\.(ttf|otf|woff|woff2)$/i.test(name)&&method===0){
+    // Read LOCAL header (not central dir) to get actual data offset
+    const locNL=dv.getUint16(lhOff+26,true),locEL=dv.getUint16(lhOff+28,true);
+    const dataOff=lhOff+30+locNL+locEL;
+    if(!/\.(ttf|otf|woff|woff2)$/i.test(name))continue;
+    if(method===0){
       yield{name,data:new Uint8Array(buf,dataOff,cSize)};
-    }else if(/\.(ttf|otf|woff|woff2)$/i.test(name)&&method===8){
-      const raw=new Uint8Array(buf,dataOff,cSize);
+    }else if(method===8){
       try{
+        const raw=new Uint8Array(buf,dataOff,cSize);
         const ds=new DecompressionStream('deflate'),w=ds.writable.getWriter(),r=ds.readable.getReader();
-        w.write(raw);w.close();let chunks=[],total=0;
-        while(1){const{value,done}=await r.read();if(done)break;chunks.push(value);total+=value.length}
-        const out=new Uint8Array(total);let p=0;for(const c of chunks){out.set(c,p);p+=c.length}
+        w.write(raw);w.close();let cs=[],t=0;
+        while(1){const{value,done}=await r.read();if(done)break;cs.push(value);t+=value.length}
+        const out=new Uint8Array(t);let p=0;for(const c of cs){out.set(c,p);p+=c.length}
         yield{name,data:out};
-      }catch(e){console.warn('deflate fail:',name)}
+      }catch(e){console.warn('deflate fail:',name,e)}
     }
   }
 }
 async function loadFromEpub(f){
   const buf=await f.arrayBuffer();let count=0;
   for await(const e of zipEntries(buf)){
-    const blob=new Blob([e.data]),name=e.name.split('/').pop();
-    await loadFont({name,arrayBuffer:()=>blob.arrayBuffer()});count++;
+    const blob=new Blob([e.data]),fname=e.name.split('/').pop();
+    await loadFontFile(blob,fname);count++;
   }
-  fz.innerHTML='字体：从 EPUB 加载了 <b>'+count+'</b> 个字体（点击拖入可追加）';
-  fz.style.display='block';
+  fz.innerHTML='字体：从 EPUB 加载了 <b>'+count+'</b> 个 <button onclick=renderAll() style=margin-left:8px;font-size:.75em>刷新显示</button>';
+  fz.style.display='block';renderAll();
+}
+
+// Load font from blob with proper name tracking
+async function loadFontFile(blob,fname){
+  try{
+    const buf=await blob.arrayBuffer(),ext=fname.split('.').pop().toLowerCase(),
+      fmt=ext==='otf'?'opentype':ext==='woff'?'woff':'truetype',
+      fn='f'+Math.random().toString(36).slice(2,8);
+    const face=new FontFace(fn,buf,{style:'normal',weight:'normal'});
+    await face.load();document.fonts.add(face);
+    // Index by multiple keys for robust matching
+    const base=fname.replace(/\.[^.]+$/,''),key=base.toLowerCase().replace(/[^a-z0-9]/g,'');
+    loadedFonts[key]={face,fontName:fn,name:fname,basename:base};
+    // Also index by common CJK font name patterns
+    const short=base.replace(/[-_]/g,'').toLowerCase();
+    loadedFonts[short]={face,fontName:fn,name:fname,basename:base};
+    // Read family name from name table for exact matching
+    try{const fam=readFontFamily(new Uint8Array(buf));if(fam){loadedFonts[fam.toLowerCase().replace(/[^a-z0-9]/g,'')]=loadedFonts[key];loadedFonts[fam.toLowerCase()]=loadedFonts[key]}}catch(e){}
+  }catch(e){console.warn('font load fail:',fname,e)}
+}
+// Quick font family name read from SFNT name table
+function readFontFamily(bytes){
+  try{
+    const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const sfnt=dv.getUint32(0);let off=0;
+    if(sfnt===0x74746366){off=dv.getUint32(12)} // ttc: first face
+    else if(sfnt===0x00010000||sfnt===0x4F54544F){} // ttf/otf
+    else if(sfnt===0x774F4646)return null; // woff - skip for now
+    else return null;
+    const nTables=dv.getUint16(off+4);
+    for(let i=0;i<nTables;i++){
+      const tag=String.fromCharCode(dv.getUint8(off+12+i*16),dv.getUint8(off+12+i*16+1),dv.getUint8(off+12+i*16+2),dv.getUint8(off+12+i*16+3));
+      if(tag==='name'){
+        const no=dv.getUint32(off+12+i*16+8),nl=dv.getUint32(off+12+i*16+12);
+        return readNameRecord(new Uint8Array(bytes.buffer,bytes.byteOffset+no,nl));
+      }
+    }
+  }catch(e){}
+  return null;
+}
+function readNameRecord(bytes){
+  try{
+    const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const count=dv.getUint16(2),so=dv.getUint16(4);
+    for(let i=0;i<count;i++){
+      const ro=6+i*12;
+      const pid=dv.getUint16(ro),nid=dv.getUint16(ro+6),len=dv.getUint16(ro+8),off=dv.getUint16(ro+10);
+      if(nid===1){ // Family name
+        const b=new Uint8Array(bytes.buffer,bytes.byteOffset+so+off,len);
+        return new TextDecoder('utf-16be').decode(b).replace(/\0$/,'').trim();
+      }
+    }
+  }catch(e){}
+  return null;
 }
 function updateFontInfo(){
   const n=Object.keys(loadedFonts).length;

@@ -141,46 +141,69 @@ def main():
         # 7. Build character inventory
         char_inventory = _build_char_inventory(runs)
 
-        # 8. Build normalized font lookup (resolve path mismatches)
-        # font_index keys are family names; build a dict keyed by ZIP path + filename
+        # 8. Build normalized font lookup with real family names + file paths
         import os.path
         font_index_dict = {}
-        font_by_filename = {}  # filename stem → FontInfo
+        font_family_map = {}  # family_name → {real_family, file_path}
         for fname, fi in font_index.items():
+            real_family = fi.family if hasattr(fi, "family") else fname
             entry = {
                 "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
                 "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
-                "family": fi.family if hasattr(fi, "family") else fname,
+                "family": real_family,
             }
-            # Index by family name
             font_index_dict[fname] = entry
-            # Also index by the resolved_path from book entries
             for ff in book["font_files"]:
                 rp = ff["resolved_path"]
                 if fname in rp.lower() or rp.endswith("/" + fname):
                     font_index_dict[rp] = entry
                     font_index_dict[os.path.basename(rp)] = entry
                     font_index_dict[os.path.basename(rp).lower()] = entry
+                    font_family_map[fname] = {"real_family": real_family, "file_path": rp}
+                    # Also map by @font-face alias
+                    for cid, chain in chains.items():
+                        for seg in chain:
+                            if seg.embedded and seg.file and fname in seg.file.lower():
+                                font_family_map[seg.family.lower()] = {"real_family": real_family, "file_path": rp}
                     break
 
-        # Resolve relative paths in chain segments to match font_index keys
+        # Resolve relative paths in chain segments
         for cid, chain in chains.items():
             for seg in chain:
                 if seg.embedded and seg.file:
-                    # Try to match against font_index
                     matched = False
                     for key in font_index_dict:
                         if seg.file in key or key.endswith("/" + os.path.basename(seg.file)):
-                            seg.file = key  # normalize to matched key
+                            seg.file = key
                             matched = True
                             break
                     if not matched:
-                        # Try resolving relative path
                         basename = os.path.basename(seg.file).lower()
                         if basename in font_index_dict:
                             seg.file = basename
 
         results = classify(char_inventory, font_index_dict, chains, run_chains)
+
+        # Enrich + convert CoverageResult to plain dicts for JSON serialization
+        enriched_results = []
+        for ci in results:
+            d = ci.__dict__ if hasattr(ci, "__dict__") else ci
+            # Find covered_by from coverage data
+            cov = d.get("coverage", {})
+            rfamily = None
+            ffile = None
+            for cdata in cov.values():
+                cby = cdata.get("covered_by") if isinstance(cdata, dict) else getattr(cdata, "covered_by", None)
+                if cby:
+                    fm = font_family_map.get(cby.lower(), {})
+                    if fm:
+                        rfamily = fm.get("real_family")
+                        ffile = fm.get("file_path")
+                        break
+            d["_real_family"] = rfamily
+            d["_font_file"] = ffile
+            enriched_results.append(d)
+        results = enriched_results
 
         # 9. Apply profiles
         # Determine worst position across all chains for each character
@@ -270,7 +293,7 @@ def main():
         profile = args.profile
         fails = 0
         for ci in results:
-            p = ci.profiles if hasattr(ci, "profiles") else ci.get("profiles", {})
+            p = ci.get("profiles", {})
             if p.get(profile) == "fail":
                 fails += 1
         if fails > 0:
