@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字体覆盖报告</title>
+<style>
+:root {
+  --bg:#f6f4ef; --card:#fffdf8; --ink:#23211d; --muted:#716d64; --line:#d8d0c3;
+  --ok:#5a9e6f; --risk:#c8912b; --fail:#c44; --pua:#8b5cf6; --radius:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);max-width:1200px;margin:0 auto;padding:20px 16px 60px;line-height:1.6}
+h1{font-size:1.3em;margin-bottom:4px}
+.sub{color:var(--muted);font-size:.85em;margin-bottom:16px}
+
+/* drop zone */
+.drop-zone{
+  border:2px dashed var(--line);border-radius:var(--radius);padding:28px;
+  text-align:center;cursor:pointer;margin-bottom:16px;transition:.2s;
+}
+.drop-zone.drag-over{border-color:var(--accent,#8f4f20);background:#fdf6ee}
+.drop-zone p{color:var(--muted);font-size:.9em}
+.drop-zone input{display:none}
+
+/* stats grid */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.stat-card .num{font-size:1.6em;font-weight:700}
+.stat-card .label{font-size:.78em;color:var(--muted)}
+.ok-num{color:var(--ok)} .risk-num{color:var(--risk)} .fail-num{color:var(--fail)}
+
+/* cause breakdown */
+.causes{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:.85em}
+.cause-tag{padding:2px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.cause-tag.subset-cut{border-color:#e8c;color:#a36}
+.cause-tag.true-missing{border-color:var(--fail);color:var(--fail)}
+.cause-tag.fallback-not-reached{border-color:var(--risk);color:var(--risk)}
+
+/* controls */
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.controls input,.controls select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:.85em;background:var(--card)}
+.controls input{flex:1;min-width:200px}
+
+/* char table */
+.char-table{width:100%;border-collapse:collapse;font-size:.88em;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.char-table th{background:#f0ece4;padding:8px 10px;text-align:left;font-weight:600;position:sticky;top:0;z-index:1;font-size:.82em;color:var(--muted)}
+.char-table td{padding:6px 10px;border-top:1px solid #f0ece4;vertical-align:top}
+.char-table tr:hover{background:#fdf6ee}
+.char-display{font-size:1.8em;line-height:1;min-width:1.2em;text-align:center}
+.char-cp{font-family:"SF Mono","Consolas",monospace;font-size:.82em;color:var(--muted)}
+.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.75em;font-weight:600}
+.badge-ok{background:#e8f5e9;color:var(--ok)}
+.badge-risk{background:#fef3e0;color:var(--risk)}
+.badge-fail{background:#fde8e8;color:var(--fail)}
+.badge-pua{background:#f3edff;color:var(--pua)}
+.pos-tag{font-size:.75em;padding:1px 5px;border-radius:8px}
+.pos-first{background:#e8f5e9}
+.pos-later{background:#fef3e0}
+.pos-non{background:#fef3e0}
+.pos-none{background:#fde8e8}
+.count-num{font-size:.82em;color:var(--muted)}
+
+.empty{text-align:center;color:#ccc;padding:60px 0}
+</style>
+</head>
+<body>
+
+<h1>🔤 EPUB 字体覆盖报告</h1>
+<p class="sub">拖入 coverage-detector 生成的 JSON 报告文件</p>
+
+<div class="drop-zone" id="dropZone">
+  <p>⬇ 把 report.json 拖到这里，或点击选择</p>
+  <input type="file" id="fileInput" accept=".json">
+</div>
+
+<div id="content"><p class="empty">还没有加载报告，拖入一个 JSON 试试</p></div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const content = document.getElementById('content');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) loadFile(fileInput.files[0]);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const report = JSON.parse(reader.result);
+      render(report);
+    } catch(e) {
+      content.innerHTML = `<p class="empty" style="color:var(--fail)">解析 JSON 失败：${e.message}</p>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function render(report) {
+  const s = report.summary;
+  const chars = report.char_inventory;
+  const fonts = report.fonts?.embedded || [];
+  const book = report.book || {};
+
+  // Build filter state
+  let filter = '', profileFilter = 'all', causeFilter = 'all';
+
+  function rebuildFilterUI() { /* handled by inline onchange */ }
+
+  const profileStats = s.by_profile_risk || {};
+  const kp = profileStats['kindle-pessimistic'] || {ok:0,risk:0,fail:0};
+  const ib = profileStats['ideal-browser'] || {ok:0,risk:0,fail:0};
+
+  // Count causes from char data
+  const causeCounts = {};
+  chars.forEach(ci => {
+    const cov = ci.coverage || {};
+    for (const cdata of Object.values(cov)) {
+      const c = cdata.cause;
+      if (c) { causeCounts[c] = (causeCounts[c]||0) + 1; break; }
+    }
+  });
+
+  const fontGlyphCount = fonts.reduce((sum, f) => sum + (f.glyph_count||0), 0);
+
+  content.innerHTML = `
+    <div class="stats">
+      <div class="stat-card"><div class="num">${s.unique_chars}</div><div class="label">去重字符</div></div>
+      <div class="stat-card"><div class="num ok-num">${kp.ok}</div><div class="label">Kindle 安全</div></div>
+      <div class="stat-card"><div class="num fail-num">${kp.fail}</div><div class="label">Kindle 风险</div></div>
+      <div class="stat-card"><div class="num">${fonts.length}</div><div class="label">嵌入字体</div></div>
+      <div class="stat-card"><div class="num">${fontGlyphCount.toLocaleString()}</div><div class="label">字体总字形</div></div>
+      <div class="stat-card"><div class="num">${s.pua_flagged}</div><div class="label">PUA 字符</div></div>
+    </div>
+
+    <div class="causes">
+      ${Object.entries(causeCounts).sort((a,b)=>b[1]-a[1]).map(([c,n]) =>
+        `<span class="cause-tag ${c}">${causeLabel(c)}: ${n}</span>`
+      ).join('')}
+    </div>
+
+    <div class="controls">
+      <input type="text" id="charFilter" placeholder="搜索字符或码位…" oninput="applyFilter()">
+      <select id="profileFilter" onchange="applyFilter()">
+        <option value="all">全部画像</option>
+        <option value="ok">Kindle ✅ 安全</option>
+        <option value="fail">Kindle ❌ 风险</option>
+        <option value="pua">PUA 标记</option>
+      </select>
+      <select id="causeFilter" onchange="applyFilter()">
+        <option value="all">全部原因</option>
+        ${Object.keys(causeCounts).map(c => `<option value="${c}">${causeLabel(c)}</option>`).join('')}
+      </select>
+      <span style="font-size:.82em;color:var(--muted)" id="filterCount"></span>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="char-table">
+        <thead><tr>
+          <th>字符</th><th>码位</th><th>次数</th><th>Kindle</th><th>覆盖位置</th><th>原因</th>
+        </tr></thead>
+        <tbody id="charBody">
+          ${chars.map(ci => renderRow(ci)).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;font-size:.9em;color:var(--muted)">嵌入字体详情 (${fonts.length})</summary>
+      <table style="width:100%;font-size:.82em;margin-top:8px;border-collapse:collapse">
+        <tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--line)">字体</th><th style="text-align:right;padding:4px 8px;border-bottom:1px solid var(--line)">字形数</th><th style="text-align:center;padding:4px 8px;border-bottom:1px solid var(--line)">子集</th></tr>
+        ${fonts.map(f => `
+          <tr><td style="padding:2px 8px">${esc(f.family||f.file)}</td>
+          <td style="text-align:right;padding:2px 8px">${(f.glyph_count||0).toLocaleString()}</td>
+          <td style="text-align:center;padding:2px 8px">${f.is_subset?'⚠️ 子集':'否'}</td></tr>
+        `).join('')}
+      </table>
+    </details>
+  `;
+
+  window.chars = chars;
+  applyFilter();
+}
+
+function renderRow(ci) {
+  const cov = ci.coverage || {};
+  // Find worst position and cause
+  let worstPos = 'first-embedded', worstIdx = 0;
+  const posOrder = {'first-embedded':0,'later-embedded':1,'only-non-embedded':2,'none':3};
+  let causes = new Set();
+  for (const cdata of Object.values(cov)) {
+    const p = cdata.position || 'none';
+    if (posOrder[p] > worstIdx) { worstPos = p; worstIdx = posOrder[p]; }
+    if (cdata.cause) causes.add(cdata.cause);
+  }
+
+  // Get kindle verdict from profile
+  const profiles = ci.profiles || {};
+  const kv = profiles['kindle-pessimistic'] || verdictFromPos(worstPos);
+
+  const flags = ci.flags || [];
+  const isPua = flags.includes('pua');
+
+  const badgeClass = kv === 'ok' ? 'badge-ok' : kv === 'risk' ? 'badge-risk' : 'badge-fail';
+  const posClass = `pos-${worstPos.replace('only-non-embedded','non')}`;
+
+  return `<tr class="char-row" data-char="${esc(ci.char)}" data-cp="${ci.cp}" data-verdict="${kv}" data-causes="${[...causes].join(',')}" data-pua="${isPua}">
+    <td class="char-display">${esc(ci.char)}</td>
+    <td class="char-cp">${ci.cp}</td>
+    <td class="count-num">${ci.count.toLocaleString()}</td>
+    <td><span class="badge ${badgeClass}">${kv==='ok'?'✅':'❌'}</span></td>
+    <td><span class="pos-tag ${posClass}">${posLabel(worstPos)}</span></td>
+    <td>${[...causes].map(c=>`<span class="cause-tag ${c}" style="font-size:.72em">${causeLabel(c)}</span>`).join(' ') || '—'}</td>
+  </tr>`;
+}
+
+function applyFilter() {
+  const q = (document.getElementById('charFilter')?.value || '').toLowerCase();
+  const pf = document.getElementById('profileFilter')?.value || 'all';
+  const cf = document.getElementById('causeFilter')?.value || 'all';
+
+  const rows = document.querySelectorAll('.char-row');
+  let shown = 0;
+  rows.forEach(row => {
+    const ch = row.dataset.char || '';
+    const cp = row.dataset.cp || '';
+    const verdict = row.dataset.verdict || '';
+    const causes = row.dataset.causes || '';
+    const isPua = row.dataset.pua === 'true';
+
+    let show = true;
+    if (q && !ch.includes(q) && !cp.toLowerCase().includes(q)) show = false;
+    if (pf === 'ok' && verdict !== 'ok') show = false;
+    if (pf === 'fail' && verdict !== 'fail') show = false;
+    if (pf === 'pua' && !isPua) show = false;
+    if (cf !== 'all' && !causes.includes(cf)) show = false;
+    row.style.display = show ? '' : 'none';
+    if (show) shown++;
+  });
+  const el = document.getElementById('filterCount');
+  if (el) el.textContent = `显示 ${shown} / ${rows.length}`;
+}
+
+function verdictFromPos(pos) {
+  if (pos === 'first-embedded') return 'ok';
+  if (pos === 'none') return 'fail';
+  return 'fail'; // kindle-pessimistic
+}
+
+function posLabel(p) {
+  const m = {'first-embedded':'链首嵌入','later-embedded':'靠后嵌入','only-non-embedded':'仅系统字体','none':'无覆盖'};
+  return m[p] || p;
+}
+
+function causeLabel(c) {
+  const m = {'true-missing':'真缺字','fallback-not-reached':'回退未生效','subset-cut':'子集裁切','unknown':'未知'};
+  return m[c] || c;
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

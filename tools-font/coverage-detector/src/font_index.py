@@ -77,14 +77,14 @@ def _extract_family_name(font: TTFont, file_path: str) -> str:
     Falls back to the filename stem (sans extension) when the name table is
     missing or does not contain name ID 1.
     """
-    if font.name and font.name.getName(1, 3, 1, 0x0409):
-        name_entry = font.name.getName(1, 3, 1, 0x0409)
+    if font["name"] and font["name"].getName(1, 3, 1, 0x0409):
+        name_entry = font["name"].getName(1, 3, 1, 0x0409)
         return name_entry.toUnicode().strip().lower()
-    if font.name and font.name.getName(1, 3, 1):
-        name_entry = font.name.getName(1, 3, 1)
+    if font["name"] and font["name"].getName(1, 3, 1):
+        name_entry = font["name"].getName(1, 3, 1)
         return name_entry.toUnicode().strip().lower()
     # Platform-agnostic fallback: take any name ID 1 record
-    for rec in font.name.names:
+    for rec in font["name"].names:
         if rec.nameID == 1:
             try:
                 return rec.toUnicode().strip().lower()

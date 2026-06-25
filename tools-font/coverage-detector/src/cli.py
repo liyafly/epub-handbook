@@ -141,8 +141,46 @@ def main():
         # 7. Build character inventory
         char_inventory = _build_char_inventory(runs)
 
-        # 8. Classify coverage
-        results = classify(char_inventory, font_index, chains, run_chains)
+        # 8. Build normalized font lookup (resolve path mismatches)
+        # font_index keys are family names; build a dict keyed by ZIP path + filename
+        import os.path
+        font_index_dict = {}
+        font_by_filename = {}  # filename stem → FontInfo
+        for fname, fi in font_index.items():
+            entry = {
+                "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
+                "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
+                "family": fi.family if hasattr(fi, "family") else fname,
+            }
+            # Index by family name
+            font_index_dict[fname] = entry
+            # Also index by the resolved_path from book entries
+            for ff in book["font_files"]:
+                rp = ff["resolved_path"]
+                if fname in rp.lower() or rp.endswith("/" + fname):
+                    font_index_dict[rp] = entry
+                    font_index_dict[os.path.basename(rp)] = entry
+                    font_index_dict[os.path.basename(rp).lower()] = entry
+                    break
+
+        # Resolve relative paths in chain segments to match font_index keys
+        for cid, chain in chains.items():
+            for seg in chain:
+                if seg.embedded and seg.file:
+                    # Try to match against font_index
+                    matched = False
+                    for key in font_index_dict:
+                        if seg.file in key or key.endswith("/" + os.path.basename(seg.file)):
+                            seg.file = key  # normalize to matched key
+                            matched = True
+                            break
+                    if not matched:
+                        # Try resolving relative path
+                        basename = os.path.basename(seg.file).lower()
+                        if basename in font_index_dict:
+                            seg.file = basename
+
+        results = classify(char_inventory, font_index_dict, chains, run_chains)
 
         # 9. Apply profiles
         # Determine worst position across all chains for each character
@@ -192,12 +230,16 @@ def main():
         # 11. Build fonts section
         embedded_info = []
         for file_path, fi in font_index.items():
+            family = fi.family if hasattr(fi, "family") else file_path.rsplit("/", 1)[-1]
+            is_subset = fi.is_subset if hasattr(fi, "is_subset") else False
+            glyph_count = len(fi.codepoints) if hasattr(fi, "codepoints") else 0
+            ivs_count = len(fi.ivs_records) if hasattr(fi, "ivs_records") else 0
             embedded_info.append({
-                "family": fi.get("family", file_path.rsplit("/", 1)[-1]),
+                "family": family,
                 "file": file_path,
-                "is_subset": fi.get("subset", False),
-                "glyph_count": len(fi.get("cmap", set())),
-                "ivs_records": len(fi.get("ivs_records", [])),
+                "is_subset": is_subset,
+                "glyph_count": glyph_count,
+                "ivs_records": ivs_count,
             })
 
         # 12. Generate report

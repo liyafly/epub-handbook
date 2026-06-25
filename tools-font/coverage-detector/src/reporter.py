@@ -56,8 +56,15 @@ def generate_report(
     ivs_flagged = 0
 
     for ci in char_inventory:
-        cause = _get(ci, "cause", "unknown")
-        by_cause[cause] = by_cause.get(cause, 0) + 1
+        # Collect causes from per-chain coverage data
+        coverage = _get(ci, "coverage", {})
+        for cov in coverage.values():
+            c = _get(cov, "cause") if isinstance(cov, dict) else getattr(cov, "cause", None)
+            if c:
+                by_cause[c] = by_cause.get(c, 0) + 1
+                break  # count each char once, use first non-None cause
+        else:
+            by_cause["unknown"] = by_cause.get("unknown", 0) + 1
 
         flags = _get(ci, "flags", [])
         if "pua" in flags:
