@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.2.6 - 2026-06-25
+
+> ⚠️ 字体工具仍在完善中
+
+### Added
+
+- `tools-font/` 字体工具目录：
+  - `font-preview.html`：单文件离线字体预览工具（拖入 .ttf/.otf，多字体对比，手写 SFNT name 表解析器）
+  - `font-coverage-viewer.html`：字体覆盖报告查看器（拖入 JSON + EPUB/字体，生僻字清单、内嵌字体对比、修复建议）
+  - `coverage-detector/`：EPUB 字体覆盖检测器 Python CLI（uv + fontTools/tinycss2/lxml，8 模块 2,800+ 行）
+- `docs/how-to/kindle-font-rendering-deep-dive.md`：Kindle 字体渲染深度参考
+- `docs/meta/`：治理索引桶
+
+### Changed
+
+- **仓库整合**：docs/ 从 84 文件 ~29k 行收敛到 47 文件 ~8k 行
+- 目录重排：`getting-started/` → `learn/`，`guides/` → `how-to/`
+- 删除 `plans/`、`archive/`、`architecture/`（历史留 git）
+- `AGENTS.md` 新增架构分工表，优先级从 8 级压到 3 档
+- `README.md` 双引擎执行层体现 Python/Swift parity
+- `gui/README.md` 顶部 PARKED 标注
+- `docs/superpowers/` 加入 .gitignore
+
+### Fixed
+
+- `kindle-pessimistic` 画像修正：`only-non-embedded` 从 fail → risk（系统字体实际可用）
+- resolver：`@font-face` 仅 local() 的不标 embedded
+- harvester：`<ruby>` 标签中的 Ext B 生僻字采集
+- `requirements.txt` 删除（统一走 uv）
+
 ## v0.2.3 - 2026-06-12
 
 ### Added
