@@ -60,7 +60,7 @@ PROFILES: Dict[str, Dict[str, str]] = {
     "kindle-pessimistic": {
         "first-embedded": "ok",
         "later-embedded": "fail",
-        "only-non-embedded": "fail",
+        "only-non-embedded": "risk",
         "none": "fail",
     },
 }
@@ -73,11 +73,9 @@ PROFILE_DESCRIPTIONS: Dict[str, str] = {
         "most permissive profile."
     ),
     "kindle-pessimistic": (
-        "Only trusts the first embedded font in the chain (Kindle "
-        "conservative assumption). Kindle's renderer often stops "
-        "looking for glyphs after the first embedded font, causing "
-        "later fonts in the chain to be silently ignored. Non-embedded "
-        "fallback is also unreliable."
+        "Kindle conservative: first embedded font = safe; later embedded "
+        "fonts may not be reached (Kindle's per-glyph fallback is unreliable); "
+        "system fonts = risk (common CJK usually OK, rare/ext-B chars may be missing) "
     ),
 }
 
