@@ -35,6 +35,7 @@ COLLECT_TAGS = frozenset((
     "u", "s", "small", "sub", "sup",
     "abbr", "address", "label", "legend",
     "summary", "nav",
+    "ruby", "rb", "rt",  # ruby annotation text
 ))
 
 # Elements whose ``alt`` attribute we treat as text runs.
