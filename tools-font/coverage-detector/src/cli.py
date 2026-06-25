@@ -111,7 +111,8 @@ def main():
         # 3. Build font cmap index
         zf = zipfile.ZipFile(args.epub, "r")
         try:
-            font_index = build_font_index(zf, book["font_files"])
+            font_paths = [f["resolved_path"] for f in book["font_files"]]
+            font_index = build_font_index(zf, font_paths)
         finally:
             zf.close()
 
