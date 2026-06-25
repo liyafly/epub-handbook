@@ -3,312 +3,200 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>字体覆盖报告 · 字形对比</title>
+<title>字体覆盖报告</title>
 <style>
-:root {
-  --bg:#f6f4ef; --card:#fffdf8; --ink:#23211d; --muted:#716d64; --line:#d8d0c3;
-  --ok:#5a9e6f; --risk:#c8912b; --fail:#c44; --pua:#8b5cf6; --radius:8px;
-}
+:root{--bg:#f6f4ef;--card:#fffdf8;--ink:#23211d;--muted:#716d64;--line:#d8d0c3;--ok:#5a9e6f;--risk:#c8912b;--fail:#c44;--pua:#8b5cf6;--radius:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);max-width:1400px;margin:0 auto;padding:20px 16px 60px;line-height:1.6}
-h1{font-size:1.3em;margin-bottom:4px}
-.sub{color:var(--muted);font-size:.85em;margin-bottom:12px}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);max-width:1400px;margin:0 auto;padding:16px;line-height:1.5}
+h1{font-size:1.2em}h2{font-size:1em;margin:16px 0 8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:12px}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px}
+.stat-card .num{font-size:1.3em;font-weight:700}.stat-card .label{font-size:.72em;color:var(--muted)}
+.ok-num{color:var(--ok)}.risk-num{color:var(--risk)}.fail-num{color:var(--fail)}
 
-.drop-zone{
-  border:2px dashed var(--line);border-radius:var(--radius);padding:28px;
-  text-align:center;cursor:pointer;margin-bottom:12px;transition:.2s;
-}
+.drop-zone{border:2px dashed var(--line);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;margin-bottom:12px;transition:.2s}
 .drop-zone.drag-over{border-color:var(--accent,#8f4f20);background:#fdf6ee}
-.drop-zone p{color:var(--muted);font-size:.9em}
+.drop-zone p{color:var(--muted);font-size:.85em}
 .drop-zone input{display:none}
 
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px}
-.stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
-.stat-card .num{font-size:1.4em;font-weight:700}
-.stat-card .label{font-size:.75em;color:var(--muted)}
-.ok-num{color:var(--ok)} .risk-num{color:var(--risk)} .fail-num{color:var(--fail)}
+.font-zone{margin-bottom:12px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);font-size:.82em}
 
-.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.controls input,.controls select,.controls button{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:.85em;background:var(--card)}
-.controls input{flex:1;min-width:180px}
+/* rare chars section */
+.rare-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:16px}
+.rare-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.rare-card .char-big{font-size:3em;line-height:1;min-height:1.2em;text-align:center}
+.rare-card .char-big.tofu{color:#ddd;font-style:italic;font-size:2em}
+.rare-card .info{font-size:.78em;color:var(--muted);margin-top:4px}
+.rare-card .info span{font-family:monospace;font-size:.9em}
+.rare-card .badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:.7em;font-weight:600}
+.badge-extb{background:#fde8f0;color:#a36}
+.badge-pua{background:#f3edff;color:#8b5cf6}
+.badge-risk{background:#fef3e0;color:var(--risk)}
+
+table{width:100%;border-collapse:collapse;font-size:.82em;background:var(--card);border:1px solid var(--line)}
+th{background:#f0ece4;padding:6px 8px;text-align:left;font-weight:600;font-size:.78em;color:var(--muted)}
+td{padding:5px 8px;border-top:1px solid #f0ece4}
+tr:hover{background:#fdf6ee}
+.cp-mono{font-family:"SF Mono","Consolas",monospace;font-size:.78em;color:var(--muted)}
+
+.controls{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.controls input,.controls select,.controls button{padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:.82em;background:var(--card)}
+.controls input{flex:1;min-width:150px}
 .controls button{background:var(--ink);color:var(--card);cursor:pointer;white-space:nowrap}
 .controls button:hover{opacity:.8}
-
-table{width:100%;border-collapse:collapse;font-size:.85em;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
-th{background:#f0ece4;padding:8px 10px;text-align:left;font-weight:600;font-size:.8em;color:var(--muted);position:sticky;top:0;z-index:1}
-td{padding:6px 10px;border-top:1px solid #f0ece4;vertical-align:middle}
-tr:hover{background:#fdf6ee}
-
-.char-big{font-size:2.2em;line-height:1;text-align:center;min-width:1.4em}
-.glyph-cell{text-align:center;padding:4px 6px;min-width:50px}
-.glyph-cell .glyph{font-size:2em;line-height:1.2;display:block}
-.glyph-cell .label{font-size:.65em;color:var(--muted);display:block}
-.glyph-tofu{color:#ddd}
-
-.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.75em;font-weight:600}
-.badge-ok{background:#e8f5e9;color:var(--ok)} .badge-fail{background:#fde8e8;color:var(--fail)} .badge-pua{background:#f3edff;color:var(--pua)}
-
-.cause-tag{padding:1px 7px;border-radius:10px;font-size:.72em;margin:0 1px}
-.cause-tag.subset-cut{background:#fde8f0;color:#a36}
-.cause-tag.true-missing{background:#fde8e8;color:var(--fail)}
-.cause-tag.fallback-not-reached{background:#fef3e0;color:var(--risk)}
-
-.cp-mono{font-family:"SF Mono","Consolas",monospace;font-size:.8em;color:var(--muted)}
-.count-num{font-size:.8em;color:var(--muted);text-align:right}
-
-/* Font upload zone */
-.font-zone{margin-bottom:12px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
-.font-zone .loaded{font-size:.8em;color:var(--muted)}
-.font-zone .loaded span{color:var(--ok);font-weight:600}
-
 .empty{text-align:center;color:#ccc;padding:60px 0}
-.warning{padding:8px 14px;background:#fef3e0;border-left:3px solid var(--risk);border-radius:4px;font-size:.85em;margin-bottom:12px}
+.tab-bar{display:flex;gap:4px;margin-bottom:8px}
+.tab{font-size:.82em;padding:4px 12px;border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;background:var(--card)}
+.tab.active{background:var(--ink);color:var(--card);border-color:var(--ink)}
 </style>
 </head>
 <body>
 
-<h1>🔤 字体覆盖报告 · 字形对比</h1>
-<p class="sub">1. 拖入 JSON 报告 → 2. 拖入 EPUB 或字体文件 → 3. 对比系统回退 vs 嵌入字体渲染效果</p>
-
-<div class="drop-zone" id="reportZone">
-  <p>第一步：⬇ 拖入 coverage JSON 报告文件</p>
-  <input type="file" id="reportInput" accept=".json">
+<h1>🔤 字体覆盖报告</h1>
+<div class="drop-zone" id="dropZone">
+  <p>⬇ 拖入 coverage JSON 报告文件到此处，或点击选择</p>
+  <input type="file" id="fileInput">
 </div>
-
 <div class="font-zone" id="fontZone" style="display:none">
-  <p style="font-size:.85em">第二步：⬇ 拖入 EPUB 文件或单个字体文件（.ttf/.otf），加载嵌入字体</p>
-  <input type="file" id="fontInput" multiple accept=".epub,.ttf,.otf,.woff,.woff2">
-  <div class="loaded" id="loadedInfo"></div>
+  拖入字体文件(.ttf/.otf)可对比系统回退 vs 嵌入字体渲染
+  <input type="file" id="fontInput" multiple style="display:none">
+  <span id="fontInfo" style="margin-left:8px;color:var(--muted)"></span>
 </div>
-
-<div id="content"><p class="empty">还没有加载报告</p></div>
+<div id="content"><p class="empty">还没有加载报告 — 拖入 JSON 文件</p></div>
 
 <script>
-// State
-let report = null;
-let loadedFonts = {}; // {family_lower: FontFace}
-let allFontsLoaded = false;
+let report=null,loadedFonts={},allFontsLoaded=false;
 
-// ====== Report loading ======
-const reportZone = document.getElementById('reportZone');
-const reportInput = document.getElementById('reportInput');
-const fontZone = document.getElementById('fontZone');
-const fontInput = document.getElementById('fontInput');
-const content = document.getElementById('content');
-const loadedInfo = document.getElementById('loadedInfo');
+const dropZone=document.getElementById('dropZone'),fileInput=document.getElementById('fileInput'),
+  fontZone=document.getElementById('fontZone'),fontInput=document.getElementById('fontInput'),
+  content=document.getElementById('content'),fontInfo=document.getElementById('fontInfo');
 
-reportZone.addEventListener('click', () => reportInput.click());
-reportZone.addEventListener('dragover', e => { e.preventDefault(); reportZone.classList.add('drag-over'); });
-reportZone.addEventListener('dragleave', () => reportZone.classList.remove('drag-over'));
-reportZone.addEventListener('drop', e => {
-  e.preventDefault(); reportZone.classList.remove('drag-over');
-  if (e.dataTransfer.files.length) loadReport(e.dataTransfer.files[0]);
-});
-reportInput.addEventListener('change', () => {
-  if (reportInput.files.length) loadReport(reportInput.files[0]);
-});
+dropZone.addEventListener('click',()=>fileInput.click());
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');handleFiles(e.dataTransfer.files)});
+fileInput.addEventListener('change',()=>handleFiles(fileInput.files));
+fontZone.addEventListener('dragover',e=>e.preventDefault());
+fontZone.addEventListener('drop',e=>{e.preventDefault();loadFonts(e.dataTransfer.files)});
+fontZone.addEventListener('click',()=>fontInput.click());
+fontInput.addEventListener('change',()=>loadFonts(fontInput.files));
 
-function loadReport(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      report = JSON.parse(reader.result);
-      fontZone.style.display = 'block';
-      renderTable();
-    } catch(e) {
-      content.innerHTML = `<p class="empty" style="color:var(--fail)">解析 JSON 失败：${e.message}</p>`;
+function handleFiles(files){
+  for(const f of files){
+    if(f.name.endsWith('.json')||f.type==='application/json'){
+      const r=new FileReader();
+      r.onload=()=>{try{report=JSON.parse(r.result);fontZone.style.display='block';renderAll()}catch(e){content.innerHTML='<p class=\"empty\" style=\"color:var(--fail)\">JSON parse error: '+e.message+'</p>'}};
+      r.readAsText(f);return
     }
-  };
-  reader.readAsText(file);
-}
-
-// ====== Font loading (drag font files directly) ======
-fontZone.addEventListener('dragover', e => { e.preventDefault(); });
-fontZone.addEventListener('drop', e => {
-  e.preventDefault();
-  loadFontFiles(e.dataTransfer.files);
-});
-fontInput.addEventListener('change', () => loadFontFiles(fontInput.files));
-
-async function loadFontFiles(fileList) {
-  for (const file of fileList) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (/^(ttf|otf|woff|woff2)$/.test(ext)) {
-      await loadFontFile(file);
-    }
-  }
-  updateLoadedInfo();
-  renderTable();
-}
-
-async function loadFontFile(file) {
-  try {
-    const data = await file.arrayBuffer();
-    const name = file.name.replace(/\.[^.]+$/, '');
-    const fontName = 'fp-' + Math.random().toString(36).slice(2,8);
-    const ext = file.name.split('.').pop().toLowerCase();
-    const format = ext === 'otf' ? 'opentype' : ext === 'woff' ? 'woff' : 'truetype';
-    const face = new FontFace(fontName, data, {style:'normal',weight:'normal'});
-    await face.load();
-    document.fonts.add(face);
-    // Index by filename (without ext, lowercased, stripped of non-alnum)
-    const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    loadedFonts[key] = {face, fontName, name};
-    // Also index by the full filename
-    loadedFonts[name.toLowerCase()] = {face, fontName, name};
-  } catch(e) {
-    console.warn('Failed to load font:', file.name, e);
+    if(/\.(ttf|otf|woff|woff2)$/i.test(f.name))loadFonts([f]);
   }
 }
-
-function updateLoadedInfo() {
-  const names = [...new Set(Object.values(loadedFonts).map(f => f.name))];
-  loadedInfo.innerHTML = names.length
-    ? `已加载 <span>${names.length}</span> 个字体：${names.join(', ')}`
-    : '暂无字体加载，字形对比列将显示为灰色 <span style="color:var(--muted)">（拖入 EPUB 中的 .ttf/.otf 字体文件即可对比）</span>';
-  allFontsLoaded = names.length > 0;
+async function loadFonts(files){
+  for(const f of files){
+    if(!/\.(ttf|otf|woff|woff2)$/i.test(f.name))continue;
+    try{
+      const buf=await f.arrayBuffer(),name=f.name.replace(/\.[^.]+$/,''),ext=f.name.split('.').pop().toLowerCase(),
+        fmt=ext==='otf'?'opentype':ext==='woff'?'woff':'truetype',fn='fp-'+Math.random().toString(36).slice(2,8);
+      const face=new FontFace(fn,buf,{style:'normal',weight:'normal'});await face.load();document.fonts.add(face);
+      loadedFonts[name.toLowerCase().replace(/[^a-z0-9]/g,'')]={face,fontName:fn,name};
+    }catch(e){console.warn('font load fail:',f.name,e)}
+  }
+  updateFontInfo();if(report)renderAll();
 }
+function updateFontInfo(){fontInfo.textContent=Object.keys(loadedFonts).length?'已加载 '+Object.keys(loadedFonts).length+' 个字体':'点击拖入字体文件对比字形';allFontsLoaded=Object.keys(loadedFonts).length>0}
 
-function findLoadedFont(family) {
-  if (!family) return null;
-  const key = family.toLowerCase().replace(/[^a-z0-9]/g, '');
-  return loadedFonts[key] || loadedFonts[family.toLowerCase()] || null;
-}
+function renderAll(){
+  if(!report)return;const s=report.summary,chars=report.char_inventory;
+  const kp=s.by_profile_risk?.['kindle-pessimistic']||{ok:0,risk:0,fail:0};
 
-// ====== Rendering ======
-function renderTable() {
-  if (!report) return;
-
-  const s = report.summary;
-  const chars = report.char_inventory;
-  const fonts = report.fonts?.embedded || [];
-  const profiles = s.by_profile_risk || {};
-  const kp = profiles['kindle-pessimistic'] || {ok:0,fail:0};
-
-  const causeCounts = {};
-  chars.forEach(ci => {
-    const causes = ci._causes || ci.causes || [];
-    causes.forEach(c => { causeCounts[c] = (causeCounts[c]||0) + 1; });
+  // Group rare chars
+  const extb=[],pua=[];
+  chars.forEach(ci=>{
+    const cp=parseInt(ci.cp.slice(2),16);
+    if(cp>=0x20000)extb.push(ci);else if((cp>=0xE000&&cp<=0xF8FF)||cp>=0xF0000)pua.push(ci);
   });
 
-  const fontGlyphTotal = fonts.reduce((s,f) => s + (f.glyph_count||0), 0);
-
-  content.innerHTML = `
+  content.innerHTML=`
     <div class="stats">
       <div class="stat-card"><div class="num">${s.unique_chars}</div><div class="label">去重字符</div></div>
-      <div class="stat-card"><div class="num ok-num">${kp.ok}</div><div class="label">Kindle 安全</div></div>
-      <div class="stat-card"><div class="num fail-num">${kp.fail}</div><div class="label">Kindle 风险</div></div>
-      <div class="stat-card"><div class="num">${fonts.length}</div><div class="label">嵌入字体</div></div>
-      <div class="stat-card"><div class="num">${fontGlyphTotal.toLocaleString()}</div><div class="label">字体总字形</div></div>
-      <div class="stat-card"><div class="num">${s.pua_flagged}</div><div class="label">PUA 字符</div></div>
+      <div class="stat-card"><div class="num ok-num">${kp.ok}</div><div class="label">✅ Kindle 安全</div></div>
+      <div class="stat-card"><div class="num risk-num">${kp.risk}</div><div class="label">⚠️ Kindle 风险</div></div>
+      <div class="stat-card"><div class="num fail-num">${kp.fail}</div><div class="label">❌ Kindle 失败</div></div>
+      <div class="stat-card"><div class="num">${extb.length}</div><div class="label">Ext B+ 生僻字</div></div>
+      <div class="stat-card"><div class="num">${pua.length}</div><div class="label">PUA 私用字</div></div>
     </div>
 
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:.82em">
-      ${Object.entries(causeCounts).sort((a,b)=>b[1]-a[1]).map(([c,n]) =>
-        `<span class="cause-tag ${c}">${causeLabel(c)}: ${n}</span>`
-      ).join('')}
-      ${!allFontsLoaded ? '<span style="color:var(--muted)">（加载字体后可显示字形对比）</span>' : ''}
+    ${extb.length||pua.length?`
+    <h2>🔴 生僻字 / 特殊字符清单</h2>
+    <div class="rare-grid">
+      ${extb.map(ci=>rareCard(ci,'extb','Ext B 生僻字 — Kindle 系统字体可能没有')).join('')}
+      ${pua.map(ci=>rareCard(ci,'pua','PUA 私用区 — 只有绑定字体有')).join('')}
     </div>
+    `:''}
 
+    <div class="tab-bar">
+      <span class="tab active" onclick="setTab('all',this)">全部 (${chars.length})</span>
+      <span class="tab" onclick="setTab('extb',this)">Ext B+ (${extb.length})</span>
+      <span class="tab" onclick="setTab('pua',this)">PUA (${pua.length})</span>
+      <span class="tab" onclick="setTab('risk',this)">Kindle 风险 (${kp.risk})</span>
+      <span class="tab" onclick="setTab('fail',this)">Kindle 失败 (${kp.fail})</span>
+    </div>
     <div class="controls">
-      <input type="text" id="charFilter" placeholder="搜索字符或码位…" oninput="applyFilter()">
-      <select id="statusFilter" onchange="applyFilter()">
-        <option value="all">全部</option>
-        <option value="fail">Kindle ❌ 风险</option>
-        <option value="ok">Kindle ✅ 安全</option>
-        <option value="pua">PUA 标记</option>
-      </select>
-      <button onclick="document.getElementById('charFilter').value='';applyFilter()">清除筛选</button>
+      <input id="charFilter" placeholder="搜索字符或码位…" oninput="applyFilter()" style="font-size:1.1em">
+      <button onclick="document.getElementById('charFilter').value='';applyFilter()">清除</button>
       <span style="font-size:.8em;color:var(--muted)" id="filterCount"></span>
     </div>
-
-    <table>
-      <thead><tr>
-        <th>字符</th><th>码位</th><th>次数</th><th style="text-align:center">系统回退<span style="font-size:.7em;display:block">（无嵌入字体）</span></th><th style="text-align:center">嵌入字体<span style="font-size:.7em;display:block">（有则显示）</span></th><th>状态</th><th>原因</th>
-      </tr></thead>
-      <tbody id="charBody">
-        ${chars.map(ci => renderRow(ci)).join('')}
-      </tbody>
-    </table>
+    <table id="charTable"><thead><tr><th>字符</th><th>码位</th><th>次数</th><th>状态</th></tr></thead><tbody></tbody></table>
   `;
 
-  window._chars = chars;
-  applyFilter();
+  window._chars=chars;window._tab='all';applyFilter();
 }
 
-function renderRow(ci) {
-  const worstPos = ci._pos || (ci.profiles?.['kindle-pessimistic'] === 'ok' ? 'first-embedded' : 'none');
-  const causes = ci._causes || [];
-  const kv = ci._kindle || (worstPos === 'first-embedded' ? 'ok' : 'fail');
-  const flags = ci.flags || [];
-  const isPua = flags.includes('pua');
+function rareCard(ci,kind,title){
+  const cp=parseInt(ci.cp.slice(2),16);
+  const cpHex=cp<0x10000?'U+'+cp.toString(16).toUpperCase().padStart(4,'0'):'U+'+cp.toString(16).toUpperCase().padStart(5,'0');
+  const badgeClass=kind==='extb'?'badge-extb':'badge-pua';
+  // Show fallback if char might not render
+  const ctx=ci.occurrences&&ci.occurrences[0]?ci.occurrences[0].context||'':'';
+  return '<div class="rare-card" title="'+esc(title)+'">'+
+    '<div class="char-big'+(kind==='extb'?' tofu':'')+'">'+esc(ci.char)+'</div>'+
+    '<div class="info"><span>'+cpHex+'</span> ×'+ci.count+' <span class="badge '+badgeClass+'">'+kind.toUpperCase()+'</span>'+
+    (ctx?'<br>⋯'+esc(ctx)+'⋯':'')+'</div></div>';
+}
 
-  // Find which embedded font covers this character
-  const coveredBy = ci._covered_by || null;
+function setTab(tab,el){
+  window._tab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');applyFilter();
+}
 
-  // Glyph rendering
-  const systemClass = 'glyph';
-  let embedClass = 'glyph glyph-tofu';
-  let embedTitle = '嵌入字体无此字形';
+function applyFilter(){
+  const q=(document.getElementById('charFilter')?.value||'').toLowerCase();
+  const tab=window._tab||'all';
+  const chars=window._chars||[];
+  let filtered=chars;
+  if(tab==='extb')filtered=chars.filter(ci=>parseInt(ci.cp.slice(2),16)>=0x20000);
+  if(tab==='pua')filtered=chars.filter(ci=>{const cp=parseInt(ci.cp.slice(2),16);return(cp>=0xE000&&cp<=0xF8FF)||cp>=0xF0000});
+  if(tab==='risk')filtered=chars.filter(ci=>(ci._kindle||'ok')==='fail'&&(ci._pos||'')==='only-non-embedded');
+  if(tab==='fail')filtered=chars.filter(ci=>(ci._pos||'')==='none'||(ci._causes||[]).length>0);
+  if(q)filtered=filtered.filter(ci=>ci.char.includes(q)||ci.cp.toLowerCase().includes(q)||(ci._causes||[]).some(c=>c.includes(q)));
 
-  if (coveredBy && allFontsLoaded) {
-    const lf = findLoadedFont(coveredBy);
-    if (lf) {
-      embedClass = 'glyph';
-      embedTitle = `渲染自：${lf.name}`;
-    }
+  const tbody=document.querySelector('#charTable tbody');
+  if(!tbody)return;
+  tbody.innerHTML=filtered.map(ci=>{
+    const kv=ci._kindle||'fail',badge=kv==='ok'?'✅':kv==='fail'?'❌':'⚠️';
+    const causes=(ci._causes||[]).map(c=>'<span style="font-size:.7em;padding:1px 4px;border-radius:6px;margin:0 1px;background:'+(c==='true-missing'?'#fde8e8':c==='subset-cut'?'#fde8f0':'#fef3e0')+'">'+c+'</span>').join('');
+    return '<tr><td style="font-size:2em;text-align:center;line-height:1">'+esc(ci.char)+'</td>'+
+      '<td class="cp-mono">'+ci.cp+'</td><td style="text-align:right">'+ci.count+'</td>'+
+      '<td>'+badge+' '+causes+'</td></tr>';
+  }).join('');
+  document.getElementById('filterCount').textContent='显示 '+filtered.length+' / '+chars.length;
+  if(q&&filtered.length===0){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">未找到匹配字符</td></tr>';
   }
-
-  const systemStyle = ''; // uses system font (no embedded)
-  const embedStyle = coveredBy && allFontsLoaded && findLoadedFont(coveredBy)
-    ? `font-family:'${findLoadedFont(coveredBy).fontName}'`
-    : '';
-
-  const badgeClass = kv === 'ok' ? 'badge-ok' : 'badge-fail';
-  const posClass = `pos-${worstPos.replace('only-non-embedded','non')}`;
-
-  return `<tr class="char-row"
-    data-char="${esc(ci.char)}" data-cp="${ci.cp}" data-verdict="${kv}"
-    data-causes="${causes.join(',')}" data-pua="${isPua}">
-    <td class="char-big">${esc(ci.char)}</td>
-    <td class="cp-mono">${ci.cp}</td>
-    <td class="count-num">${ci.count.toLocaleString()}</td>
-    <td class="glyph-cell"><span class="${systemClass}" style="${systemStyle}" title="系统字体链（无嵌入字体）">${esc(ci.char)}</span></td>
-    <td class="glyph-cell"><span class="${embedClass}" style="${embedStyle}" title="${embedTitle}">${esc(ci.char)}</span></td>
-    <td><span class="badge ${badgeClass}">${kv==='ok'?'✅ 安全':'❌ 风险'}</span></td>
-    <td>${causes.map(c=>`<span class="cause-tag ${c}">${causeLabel(c)}</span>`).join(' ') || '—'}</td>
-  </tr>`;
 }
 
-function applyFilter() {
-  const q = (document.getElementById('charFilter')?.value || '').toLowerCase();
-  const sf = document.getElementById('statusFilter')?.value || 'all';
-
-  const rows = document.querySelectorAll('.char-row');
-  let shown = 0;
-  rows.forEach(row => {
-    const ch = row.dataset.char || '';
-    const cp = row.dataset.cp || '';
-    const verdict = row.dataset.verdict || '';
-    const causes = row.dataset.causes || '';
-    const isPua = row.dataset.pua === 'true';
-
-    let show = true;
-    if (q && !ch.includes(q) && !cp.toLowerCase().includes(q) && !causes.includes(q)) show = false;
-    if (sf === 'ok' && verdict !== 'ok') show = false;
-    if (sf === 'fail' && verdict !== 'fail') show = false;
-    if (sf === 'pua' && !isPua) show = false;
-    row.style.display = show ? '' : 'none';
-    if (show) shown++;
-  });
-  document.getElementById('filterCount').textContent = `显示 ${shown} / ${rows.length}`;
-}
-
-function causeLabel(c) {
-  const m = {'true-missing':'真缺字','fallback-not-reached':'回退未生效','subset-cut':'子集裁切','unknown':'未知'};
-  return m[c] || c;
-}
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 </script>
 </body>
 </html>
