@@ -66,6 +66,8 @@ class ChainSegment:
     embedded: bool = False
     file: str | None = None
     generic: bool = False
+    defaulted: bool = False
+    system_ref: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,10 @@ def _collect_font_face_declarations(content: list) -> dict[str, Any]:
                 result['family'] = families[0]
         elif name == 'src':
             result['src'] = _extract_first_url(d.value)
+            _src_text = ''.join(t.serialize() for t in d.value).lower()
+            result['system_ref'] = ('res://' in _src_text
+                                    or 'file://' in _src_text
+                                    or 'local(' in _src_text)
         elif name in ('font-weight', 'font-style', 'font-display', 'unicode-range'):
             result[name] = ''.join(t.serialize() for t in d.value).strip()
     return result
@@ -183,6 +189,7 @@ def build_font_face_registry(css_files: list) -> dict:
                 'src': decls.get('src', ''),
                 'weight': decls.get('font-weight', 'normal'),
                 'style': decls.get('font-style', 'normal'),
+                'system_ref': decls.get('system_ref', False),
             }
 
             if key not in registry:
@@ -667,6 +674,51 @@ def _collect_rules(css_files: list) -> tuple[list[dict], list[dict]]:
     return rules, unresolved
 
 
+def _selector_applies_to_element(sel: _ParsedSelector, element_chain: list) -> bool:
+    """True iff *sel*'s rightmost compound matches the LAST element of
+    *element_chain* (the element whose font-family we are resolving), with
+    preceding compounds satisfied by ancestors.
+
+    Unlike :func:`_selector_matches_ancestors` (rightmost may match ANY
+    position), the rightmost is pinned to the element itself. This models
+    "which rules set THIS element's font-family", so a rule on a closer
+    element wins over a higher-specificity rule on a farther ancestor —
+    matching CSS inheritance proximity.
+    """
+    if not sel.parts:
+        return False
+    last = len(element_chain) - 1
+    if not _compound_matches(element_chain[last], sel.parts[-1][1]):
+        return False
+    if len(sel.parts) == 1:
+        return True
+    pi = len(sel.parts) - 2
+    ai = last - 1
+    while pi >= 0:
+        comb, comp = sel.parts[pi]
+        if comb == '>':
+            if ai < 0 or not _compound_matches(element_chain[ai], comp):
+                return False
+            ai -= 1
+            pi -= 1
+        elif comb in ('', ' '):
+            found = False
+            while ai >= 0:
+                if _compound_matches(element_chain[ai], comp):
+                    found = True
+                    ai -= 1
+                    break
+                ai -= 1
+            if not found:
+                return False
+            pi -= 1
+        elif comb in ('+', '~'):
+            pi -= 1
+        else:
+            return False
+    return True
+
+
 def _resolve_font_family(
     element: dict,
     element_chain: list,
@@ -684,7 +736,7 @@ def _resolve_font_family(
 
     for rule in rules:
         for sel in rule['selectors']:
-            if _selector_matches_ancestors(sel, element_chain):
+            if _selector_applies_to_element(sel, element_chain):
                 decls = rule['declarations']
                 if 'font-family' in decls:
                     families = _parse_font_family_list(decls['font-family'])
@@ -702,7 +754,7 @@ def _resolve_font_family(
 def _chain_hash(segments: list[ChainSegment]) -> str:
     """Short hex hash for deduplicating identical chains."""
     parts = '\x00'.join(
-        f'{s.family}\x1f{s.embedded}\x1f{s.file or ""}\x1f{s.generic}'
+        f'{s.family}\x1f{s.embedded}\x1f{s.file or ""}\x1f{s.generic}\x1f{s.defaulted}\x1f{s.system_ref}'
         for s in segments
     )
     return hashlib.sha256(parts.encode()).hexdigest()[:16]
@@ -791,8 +843,10 @@ def resolve_chains(
                     break
 
         # 3. Default fallback
+        was_defaulted = False
         if families is None:
             families = ['serif']
+            was_defaulted = True
 
         # 4. Build ChainSegment list
         segments: list[ChainSegment] = []
@@ -801,9 +855,12 @@ def resolve_chains(
             generic = lower in GENERIC_FAMILIES
             embedded = False
             fpath: str | None = None
+            seg_system_ref = False
 
             if lower in reg:
-                src = (reg[lower].get('src', '') or '').strip()
+                entry = reg[lower]
+                src = (entry.get('src', '') or '').strip()
+                sysref = bool(entry.get('system_ref', False))
                 if src:
                     # Verify src actually points to a real font file in the EPUB
                     if src in font_set:
@@ -815,14 +872,23 @@ def resolve_chains(
                                 embedded = True
                                 fpath = ff
                                 break
-                    if not embedded:
-                        fpath = src  # keep URL as hint but NOT embedded
+                if not embedded:
+                    if sysref:
+                        # @font-face points at reader/device system fonts —
+                        # a legitimate "borrow the reader's font" reference,
+                        # not a broken chain. Carry no misleading file hint.
+                        seg_system_ref = True
+                        fpath = None
+                    elif src:
+                        fpath = src  # declared package font missing → broken hint
 
             segments.append(ChainSegment(
                 family=fname,
                 embedded=embedded,
                 file=fpath,
                 generic=generic,
+                defaulted=was_defaulted,
+                system_ref=seg_system_ref,
             ))
 
         # 5. Deduplicate

@@ -147,6 +147,8 @@ function base64ToBlob(b64,mime){
   for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
   return new Blob([bytes],{type:mime});
 }
+// Load one font from a blob, register a FontFace, index it for matching
+async function loadFontFile(blob,fname){
   try{
     const buf=await blob.arrayBuffer(),ext=fname.split('.').pop().toLowerCase(),
       fmt=ext==='otf'?'opentype':ext==='woff'?'woff':'truetype',
@@ -247,18 +249,12 @@ async function renderAll(){
   const kp=s.by_profile_risk?.['kindle-pessimistic']||{ok:0,risk:0,fail:0};
   const ib=s.by_profile_risk?.['ideal-browser']||{ok:0,risk:0,fail:0};
 
-  // Group problem chars
-  const extb=[],pua=[],fails=[],risks=[];
-  const fixable=[];
+  // Group problem chars: out-of-range = Ext B+ and PUA (rare / special)
+  const extb=[],pua=[];
   chars.forEach(ci=>{
     const cp=parseInt(ci.cp.slice(2),16);
     if(cp>=0x20000)extb.push(ci);
     else if((cp>=0xE000&&cp<=0xF8FF)||cp>=0xF0000)pua.push(ci);
-    const kv=ci._kindle||'fail';
-    if(kv!=='ok')risks.push(ci);
-    // Check if fixable: has an embedded font that could cover it
-    const cby=ci._covered_by;
-    if(cby&&kv!=='ok')fixable.push(ci);
   });
 
   const causeCounts={};
@@ -270,31 +266,38 @@ async function renderAll(){
       <div class="stat-card"><div class="num ok-num">${kp.ok}</div><div class="label">✅ Kindle 安全</div></div>
       <div class="stat-card"><div class="num risk-num">${kp.risk}</div><div class="label">⚠️ Kindle 风险</div></div>
       <div class="stat-card"><div class="num fail-num">${kp.fail}</div><div class="label">❌ Kindle 失败</div></div>
-      <div class="stat-card"><div class="num">${extb.length}</div><div class="label">Ext B+ 生僻字</div></div>
-      <div class="stat-card"><div class="num">${pua.length}</div><div class="label">PUA 私用字</div></div>
+      <div class="stat-card"><div class="num">${s.rare_count||0}</div><div class="label">生僻字</div></div>
+      <div class="stat-card"><div class="num">${s.out_of_standard||0}</div><div class="label">出 GBK</div></div>
+    </div>
+    <div style="margin:6px 0">
+      <button onclick="copyChars('rare-uncovered')" style="font-size:.78em;padding:4px 10px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--card)">📋 复制生僻·未覆盖字（→大字库/造字）</button>
+      <button onclick="copyChars('rare')" style="font-size:.78em;padding:4px 10px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--card)">📋 复制全部生僻字</button>
+      <button onclick="copyChars('uncovered')" style="font-size:.78em;padding:4px 10px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--card)">📋 复制全部未覆盖字</button>
+      <span id="copyHint" style="font-size:.75em;color:var(--muted);margin-left:8px"></span>
     </div>
     ${Object.keys(causeCounts).length?`<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">原因：
       ${Object.entries(causeCounts).map(([c,n])=>'<span style="margin:0 6px">'+causeLabel(c)+': '+n+'</span>').join('')}
     </div>`:''}
 
     ${extb.length||pua.length?`
-    <h2>🔴 超出范围字符 (${extb.length+pua.length})</h2>
+    <h2>🔴 超出范围字符 (${extb.length+pua.length})
+      <button onclick="copyOutOfRange()" style="font-size:.6em;font-weight:400;padding:3px 8px;margin-left:8px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--card)">📋 复制这些字</button>
+      <span id="oorCopyHint" style="font-size:.55em;font-weight:400;color:var(--muted);margin-left:6px"></span>
+    </h2>
+    <p style="font-size:.78em;color:var(--muted);margin-bottom:6px">Ext B+ / PUA 区的稀有字。有内嵌字体覆盖的用内嵌字体显示；标「内嵌无此字」的需要大字库或造字。</p>
     <div class="problem-grid">
       ${extb.map(ci=>problemCard(ci,'extb')).join('')}
       ${pua.map(ci=>problemCard(ci,'pua')).join('')}
     </div>
     `:''}
 
-    ${fixable.length?`
-    <h2>💡 可修复字符 (${fixable.length}) — 调整字体链即可</h2>
-    <p style="font-size:.78em;color:var(--muted);margin-bottom:6px">这些字在嵌入字体中存在，但因位置靠后或子集裁切导致 Kindle 不可达。把对应字体提到链首即可修复。</p>
-    <div class="problem-grid">
-      ${fixable.map(ci=>problemCard(ci,'fixable')).join('')}
-    </div>
-    `:''}
+    ${renderChainHealth()}
+
+    ${renderCandidate()}
 
     <div class="tab-bar">
       <span class="tab active" onclick="setTab('all',this)">全部 (${chars.length})</span>
+      <span class="tab" onclick="setTab('rare',this)">生僻字 (${s.rare_count||0})</span>
       <span class="tab" onclick="setTab('extb',this)">Ext B+ (${extb.length})</span>
       <span class="tab" onclick="setTab('pua',this)">PUA (${pua.length})</span>
       <span class="tab" onclick="setTab('risk',this)">⚠️ 风险 (${kp.risk})</span>
@@ -311,27 +314,82 @@ async function renderAll(){
 
 function problemCard(ci,kind){
   try{
-  const cby=ci._covered_by||ci._real_family,ctx=(ci.occurrences&&ci.occurrences[0])?ci.occurrences[0].context||'':'';
-  let fix='',glyph='';
-  const hasFonts=Object.keys(loadedFonts).length>0;
-  if(hasFonts){
-    const lf=cby?findFont(cby, ci):null;
-    if(lf)glyph='<span style=\"font-size:1.8em;line-height:1;font-family:\\\"'+lf.fontName+'\\\"\">'+esc(ci.char)+'</span>';
-    else{for(const lf of Object.values(loadedFonts)){glyph='<span style=\"font-size:1.8em;line-height:1;font-family:\\\"'+lf.fontName+'\\\"\">'+esc(ci.char)+'</span>';break}}
-  }
-  const isCovered=!!cby;
-  if(isCovered&&kind==='fixable'){
-    fix='<div class=\"fix\">✅ 把 <b>'+esc(cby)+'</b> 放链首即可</div>';
-  }else if(kind==='extb'){
-    fix='<div class=\"fix\" style=\"background:#fef3e0\">⚠️ Ext B 区。此字不在 EPUB 内嵌字体中，Kindle 系统字体可能缺。<br>修复：嵌入覆盖此字的字体到链首（见 Kindle 字体深度参考）</div>';
-  }
-  return '<div class=\"problem-card\">'+
-    '<div class=\"char-big'+(isCovered?'':' tofu')+'\">'+(glyph||esc(ci.char))+'</div>'+
-    '<div class=\"meta\"><b>'+ci.cp+'</b> ×'+ci.count+' '+
-    (isCovered?'<span class=\"badge b-extb\">字体:'+esc(cby)+'</span>':'<span class=\"badge b-fail\">内嵌字体无此字</span>')+
-    (hasFonts?' <span class=\"badge\" style=\"background:#e8f5e9;color:var(--ok)\">字体已加载</span>':' <span class=\"badge\" style=\"background:#fde8e8;color:var(--fail)\">拖入 EPUB 加载字体</span>')+
-    '</div>'+(ctx?'<div class=\"meta\">⋯'+esc(ctx)+'⋯</div>':'')+fix+'</div>';
-  }catch(e){return '<div class=\"problem-card\"><div class=\"meta\">渲染错误: '+e.message+'</div></div>'}
+  const cby=ci._covered_by||ci._real_family;
+  const hasCover=!!ci._has_embedded_cover;
+  const ctx=(ci.occurrences&&ci.occurrences[0])?ci.occurrences[0].context||'':'';
+  // Render the glyph with its EMBEDDED font when covered; otherwise fall back
+  // to the system font (and mark it), never to an arbitrary loaded font.
+  const lf=hasCover?findFont(cby, ci):null;
+  const glyph=lf
+    ? '<span style="font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>'
+    : esc(ci.char);
+  const badge=hasCover
+    ? '<span class="badge b-extb">内嵌:'+esc(cby||'')+'</span>'
+    : '<span class="badge b-fail">内嵌无此字</span>';
+  const fix=hasCover ? '' :
+    '<div class="fix" style="background:#fef3e0">无内嵌字形 → 需大字库覆盖，或造字/合成字库</div>';
+  return '<div class="problem-card">'+
+    '<div class="char-big" title="点击复制" style="cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+esc(ci.char)+'\')">'+glyph+'</div>'+
+    '<div class="meta"><b>'+ci.cp+'</b> ×'+ci.count+' '+badge+'</div>'+
+    (ctx?'<div class="meta">⋯'+esc(ctx)+'⋯</div>':'')+fix+'</div>';
+  }catch(e){return '<div class="problem-card"><div class="meta">渲染错误: '+e.message+'</div></div>'}
+}
+
+function copyOutOfRange(){
+  const cs=(window._chars||[]).filter(ci=>{const cp=parseInt(ci.cp.slice(2),16);return cp>=0x20000||(cp>=0xE000&&cp<=0xF8FF)||cp>=0xF0000});
+  const s=cs.map(ci=>ci.char).join('');
+  const hint=document.getElementById('oorCopyHint');
+  if(!s){if(hint)hint.textContent='（无）';return}
+  if(navigator.clipboard)navigator.clipboard.writeText(s).then(()=>{if(hint)hint.textContent='已复制 '+[...s].length+' 字'},()=>{if(hint)hint.textContent='复制失败，手动选择：'+s});
+  else if(hint)hint.textContent='手动复制：'+s;
+}
+
+function issueLabel(i){return{
+  ['no-font-family-declared']:'❌ 没写 font-family（兜底 serif）',
+  ['broken-font-face']:'❌ @font-face 指向的字体在包内缺失',
+  ['full-font-not-at-head']:'❌ 全字库没放链首（Kindle 高危）',
+  ['subset-only']:'⚠️ 链上只有子集字体',
+  ['no-generic-fallback']:'⚠️ 链尾没有 generic 兜底',
+  ['generic-only']:'⚠️ 链上只有 generic 字体',
+}[i]||i}
+
+function renderChainHealth(){
+  const ch=report.chain_health||{},chains=report.chains||[];
+  const byId={};chains.forEach(c=>byId[c.id]=c);
+  const ids=Object.keys(ch);
+  if(!ids.length)return '';
+  const rank={fail:0,warn:1,ok:2};
+  ids.sort((a,b)=>(rank[ch[a].grade]??9)-(rank[ch[b].grade]??9)||(ch[b].run_count||0)-(ch[a].run_count||0));
+  const rows=ids.map(id=>{
+    const h=ch[id],c=byId[id]||{resolved:[]};
+    const chainText=(c.resolved||[]).map(s=>{
+      let n=esc(s.family);
+      if(s.embedded)n='<b>'+n+'</b>';
+      else if(s.generic)n='<i style="color:var(--muted)">'+n+'</i>';
+      else if(s.system_ref)n=n+'<sup style="color:#36a">sys</sup>';
+      return n;
+    }).join(' → ')||'(空)';
+    const gc=h.grade==='fail'?'var(--fail)':h.grade==='warn'?'var(--risk)':'var(--ok)';
+    const issues=(h.issues||[]).map(i=>'<div style="font-size:.72em;color:'+gc+'">'+issueLabel(i)+'</div>').join('');
+    return '<tr><td style="color:'+gc+';font-weight:700">'+h.grade.toUpperCase()+'</td>'+
+      '<td style="font-size:.82em">'+chainText+'</td>'+
+      '<td style="text-align:right">'+(h.run_count||0)+'</td>'+
+      '<td>'+(issues||'<span style="font-size:.72em;color:var(--muted)">—</span>')+'</td></tr>';
+  }).join('');
+  return '<h2>🔗 字体链体检 ('+ids.length+' 条链)</h2>'+
+    '<table><thead><tr><th>评级</th><th>解析后的字体链（<b>粗体</b>=内嵌，<i>斜体</i>=generic，sys=系统字体引用）</th><th>用量</th><th>问题</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderCandidate(){
+  const cv=report.candidate_validation;
+  if(!cv||cv.error||!cv.missing_chars)return '';
+  const residual=cv.missing_chars.map(m=>m.char).join('');
+  const rareN=cv.missing_chars.filter(m=>m.rare).length;
+  return '<h2>📚 候选大字库验证</h2>'+
+    '<div style="font-size:.82em;margin-bottom:6px">字库 <b>'+esc((cv.candidate_font||'').split('/').pop())+'</b>：'+
+    '覆盖 '+cv.covered+' / '+cv.total+'，残余 <b style="color:var(--fail)">'+cv.missing+'</b> 个（其中生僻 '+rareN+'）</div>'+
+    '<button onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+esc(residual)+'\')" style="font-size:.8em;padding:4px 10px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--card)">📋 复制残余字（造字/合成字库输入）</button>'+
+    '<div style="font-size:1.6em;line-height:1.4;margin-top:8px;word-break:break-all">'+esc(residual)+'</div>';
 }
 
 function setTab(t,e){window._tab=t;document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));e.classList.add('active');applyFilter()}
@@ -340,7 +398,8 @@ function applyFilter(){
   const q=(document.getElementById('charFilter')?.value||'').toLowerCase();
   const tab=window._tab||'all';
   let chars=window._chars||[];
-  if(tab==='extb')chars=chars.filter(ci=>parseInt(ci.cp.slice(2),16)>=0x20000);
+  if(tab==='rare')chars=chars.filter(ci=>ci._rare);
+  else if(tab==='extb')chars=chars.filter(ci=>parseInt(ci.cp.slice(2),16)>=0x20000);
   else if(tab==='pua')chars=chars.filter(ci=>{const cp=parseInt(ci.cp.slice(2),16);return(cp>=0xE000&&cp<=0xF8FF)||cp>=0xF0000});
   else if(tab==='risk')chars=chars.filter(ci=>(ci._kindle||'ok')!=='ok');
   else if(tab==='fail')chars=chars.filter(ci=>(ci._pos||'')==='none'||(ci._causes||[]).length>0);
@@ -348,40 +407,53 @@ function applyFilter(){
 
   const tbody=document.querySelector('#charTable tbody');
   if(!tbody)return;
+  const fontLoaded=Object.keys(loadedFonts).length>0;
   tbody.innerHTML=chars.map(ci=>{
     const kv=ci._kindle||'fail',badge=kv==='ok'?'<span class=badge style=background:#e8f5e9;color:var(--ok)>✅ 安全</span>'
       :kv==='fail'?'<span class=badge style=background:#fde8e8;color:var(--fail)>❌ 风险</span>'
       :'<span class=badge style=background:#fef3e0;color:var(--risk)>⚠️ 风险</span>';
+    const zone=ci._std_zone;
+    const zoneBadge=zone==='gbk'?'<span class=badge style="background:#eef6ff;color:#36a">次常用</span>'
+      :zone==='out-of-gbk'?'<span class=badge style="background:#fff0e0;color:#b60">出GBK</span>':'';
+    const rareBadge=ci._rare?'<span class=badge style="background:#fde8f0;color:#a36">生僻</span>':'';
     const causes=(ci._causes||[]).map(c=>'<span style="font-size:.7em;padding:1px 4px;border-radius:4px;margin:0 1px;background:'+(c==='true-missing'?'#fde8e8':c==='subset-cut'?'#fde8f0':'#fef3e0')+'">'+causeLabel(c)+'</span>').join('');
     const cby=ci._covered_by;
-    let glyph='<span style="color:#ccc">—</span>',fix='<span style="font-size:.72em;color:var(--muted)">—</span>';
-    const fontLoaded=Object.keys(loadedFonts).length>0;
-    if(cby&&fontLoaded){
-      const lf=findFont(cby, ci);
-      glyph=lf?'<span style="font-size:1.8em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>'
-        :'<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
-      fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首</span>';
-    }else if(cby){
-      glyph='<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
-      fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首（拖入 EPUB 加载字体）</span>';
-    }else if(fontLoaded){
-      // Try any loaded font
-      const lfs=Object.values(loadedFonts);
-      if(lfs.length)glyph='<span style="font-size:1.8em;line-height:1;font-family:\''+lfs[0].fontName+'\'">'+esc(ci.char)+'</span>';
-      fix='<span style="font-size:.72em;color:var(--muted)">无内嵌字体覆盖</span>';
-    }else if(kv!=='ok'){
-      glyph='<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
-      fix='<span style="font-size:.72em;color:var(--muted)">需嵌入字体（拖入 EPUB 加载）</span>';
-    }
-    return '<tr><td style="font-size:2em;text-align:center;line-height:1">'+esc(ci.char)+'</td>'+
+    // Glyph: embedded font if covered; else system font (so it still shows when possible)
+    let glyph='<span style="font-size:1.8em">'+esc(ci.char)+'</span>';
+    if(ci._has_embedded_cover&&fontLoaded){const lf=findFont(cby,ci);if(lf)glyph='<span style="font-size:1.8em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';}
+    // Honest fix advice
+    let fix='<span style="font-size:.72em;color:var(--muted)">—</span>';
+    if(!ci._has_embedded_cover){ if(ci._rare) fix='<span style="font-size:.72em;color:var(--fail)">无内嵌 → 需大字库/造字</span>'; }
+    else if(ci._pos==='first-embedded') fix='<span style="font-size:.72em;color:var(--ok)">✅ 内嵌已覆盖</span>';
+    else fix='<span style="font-size:.72em">把 <b>'+esc(cby||'')+'</b> 提到链首</span>';
+    return '<tr><td title="点击复制" style="font-size:2em;text-align:center;line-height:1;cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+esc(ci.char)+'\')">'+esc(ci.char)+'</td>'+
       '<td class=cp-mono>'+ci.cp+'</td><td style=text-align:right>'+ci.count+'</td>'+
-      '<td>'+badge+' '+causes+'</td>'+
+      '<td>'+badge+' '+zoneBadge+rareBadge+' '+causes+'</td>'+
       '<td style=text-align:center>'+glyph+'</td><td>'+fix+'</td></tr>';
   }).join('');
   document.getElementById('filterCount').textContent='显示 '+chars.length+' / '+(window._chars||[]).length;
   if(q&&!chars.length)tbody.innerHTML='<tr><td colspan=6 style=text-align:center;padding:20px;color:var(--muted)>未找到</td></tr>';
 }
 function causeLabel(c){return{['true-missing']:'真缺字',['fallback-not-reached']:'回退未生效',['subset-cut']:'子集裁切',['unknown']:'未知'}[c]||c}
+function _charSet(kind){
+  const cs=window._chars||[];
+  const picks={
+    'rare-uncovered': ci=>ci._rare && !ci._has_embedded_cover,   // 真正要送大字库/造字的
+    'rare':           ci=>ci._rare,
+    'uncovered':      ci=>!ci._has_embedded_cover,               // 任一链都无嵌入命中
+  };
+  const pick=picks[kind]||picks['rare-uncovered'];
+  return cs.filter(pick).map(ci=>ci.char).join('');
+}
+function copyChars(kind){
+  const s=_charSet(kind);
+  const hint=document.getElementById('copyHint');
+  if(!s){if(hint)hint.textContent='（没有符合条件的字）';return}
+  if(!navigator.clipboard){if(hint)hint.textContent='浏览器不支持自动复制，手动选择：'+s;return}
+  navigator.clipboard.writeText(s).then(()=>{
+    if(hint)hint.textContent='已复制 '+[...s].length+' 个字，可粘进 font-preview.html 或子集化工具';
+  },()=>{if(hint)hint.textContent='复制失败，手动选择：'+s});
+}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 // Auto-load embedded report data from self-contained HTML
 if(window.__REPORT_DATA__){report=window.__REPORT_DATA__;renderAll()}

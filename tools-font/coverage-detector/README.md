@@ -17,10 +17,14 @@ uv sync
 ## 使用
 
 ```sh
-uv run epub-font-coverage book.epub                    # 打印摘要
-uv run epub-font-coverage book.epub --output report.json  # 写 JSON 报告
-uv run epub-font-coverage book.epub --validate-with bigfont.ttf  # 候选大字库验证
+uv run python -m src.cli book.epub                       # 打印摘要
+uv run python -m src.cli book.epub --output report.json  # 写 JSON + 自包含 HTML 报告
+uv run python -m src.cli book.epub --validate-with bigfont.ttf   # 候选大字库验证（残余=造字输入）
+uv run python -m src.cli book.epub --standard-table custom.txt   # 可选：叠加自备字表
 ```
+
+> `pyproject.toml` 当前 `package = false`，console 脚本未安装，固定用 `python -m src.cli` 运行。
+> 标准字区（生僻字判定）默认用 stdlib `gb2312`/`gbk` 编解码器生成，**无需任何字表文件**。
 
 ## 依赖
 

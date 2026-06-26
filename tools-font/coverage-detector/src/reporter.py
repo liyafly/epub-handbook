@@ -34,6 +34,8 @@ def generate_report(
     char_inventory: list,
     unresolved: list,
     candidate_validation: dict | None = None,
+    chain_health: dict | None = None,
+    standard_extra_name: str | None = None,
 ) -> dict:
     """Generate the full JSON report.
 
@@ -80,6 +82,22 @@ def generate_report(
                 by_profile_risk[profile_name].get(verdict, 0) + 1
             )
 
+    # Standard-zone tallies (Phase 2)
+    by_block_tier: dict[str, int] = {}
+    by_std_zone: dict[str, int] = {}
+    rare_count = 0
+    out_of_standard = 0
+    for ci in char_inventory:
+        tier = _get(ci, "_block_tier", "non-cjk")
+        by_block_tier[tier] = by_block_tier.get(tier, 0) + 1
+        zone = _get(ci, "_std_zone")
+        if zone:
+            by_std_zone[zone] = by_std_zone.get(zone, 0) + 1
+        if _get(ci, "_rare", False):
+            rare_count += 1
+        if zone == "out-of-gbk":
+            out_of_standard += 1
+
     report = {
         "schema_version": "1.0",
         "book": book,
@@ -93,9 +111,15 @@ def generate_report(
             "unresolved_runs": len(unresolved),
             "pua_flagged": pua_flagged,
             "ivs_flagged": ivs_flagged,
+            "by_block_tier": by_block_tier,
+            "by_std_zone": by_std_zone,
+            "rare_count": rare_count,
+            "out_of_standard": out_of_standard,
         },
         "unresolved": unresolved,
         "candidate_validation": candidate_validation,
+        "chain_health": chain_health or {},
+        "standard_zone": {"source": "gb2312+gbk", "extra": standard_extra_name},
     }
 
     return report
@@ -114,6 +138,10 @@ def _serialize_chains(chains: dict) -> list:
                 d["file"] = seg.file
             if hasattr(seg, "generic") and seg.generic:
                 d["generic"] = True
+            if getattr(seg, "defaulted", False):
+                d["defaulted"] = True
+            if getattr(seg, "system_ref", False):
+                d["system_ref"] = True
             seg_list.append(d)
         result.append({"id": chain_id, "resolved": seg_list})
     return result

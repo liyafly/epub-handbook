@@ -6,11 +6,16 @@ import sys
 import zipfile
 from .reader import read_epub
 from .harvester import harvest_runs
-from .font_index import build_font_index
+from .font_index import build_font_index, build_font_index_by_path
 from .resolver import build_font_face_registry, resolve_chains
 from .classifier import classify, _cp_string, _is_pua, _is_vs
 from .profiles import translate, PROFILES, PROFILE_DESCRIPTIONS
 from .reporter import generate_report, print_summary, save_report
+from .chain_health import assess_chains
+from .charset_tiers import build_standard_charsets, load_standard_charset, classify_tier
+
+
+OCC_CAP = 1000  # max occurrences kept per character (problem chars are few-but-scattered)
 
 
 def _build_char_inventory(runs: list) -> list:
@@ -45,10 +50,13 @@ def _build_char_inventory(runs: list) -> list:
             entry["count"] += 1
             entry["runs"].add(run_idx)
 
-            # Keep first 1 occurrence for context (HTML viewer only uses first)
-            if len(entry["occurrences"]) < 1:
+            # Keep ALL occurrences (spec §6) with file + node_path + doc offset
+            # + context, capped per char to bound pathological bloat.
+            if len(entry["occurrences"]) < OCC_CAP:
                 entry["occurrences"].append({
                     "file": run.get("file", ""),
+                    "node_path": run.get("node_path", ""),
+                    "offset": run.get("offset", 0) + offset,
                     "context": _get_context(text, offset),
                 })
 
@@ -73,6 +81,73 @@ def _get_context(text: str, offset: int, radius: int = 20) -> str:
     return ("…" + ctx if start > 0 else ctx) + ("…" if end < len(text) else "")
 
 
+def _flatten_cause_coverage(ci: dict) -> None:
+    """Flatten per-chain coverage into top-level _causes / _covered_by
+    fields that the HTML viewer consumes."""
+    causes: list = []
+    covered_by = None
+    for cdata in ci.get("coverage", {}).values():
+        if not isinstance(cdata, dict):
+            continue
+        c = cdata.get("cause")
+        if c and c not in causes:
+            causes.append(c)
+        cb = cdata.get("covered_by")
+        if cb and covered_by is None:
+            covered_by = cb
+    ci["_causes"] = causes
+    ci["_covered_by"] = covered_by
+
+
+def _attach_position_aggregates(ci: dict, worst_order: dict) -> None:
+    """Compute worst (_pos, for Kindle risk) AND best (_pos_best) positions
+    plus _has_embedded_cover across all of a char's chains."""
+    positions = ci.get("coverage", {})
+    worst = "first-embedded"
+    best = None
+    has_cover = False
+    for cov in positions.values():
+        pos = cov.get("position", "first-embedded") if isinstance(cov, dict) else getattr(cov, "position", "first-embedded")
+        if worst_order.get(pos, 0) > worst_order.get(worst, 0):
+            worst = pos
+        if best is None or worst_order.get(pos, 9) < worst_order.get(best, 9):
+            best = pos
+        if pos in ("first-embedded", "later-embedded"):
+            has_cover = True
+    ci["_pos"] = worst
+    ci["_pos_best"] = best or "none"
+    ci["_has_embedded_cover"] = has_cover
+
+
+def _attach_tier(ci: dict, charsets: dict, extra) -> None:
+    """Attach standard-zone tier fields the viewer reads."""
+    t = classify_tier(ord(ci["char"]), charsets, extra)
+    ci["_block_tier"] = t["block_tier"]
+    ci["_std_zone"] = t["std_zone"]
+    ci["_rare"] = t["is_rare"]
+
+
+def _annotate_book_meta(book: dict, epub_path: str) -> None:
+    """Populate top-level title/path the reporter summary reads."""
+    book["title"] = (book.get("opf_meta") or {}).get("title", "")
+    book["path"] = epub_path
+
+
+def _build_candidate_missing(results: list, cmap: set) -> list:
+    """Chars not covered by the candidate font, tagged with rare flag —
+    the residual set that would need 造字/合成字库."""
+    missing = []
+    for ci in results:
+        if ord(ci["char"]) not in cmap:
+            missing.append({
+                "char": ci["char"],
+                "cp": ci.get("cp"),
+                "count": ci.get("count", 0),
+                "rare": bool(ci.get("_rare", False)),
+            })
+    return missing
+
+
 def _generate_html(report: dict, output_path: str) -> None:
     """Generate a self-contained HTML report with embedded data and fonts."""
     import os.path
@@ -87,13 +162,18 @@ def _generate_html(report: dict, output_path: str) -> None:
         template = f.read()
     # Embed report as compact JSON (no indentation, no extra spaces)
     report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
-    # Inject before </body>
+    # Inject the data script BEFORE the main <script> so window.__REPORT_DATA__
+    # is defined when the viewer's auto-load check runs (otherwise nothing
+    # renders until the user manually drops the JSON).
     injection = (
         '\n<script>window.__REPORT_DATA__=JSON.parse('
         + json.dumps(report_json)
         + ');</script>\n'
     )
-    html = template.replace("</body>", injection + "</body>")
+    if "<body>" in template:
+        html = template.replace("<body>", "<body>" + injection, 1)
+    else:
+        html = template.replace("</body>", injection + "</body>")
     html_path = output_path.replace(".json", ".html")
     if html_path == output_path:
         html_path = output_path + ".html"
@@ -114,6 +194,11 @@ def main():
         "--profile", default="kindle-pessimistic",
         choices=list(PROFILES.keys()),
         help="Reader profile for summary",
+    )
+    parser.add_argument(
+        "--standard-table",
+        help="Optional path to a custom standard charset list to overlay "
+             "(e.g. 通用规范汉字表). Default zones come from GB2312/GBK codecs.",
     )
     parser.add_argument("--json", action="store_true", help="Output full JSON to stdout")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress output")
@@ -167,143 +252,83 @@ def main():
         # 7. Build character inventory
         char_inventory = _build_char_inventory(runs)
 
-        # 8. Build normalized font lookup
+        # 8. Build font index keyed by EXACT file path (not name-table family).
+        # The CSS @font-face family and the font's internal family name often
+        # disagree (e.g. "kxs" → rarefont.ttf whose name table says "Untitled");
+        # keying by path is exact and avoids that misattribution.
         import os.path
-        font_index_dict = {}
-        font_family_map = {}
-
-        # Build mapping: each font file path → its FontInfo (by reading the ZIP)
-        # We know font_paths order matches font_index iteration order
         font_paths = [f["resolved_path"] for f in book["font_files"]]
-        font_path_to_fi = {}
-        zf_fonts = zipfile.ZipFile(args.epub, "r")
+        zf_idx = zipfile.ZipFile(args.epub, "r")
         try:
-            for fp in font_paths:
-                for fname, fi in font_index.items():
-                    # Match font_index entry to file by reading the file's actual cmap
-                    # and comparing glyph counts
-                    font_path_to_fi[fp] = fi  # assign all — will be overwritten correctly
+            font_by_path = build_font_index_by_path(zf_idx, font_paths)
         finally:
-            zf_fonts.close()
+            zf_idx.close()
 
-        # Build the actual lookup: read each font file, get its cmap, match to font_index
-        # Simpler approach: iterate font_files and match by filename
-        for ff in book["font_files"]:
-            rp = ff["resolved_path"]
-            basename = os.path.basename(rp).lower()
-            # Find matching font_index entry by partial filename match
-            for fname, fi in font_index.items():
-                fn = fname.lower().replace(' ', '')
-                bn = basename.replace('.ttf','').replace('.otf','')
-                if fn in bn or bn in fn:
-                    font_path_to_fi[rp] = fi
-                    break
-
-        for fname, fi in font_index.items():
-            real_family = fi.family if hasattr(fi, "family") else fname
+        font_index_dict: dict = {}
+        for fpath, fi in font_by_path.items():
             entry = {
-                "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
-                "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
-                "family": real_family,
-                "file_path": None,
+                "cmap": fi.codepoints,
+                "subset": fi.is_subset,
+                "family": fi.family,
+                "file_path": fpath,
             }
-            font_index_dict[fname] = entry
-            font_index_dict[fname.lower()] = entry
+            font_index_dict[fpath] = entry
+            font_index_dict[os.path.basename(fpath)] = entry
+            font_index_dict[os.path.basename(fpath).lower()] = entry
 
-        # Index by resolved_path
-        for rp, fi in font_path_to_fi.items():
-            real_family = fi.family if hasattr(fi, "family") else ""
-            entry = {
-                "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
-                "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
-                "family": real_family,
-                "file_path": rp,
-            }
-            font_index_dict[rp] = entry
-            font_index_dict[os.path.basename(rp)] = entry
-            font_index_dict[os.path.basename(rp).lower()] = entry
-
-        # Resolve segment files to font_index keys + build family_map
-        for cid, chain in chains.items():
+        # Normalize each chain segment's file hint to a key the index has.
+        for chain in chains.values():
             for seg in chain:
-                if seg.embedded and seg.file:
-                    sfile = seg.file
-                    # Try to match sfile against font_index keys
-                    matched_key = None
-                    for key in list(font_index_dict.keys()):
-                        if sfile in key or key.endswith("/" + os.path.basename(sfile)):
-                            matched_key = key
-                            break
-                    if matched_key:
-                        fm_entry = font_index_dict[matched_key]
-                        font_family_map[seg.family.lower()] = {
-                            "real_family": fm_entry.get("family", seg.family),
-                            "file_path": fm_entry.get("file_path", matched_key)
-                        }
-                        if sfile not in font_index_dict:
-                            font_index_dict[sfile] = fm_entry
+                if seg.embedded and seg.file and seg.file not in font_index_dict:
+                    bn = os.path.basename(seg.file)
+                    if bn in font_index_dict:
+                        seg.file = bn
+                    elif bn.lower() in font_index_dict:
+                        seg.file = bn.lower()
 
-        # Resolve relative paths in chain segments
-        for cid, chain in chains.items():
+        # family(lower) → (file_path, real name-table family) for enrichment.
+        family_to_font: dict = {}
+        for chain in chains.values():
             for seg in chain:
-                if seg.embedded and seg.file:
-                    matched = False
-                    for key in font_index_dict:
-                        if seg.file in key or key.endswith("/" + os.path.basename(seg.file)):
-                            seg.file = key
-                            matched = True
-                            break
-                    if not matched:
-                        basename = os.path.basename(seg.file).lower()
-                        if basename in font_index_dict:
-                            seg.file = basename
+                if seg.embedded and seg.file in font_index_dict:
+                    fe = font_index_dict[seg.file]
+                    family_to_font[seg.family.lower()] = (fe["file_path"], fe["family"])
 
         results = classify(char_inventory, font_index_dict, chains, run_chains)
+
+        # Standard-zone charsets (GB2312/GBK from stdlib codecs; no file) +
+        # optional user-supplied overlay table.
+        standard_charsets = build_standard_charsets()
+        extra_table = load_standard_charset(args.standard_table) if args.standard_table else None
 
         # Enrich + convert CoverageResult to plain dicts for JSON serialization
         enriched_results = []
         for ci in results:
             d = ci.__dict__ if hasattr(ci, "__dict__") else ci
-            # Find covered_by from coverage data
-            cov = d.get("coverage", {})
             rfamily = None
             ffile = None
-            for cdata in cov.values():
-                cby = cdata.get("covered_by") if isinstance(cdata, dict) else getattr(cdata, "covered_by", None)
-                if cby:
-                    fm = font_family_map.get(cby.lower(), {})
-                    if fm:
-                        rfamily = fm.get("real_family")
-                        ffile = fm.get("file_path")
-                        break
+            for cdata in d.get("coverage", {}).values():
+                cby = cdata.get("covered_by") if isinstance(cdata, dict) else None
+                if cby and cby.lower() in family_to_font:
+                    ffile, rfamily = family_to_font[cby.lower()]
+                    break
             d["_real_family"] = rfamily
             d["_font_file"] = ffile
+            _flatten_cause_coverage(d)
+            _attach_tier(d, standard_charsets, extra_table)
             enriched_results.append(d)
         results = enriched_results
 
-        # 9. Apply profiles
-        # Determine worst position across all chains for each character
+        # 9. Apply profiles.
+        # _pos = worst position across chains (Kindle risk is pessimistic);
+        # _pos_best / _has_embedded_cover capture "covered somewhere" so the
+        # uncovered/big-font export isn't masked by one non-embedded chain.
         WORST_ORDER = {"first-embedded": 0, "later-embedded": 1, "only-non-embedded": 2, "none": 3}
         for ci in results:
-            positions = ci.coverage if hasattr(ci, "coverage") else ci.get("coverage", {})
-            # Find worst position across all chains
-            worst = "first-embedded"
-            for cov in positions.values():
-                pos = cov.get("position", "first-embedded") if isinstance(cov, dict) else cov.position
-                if WORST_ORDER.get(pos, 0) > WORST_ORDER.get(worst, 0):
-                    worst = pos
-            # Apply profiles
-            profiles_dict = {}
-            for pname in PROFILES:
-                profiles_dict[pname] = translate(worst, pname)
-            if hasattr(ci, "__dict__"):
-                ci.profiles = profiles_dict
-                ci._kindle = profiles_dict.get("kindle-pessimistic", "fail")
-                ci._pos = worst
-            else:
-                ci["profiles"] = profiles_dict
-                ci["_kindle"] = profiles_dict.get("kindle-pessimistic", "fail")
-                ci["_pos"] = worst
+            _attach_position_aggregates(ci, WORST_ORDER)
+            profiles_dict = {pname: translate(ci["_pos"], pname) for pname in PROFILES}
+            ci["profiles"] = profiles_dict
+            ci["_kindle"] = profiles_dict.get("kindle-pessimistic", "fail")
 
         # 10. Candidate validation
         candidate = None
@@ -312,20 +337,13 @@ def main():
                 from fontTools.ttLib import TTFont
                 cfont = TTFont(args.validate_with)
                 cmap = set(cfont.getBestCmap().keys())
-                missing = []
-                for ci in results:
-                    cp = ord(ci["char"])
-                    if cp not in cmap:
-                        missing.append(ci)
+                missing = _build_candidate_missing(results, cmap)
                 candidate = {
                     "candidate_font": args.validate_with,
                     "total": len(results),
                     "covered": len(results) - len(missing),
                     "missing": len(missing),
-                    "missing_chars": [
-                        {"char": m["char"], "cp": m["cp"], "count": m["count"]}
-                        for m in missing[:50]
-                    ],
+                    "missing_chars": missing[:500],
                 }
             except Exception as e:
                 candidate = {"error": str(e)}
@@ -366,6 +384,10 @@ def main():
         finally:
             zf_embed.close()
 
+        # 11.6 Font-chain health assessment
+        chain_health = assess_chains(chains, font_index_dict, run_chains)
+        _annotate_book_meta(book, args.epub)
+
         # 12. Generate report
         report = generate_report(
             book=book,
@@ -377,6 +399,8 @@ def main():
             char_inventory=results,
             unresolved=unresolved,
             candidate_validation=candidate,
+            chain_health=chain_health,
+            standard_extra_name=(extra_table.name if extra_table else None),
         )
 
         report["_embedded_fonts"] = embedded_fonts

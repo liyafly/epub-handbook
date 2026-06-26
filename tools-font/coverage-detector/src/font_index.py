@@ -257,6 +257,21 @@ def build_font_index(zf: ZipFile, font_files: list) -> Dict[str, FontInfo]:
     return index
 
 
+def build_font_index_by_path(zf: ZipFile, font_files: list) -> Dict[str, FontInfo]:
+    """Index fonts by their exact archive path (not name-table family).
+
+    The CSS @font-face family and the font's internal family name often
+    disagree (e.g. family "kxs" → rarefont.ttf whose name table says
+    "Untitled"). Keying by path is exact and avoids that mismatch.
+    """
+    index: Dict[str, FontInfo] = {}
+    for fpath in font_files:
+        info = _read_single_font(zf, fpath)
+        if info is not None:
+            index[fpath] = info
+    return index
+
+
 def get_font_index(
     zf: ZipFile,
     font_files: list,

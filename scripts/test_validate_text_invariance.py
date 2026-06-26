@@ -128,8 +128,12 @@ def change_anchor_id(before_src: Path, after_src: Path, _tmp: Path) -> None:
 
 
 def nfc_equivalent_text(before_src: Path, after_src: Path, _tmp: Path) -> None:
-  (before_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml("<p>café</p><p>第二段文字。</p>"), encoding="utf-8")
-  (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml("<p>café</p><p>第二段文字。</p>"), encoding="utf-8")
+  # before 用 NFD（e + 组合重音 U+0301），after 用 NFC（预组合 é U+00E9）。
+  # 二者视觉/语义相同但字节不同；红线必须经 NFC 归一后判为未改动（rc=0）。
+  before = "<p>cafe\u0301</p><p>第二段文字。</p>"
+  after = "<p>caf\u00e9</p><p>第二段文字。</p>"
+  (before_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(before), encoding="utf-8")
+  (after_src / "OEBPS/Text/chap1.xhtml").write_text(xhtml(after), encoding="utf-8")
 
 
 def popup_note_control_transition(before_src: Path, after_src: Path, _tmp: Path) -> None:
