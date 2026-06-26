@@ -45,12 +45,10 @@ def _build_char_inventory(runs: list) -> list:
             entry["count"] += 1
             entry["runs"].add(run_idx)
 
-            # Keep first 20 occurrences for context
-            if len(entry["occurrences"]) < 20:
+            # Keep first 1 occurrence for context (HTML viewer only uses first)
+            if len(entry["occurrences"]) < 1:
                 entry["occurrences"].append({
                     "file": run.get("file", ""),
-                    "node_path": run.get("node_path", ""),
-                    "offset": offset,
                     "context": _get_context(text, offset),
                 })
 
@@ -73,6 +71,34 @@ def _get_context(text: str, offset: int, radius: int = 20) -> str:
     end = min(len(text), offset + radius + 1)
     ctx = text[start:end]
     return ("…" + ctx if start > 0 else ctx) + ("…" if end < len(text) else "")
+
+
+def _generate_html(report: dict, output_path: str) -> None:
+    """Generate a self-contained HTML report with embedded data and fonts."""
+    import os.path
+    # Find viewer template relative to this source file
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+    # Walk up to find font-coverage-viewer.html
+    viewer_path = os.path.join(src_dir, "..", "..", "font-coverage-viewer.html")
+    viewer_path = os.path.normpath(viewer_path)
+    if not os.path.exists(viewer_path):
+        return  # viewer not found, skip HTML generation
+    with open(viewer_path, "r", encoding="utf-8") as f:
+        template = f.read()
+    # Embed report as compact JSON (no indentation, no extra spaces)
+    report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
+    # Inject before </body>
+    injection = (
+        '\n<script>window.__REPORT_DATA__=JSON.parse('
+        + json.dumps(report_json)
+        + ');</script>\n'
+    )
+    html = template.replace("</body>", injection + "</body>")
+    html_path = output_path.replace(".json", ".html")
+    if html_path == output_path:
+        html_path = output_path + ".html"
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html)
 
 
 def main():
@@ -141,31 +167,81 @@ def main():
         # 7. Build character inventory
         char_inventory = _build_char_inventory(runs)
 
-        # 8. Build normalized font lookup with real family names + file paths
+        # 8. Build normalized font lookup
         import os.path
         font_index_dict = {}
-        font_family_map = {}  # family_name → {real_family, file_path}
+        font_family_map = {}
+
+        # Build mapping: each font file path → its FontInfo (by reading the ZIP)
+        # We know font_paths order matches font_index iteration order
+        font_paths = [f["resolved_path"] for f in book["font_files"]]
+        font_path_to_fi = {}
+        zf_fonts = zipfile.ZipFile(args.epub, "r")
+        try:
+            for fp in font_paths:
+                for fname, fi in font_index.items():
+                    # Match font_index entry to file by reading the file's actual cmap
+                    # and comparing glyph counts
+                    font_path_to_fi[fp] = fi  # assign all — will be overwritten correctly
+        finally:
+            zf_fonts.close()
+
+        # Build the actual lookup: read each font file, get its cmap, match to font_index
+        # Simpler approach: iterate font_files and match by filename
+        for ff in book["font_files"]:
+            rp = ff["resolved_path"]
+            basename = os.path.basename(rp).lower()
+            # Find matching font_index entry by partial filename match
+            for fname, fi in font_index.items():
+                fn = fname.lower().replace(' ', '')
+                bn = basename.replace('.ttf','').replace('.otf','')
+                if fn in bn or bn in fn:
+                    font_path_to_fi[rp] = fi
+                    break
+
         for fname, fi in font_index.items():
             real_family = fi.family if hasattr(fi, "family") else fname
             entry = {
                 "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
                 "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
                 "family": real_family,
+                "file_path": None,
             }
             font_index_dict[fname] = entry
-            for ff in book["font_files"]:
-                rp = ff["resolved_path"]
-                if fname in rp.lower() or rp.endswith("/" + fname):
-                    font_index_dict[rp] = entry
-                    font_index_dict[os.path.basename(rp)] = entry
-                    font_index_dict[os.path.basename(rp).lower()] = entry
-                    font_family_map[fname] = {"real_family": real_family, "file_path": rp}
-                    # Also map by @font-face alias
-                    for cid, chain in chains.items():
-                        for seg in chain:
-                            if seg.embedded and seg.file and fname in seg.file.lower():
-                                font_family_map[seg.family.lower()] = {"real_family": real_family, "file_path": rp}
-                    break
+            font_index_dict[fname.lower()] = entry
+
+        # Index by resolved_path
+        for rp, fi in font_path_to_fi.items():
+            real_family = fi.family if hasattr(fi, "family") else ""
+            entry = {
+                "cmap": fi.codepoints if hasattr(fi, "codepoints") else set(),
+                "subset": fi.is_subset if hasattr(fi, "is_subset") else False,
+                "family": real_family,
+                "file_path": rp,
+            }
+            font_index_dict[rp] = entry
+            font_index_dict[os.path.basename(rp)] = entry
+            font_index_dict[os.path.basename(rp).lower()] = entry
+
+        # Resolve segment files to font_index keys + build family_map
+        for cid, chain in chains.items():
+            for seg in chain:
+                if seg.embedded and seg.file:
+                    sfile = seg.file
+                    # Try to match sfile against font_index keys
+                    matched_key = None
+                    for key in list(font_index_dict.keys()):
+                        if sfile in key or key.endswith("/" + os.path.basename(sfile)):
+                            matched_key = key
+                            break
+                    if matched_key:
+                        fm_entry = font_index_dict[matched_key]
+                        font_family_map[seg.family.lower()] = {
+                            "real_family": fm_entry.get("family", seg.family),
+                            "file_path": fm_entry.get("file_path", matched_key)
+                        }
+                        if sfile not in font_index_dict:
+                            font_index_dict[sfile] = fm_entry
 
         # Resolve relative paths in chain segments
         for cid, chain in chains.items():
@@ -222,8 +298,12 @@ def main():
                 profiles_dict[pname] = translate(worst, pname)
             if hasattr(ci, "__dict__"):
                 ci.profiles = profiles_dict
+                ci._kindle = profiles_dict.get("kindle-pessimistic", "fail")
+                ci._pos = worst
             else:
                 ci["profiles"] = profiles_dict
+                ci["_kindle"] = profiles_dict.get("kindle-pessimistic", "fail")
+                ci["_pos"] = worst
 
         # 10. Candidate validation
         candidate = None
@@ -265,6 +345,27 @@ def main():
                 "ivs_records": ivs_count,
             })
 
+        # 11.5 Embed font files as base64 for self-contained HTML reports
+        import base64
+        MAX_EMBED = 1024 * 1024  # 1 MB max per font for embedding
+        embedded_fonts = {}
+        zf_embed = zipfile.ZipFile(args.epub, "r")
+        try:
+            for fi in font_index.values():
+                try:
+                    data = zf_embed.read(fi.file_path)
+                    if len(data) <= MAX_EMBED:
+                        b64 = base64.b64encode(data).decode("ascii")
+                        embedded_fonts[fi.file_path] = {
+                            "data": b64,
+                            "family": fi.family,
+                            "size": len(data),
+                        }
+                except Exception:
+                    continue
+        finally:
+            zf_embed.close()
+
         # 12. Generate report
         report = generate_report(
             book=book,
@@ -278,11 +379,15 @@ def main():
             candidate_validation=candidate,
         )
 
+        report["_embedded_fonts"] = embedded_fonts
+
         # 13. Output
         if args.output:
             save_report(report, args.output)
             if not args.quiet:
                 print(f"Report saved to {args.output}", file=sys.stderr)
+            # Also generate self-contained HTML
+            _generate_html(report, args.output)
 
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))

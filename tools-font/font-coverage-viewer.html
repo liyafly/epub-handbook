@@ -68,12 +68,13 @@ async function handleFiles(files){
     }
   }
   if(!gotReport){ct.innerHTML='<p class=empty style=color:var(--fail)>请拖入 coverage JSON 报告文件（.json）</p>';return}
+  _embeddedLoaded=false;  // reset for new report
   for(const f of files){
     const ext=f.name.split('.').pop().toLowerCase();
     if(f.name.endsWith('.epub')){await loadFromEpub(f);gotFonts=true}
     else if(/^(ttf|otf|woff|woff2)$/.test(ext)){await loadFont(f);gotFonts=true}
   }
-  updateFontInfo();renderAll();
+  updateFontInfo();await renderAll();
 }
 async function loadFont(f){
   const buf=await f.arrayBuffer();
@@ -103,8 +104,12 @@ async function* zipEntries(buf){
     }else if(method===8){
       try{
         const raw=new Uint8Array(buf,dataOff,cSize);
-        const ds=new DecompressionStream('deflate'),w=ds.writable.getWriter(),r=ds.readable.getReader();
-        w.write(raw);w.close();let cs=[],t=0;
+        // ZIP uses raw deflate (RFC 1951), NOT zlib-wrapped (RFC 1950)
+        const ds=new DecompressionStream('deflate-raw');
+        const w=ds.writable.getWriter(),r=ds.readable.getReader();
+        await w.write(raw);
+        await w.close();
+        let cs=[],t=0;
         while(1){const{value,done}=await r.read();if(done)break;cs.push(value);t+=value.length}
         const out=new Uint8Array(t);let p=0;for(const c of cs){out.set(c,p);p+=c.length}
         yield{name,data:out};
@@ -119,11 +124,29 @@ async function loadFromEpub(f){
     await loadFontFile(blob,fname);count++;
   }
   fz.innerHTML='字体：从 EPUB 加载了 <b>'+count+'</b> 个 <button onclick=renderAll() style=margin-left:8px;font-size:.75em>刷新显示</button>';
-  fz.style.display='block';renderAll();
+  fz.style.display='block';await renderAll();
 }
 
 // Load font from blob with proper name tracking
-async function loadFontFile(blob,fname){
+// Load all embedded fonts from report (base64, no ZIP needed)
+async function loadEmbeddedFonts(ef){
+  const pending=[];
+  for(const [path,fd] of Object.entries(ef)){
+    const fname=path.split('/').pop(),key=fname.toLowerCase().replace(/[^a-z0-9]/g,'');
+    if(loadedFonts[key])continue; // already loaded
+    // Decode base64 to binary
+    const bin=atob(fd.data),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const ext=fname.split('.').pop().toLowerCase(),mime=ext==='otf'?'font/otf':'font/ttf';
+    pending.push(loadFontFile(new Blob([bytes],{type:mime}),fname));
+  }
+  if(pending.length)await Promise.all(pending);
+}
+function base64ToBlob(b64,mime){
+  const bin=atob(b64),bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return new Blob([bytes],{type:mime});
+}
   try{
     const buf=await blob.arrayBuffer(),ext=fname.split('.').pop().toLowerCase(),
       fmt=ext==='otf'?'opentype':ext==='woff'?'woff':'truetype',
@@ -182,31 +205,44 @@ function updateFontInfo(){
   fz.style.display='block';
 }
 fz.addEventListener('dragover',e=>e.preventDefault());
-fz.addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTransfer.files)await loadFont(f);updateFontInfo();renderAll()});
-fz.addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.accept='.ttf,.otf,.woff,.woff2,.epub';inp.onchange=async()=>{for(const f of inp.files)await loadFont(f);updateFontInfo();renderAll()};inp.click()});
+fz.addEventListener('drop',async e=>{e.preventDefault();for(const f of e.dataTransfer.files)await loadFont(f);updateFontInfo();await renderAll()});
+fz.addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.accept='.ttf,.otf,.woff,.woff2,.epub';inp.onchange=async()=>{for(const f of inp.files)await loadFont(f);updateFontInfo();await renderAll()};inp.click()});
 
-function findFont(name){
-  if(!name||!Object.keys(loadedFonts).length)return null;
-  // Try exact match first
+function findFont(name, ci){
+  if(!Object.keys(loadedFonts).length)return null;
+  // First try matching by _font_file (exact ZIP path match)
+  if(ci&&ci._font_file){
+    const ff=ci._font_file.split('/').pop().toLowerCase().replace(/[^a-z0-9]/g,'');
+    for(const [key,lf] of Object.entries(loadedFonts)){
+      if(key.includes(ff)||ff.includes(key))return lf;
+      const bn=(lf.basename||lf.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      if(bn.includes(ff)||ff.includes(bn))return lf;
+    }
+  }
+  // Then try _real_family
+  if(ci&&ci._real_family){
+    const rf=ci._real_family.toLowerCase().replace(/[^a-z0-9]/g,'');
+    for(const [key,lf] of Object.entries(loadedFonts)){
+      if(key.includes(rf)||rf.includes(key))return lf;
+    }
+  }
+  // Then by name/covered_by
+  if(!name)return null;
   const k=name.toLowerCase().replace(/[^a-z0-9]/g,'');
   if(loadedFonts[k])return loadedFonts[k];
-  // Try partial match (font name within loaded font filename or vice versa)
   const nk=name.toLowerCase();
   for(const [key,lf] of Object.entries(loadedFonts)){
     if(key.includes(nk)||nk.includes(key))return lf;
     if(lf.name&&(lf.name.toLowerCase().includes(nk)||nk.includes(lf.name.toLowerCase())))return lf;
   }
-  // Try fuzzy: check if the font file name is similar
-  for(const [key,lf] of Object.entries(loadedFonts)){
-    const fn=lf.name.toLowerCase().replace(/[^a-z]/g,'');
-    const sn=nk.replace(/[^a-z]/g,'');
-    if(fn&&sn&&(fn.includes(sn)||sn.includes(fn)))return lf;
-  }
   return null;
 }
 
-function renderAll(){
+let _embeddedLoaded=false;
+async function renderAll(){
   if(!report)return;
+  // Auto-load fonts embedded in report (base64)
+  if(report._embedded_fonts&&!_embeddedLoaded){_embeddedLoaded=true;await loadEmbeddedFonts(report._embedded_fonts);updateFontInfo()}
   const s=report.summary,chars=report.char_inventory,fonts=report.fonts?.embedded||[];
   const kp=s.by_profile_risk?.['kindle-pessimistic']||{ok:0,risk:0,fail:0};
   const ib=s.by_profile_risk?.['ideal-browser']||{ok:0,risk:0,fail:0};
@@ -274,38 +310,28 @@ function renderAll(){
 }
 
 function problemCard(ci,kind){
-  const cp=parseInt(ci.cp.slice(2),16);
-  const cby=ci._covered_by,ctx=(ci.occurrences&&ci.occurrences[0])?ci.occurrences[0].context||'':'';
+  try{
+  const cby=ci._covered_by||ci._real_family,ctx=(ci.occurrences&&ci.occurrences[0])?ci.occurrences[0].context||'':'';
   let fix='',glyph='';
-  // Try to render in any loaded font
-  if(Object.keys(loadedFonts).length){
-    const lf=cby?findFont(cby):null;
-    if(lf)glyph='<span style="font-size:2em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';
-    else{
-      // Try all loaded fonts
-      for(const [k,lf] of Object.entries(loadedFonts)){
-        glyph='<span style="font-size:2em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>';
-        break; // Just try the first one
-      }
-    }
+  const hasFonts=Object.keys(loadedFonts).length>0;
+  if(hasFonts){
+    const lf=cby?findFont(cby, ci):null;
+    if(lf)glyph='<span style=\"font-size:1.8em;line-height:1;font-family:\\\"'+lf.fontName+'\\\"\">'+esc(ci.char)+'</span>';
+    else{for(const lf of Object.values(loadedFonts)){glyph='<span style=\"font-size:1.8em;line-height:1;font-family:\\\"'+lf.fontName+'\\\"\">'+esc(ci.char)+'</span>';break}}
   }
-  const isTofu=!cby||!glyph;
-  const charClass=isTofu&&kind==='extb'?'tofu':'';
-  if(cby&&kind==='fixable'){
-    fix='<div class="fix">✅ 修复：把 <b>'+esc(cby)+'</b> 字体放到 font-family 链首位</div>';
+  const isCovered=!!cby;
+  if(isCovered&&kind==='fixable'){
+    fix='<div class=\"fix\">✅ 把 <b>'+esc(cby)+'</b> 放链首即可</div>';
   }else if(kind==='extb'){
-    fix='<div class="fix" style="background:#fef3e0">⚠️ Ext B 区字，Kindle 系统字体可能缺。<br>需嵌入覆盖此字的字体到链首</div>';
+    fix='<div class=\"fix\" style=\"background:#fef3e0\">⚠️ Ext B 区。此字不在 EPUB 内嵌字体中，Kindle 系统字体可能缺。<br>修复：嵌入覆盖此字的字体到链首（见 Kindle 字体深度参考）</div>';
   }
-  const kv=ci._kindle||'fail';
-  return '<div class="problem-card">'+
-    '<div class="char-big '+charClass+'">'+(glyph||esc(ci.char))+'</div>'+
-    '<div class="meta"><b>'+ci.cp+'</b> ×'+ci.count+
-    (cby?' <span class="badge b-extb">有字体：'+esc(cby)+'</span>':' <span class="badge b-fail">无内嵌字体</span>')+
-    '<span class="badge" style="background:'+(kv==='ok'?'#e8f5e9;color:var(--ok)':'#fde8e8;color:var(--fail)')+'">Kindle '+(kv==='ok'?'✅':'❌')+'</span>'+
-    ((ci._causes||[]).map(c=>' <span class="badge '+(c==='true-missing'?'b-fail':'b-risk')+'">'+causeLabel(c)+'</span>').join(''))+
-    '</div>'+
-    (ctx?'<div class="meta">⋯'+esc(ctx)+'⋯</div>':'')+
-    fix+'</div>';
+  return '<div class=\"problem-card\">'+
+    '<div class=\"char-big'+(isCovered?'':' tofu')+'\">'+(glyph||esc(ci.char))+'</div>'+
+    '<div class=\"meta\"><b>'+ci.cp+'</b> ×'+ci.count+' '+
+    (isCovered?'<span class=\"badge b-extb\">字体:'+esc(cby)+'</span>':'<span class=\"badge b-fail\">内嵌字体无此字</span>')+
+    (hasFonts?' <span class=\"badge\" style=\"background:#e8f5e9;color:var(--ok)\">字体已加载</span>':' <span class=\"badge\" style=\"background:#fde8e8;color:var(--fail)\">拖入 EPUB 加载字体</span>')+
+    '</div>'+(ctx?'<div class=\"meta\">⋯'+esc(ctx)+'⋯</div>':'')+fix+'</div>';
+  }catch(e){return '<div class=\"problem-card\"><div class=\"meta\">渲染错误: '+e.message+'</div></div>'}
 }
 
 function setTab(t,e){window._tab=t;document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));e.classList.add('active');applyFilter()}
@@ -331,7 +357,7 @@ function applyFilter(){
     let glyph='<span style="color:#ccc">—</span>',fix='<span style="font-size:.72em;color:var(--muted)">—</span>';
     const fontLoaded=Object.keys(loadedFonts).length>0;
     if(cby&&fontLoaded){
-      const lf=findFont(cby);
+      const lf=findFont(cby, ci);
       glyph=lf?'<span style="font-size:1.8em;line-height:1;font-family:\''+lf.fontName+'\'">'+esc(ci.char)+'</span>'
         :'<span style="font-size:1.8em;color:#ccc">'+esc(ci.char)+'</span>';
       fix='<span style="font-size:.72em">把 <b>'+esc(cby)+'</b> 放链首</span>';
@@ -357,6 +383,8 @@ function applyFilter(){
 }
 function causeLabel(c){return{['true-missing']:'真缺字',['fallback-not-reached']:'回退未生效',['subset-cut']:'子集裁切',['unknown']:'未知'}[c]||c}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+// Auto-load embedded report data from self-contained HTML
+if(window.__REPORT_DATA__){report=window.__REPORT_DATA__;renderAll()}
 </script>
 </body>
 </html>
