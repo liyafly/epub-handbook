@@ -15,15 +15,33 @@ from .chain_health import assess_chains
 from .charset_tiers import build_standard_charsets, load_standard_charset, classify_tier
 
 
-OCC_CAP = 1000  # max occurrences kept per character (problem chars are few-but-scattered)
+OCC_CAP = 1000      # max occurrences for rare / problem characters
+OCC_CAP_COMMON = 0   # common (GB2312/GBK/non-CJK) chars: count only, no occurrence bloat
 
 
-def _build_char_inventory(runs: list) -> list:
+def _build_char_inventory(runs: list, charsets: dict | None = None, extra=None) -> list:
     """Build character inventory from text runs.
 
     Collects all unique characters, their counts, run indices, and occurrences.
+    When *charsets* is provided, only out-of-gbk / PUA rare characters get full
+    occurrence collection (up to OCC_CAP). Common characters (GB2312/GBK/non-CJK)
+    get at most OCC_CAP_COMMON reference entries — enough to locate a sample,
+    not to bloat the report with every "的".
     """
     char_map = {}  # char → {count, runs: set, occurrences: list}
+    _rare_cps: set[int] | None = None
+
+    if charsets is not None:
+        _rare_cps = set()
+
+        def _is_rare_cached(cp: int) -> bool:
+            if cp in _rare_cps:
+                return True
+            t = classify_tier(cp, charsets, extra)
+            if t["is_rare"]:
+                _rare_cps.add(cp)
+                return True
+            return False
 
     for run_idx, run in enumerate(runs):
         text = run.get("text", "")
@@ -50,9 +68,12 @@ def _build_char_inventory(runs: list) -> list:
             entry["count"] += 1
             entry["runs"].add(run_idx)
 
-            # Keep ALL occurrences (spec §6) with file + node_path + doc offset
-            # + context, capped per char to bound pathological bloat.
-            if len(entry["occurrences"]) < OCC_CAP:
+            # Rare chars → full occurrence tracking; common chars → capped.
+            cap = OCC_CAP
+            if _rare_cps is not None and not _is_rare_cached(cp):
+                cap = OCC_CAP_COMMON
+
+            if len(entry["occurrences"]) < cap:
                 entry["occurrences"].append({
                     "file": run.get("file", ""),
                     "node_path": run.get("node_path", ""),
@@ -249,8 +270,12 @@ def main():
             [f["resolved_path"] for f in book["font_files"]]
         )
 
-        # 7. Build character inventory
-        char_inventory = _build_char_inventory(runs)
+        # 7. Build character inventory.
+        # Build standard-zone charsets early so we can skip full occurrence
+        # tracking for common (GB2312/GBK) characters.
+        standard_charsets = build_standard_charsets()
+        extra_table = load_standard_charset(args.standard_table) if args.standard_table else None
+        char_inventory = _build_char_inventory(runs, standard_charsets, extra_table)
 
         # 8. Build font index keyed by EXACT file path (not name-table family).
         # The CSS @font-face family and the font's internal family name often
@@ -295,11 +320,6 @@ def main():
                     family_to_font[seg.family.lower()] = (fe["file_path"], fe["family"])
 
         results = classify(char_inventory, font_index_dict, chains, run_chains)
-
-        # Standard-zone charsets (GB2312/GBK from stdlib codecs; no file) +
-        # optional user-supplied overlay table.
-        standard_charsets = build_standard_charsets()
-        extra_table = load_standard_charset(args.standard_table) if args.standard_table else None
 
         # Enrich + convert CoverageResult to plain dicts for JSON serialization
         enriched_results = []

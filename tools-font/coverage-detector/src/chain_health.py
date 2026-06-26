@@ -7,7 +7,7 @@ chain-*writing* problems independent of any single character.
 from __future__ import annotations
 
 _FAIL_ISSUES = frozenset({
-    "no-font-family-declared", "broken-font-face", "full-font-not-at-head",
+    "broken-font-face", "full-font-not-at-head",
 })
 
 

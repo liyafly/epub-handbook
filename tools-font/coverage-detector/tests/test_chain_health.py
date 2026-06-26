@@ -12,11 +12,13 @@ class Seg:
     system_ref: bool = False
 
 
-def test_defaulted_chain_is_fail():
+def test_defaulted_chain_is_warn():
+    # SPEC §8: free mode (body without font-family) is the recommended default.
+    # A chain that falls back to serif with no explicit declaration is warn, not fail.
     chains = {"c1": [Seg("serif", generic=True, defaulted=True)]}
     res = assess_chains(chains, font_index={}, run_chains={0: "c1"})
     assert "no-font-family-declared" in res["c1"]["issues"]
-    assert res["c1"]["grade"] == "fail"
+    assert res["c1"]["grade"] == "warn"
     assert res["c1"]["run_count"] == 1
 
 

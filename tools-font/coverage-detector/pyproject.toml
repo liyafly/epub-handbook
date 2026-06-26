@@ -1,6 +1,6 @@
 [project]
 name = "epub-font-coverage-detector"
-version = "0.1.0"
+version = "0.2.0"
 description = "EPUB font coverage detector — classify every rendered character by font coverage status and predict reader behavior"
 requires-python = ">=3.14"
 dependencies = [
