@@ -51,10 +51,12 @@ def main() -> int:
     assert not (root / "audit" / "reports" / "validate-redline-subset.txt").exists(), report
     assert not (root / "audit" / "reports" / "validate-redline-text.txt").exists(), report
     assert not (root / "audit" / "reports" / "refinement.json").exists(), report
+    assert not (root / "audit" / "reports" / "content-analysis.json").exists(), report
     assert not (root / "audit" / "reports" / "findings.json").exists(), report
     compact_data = json.loads((root / "audit" / "reports" / "pipeline.json").read_text(encoding="utf-8"))
     assert compact_data["image_layout_advisor"]["version"] == "1", compact_data
     assert any(step["name"] == "image-layout-advisor" for step in compact_data["steps"]), compact_data
+    assert any(step["name"] == "content-analysis" for step in compact_data["steps"]), compact_data
 
     detailed = run_pipeline(source, root / "detailed-audit", keep_step_reports=True)
     assert detailed.status == "complete", detailed
@@ -66,6 +68,7 @@ def main() -> int:
     assert (root / "detailed-audit" / "reports" / "validate-redline-subset.txt").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "validate-redline-text.txt").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "refinement.json").exists(), detailed
+    assert (root / "detailed-audit" / "reports" / "content-analysis.json").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "findings.json").exists(), detailed
     assert (root / "detailed-audit" / "reports" / "image-layout-advisor.json").exists(), detailed
 

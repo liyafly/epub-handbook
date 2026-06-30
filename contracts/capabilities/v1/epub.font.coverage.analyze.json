@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.font.coverage.analyze",
+  "version": "1.0.0",
+  "kind": "detector",
+  "legacySkillSlugs": ["epub-font-coverage-analyzer"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
+  "redLines": [],
+  "permissions": {"requiresWriteAccess": false, "network": "none"},
+  "requires": ["epub.package.nav.audit"],
+  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+}

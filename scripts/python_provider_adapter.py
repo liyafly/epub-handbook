@@ -65,8 +65,11 @@ def render_arguments(template: list[Any], path: Path) -> list[str]:
 def normalized_status(return_code: int, legacy_report: Any) -> str:
   if return_code != 0:
     return "failed"
-  if isinstance(legacy_report, dict) and legacy_report.get("preflight_status") == "fail":
-    return "failed"
+  if isinstance(legacy_report, dict):
+    if legacy_report.get("preflight_status") == "fail":
+      return "failed"
+    if legacy_report.get("status") in {"fail", "failed"}:
+      return "failed"
   return "complete"
 
 

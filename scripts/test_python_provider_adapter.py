@@ -10,12 +10,46 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import python_provider_adapter as provider  # noqa: E402
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER = ROOT / "scripts" / "python_provider_adapter.py"
 
 
 class PythonProviderAdapterTests(unittest.TestCase):
+  def test_legacy_fail_status_normalizes_to_failed(self) -> None:
+    self.assertEqual(provider.normalized_status(0, {"status": "fail"}), "failed")
+
+  def test_content_analysis_provider_runs_allow_listed_cli(self) -> None:
+    with tempfile.TemporaryDirectory() as raw:
+      directory = Path(raw)
+      source = directory / "chapter.txt"
+      request = directory / "request.json"
+      result = directory / "result.json"
+      source.write_text("这是普通正文段落，长度足以稳定识别。", encoding="utf-8")
+      request.write_text(json.dumps({
+        "schemaVersion": "1",
+        "capability": "epub.text.content.analyze",
+        "artifact": {"uri": source.as_uri(), "kind": "unknown"},
+      }), encoding="utf-8")
+
+      process = subprocess.run(
+        [sys.executable, str(ADAPTER), "--request", str(request), "--result", str(result)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+      )
+
+      self.assertEqual(process.returncode, 0, process.stderr)
+      payload = json.loads(result.read_text(encoding="utf-8"))
+      self.assertEqual(payload["status"], "complete")
+      self.assertEqual(payload["legacyReport"]["capability"], "epub.text.content.analyze")
+      self.assertEqual(payload["legacyReport"]["summary"]["blocks"], 1)
+
   def test_preflight_request_writes_normalized_failed_result(self) -> None:
     with tempfile.TemporaryDirectory() as raw:
       directory = Path(raw)

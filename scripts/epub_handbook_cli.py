@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import python_provider_adapter
 import render_adapter_catalog
@@ -27,6 +28,22 @@ def artifact_uri(value: str) -> str:
   if not path.is_absolute():
     raise ValueError("--input must be an absolute path or file URI")
   return path.as_uri()
+
+
+def artifact_kind(value: str) -> str:
+  split = urlsplit(value)
+  path = Path(unquote(split.path)) if split.scheme == "file" else Path(value)
+  if path.is_dir():
+    return "source-directory"
+  return {
+    ".epub": "epub",
+    ".md": "markdown",
+    ".markdown": "markdown",
+    ".html": "html",
+    ".htm": "html",
+    ".xhtml": "html",
+    ".pdf": "pdf",
+  }.get(path.suffix.lower(), "unknown")
 
 
 def emit(payload: object) -> None:
@@ -47,7 +64,7 @@ def run(capability: str, input_value: str, result: Path) -> int:
     request = {
       "schemaVersion": "1",
       "capability": capability,
-      "artifact": {"uri": artifact_uri(input_value), "kind": "epub"},
+      "artifact": {"uri": artifact_uri(input_value), "kind": artifact_kind(input_value)},
     }
   except ValueError as exc:
     emit({"schemaVersion": "1", "status": "failed", "error": {"code": "input", "message": str(exc)}})

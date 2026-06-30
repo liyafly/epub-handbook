@@ -339,6 +339,13 @@ def run_pipeline(
       optional_report(reports_dir, "refinement.json", keep_step_reports),
       expect_json=True,
     )
+    run_step(
+      report,
+      "content-analysis",
+      [sys.executable, str(SCRIPTS / "epub_content_analyzer.py"), str(output_path), "--format", "json"],
+      optional_report(reports_dir, "content-analysis.json", keep_step_reports),
+      expect_json=True,
+    )
     if image_advisor:
       report.image_layout_advisor = run_step(
         report,

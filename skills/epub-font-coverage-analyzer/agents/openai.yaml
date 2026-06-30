@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 字体覆盖分析"
+  short_description: "检测生僻字缺字、字体链回退与 Kindle 字形覆盖风险。"
+  default_prompt: "使用 $epub-font-coverage-analyzer 检查这本 EPUB 的字体覆盖、缺字和 Kindle 回退风险。"

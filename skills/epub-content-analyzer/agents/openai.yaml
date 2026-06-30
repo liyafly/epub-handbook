@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 文本内容分析"
+  short_description: "识别中文文本结构角色并建议字体与可重排排版。"
+  default_prompt: "使用 $epub-content-analyzer 分析这本 EPUB 的文本结构角色，并给出字体和可重排排版建议。"
