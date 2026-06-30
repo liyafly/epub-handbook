@@ -1,5 +1,5 @@
-import CryptoKit
 import Foundation
+import Crypto
 
 public struct CSSSanitizationResult: Hashable, Sendable {
     public let css: String

@@ -18,6 +18,7 @@ let package = Package(
         .executable(name: "epub-handbook-swift", targets: ["EPUBHandbookSwiftCLI"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.5.0"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.20"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.13.5"),
     ],
@@ -87,6 +88,7 @@ let package = Package(
             dependencies: [
                 "EPUBArchive",
                 "EPUBPackage",
+                .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
             ]
         ),
