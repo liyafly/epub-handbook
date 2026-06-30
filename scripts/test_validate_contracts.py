@@ -51,6 +51,11 @@ class ValidateContractsTests(unittest.TestCase):
       if folder.is_dir() and (folder / "SKILL.md").is_file()
     }
     self.assertEqual(catalog_slugs, actual_skills)
+    capability_ids = {path.stem for path in (ROOT / "contracts" / "capabilities" / "v1").glob("*.json")}
+    self.assertTrue({
+      "epub.package.merge", "epub.package.split", "epub.metadata.edit",
+      "epub.cover.replace", "epub.package.migrate.epub3",
+    }.issubset(capability_ids))
 
   def test_accepts_manifest_with_existing_skill_and_schema_paths(self) -> None:
     with tempfile.TemporaryDirectory() as tmp:

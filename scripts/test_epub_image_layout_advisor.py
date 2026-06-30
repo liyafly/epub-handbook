@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import epub_image_layout_advisor as A  # noqa: E402
+from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,10 +71,7 @@ def make_epub(path: Path, pages: dict[str, str], nav_entries: list[str]) -> None
   }
   for name, value in pages.items():
     files[f"OEBPS/Text/{name}"] = value
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", files.pop("mimetype"), compress_type=zipfile.ZIP_STORED)
-    for name, value in files.items():
-      zf.writestr(name, value.encode("utf-8") if isinstance(value, str) else value)
+  write_fixture_epub(path, files)
 
 
 def findings(report: dict[str, object], kind: str, filename: str | None = None) -> list[dict[str, object]]:

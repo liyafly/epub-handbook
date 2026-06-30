@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB3 迁移"
+  short_description: "把 EPUB2 或 legacy EPUB 安全迁移为 EPUB3，并验证正文、导航和产物。"
+  default_prompt: "使用 $epub3-migrator 先规划再迁移这本旧 EPUB，并完成正文红线与产物验证。"

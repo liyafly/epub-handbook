@@ -26,6 +26,19 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("skills/epub-layout-auditor/SKILL.md", "EPUB 排版审稿"),
     ("docs/final/SPEC-实现约束.md", "红线"),
   ],
+  "epub-content-analyzer": [
+    ("skills/epub-content-analyzer/SKILL.md", "review_required"),
+    ("scripts/epub_content_analysis.py", "epub.text.content.analyze"),
+  ],
+  "epub3-migrator": [
+    ("skills/epub3-migrator/SKILL.md", "epub3_migration_harness.py"),
+    ("skills/epub3-migrator/SKILL.md", "epub3_migration_apply_harness.py"),
+    ("skills/epub3-migrator/SKILL.md", "validate_text_invariance.py"),
+  ],
+  "epub-font-coverage-analyzer": [
+    ("skills/epub-font-coverage-analyzer/SKILL.md", "fallback-not-reached"),
+    ("scripts/epub_font_coverage_adapter.py", "epub.font.coverage.analyze"),
+  ],
   "epub-source-intake": [
     ("skills/epub-source-intake/SKILL.md", "source bundle"),
   ],
@@ -91,10 +104,16 @@ CONTRACTS: dict[str, list[tuple[str, str]]] = {
     ("docs/how-to/anthology-navigation.md", "局部目录"),
     ("templates/epub-style-demo/OEBPS/package.opf", 'properties="svg"'),
   ],
+  "epub-package-operator": [
+    ("skills/epub-package-operator/SKILL.md", "epub_package_merge_harness.py"),
+    ("skills/epub-package-operator/SKILL.md", "epub_package_split_harness.py"),
+    ("skills/epub-package-operator/SKILL.md", "epub_metadata_edit_harness.py"),
+    ("skills/epub-package-operator/SKILL.md", "epub_cover_replace_harness.py"),
+  ],
   "epub-typography-optimizer": [
     ("skills/epub-typography-optimizer/SKILL.md", "C1-body"),
     ("skills/epub-typography-optimizer/SKILL.md", "默认 `font-family` 链最多 4 段"),
-    ("docs/plans/archive/fonts-css-expansion-plan.md", "模式 C1-body"),
+    ("docs/final/SPEC-实现约束.md", "模式 C1-body"),
     ("templates/epub-style-demo/OEBPS/Styles/fonts.css", ".font-st"),
   ],
 }
@@ -186,9 +205,9 @@ def validate_skill_tables(skill_folders: list[Path]) -> list[str]:
   def parse_table(path: Path) -> set[str]:
     names: set[str] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
-      if line.startswith("| `epub-"):
+      if line.startswith("| `epub"):
         cell = line.split("|")[1].strip().strip("`")
-        if cell.startswith("epub-"):
+        if cell.startswith("epub") and NAME_RE.match(cell):
           names.add(cell)
     return names
 
@@ -224,7 +243,7 @@ def _footnote_class_tokens(text: str) -> set[str]:
 def footnote_contract_markdown_paths(root: Path) -> list[Path]:
   return [
     *sorted((root / "skills").glob("*/SKILL.md")),
-    *sorted((root / "docs" / "guides").glob("*.md")),
+    *sorted((root / "docs" / "how-to").glob("*.md")),
   ]
 
 

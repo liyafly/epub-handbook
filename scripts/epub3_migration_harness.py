@@ -267,12 +267,17 @@ def plan_epub3(path: Path) -> dict[str, object]:
       actions.append({"kind": "nav", "message": "Generate nav.xhtml and add manifest item with properties=\"nav\""})
     elif len(navs) > 1:
       actions.append({"kind": "nav", "message": "Replace existing nav manifest items with one generated nav.xhtml item"})
+    if actions:
+      actions.append({
+        "kind": "xhtml",
+        "message": "Normalize XHTML shell/language and migrate recognized notes; add the base typography layer unless apply flags disable it",
+      })
     if ncx is None:
       warnings.append("No toc.ncx found; this harness will not synthesize legacy NCX.")
     if "META-INF/encryption.xml" in names:
       warnings.append("DRM/encryption.xml detected; stop unless the file is known to be font obfuscation only.")
     suggested = [
-      f"python3 scripts/epub3_migration_harness.py {shell_path(path)} --write-output work/after/step-1-epub3.epub --format json",
+      f"python3 scripts/epub3_migration_apply_harness.py {shell_path(path)} --output work/after/step-1-epub3.epub --format json",
       f"python3 scripts/validate_text_invariance.py {shell_path(path)} work/after/step-1-epub3.epub --check text,metadata,spine,cover,anchors --allow-list '*/nav*.xhtml'",
       "Use Calibre / VS Code diff review for OPF/nav structural changes.",
     ] if actions else [

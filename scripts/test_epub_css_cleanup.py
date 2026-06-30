@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from epub_css_cleanup import clean_epub_css  # noqa: E402
+from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -68,10 +69,7 @@ def write_epub(path: Path) -> None:
     "OEBPS/Styles/style0006.css": legacy_css("#3fbbd6"),
     "OEBPS/Styles/component.css": ".component { margin: 0 auto; }\n",
   }
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", b"application/epub+zip", compress_type=zipfile.ZIP_STORED)
-    for name, data in files.items():
-      zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
+  write_fixture_epub(path, files)
 
 
 def chapter(css_name: str, body: str | None = None, extra_css: str | None = None) -> str:

@@ -75,6 +75,24 @@ def test_validate_skill_tables_detects_missing_entries() -> None:
     V.ROOT = original_root
 
 
+def test_validate_skill_tables_accepts_epub3_prefixed_skill_names() -> None:
+  original_root = V.ROOT
+  try:
+    with TemporaryDirectory() as raw:
+      root = Path(raw)
+      skill = write_skill(root, "epub3-migrator")
+      table = "| Skill | Purpose |\n| --- | --- |\n| `epub3-migrator` | migrate |\n"
+      (root / "skills" / "README.md").write_text(table, encoding="utf-8")
+      (root / "docs" / "learn").mkdir(parents=True)
+      (root / "docs" / "learn" / "04-skills.md").write_text(table, encoding="utf-8")
+      V.ROOT = root
+      errors = V.validate_skill_tables([skill])
+      if errors:
+        raise AssertionError(f"valid epub3-prefixed skill table row was ignored: {errors}")
+  finally:
+    V.ROOT = original_root
+
+
 def test_footnote_class_tokens_reject_unknown_token() -> None:
   with TemporaryDirectory() as raw:
     root = Path(raw)
@@ -112,12 +130,60 @@ def test_repository_footnote_class_tokens_match_spec() -> None:
     raise AssertionError(f"repository footnote tokens should match SPEC §1: {errors}")
 
 
+def test_footnote_contract_scans_current_how_to_directory() -> None:
+  paths = V.footnote_contract_markdown_paths(ROOT)
+  if not any(path.parent == ROOT / "docs" / "how-to" for path in paths):
+    raise AssertionError(f"footnote contract must scan docs/how-to: {paths}")
+
+
+def test_repository_exposes_content_and_font_analysis_skills() -> None:
+  names = {
+    folder.name
+    for folder in (ROOT / "skills").iterdir()
+    if folder.is_dir() and (folder / "SKILL.md").is_file()
+  }
+  expected = {"epub-content-analyzer", "epub-font-coverage-analyzer"}
+  missing = expected - names
+  if missing:
+    raise AssertionError(f"missing analysis skills: {sorted(missing)}")
+
+
+def test_repository_exposes_concrete_package_operator_skill() -> None:
+  skill = ROOT / "skills" / "epub-package-operator" / "SKILL.md"
+  if not skill.is_file():
+    raise AssertionError(f"missing concrete package operator skill: {skill}")
+  text = skill.read_text(encoding="utf-8")
+  for harness in (
+    "epub_package_merge_harness.py",
+    "epub_package_split_harness.py",
+    "epub_metadata_edit_harness.py",
+    "epub_cover_replace_harness.py",
+  ):
+    if harness not in text:
+      raise AssertionError(f"package operator skill missing harness: {harness}")
+
+
+def test_repository_exposes_epub3_migrator_skill() -> None:
+  skill = ROOT / "skills" / "epub3-migrator" / "SKILL.md"
+  if not skill.is_file():
+    raise AssertionError(f"missing EPUB3 migrator skill: {skill}")
+  text = skill.read_text(encoding="utf-8")
+  for required in ("epub3_migration_harness.py", "epub3_migration_apply_harness.py", "validate_text_invariance.py"):
+    if required not in text:
+      raise AssertionError(f"EPUB3 migrator skill missing workflow requirement: {required}")
+
+
 def main() -> int:
   test_validate_skill_accepts_minimal_valid_skill()
   test_validate_skill_rejects_extra_frontmatter()
   test_validate_skill_tables_detects_missing_entries()
+  test_validate_skill_tables_accepts_epub3_prefixed_skill_names()
   test_footnote_class_tokens_reject_unknown_token()
   test_repository_footnote_class_tokens_match_spec()
+  test_footnote_contract_scans_current_how_to_directory()
+  test_repository_exposes_content_and_font_analysis_skills()
+  test_repository_exposes_concrete_package_operator_skill()
+  test_repository_exposes_epub3_migrator_skill()
   print("validate_skills_basic tests ok")
   return 0
 

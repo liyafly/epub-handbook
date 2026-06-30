@@ -11,6 +11,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from xml.etree import ElementTree as ET
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "epub3_migration_harness.py"
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -45,23 +47,24 @@ def write_epub(
   <spine toc="ncx">{spine_nav}<itemref idref="chap1"/></spine>
 </package>
 '''
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", "application/epub+zip")
-    zf.writestr("META-INF/container.xml", '''<?xml version="1.0"?>
+  files: dict[str, str | bytes] = {
+    "META-INF/container.xml": '''<?xml version="1.0"?>
 <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
   <rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles>
 </container>
-''')
-    zf.writestr("OEBPS/package.opf", opf)
-    for i in range(1, nav_count + 1):
-      zf.writestr(f"OEBPS/nav{i}.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><body><nav><ol/></nav></body></html>')
-    zf.writestr("OEBPS/Text/chap1.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head><body><h1>One</h1><p>Body.</p></body></html>')
-    zf.writestr("OEBPS/toc.ncx", '''<?xml version="1.0" encoding="UTF-8"?>
+''',
+    "OEBPS/package.opf": opf,
+    "OEBPS/Text/chap1.xhtml": '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head><body><h1>One</h1><p>Body.</p></body></html>',
+    "OEBPS/toc.ncx": '''<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <navMap><navPoint id="n1"><navLabel><text>One</text></navLabel><content src="Text/chap1.xhtml"/></navPoint></navMap>
 </ncx>
-''')
-    zf.writestr(".DS_Store", b"macos-metadata")
+''',
+    ".DS_Store": b"macos-metadata",
+  }
+  for i in range(1, nav_count + 1):
+    files[f"OEBPS/nav{i}.xhtml"] = '<html xmlns="http://www.w3.org/1999/xhtml"><body><nav><ol/></nav></body></html>'
+  write_fixture_epub(path, files)
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -148,6 +151,11 @@ def main() -> int:
     data = json.loads(result.stdout)
     if result.returncode or "actions" not in data or "warnings" not in data:
       raise AssertionError(f"plan JSON missing expected keys: {result.stderr}\n{result.stdout}")
+    if not any(
+      "epub3_migration_apply_harness.py" in command
+      for command in data.get("suggested_next_commands", [])
+    ):
+      raise AssertionError(f"plan should route writes through apply harness: {result.stdout}")
 
   with TemporaryDirectory() as raw:
     source = Path(raw) / "ready.epub"

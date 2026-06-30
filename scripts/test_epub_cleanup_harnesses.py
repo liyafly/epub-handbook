@@ -11,6 +11,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from xml.etree import ElementTree as ET
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -83,12 +85,7 @@ body {
     "OEBPS/Fonts/st.otf": b"fake-font",
     "OEBPS/Images/legacy.gif": b"GIF89a",
   }
-  with zipfile.ZipFile(path, "w") as zf:
-    info = zipfile.ZipInfo("mimetype")
-    info.compress_type = zipfile.ZIP_STORED
-    zf.writestr(info, b"application/epub+zip")
-    for name, data in files.items():
-      zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
+  write_fixture_epub(path, files)
 
 
 def run_json(script: str, *args: str, expect_success: bool = True) -> tuple[int, dict[str, object]]:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 包操作"
+  short_description: "合并或拆分 EPUB，并安全修改书籍元数据、封面与输出产物。"
+  default_prompt: "使用 $epub-package-operator 对 EPUB 执行明确的包操作，并写出新产物和 JSON 报告。"

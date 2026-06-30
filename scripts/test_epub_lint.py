@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import epub_lint as L  # noqa: E402
+from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 CONTAINER = """<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -61,10 +62,7 @@ def make_epub(
     "OEBPS/Text/chapter.xhtml": PAGE.format(body=body),
     "OEBPS/Styles/base.css": css,
   }
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", b"application/epub+zip")
-    for name, data in files.items():
-      zf.writestr(name, data)
+  write_fixture_epub(path, files)
 
 
 def rules_of(findings: list[L.Finding]) -> set[str]:

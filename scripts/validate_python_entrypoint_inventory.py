@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = Path("adapters/python/public-entrypoints.v1.json")
-KINDS = {"harness", "pipeline", "transformer", "planner", "validator", "utility"}
+KINDS = {"harness", "pipeline", "transformer", "planner", "detector", "validator", "utility"}
 SURFACES = {"cli", "agent"}
 STATUSES = {"registered", "legacy-only"}
 

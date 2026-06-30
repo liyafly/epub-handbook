@@ -12,6 +12,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from xml.etree import ElementTree as ET
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "epub_style_preset_tool.py"
@@ -74,10 +76,7 @@ def make_epub(path: Path, classes: str) -> None:
     "OEBPS/Styles/base.css": "body { line-height: 1.2; }\n",
     "OEBPS/Images/cover.jpg": b"fixture-cover",
   }
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", files.pop("mimetype"), compress_type=zipfile.ZIP_STORED)
-    for name, value in files.items():
-      zf.writestr(name, value.encode("utf-8") if isinstance(value, str) else value)
+  write_fixture_epub(path, files)
 
 
 def test_list_show_and_missing() -> None:

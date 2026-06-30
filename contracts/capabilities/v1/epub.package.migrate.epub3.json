@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "id": "epub.package.migrate.epub3",
+  "version": "1.0.0",
+  "kind": "transformer",
+  "legacySkillSlugs": ["epub3-migrator"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/run-report.schema.json",
+  "redLines": ["text", "metadata", "spine", "anchors", "cover", "drm"],
+  "permissions": {"requiresWriteAccess": true, "network": "none"},
+  "requires": ["epub.package.nav.audit"],
+  "adapters": ["openai", "claude", "cli"]
+}

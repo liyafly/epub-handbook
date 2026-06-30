@@ -10,6 +10,8 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "epub_preflight_harness.py"
 
@@ -22,18 +24,19 @@ def write_epub(path: Path, *, encryption: bool = False, broken_container: bool =
   <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="cover" href="Images/cover.png" media-type="image/png" properties="cover-image"/><item id="c1" href="Text/c1.xhtml" media-type="application/xhtml+xml"/></manifest>
   {manifest_spine.replace('<spine>', '<spine toc="ncx">')}
 </package>'''
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", "application/epub+zip")
-    if not broken_container:
-      zf.writestr("META-INF/container.xml", '''<?xml version="1.0"?>
-<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>''')
-    zf.writestr("OEBPS/package.opf", opf)
-    zf.writestr("OEBPS/nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><body><nav><ol><li><a href="Text/c1.xhtml">One</a></li></ol></nav></body></html>')
-    zf.writestr("OEBPS/Text/c1.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head><title>One</title></head><body><p>Body.</p></body></html>')
-    zf.writestr("OEBPS/toc.ncx", '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap/></ncx>')
-    zf.writestr("OEBPS/Images/cover.png", b"png")
-    if encryption:
-      zf.writestr("META-INF/encryption.xml", "<encryption/>")
+  files: dict[str, str | bytes] = {
+    "OEBPS/package.opf": opf,
+    "OEBPS/nav.xhtml": '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><body><nav><ol><li><a href="Text/c1.xhtml">One</a></li></ol></nav></body></html>',
+    "OEBPS/Text/c1.xhtml": '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head><title>One</title></head><body><p>Body.</p></body></html>',
+    "OEBPS/toc.ncx": '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap/></ncx>',
+    "OEBPS/Images/cover.png": b"png",
+  }
+  if not broken_container:
+    files["META-INF/container.xml"] = '''<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'''
+  if encryption:
+    files["META-INF/encryption.xml"] = "<encryption/>"
+  write_fixture_epub(path, files)
 
 
 def run(path: Path) -> subprocess.CompletedProcess[str]:

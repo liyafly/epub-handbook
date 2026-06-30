@@ -37,16 +37,20 @@ scripts/epub_ai_harness.py <epub-or-source-path>
 | Skill | 用途 | 主要参考 |
 |---|---|---|
 | `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 | `docs/final/SPEC-实现约束.md`、`SCENE_MATRIX.md` |
+| `epub-content-analyzer` | 只读识别正文、标题、对话、诗歌、引文、书信、文白等结构角色，并给出字体与排版建议 | `scripts/epub_content_analyzer.py`、`docs/how-to/` |
 | `epub-source-intake` | 从文本、Markdown、HTML、PDF 或 OCR 结果建立 EPUB 制作入口 | `scripts/epub_ai_harness.py` |
 | `epub-structure-normalizer` | 用纯 Python 标准库先格式化资源目录，再按 OPF manifest id 做文件名反混淆 | `scripts/epub_structure_tool.py`、`docs/pipeline/cleanup-flow.md` |
+| `epub3-migrator` | 旧 EPUB 先规划再迁移到 EPUB3，并执行正文红线和产物验证 | `scripts/epub3_migration_harness.py`、`scripts/epub3_migration_apply_harness.py` |
 | `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `docs/final/SPEC-实现约束.md` §7、`docs/how-to/note-box-border-styles.md` |
 | `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体和生僻字 fallback | `Text/07-font-family-order.xhtml`、`Text/08-long-mixed-flow.xhtml` |
+| `epub-font-coverage-analyzer` | 只读检查嵌入字体 cmap、字体链命中、生僻字和 Kindle 回退风险 | `tools-font/coverage-detector/`、`scripts/epub_font_coverage_adapter.py` |
 | `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `Text/18-english-fiction.xhtml`、`docs/how-to/english-fiction-layout.md`、`docs/how-to/anthology-navigation.md` |
 | `epub-literary-structure-formatter` | 章首、章节头图、题记、前置页、对话、诗、信件、文白对照、场景分隔 | `Text/20-chapter-head-image.xhtml`、`Text/21-classical-modern.xhtml`、`Text/18-english-fiction.xhtml`、`Text/15-frontmatter.xhtml`、`docs/how-to/chapter-head-image.md`、`docs/how-to/anthology-navigation.md`、`docs/how-to/classical-modern-layout.md` |
 | `epub-image-layout-optimizer` | figure 环绕、图注、封面声明、图片格式兼容 | `Text/17-image-layout.xhtml` |
 | `epub-vertical-ruby-optimizer` | 竖排正文、Ruby 注音、中西文方向 | `Text/02-ruby-note.xhtml`、`Text/14-vertical-body.xhtml` |
 | `epub-kindle-compatibility-checker` | Kindle/KDP 风险、转换日志、WebP/SVG/cover/MathML 检查 | `Text/09-kindle-risk.xhtml` |
 | `epub-package-nav-auditor` | OPF manifest/spine、nav、NCX、cover、MathML/SVG properties | `OEBPS/package.opf`、`nav.xhtml`、`toc.ncx`、`docs/how-to/anthology-navigation.md` |
+| `epub-package-operator` | 合并、拆分、元数据和封面写操作；始终输出新 EPUB | `scripts/epub_package_*_harness.py`、`scripts/epub_metadata_edit_harness.py`、`scripts/epub_cover_replace_harness.py` |
 | `epub-alite-converter` | 封面、卷首、章首或海报页转 A-lite 可重排全页方案 | `Text/03-vertical-alite.xhtml` |
 | `epub-popup-footnote-converter` | 普通注释/尾注/旧注释转标准 grouped popup footnote | `Text/02-ruby-note.xhtml` |
 | `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `Text/05-legacy-note-fallback.xhtml`；历史多条样例见 `retired/06-multi-legacy-note-fallback.xhtml` |
@@ -116,7 +120,7 @@ python3 scripts/epub_structure_tool.py normalize input.epub --output normalized.
 scripts/install-hooks.sh
 ```
 
-这个 hook 会运行 `git diff --check --cached`、AI 入口一致性校验、skill 基础校验和 harness smoke test，并在 demo、关键验证脚本或 `docs/final/` 变化时自动构建和验证 `templates/epub-style-demo/`。
+这个 hook 会运行 `git diff --check --cached`、AI 入口一致性校验、skill 基础校验、文档一致性校验和 harness smoke test，并在 demo、关键验证脚本或 `docs/final/` 变化时自动构建和验证 `templates/epub-style-demo/`。
 
 ## 两类常见场景
 

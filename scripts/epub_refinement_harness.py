@@ -260,8 +260,12 @@ def build_recommendations(path: Path, facts: dict[str, object], ai_data: dict[st
       "epub3-migration",
       "Migrate package to EPUB 3 before richer cleanup",
       "EPUB 3 nav, metadata, and manifest semantics are the stable base for popup notes, richer CSS, and reader-matrix testing.",
-      [f"python3 scripts/epub3_migration_harness.py {quoted} --write-output work/after/step-1-epub3.epub --format json"],
-      ["$epub-package-nav-auditor", "$epub-kindle-compatibility-checker"],
+      [
+        f"python3 scripts/epub3_migration_harness.py {quoted} --format json",
+        f"python3 scripts/epub3_migration_apply_harness.py {quoted} "
+        "--output work/after/step-1-epub3.epub --format json",
+      ],
+      ["$epub3-migrator", "$epub-package-nav-auditor", "$epub-kindle-compatibility-checker"],
     ))
   if facts.get("noteref_count") or facts.get("legacy_note_candidates") or facts.get("duokan_note_markers"):
     recommendations.append(phase(
@@ -291,9 +295,9 @@ def build_recommendations(path: Path, facts: dict[str, object], ai_data: dict[st
       reason,
       [
         "Dry-run $epub-typography-optimizer; keep default body fonts system-first unless the book has a documented rare-character exception.",
-        "Use explicit classes such as .title-special or .rare for embedded fonts.",
+        "Use explicit classes such as .title-tszt or .rare for embedded fonts.",
       ],
-      ["$epub-typography-optimizer", "$epub-css-layering-optimizer"],
+      ["$epub-typography-optimizer", "$epub-font-coverage-analyzer", "$epub-css-layering-optimizer"],
     ))
   risky_images = facts.get("risky_images") or []
   if risky_images or facts.get("image_counts"):

@@ -1,0 +1,1169 @@
+#!/usr/bin/env python3
+"""One-click EPUB 2/legacy cleanup to EPUB 3.
+
+This script is intentionally narrower than a full editor:
+- it rewrites package/navigation structure for EPUB 3;
+- it fixes common broken NCX fragment quoting from Kindle/MOBI round-trips;
+- it normalizes local plain footnotes into the project popup-footnote shape;
+- it injects a separate CJK literary typography override stylesheet;
+- it repackages the EPUB with the required mimetype ZIP entry.
+
+It does not rewrite prose, embed new fonts, optimize images, or depend on Sigil.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import posixpath
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+from xml.etree import ElementTree as ET
+from xml.sax.saxutils import escape
+
+from epub_lib import (
+  CONTAINER_NS,
+  CONTAINER_URI,
+  DC_URI,
+  DCTERMS_URI,
+  EpubLibError as ConversionError,
+  IBOOKS_PREFIX,
+  NCX_NS,
+  NCX_URI,
+  OPF_NS,
+  OPF_URI,
+  OPS_URI,
+  RENDITION_PREFIX,
+  XHTML_URI,
+  ensure_stylesheet_link,
+  local_name,
+  manifest,
+  norm_join,
+  opf_path_from_container,
+  parse_xml,
+  q,
+  read_epub_files,
+  rel_href,
+  split_props,
+  spine,
+  unique_id,
+  write_epub,
+)
+from .models import ConversionReport
+
+
+ROOT = Path(__file__).resolve().parents[2]
+NOTE_ASSET = ROOT / "skills" / "epub-popup-footnote-converter" / "assets" / "note.png"
+
+FONT_MEDIA_TYPES = {
+  "application/x-font-ttf",
+  "application/x-font-opentype",
+  "application/font-sfnt",
+  "font/ttf",
+  "font/otf",
+}
+
+IMAGE_MEDIA_BY_EXT = {
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+}
+
+TYPOGRAPHY_ROLES = [
+  "type-body",
+  "type-title",
+  "type-subtitle",
+  "type-quote",
+  "type-note",
+  "type-emphasis",
+  "type-meta",
+]
+
+INLINE_CONTENT_TAGS = {
+  "a", "abbr", "b", "bdi", "bdo", "br", "cite", "code", "em", "i", "img",
+  "kbd", "label", "mark", "q", "ruby", "s", "samp", "small", "span", "strong",
+  "sub", "sup", "time", "u", "var", "wbr",
+}
+
+
+def sha256_file(path: Path) -> str:
+  digest = hashlib.sha256()
+  with path.open("rb") as handle:
+    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+      digest.update(chunk)
+  return digest.hexdigest()
+
+
+def sanitize_xml_text(data: bytes) -> str:
+  text = data.decode("utf-8", errors="replace")
+  text = re.sub(r"<!DOCTYPE[^>]*>", "", text, flags=re.I | re.S)
+  text = text.replace("&nbsp;", "&#160;")
+  return text
+
+
+def sanitize_ncx_text(data: bytes, report: ConversionReport) -> str:
+  text = sanitize_xml_text(data)
+  fixed, count = re.subn(
+    r'(<content\b[^>]*\bsrc=)(["\'])([^"\']+?)(["\'])(#[^"\'>\s/]+)',
+    r"\1\2\3\5\4",
+    text,
+    flags=re.I,
+  )
+  if count:
+    report.warnings.append(f"fixed malformed NCX content src fragment quoting: {count}")
+  return fixed
+
+
+def href_with_fragment(base: str, href: str) -> str:
+  clean, sep, fragment = href.partition("#")
+  path = posixpath.normpath(posixpath.join(base, clean)) if clean else ""
+  return f"{path}{sep}{fragment}" if sep else path
+
+
+def add_props(elem: ET.Element, *props: str) -> bool:
+  current = split_props(elem.attrib.get("properties"))
+  changed = False
+  for prop in props:
+    if prop and prop not in current:
+      current.append(prop)
+      changed = True
+  if changed:
+    elem.set("properties", " ".join(current))
+  return changed
+
+
+def remove_props(elem: ET.Element, *props: str) -> bool:
+  current = split_props(elem.attrib.get("properties"))
+  updated = [prop for prop in current if prop not in props]
+  if updated != current:
+    if updated:
+      elem.set("properties", " ".join(updated))
+    elif "properties" in elem.attrib:
+      del elem.attrib["properties"]
+    return True
+  return False
+
+
+def metadata(root: ET.Element) -> ET.Element:
+  node = root.find("opf:metadata", OPF_NS)
+  if node is None:
+    raise ConversionError("OPF missing metadata")
+  return node
+
+
+def href_exists(root: ET.Element, href: str) -> ET.Element | None:
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    if item.attrib.get("href") == href:
+      return item
+  return None
+
+
+def unique_href(files: dict[str, bytes], opf_dir: str, href: str) -> str:
+  stem, ext = posixpath.splitext(href)
+  candidate = href
+  index = 2
+  while norm_join(opf_dir, candidate) in files:
+    candidate = f"{stem}-{index}{ext}"
+    index += 1
+  return candidate
+
+
+def add_manifest_item(
+  root: ET.Element,
+  report: ConversionReport,
+  item_id_base: str,
+  href: str,
+  media_type: str,
+  properties: str | None = None,
+) -> ET.Element:
+  existing = href_exists(root, href)
+  if existing is not None:
+    if properties and add_props(existing, *properties.split()):
+      report.manifest_items_updated += 1
+    return existing
+  attrs = {
+    "id": unique_id(root, item_id_base),
+    "href": href,
+    "media-type": media_type,
+  }
+  if properties:
+    attrs["properties"] = properties
+  item = ET.SubElement(manifest(root), q(OPF_URI, "item"), attrs)
+  report.manifest_items_added.append(href)
+  return item
+
+
+def add_package_prefix(root: ET.Element, name: str, uri: str) -> None:
+  prefix = root.attrib.get("prefix", "")
+  if re.search(rf"(?:^|\s){re.escape(name)}\s*:", prefix):
+    return
+  addition = f"{name}: {uri}"
+  root.set("prefix", f"{prefix.strip()} {addition}".strip())
+
+
+def text_content(elem: ET.Element | None) -> str:
+  if elem is None:
+    return ""
+  return " ".join("".join(elem.itertext()).split())
+
+
+def attr_escape(value: str) -> str:
+  return escape(value, {'"': "&quot;"})
+
+
+BODY_FONT_LOCKED_RE = re.compile(
+  rb"<body[^>]*\bclass\s*=\s*(['\"])[^'\"]*\bbody-font-locked\b[^'\"]*\1"
+)
+
+
+def has_body_font_locked(files: dict[str, bytes]) -> bool:
+  return any(
+    name.lower().endswith((".xhtml", ".html", ".htm")) and BODY_FONT_LOCKED_RE.search(data)
+    for name, data in files.items()
+  )
+
+
+def normalize_metadata(root: ET.Element, report: ConversionReport, body_font_locked: bool = False) -> None:
+  meta = metadata(root)
+  root.set("version", "3.0")
+  add_package_prefix(root, "rendition", RENDITION_PREFIX)
+
+  for child in list(meta):
+    if child.tag != q(DC_URI, "date"):
+      continue
+    event = child.attrib.pop(q(OPF_URI, "event"), child.attrib.pop("event", "")).lower()
+    if event == "modification":
+      meta.remove(child)
+      report.metadata_updates.append("removed legacy modification dc:date")
+    elif event == "creation":
+      created = ET.Element(q(OPF_URI, "meta"), {"property": "dcterms:created"})
+      created.text = child.text
+      index = list(meta).index(child)
+      meta.remove(child)
+      meta.insert(index, created)
+      report.metadata_updates.append("mapped creation dc:date to dcterms:created")
+    elif event in {"publication", "issued"}:
+      child.attrib.clear()
+
+  modified = None
+  specified_fonts = None
+  for child in meta.findall("opf:meta", OPF_NS):
+    prop = child.attrib.get("property")
+    if prop == "dcterms:modified":
+      modified = child
+    elif prop == "ibooks:specified-fonts":
+      specified_fonts = child
+
+  now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+  if modified is None:
+    modified = ET.SubElement(meta, q(OPF_URI, "meta"), {"property": "dcterms:modified"})
+    report.metadata_updates.append("added dcterms:modified")
+  else:
+    report.metadata_updates.append("updated dcterms:modified")
+  modified.text = now
+
+  if specified_fonts is None:
+    if body_font_locked:
+      specified_fonts = ET.SubElement(meta, q(OPF_URI, "meta"), {"property": "ibooks:specified-fonts"})
+      specified_fonts.text = "true"
+      report.metadata_updates.append("added ibooks:specified-fonts (body-font-locked detected)")
+  elif not body_font_locked:
+    report.metadata_updates.append("kept existing ibooks:specified-fonts (no body-font-locked page; review manually)")
+
+  if any(
+    (child.attrib.get("property") or "").startswith("ibooks:")
+    for child in meta.findall("opf:meta", OPF_NS)
+  ):
+    add_package_prefix(root, "ibooks", IBOOKS_PREFIX)
+
+
+def manifest_maps(root: ET.Element, opf_dir: str) -> tuple[dict[str, ET.Element], dict[str, ET.Element]]:
+  by_id: dict[str, ET.Element] = {}
+  by_zip: dict[str, ET.Element] = {}
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    item_id = item.attrib.get("id")
+    href = item.attrib.get("href")
+    if item_id:
+      by_id[item_id] = item
+    if href:
+      by_zip[norm_join(opf_dir, href)] = item
+  return by_id, by_zip
+
+
+def find_cover_id(root: ET.Element) -> str | None:
+  for child in metadata(root).findall("opf:meta", OPF_NS):
+    if child.attrib.get("name") == "cover":
+      return child.attrib.get("content")
+  return None
+
+
+def ensure_cover_properties(root: ET.Element, report: ConversionReport) -> None:
+  cover_id = find_cover_id(root)
+  if not cover_id:
+    return
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    if item.attrib.get("id") == cover_id:
+      if add_props(item, "cover-image"):
+        report.manifest_items_updated += 1
+      return
+
+
+def normalize_manifest_media(root: ET.Element, report: ConversionReport) -> None:
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    media_type = item.attrib.get("media-type", "")
+    href = item.attrib.get("href", "")
+    suffix = Path(href).suffix.lower()
+    changed = False
+    if media_type in FONT_MEDIA_TYPES or suffix in {".ttf", ".otf"}:
+      if media_type != "application/vnd.ms-opentype":
+        item.set("media-type", "application/vnd.ms-opentype")
+        changed = True
+    elif suffix in IMAGE_MEDIA_BY_EXT and media_type != IMAGE_MEDIA_BY_EXT[suffix]:
+      item.set("media-type", IMAGE_MEDIA_BY_EXT[suffix])
+      changed = True
+    if changed:
+      report.manifest_items_updated += 1
+
+
+def itemref_exists(root: ET.Element, item_id: str) -> bool:
+  return any(itemref.attrib.get("idref") == item_id for itemref in root.findall("opf:spine/opf:itemref", OPF_NS))
+
+
+def ensure_nav_in_spine(root: ET.Element, nav_id: str) -> None:
+  if itemref_exists(root, nav_id):
+    return
+  ET.SubElement(spine(root), q(OPF_URI, "itemref"), {"idref": nav_id, "linear": "no"})
+
+
+def ncx_item(root: ET.Element) -> ET.Element | None:
+  for item in root.findall("opf:manifest/opf:item", OPF_NS):
+    if item.attrib.get("media-type") == "application/x-dtbncx+xml":
+      return item
+  return None
+
+
+def ensure_spine_toc(root: ET.Element) -> None:
+  ncx = ncx_item(root)
+  if ncx is not None and ncx.attrib.get("id"):
+    spine(root).set("toc", ncx.attrib["id"])
+
+
+def fix_guide_hrefs(root: ET.Element, files: dict[str, bytes], opf_dir: str, report: ConversionReport) -> None:
+  guide = root.find("opf:guide", OPF_NS)
+  if guide is None:
+    return
+  for ref in guide.findall("opf:reference", OPF_NS):
+    href = ref.attrib.get("href", "")
+    if not href or norm_join(opf_dir, href) in files:
+      continue
+    candidate = href
+    while candidate.startswith("../"):
+      candidate = candidate[3:]
+      if norm_join(opf_dir, candidate) in files:
+        ref.set("href", candidate)
+        report.manifest_items_updated += 1
+        report.warnings.append(f"fixed guide href: {href} -> {candidate}")
+        break
+
+
+def parse_nav_points(point: ET.Element, base: str) -> dict[str, object] | None:
+  label = text_content(point.find("ncx:navLabel/ncx:text", NCX_NS))
+  content = point.find("ncx:content", NCX_NS)
+  src = content.attrib.get("src", "") if content is not None else ""
+  children = [
+    child for child in (parse_nav_points(node, base) for node in point.findall("ncx:navPoint", NCX_NS))
+    if child is not None
+  ]
+  if not src and not children:
+    return None
+  return {
+    "label": label or src or "Untitled",
+    "href": href_with_fragment(base, src) if src else "",
+    "children": children,
+  }
+
+
+def nav_count(entries: Iterable[dict[str, object]]) -> int:
+  total = 0
+  for entry in entries:
+    total += 1
+    total += nav_count(entry.get("children", []))  # type: ignore[arg-type]
+  return total
+
+
+def ncx_entries(files: dict[str, bytes], root: ET.Element, opf_dir: str, report: ConversionReport) -> list[dict[str, object]]:
+  item = ncx_item(root)
+  if item is None or not item.attrib.get("href"):
+    return []
+  ncx_href = item.attrib["href"]
+  ncx_zip = norm_join(opf_dir, ncx_href)
+  if ncx_zip not in files:
+    report.warnings.append(f"NCX manifest item does not resolve: {ncx_href}")
+    return []
+  sanitized = sanitize_ncx_text(files[ncx_zip], report)
+  ncx_root = parse_xml(sanitized, ncx_zip)
+  base = posixpath.dirname(ncx_href)
+  points = ncx_root.findall("ncx:navMap/ncx:navPoint", NCX_NS)
+  entries = [entry for entry in (parse_nav_points(point, base) for point in points) if entry is not None]
+  files[ncx_zip] = sanitized.encode("utf-8")
+  return entries
+
+
+def spine_entries(root: ET.Element) -> list[dict[str, object]]:
+  by_id = {
+    item.attrib.get("id"): item.attrib.get("href", "")
+    for item in root.findall("opf:manifest/opf:item", OPF_NS)
+  }
+  entries: list[dict[str, object]] = []
+  for itemref in root.findall("opf:spine/opf:itemref", OPF_NS):
+    href = by_id.get(itemref.attrib.get("idref"), "")
+    if href:
+      label = posixpath.basename(href).rsplit(".", 1)[0]
+      entries.append({"label": label or href, "href": href, "children": []})
+  return entries
+
+
+def package_title(root: ET.Element) -> str:
+  return text_content(root.find(".//dc:title", OPF_NS)) or "目录"
+
+
+def package_language(root: ET.Element) -> str:
+  return text_content(root.find(".//dc:language", OPF_NS)) or "und"
+
+
+def render_nav_items(entries: list[dict[str, object]], indent: str = "        ") -> str:
+  lines: list[str] = []
+  for entry in entries:
+    href = escape(str(entry.get("href", "")), {'"': "&quot;"})
+    label = escape(str(entry.get("label", "")))
+    children = entry.get("children", [])
+    if href:
+      lines.append(f'{indent}<li><a href="{href}">{label}</a>')
+    else:
+      lines.append(f"{indent}<li><span>{label}</span>")
+    if children:
+      lines.append(f"{indent}  <ol>")
+      lines.append(render_nav_items(children, indent + "    "))
+      lines.append(f"{indent}  </ol>")
+    lines.append(f"{indent}</li>")
+  return "\n".join(lines)
+
+
+GUIDE_TYPE_TO_EPUB = {
+  "cover": "cover",
+  "toc": "toc",
+  "text": "bodymatter",
+  "title-page": "titlepage",
+  "copyright-page": "copyright-page",
+}
+
+
+def guide_landmarks(root: ET.Element) -> list[tuple[str, str, str]]:
+  guide = root.find("opf:guide", OPF_NS)
+  if guide is None:
+    return []
+  landmarks: list[tuple[str, str, str]] = []
+  for ref in guide.findall("opf:reference", OPF_NS):
+    href = ref.attrib.get("href", "")
+    guide_type = ref.attrib.get("type", "")
+    epub_type = GUIDE_TYPE_TO_EPUB.get(guide_type)
+    if href and epub_type:
+      landmarks.append((epub_type, ref.attrib.get("title", guide_type), href))
+  return landmarks
+
+
+def build_nav_xhtml(root: ET.Element, entries: list[dict[str, object]]) -> bytes:
+  lang = attr_escape(package_language(root))
+  title = escape(package_title(root))
+  items = render_nav_items(entries)
+  landmarks = guide_landmarks(root)
+  landmark_block = ""
+  if landmarks:
+    landmark_items = "\n".join(
+      f'        <li><a epub:type="{attr_escape(epub_type)}" href="{attr_escape(href)}">{escape(label)}</a></li>'
+      for epub_type, label, href in landmarks
+    )
+    landmark_block = f'''
+    <nav epub:type="landmarks" hidden="hidden" id="landmarks">
+      <h2>Landmarks</h2>
+      <ol>
+{landmark_items}
+      </ol>
+    </nav>'''
+  return f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="{XHTML_URI}" xmlns:epub="{OPS_URI}" xml:lang="{lang}" lang="{lang}">
+  <head>
+    <title>{title}目录</title>
+  </head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <h1>{title}</h1>
+      <ol>
+{items}
+      </ol>
+    </nav>{landmark_block}
+  </body>
+</html>
+'''.encode("utf-8")
+
+
+def ensure_nav(files: dict[str, bytes], root: ET.Element, opf_path: str, report: ConversionReport) -> None:
+  opf_dir = posixpath.dirname(opf_path)
+  navs = [
+    item for item in root.findall("opf:manifest/opf:item", OPF_NS)
+    if "nav" in split_props(item.attrib.get("properties"))
+  ]
+  if len(navs) > 1:
+    for extra in navs[1:]:
+      remove_props(extra, "nav")
+      report.manifest_items_updated += 1
+    navs = navs[:1]
+
+  if navs:
+    nav_item = navs[0]
+    nav_id = nav_item.attrib.get("id") or unique_id(root, "nav")
+    nav_item.set("id", nav_id)
+    ensure_nav_in_spine(root, nav_id)
+    return
+
+  entries = ncx_entries(files, root, opf_dir, report) or spine_entries(root)
+  if not entries:
+    raise ConversionError("cannot build nav.xhtml: no NCX navPoint or spine entries")
+  nav_href = unique_href(files, opf_dir, "nav.xhtml")
+  nav_zip = norm_join(opf_dir, nav_href)
+  files[nav_zip] = build_nav_xhtml(root, entries)
+  nav_item = add_manifest_item(root, report, "nav", nav_href, "application/xhtml+xml", "nav")
+  ensure_nav_in_spine(root, nav_item.attrib["id"])
+  report.nav_entries = nav_count(entries)
+
+
+def enhancement_css() -> bytes:
+  return b'''/* EPUB 3 CJK literary cleanup layer. Keep linked after source stylesheets. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  line-height: 1.65;
+  text-align: justify;
+  text-justify: inter-ideograph;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  color: #1f1a17;
+}
+
+p {
+  margin: 0.35em 0;
+  line-height: 1.65;
+  text-indent: 2em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+.type-title,
+.cp,
+.front,
+.back,
+.zw-text1,
+.chapter-title1,
+.fronttitle1,
+.backtitle1,
+.backtitle2,
+.kindle-cn-toc-title,
+.kindle-en-toc-title {
+  font-family: "Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  text-indent: 0;
+  page-break-after: avoid;
+  break-after: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.type-body {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.type-subtitle {
+  font-family: "Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-weight: normal;
+  text-indent: 0;
+}
+
+.type-quote,
+.type-meta {
+  font-family: "STFangsong", "FangSong", "Noto Serif CJK SC", serif;
+}
+
+.type-note,
+.type-emphasis {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+}
+
+h1,
+h1.front,
+h1.back,
+h1.zw-text1 {
+  margin: 1.4em auto 1.2em;
+  color: #6f4d35;
+  line-height: 1.35;
+}
+
+h2,
+h3,
+h4,
+h5 {
+  margin: 1.1em 0 0.75em;
+  color: #6f4d35;
+  line-height: 1.4;
+}
+
+.part-text,
+.part-textc,
+.part-textf,
+.block,
+.block1,
+.block2,
+.block3,
+.img,
+.note,
+.footnote,
+.fs,
+.kt,
+.kh {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+}
+
+.center,
+.block2,
+.img,
+.cover {
+  text-align: center;
+  text-indent: 0;
+}
+
+.right,
+.block1 {
+  text-align: right;
+}
+
+.left {
+  text-align: left;
+  text-indent: 0;
+}
+
+blockquote,
+.block,
+.block3 {
+  margin: 0.8em 0 0.8em 2em;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.cover img,
+img.cover,
+img.body-image-alone {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+sup.note-marker {
+  font-size: 1em;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
+sup.note-marker > .noteref-icon {
+  display: inline-block;
+  line-height: 0;
+  position: relative;
+  top: -0.14em;
+  text-decoration: none;
+}
+
+sup.note-marker > .noteref-icon > img {
+  display: block;
+  width: auto;
+  height: 0.72em;
+  max-width: none;
+}
+
+aside[epub|type~="footnote"],
+aside[role~="doc-footnote"] {
+  margin-top: 1.4em;
+}
+
+.footnote-line,
+hr.xian {
+  width: 60%;
+  height: 1px;
+  margin: 1.5em 0 1em -0.5em;
+  border: none;
+  border-top: 1px solid #777;
+}
+
+.footnote-list {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  text-align: left;
+}
+
+.footnote-item {
+  margin: 0.4em 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.footnote {
+  margin: 0.4em 0;
+  text-indent: 0;
+  font-size: 0.9em;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.footnote-back {
+  margin-right: 0.25em;
+  text-decoration: none;
+}
+'''
+
+
+def note_png_bytes() -> bytes:
+  if NOTE_ASSET.exists():
+    return NOTE_ASSET.read_bytes()
+  return base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAHklEQVR4nGNgGAWjYBSMglEwCkbBKB"
+    "gFo2AUDAMABRwAAf1xD6YAAAAASUVORK5CYII="
+  )
+
+
+XML_DECL_RE = re.compile(r"^\s*<\?xml[^>]*\?>", re.I)
+DOCTYPE_RE = re.compile(r"<!DOCTYPE[^>]*>", re.I | re.S)
+HTML_TAG_RE = re.compile(r"<html\b([^>]*)>", re.I)
+HEAD_END_RE = re.compile(r"</head\s*>", re.I)
+META_HTTP_RE = re.compile(
+  r"<meta\b(?=[^>]*http-equiv=[\"']Content-Type[\"'])(?=[^>]*charset=utf-8)[^>]*/?>",
+  re.I,
+)
+
+
+def normalize_xhtml_shell(text: str, default_language: str | None = None) -> tuple[str, bool]:
+  changed = False
+  if DOCTYPE_RE.search(text):
+    text = DOCTYPE_RE.sub("", text, count=1)
+    changed = True
+  declaration = ""
+  match = XML_DECL_RE.match(text)
+  if match:
+    declaration = match.group(0).strip() + "\n"
+    text = text[match.end():].lstrip()
+  if not text.lstrip().lower().startswith("<!doctype html>"):
+    text = declaration + "<!DOCTYPE html>\n" + text.lstrip()
+    changed = True
+  elif declaration:
+    text = declaration + text.lstrip()
+
+  def html_repl(match: re.Match[str]) -> str:
+    nonlocal changed
+    attrs = match.group(1)
+    if "xmlns:epub" not in attrs:
+      attrs += f' xmlns:epub="{OPS_URI}"'
+      changed = True
+    lang_match = re.search(r'(?<![:\w-])lang\s*=\s*(["\'])(.*?)\1', attrs)
+    xml_lang_match = re.search(r'xml:lang\s*=\s*(["\'])(.*?)\1', attrs)
+    language = default_language.strip() if default_language else ""
+    if not lang_match and (xml_lang_match or language):
+      value = xml_lang_match.group(2) if xml_lang_match else language
+      attrs += f' lang="{attr_escape(value)}"'
+      changed = True
+    if not xml_lang_match and (lang_match or language):
+      value = lang_match.group(2) if lang_match else language
+      attrs += f' xml:lang="{attr_escape(value)}"'
+      changed = True
+    return f"<html{attrs}>"
+
+  text = HTML_TAG_RE.sub(html_repl, text, count=1)
+  if META_HTTP_RE.search(text):
+    text = META_HTTP_RE.sub('<meta charset="utf-8"/>', text, count=1)
+    changed = True
+  elif "<meta charset=" not in text.lower() and HEAD_END_RE.search(text):
+    text = HEAD_END_RE.sub('  <meta charset="utf-8"/>\n</head>', text, count=1)
+    changed = True
+  if "<big" in text.lower():
+    text = re.sub(r"<big\b([^>]*)>", r'<span\1 class="big">', text, flags=re.I)
+    text = re.sub(r"</big\s*>", "</span>", text, flags=re.I)
+    changed = True
+  return text, changed
+
+
+def format_xhtml_multiline(text: str) -> tuple[str, bool]:
+  """Pretty-print XML-valid XHTML without changing its element content.
+
+  EPUB XHTML is XML, so element-only containers can be indented safely.  Mixed
+  text content (including Ruby) is deliberately left untouched.  Invalid
+  legacy XHTML is also left as-is; the conversion must not turn a formatting
+  aid into a reason to reject an otherwise recoverable book.
+  """
+  stripped = XML_DECL_RE.sub("", text, count=1)
+  stripped = DOCTYPE_RE.sub("", stripped, count=1).strip()
+  try:
+    root = ET.fromstring(stripped)
+  except ET.ParseError:
+    return text, False
+
+  # Namespace registrations are process-global.  Use readable XHTML prefixes
+  # for this serialization only, then restore the OPF default required by the
+  # package serializer later in the conversion.
+  ET.register_namespace("", XHTML_URI)
+  ET.register_namespace("epub", OPS_URI)
+  try:
+    indent_element_only(root)
+    formatted = (
+      '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
+      + ET.tostring(root, encoding="unicode", short_empty_elements=True)
+      + "\n"
+    )
+  finally:
+    ET.register_namespace("", OPF_URI)
+    ET.register_namespace("dc", DC_URI)
+    ET.register_namespace("opf", OPF_URI)
+  return formatted, formatted != text
+
+
+def has_mixed_text_content(elem: ET.Element) -> bool:
+  if (elem.text or "").strip():
+    return True
+  return any(
+    (child.tail or "").strip() or local_name(child.tag) in INLINE_CONTENT_TAGS
+    for child in elem
+  )
+
+
+def indent_element_only(elem: ET.Element, level: int = 0) -> None:
+  """Indent element-only XML without introducing text into inline markup."""
+  children = list(elem)
+  if not children or has_mixed_text_content(elem):
+    return
+  child_indent = "\n" + "  " * (level + 1)
+  parent_indent = "\n" + "  " * level
+  elem.text = child_indent
+  for child in children:
+    indent_element_only(child, level + 1)
+    child.tail = child_indent
+  children[-1].tail = parent_indent
+
+
+PLAIN_NOTEREF_RE = re.compile(
+  r'<a\s+id="w(?P<num>\d+)"></a>\s*'
+  r'<a\s+href="(?P<href>[^"]*#m(?P=num))">\s*<sup>\[(?P=num)\]</sup>\s*</a>',
+  re.S,
+)
+PLAIN_NOTE_RE = re.compile(
+  r'\s*<p\s+class="note"\s*>\s*'
+  r'<a\s+id="m(?P<num>\d+)"></a>\s*'
+  r'<a\s+href="[^"]*#w(?P=num)">\[(?P=num)\]</a>\s*'
+  r'(?P<body>.*?)</p>',
+  re.S,
+)
+SIGIL_LEGACY_NOTE_SECTION_RE = re.compile(
+  r'<section\b(?=[^>]*\bepub:type\s*=\s*["\']footnotes["\'])[^>]*>'
+  r'(?P<body>.*?)</section>',
+  re.I | re.S,
+)
+SIGIL_LEGACY_NOTE_RE = re.compile(
+  r'<aside\b(?=[^>]*\bid\s*=\s*["\']footnote_(?P<num>\d+)["\'])[^>]*>\s*'
+  r'<p\b[^>]*>\s*'
+  r'<a\b(?=[^>]*\bhref\s*=\s*["\']#noteref_(?P=num)["\'])[^>]*>'
+  r'\s*\[(?P=num)\]\s*</a>(?P<body>.*?)</p>\s*</aside>',
+  re.I | re.S,
+)
+SIGIL_LEGACY_NOTEREF_RE = re.compile(
+  r'<a\b(?=[^>]*\bid\s*=\s*["\']noteref_(?P<num>\d+)["\'])[^>]*>'
+  r'\s*\[(?P=num)\]\s*</a>',
+  re.I | re.S,
+)
+NOTE_MARKER_SUP_RE = re.compile(
+  r'<sup(?P<attrs>\s[^>]*)?>(?P<content>\s*<a\b'
+  r'(?=[^>]*\bclass\s*=\s*["\'][^"\']*\bnoteref-icon\b)[^>]*>.*?</a>\s*)</sup>',
+  re.I | re.S,
+)
+CLASS_ATTR_RE = re.compile(r'\bclass\s*=\s*(?P<quote>["\'])(?P<value>[^"\']*)(?P=quote)', re.I)
+HR_BEFORE_NOTES_RE = re.compile(r"\s*<hr\b[^>]*/?>\s*$", re.I | re.S)
+
+
+def mark_note_marker_sup(text: str) -> str:
+  """Mark only superscripts that wrap an image-backed popup-note trigger."""
+
+  def repl(match: re.Match[str]) -> str:
+    attrs = match.group("attrs") or ""
+    class_match = CLASS_ATTR_RE.search(attrs)
+    if class_match:
+      classes = class_match.group("value").split()
+      if "note-marker" not in classes:
+        classes.append("note-marker")
+      quote = class_match.group("quote")
+      replacement = f'class={quote}{" ".join(classes)}{quote}'
+      attrs = attrs[:class_match.start()] + replacement + attrs[class_match.end():]
+    else:
+      attrs += ' class="note-marker"'
+    return f'<sup{attrs}>{match.group("content")}</sup>'
+
+  return NOTE_MARKER_SUP_RE.sub(repl, text)
+
+
+def convert_plain_notes(text: str, note_href: str) -> tuple[str, int, int]:
+  matches = list(PLAIN_NOTE_RE.finditer(text))
+  if not matches:
+    return text, 0, 0
+
+  note_ids = {match.group("num") for match in matches}
+  marker_replacements = 0
+
+  def marker_repl(match: re.Match[str]) -> str:
+    nonlocal marker_replacements
+    num = match.group("num")
+    if num not in note_ids:
+      return match.group(0)
+    marker_replacements += 1
+    return (
+      f'<sup class="note-marker"><a id="w{num}" class="noteref-icon" epub:type="noteref" '
+      f'role="doc-noteref" href="#m{num}"><img alt="注" src="{note_href}"/></a></sup>'
+    )
+
+  first = matches[0]
+  last = matches[-1]
+  prefix = text[:first.start()]
+  suffix = text[last.end():]
+  hr_match = HR_BEFORE_NOTES_RE.search(prefix)
+  if hr_match:
+    prefix = prefix[:hr_match.start()]
+
+  lines = [
+    '  <aside epub:type="footnote" role="doc-footnote">',
+    "    <div><hr class=\"footnote-line xian\"/></div>",
+    '    <ol class="footnote-list">',
+  ]
+  for match in matches:
+    num = match.group("num")
+    body = match.group("body").strip()
+    lines.extend([
+      f'      <li class="footnote-item" id="m{num}">',
+      f'        <p class="footnote"><a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#w{num}">◎</a>{body}</p>',
+      "      </li>",
+    ])
+  lines.extend(["    </ol>", "  </aside>"])
+  rebuilt = prefix + "\n" + "\n".join(lines) + suffix
+  rebuilt = mark_note_marker_sup(PLAIN_NOTEREF_RE.sub(marker_repl, rebuilt))
+  return rebuilt, len(matches), marker_replacements
+
+
+def convert_sigil_legacy_notes(text: str, note_href: str) -> tuple[str, int, int]:
+  """Convert Sigil's per-note aside output without changing note text or IDs."""
+  converted_ids: set[str] = set()
+  converted_count = 0
+
+  def section_repl(match: re.Match[str]) -> str:
+    nonlocal converted_count
+    body = match.group("body")
+    notes = list(SIGIL_LEGACY_NOTE_RE.finditer(body))
+    if not notes:
+      return match.group(0)
+    residual = SIGIL_LEGACY_NOTE_RE.sub("", body)
+    if residual.strip():
+      return match.group(0)
+
+    converted_ids.update(note.group("num") for note in notes)
+    converted_count += len(notes)
+    lines = [
+      '  <aside epub:type="footnote" role="doc-footnote">',
+      '    <div><hr class="footnote-line xian"/></div>',
+      '    <ol class="footnote-list">',
+    ]
+    for note in notes:
+      number = note.group("num")
+      note_body = note.group("body").strip()
+      lines.extend([
+        f'      <li class="footnote-item" id="footnote_{number}">',
+        f'        <p class="footnote"><a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#noteref_{number}">◎</a>{note_body}</p>',
+        "      </li>",
+      ])
+    lines.extend(["    </ol>", "  </aside>"])
+    return "\n".join(lines)
+
+  rebuilt = SIGIL_LEGACY_NOTE_SECTION_RE.sub(section_repl, text)
+  if not converted_ids:
+    return text, 0, 0
+
+  marker_replacements = 0
+
+  def marker_repl(match: re.Match[str]) -> str:
+    nonlocal marker_replacements
+    number = match.group("num")
+    if number not in converted_ids:
+      return match.group(0)
+    marker_replacements += 1
+    return (
+      f'<a id="noteref_{number}" class="noteref-icon" epub:type="noteref" '
+      f'role="doc-noteref" href="#footnote_{number}"><img alt="注" src="{note_href}"/></a>'
+    )
+
+  rebuilt = mark_note_marker_sup(SIGIL_LEGACY_NOTEREF_RE.sub(marker_repl, rebuilt))
+  return rebuilt, converted_count, marker_replacements
+
+
+def normalize_duokan_notes(text: str) -> tuple[str, int]:
+  if "duokan-footnote" not in text and 'epub:type="footnote"' not in text:
+    return text, 0
+  count = 0
+  updated = text
+  updated, n = re.subn(r'<aside\s+epub:type="footnote"(?![^>]*\brole=)', '<aside epub:type="footnote" role="doc-footnote"', updated)
+  count += n
+  updated, n = re.subn(r'class="duokan-footnote-content"', 'class="footnote-list"', updated)
+  count += n
+  updated, n = re.subn(r'class="duokan-footnote-item"', 'class="footnote-item"', updated)
+  count += n
+  updated, n = re.subn(r'class="duokan-footnote"', 'class="noteref-icon"', updated)
+  count += n
+  updated, n = re.subn(r">⊙</a>", ">◎</a>", updated)
+  count += n
+  return updated, count
+
+
+def xhtml_default_language(root: ET.Element) -> str | None:
+  for child in metadata(root):
+    if local_name(child.tag) == "language" and child.text and child.text.strip():
+      return child.text.strip()
+  return None
+
+
+def update_xhtml_files(
+  files: dict[str, bytes],
+  root: ET.Element,
+  opf_path: str,
+  style_zip_path: str,
+  note_zip_path: str,
+  report: ConversionReport,
+  popup_notes: bool,
+  typography: bool,
+  default_language: str | None,
+) -> bool:
+  opf_dir = posixpath.dirname(opf_path)
+  _, by_zip = manifest_maps(root, opf_dir)
+  default_note_icon_used = False
+  for zip_path, item in sorted(by_zip.items()):
+    if item.attrib.get("media-type") != "application/xhtml+xml" or zip_path not in files:
+      continue
+    original = files[zip_path]
+    text = original.decode("utf-8", errors="replace")
+    text, changed = normalize_xhtml_shell(text, default_language=default_language)
+    if typography:
+      style_href = rel_href(zip_path, style_zip_path)
+      text, linked = ensure_stylesheet_link(text, style_href)
+      if linked:
+        report.stylesheet_links_added += 1
+        changed = True
+    if popup_notes:
+      note_href = rel_href(zip_path, note_zip_path)
+      text, notes, marker_replacements = convert_plain_notes(text, note_href)
+      if not notes:
+        text, notes, marker_replacements = convert_sigil_legacy_notes(text, note_href)
+      if notes:
+        report.plain_notes_converted += notes
+        changed = True
+      if marker_replacements:
+        default_note_icon_used = True
+      text, normalized = normalize_duokan_notes(text)
+      if normalized:
+        report.duokan_notes_normalized += normalized
+        changed = True
+    if re.search(r"<(?:svg|svg:svg)\b", text, re.I) and add_props(item, "svg"):
+      report.manifest_items_updated += 1
+    if re.search(r"<(?:math|m:math)\b", text, re.I) and add_props(item, "mathml"):
+      report.manifest_items_updated += 1
+    if re.search(r"<script\b", text, re.I) and add_props(item, "scripted"):
+      report.manifest_items_updated += 1
+    text, reformatted = format_xhtml_multiline(text)
+    changed = changed or reformatted
+    if changed:
+      files[zip_path] = text.encode("utf-8")
+      report.xhtml_files_updated += 1
+  return default_note_icon_used
+
+
+def default_note_href(files: dict[str, bytes], root: ET.Element, opf_dir: str) -> str:
+  default_href = "Images/note.png"
+  default_zip = norm_join(opf_dir, default_href)
+  if href_exists(root, default_href) is not None or default_zip in files:
+    return default_href
+  return unique_href(files, opf_dir, default_href)
+
+
+def default_output_path(input_path: Path) -> Path:
+  return input_path.with_name(f"{input_path.stem}_epub3_clean.epub")
+
+
+def main(argv: list[str]) -> int:
+  from .converter import convert_epub
+  parser = argparse.ArgumentParser(description="Convert a legacy EPUB to EPUB 3 with popup notes and CJK typography cleanup")
+  parser.add_argument("input", type=Path, help="Input EPUB")
+  parser.add_argument("--output", type=Path, help="Output EPUB path; defaults to *_epub3_clean.epub beside input")
+  parser.add_argument("--no-popup-notes", action="store_true", help="Skip plain/duokan footnote normalization")
+  parser.add_argument("--no-typography", action="store_true", help="Skip CJK typography override stylesheet injection")
+  parser.add_argument("--format", choices=("json", "text"), default="text")
+  args = parser.parse_args(argv)
+
+  output = args.output or default_output_path(args.input)
+  try:
+    report = convert_epub(
+      args.input,
+      output,
+      popup_notes=not args.no_popup_notes,
+      typography=not args.no_typography,
+    )
+  except (ConversionError, ET.ParseError) as exc:
+    data = {"harness": "epub3_oneclick_converter", "error": str(exc)}
+    if args.format == "json":
+      print(json.dumps(data, ensure_ascii=False, indent=2))
+    else:
+      print(f"ERROR: {exc}", file=sys.stderr)
+    return 1
+
+  data = report.as_dict()
+  if args.format == "json":
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+  else:
+    print(f"Wrote EPUB 3: {output}")
+    print(f"Converted plain notes: {report.plain_notes_converted}")
+    print(f"Added stylesheet links: {report.stylesheet_links_added}")
+    if report.warnings:
+      print("Warnings:")
+      for warning in report.warnings:
+        print(f"- {warning}")
+  return 0
+
+
+if __name__ == "__main__":
+  raise SystemExit(main(sys.argv[1:]))

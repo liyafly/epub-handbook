@@ -11,9 +11,28 @@ from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import epub3_oneclick_converter as C  # noqa: E402
+from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
+
+
+def test_public_conversion_units_are_owned_by_focused_modules() -> None:
+  from epub3_conversion.converter import convert_epub
+  from epub3_conversion.models import ConversionReport
+  from epub3_conversion.navigation import ensure_nav
+  from epub3_conversion.notes import convert_plain_notes
+  from epub3_conversion.package import normalize_metadata
+  from epub3_conversion.xhtml import normalize_xhtml_shell
+
+  assert C.convert_epub is convert_epub
+  assert C.ConversionReport is ConversionReport
+  assert C.ensure_nav is ensure_nav
+  assert C.convert_plain_notes is convert_plain_notes
+  assert C.normalize_metadata is normalize_metadata
+  assert C.normalize_xhtml_shell is normalize_xhtml_shell
+  assert convert_epub.__module__ == "epub3_conversion.converter"
+  assert ConversionReport.__module__ == "epub3_conversion.models"
 
 
 def write_legacy_epub(
@@ -139,13 +158,11 @@ def write_legacy_epub(
     for xhtml_path in ("OEBPS/Text/cover.xhtml", "OEBPS/Text/chapter.xhtml"):
       files[xhtml_path] = files[xhtml_path].replace(' xml:lang="zh-CN"', "")
 
-  with zipfile.ZipFile(path, "w") as zf:
-    for name, data in files.items():
-      zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
-    zf.writestr("mimetype", b"application/epub+zip")
+  write_fixture_epub(path, files)
 
 
 def main() -> int:
+  test_public_conversion_units_are_owned_by_focused_modules()
   inline_only_paragraph_formatting_case()
   with TemporaryDirectory() as raw:
     source = Path(raw) / "legacy.epub"

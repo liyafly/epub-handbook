@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import warnings
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -24,6 +25,41 @@ def test_namespace_helpers() -> None:
 def test_path_helpers() -> None:
   assert E.norm_join("OEBPS/Text", "../Images/a.png") == "OEBPS/Images/a.png"
   assert E.rel_href("OEBPS/Text/chapter.xhtml", "OEBPS/Images/a.png") == "../Images/a.png"
+
+
+def test_safe_archive_and_uri_helpers() -> None:
+  assert E.validate_archive_path("OEBPS/Text/../Images/a.png", "member") == "OEBPS/Images/a.png"
+  for value in ("", "/absolute", "../escape", "OEBPS/../../escape"):
+    try:
+      E.validate_archive_path(value, "member")
+    except E.EpubLibError as exc:
+      assert "ZIP path" in str(exc)
+    else:
+      raise AssertionError(f"unsafe archive path must fail: {value!r}")
+  assert E.is_external_uri("https://example.com/a") is True
+  assert E.is_external_uri("//cdn.example.com/a") is True
+  assert E.is_external_uri("../Images/a.png") is False
+  assert E.resolve_relative_path("OEBPS/Text/ch.xhtml", "../Images/a%20b.png") == "OEBPS/Images/a b.png"
+  assert E.quote_archive_path("OEBPS/Images/a b.png") == "OEBPS/Images/a%20b.png"
+
+
+def test_find_child_and_safe_archive_reader() -> None:
+  root = E.parse_xml("<root><first/><wanted/></root>")
+  assert E.find_child(root, "wanted") is not None
+  assert E.find_child(root, "missing") is None
+  with TemporaryDirectory() as raw:
+    duplicate = Path(raw) / "duplicate.epub"
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore", UserWarning)
+      with zipfile.ZipFile(duplicate, "w") as zf:
+        zf.writestr("same", b"one")
+        zf.writestr("same", b"two")
+    try:
+      E.read_epub_archive(duplicate)
+    except E.EpubLibError as exc:
+      assert "duplicate ZIP member" in str(exc)
+    else:
+      raise AssertionError("duplicate ZIP member must fail")
 
 
 def test_split_props() -> None:
@@ -131,6 +167,8 @@ def test_write_epub_ignores_ds_store() -> None:
 def main() -> int:
   test_namespace_helpers()
   test_path_helpers()
+  test_safe_archive_and_uri_helpers()
+  test_find_child_and_safe_archive_reader()
   test_split_props()
   test_parse_xml()
   test_opf_helpers()

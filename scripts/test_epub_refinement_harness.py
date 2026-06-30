@@ -10,6 +10,8 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "epub_refinement_harness.py"
 
@@ -31,15 +33,15 @@ def write_fixture(path: Path) -> None:
   css = '''@font-face { font-family: BookFont; src: url('../Fonts/book.ttf'); }
 body { font-family: BookFont, Songti SC, serif, sans-serif, fantasy; line-height: 1.7; writing-mode: vertical-rl; }
 '''
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", "application/epub+zip")
-    zf.writestr("META-INF/container.xml", '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
-    zf.writestr("OEBPS/package.opf", opf)
-    zf.writestr("OEBPS/Text/c1.xhtml", xhtml)
-    zf.writestr("OEBPS/Styles/main.css", css)
-    zf.writestr("OEBPS/Images/risky.webp", b"webp")
-    zf.writestr("OEBPS/Fonts/book.ttf", b"font")
-    zf.writestr("OEBPS/toc.ncx", '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap/></ncx>')
+  write_fixture_epub(path, {
+    "META-INF/container.xml": '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+    "OEBPS/package.opf": opf,
+    "OEBPS/Text/c1.xhtml": xhtml,
+    "OEBPS/Styles/main.css": css,
+    "OEBPS/Images/risky.webp": b"webp",
+    "OEBPS/Fonts/book.ttf": b"font",
+    "OEBPS/toc.ncx": '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap/></ncx>',
+  })
 
 
 def main() -> int:
@@ -65,6 +67,11 @@ def main() -> int:
     missing = expected - rec_ids
     if missing:
       raise AssertionError(f"refinement recommendations missing {sorted(missing)}: {data}")
+    migration = next(item for item in data["recommendations"] if item["id"] == "epub3-migration")
+    if "$epub3-migrator" not in migration["skills"]:
+      raise AssertionError(f"migration recommendation missing concrete skill: {migration}")
+    if not any("epub3_migration_apply_harness.py" in command for command in migration["commands"]):
+      raise AssertionError(f"migration recommendation missing apply harness: {migration}")
 
   print("epub refinement harness tests ok")
   return 0

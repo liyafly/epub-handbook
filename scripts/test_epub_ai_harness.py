@@ -10,6 +10,8 @@ import zipfile
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
+from test_support.epub_fixture import write_epub as write_fixture_epub
+
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "scripts" / "epub_ai_harness.py"
@@ -37,6 +39,7 @@ def validate_demo_route() -> int:
     print(json.dumps(data, ensure_ascii=False, indent=2), file=sys.stderr)
     return returncode
   expected_skills = {
+    "$epub-content-analyzer",
     "$epub-popup-footnote-converter",
     "$epub-vertical-ruby-optimizer",
     "$epub-css-layering-optimizer",
@@ -78,6 +81,46 @@ def validate_demo_route() -> int:
     return 1
 
   print("epub_ai_harness smoke test ok")
+  return 0
+
+
+def validate_text_source_routes_content_analysis() -> int:
+  with TemporaryDirectory() as tmp:
+    source = Path(tmp) / "chapter.txt"
+    source.write_text("这是普通正文段落，后续需要判断结构角色。", encoding="utf-8")
+    returncode, data = run_harness(source)
+  if returncode:
+    print(json.dumps(data, ensure_ascii=False, indent=2), file=sys.stderr)
+    return returncode
+  if "$epub-content-analyzer" not in data.get("recommended_skills", []):
+    print(f"ERROR: text source should recommend content analyzer: {data}", file=sys.stderr)
+    return 1
+  if not any("epub_content_analyzer.py" in command for command in data.get("suggested_commands", [])):
+    print(f"ERROR: text source should suggest content analyzer command: {data}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness text content analysis route ok")
+  return 0
+
+
+def validate_focused_ai_modules_own_public_units() -> int:
+  import epub_ai_harness as H
+  from epub_ai.detectors import collect_actionable_findings, detector
+  from epub_ai.model import EpubModel, build_model
+  from epub_ai.report import Report, render_markdown
+  from epub_ai.routing import inspect_path
+
+  assert H.EpubModel is EpubModel
+  assert H.build_model is build_model
+  assert H.detector is detector
+  assert H.collect_actionable_findings is collect_actionable_findings
+  assert H.Report is Report
+  assert H.render_markdown is render_markdown
+  assert H.inspect_path is inspect_path
+  assert detector.__module__ == "epub_ai.detectors"
+  assert build_model.__module__ == "epub_ai.model"
+  assert render_markdown.__module__ == "epub_ai.report"
+  assert inspect_path.__module__ == "epub_ai.routing"
+  print("epub_ai_harness focused module ownership ok")
   return 0
 
 
@@ -223,8 +266,9 @@ def validate_obfuscated_filename_detection() -> int:
 
 
 def _make_min_epub(path: str, body: str, *, with_html_lang: bool = False,
-                   with_math: bool = False, calibre_class: str | None = None) -> str:
-  """Create a minimal EPUB 3 zip and return its path."""
+                   with_math: bool = False, calibre_class: str | None = None,
+                   package_version: str = "3.0") -> str:
+  """Create a minimal EPUB zip and return its path."""
   lang_attr = ' xml:lang="zh-CN"' if with_html_lang else ""
   body_class = f' class="{calibre_class}"' if calibre_class else ""
   maybe_math = (
@@ -241,7 +285,7 @@ def _make_min_epub(path: str, body: str, *, with_html_lang: bool = False,
   )
   opf = (
       '<?xml version="1.0" encoding="UTF-8"?>'
-      '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">'
+      f'<package xmlns="http://www.idpf.org/2007/opf" version="{package_version}" unique-identifier="book-id">'
       '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
       '    <dc:identifier id="book-id">urn:uuid:test-harness-detector-01</dc:identifier>'
       '    <dc:title>Detector Fixture</dc:title>'
@@ -269,12 +313,12 @@ def _make_min_epub(path: str, body: str, *, with_html_lang: bool = False,
       '><head><title>Chapter</title></head>'
       '<body><p' + body_class + '>正文内容测试</p>' + maybe_math + '</body></html>'
   )
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
-    zf.writestr("META-INF/container.xml", container)
-    zf.writestr("OEBPS/content.opf", opf)
-    zf.writestr("OEBPS/nav.xhtml", nav)
-    zf.writestr("OEBPS/chapter.xhtml", chapter)
+  write_fixture_epub(Path(path), {
+    "META-INF/container.xml": container,
+    "OEBPS/content.opf": opf,
+    "OEBPS/nav.xhtml": nav,
+    "OEBPS/chapter.xhtml": chapter,
+  })
   return path
 
 
@@ -307,6 +351,30 @@ def validate_actionable_findings_present() -> int:
     print(f"ERROR: missing file/params in finding: {one}", file=sys.stderr)
     return 1
   print("epub_ai_harness actionable_findings smoke test ok")
+  return 0
+
+
+def validate_epub2_routes_to_concrete_migrator() -> int:
+  with TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    path = _make_min_epub(
+      str(root / "epub2.epub"),
+      "正文",
+      with_html_lang=True,
+      package_version="2.0",
+    )
+    returncode, data = run_harness(Path(path))
+  if returncode:
+    print(f"ERROR: harness should inspect EPUB2 fixture: {data}", file=sys.stderr)
+    return 1
+  if "$epub3-migrator" not in data.get("recommended_skills", []):
+    print(f"ERROR: EPUB2 route missing concrete migrator skill: {data}", file=sys.stderr)
+    return 1
+  commands = data.get("suggested_commands", [])
+  if not any("epub3_migration_apply_harness.py" in command for command in commands):
+    print(f"ERROR: EPUB2 route missing apply harness: {commands}", file=sys.stderr)
+    return 1
+  print("epub_ai_harness EPUB2 migration route ok")
   return 0
 
 
@@ -406,17 +474,22 @@ def validate_detector_exception_warning() -> int:
 
 
 def main() -> int:
+  code = validate_focused_ai_modules_own_public_units()
+  if code:
+    return code
   for check in (
     validate_demo_route,
     validate_missing_css_url_detection,
     validate_missing_css_font_url_warning,
     validate_obfuscated_filename_detection,
+    validate_epub2_routes_to_concrete_migrator,
     validate_actionable_findings_present,
     validate_detector_idempotent,
     validate_registry_lists_detectors,
     validate_missing_manifest_properties_detector,
     validate_obfuscated_class_detector,
     validate_detector_exception_warning,
+    validate_text_source_routes_content_analysis,
   ):
     result = check()
     if result:

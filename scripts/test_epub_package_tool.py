@@ -19,6 +19,37 @@ from epub_package_tool import (  # noqa: E402
 )
 
 
+def test_public_operations_are_owned_by_focused_modules() -> None:
+  from epub_package.cover import replace_cover as focused_cover
+  from epub_package.merge import merge_epubs as focused_merge
+  from epub_package.metadata import read_metadata as focused_read_metadata
+  from epub_package.metadata import write_metadata as focused_write_metadata
+  from epub_package.split import split_epub as focused_split
+
+  assert merge_epubs is focused_merge
+  assert split_epub is focused_split
+  assert read_metadata is focused_read_metadata
+  assert write_metadata is focused_write_metadata
+  assert replace_cover is focused_cover
+  assert merge_epubs.__module__ == "epub_package.merge"
+  assert split_epub.__module__ == "epub_package.split"
+  assert read_metadata.__module__ == "epub_package.metadata"
+  assert write_metadata.__module__ == "epub_package.metadata"
+  assert replace_cover.__module__ == "epub_package.cover"
+
+
+def test_package_subsystems_are_owned_by_focused_modules() -> None:
+  from epub_package.navigation import build_nav, parse_toc
+  from epub_package.package_io import read_package, write_epub
+  from epub_package.references import transform_resource
+
+  assert read_package.__module__ == "epub_package.package_io"
+  assert write_epub.__module__ == "epub_package.package_io"
+  assert transform_resource.__module__ == "epub_package.references"
+  assert parse_toc.__module__ == "epub_package.navigation"
+  assert build_nav.__module__ == "epub_package.navigation"
+
+
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf", "dc": "http://purl.org/dc/elements/1.1/"}
 
 
@@ -312,6 +343,8 @@ def test_replace_cover_resizes_svg_cover_page_to_new_image_dimensions(root: Path
 
 
 def main() -> int:
+  test_public_operations_are_owned_by_focused_modules()
+  test_package_subsystems_are_owned_by_focused_modules()
   with TemporaryDirectory() as raw:
     root = Path(raw)
     test_merge_epubs_rewrites_conflicting_resources_and_combines_toc(root)

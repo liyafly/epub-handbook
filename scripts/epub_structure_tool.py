@@ -27,8 +27,19 @@ import tempfile
 import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from urllib.parse import quote, unquote, urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
+
+from epub_lib import (
+  EpubLibError,
+  find_child,
+  is_external_uri,
+  local_name,
+  quote_archive_path,
+  read_epub_archive,
+  resolve_relative_path as _resolve_relative_path,
+  validate_archive_path as _validate_archive_path,
+)
 
 
 CONTAINER_URI = "urn:oasis:names:tc:opendocument:xmlns:container"
@@ -120,37 +131,18 @@ class Package:
   resources: list[ManifestResource]
 
 
-def local_name(tag: object) -> str:
-  if not isinstance(tag, str):
-    return ""
-  return tag.rsplit("}", 1)[-1]
-
-
 def validate_archive_path(name: str, label: str) -> str:
-  if not name or name.startswith("/"):
-    raise StructureToolError(f"{label}: invalid absolute or empty ZIP path: {name!r}")
-  normalized = posixpath.normpath(name)
-  if normalized == ".." or normalized.startswith("../"):
-    raise StructureToolError(f"{label}: ZIP path escapes archive root: {name!r}")
-  return normalized
+  try:
+    return _validate_archive_path(name, label)
+  except EpubLibError as exc:
+    raise StructureToolError(str(exc)) from exc
 
 
 def read_archive(path: Path) -> tuple[dict[str, bytes], list[str]]:
   try:
-    with zipfile.ZipFile(path) as zf:
-      files: dict[str, bytes] = {}
-      order: list[str] = []
-      for info in zf.infolist():
-        if info.is_dir():
-          continue
-        name = validate_archive_path(info.filename, "archive member")
-        if name in files:
-          raise StructureToolError(f"duplicate ZIP member: {name}")
-        files[name] = zf.read(info.filename)
-        order.append(name)
-  except zipfile.BadZipFile as exc:
-    raise StructureToolError(f"not a readable EPUB ZIP: {path}") from exc
-  return files, order
+    return read_epub_archive(path)
+  except EpubLibError as exc:
+    raise StructureToolError(str(exc)) from exc
 
 
 def parse_xml(data: bytes, label: str) -> ET.Element:
@@ -160,24 +152,15 @@ def parse_xml(data: bytes, label: str) -> ET.Element:
     raise StructureToolError(f"{label}: XML parse failed: {exc}") from exc
 
 
-def find_child(root: ET.Element, wanted: str) -> ET.Element | None:
-  for child in root:
-    if local_name(child.tag) == wanted:
-      return child
-  return None
-
-
 def resolve_relative_path(base_file: str, uri_path: str) -> str:
-  decoded = unquote(uri_path)
-  return validate_archive_path(posixpath.join(posixpath.dirname(base_file), decoded), "resource href")
+  try:
+    return _resolve_relative_path(base_file, uri_path)
+  except EpubLibError as exc:
+    raise StructureToolError(str(exc)) from exc
 
 
 def resolve_root_path(uri_path: str) -> str:
   return validate_archive_path(unquote(uri_path).lstrip("/"), "encryption URI")
-
-
-def is_external_uri(uri: str) -> bool:
-  return bool(urlsplit(uri).scheme) or uri.startswith(("/", "//"))
 
 
 def read_package(files: dict[str, bytes]) -> Package:
@@ -375,10 +358,6 @@ def validate_encryption(
       f"and allows standard EPUB font obfuscation. Refusing to rewrite: {sample}"
     )
   report.font_obfuscation_resources = len(records) - report.removed_stale_encryption_resources
-
-
-def quote_archive_path(value: str) -> str:
-  return quote(value, safe="/:@-._~")
 
 
 def relative_uri(from_archive_path: str, to_archive_path: str) -> str:

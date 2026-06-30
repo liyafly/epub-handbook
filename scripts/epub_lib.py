@@ -11,6 +11,7 @@ import posixpath
 import re
 import zipfile
 from pathlib import Path
+from urllib.parse import quote, unquote, urlsplit
 from xml.etree import ElementTree as ET
 
 
@@ -69,6 +70,31 @@ def norm_join(base: str, href: str) -> str:
   return posixpath.normpath(posixpath.join(base, clean))
 
 
+def validate_archive_path(name: str, label: str) -> str:
+  if not name or name.startswith("/"):
+    raise EpubLibError(f"{label}: invalid absolute or empty ZIP path: {name!r}")
+  normalized = posixpath.normpath(name)
+  if normalized == ".." or normalized.startswith("../"):
+    raise EpubLibError(f"{label}: ZIP path escapes archive root: {name!r}")
+  return normalized
+
+
+def quote_archive_path(value: str) -> str:
+  return quote(value, safe="/:@-._~")
+
+
+def is_external_uri(uri: str) -> bool:
+  return bool(urlsplit(uri).scheme) or uri.startswith(("/", "//"))
+
+
+def resolve_relative_path(base_file: str, uri_path: str) -> str:
+  decoded = unquote(uri_path)
+  return validate_archive_path(
+    posixpath.join(posixpath.dirname(base_file), decoded),
+    "resource href",
+  )
+
+
 def rel_href(from_zip_path: str, to_zip_path: str) -> str:
   base = posixpath.dirname(from_zip_path)
   return posixpath.relpath(to_zip_path, base) if base else to_zip_path
@@ -80,6 +106,10 @@ def is_macos_metadata_path(name: str) -> bool:
 
 def split_props(value: str | None) -> list[str]:
   return [part for part in (value or "").split() if part]
+
+
+def find_child(root: ET.Element, wanted: str) -> ET.Element | None:
+  return next((child for child in root if local_name(child.tag) == wanted), None)
 
 
 def manifest(root: ET.Element) -> ET.Element:
@@ -120,13 +150,28 @@ def ensure_stylesheet_link(text: str, href: str) -> tuple[str, bool]:
   return updated, bool(count)
 
 
-def read_epub_files(input_path: Path) -> tuple[dict[str, bytes], list[str]]:
+def read_epub_archive(input_path: Path) -> tuple[dict[str, bytes], list[str]]:
   try:
     with zipfile.ZipFile(input_path) as zf:
-      order = [name for name in zf.namelist() if not is_macos_metadata_path(name)]
-      return {name: zf.read(name) for name in order}, order
+      files: dict[str, bytes] = {}
+      order: list[str] = []
+      for info in zf.infolist():
+        if info.is_dir():
+          continue
+        name = validate_archive_path(info.filename, "archive member")
+        if name in files:
+          raise EpubLibError(f"duplicate ZIP member: {name}")
+        files[name] = zf.read(info.filename)
+        order.append(name)
+      return files, order
   except zipfile.BadZipFile as exc:
     raise EpubLibError(f"not a valid EPUB zip: {input_path}") from exc
+
+
+def read_epub_files(input_path: Path) -> tuple[dict[str, bytes], list[str]]:
+  files, order = read_epub_archive(input_path)
+  clean_order = [name for name in order if not is_macos_metadata_path(name)]
+  return {name: files[name] for name in clean_order}, clean_order
 
 
 def opf_path_from_container(files: dict[str, bytes]) -> str:

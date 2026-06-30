@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from epub_anthology_refinement import RefinementError, refine_anthology  # noqa: E402
+from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 
 OPF_NS = {"opf": "http://www.idpf.org/2007/opf"}
@@ -89,10 +90,7 @@ def write_epub(path: Path) -> None:
     "OEBPS/Images/poster1.jpg": b"jpeg1",
     "OEBPS/Images/poster2.jpg": b"jpeg2",
   }
-  with zipfile.ZipFile(path, "w") as zf:
-    zf.writestr("mimetype", b"application/epub+zip", compress_type=zipfile.ZIP_STORED)
-    for name, data in files.items():
-      zf.writestr(name, data.encode("utf-8") if isinstance(data, str) else data)
+  write_fixture_epub(path, files)
 
 
 def visible_text(value: str) -> str:
