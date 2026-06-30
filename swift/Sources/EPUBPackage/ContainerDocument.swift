@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 import EPUBArchive
 
 public enum PackageParseError: Error, Equatable, Sendable {

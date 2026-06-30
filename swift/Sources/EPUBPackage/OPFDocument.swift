@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 
 public enum OPFParseError: Error, Equatable, Sendable {
     case malformedXML

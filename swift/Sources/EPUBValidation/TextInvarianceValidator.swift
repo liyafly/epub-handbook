@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 import EPUBArchive
 
 public enum TextInvarianceCheck: String, CaseIterable, Codable, Sendable {
