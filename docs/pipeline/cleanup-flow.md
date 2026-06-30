@@ -23,7 +23,7 @@ python3 scripts/epub_cleanup_pipeline.py \
   --work-dir work/book-a
 ```
 
-它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、metadata / DRM / anchors 红线子集校验、独立正文文本 gate、精排建议和 AI findings。人工 diff review、文本角色 class 分派和阅读器实测仍必须继续执行。
+它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、metadata / DRM / anchors 红线子集校验、独立正文文本 gate、精排建议、文本结构角色分析和 AI findings。人工 diff review、文本角色 class 写入和阅读器实测仍必须继续执行。
 
 默认只落盘 `reports/pipeline.json` 汇总报告，步骤 stdout/stderr 会保留在该 JSON 中。排障或需要逐项归档时加 `--keep-step-reports`，再额外写出 preflight、conversion、popup、redline、refinement 和 findings 分步报告。结构规范化的 dry-run/apply JSON 始终单独保留，因为前者需要 review，后者还要传给 `validate_text_invariance.py --path-map`。
 
@@ -122,11 +122,15 @@ test -f "$BASE" || BASE=work/before/source.epub
 
 python3 scripts/epub3_migration_harness.py \
   "$BASE" \
-  --write-output work/after/step-1-epub3.epub \
-  --format json > work/epub3-migration.json
+  --format json > work/epub3-migration-plan.json
+
+python3 scripts/epub3_migration_apply_harness.py \
+  "$BASE" \
+  --output work/after/step-1-epub3.epub \
+  --format json > work/epub3-migration-apply.json
 ```
 
-迁移 harness 只做 package 层保守变更：OPF `version="3.0"`、`dcterms:modified`、必要时生成 `nav.xhtml` 并加入 manifest。它保留 `toc.ncx` 和 `spine toc="ncx"`，不改正文 XHTML。
+迁移 plan 先列出 package/nav 变更；apply harness 再调用分层 converter，处理 package、XHTML shell、已识别弹注和可选基础排版。它保留 `toc.ncx` 与 `spine toc="ncx"`，不改正文文字；实际计数以 apply 报告的 `conversion` 字段为准。
 
 迁移后立刻跑红线：
 

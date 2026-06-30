@@ -104,17 +104,15 @@ scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artif
 
 本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
 
-调用示例：
+代理协议示例（注释说明代理动作，不是独立 shell 命令）：
 
 ```sh
-# 预览
-<skill-invocation> work/before/source.epub > work/dry-run.json
+# 代理调用当前 skill，并将 dry-run JSON 写入 work/dry-run.json
 
-# 审查
+# 人工审查
 cat work/dry-run.json | jq
 
-# 确认后执行
-<skill-invocation> --commit work/before/source.epub
+# 用户确认后，由映射 provider 写出新的 EPUB 产物
 ```
 
 dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。

@@ -16,7 +16,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 - 默认 `font-family` 链最多 4 段：Apple、Windows、Android/开源 CJK、generic。
 - 默认不把嵌入字体放进 `body` / `h*`；唯一例外是含生僻字且使用全字符集字体的 C1-body 路径。
 - 生僻字子集使用 `.rare` 等专用类。
-- 设计字体使用 `.title-special`、`.signature` 等专用类。
+- 设计字体使用 `.title-tszt`、`.signature-tszt` 等专用类。
 - `ibooks:specified-fonts` 仅当正文锁定（`body-font-locked`）时写入 OPF；自由模式（默认）不加。嵌入字体通过专用类使用不需要此 meta。
 
 ## 字体链模式
@@ -39,7 +39,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 除非 fontspec 要求 `forceAll`，嵌入字体只通过显式类使用：
 
 ```css
-.title-special {
+.title-tszt {
   font-family: "tszt-title", serif;
 }
 
@@ -98,7 +98,7 @@ body {
 
 - 不把版权字体放进模板或示例。
 - 不把多个嵌入字体塞进默认链来解决生僻字。
-- 新建字体 alias、文件名与 class 遵循 `docs/final/字体别名命名规范.md`；不使用 `Book*`、`RareSong*` 或 `.book-*` 命名。
+- 新建字体 alias、文件名与 class 遵循 `docs/final/字体别名命名规范.md`；不另造书名型、品牌型或重复角色名。
 - 不把子集字库挂到 `body` / `h*`。
 - 有稳定英文 family/PostScript 名时，不依赖中文字体显示名。
 - 不删除 generic fallback。
@@ -123,17 +123,15 @@ scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artif
 
 本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
 
-调用示例：
+代理协议示例（注释说明代理动作，不是独立 shell 命令）：
 
 ```sh
-# 预览
-<skill-invocation> work/before/source.epub > work/dry-run.json
+# 代理调用当前 skill，并将 dry-run JSON 写入 work/dry-run.json
 
-# 审查
+# 人工审查
 cat work/dry-run.json | jq
 
-# 确认后执行
-<skill-invocation> --commit work/before/source.epub
+# 用户确认后，由映射 provider 写出新的 EPUB 产物
 ```
 
 dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。

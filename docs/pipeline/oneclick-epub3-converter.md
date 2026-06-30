@@ -2,7 +2,9 @@
 
 > 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
 > 流水线入口：`scripts/epub_cleanup_pipeline.py`
-> 底层变换器：`scripts/epub3_oneclick_converter.py`
+> 迁移 plan/apply：`scripts/epub3_migration_harness.py` + `scripts/epub3_migration_apply_harness.py`
+> 对应 skill：`$epub3-migrator`
+> 兼容变换器入口：`scripts/epub3_oneclick_converter.py`
 
 ## 适用范围
 
@@ -19,6 +21,23 @@
 - 正文改写。
 - 图片压缩或转码。
 - 字体内嵌。脚本只写多字体使用规则，不打包字体。
+
+## 只做 EPUB3 迁移
+
+不需要完整清洗工作目录时，先生成只读计划，再显式写出新文件：
+
+```sh
+python3 scripts/epub3_migration_harness.py \
+  input.epub \
+  --format json > migration-plan.json
+
+python3 scripts/epub3_migration_apply_harness.py \
+  input.epub \
+  --output migrated.epub \
+  --format json > migration-apply.json
+```
+
+apply harness 拒绝覆盖已有输出，并在报告中保留 before/after SHA-256 与底层转换明细。旧 `epub3_migration_harness.py --write-output` 继续兼容，但新流程使用 plan/apply 分离入口。
 
 ## 一条命令
 
@@ -250,9 +269,9 @@ mkdir -p work/book-a/after/kindle-preview-output
 - 真实书名、作者、ISBN、ASIN、水印、私有 metadata。
 - Kindle Previewer 生成的完整临时路径日志，除非已替换成本地占位路径。
 
-## 只调用底层变换器
+## 兼容底层变换器入口
 
-只有在上层已经完成 before 备份、preflight 和审计记录时，才直接调用底层脚本：
+只有在上层已经完成 before 备份、preflight 和审计记录，并且需要兼容旧自动化时，才直接调用旧入口：
 
 ```sh
 python3 scripts/epub3_oneclick_converter.py \
@@ -260,3 +279,5 @@ python3 scripts/epub3_oneclick_converter.py \
   --output work/after/cleaned.epub \
   --format json > work/after/cleaned.report.json
 ```
+
+实现已按 package、navigation、XHTML、notes 与 converter orchestration 拆到 `scripts/epub3_conversion/`；旧脚本只保留 CLI 与 import 兼容表面。

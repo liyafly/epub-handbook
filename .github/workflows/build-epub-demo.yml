@@ -95,6 +95,7 @@ jobs:
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
           python3 scripts/validate_skills_basic.py
+          python3 scripts/validate_docs_consistency.py
           for test_file in scripts/test_*.py; do
             python3 "$test_file"
           done

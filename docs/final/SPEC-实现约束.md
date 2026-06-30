@@ -192,7 +192,7 @@
     按书内实际用字裁切但不再做子集压缩）；子集字库（如 `tszt-rare`）禁止走本路径，
     必须改用模式 B `.rare` 类；
   - OPF manifest 声明对应字体 item；
-  - `fontspec` 切到 `forceAll`（参考 fonts-css-expansion-plan §5）；
+  - `fontspec` 切到 `forceAll`；
   - body / h* 链仍 ≤ 5 段，嵌入字体在第 1 位且只出现 1 次，其后 3 段系统字体，
     链尾 generic family；
   - 示例：`body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。

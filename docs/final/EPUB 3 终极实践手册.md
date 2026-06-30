@@ -262,7 +262,7 @@ body {
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  /* 自由模式默认不设 font-family；锁定模式使用 fonts.css 的 .body-font-locked */
 }
 
 p {

@@ -9,6 +9,7 @@ changed=$(git diff --cached --name-only)
 git diff --check --cached
 python3 scripts/validate_ai_entrypoints.py
 python3 scripts/validate_skills_basic.py
+python3 scripts/validate_docs_consistency.py
 python3 scripts/test_epub_ai_harness.py
 
 if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|scripts/validate_|scripts/epub_ai_harness.py|scripts/test_epub_ai_harness.py|docs/final/)'; then

@@ -58,16 +58,16 @@
 
 ```css
 .english-body {
-  font-family: "BookSerif", Georgia, "Times New Roman", serif;
+  font-family: "en", Georgia, "Times New Roman", serif;
 }
 
 .smallcaps {
-  font-family: "BookSerifSC", Georgia, serif;
+  font-family: "tszt-smallcaps", Georgia, serif;
   font-variant: small-caps;
 }
 
 .handwritten-note {
-  font-family: "BookHand", "Bradley Hand", cursive;
+  font-family: "tszt-sign", "Bradley Hand", cursive;
 }
 ```
 

@@ -1,11 +1,12 @@
 # EPUB 包操作工具
 
 > 状态：流程文档；用于 EPUB 合并、按目录拆分、元数据编辑和封面替换。
-> 对应工具：`scripts/epub_package_tool.py`。
+> 推荐入口：四个单能力 harness；兼容入口：`scripts/epub_package_tool.py`。
+> 对应 skill：`$epub-package-operator`。
 
 ## 适用范围
 
-`scripts/epub_package_tool.py` 借鉴 `epub-gadget` 中合并 / 拆分、封面和元数据编辑的实用思路，但实现保持本仓约束：
+package operations 借鉴 `epub-gadget` 中合并 / 拆分、封面和元数据编辑的实用思路，但实现保持本仓约束：
 
 - 只使用 Python 标准库。
 - 不原地覆盖输入 EPUB。
@@ -16,13 +17,22 @@
 
 ## 单任务直接运行
 
-可以。这个工具按子命令拆分能力，每次只做一个明确工作：
+每个写操作有独立 harness，要求显式输出并拒绝覆盖已有产物：
+
+| 能力 | 推荐入口 |
+| --- | --- |
+| 合并多本 EPUB | `python3 scripts/epub_package_merge_harness.py <a.epub> <b.epub> --output <merged.epub>` |
+| 按目录索引拆分 EPUB | `python3 scripts/epub_package_split_harness.py <book.epub> --output-dir <dir> --split-points <indices>` |
+| 写入元数据 | `python3 scripts/epub_metadata_edit_harness.py <book.epub> --output <out.epub> --metadata-json '<object>'` |
+| 替换封面 | `python3 scripts/epub_cover_replace_harness.py <book.epub> --output <out.epub> --cover <image>` |
+
+读取元数据和列出拆分点仍走兼容 CLI；旧写入子命令也继续可用：
 
 ```sh
 python3 scripts/epub_package_tool.py --help
 ```
 
-常用入口：
+兼容子命令：
 
 | 目标 | 子命令 |
 | --- | --- |
@@ -43,6 +53,8 @@ python3 scripts/epub_package_tool.py merge \
   --output merged.epub \
   --title "合集标题" > merged.report.json
 ```
+
+新流程优先使用等价的 `epub_package_merge_harness.py`；上面的命令保留给已有自动化。
 
 合并时会：
 
@@ -78,6 +90,8 @@ python3 scripts/epub_package_tool.py split \
   --output-dir split-out \
   --split-points 0,12,30 > split.report.json
 ```
+
+新流程优先使用 `epub_package_split_harness.py`，它会在输出目录非空时停止。
 
 `--split-points` 使用 `split-targets` 返回数组的索引。每个索引是一个新分册的开始位置，输出文件命名为 `<原文件名>_01.epub`、`<原文件名>_02.epub`。
 
@@ -115,6 +129,8 @@ python3 scripts/epub_package_tool.py metadata-write \
   > metadata-write.report.json
 ```
 
+新流程优先使用 `epub_metadata_edit_harness.py`；读取仍使用 `metadata-read`。
+
 支持字段：
 
 - `title`
@@ -142,6 +158,8 @@ python3 scripts/epub_package_tool.py replace-cover \
   --output book-cover.epub \
   --cover cover.png > cover.report.json
 ```
+
+新流程优先使用 `epub_cover_replace_harness.py`。
 
 封面替换会：
 

@@ -25,11 +25,29 @@ python3 scripts/epub_handbook_cli.py catalog --format json
 python3 scripts/epub_handbook_cli.py run epub.package.nav.audit \
   --input /absolute/path/book.epub \
   --result /absolute/path/result.json --format json
+
+python3 scripts/epub_handbook_cli.py run epub.text.content.analyze \
+  --input /absolute/path/book.epub \
+  --result /absolute/path/content-analysis.json --format json
+
+python3 scripts/epub_handbook_cli.py run epub.font.coverage.analyze \
+  --input /absolute/path/book.epub \
+  --result /absolute/path/font-coverage.json --format json
 ```
 
 `catalog` 投影全部 manifest capability；`run` 只执行
 `python/provider-catalog.v1.json` 中已 allow-list 的 Python provider。未接管的
 capability 会返回 JSON 失败对象和非零退出码，不能根据 catalog 猜测脚本路径。
+
+合并、拆分、元数据、封面和 EPUB3 迁移是写操作，需要多个输入或额外参数，不能安全映射到通用 provider 的单 artifact request。它们登记在 `python/public-entrypoints.v1.json`，由以下具体 harness 执行，不加入 `provider-catalog.v1.json`：
+
+- `scripts/epub_package_merge_harness.py`
+- `scripts/epub_package_split_harness.py`
+- `scripts/epub_metadata_edit_harness.py`
+- `scripts/epub_cover_replace_harness.py`
+- `scripts/epub3_migration_apply_harness.py`
+
+这五个入口都要求显式新输出位置；是否登记 capability 与是否可由通用 provider 执行是两件独立的事。
 
 Swift 的独立原生 CLI 是 `swift run epub-handbook-swift`，仅暴露已完成双跑的
 `inspect`、`validate-redlines` 与 `epub.notes.popup.normalize`。它不调用上面的

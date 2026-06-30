@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-06-18
+updated_at: 2026-06-28
 owner: epub-handbook
 
 lanes:
@@ -124,14 +124,10 @@ retest_priorities:
     readers: [kindle_previewer]
     focus: "用当前构建产物复测封面声明，确认旧 W14016 不再复现。"
   - rank: 2
-    case: 00-cover-metadata
-    readers: [kindle_previewer]
-    focus: "用当前构建产物复测封面声明，确认旧 W14016 不再复现。"
-  - rank: 3
     case: 09-kindle-risk
     readers: [kindle_previewer]
     focus: "用当前构建产物复测完整 demo 可打开性，若仍失败再按页面级 CSS / Ruby / footnote / A-lite 二分。"
-  - rank: 4
+  - rank: 3
     case: 17-image-layout
     readers: [kindle_previewer, readest]
     focus: "复测 figure.img-left/right 主路径、25%–35% 宽度区间、短段反例与大字号回归。"

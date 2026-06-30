@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generic SPEC-rule linter for any EPUB (stdlib only).
 
-Rules map to docs/final/SPEC-实现约束.md clauses; see rule table in
-docs/plans/2026-06-12-lint-and-quickstart-plan.md 附录 A.
+Rules map directly to clauses in docs/final/SPEC-实现约束.md.
 Complements scripts/validate_epub_style_demo.py (demo-fixture-only checks).
 """
 

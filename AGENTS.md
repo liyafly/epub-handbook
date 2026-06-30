@@ -109,6 +109,7 @@ Python 与 Swift **按 capability 并存，不默认删除 Python**：
 | 任意改动 | `git diff --check` |
 | AI 入口或维护文档 | `python3 scripts/validate_ai_entrypoints.py` |
 | skills | `python3 scripts/validate_skills_basic.py` |
+| 文档、skills、模板或字体规则同步 | `python3 scripts/validate_docs_consistency.py` |
 | Python 脚本 | 对应的 `scripts/test_*.py`；必要时 `python3 -m py_compile <files>` |
 | 已有 EPUB 清洗 | preflight、结构规范化 dry-run 或跳过理由、`validate_text_invariance.py`、人工 diff review |
 | demo、validator 或 `docs/final/` | build demo、`scripts/validate-epub-style-demo.sh --epub <artifact>`、`scripts/validate-popup-notes.sh --epub <artifact>` |

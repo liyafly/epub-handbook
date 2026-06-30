@@ -3,7 +3,7 @@
 /* ============================================================
  * fonts.css —— 字体声明与字体工具类
  *
- * 仅放：@font-face、字体工具类（.body-font-locked / .rare / .title-special 等）。
+ * 仅放：@font-face、字体工具类（.body-font-locked / .rare / .title-tszt 等）。
  * 不放：排版、颜色、分页、布局（这些在 base.css / poster.css）。
  *
  * 策略：
@@ -12,7 +12,7 @@
  *      <meta property="ibooks:specified-fonts">true</meta>。
  *   2. 标题、引用、等宽等语义元素使用系统字体链（≤ 4 段）。
  *   3. 嵌入字体只用于：(a) 大量生僻字；(b) 设计必须特定字体；(c) 二者同时存在。
- *   4. 嵌入字体单独挂专用类（.rare / .title-special / .book-*-deluxe …），
+ *   4. 嵌入字体单独挂专用类（.rare / .title-tszt / .signature-tszt 等），
  *      按场景选模式 A / B / C：
  *        - 模式 A 设计专用：链 ≤ 2 段，嵌入 + generic；
  *        - 模式 B 生僻字专用：链 ≤ 2 段，嵌入 + generic；
@@ -140,7 +140,7 @@
  * 这一组类**不依赖** @font-face，可以直接挂在 XHTML 上。base.css 的 body /
  * 标题 / 等宽规则也建议直接使用同等结构的链（详见 base.css）。
  *
- * 没有 .rare / .title-special / .signature 需求的书，整本书只需要这一组类。
+ * 没有 .rare / .title-tszt / .signature-tszt 需求的书，整本书只需要这一组类。
  *
  * 链组装原则：每条链 **≤ 4 段**，覆盖
  *   Apple（macOS / iOS / Apple Books）→ Windows → Android / 开源 → generic family。
@@ -193,19 +193,19 @@
 /* ---------- 三 B、嵌入字体专用类（按 §1 模式 A / B / C 选用） ----------
  *
  * 只在有嵌入字体 (@font-face 已取消注释) 且 OPF manifest 已加 font item 时，
- * 才取消下面对应类的注释。（嵌入字体启用后，OPF 需同步加
- * ibooks:specified-fonts=true，规则见 SPEC §8。）
+ * 才取消下面对应类的注释。专用类使用嵌入字体不需要
+ * ibooks:specified-fonts；只有正文锁定时才添加该 meta，规则见 SPEC §8。
  */
 
 /* —— 模式 A：设计字体专用（≤ 2 段，嵌入 + generic） ——
  * 卷头题字 / 题签 / 签名档：必须呈现设计字形；链里不挂任何系统字体。
  */
 /*
-.title-special {
+.title-tszt {
   font-family: "tszt-title", serif;
 }
 
-.signature {
+.signature-tszt {
   font-family: "tszt-sign", serif;
 }
 */

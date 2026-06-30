@@ -9,7 +9,7 @@
 CSS `font-family` 是一个有序列表（字体链）：
 
 ```css
-body { font-family: "BookSongFull", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }
+body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }
 ```
 
 符合规范的引擎（WebKit/Blink）做**逐字形回退**：对**每一个字符**，从链首往后找第一个能提供该字形的字体。一个字由链首渲染，另一个字由链尾渲染——这是正常且预期的。
