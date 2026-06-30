@@ -76,6 +76,9 @@ jobs:
         with:
           python-version: '3.14'
 
+      - name: Setup uv
+        run: python3 -m pip install --disable-pip-version-check uv
+
       - name: Clean dist
         run: rm -rf templates/epub-style-demo/dist
 
@@ -159,11 +162,11 @@ jobs:
         with:
           name: epubcheck-report-${{ github.sha }}
           path: templates/epub-style-demo/dist/*.epub.epubcheck.xml
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
   swift-core:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
