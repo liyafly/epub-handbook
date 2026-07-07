@@ -385,7 +385,7 @@
           <tr><td><code>rendition:layout</code></td><td><code>reflowable</code></td><td><span class="status">推荐</span></td><td>全书默认可重排</td></tr>
           <tr><td><code>rendition:orientation</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁屏幕方向</td></tr>
           <tr><td><code>rendition:spread</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁单双页</td></tr>
-          <tr><td><code>ibooks:specified-fonts</code></td><td><code>true</code></td><td><span class="status">条件推荐</span></td><td>Apple Books 正文字体锁定声明；专用类嵌入字体不需要</td></tr>
+          <tr><td><code>ibooks:specified-fonts</code></td><td><code>true</code></td><td><span class="status">条件推荐</span></td><td>Apple Books 正文字体锁定声明；局部角色字体不需要</td></tr>
           <tr><td><code>page-progression-direction</code></td><td><code>ltr</code></td><td><span class="status">推荐</span></td><td>全书横排</td></tr>
           <tr><td><code>page-progression-direction</code></td><td><code>rtl</code></td><td><span class="status">条件可用</span></td><td>整本竖排书</td></tr>
         </tbody>
@@ -398,7 +398,7 @@
         <thead><tr><th>属性 / 规则</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
         <tbody>
           <tr><td><code>@font-face</code></td><td>定义书内字体</td><td><span class="status">推荐</span></td><td>正文、标题、生僻字分开</td></tr>
-          <tr><td><code>font-family</code></td><td>默认系统链 ≤ 4 段；嵌入字体走专用类</td><td><span class="status">推荐</span></td><td>自由正文不设置；锁定正文使用 body-font-locked</td></tr>
+          <tr><td><code>font-family</code></td><td>系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合角色用类</td><td><span class="status">推荐</span></td><td>自由模式 body/p 不设置；全书锁定直接绑定 body，p 继承</td></tr>
           <tr><td><code>font-style</code></td><td><code>normal</code> / <code>italic</code></td><td><span class="status">推荐</span></td><td>中文强调用着重号</td></tr>
           <tr><td><code>font-weight</code></td><td><code>normal</code> / <code>bold</code> / <code>400</code> / <code>700</code></td><td><span class="status">推荐</span></td><td>嵌入字重需匹配</td></tr>
           <tr><td><code>font-size</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>正文避免固定 px</td></tr>

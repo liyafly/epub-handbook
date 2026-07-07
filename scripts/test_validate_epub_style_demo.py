@@ -53,7 +53,7 @@ def _package(with_meta: bool):
   )
 
 
-def test_body_font_mode_contract_accepts_locked_book() -> None:
+def test_body_font_mode_contract_accepts_legacy_class_locked_book() -> None:
   check = V.Check()
   V.validate_body_font_mode_contract(
     _package(with_meta=True),
@@ -64,7 +64,21 @@ def test_body_font_mode_contract_accepts_locked_book() -> None:
     "test fixture",
   )
   if check.errors:
-    raise AssertionError(f"locked book should validate cleanly: {check.errors}")
+    raise AssertionError(f"legacy class-locked book should validate cleanly: {check.errors}")
+
+
+def test_body_font_mode_contract_accepts_direct_body_lock() -> None:
+  check = V.Check()
+  V.validate_body_font_mode_contract(
+    _package(with_meta=True),
+    "body { margin: 0; line-height: 1.75; }",
+    "body { font-family: Songti, serif; }",
+    {"Text/07.xhtml": "<body><p>x</p></body>"},
+    check,
+    "test fixture",
+  )
+  if check.errors:
+    raise AssertionError(f"direct body lock should validate cleanly: {check.errors}")
 
 
 def test_body_font_mode_contract_rejects_body_font_family() -> None:
@@ -91,7 +105,7 @@ def test_body_font_mode_contract_rejects_meta_mismatch() -> None:
     check,
     "test fixture",
   )
-  if not any("body-font-locked pages and OPF ibooks:specified-fonts meta must match" in err for err in check.errors):
+  if not any("locked body font mode and OPF ibooks:specified-fonts meta must match" in err for err in check.errors):
     raise AssertionError(f"locked/meta mismatch was not reported: {check.errors}")
 
 
@@ -130,7 +144,8 @@ def test_run_epubcheck_treats_unusable_java_as_unavailable() -> None:
 def main() -> int:
   test_source_fixture()
   test_epub_manifest_missing_member()
-  test_body_font_mode_contract_accepts_locked_book()
+  test_body_font_mode_contract_accepts_legacy_class_locked_book()
+  test_body_font_mode_contract_accepts_direct_body_lock()
   test_body_font_mode_contract_rejects_body_font_family()
   test_body_font_mode_contract_rejects_meta_mismatch()
   test_run_epubcheck_treats_unusable_java_as_unavailable()

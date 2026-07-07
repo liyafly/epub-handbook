@@ -14,32 +14,35 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 - 正文字体使用短的跨平台系统字体链。
 - 默认 `font-family` 链最多 4 段：Apple、Windows、Android/开源 CJK、generic。
-- 默认不把嵌入字体放进 `body` / `h*`；唯一例外是含生僻字且使用全字符集字体的 C1-body 路径。
+- 稳定的全书结构角色可直接绑定字体；混合角色和局部例外使用角色类。
 - 生僻字子集使用 `.rare` 等专用类。
 - 设计字体使用 `.title-tszt`、`.signature-tszt` 等专用类。
-- `ibooks:specified-fonts` 仅当正文锁定（`body-font-locked`）时写入 OPF；自由模式（默认）不加。嵌入字体通过专用类使用不需要此 meta。
+- `ibooks:specified-fonts` 仅当正文锁定（直接 `body` 规则）时写入 OPF；自由模式（默认）不加。局部角色字体不需要此 meta。既有书的 `body-font-locked` 可兼容保留，不作为新模板入口。
 
 ## 字体链模式
 
 正文分两种模式，由 body 是否带 `font-family` 区分：
 
-**自由模式（默认，base.css 已采用）：** body 不设 `font-family`，读者可随意切换字体。
+**自由模式（默认，base.css 已采用）：** body 与普通正文 p 都不设 `font-family`，读者可随意切换字体；标题、注释等局部角色仍可单独绑定。
 
-**锁定模式：** 给 body 加 `class="body-font-locked"`，`fonts.css` 提供字体链，OPF 加 `<meta property="ibooks:specified-fonts">true</meta>`。
+**锁定模式：** `fonts.css` 直接给 `body` 提供字体链，普通正文 p 通过继承获得该字体，OPF 加 `<meta property="ibooks:specified-fonts">true</meta>`。
 
 ```css
-/* 自由模式——body 不设 font-family，这是 base.css 的默认行为 */
+/* 自由模式——body 与普通正文 p 都不设 font-family */
 
-/* 锁定模式——给 body 加 class="body-font-locked" */
-.body-font-locked {
+/* 锁定模式——fonts.css 全书直接绑定 */
+body {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
-除非 fontspec 要求 `forceAll`，嵌入字体只通过显式类使用：
+裸 `p { font-family:... }` 不作为全书锁定入口：它遗漏列表、引用、表格等正文容器，也会误伤注释段落。只锁定某类正文段落时，使用 `.bodytext`、`.prose` 等明确角色类。
+
+嵌入字体按角色绑定。全书 `h1/h2` 角色一致时可直接写元素选择器；题签、混合标题和生僻字仍使用显式类：
 
 ```css
-.title-tszt {
+h1,
+h2 {
   font-family: "tszt-title", serif;
 }
 
@@ -50,11 +53,11 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 嵌入字体按 SPEC §8 的三种模式选择：
 
-- 模式 A：设计字体专用类，链为嵌入字体 + generic。
+- 模式 A：设计字体角色，稳定结构可直接绑定，局部位置用类；链为嵌入字体 + generic。
 - 模式 B：生僻字子集 `.rare`，链为嵌入字体 + generic。
 - 模式 C：嵌入 + 系统字体复合链，链最多 5 段，嵌入字体只出现一次。
 
-如果确实存在生僻字且 fontspec 使用 `forceAll` 打包全字符集字体，可以走 C1-body 例外。链仍要短，并在文档或构建元数据中说明策略：
+如果确实存在生僻字且 fontspec 使用 `forceAll` 打包覆盖正文全部实际用字的字体，可以走 C1-body。链仍要短，并在文档或构建元数据中说明策略：
 
 ```css
 body {
@@ -74,7 +77,7 @@ body {
    - 生僻字 fallback。
    - monospace/code 字体。
 3. 删除同一链里重复的同平台别名。
-4. 把 `@font-face` 和字体工具类移入 `fonts.css`。
+4. 把 `@font-face`、只含字体声明的稳定角色选择器和字体工具类移入 `fonts.css`。
 5. 把正文节奏留在 `base.css`：
    - 段首缩进与段间距。
    - 行高。
@@ -83,7 +86,7 @@ body {
    - 长英文 token 换行保护。
 6. 规则位置也有问题时，配合 `epub-css-layering-optimizer`。
 7. OPF 只声明实际使用的字体文件。
-8. 保持既有书的字体模式：body 无 `font-family` 视为自由模式，不要替它加 `body-font-locked` 或 `ibooks:specified-fonts`；已锁定的书保持锁定，并检查 class 与 OPF meta 成对出现。
+8. 保持既有书的字体模式：body 与普通正文 p 都无 `font-family` 时视为自由模式，不要替它加直接 body 规则或 `ibooks:specified-fonts`；已锁定的书保持锁定，并检查 body 规则与 OPF meta 成对出现。历史 `body-font-locked` 只兼容保留。
 
 ## 正文节奏清单
 

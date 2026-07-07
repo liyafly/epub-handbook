@@ -23,7 +23,7 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 5. `03c-poster-contain.xhtml`：单图卷封 contain + `<img>` fallback 对照样本。
 6. `04-lists-tables-code.xhtml`：列表、表格、代码块和键盘文本。
 7. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
-8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证；同时演示正文锁定模式（`body class="body-font-locked"`）。
+8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证；整本 demo 由 `fonts.css` 的直接 `body` 规则演示正文锁定模式。
 9. `08-long-mixed-flow.xhtml`：长段落、中英混排、大字号标题与右侧裁切压力测试。
 10. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
 11. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
@@ -40,8 +40,8 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
 
-> 注：本 demo 因包含正文锁定演示页（场景 07），`package.opf` 保留书级
-> `<meta property="ibooks:specified-fonts">true</meta>`，整书按锁定模式书处理。
+> 注：本 demo 的 `fonts.css` 直接给 `body` 绑定字体，`package.opf` 保留书级
+> `<meta property="ibooks:specified-fonts">true</meta>`，整书按锁定模式处理。
 > 真实书籍应全书统一自由或锁定模式，见 `docs/final/SPEC-实现约束.md` §8。
 
 完整覆盖关系见 `SCENE_MATRIX.md`。

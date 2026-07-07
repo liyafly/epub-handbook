@@ -29,6 +29,8 @@ cp <仓库路径>/templates/style-presets/academic-cn/Styles/*.css OEBPS/Styles/
 
 ## 模式说明
 
-默认自由模式（SPEC §8）。整书锁定字体时：每个正文页 `<body class="body-font-locked">`，
+默认自由模式（SPEC §8）：`body` 与普通正文 `p` 都不声明字体。整书锁定字体时，
+取消 `fonts.css` 中直接 `body` 规则的注释；不必修改每页 XHTML，也不要给裸 `p`
+重复指定字体。随后在
 `package.opf` metadata 加 `<meta property="ibooks:specified-fonts">true</meta>`
-并在 `<package>` 声明 ibooks prefix。`epub_lint.py` 的 L-F05/L-O01 会替你检查配对。
+并在 `<package>` 声明 ibooks prefix。`epub_lint.py` 的 L-F05/L-O01 会检查配对。

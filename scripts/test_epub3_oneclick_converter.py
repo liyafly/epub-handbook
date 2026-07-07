@@ -38,6 +38,7 @@ def test_public_conversion_units_are_owned_by_focused_modules() -> None:
 def write_legacy_epub(
   path: Path,
   body_class: str = "",
+  css: str = "body { line-height: 1.4; }",
   extra_metadata: str = "",
   chapter_note_markup: str | None = None,
   extra_manifest_items: str = "",
@@ -120,11 +121,7 @@ def write_legacy_epub(
   </body>
 </html>
 ''',
-    "OEBPS/Styles/main.css": '''body {
-  font-family: "cnepub", serif;
-  line-height: 1.4;
-}
-''',
+    "OEBPS/Styles/main.css": css,
     "OEBPS/Images/cover.jpg": b"jpeg",
   }
   if extra_metadata:
@@ -223,6 +220,8 @@ def main() -> int:
       assert "\n  <body>" in chapter
 
   locked_mode_case()
+  direct_locked_mode_case()
+  paragraph_font_is_not_locked_case()
   ibooks_prefix_case()
   custom_image_noteref_case()
   sigil_legacy_notes_case()
@@ -274,7 +273,36 @@ def locked_mode_case() -> None:
       locked = [m for m in metas if m.attrib.get("property") == "ibooks:specified-fonts"]
       assert len(locked) == 1 and locked[0].text == "true", "locked book must get ibooks:specified-fonts=true"
       assert "ibooks:" in opf.attrib.get("prefix", ""), "locked book must get ibooks prefix"
-    assert "added ibooks:specified-fonts (body-font-locked detected)" in report.metadata_updates, report
+    assert "added ibooks:specified-fonts (locked body font detected)" in report.metadata_updates, report
+
+
+def direct_locked_mode_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-direct-locked.epub"
+    output = Path(raw) / "converted-direct-locked.epub"
+    write_legacy_epub(source, css='body { font-family: "cnepub", serif; line-height: 1.4; }')
+    report = C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      opf = ET.fromstring(zf.read("OEBPS/content.opf"))
+      metas = opf.findall("opf:metadata/opf:meta", OPF_NS)
+      locked = [m for m in metas if m.attrib.get("property") == "ibooks:specified-fonts"]
+      assert len(locked) == 1 and locked[0].text == "true", "direct body lock must get specified-fonts"
+    assert "added ibooks:specified-fonts (locked body font detected)" in report.metadata_updates, report
+
+
+def paragraph_font_is_not_locked_case() -> None:
+  with TemporaryDirectory() as raw:
+    source = Path(raw) / "legacy-paragraph-font.epub"
+    output = Path(raw) / "converted-paragraph-font.epub"
+    write_legacy_epub(source, css='p { font-family: "cnepub", serif; line-height: 1.4; }')
+    report = C.convert_epub(source, output)
+    with zipfile.ZipFile(output) as zf:
+      opf = ET.fromstring(zf.read("OEBPS/content.opf"))
+      metas = opf.findall("opf:metadata/opf:meta", OPF_NS)
+      assert not any(
+        meta.attrib.get("property") == "ibooks:specified-fonts" for meta in metas
+      ), "paragraph-only font rule must not be treated as a full-book lock"
+    assert "added ibooks:specified-fonts" not in report.metadata_updates, report
 
 
 def custom_image_noteref_case() -> None:

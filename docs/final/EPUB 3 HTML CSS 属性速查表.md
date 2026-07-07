@@ -219,7 +219,7 @@
 | 属性 / 规则 | 推荐值 / 用法 | 状态 | 备注 |
 |---|---|---|---|
 | `@font-face` | 定义书内字体 | 推荐 | 正文、标题、生僻字可分开 |
-| `font-family` | 默认 Apple + Windows + Android/开源 + generic（≤ 4 段，不嵌字体）；嵌入字体仅走专用类（模式 A / B / C，详见 SPEC §8） | 推荐 | 正文字体主路径 |
+| `font-family` | 系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | 字体角色主路径 |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
@@ -240,28 +240,27 @@
 ### 4.1 正文字体链
 
 ```css
-/* 自由模式（默认，body 不设 font-family），读者可自由切换字体 */
+/* 自由模式（默认）：body 与普通正文 p 都不设 font-family */
 
-/* 锁定模式：给 body 加 class="body-font-locked" */
-.body-font-locked {
+/* 锁定模式：fonts.css 全书直接绑定 body */
+body {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
-/* 模式 C1-body（含生僻字 + 全字符集嵌入字体） */
-body.body-font-locked {
+/* 模式 C1-body（含生僻字 + 正文全部实际用字覆盖） */
+body {
   font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
-> 自由模式是默认；锁定模式需要同步 OPF `ibooks:specified-fonts=true`。C1-body 仅当全书含生僻字且嵌入全字符集字体（`fontspec=forceAll`）时启用，详见 SPEC §8。
+> 自由模式是默认；锁定模式需要同步 OPF `ibooks:specified-fonts=true`，普通正文 `p` 直接继承 `body`。裸 `p` 不是全书锁定入口；局部段落字体使用角色类。C1-body 仅当正文角色字体覆盖全部实际用字（`fontspec=forceAll`）时启用。
 
 ### 4.2 标题 / 特殊字体
 
 ```css
-/* 模式 A：题签 / 卷头题字 / 签名档（嵌入设计字体；链 ≤ 2 段） */
-.poster-title,
-.title-kai,
-.inscription {
+/* h1/h2 全书角色一致时可直接绑定；角色混合时改用标题类 */
+h1,
+h2 {
   font-family: "kt-title", serif;
 }
 

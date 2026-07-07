@@ -91,12 +91,46 @@ def main() -> int:
     r = case(tmp, "f03", css='@font-face { font-family: "Ghost"; src: url("../Fonts/g.ttf"); }')
     assert "L-F03" in r, r
 
-    r = case(tmp, "f04", css='@font-face { font-family: "Embed"; src: url("../Fonts/e.ttf"); }\nbody { font-family: "Embed", serif; }')
+    r = case(tmp, "f04", css='@font-face { font-family: "Embed"; src: url("../Fonts/e.ttf"); }\np { font-family: "Embed", serif; }')
     assert "L-F04" in r, r
     assert "L-F03" not in r, r
 
+    direct_body = case(
+      tmp,
+      "f04-direct-body-role",
+      css='@font-face { font-family: "Embed"; src: url("../Fonts/e.ttf"); }\nbody { font-family: "Embed", serif; }',
+      extra_meta='    <meta property="ibooks:specified-fonts">true</meta>\n',
+    )
+    assert "L-F04" not in direct_body, direct_body
+    assert "L-F05" not in direct_body, direct_body
+
+    direct_heading = case(
+      tmp,
+      "f04-direct-heading-role",
+      css='@font-face { font-family: "Heading"; src: url("../Fonts/h.ttf"); }\nh1, h2 { font-family: "Heading", serif; }',
+    )
+    assert "L-F04" not in direct_heading, direct_heading
+
     r = case(tmp, "f05-locked-no-meta", body='<body class="body-font-locked"><p>x</p></body>')
     assert "L-F05" in r, r
+
+    r = case(tmp, "f05-direct-lock-no-meta", css='body { font-family: "Songti SC", serif; }')
+    assert "L-F05" in r, r
+
+    paragraph_only = case(
+      tmp,
+      "f05-paragraph-role-is-not-book-lock",
+      css='p { font-family: "Songti SC", serif; }',
+    )
+    assert "L-F05" not in paragraph_only, paragraph_only
+
+    direct_locked = case(
+      tmp,
+      "f05-direct-lock-with-meta",
+      css='body { font-family: "Songti SC", serif; }',
+      extra_meta='    <meta property="ibooks:specified-fonts">true</meta>\n',
+    )
+    assert "L-F05" not in direct_locked, direct_locked
 
     r = case(tmp, "f05-meta-no-lock", extra_meta='    <meta property="ibooks:specified-fonts">true</meta>\n')
     assert "L-F05" in r, r

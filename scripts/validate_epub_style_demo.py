@@ -120,6 +120,20 @@ def has_body_font_locked_markup(xhtml: str) -> bool:
   ) is not None
 
 
+def has_direct_body_font_family(css: str) -> bool:
+  active = strip_css_comments(css)
+  for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", active, re.S):
+    selectors, body = match.groups()
+    if re.search(r"\bfont-family\s*:", body, re.I) is None:
+      continue
+    if any(
+      selector.strip().split(";")[-1].strip().lower() == "body"
+      for selector in selectors.split(",")
+    ):
+      return True
+  return False
+
+
 def validate_body_font_mode_contract(
   package_root: ET.Element,
   base_css: str,
@@ -134,23 +148,29 @@ def validate_body_font_mode_contract(
   if body_block is not None:
     check.require(
       re.search(r"\bfont-family\s*:", body_block, re.I) is None,
-      f"{context}: base.css body block must not set font-family; use fonts.css .body-font-locked for locked mode",
+      f"{context}: base.css body block must not set font-family; put locked-mode role binding in fonts.css",
     )
 
   active_fonts_css = strip_css_comments(fonts_css)
+  has_class_rule = re.search(
+    r"\.body-font-locked\b[^{}]*\{[^}]*\bfont-family\s*:",
+    active_fonts_css,
+    re.S | re.I,
+  ) is not None
+  has_direct_rule = has_direct_body_font_family(active_fonts_css)
   check.require(
-    re.search(r"\.body-font-locked\b[^{}]*\{[^}]*\bfont-family\s*:", active_fonts_css, re.S | re.I) is not None,
-    f"{context}: fonts.css must define .body-font-locked with a font-family chain",
+    has_class_rule or has_direct_rule,
+    f"{context}: fonts.css must define a direct body or legacy .body-font-locked font-family chain",
   )
 
   locked_hrefs = sorted(href for href, text in xhtml_texts.items() if has_body_font_locked_markup(text))
-  has_locked_pages = bool(locked_hrefs)
+  has_locked_mode = bool(locked_hrefs) or has_direct_rule
   has_meta = has_ibooks_specified_fonts(package_root)
   check.require(
-    has_locked_pages == has_meta,
+    has_locked_mode == has_meta,
     (
-      f"{context}: body-font-locked pages and OPF ibooks:specified-fonts meta must match; "
-      f"locked_pages={locked_hrefs or 'none'}, meta={has_meta}"
+      f"{context}: locked body font mode and OPF ibooks:specified-fonts meta must match; "
+      f"direct_body={has_direct_rule}, locked_pages={locked_hrefs or 'none'}, meta={has_meta}"
     ),
   )
 

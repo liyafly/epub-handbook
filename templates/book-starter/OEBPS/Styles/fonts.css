@@ -1,6 +1,11 @@
 @charset "utf-8";
 
-.body-font-locked,
+/* 锁定版取消本段注释，并同步 OPF ibooks:specified-fonts=true。
+body {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+*/
+
 .font-st,
 .st {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;

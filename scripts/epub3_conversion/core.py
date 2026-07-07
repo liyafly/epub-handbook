@@ -225,10 +225,25 @@ BODY_FONT_LOCKED_RE = re.compile(
 
 
 def has_body_font_locked(files: dict[str, bytes]) -> bool:
-  return any(
+  if any(
     name.lower().endswith((".xhtml", ".html", ".htm")) and BODY_FONT_LOCKED_RE.search(data)
     for name, data in files.items()
-  )
+  ):
+    return True
+  for name, data in files.items():
+    if not name.lower().endswith(".css"):
+      continue
+    css = re.sub(r"/\*.*?\*/", "", data.decode("utf-8", errors="replace"), flags=re.S)
+    for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", css, re.S):
+      selectors, declarations = match.groups()
+      if re.search(r"\bfont-family\s*:", declarations, re.I) is None:
+        continue
+      if any(
+        selector.strip().split(";")[-1].strip().lower() == "body"
+        for selector in selectors.split(",")
+      ):
+        return True
+  return False
 
 
 def normalize_metadata(root: ET.Element, report: ConversionReport, body_font_locked: bool = False) -> None:
@@ -274,9 +289,9 @@ def normalize_metadata(root: ET.Element, report: ConversionReport, body_font_loc
     if body_font_locked:
       specified_fonts = ET.SubElement(meta, q(OPF_URI, "meta"), {"property": "ibooks:specified-fonts"})
       specified_fonts.text = "true"
-      report.metadata_updates.append("added ibooks:specified-fonts (body-font-locked detected)")
+      report.metadata_updates.append("added ibooks:specified-fonts (locked body font detected)")
   elif not body_font_locked:
-    report.metadata_updates.append("kept existing ibooks:specified-fonts (no body-font-locked page; review manually)")
+    report.metadata_updates.append("kept existing ibooks:specified-fonts (no locked body font detected; review manually)")
 
   if any(
     (child.attrib.get("property") or "").startswith("ibooks:")

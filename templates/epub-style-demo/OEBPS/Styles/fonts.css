@@ -3,16 +3,15 @@
 /* ============================================================
  * fonts.css —— 字体声明与字体工具类
  *
- * 仅放：@font-face、字体工具类（.body-font-locked / .rare / .title-tszt 等）。
+ * 仅放：@font-face、角色字体绑定（body / h1 等）和字体工具类（.rare / .title-tszt 等）。
  * 不放：排版、颜色、分页、布局（这些在 base.css / poster.css）。
  *
  * 策略：
- *   1. 正文默认不设 font-family（自由模式），读者可随意切换字体。
- *      需要锁定时给 body 加 class="body-font-locked"，并同步 OPF 加
- *      <meta property="ibooks:specified-fonts">true</meta>。
+ *   1. 本 demo 直接用 body 绑定正文字体，作为全书锁定模式 fixture；OPF 同步加
+ *      <meta property="ibooks:specified-fonts">true</meta>。生产书的自由模式不写该规则。
  *   2. 标题、引用、等宽等语义元素使用系统字体链（≤ 4 段）。
  *   3. 嵌入字体只用于：(a) 大量生僻字；(b) 设计必须特定字体；(c) 二者同时存在。
- *   4. 嵌入字体单独挂专用类（.rare / .title-tszt / .signature-tszt 等），
+ *   4. 同一结构元素全书角色一致时可直接绑定；混合角色和局部例外挂专用类，
  *      按场景选模式 A / B / C：
  *        - 模式 A 设计专用：链 ≤ 2 段，嵌入 + generic；
  *        - 模式 B 生僻字专用：链 ≤ 2 段，嵌入 + generic；
@@ -26,7 +25,7 @@
 
 /* ---------- 一、@font-face 骨架（默认全部注释，按需取消） ----------
  *
- * 仅在有专用类（§ 三 B）真正引用某字体时，才取消对应 @font-face 的注释。
+ * 仅在角色选择器或专用类（§ 三 B）真正引用某字体时，才取消对应 @font-face 的注释。
  * 不要"先放着以后再说"——未引用的 @font-face 会让 OPF 必须打包对应字体文件
  * （否则 EPUBCheck 失败），多余的字体打包也会让 Apple Books 加载更慢。
  */
@@ -130,15 +129,15 @@
  *   - 默认链 ≤ 4 段；嵌入模式 C 复合链 ≤ 5 段。
  *   - 不堆叠同一平台的多个别名（Songti SC 与 STSongti-SC-Regular，
  *     或 SimSun 与 宋体，不要同时出现）；"一平台一字体名" 是允许的。
- *   - 嵌入字体 **不进默认链**；要用嵌入字体请去 § 三 B 的专用类。
+ *   - 嵌入字体只进入明确的角色链；生僻字子集仍只挂 `.rare` 等专用类。
  * ----------
  */
 
 
 /* ---------- 三 A、默认跨平台字体工具类（不嵌字体；推荐直接用） ----------
  *
- * 这一组类**不依赖** @font-face，可以直接挂在 XHTML 上。base.css 的 body /
- * 标题 / 等宽规则也建议直接使用同等结构的链（详见 base.css）。
+ * 这一组规则**不依赖** @font-face。结构元素全书角色一致时可直接绑定，
+ * 混合角色或局部例外再把类挂到 XHTML 上。
  *
  * 没有 .rare / .title-tszt / .signature-tszt 需求的书，整本书只需要这一组类。
  *
@@ -146,13 +145,12 @@
  *   Apple（macOS / iOS / Apple Books）→ Windows → Android / 开源 → generic family。
  *   特例：`.font-fs` 只有 3 段（Android 通常缺仿宋，直接落 serif）。
  *
- * 注意：q / blockquote 等元素选择器属"排版规则"，应在 base.css / literary.css
- * 通过 `font-family: inherit` 与 class 组合来控制，不写在 fonts.css 里。
- * 如需把 blockquote 默认排成楷体，在该书的页面上加 class="font-kt" 即可。
+ * 注意：fonts.css 里的结构选择器只放字体声明，不放布局、颜色或分页。
+ * q / blockquote 若并非全书单一字体角色，应加 class="font-kt"，不要裸绑。
  */
 
-/* ===== 宋体 / serif（正文衬线；.body-font-locked 为正文锁定模式入口，加在 body 上） ===== */
-.body-font-locked,
+/* ===== 宋体 / serif（正文衬线；body 是本 demo 的全书锁定入口） ===== */
+body,
 .font-st,
 .st {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;

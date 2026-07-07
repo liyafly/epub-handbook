@@ -10,10 +10,10 @@
 
 | 模块 | 最终方案 |
 |---|---|
-| 正文 | EPUB 3.3 可重排，默认走各平台系统中文字体链；含生僻字时允许嵌入"全字符集"字体走模式 C1-body 直接挂 body / h*（详见 §四） |
+| 正文 | EPUB 3.3 可重排；自由模式由阅读器选字，锁定模式可在 `fonts.css` 直接给稳定的 body / h* 角色绑定系统链或嵌入字体（详见 §四） |
 | 整页海报 / 卷首 / 章节扉页 | A-lite：可重排整页、无 FXL、无 `vh/vw`、无绝对定位 |
 | 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
-| Apple Books 字体 | 正文字体锁定时加 OPF `ibooks:specified-fonts=true` + 测试“原版字体”；嵌入字体通过专用类使用不受此 meta 影响 |
+| Apple Books 字体 | 正文字体锁定时加 OPF `ibooks:specified-fonts=true` + 测试“原版字体”；局部角色字体不受此 meta 影响 |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
 | 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
 | 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
@@ -57,8 +57,8 @@ book.epub
 
 > 上面 `Fonts/` 目录与三个示例字体文件**仅在嵌入字体场景下需要**：
 > - 默认路径（不嵌字体）：删掉 `Fonts/` 目录与 OPF 字体 item；`fonts.css` 内所有 `@font-face` 保持注释。
-> - 模式 A / B（专用类嵌入）：按需保留对应字体文件。
-> - 模式 C1-body（含生僻字 + 全字符集字体）：保留一份覆盖全书用字的 `Fonts/st-all.ttf`。
+> - 角色字体嵌入：按需保留对应字体文件；稳定结构角色可直接绑定，局部角色使用类。
+> - 模式 C1-body（含生僻字 + 正文全角色覆盖）：保留一份覆盖正文全部实际用字的 `Fonts/st-all.ttf`。
 >
 > 字体 alias、文件名与 class 按 [字体别名命名规范](字体别名命名规范.md) 使用角色缩写；字体内部正式名称和授权信息不因 alias 而改变。
 
@@ -122,13 +122,13 @@ book.epub
 - 全书默认 `reflowable`。
 - A-lite 海报页仍是普通 spine item。
 - 字体文件、注释图标、背景图都进入 `manifest`。
-- `ibooks:specified-fonts=true` 仅当正文字体锁定时添加；自由模式（默认）不加。嵌入字体通过专用类（`.rare`、`.font-st-design` 等）使用不需要此 meta——`ibooks:specified-fonts` 只控制 Apple Books 是否尊重 body `font-family`，不影响 `@font-face` + 专用类声明的嵌入字体（2026-06-24 聊斋志异 MA10 实测）。详见 SPEC §8。
+- `ibooks:specified-fonts=true` 仅当正文字体锁定时添加；自由模式（默认）不加。新建锁定版在 `fonts.css` 直接绑定 `body`，普通正文 `p` 继承该字体；局部角色字体不需要此 meta（2026-06-24 聊斋志异 MA10 实测）。详见 SPEC §8。
 
 > OPF manifest 中的 `Fonts/*` item **仅在嵌入字体场景下保留**。
-> `ibooks:specified-fonts=true` 仅当正文字体锁定（`body.body-font-locked`）时添加：
-> - 自由模式（默认，body 不设 font-family）：**不加**，允许读者自由切换字体。
-> - 锁定模式（`body.body-font-locked`）：**添加**，告诉 Apple Books 尊重 body `font-family`。
-> - 嵌入字体通过专用类（`.rare`、`.font-st-design` 等）使用不需要此 meta——`ibooks:specified-fonts` 只控制 body `font-family` 的优先级，不影响 `@font-face` + 专用类的嵌入字体（2026-06-24 聊斋志异 MA10 实测：14 个嵌入字体、无 meta、正常渲染）。
+> `ibooks:specified-fonts=true` 仅当正文字体锁定时添加：
+> - 自由模式（默认，body 与普通正文 p 都不设 font-family）：**不加**，允许读者自由切换字体。
+> - 锁定模式（直接 `body` 规则）：**添加**，告诉 Apple Books 尊重 body `font-family`；普通正文 p 直接继承。
+> - 标题、题签、生僻字等局部角色使用嵌入字体不需要此 meta（2026-06-24 聊斋志异 MA10 实测：14 个嵌入字体、无 meta、正常渲染）。
 
 ---
 
@@ -170,31 +170,32 @@ book.epub
 正文分自由 / 锁定两种模式（规则见 SPEC §8）：
 
 ```css
-/* 自由模式（默认）：body 不设 font-family，读者可自由切换字体 */
+/* 自由模式（默认）：body 与普通正文 p 都不设 font-family */
 
-/* 锁定模式：给 body 加 class="body-font-locked"，并同步 OPF 加 ibooks:specified-fonts=true */
-.body-font-locked {
+/* 锁定模式：全书直接绑定 body，并同步 OPF 加 ibooks:specified-fonts=true */
+body {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
+
+普通正文 `p` 会继承 `body`，不需要重复声明。不要用裸 `p { font-family:... }` 代替全书入口：列表、引用和表格不会被覆盖，注释段落却可能被误锁。只锁定某类正文段落时，使用 `.bodytext`、`.prose` 等角色类。既有书的 `.body-font-locked` 可兼容保留，但新模板不再采用。字体绑定放在 `fonts.css`，正文盒模型仍放在 `base.css`。
 
 > 反例：不要把链写成同平台别名堆叠（如追加 `STSongti-*` / `NSimSun` / `宋体`），违反 SPEC §8。
 
 锁定模式的字体链走各平台系统中文字体链（Apple `Songti SC` + Windows `SimSun` + Android / 跨平台开源 `Noto Serif CJK SC` + `serif`）。iOS / Apple Books 对 `Songti SC` 命中稳定；Android 系统已预装 `Noto Serif CJK SC`；Windows 走 `SimSun` 兜底。
 
-例外路径：当全书含生僻字、且选择嵌入"全字符集"字体（非子集）时，按模式 C1-body 把嵌入字体放在锁定链链首：`body.body-font-locked { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。详见本节"含生僻字的全字符集方案（模式 C1-body）"。
+当全书含生僻字、且正文字体覆盖正文全部实际用字时，按模式 C1-body 把嵌入字体放在直接 `body` 锁定链链首：`body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。局部补字子集仍只能使用 `.rare`。`fontspec` 同步切到 `forceAll`，OPF manifest 挂对应字体 item。
 
 ### 4.3 特殊标题字体
 
 ```css
-.poster-title,
-.inscription,
-.title-kai {
+h1,
+h2 {
   font-family: "kt-title", serif;
 }
 ```
 
-特殊标题、题签、卷首页只写书内字体名 + 通用族兜底，避免系统字体提前替换设计字形。
+当全书 `h1` / `h2` 各自只有一个字体角色时，直接绑定最清楚。若同一标题层级混有题签、卷首页和普通标题，则改用 `.poster-title`、`.inscription`、`.title-kai` 等角色类。嵌入设计字体只写书内字体名 + 通用族兜底，避免系统字体提前替换设计字形。
 
 > 上述写法属于模式 A（链 ≤ 2 段，仅嵌入字体 + generic）。如果项目未嵌入 `kt-title`，把这条规则改为系统楷体链 `.title-kai { font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }`（与 `fonts.css` 的 `.font-kt` 同源），不要保留死链。
 
@@ -209,10 +210,9 @@ book.epub
 > 旧写法 `"tszt-rare", "st-body", serif` 是反例——生僻字字体后面挂正文嵌入宋体，缺字时落到系统宋体的豆腐。三种推荐写法（按需求选一）：(模式 B 纯生僻字) `.rare { font-family: "tszt-rare", serif; }`；(模式 C1 设计前置) `.font-st-design { font-family: "st-design", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`；(模式 C2 嵌入兜底) `.font-st-tszt { font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", "tszt-rare", serif; }`。
 
 
-### 含生僻字的全字符集方案（模式 C1-body）
+### 含生僻字的正文全角色覆盖方案（模式 C1-body）
 
-当正文存在生僻字、且选择嵌入"全字符集"字体（不做子集裁剪）时，
-允许把该嵌入字体直接挂在 body / h*，走单一字体链以保持设计统一。
+当正文存在生僻字、且正文角色字体覆盖全书实际用字时，允许把该嵌入字体直接挂在 `body`；标题角色同理可直接挂在统一层级的 `h*`。
 
 ```css
 body {
@@ -226,7 +226,7 @@ h1, h2, h3, h4, h5, h6 {
 
 要点：
 
-- 嵌入字体必须覆盖书内所有生僻字（GB 18030 / CJK Ext-A 起，按书内用字裁切但不做子集压缩）；
+- 嵌入字体必须覆盖该角色全部实际用字；可以是完整字体，也可以是按该角色全部文本生成的子集，但不能是只含少数字符的补字子集；
 - OPF manifest 声明该字体 item，`fontspec` 切到 `forceAll`；
 - 不允许把子集字库（如 `tszt-rare`）走本路径——子集挂 body 必然落豆腐；子集字库一律走 `.rare` 类（模式 B）；
 - 体积说明：全字符集 CJK 字体单 weight 约 8–15 MB；启用前评估包体增长是否可接受；
@@ -262,7 +262,7 @@ body {
   font-size: 1em;
   line-height: 1.7;
   text-align: justify;
-  /* 自由模式默认不设 font-family；锁定模式使用 fonts.css 的 .body-font-locked */
+  /* 自由模式默认不设 font-family；锁定模式的直接 body 规则放在 fonts.css */
 }
 
 p {
@@ -742,7 +742,7 @@ body.poster-bg-contain {
 
 ## 六点五、CSS 文件分层
 
-- `fonts.css`：仅放 `@font-face`、系统字体工具类和嵌入字体专用 helper。
+- `fonts.css`：仅放 `@font-face`、只含字体声明的稳定角色选择器，以及系统字体/局部角色 helper。
 - `base.css`：正文基础元素（`@page`、`html/body`、标题、段落、列表、表格、代码、普通 `figure/img`、inline 语义、Ruby 默认、`.has-ruby` 行距兜底）。
 - `notes.css`：标准 popup footnote、多看 fallback 和注释图标。
 - `effects.css`：着重号、波浪线、首字下沉、便签/资料卡边框阴影。
@@ -1151,7 +1151,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 
 1. 准备文本、封面、海报背景、注释图标、授权字体。
 2. 写 `content.opf`，声明 reflowable、字体、图片、CSS；仅当正文字体锁定时声明 `ibooks:specified-fonts=true`。
-3. 写 `fonts.css`，正文内嵌字体、标题字体、生僻字字体分开。
+3. 写 `fonts.css`，按正文、标题、序言/注释、生僻字等角色分开；稳定结构角色可直接绑定，混合角色使用类。
 4. 写 `base.css`，正文、图片、注释、ruby、文字效果。
 5. 写 `poster.css`，A-lite 海报页。
 6. 写正文 XHTML 和海报 XHTML。
@@ -1171,7 +1171,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 封面图使用 JPEG/PNG，并同时声明 `properties="cover-image"` 与 `<meta name="cover">`。
 - [ ] 所有 XHTML / CSS / 图片 / 字体都进入 `manifest`。
 - [ ] `rendition:layout` 是 `reflowable`。
-- [ ] 正文字体锁定时写 `ibooks:specified-fonts=true`；自由模式（默认）不加。嵌入字体通过专用类使用不需要此 meta。
+- [ ] 正文字体锁定时写 `ibooks:specified-fonts=true`；自由模式（默认）不加。局部角色字体不需要此 meta。
 - [ ] `spine` 顺序正确。
 
 ### 字体
@@ -1230,7 +1230,7 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 - [ ] 注释列表 `<ol>` 同时挂 `footnote-list duokan-footnote-content`。
 - [ ] 每条 `li.footnote-item` 只额外挂 `duokan-footnote-item`，不重复挂 `duokan-footnote-content`。
 - [ ] 默认正文 / 标题 / 等宽走系统字体链，不嵌字体。
-- [ ] 嵌入字体仅出现在专用类（模式 A / B / C），不进 body / h* 等元素选择器。
+- [ ] 稳定的正文/标题/前言/注释角色可直接绑定嵌入字体；混合角色使用类，补字子集只使用 `.rare` 等局部类。
 - [ ] 任一字体链的链尾必须是 generic family（serif / sans-serif / monospace）。
 - [ ] 默认链 ≤ 4 段；嵌入模式 C 复合链 ≤ 5 段，嵌入字体在链里只出现 1 次（第 1 位或倒数第 2 位）。
-- [ ] 启用模式 C1-body 时：嵌入字体是全字符集、`fontspec=forceAll`、链 ≤ 5 段、嵌入仅在第 1 位。
+- [ ] 启用模式 C1-body 时：嵌入字体覆盖正文全部实际用字、`fontspec=forceAll`、链 ≤ 5 段、嵌入仅在第 1 位。

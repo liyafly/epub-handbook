@@ -33,7 +33,7 @@ ALIAS_GROUPS: list[list[str]] = [
   ["noto sans cjk sc", "source han sans sc", "思源黑体"],
 ]
 
-BARE_ELEMENT_RE = re.compile(r"^(body|h[1-6]|p|code|pre|blockquote|li|div|span)$")
+CLASS_REQUIRED_ELEMENT_RE = re.compile(r"^(p|code|pre|blockquote|li|div|span)$")
 BODY_FONT_LOCKED_RE = re.compile(
   r"<body[^>]*\bclass\s*=\s*(['\"])[^'\"]*\bbody-font-locked\b[^'\"]*\1", re.I
 )
@@ -83,6 +83,21 @@ def font_family_decls(rule_body: str) -> list[str]:
     m.group(1).strip().rstrip(";").strip()
     for m in re.finditer(r"font-family\s*:\s*([^;}]+)", rule_body, re.I)
   ]
+
+
+def has_direct_body_font_family(css_texts: dict[str, str]) -> bool:
+  """Return whether an active rule binds font-family to the whole-book body role."""
+  for css in css_texts.values():
+    body_no_fontface = re.sub(r"@font-face\s*\{[^{}]*\}", "", css, flags=re.S | re.I)
+    for selector, rule_body in iter_css_rules(body_no_fontface):
+      if not font_family_decls(rule_body):
+        continue
+      if any(
+        simple.strip().split(";")[-1].strip().lower() == "body"
+        for simple in selector.split(",")
+      ):
+        return True
+  return False
 
 
 def load_book(path: Path) -> tuple[Book | None, list[Finding]]:
@@ -206,13 +221,13 @@ def check_css_rules(book: Book) -> list[Finding]:
         chain_embedded = [f for f in chain if f.lower() in embedded]
         if chain_embedded:
           for simple in selector.split(","):
-            if BARE_ELEMENT_RE.fullmatch(simple.strip()):
+            if CLASS_REQUIRED_ELEMENT_RE.fullmatch(simple.strip()):
               findings.append(
                 Finding(
                   "L-F04",
                   "error",
                   loc,
-                  f"嵌入字体 {chain_embedded} 出现在裸元素选择器 `{simple.strip()}`，须挂专用类（SPEC §8）",
+                  f"嵌入字体 {chain_embedded} 出现在多用途裸元素 `{simple.strip()}`，须改用角色类（SPEC §8）",
                 )
               )
       if re.search(r"text-decoration-style\s*:", rule_body, re.I) and not re.search(
@@ -243,7 +258,8 @@ def check_css_rules(book: Book) -> list[Finding]:
 
 
 def check_font_lock_pairing(book: Book) -> list[Finding]:
-  locked = sorted(h for h, t in book.xhtml_texts.items() if BODY_FONT_LOCKED_RE.search(t))
+  class_locked = sorted(h for h, t in book.xhtml_texts.items() if BODY_FONT_LOCKED_RE.search(t))
+  direct_locked = has_direct_body_font_family(book.css_texts)
   has_meta = any(
     m.attrib.get("property") == "ibooks:specified-fonts"
     and (m.text or "").strip().lower() == "true"
@@ -256,22 +272,26 @@ def check_font_lock_pairing(book: Book) -> list[Finding]:
     for e in book.manifest
   )
   findings: list[Finding] = []
-  if locked and not has_meta:
+  if (class_locked or direct_locked) and not has_meta:
     findings.append(
       Finding(
         "L-F05",
         "error",
         book.opf_path,
-        f"存在 body-font-locked 页 {locked} 但 OPF 缺 ibooks:specified-fonts=true（SPEC §8）",
+        (
+          f"存在正文字体锁定（直接 body 规则={direct_locked}，"
+          f"body-font-locked 页={class_locked or 'none'}）但 OPF 缺 "
+          "ibooks:specified-fonts=true（SPEC §8）"
+        ),
       )
     )
-  if has_meta and not locked and not has_font_items:
+  if has_meta and not class_locked and not direct_locked and not has_font_items:
     findings.append(
       Finding(
         "L-F05",
         "error",
         book.opf_path,
-        "OPF 有 ibooks:specified-fonts=true 但既无锁定页也无嵌入字体 item（SPEC §8 自由模式不加）",
+        "OPF 有 ibooks:specified-fonts=true 但既无直接 body 字体规则、锁定页，也无嵌入字体 item（SPEC §8 自由模式不加）",
       )
     )
   return findings
