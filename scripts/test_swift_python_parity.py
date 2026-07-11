@@ -19,6 +19,8 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from epub_lib import IBOOKS_PREFIX
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SWIFT_ROOT = ROOT / "swift"
@@ -57,7 +59,7 @@ def make_css_epub(path: Path) -> None:
   with zipfile.ZipFile(path, "w") as zf:
     add(zf, "mimetype", b"application/epub+zip", stored=True)
     add(zf, "META-INF/container.xml", b'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
-    add(zf, "OEBPS/package.opf", b'''<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>CSS fixture</dc:title><dc:creator>A</dc:creator><dc:identifier id="book-id">I</dc:identifier><dc:language>en</dc:language></metadata><manifest><item id="one" href="Text/one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="Text/two.xhtml" media-type="application/xhtml+xml"/><item id="three" href="Text/three.xhtml" media-type="application/xhtml+xml"/><item id="cover" href="Images/cover.png" media-type="image/png" properties="cover-image"/><item id="style-one" href="Styles/style0002.css" media-type="text/css"/><item id="style-two" href="Styles/style0003.css" media-type="text/css"/><item id="style-three" href="Styles/style0004.css" media-type="text/css"/></manifest><spine><itemref idref="one"/><itemref idref="two"/><itemref idref="three"/></spine></package>''')
+    add(zf, "OEBPS/package.opf", f'''<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" prefix="ibooks: {IBOOKS_PREFIX}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>CSS fixture</dc:title><dc:creator>A</dc:creator><dc:identifier id="book-id">I</dc:identifier><dc:language>en</dc:language><meta property="ibooks:specified-fonts">true</meta></metadata><manifest><item id="one" href="Text/one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="Text/two.xhtml" media-type="application/xhtml+xml"/><item id="three" href="Text/three.xhtml" media-type="application/xhtml+xml"/><item id="cover" href="Images/cover.png" media-type="image/png" properties="cover-image"/><item id="style-one" href="Styles/style0002.css" media-type="text/css"/><item id="style-two" href="Styles/style0003.css" media-type="text/css"/><item id="style-three" href="Styles/style0004.css" media-type="text/css"/></manifest><spine><itemref idref="one"/><itemref idref="two"/><itemref idref="three"/></spine></package>'''.encode())
     add(zf, "OEBPS/Images/cover.png", b"cover")
     for chapter, stylesheet in (("one", "style0002.css"), ("two", "style0003.css"), ("three", "style0004.css")):
       add(zf, f"OEBPS/Text/{chapter}.xhtml", f'''<?xml version="1.0" encoding="UTF-8"?>
