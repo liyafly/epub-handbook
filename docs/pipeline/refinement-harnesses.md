@@ -105,7 +105,7 @@ coverage 低于 30% 时先完成 class 体系迁移；coverage 足够且人工�
 1. `preflight` 是硬门禁；有 error 就停。
 2. `epub3-migration` 优先于弹注、字体和图片精排。
 3. `popup-notes` 只允许 dry-run 后执行，注释正文必须保留。识别到 Sigil `noteref_N/footnote_N` 单条 `aside` 结构时，只有全部本地 notes 都能重组为一个 grouped `aside/ol/li` 才写出；图片触发器使用 `sup.note-marker` 的零行高外壳和相对上移，绝不使用全局 `sup img`。随后跑 `validate-popup-notes.sh` 和完整 `validate_text_invariance.py --check all`。文本 gate 只忽略 noteref/backlink 控件文字，不忽略注释正文。
-4. `typography-fonts` 需要 AI 判断：默认系统优先字体链；内嵌字体只用于标题、题签、生僻字或明确的全字符集例外。
+4. `typography-fonts` 需要 AI 判断：普通正文默认自由，显式角色优先短系统链；内嵌字体只用于标题、题签、生僻字，或用户明确选择且覆盖正文角色全部实际字符的锁定版。
 5. `images` 只负责识别格式和版式风险；真实压缩 / 转码交给外部工具，完成后再回到 package/nav audit。
 6. 每个写出步骤都生成 `work/after/step-N-*.epub`，立刻跑 `validate_text_invariance.py`。
 7. 最终交付前按 [EPUB diff review](epub-diff-review.md) 做五层人工 review。

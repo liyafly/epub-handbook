@@ -11,6 +11,7 @@ from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import epub3_oneclick_converter as C  # noqa: E402
+import epub_lint as L  # noqa: E402
 from test_support.epub_fixture import write_epub as write_fixture_epub  # noqa: E402
 
 
@@ -167,6 +168,9 @@ def main() -> int:
     write_legacy_epub(source, minified_chapter=True)
     report = C.convert_epub(source, output)
 
+    findings = L.lint_epub(output)
+    assert not findings, findings
+
     assert report.plain_notes_converted == 1, report
     assert report.nav_entries == 1, report
     assert report.stylesheet_links_added == 2, report
@@ -210,7 +214,9 @@ def main() -> int:
       chapter = zf.read("OEBPS/Text/chapter.xhtml").decode("utf-8")
       assert 'xmlns:epub="http://www.idpf.org/2007/ops"' in chapter
       assert 'href="../Styles/epub3-enhancements.css"' in chapter
-      assert ".type-quote" in zf.read("OEBPS/Styles/epub3-enhancements.css").decode("utf-8")
+      enhancement_css = zf.read("OEBPS/Styles/epub3-enhancements.css").decode("utf-8")
+      assert ".type-quote" in enhancement_css
+      assert '@namespace epub "http://www.idpf.org/2007/ops";' in enhancement_css
       assert '<sup class="note-marker">' in chapter
       assert 'class="noteref-icon" epub:type="noteref" role="doc-noteref"' in chapter
       assert 'class="footnote-list"' in chapter

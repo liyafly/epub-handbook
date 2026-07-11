@@ -75,6 +75,12 @@ def case(tmp: Path, name: str, **kwargs) -> set[str]:
   return rules_of(L.lint_epub(path))
 
 
+def case_with_free_body_meta_waiver(tmp: Path, name: str, **kwargs) -> set[str]:
+  path = tmp / f"{name}.epub"
+  make_epub(path, **kwargs)
+  return rules_of(L.lint_epub(path, allow_free_body_ibooks_meta=True))
+
+
 def main() -> int:
   with TemporaryDirectory() as raw:
     tmp = Path(raw)
@@ -140,6 +146,13 @@ def main() -> int:
       extra_meta='    <meta property="ibooks:specified-fonts">true</meta>\n',
       extra_items='    <item id="f1" href="Fonts/e.ttf" media-type="font/ttf"/>\n',
     )
+    assert "L-F05" in r, r
+
+    r = case_with_free_body_meta_waiver(
+      tmp, "f05-meta-with-font-item-explicit-waiver",
+      extra_meta='    <meta property="ibooks:specified-fonts">true</meta>\n',
+      extra_items='    <item id="f1" href="Fonts/e.ttf" media-type="font/ttf"/>\n',
+    )
     assert "L-F05" not in r, r
 
     r = case(tmp, "o01", extra_meta='    <meta property="ibooks:version">1.0</meta>\n', prefix="")
@@ -181,6 +194,106 @@ def main() -> int:
 
     t01_ok = case(tmp, "t01-ok", css='.wavy { text-decoration: underline; text-decoration-style: wavy; }')
     assert "L-T01" not in t01_ok, t01_ok
+
+    r = case(
+      tmp,
+      "c01-epub-prefix-without-css-namespace",
+      css='aside[epub|type~="footnote"] { margin-top: 1em; }',
+    )
+    assert "L-C01" in r, r
+
+    c01_ok = case(
+      tmp,
+      "c01-epub-prefix-with-css-namespace",
+      css=(
+        '@namespace epub "http://www.idpf.org/2007/ops";\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" not in c01_ok, c01_ok
+
+    c01_url_ok = case(
+      tmp,
+      "c01-epub-prefix-with-css-url-namespace",
+      css=(
+        '@namespace epub url("http://www.idpf.org/2007/ops");\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" not in c01_url_ok, c01_url_ok
+
+    c01_invalid = case(
+      tmp,
+      "c01-invalid-unquoted-namespace",
+      css=(
+        '@namespace epub http://www.idpf.org/2007/ops;\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" in c01_invalid, c01_invalid
+
+    c01_mismatched_quote = case(
+      tmp,
+      "c01-mismatched-namespace-quote",
+      css=(
+        '@namespace epub "http://www.idpf.org/2007/ops\';\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" in c01_mismatched_quote, c01_mismatched_quote
+
+    c01_late = case(
+      tmp,
+      "c01-late-namespace",
+      css=(
+        'p { margin: 0; }\n'
+        '@namespace epub "http://www.idpf.org/2007/ops";\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" in c01_late, c01_late
+
+    c01_wrong_prefix_case = case(
+      tmp,
+      "c01-wrong-prefix-case",
+      css=(
+        '@namespace EPUB "http://www.idpf.org/2007/ops";\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" in c01_wrong_prefix_case, c01_wrong_prefix_case
+
+    c01_rebound = case(
+      tmp,
+      "c01-prefix-rebound-to-other-uri",
+      css=(
+        '@namespace epub "http://www.idpf.org/2007/ops";\n'
+        '@namespace epub "urn:other";\n'
+        'aside[epub|type~="footnote"] { margin-top: 1em; }'
+      ),
+    )
+    assert "L-C01" in c01_rebound, c01_rebound
+
+    c01_declaration_text = case(
+      tmp,
+      "c01-declaration-text-is-not-selector-use",
+      css='.label::before { content: "epub|type"; }',
+    )
+    assert "L-C01" not in c01_declaration_text, c01_declaration_text
+
+    c01_attribute_value = case(
+      tmp,
+      "c01-attribute-value-text-is-not-prefix-use",
+      css='aside[data-ref="epub|type"] { margin-top: 1em; }',
+    )
+    assert "L-C01" not in c01_attribute_value, c01_attribute_value
+
+    c01_longer_prefix = case(
+      tmp,
+      "c01-longer-prefix-is-not-epub-prefix",
+      css='aside[foo-epub|type~="footnote"] { margin-top: 1em; }',
+    )
+    assert "L-C01" not in c01_longer_prefix, c01_longer_prefix
 
     r = case(tmp, "a01", css='.poster { width: 50vw; }')
     assert "L-A01" in r, r

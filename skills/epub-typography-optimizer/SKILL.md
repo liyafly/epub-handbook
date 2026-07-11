@@ -12,7 +12,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 默认生产排版应当阅读器安全：
 
-- 正文字体使用短的跨平台系统字体链。
+- 普通正文默认自由，不在 `body` / 普通 `p` 上声明字体；需要显式字体的角色使用短跨平台系统链。
 - 默认 `font-family` 链最多 4 段：Apple、Windows、Android/开源 CJK、generic。
 - 稳定的全书结构角色可直接绑定字体；混合角色和局部例外使用角色类。
 - 生僻字子集使用 `.rare` 等专用类。
@@ -23,7 +23,7 @@ description: 优化中文/CJK EPUB 排版，包括正文节奏、font-family 链
 
 正文分两种模式，由 body 是否带 `font-family` 区分：
 
-**自由模式（默认，base.css 已采用）：** body 与普通正文 p 都不设 `font-family`，读者可随意切换字体；标题、注释等局部角色仍可单独绑定。
+**正文自由模式（默认，base.css 已采用）：** body 与普通正文 p 都不设 `font-family`，给支持用户字体选择的阅读器保留切换空间；标题、注释等局部角色仍可单独绑定，因此“自由”不等于包内不能有嵌入字体。
 
 **锁定模式：** `fonts.css` 直接给 `body` 提供字体链，普通正文 p 通过继承获得该字体，OPF 加 `<meta property="ibooks:specified-fonts">true</meta>`。
 
@@ -43,7 +43,7 @@ body {
 ```css
 h1,
 h2 {
-  font-family: "tszt-title", serif;
+  font-family: "kt", serif;
 }
 
 .rare {
@@ -57,7 +57,7 @@ h2 {
 - 模式 B：生僻字子集 `.rare`，链为嵌入字体 + generic。
 - 模式 C：嵌入 + 系统字体复合链，链最多 5 段，嵌入字体只出现一次。
 
-如果确实存在生僻字且 fontspec 使用 `forceAll` 打包覆盖正文全部实际用字的字体，可以走 C1-body。链仍要短，并在文档或构建元数据中说明策略：
+设计上必须锁定正文，或确实存在生僻字时，只要 `fontspec=forceAll` 打包的字体覆盖最终解析到正文角色的全部文字和标点，就可以走 C1-body。覆盖清单按 CSS 继承与局部角色覆盖计算，不能只扫描普通 `p`。链仍要短，并在文档或构建元数据中说明策略：
 
 ```css
 body {
@@ -65,7 +65,7 @@ body {
 }
 ```
 
-子集字库不能走 C1-body；子集只允许通过 `.rare` 等显式类包住需要补字的字符。
+只含少数字符的局部补字子集不能走 C1-body；按正文角色全部实际文本生成的完整角色子集可以。局部补字子集只允许通过 `.rare` 等显式类包住需要补字的字符。
 
 ## 工作流
 
@@ -78,6 +78,8 @@ body {
    - monospace/code 字体。
 3. 删除同一链里重复的同平台别名。
 4. 把 `@font-face`、只含字体声明的稳定角色选择器和字体工具类移入 `fonts.css`。
+   - 使用 `aside[epub|type~="footnote"]` 时，声明 `@namespace epub "http://www.idpf.org/2007/ops";`；它紧跟可选的 `@charset` / `@import`，并早于 `@font-face` 和普通规则。
+   - 注释字体写在 `fonts.css`；`notes.css` 只保留注释结构与视觉。
 5. 把正文节奏留在 `base.css`：
    - 段首缩进与段间距。
    - 行高。
@@ -87,6 +89,8 @@ body {
 6. 规则位置也有问题时，配合 `epub-css-layering-optimizer`。
 7. OPF 只声明实际使用的字体文件。
 8. 保持既有书的字体模式：body 与普通正文 p 都无 `font-family` 时视为自由模式，不要替它加直接 body 规则或 `ibooks:specified-fonts`；已锁定的书保持锁定，并检查 body 规则与 OPF meta 成对出现。历史 `body-font-locked` 只兼容保留。
+9. 同时交付正文自由版与锁定版时，从同一内容基线派生；除字体 CSS、字体资源、OPF 字体 manifest/meta（含 `ibooks:specified-fonts`）及其所需的 package `ibooks:` prefix 声明外，XHTML、spine、注释、图片与其他资源必须一致。各 rendition 唯一的 `dcterms:modified` 可反映实际打包时间；比较时只忽略值，不忽略缺失、多份或格式错误。
+10. 既有书若经用户明确要求在正文自由模式保留 `ibooks:specified-fonts=true`，在书级报告记录理由，并使用 `epub_lint.py --allow-free-body-ibooks-meta`；不把例外写回模板。
 
 ## 正文节奏清单
 
@@ -102,7 +106,7 @@ body {
 - 不把版权字体放进模板或示例。
 - 不把多个嵌入字体塞进默认链来解决生僻字。
 - 新建字体 alias、文件名与 class 遵循 `docs/final/字体别名命名规范.md`；不另造书名型、品牌型或重复角色名。
-- 不把子集字库挂到 `body` / `h*`。
+- 不把只含少数字符的局部补字子集挂到 `body` / `h*`；按目标角色全部实际字符生成并经 `cmap` 复核的完整角色子集可用于 C1-body。
 - 有稳定英文 family/PostScript 名时，不依赖中文字体显示名。
 - 不删除 generic fallback。
 - 没有明确阅读器 bug 时，不在阅读字体上滥用 `!important`。
@@ -120,6 +124,8 @@ body {
 ```sh
 sh templates/epub-style-demo/build.sh
 scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/<artifact>.epub
+python3 scripts/epub_font_coverage_adapter.py <artifact.epub> --format json
+python3 scripts/epub_lint.py <artifact.epub>
 ```
 
 ## Dry-run 约定

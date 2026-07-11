@@ -59,8 +59,10 @@ Python 与 Swift **按 capability 并存，不默认删除 Python**：
 4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告。
 5. 将 normalized EPUB 作为后续输入。运行迁移 harness、精排 harness 和相关专项 skill。
 6. 运行 `python3 scripts/validate_text_invariance.py before.epub after.epub --path-map <normalize-report.json>`，再用 Calibre Editor 或 VS Code 做人工 diff review。
-7. 把值得复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书的判断写入 `work/<book>/reports/decisions.json`，两者都禁止保存正文文本。
+7. 把值得复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书且不含正文的排版判断写入 `work/<book>/reports/decisions.json`。授权正文校订的含文决策另存为 `work/<book>/reports/text-review-decisions.json`，不得改名混入上述两类记录。
 8. 留下输入、输出、preflight、迁移结果或跳过理由、结构规范化报告、精排建议、红线结果、diff review 结论、阅读器实测或跳过理由、需要回写的文档和 skill 清单。
+
+用户明确授权校订正文时，正文不变 gate 不得被删除、伪造为通过或用宽泛 allow-list 掩盖；应切换到 `docs/final/SPEC-实现约束.md` §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1 的授权正文校订分支。该分支必须冻结现版与参考版、记录篇章映射和 SHA、逐项导出结构化审阅决策、拒绝待查/缺失手工文本，并在新候选 EPUB 上继续执行 metadata、spine、锚点、封面、DRM、非文字 DOM / 属性、注释和图片红线；篇名与 nav / NCX 标签同步须另列授权。
 
 边界：
 

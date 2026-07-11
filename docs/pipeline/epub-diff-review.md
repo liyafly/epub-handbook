@@ -2,7 +2,21 @@
 
 要对比改前 / 改后两个 EPUB（清洗前后、模板改动前后等），本仓推荐两条本地路径，二选一或组合使用。两条路径都在本地运行，文件不离开设备。
 
-红线层（正文文本 / 核心 metadata / spine / 章节锚点 / 封面）由 `scripts/validate_text_invariance.py` 兜底，与本节工具无关。红线先跑，diff review 是人工补看其余四层。
+普通清洗的红线层（正文文本 / 核心 metadata / spine / 章节锚点 / 封面）由 `scripts/validate_text_invariance.py` 兜底，与本节工具无关。红线先跑，diff review 是人工补看其余四层。用户明确授权正文校订时，改走下节的结构化决策路径；不能把预期文字变化伪装成 text gate 通过。
+
+## 授权正文校订：静态审阅页 + JSON
+
+当现版与参考版有大量字符级差异、需要用户逐项选择时，Calibre/VS Code 仍用于最终文件 review，但决策入口优先使用本地静态 HTML：
+
+1. 冻结两侧 EPUB、篇章映射和 SHA-256，明确正文提取范围。
+2. 为每个差异生成稳定 id、篇章、类型、两侧精确位置、差异片段和上下文。
+3. 页面提供 `adopt_reference`、`keep_current`、`manual`、`pending` 四态，支持本地保存和 JSON 导入/导出。
+4. 页面与导出 JSON 至少携带 schema version、差异源报告 SHA-256、现版/参考 artifact 身份、item count，以及每项稳定 id、篇章、两侧片段和决策。导入其他报告的 JSON 时必须提示不匹配，真正应用时必须硬失败。
+5. `pending`、未决项或缺少 `manual_text` 时禁止生成候选 EPUB；应用器还必须逐项重新核对 id、篇章、现版/参考片段和总数，不能只信文件名或旧 SHA。
+6. 应用后证明最终连续正文逐字等于决策合并结果，并生成“现版 → 候选”与“候选 → 参考版”两份 unified diff；第二份不是失败，而是审阅后明确保留的例外清单。
+7. 只允许决策 locator 指向的文字节点变化；同一 XHTML 内的 tag 序列和 `id/class/epub:type/href/src/alt/lang`、强调、ruby / rt、pagebreak 等非文字 DOM / 属性必须另做签名。篇名和导航同步若均已授权，可单列 nav.xhtml / toc.ncx 标签白名单，但标签须等于最终篇名，链接和顺序不得变化。
+
+页面和决策 JSON 可能含受版权正文，只能留在 `work/<book>/reports/`。仓库级 `records/` 只保存不含正文的可复用判断。
 
 ## 主路径：Calibre Editor（推荐）
 
@@ -55,12 +69,12 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 
 ## 五层 review 清单
 
-不论用 Calibre 还是 VS Code，都必须覆盖五层。文本红线由自动化 gate 兜底，其余四层人工看。
+不论用 Calibre 还是 VS Code，都必须覆盖五层。普通清洗的文本红线由自动化 gate 兜底；授权正文校订由已核验的决策 artifact 和最终文字重建结果兜底，其余层继续执行原红线。
 
 | 层 | 看什么 | 主路径（Calibre） | 精细路径（VS Code） | 自动化兜底 |
 | --- | --- | --- | --- | --- |
 | 结构 | OPF manifest / spine / nav.xhtml / toc.ncx 文件级 add/del/mod | 左侧文件树颜色 | `git diff --no-index --stat` | `validate_text_invariance.py --check spine` |
-| 文本 | XHTML 正文是否真的不变（red line） | 字符级 diff | `git diff --no-index --color-words *.xhtml` | `validate_text_invariance.py --check text`（必须 0） |
+| 文本 | 普通清洗正文不变；授权校订与决策一致 | 字符级 diff | `git diff --no-index --color-words *.xhtml` | 普通：`--check text` 必须 0；授权：决策 SHA/逐项片段/最终文字验证 |
 | 样式 | CSS selector 增删、属性变更 | 字符级 diff | `--color-words *.css` 或 `code --diff` | — |
 | 资源 | 图片 / 字体 / 音频 SHA-256 与体积 | 像素 + 尺寸 overlay | `shasum -a 256` 列表 diff | `validate_text_invariance.py --check cover`（封面红线） |
 | 元数据 | dc:* / `<meta>` 字段 | OPF 字符级 diff | 同上对 `*.opf` | `validate_text_invariance.py --check metadata`（必须 0） |
@@ -78,5 +92,5 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 ## 不做什么
 
 - 不渲染 EPUB（不是阅读器）；阅读器渲染效果走 reader-matrix 实测。
-- 不替代红线 gate；红线永远靠 `validate_text_invariance.py`。
+- 不替代红线 gate；普通清洗正文仍靠 `validate_text_invariance.py`。授权正文校订只替换 text gate 的证明方式，metadata、spine、锚点、封面和 DRM 红线不变。
 - 不向外网传文件；本节所有命令本地执行。

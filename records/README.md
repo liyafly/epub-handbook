@@ -9,6 +9,8 @@
 
 把书级判断提升为全局规则前，应重新核对适用场景、阅读器证据和隐私边界。
 
+授权正文校订生成的 `text-review-decisions.json`、静态审阅 HTML 和逐篇 diff 属于本地审校证据，不是本目录的排版决策日志。它们可能包含正文片段，只能放在 `work/<book>/reports/`，不得改名为这里的 `decisions.json`、不得用 `epub_decision_log.py` 导入，也不得提升到仓库级 `records/`。
+
 ## Schema
 
 当前 schema 版本为 **1**。每行是一个完整 JSON object；未来新增、删除或改变字段语义时，必须在本文件记录版本与迁移方式。

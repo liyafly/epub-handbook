@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-06-28
+updated_at: 2026-07-11
 owner: epub-handbook
 
 lanes:
@@ -131,6 +131,10 @@ retest_priorities:
     case: 17-image-layout
     readers: [kindle_previewer, readest]
     focus: "复测 figure.img-left/right 主路径、25%–35% 宽度区间、短段反例与大字号回归。"
+  - rank: 4
+    case: 07-font-family-order
+    readers: [ibooks_ios, ibooks_macos, kindle_previewer, thorium]
+    focus: "在临时授权素材工作区构建正文自由+局部字体、直接 body 锁定、原字体/子集字体和双版本对照；记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的码位、cmap、实际字形和用户字体切换表现。"
 
 expectations:
   # status: pass | warn | fail | na
@@ -428,7 +432,7 @@ untested_cases:
     note: "列表 / 表格 / 代码；尚未实测。"
   - case: 07-font-family-order
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
-    note: "字体链顺序 + 正文锁定模式。2026-06-24 聊斋志异 MA10 实测结论：(a) ibooks:specified-fonts=true 告诉 Apple Books 尊重 body font-family，并非阻止切换；(b) 自由模式（body 无 font-family、无 meta）读者可正常切换字体；(c) 嵌入字体 + 自由正文 + 无 meta 时，挂专用类的嵌入字体正常工作不受影响。结论：ibooks:specified-fonts 只需在正文字体锁定（body font-family 已设置）时添加。"
+    note: "字体链顺序、正文自由/锁定和局部嵌入字体的 policy fixture；尚无同时具备 reader_version、artifact 与 issue 的阅读器实测记录。仓库暂按‘锁定正文配对 specified-fonts、自由正文默认不加’执行，兼容性结论须完成 retest_priorities rank 4 后回写 expectations。"
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"

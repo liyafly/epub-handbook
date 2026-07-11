@@ -385,7 +385,7 @@
           <tr><td><code>rendition:layout</code></td><td><code>reflowable</code></td><td><span class="status">推荐</span></td><td>全书默认可重排</td></tr>
           <tr><td><code>rendition:orientation</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁屏幕方向</td></tr>
           <tr><td><code>rendition:spread</code></td><td><code>auto</code></td><td><span class="status">推荐</span></td><td>不锁单双页</td></tr>
-          <tr><td><code>ibooks:specified-fonts</code></td><td><code>true</code></td><td><span class="status">条件推荐</span></td><td>Apple Books 正文字体锁定声明；局部角色字体不需要</td></tr>
+          <tr><td><code>ibooks:specified-fonts</code></td><td><code>true</code></td><td><span class="status">条件推荐</span></td><td>仅正文字体锁定时添加；自由正文历史例外须书级记录并显式 lint 豁免</td></tr>
           <tr><td><code>page-progression-direction</code></td><td><code>ltr</code></td><td><span class="status">推荐</span></td><td>全书横排</td></tr>
           <tr><td><code>page-progression-direction</code></td><td><code>rtl</code></td><td><span class="status">条件可用</span></td><td>整本竖排书</td></tr>
         </tbody>
@@ -397,8 +397,10 @@
       <table>
         <thead><tr><th>属性 / 规则</th><th>推荐值 / 用法</th><th>状态</th><th>备注</th></tr></thead>
         <tbody>
-          <tr><td><code>@font-face</code></td><td>定义书内字体</td><td><span class="status">推荐</span></td><td>正文、标题、生僻字分开</td></tr>
-          <tr><td><code>font-family</code></td><td>系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合角色用类</td><td><span class="status">推荐</span></td><td>自由模式 body/p 不设置；全书锁定直接绑定 body，p 继承</td></tr>
+          <tr><td><code>@font-face</code></td><td>定义书内字体</td><td><span class="status">推荐</span></td><td>正文、标题、生僻字按角色分开</td></tr>
+          <tr><td><code>@namespace epub</code></td><td><code>"http://www.idpf.org/2007/ops"</code></td><td><span class="status">条件必需</span></td><td>CSS 使用 <code>[epub|type]</code> 时声明；紧跟可选 <code>@charset</code> / <code>@import</code>，早于 <code>@font-face</code> 和普通规则</td></tr>
+          <tr><td><code>font-family</code></td><td>显式系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合角色用类</td><td><span class="status">推荐</span></td><td>正文自由模式 body/p 不设置；C1-body 嵌入字体全覆盖，局部字体覆盖明确承担字符并验证 fallback</td></tr>
+          <tr><td>自由/锁定双版本</td><td>同一内容基线派生</td><td><span class="status">必须</span></td><td>只允许字体 CSS、字体资源、OPF 字体 manifest/meta（含 specified-fonts）及所需 package ibooks: prefix 声明不同；各 rendition 唯一的 dcterms:modified 可按实际打包时间不同</td></tr>
           <tr><td><code>font-style</code></td><td><code>normal</code> / <code>italic</code></td><td><span class="status">推荐</span></td><td>中文强调用着重号</td></tr>
           <tr><td><code>font-weight</code></td><td><code>normal</code> / <code>bold</code> / <code>400</code> / <code>700</code></td><td><span class="status">推荐</span></td><td>嵌入字重需匹配</td></tr>
           <tr><td><code>font-size</code></td><td><code>em</code> / <code>%</code></td><td><span class="status">推荐</span></td><td>正文避免固定 px</td></tr>
@@ -506,8 +508,8 @@
           <tr><td><code>text-decoration-style</code></td><td><code>wavy</code> / <code>dotted</code> / <code>solid</code></td><td><span class="status">推荐</span></td><td>标准波浪线</td></tr>
           <tr><td><code>text-decoration-color</code></td><td><code>#c03030</code></td><td><span class="status">可用</span></td><td>波浪线颜色；局部文字效果可指定</td></tr>
           <tr><td><code>text-underline-offset</code></td><td><code>0.12em</code></td><td><span class="status">可用</span></td><td>下划线偏移</td></tr>
-          <tr><td><code>quotes</code></td><td><code>"「" "」" "『" "』"</code></td><td><span class="status">推荐</span></td><td>中文 q</td></tr>
-          <tr><td><code>content: open-quote</code></td><td>自动开引号</td><td><span class="status">推荐</span></td><td>q::before</td></tr>
+          <tr><td><code>quotes</code></td><td><code>"「" "」" "『" "』"</code></td><td><span class="status">推荐</span></td><td>中文 q；C1-body 必须纳入角色子集，只有局部角色可使用明确 fallback</td></tr>
+          <tr><td><code>content: open-quote</code></td><td>自动开引号</td><td><span class="status">推荐</span></td><td>q::before；属于 CSS 生成字符</td></tr>
         </tbody>
       </table>
     </section>
@@ -602,7 +604,7 @@
         <thead><tr><th>特性</th><th>Apple Books</th><th>Thorium</th><th>Calibre</th><th>Kindle KFX</th><th>KOReader</th><th>状态</th></tr></thead>
         <tbody>
           <tr><td><code>.ttf/.otf @font-face</code></td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
-          <tr><td><code>ibooks:specified-fonts</code></td><td>条件必需</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td><span class="status">推荐</span></td></tr>
+          <tr><td><code>ibooks:specified-fonts</code></td><td>待按 07-font-family-order 复测</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td><span class="status">仓库包结构 policy：正文锁定时配对；自由正文默认不加；历史例外单独记录</span></td></tr>
           <tr><td>A-lite 海报</td><td>实测可用</td><td>可用</td><td>可用</td><td>实测可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
           <tr><td>图片图标弹注</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>
           <tr><td><code>text-emphasis</code></td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td>可用</td><td><span class="status">推荐</span></td></tr>

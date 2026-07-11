@@ -45,14 +45,19 @@
 
 ## 4) 子集策略算法（执行层对齐）
 
-`auto` 模式下，子集字符集合 =
-1. 全书 XHTML 实际用字
-2. 角色映射要求字符（body / heading / quote / rare）
-3. 用户 `extraCodepoints`
-4. 实现显式声明的额外字符；默认回跳符号 `◎` 走阅读器或系统 fallback，不强制进入各角色字体子集
+`auto` 模式下，先按 CSS 继承、局部覆盖和字体链建立角色字符清单，不得只扫描普通 `p`：
+
+1. C1-body 或其他要求嵌入字体完整覆盖的锁定角色：纳入全书 XHTML 中最终解析到该角色的全部可渲染文字和标点
+2. 局部设计 / 补字角色：纳入明确由嵌入字体承担的字符；其余字符只有在该局部角色声明了可靠 fallback 时才可排除
+3. `quotes`、`content` 等 CSS 生成且最终由该角色渲染的字符；现有覆盖分析器不会从 XHTML 自动采集，执行层须另行枚举
+4. 角色映射显式要求字符（body / heading / quote / rare）
+5. 用户 `extraCodepoints` 与实现显式声明的额外字符
 
 附加规则：
 - 当角色字体本身即为人工子集（rare 专用字库），可按角色策略显式 `none`，避免重复裁切。
+- 默认回跳符号 `◎` 若继承 C1-body、嵌入注释字体或其他要求完整覆盖的角色，必须进入该角色子集；只有为它声明了独立的非嵌入 fallback 角色时，才可从对应嵌入字体清单排除。
+- 子集化、字体改名和文件扩展名改写不得改变 XHTML 正文码位。视觉相似字符（例如 `〇` U+3007 与 `○` U+25CB）不得按字形自动互换；这类变化属于正文校订，必须走 §10.1.1。
+- 子集写出后必须重新核对角色字符清单与字体 `cmap`；“子集命令成功”不等于该角色全部实际用字已覆盖。
 
 ## 5) 结构化产物要求
 
@@ -171,24 +176,22 @@
 
 ## 8) 字体链规则
 
-> **设计意图**：系统字体优先、嵌入字体仅作特定需求专用。原因：(1) 嵌入字体增加包体 6–10 MB，对大多数无生僻字的中文书不必要；(2) 系统字体已覆盖各平台常用 CJK 字符，且阅读器可为系统字体做渲染优化（Hinting、灰度子像素等）；(3) 默认自由模式让读者可切换字体，是最大兼容策略。只有在系统字体确实缺字（生僻字）或设计上必须特定字形（题签/卷头）时才嵌入。
+> **设计意图**：正文默认自由，显式字体角色优先使用短系统链，嵌入字体仅作特定需求专用。原因：(1) 嵌入字体增加包体；(2) 阅读器与系统字体已覆盖多数常用 CJK 字符；(3) 默认正文不由书内 `body` 强制指定字体，给支持用户字体选择的阅读器保留切换空间。只有系统字体确实缺字，或设计上必须固定正文、标题、题签等角色字形时才嵌入。
 
-- 同一份 EPUB 默认走跨平台系统字体链，不嵌入字体；嵌入字体仅用于
+- 同一份 EPUB 的普通正文默认不声明 `font-family`；需要显式字体的局部角色优先走短跨平台系统链。嵌入字体仅用于
   (a) 大量生僻字、(b) 设计上必须的特定字体、(c) (a) 与 (b) 同时存在。
 - **正文字体分两种模式**，由全书生效的 `body` 是否有 `font-family` 区分：
-  - **自由模式（默认）**：`body` 和普通正文 `p` 都不设 `font-family`，正文使用阅读器默认字体，读者可随时切换。标题、注释、题签等局部角色仍可单独绑定字体。
+  - **自由模式（默认）**：`body` 和普通正文 `p` 都不设 `font-family`，正文交给阅读器默认字体；在支持用户字体选择的阅读器中保留切换空间。标题、注释、题签等局部角色仍可单独绑定字体。
   - **锁定模式**：在 `fonts.css` 直接写 `body { font-family:... }`，普通正文 `p` 通过继承获得该字体链；OPF 必须同步加 `<meta property="ibooks:specified-fonts">true</meta>`。
   - `base.css` 不承担字体绑定；自由模式的 `fonts.css` 不写直接 `body` 字体规则，锁定模式的角色绑定写在 `fonts.css`。
 - 裸 `p { font-family:... }` **不作为全书锁定入口**：它只覆盖段落，不能覆盖列表、引用、表格等其他正文容器，还会误伤同为 `p` 的注释。只需锁定某类正文段落时，应使用 `.bodytext`、`.prose` 等明确角色类。
-- **角色选择器规则**：结构元素在全书只有一个稳定字体角色时，可直接使用 `body`、`h1`、`h2`、`body.preface`、`aside[epub|type~="footnote"]` 等选择器；同一元素承担多种角色、只在少数位置换字形或需要例外时，必须改用明确角色类。`fonts.css` 中这些规则只写字体属性，不混入布局、颜色和分页。
+- **角色选择器规则**：结构元素在全书只有一个稳定字体角色时，可直接使用 `body`、`h1`、`h2`、`body.preface`、`aside[epub|type~="footnote"]` 等选择器；同一元素承担多种角色、只在少数位置换字形或需要例外时，必须改用明确角色类。使用 `epub|type` 这类命名空间选择器的 CSS 必须声明 `@namespace epub "http://www.idpf.org/2007/ops";`；它紧跟可选的 `@charset` / `@import`，并早于 `@font-face` 和普通规则。`fonts.css` 中这些规则只写字体属性，不混入布局、颜色和分页。
 - **`font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
   → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
-- 嵌入字体可直接绑定到稳定的全书角色：例如正文 `body`、统一层级标题 `h1/h2`、前言 `body.preface` 或注释容器。对应字体必须覆盖该角色的全部实际用字，且 CSS URL、OPF manifest 与字体文件必须闭环。不要把嵌入字体直接挂到角色混杂的裸 `p` / `div` / `span`。
+- 嵌入字体可直接绑定到稳定的全书角色：例如正文 `body`、统一层级标题 `h1/h2`、前言 `body.preface` 或注释容器。C1-body 必须由嵌入字体覆盖该角色经过继承与局部覆盖后真正承担的全部实际用字、标点和 CSS 生成字符；局部角色可以使用明确的 fallback，但必须单独枚举嵌入字体承担的字符并验证剩余字符确实落到该 fallback。CSS URL、OPF manifest 与字体文件必须闭环。注释字体绑定写在 `fonts.css`，`notes.css` 只保留注释结构与视觉。不要把嵌入字体直接挂到角色混杂的裸 `p` / `div` / `span`。
 - 生僻字子集（如 `tszt-rare`）禁止挂到 `body` / `h*`，必须使用模式 B `.rare` 包住实际字符。
-- 模式 C1-body 用于正文含生僻字且正文角色字体覆盖全书实际用字的场景。启用要求：
-  - 嵌入字体必须覆盖书内所有生僻字（至少 GB 18030 / CJK Unified Ideographs + Ext-A，
-    或由全书正文实际用字生成完整角色子集）；局部补字子集（如 `tszt-rare`）禁止走本路径，
-    必须改用模式 B `.rare` 类；
+- 模式 C1-body 用于设计上需要锁定正文，或正文含生僻字且正文角色字体覆盖全部实际用字的场景。启用要求：
+  - 嵌入字体必须覆盖最终解析到正文角色的全部字符；可以是完整字体，也可以是按正文角色全部实际用字生成的完整角色子集；局部补字子集（如 `tszt-rare`）禁止走本路径，必须改用模式 B `.rare` 类；
   - OPF manifest 声明对应字体 item；
   - `fontspec` 切到 `forceAll`；
   - body / h* 链仍 ≤ 5 段，嵌入字体在第 1 位且只出现 1 次，其后 3 段系统字体，
@@ -204,8 +207,10 @@
 - "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有任何角色选择器或角色类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；自由模式下不设置此 meta，允许 Apple Books 读者正常切换字体。局部角色的 `@font-face` 不需要此 meta（2026-06-24 聊斋志异 MA10 实测：14 个嵌入字体、无 meta、Apple Books 正常渲染）。
+- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；自由模式下不设置此 meta，局部角色的 `@font-face` 不单独触发此 meta。这是本仓当前可审计的包结构 policy；Apple Books 各版本中的字体切换与局部嵌入字体表现仍列在 `reader-matrix.yaml` 的 `07-font-family-order` 待复测项，不冒充实测结论。
+- 既有 EPUB 若因历史兼容或用户明确要求在正文自由模式保留该 meta，必须在书级报告记录理由，并用 `epub_lint.py --allow-free-body-ibooks-meta` 显式豁免；该例外不得写回 starter、preset 或新书模板。
 - 正文字体模式是**全书级决策**：同一本新建生产书要么全书自由（`body` 与普通正文 `p` 都无字体规则，OPF 无此 meta），要么全书锁定（直接 `body` 规则，OPF 加一份 meta）。不按页混用；既有书的 `body-font-locked` class 只作为兼容输入保留，不向新模板扩散。
+- 同一本书同时交付正文自由版与锁定版时，两版必须从同一个已定稿内容基线派生。允许差异只限字体 CSS、字体资源、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明；另允许每个 rendition 唯一的 `dcterms:modified` 反映各自实际打包时间。双版本比较可忽略该字段的值，但不得忽略缺失、多份或非 UTC `YYYY-MM-DDThh:mm:ssZ`。同一批成对构建应优先只取一次 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH` 传给两版，以减少无意义 diff；分步打包时的合法时间差不视为内容漂移。核心 `dc:*` metadata、spine、XHTML、注释、图片和其他资源必须一致。任何超出此白名单的差异都要另行授权并记录。
 - 新建字体 alias、文件名和 class 必须遵循 [字体别名命名规范](字体别名命名规范.md)：使用 `en` / `st` / `kt` / `fs` / `ht` / `tszt-*` 等角色缩写；不得新增 `Book*`、`RareSong*` 或 `.book-*` 字体命名。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
@@ -213,7 +218,7 @@
 > 本节给 AI 协作代理使用：当输入是一本已存在的 EPUB（而不是从零构造）时，AI 的改动必须落在本节边界内。
 > 任何破坏本节约束的改动都视为事故，需要回滚。
 
-### §10.1 红线（绝对不可改）
+### §10.1 红线（默认不可改；显式授权才可转入专门分支）
 
 AI 检测到自己将要触发以下任一改动时，必须停止并询问用户：
 
@@ -231,6 +236,19 @@ AI 检测到自己将要触发以下任一改动时，必须停止并询问用�
 1. AI 在输出里明确列出将要触发的红线条目。
 2. 让用户决定：放弃、显式授权、或调整范围。
 3. 默认行为不得是自动通过。
+
+### §10.1.1 授权正文校订分支
+
+只有用户明确授权修改正文、标点或字词时，才允许进入本分支。授权不会把普通正文不变 gate 变成“通过”，也不得用宽泛 allow-list 隐藏实际文字差异。
+
+1. 将现版与参考版作为只读输入，记录 EPUB SHA-256、篇章到 XHTML 的映射和参考版本；参考版只提供候选文字，不自动成为正确答案。
+2. 在生成差异前写清提取范围：篇名、小标题、正文、篇末日期、注释入口、注释正文、图片、图注，以及 nav.xhtml / toc.ncx 中的导航标签分别包含或排除哪些。所有被排除结构必须另做签名或红线校验；若授权修改篇名，导航标签是否同步也必须单独授权并 review，链接目标不得随之漂移。
+3. 每个差异项必须有稳定 id、篇章、差异类型、精确 locator、现版/参考片段和必要上下文。含正文片段的报告、静态审阅 HTML 与决策 JSON 只能保存在本地 `work/<book>/reports/`，不得进入仓库级 `records/`。
+4. 审阅状态至少包括 `adopt_reference`、`keep_current`、`manual`、`pending`。应用前必须满足：`pending=0`、未决项为 0、选择 `manual` 的项目均有最终文字。
+5. 决策 JSON 必须携带 schema 版本、差异源报告 SHA-256、现版/参考 artifact 身份、item count 和逐项决策。应用器必须重新生成或重新核对差异片段；SHA、id、篇章、片段或数量任一不符即停止。
+6. 只写出新的候选 EPUB，不覆盖现版或参考版。应用后必须证明最终连续正文等于决策合并结果，并生成“现版 → 候选”与“候选 → 参考版”两份 diff，后者用于显示明确保留的例外。
+7. `validate_text_invariance.py --check text` 与 `--check all` 在本分支会如实报告授权文字变化，不能作为通过 gate。必须改跑 `--check metadata,spine,cover,drm,anchors`，并额外验证：只允许决策 locator 指向的文字节点变化；目标 XHTML 的非文字 DOM / 属性签名（tag 序列、`id` / `class` / `epub:type` / `href` / `src` / `alt` / `lang`、ruby / rt 和 pagebreak 等）保持不变。若篇名同步已获授权，可把对应 nav.xhtml / toc.ncx 标签列入成员白名单，但必须证明标签等于最终篇名且链接、顺序不变；注释入口、注释正文、图片引用和其他排除结构仍须保持原样。
+8. 若同时生成正文自由版与锁定版，必须应用同一份决策 JSON，并断言两版目标正文完全一致；字体差异继续遵守 §8 的双版本白名单。
 
 ### §10.2 黄线（默认可改，但人工 review 必须看见）
 
@@ -259,7 +277,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 ### §10.4 元规则
 
 - 改动可见性：任何改动都必须在外部 diff 工具（Calibre / VS Code）中可见；不允许秘密改动。
-- 校验时机：每次 AI 改动后立刻跑 `validate_text_invariance.py`，红线触发立即回滚。
+- 校验时机：每次 AI 改动后立刻跑 `validate_text_invariance.py`。普通清洗触发红线立即回滚；进入 §10.1.1 后，预期的授权文字差异由决策 artifact 验证，不因此回滚，但其余红线或任何未获授权差异仍立即回滚。
 - DRM 检测：处理前先尝试 `unzip -l`，失败或发现 `encryption.xml` 立刻停止。
 - 来源记录：清洗操作必须有 `notes.md` 记录改了什么、为什么、用哪个 skill。
 - 可回滚：清洗前 epub 保留为 `before/` 备份；不允许就地覆盖。
@@ -275,6 +293,8 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 章节锚点红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check anchors` | 退出码 0 |
 | 封面红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check cover` | 退出码 0 |
 | 全量红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 退出码 0 |
+
+上表适用于普通清洗。进入 §10.1.1 后，正文变化由已核验的决策 artifact 负责证明；其余红线仍必须逐项通过，不得声称“全量红线通过”。
 
 人工可视化 review 通过外部 diff 工具（Calibre Editor 主路径，VS Code + `unzip` 精细路径，见 [EPUB diff review](../pipeline/epub-diff-review.md)）完成，不在自动化范畴。
 
@@ -303,7 +323,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 | 问题 | 为什么不做 | 用户该怎么办 |
 | --- | --- | --- |
-| 修文字错误 / 通假字 / 错字 | 正文文本不可变 | 回到源头校对 |
+| 未经用户授权自动判断并修文字错误 / 通假字 / 错字 | 正文默认不可变，工具不能自行充当校对者 | 回到源头校对；若用户已有参考版并明确授权，按 §10.1.1 逐项审阅和应用 |
 | 多语言翻译 / 译文生成 | 工具不做内容生成 | 找译者 |
 | OCR 错误（重 OCR 一次） | 不在清洗范围 | 用 `epub-source-intake` 重做 |
 | 去图片水印 / 删 DRM | 法律风险 | 找原版授权 |

@@ -38,6 +38,24 @@ BODY_FONT_LOCKED_RE = re.compile(
   r"<body[^>]*\bclass\s*=\s*(['\"])[^'\"]*\bbody-font-locked\b[^'\"]*\1", re.I
 )
 VH_VW_RE = re.compile(r"\b\d+(?:\.\d+)?(?:vh|vw)\b")
+EPUB_NAMESPACE_USE_RE = re.compile(r"(?<![\w-])epub\|")
+EPUB_NAMESPACE_URI_RE = re.escape("http://www.idpf.org/2007/ops")
+CSS_STRING_TOKEN_RE = r'''(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')'''
+CSS_URL_TOKEN_RE = rf"(?i:url)\(\s*(?:{CSS_STRING_TOKEN_RE}|[^)\s]+)\s*\)"
+EPUB_NAMESPACE_DECL_RE = re.compile(
+  rf'''(?i:@namespace)\s+epub\s+(?:
+  "{EPUB_NAMESPACE_URI_RE}"|'{EPUB_NAMESPACE_URI_RE}'|
+  (?i:url)\(\s*(?:"{EPUB_NAMESPACE_URI_RE}"|'{EPUB_NAMESPACE_URI_RE}'|{EPUB_NAMESPACE_URI_RE})\s*\)
+  )\s*;''',
+  re.X,
+)
+EPUB_NAMESPACE_ANY_DECL_RE = re.compile(
+  rf"(?i:@namespace)\s+epub\s+(?:{CSS_STRING_TOKEN_RE}|{CSS_URL_TOKEN_RE})\s*;"
+)
+CSS_STRING_TOKEN_PATTERN = re.compile(CSS_STRING_TOKEN_RE)
+CSS_CHARSET_RE = re.compile(r"@charset\s+(?:\"[^\"]*\"|'[^']*')\s*;", re.I)
+CSS_IMPORT_RE = re.compile(r"@import\b[^;]*;", re.I)
+CSS_NAMESPACE_RULE_RE = re.compile(r"@namespace\b[^;]*;", re.I)
 
 
 @dataclass
@@ -71,6 +89,46 @@ def iter_css_rules(css: str):
     if selector.startswith("@media") or selector.startswith("@supports"):
       continue
     yield selector, match.group(2)
+
+
+def has_valid_epub_namespace(css: str) -> bool:
+  """Return whether a valid epub namespace occurs in CSS's leading at-rule prelude."""
+  pos = 1 if css.startswith("\ufeff") else 0
+
+  def skip_space(offset: int) -> int:
+    match = re.match(r"\s*", css[offset:])
+    return offset + (match.end() if match else 0)
+
+  pos = skip_space(pos)
+  charset = CSS_CHARSET_RE.match(css, pos)
+  if charset:
+    pos = skip_space(charset.end())
+
+  while True:
+    imported = CSS_IMPORT_RE.match(css, pos)
+    if not imported:
+      break
+    pos = skip_space(imported.end())
+
+  found = False
+  while True:
+    namespace = CSS_NAMESPACE_RULE_RE.match(css, pos)
+    if not namespace:
+      break
+    statement = namespace.group(0)
+    if EPUB_NAMESPACE_ANY_DECL_RE.fullmatch(statement):
+      found = EPUB_NAMESPACE_DECL_RE.fullmatch(statement) is not None
+    pos = skip_space(namespace.end())
+  return found
+
+
+def uses_epub_namespace_selector(css: str) -> bool:
+  return any(
+    EPUB_NAMESPACE_USE_RE.search(
+      CSS_STRING_TOKEN_PATTERN.sub("", selector.rsplit(";", 1)[-1])
+    )
+    for selector, _body in iter_css_rules(css)
+  )
 
 
 def split_font_chain(value: str) -> list[str]:
@@ -193,6 +251,18 @@ def check_css_rules(book: Book) -> list[Finding]:
   used_families: set[str] = set()
 
   for href, css in book.css_texts.items():
+    if uses_epub_namespace_selector(css) and not has_valid_epub_namespace(css):
+      findings.append(
+        Finding(
+          "L-C01",
+          "error",
+          href,
+          (
+            "CSS 使用 `epub|` 命名空间选择器但缺 "
+            '`@namespace epub "http://www.idpf.org/2007/ops";`（SPEC §8）'
+          ),
+        )
+      )
     body_no_fontface = re.sub(r"@font-face\s*\{[^{}]*\}", "", css, flags=re.S | re.I)
     for selector, rule_body in iter_css_rules(body_no_fontface):
       for decl in font_family_decls(rule_body):
@@ -257,19 +327,17 @@ def check_css_rules(book: Book) -> list[Finding]:
   return findings
 
 
-def check_font_lock_pairing(book: Book) -> list[Finding]:
+def check_font_lock_pairing(
+  book: Book,
+  *,
+  allow_free_body_ibooks_meta: bool = False,
+) -> list[Finding]:
   class_locked = sorted(h for h, t in book.xhtml_texts.items() if BODY_FONT_LOCKED_RE.search(t))
   direct_locked = has_direct_body_font_family(book.css_texts)
   has_meta = any(
     m.attrib.get("property") == "ibooks:specified-fonts"
     and (m.text or "").strip().lower() == "true"
     for m in book.opf_root.findall("opf:metadata/opf:meta", OPF_NS)
-  )
-  has_font_items = any(
-    e["media_type"].startswith("font/")
-    or e["media_type"]
-    in {"application/font-sfnt", "application/vnd.ms-opentype", "application/font-woff"}
-    for e in book.manifest
   )
   findings: list[Finding] = []
   if (class_locked or direct_locked) and not has_meta:
@@ -285,13 +353,21 @@ def check_font_lock_pairing(book: Book) -> list[Finding]:
         ),
       )
     )
-  if has_meta and not class_locked and not direct_locked and not has_font_items:
+  if (
+    has_meta
+    and not class_locked
+    and not direct_locked
+    and not allow_free_body_ibooks_meta
+  ):
     findings.append(
       Finding(
         "L-F05",
         "error",
         book.opf_path,
-        "OPF 有 ibooks:specified-fonts=true 但既无直接 body 字体规则、锁定页，也无嵌入字体 item（SPEC §8 自由模式不加）",
+        (
+          "OPF 有 ibooks:specified-fonts=true 但既无直接 body 字体规则，也无锁定页"
+          "（SPEC §8：局部嵌入字体不构成正文字体锁定；书级历史例外须显式豁免）"
+        ),
       )
     )
   return findings
@@ -376,12 +452,21 @@ def check_documents(book: Book) -> list[Finding]:
   return findings
 
 
-def lint_epub(path: Path) -> list[Finding]:
+def lint_epub(
+  path: Path,
+  *,
+  allow_free_body_ibooks_meta: bool = False,
+) -> list[Finding]:
   book, findings = load_book(path)
   if book is None:
     return findings
   findings.extend(check_css_rules(book))
-  findings.extend(check_font_lock_pairing(book))
+  findings.extend(
+    check_font_lock_pairing(
+      book,
+      allow_free_body_ibooks_meta=allow_free_body_ibooks_meta,
+    )
+  )
   findings.extend(check_opf(book))
   findings.extend(check_documents(book))
   return findings
@@ -394,9 +479,20 @@ def main(argv: list[str]) -> int:
   parser.add_argument("epub", type=Path)
   parser.add_argument("--json", action="store_true", help="输出 JSON")
   parser.add_argument("--strict", action="store_true", help="warn 也按失败处理")
+  parser.add_argument(
+    "--allow-free-body-ibooks-meta",
+    action="store_true",
+    help=(
+      "显式豁免自由正文保留 ibooks:specified-fonts=true 的书级历史例外；"
+      "必须在书级报告记录理由"
+    ),
+  )
   args = parser.parse_args(argv)
 
-  findings = lint_epub(args.epub)
+  findings = lint_epub(
+    args.epub,
+    allow_free_body_ibooks_meta=args.allow_free_body_ibooks_meta,
+  )
   errors = [f for f in findings if f.severity == "error"]
   warns = [f for f in findings if f.severity == "warn"]
   if args.json:

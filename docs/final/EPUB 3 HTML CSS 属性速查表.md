@@ -177,7 +177,7 @@
 | `rendition:layout` | `reflowable` | 推荐 | 全书默认可重排 |
 | `rendition:orientation` | `auto` | 推荐 | 不锁横竖屏 |
 | `rendition:spread` | `auto` | 推荐 | 不强制单双页 |
-| `ibooks:specified-fonts` | `true` | 条件推荐 | Apple Books 正文字体锁定声明 |
+| `ibooks:specified-fonts` | `true` | 条件推荐 | 仅正文字体锁定时添加；自由正文历史例外须书级记录并显式 lint 豁免 |
 | `<meta name="cover">` | `cover-img` | 推荐 | 兼容封面识别 |
 | `spine toc="ncx"` | `toc` / `ncx` item id | 推荐 | Kindle / 旧工具链兼容目录 |
 
@@ -219,7 +219,8 @@
 | 属性 / 规则 | 推荐值 / 用法 | 状态 | 备注 |
 |---|---|---|---|
 | `@font-face` | 定义书内字体 | 推荐 | 正文、标题、生僻字可分开 |
-| `font-family` | 系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | 字体角色主路径 |
+| `@namespace epub` | `"http://www.idpf.org/2007/ops"` | 条件必需 | CSS 使用 `[epub\|type]` 时声明；紧跟可选 `@charset` / `@import`，早于 `@font-face` 和普通规则 |
+| `font-family` | 显式系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | C1-body 嵌入字体全覆盖；局部字体覆盖明确承担字符，其余验证 fallback |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
@@ -240,20 +241,20 @@
 ### 4.1 正文字体链
 
 ```css
-/* 自由模式（默认）：body 与普通正文 p 都不设 font-family */
+/* 正文自由模式（默认）：body 与普通正文 p 都不设 font-family */
 
 /* 锁定模式：fonts.css 全书直接绑定 body */
 body {
   font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
-/* 模式 C1-body（含生僻字 + 正文全部实际用字覆盖） */
+/* 模式 C1-body（设计锁定或生僻字 + 正文角色全部实际用字覆盖） */
 body {
   font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 ```
 
-> 自由模式是默认；锁定模式需要同步 OPF `ibooks:specified-fonts=true`，普通正文 `p` 直接继承 `body`。裸 `p` 不是全书锁定入口；局部段落字体使用角色类。C1-body 仅当正文角色字体覆盖全部实际用字（`fontspec=forceAll`）时启用。
+> 正文自由模式是默认；标题、序言和注释等局部角色仍可单独用字体。锁定模式需要同步 OPF `ibooks:specified-fonts=true`，普通正文 `p` 直接继承 `body`。裸 `p` 不是全书锁定入口；C1-body 仅当字体覆盖最终解析到正文角色的全部实际用字（`fontspec=forceAll`）时启用。自由/锁定双版本必须从同一内容基线派生，允许差异仅为字体 CSS、字体资源、OPF 字体 manifest/meta（含 `ibooks:specified-fonts`）及其所需的 package `ibooks:` prefix 声明；各 rendition 唯一的 `dcterms:modified` 可按实际打包时间不同。
 
 ### 4.2 标题 / 特殊字体
 
@@ -261,7 +262,7 @@ body {
 /* h1/h2 全书角色一致时可直接绑定；角色混合时改用标题类 */
 h1,
 h2 {
-  font-family: "kt-title", serif;
+  font-family: "kt", serif;
 }
 
 /* 模式 B：生僻字子集字库（链 ≤ 2 段） */
@@ -402,9 +403,9 @@ h2 {
 | `text-decoration-color` | `#c03030` | 可用 | 波浪线颜色；局部文字效果可指定 |
 | `text-decoration-thickness` | `1px` | 可用 | 线宽 |
 | `text-underline-offset` | `0.12em` | 可用 | 下划线偏移 |
-| `quotes` | `"「" "」" "『" "』"` | 推荐 | 中文 `<q>` |
-| `content: open-quote` | 自动开引号 | 推荐 | `<q>` |
-| `content: close-quote` | 自动闭引号 | 推荐 | `<q>` |
+| `quotes` | `"「" "」" "『" "』"` | 推荐 | 中文 `<q>`；C1-body 必须纳入角色子集，只有局部角色可使用明确 fallback |
+| `content: open-quote` | 自动开引号 | 推荐 | `<q>`；属于 CSS 生成字符 |
+| `content: close-quote` | 自动闭引号 | 推荐 | `<q>`；属于 CSS 生成字符 |
 
 ---
 
@@ -502,7 +503,7 @@ h2 {
 | 特性 | Apple Books | Thorium | Calibre | Kindle KFX | KOReader | 状态 |
 |---|---|---|---|---|---|---|
 | `.ttf/.otf @font-face` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
-| `ibooks:specified-fonts` | 条件必需 | N/A | N/A | N/A | N/A | 推荐 |
+| `ibooks:specified-fonts` | 待按 `07-font-family-order` 复测 | N/A | N/A | N/A | N/A | 仓库包结构 policy：正文锁定时配对；自由正文默认不加；历史例外单独记录 |
 | A-lite 海报 | 实测可用 | 可用 | 可用 | 实测可用 | 可用 | 推荐 |
 | 图片图标弹注 | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |
 | `text-emphasis` | 可用 | 可用 | 可用 | 可用 | 可用 | 推荐 |

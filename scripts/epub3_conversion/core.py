@@ -563,6 +563,8 @@ def ensure_nav(files: dict[str, bytes], root: ET.Element, opf_path: str, report:
 
 def enhancement_css() -> bytes:
   return b'''/* EPUB 3 CJK literary cleanup layer. Keep linked after source stylesheets. */
+@namespace epub "http://www.idpf.org/2007/ops";
+
 html,
 body {
   margin: 0;
@@ -570,7 +572,6 @@ body {
 }
 
 body {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
   line-height: 1.65;
   text-align: justify;
   text-justify: inter-ideograph;

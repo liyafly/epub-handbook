@@ -72,6 +72,8 @@ unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
 python3 scripts/epub_lint.py "$EPUB"
 ```
 
+默认 lint 要求 `ibooks:specified-fonts=true` 与直接 `body` 正文字体锁定成对出现；既有书的 `body-font-locked` class 仅作为兼容输入识别。只有既有书因历史兼容或用户明确要求保留自由正文 meta、且书级报告已经写明理由时，才改用 `python3 scripts/epub_lint.py "$EPUB" --allow-free-body-ibooks-meta`；该参数不是新书模板入口。
+
 发现 `META-INF/encryption.xml` 时默认停止。若声明目标在 ZIP 中不存在，结构工具可移除该 stale 引用；若已确认只有 EPUB 标准字体混淆，可用下一节的 `inspect` 显式验证。正文、样式、图片或未知算法加密且目标真实存在时仍立即停止。
 
 `work/preflight.json` 里的 `preflight_status` 为 `fail` 时，不进入 EPUB3 迁移或 AI 清洗。
@@ -211,13 +213,65 @@ python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/cleaned.e
 
 退出码必须 0。
 
+## 7.1 授权正文校订（仅用户明确授权）
+
+普通清洗仍以 §7 的正文不变 gate 为默认。用户明确要求按参考版校订字词、标点或空格时，切换到 [SPEC §10.1.1](../final/SPEC-实现约束.md)，不要删除 text gate，也不要用宽泛 allow-list 把差异伪装成不变。
+
+### 冻结输入与比较范围
+
+1. 保留现版与参考版不可修改副本，记录每个 EPUB 的 SHA-256。
+2. 建立篇章映射：篇名、现版 XHTML、参考 EPUB、参考 XHTML、版本或来源说明。
+3. 明确连续正文提取范围。篇名、小标题、篇末日期、noteref、注释正文、图片和图注是否参与比较必须逐项写清；排除的注释与图片后续单独做签名校验。
+4. 参考版只提供候选文字，不直接整章覆盖。即使用户选择“整篇采用”，也必须把该选择展开为该篇全部差异项的 `adopt_reference` 决策，并导出、校验同一份逐项 artifact；不能绕过稳定 id、片段复核和总数校验。
+
+### 静态审阅页与决策 JSON
+
+差异很多、用户不适合手写清单时，优先在本地生成静态 HTML：逐项显示篇章、差异类型、精确 locator、现版/参考片段和上下文，并支持以下状态：
+
+| 状态 | 含义 | 应用条件 |
+| --- | --- | --- |
+| `adopt_reference` | 采用参考版片段 | 可直接应用 |
+| `keep_current` | 保留现版片段 | 可直接应用 |
+| `manual` | 使用人工填写的最终片段 | `manual_text` 非空 |
+| `pending` | 待查 | 禁止应用 |
+
+导出的 JSON 至少包含 schema version、差异源报告 SHA-256、现版/参考 artifact 身份、item count、稳定 id、篇章、两侧片段和最终决策。应用前必须满足 `pending=0`、`undecided=0`、`manual_missing=0`。含正文片段的 Markdown、HTML 与 JSON 只留在 `work/<book>/reports/`，不得复制进 `records/` 或提交为仓库级样本。
+
+### 防止审阅结果过期
+
+应用器必须重新计算或逐项核对差异：源报告 SHA、item id、篇章、现版片段、参考片段和总数任一不符就停止。不能只凭相同文件名假设 JSON 仍适用于当前 EPUB。
+
+### 写出与验证
+
+只生成新候选，不覆盖现版或参考版。正文变化已获授权，因此 `--check text` 与 `--check all` 会如实失败，不能声称“全量红线通过”。非文本红线必须以生成差异和决策 artifact 时冻结的现版为 `EDITORIAL_BASE`；它通常就是前文的 `REDLINE_BASE`，若从结构规范化前的源文件比较，则继续传入对应 `--path-map`：
+
+```sh
+EDITORIAL_BASE="$REDLINE_BASE"  # 必须与差异报告中的现版 artifact 身份一致
+python3 scripts/validate_text_invariance.py \
+  "$EDITORIAL_BASE" \
+  work/after/editorial-candidate.epub \
+  --check metadata,spine,cover,drm,anchors
+# 若 EDITORIAL_BASE 早于结构规范化，追加：--path-map work/step-0-normalize.json
+```
+
+同时必须证明：
+
+- 最终连续正文逐字等于决策 JSON 合并结果；
+- 只允许决策 locator 指向的文字节点变化；目标 XHTML 的非文字 DOM / 属性签名保持不变，包括 tag 序列、`id/class/epub:type/href/src/alt/lang`、`em/strong`、ruby / rt 与 pagebreak；
+- noteref、注释正文、注释目标、图片 `src/alt` 和其他排除结构保持不变；
+- 若篇名变化和目录同步均已获授权，对应 nav.xhtml / toc.ncx 标签可进入成员白名单，但标签必须等于最终篇名，链接目标和导航顺序必须不变；未授权时导航文件不得随正文改动；
+- 输出“现版 → 候选”与“候选 → 参考版”两份 unified diff，后者明确展示保留现版或手工修正的例外；
+- preflight、ZIP、popup-note validator 和 `epub_lint.py` 通过。
+
+同时交付正文自由版与锁定版时，两版使用同一份决策 JSON，并断言目标正文完全一致；字体相关成员之外的差异按 SPEC §8 白名单复核。
+
 ## 8. Diff 人工 review
 
 按 [EPUB diff review](epub-diff-review.md) 的两条路径做：
 
 - 主路径（推荐）：Calibre Editor → Tweak Book → File → Compare to another book → 选 `work/after/cleaned.epub`。
 - 精细路径：`unzip` 解压两侧到 `work/before-extracted` / `work/after-extracted`，再用 `git diff --no-index` 整树概览 / `code --diff` 逐文件 / `shasum -a 256` 列表对资源层。
-- 五层覆盖：结构 / 文本 / 样式 / 资源 / 元数据。文本红线已在 §5 卡过，本步只确认人眼看到的改动与红线放行的清洗范围一致。
+- 五层覆盖：结构 / 文本 / 样式 / 资源 / 元数据。普通清洗的文本红线已在 §7 卡过；授权正文校订则同时核对决策 JSON 和两份正文 diff。人眼看到的改动必须与放行范围一致。
 
 这一步只看文件差异，不是阅读器效果验收。阅读器效果通过 reader-matrix 单独覆盖。
 
@@ -241,7 +295,7 @@ uv run python scripts/epub_decision_log.py add \
 
 ## 9. 用户确认
 
-把 diff 摘要、截图或导出 JSON 发给用户。用户确认后，`work/after/cleaned.epub` 作为交付。
+把 diff 摘要、截图或导出 JSON 发给用户。授权正文校订还要一并给出决策统计和“候选 → 参考版”剩余差异摘要。用户确认后，`work/after/cleaned.epub` 或明确命名的 editorial candidate 作为交付。
 
 ## 10. reader-matrix 回写
 

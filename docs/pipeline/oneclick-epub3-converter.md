@@ -64,13 +64,13 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 - EPUB3 `package version="3.0"`。
 - `dcterms:modified`。
-- `ibooks:specified-fonts`（仅当检测到 `body-font-locked` 页时添加；若输入已存在但未检测到锁定页则保留并提示人工复核，见 `docs/final/SPEC-实现约束.md` §8）。
+- `ibooks:specified-fonts`（检测到直接 `body` 字体规则或既有 `body-font-locked` 页时添加；若输入已存在但未检测到锁定则保留并提示人工复核，默认 lint 会报 L-F05，只有书级历史例外才显式豁免，见 `docs/final/SPEC-实现约束.md` §8）。
 - 新建 `nav.xhtml`，保留 `toc.ncx` 和 `spine toc="ncx"`。
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。
 - XHTML 根缺 `lang` 和 `xml:lang` 时，从 OPF `dc:language` 补入两者；不覆盖已有值，也不猜测缺失的 OPF 语言。
 - 发生 XHTML 重写时，对 XML-valid 页面使用两空格缩进的多行输出；不压缩为单行，也不改写 mixed-content 中的正文文字。无法 XML 解析的遗留页面保留原格式并继续由其他校验报告问题。
-- 新增 `Styles/epub3-enhancements.css`。
+- 新增 `Styles/epub3-enhancements.css`；该 CSS 使用 `[epub|type]` 选择器，因此在首个普通规则前声明标准 `@namespace epub`（若未来加入 `@charset` / `@import`，namespace 紧随其后并保持早于 `@font-face`）。
 - 仅在纯文本/数字上标注释标记需要图标化时新增 `Images/note.png`；已有图片 noteref 保留原图标。
 - 图片 noteref 的 `sup` 使用 `class="note-marker"`；其零行高外壳与相对上移图标只作用于脚注，避免 `sup img` 撑高正文行距。
 - 普通尾注转为同文件 grouped popup footnote。
@@ -102,13 +102,13 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 ## 字体策略
 
-脚本注入的覆盖层遵循系统优先，不嵌入字体：
+脚本注入的覆盖层不嵌入字体，普通正文默认保持自由模式：`body` 只接收行高、对齐等排版属性，不写 `font-family`。显式角色使用以下系统链：
 
-- 正文：`"Songti SC", "SimSun", "Noto Serif CJK SC", serif`
+- `.type-body`：`"Songti SC", "SimSun", "Noto Serif CJK SC", serif`
 - 标题：`"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`
 - 楷体类、引用、注释：`"Kaiti SC", "STKaiti", "KaiTi", serif`
 
-覆盖层还提供 `type-body`、`type-title`、`type-subtitle`、`type-quote`、`type-note`、`type-emphasis` 和 `type-meta` 角色类。后续如需内嵌字体，只替换或补充显式类，不把子集字体挂到 `body`。
+覆盖层还提供 `type-body`、`type-title`、`type-subtitle`、`type-quote`、`type-note`、`type-emphasis` 和 `type-meta` 角色类。后续如需内嵌字体，只替换或补充显式类；只含少数字符的局部补字子集不挂到 `body`。
 
 角色拆分和本地文学 EPUB 的脱敏分析见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
 
