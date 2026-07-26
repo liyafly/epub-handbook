@@ -114,35 +114,66 @@
       </math>
     </div>
 
-    <h2>带编号与对齐标记的表格</h2>
-    <div class="math-block">
+    <h2>公式编号：Kindle / Readest 保守外层</h2>
+    <table class="eq-table" role="presentation">
+      <tbody>
+        <tr>
+          <td class="eq-formula">
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+              <semantics>
+                <mrow>
+                  <mi>x</mi><mo>+</mo><mi>y</mi><mo>=</mo><mn>10</mn>
+                </mrow>
+                <annotation encoding="application/x-tex">x+y=10</annotation>
+              </semantics>
+            </math>
+          </td>
+          <td class="eq-num" aria-label="公式 1">（1）</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="math-note">
+      HTML table 只负责对齐，并声明为 presentation；公式仍是带 TeX annotation 的 MathML。
+    </p>
+
+    <h2>公式编号：Grid 渐进增强</h2>
+    <div class="eq-grid">
       <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-        <mtable>
-          <mlabeledtr>
-            <mtd><mtext>(1)</mtext></mtd>
-            <mtd>
-              <maligngroup/>
-              <mi>x</mi>
-              <mo>+</mo>
-              <mi>y</mi>
-              <malignmark/>
-              <mo>=</mo>
-              <mn>10</mn>
-            </mtd>
-          </mlabeledtr>
-          <mtr>
-            <mtd>
-              <maligngroup/>
-              <mn>2</mn>
-              <mi>x</mi>
-              <mo>-</mo>
-              <mi>y</mi>
-              <malignmark/>
-              <mo>=</mo>
-              <mn>3</mn>
-            </mtd>
-          </mtr>
-        </mtable>
+        <semantics>
+          <mrow>
+            <mi>x</mi><mo>-</mo><mi>y</mi><mo>=</mo><mn>3</mn>
+          </mrow>
+          <annotation encoding="application/x-tex">x-y=3</annotation>
+        </semantics>
+      </math>
+      <span class="eq-num">（2）</span>
+    </div>
+    <p class="math-note">
+      编号在 MathML 之外，源码顺序是“公式、编号”；不支持 Grid 时仍能线性阅读。
+      <code>mlabeledtr</code> 不作为跨阅读器主路径。
+    </p>
+
+    <h2>并列方程组：可换行的 HTML 行</h2>
+    <div class="sys-row">
+      <span class="sys-label">由</span>
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+        <semantics>
+          <mrow>
+            <mo>{</mo>
+            <mtable>
+              <mtr><mtd><mi>x</mi><mo>+</mo><mi>y</mi><mo>=</mo><mn>10</mn></mtd></mtr>
+              <mtr><mtd><mn>2</mn><mi>x</mi><mo>-</mo><mi>y</mi><mo>=</mo><mn>3</mn></mtd></mtr>
+            </mtable>
+          </mrow>
+          <annotation encoding="application/x-tex">\left\{\begin{aligned}x+y&amp;=10\\2x-y&amp;=3\end{aligned}\right.</annotation>
+        </semantics>
+      </math>
+      <span class="sys-label">可得</span>
+      <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+        <semantics>
+          <mrow><mi>x</mi><mo>=</mo><mfrac><mn>13</mn><mn>3</mn></mfrac></mrow>
+          <annotation encoding="application/x-tex">x=\frac{13}{3}</annotation>
+        </semantics>
       </math>
     </div>
 
@@ -207,7 +238,7 @@
       <code>msqrt</code>、<code>mroot</code>、<code>msub</code>、<code>msup</code>、
       <code>msubsup</code>、<code>mover</code>、<code>munder</code>、<code>munderover</code>、
       <code>menclose</code>、<code>mfenced</code>、<code>mtable</code>、<code>mtr</code>、
-      <code>mlabeledtr</code>、<code>mtd</code>、<code>maligngroup</code>、<code>malignmark</code>、
+      <code>mtd</code>、
       <code>semantics</code>、<code>annotation</code>、<code>mmultiscripts</code>、<code>ms</code>、
       <code>mspace</code>、<code>mstyle</code>、<code>mpadded</code> 与 <code>mphantom</code>。
     </p>

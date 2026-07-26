@@ -34,3 +34,6 @@ gui/Tuist/Dependencies/
 gui/DerivedData/
 gui/Derived/
 docs/superpowers/
+.playwright-cli
+output/playwright
+tmp

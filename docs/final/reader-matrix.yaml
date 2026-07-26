@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-07-11
+updated_at: 2026-07-26
 owner: epub-handbook
 
 lanes:
@@ -68,6 +68,9 @@ cases:
   - id: 16-math
     title: 数学公式与 MathML
     fixture: templates/epub-style-demo/OEBPS/Text/16-math.xhtml
+  - id: external-production-v2-copyright-math
+    title: 匿名外部生产样本 v2：版权页与公式
+    fixture: external-production-artifact
   - id: 17-image-layout
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
@@ -190,12 +193,30 @@ expectations:
   - reader: kindle_previewer
     case: 16-math
     status: warn
-    reader_version: pending-kindle-app-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
+    reader_version: pending-equation-layout-retest
+    artifact: templates/epub-style-demo/dist/epub-style-demo-20260726-154528.epub
     failed_page: 16-math
-    issue: "KDP Enhanced Typesetting 支持 MathML；本页覆盖分式、根式、上下标、矩阵、semantics/annotation 等标签组合。"
-    action: "已在 OPF manifest 为 16-math 声明 properties=\"mathml\"；等待 Kindle App/Previewer 复测渲染。"
-    workaround: "若目标平台不支持 MathML，需要提供文本公式或图片公式 fallback。"
+    issue: "demo 已加入 role=\"presentation\" 的保守公式布局表、HTML Grid 编号公式和 Flex 换行方程组；新 demo 尚未在 Kindle App/Previewer 做视觉实测。"
+    action: "manifest 保持 properties=\"mathml\"；公式在前、编号/标签在后的线性 DOM 不变。布局表来自单书生产样本，Grid/Flex 仍等待 Kindle App/Previewer、Apple Books 与 Thorium 复测。"
+    workaround: "Grid/Flex 被忽略时接受线性降级；布局表仅用于已验证目标，不得回退到 mlabeledtr 作为跨阅读器公式编号主路径。目标平台完全不支持 MathML 时另备文本或图片公式 fallback。"
+  - reader: kindle_previewer
+    case: external-production-v2-copyright-math
+    status: warn
+    reader_version: "3.106"
+    artifact: "anonymous-production-sample-v2.epub#sha256=43eab14f3dec4645fb25ee5d830de1e3431d3423d61c97ad925fc6b1feb50ec2"
+    failed_page: none
+    issue: "用户已确认本书此前 v2 的线性版权页、HTML 布局表编号公式和 MathML/STIX Two Math 路径可用。本次最终包沿用该结构并新增 36 处行内 MathML、12 幅无损索引色 PNG 修复图；结构校验与优化前后逐像素核对通过，但该精确 SHA 尚未重新完成 GUI 视觉复测。"
+    action: "保留为单书证据并标记 warn；将最终 SHA 重新导入 Kindle Previewer，检查版权页、行内公式、编号公式和大字号后才改为 pass。"
+    workaround: "不得把本书结论外推为所有 Kindle 版本通用；其他书与版本仍需逐 artifact 实测。"
+  - reader: readest
+    case: external-production-v2-copyright-math
+    status: warn
+    reader_version: "0.11.20 (20260720.043916)"
+    artifact: "anonymous-production-sample-v2.epub#sha256=43eab14f3dec4645fb25ee5d830de1e3431d3423d61c97ad925fc6b1feb50ec2"
+    failed_page: none
+    issue: "用户已确认本书此前 v2 的线性版权页、HTML 布局表编号公式和 MathML/STIX Two Math 路径可用。本次最终包沿用该结构并新增 36 处行内 MathML、12 幅无损索引色 PNG 修复图；结构校验与优化前后逐像素核对通过，但该精确 SHA 尚未重新完成 GUI 视觉复测。"
+    action: "保留为单书证据并标记 warn；将最终 SHA 重新导入 Readest，检查版权页、行内公式、编号公式和字体覆盖后才改为 pass。"
+    workaround: "不得把本书结论外推为所有 Readest 版本通用；其他书与版本仍需逐 artifact 实测。"
   - reader: duokan
     case: 05-duokan-fallback
     status: pass

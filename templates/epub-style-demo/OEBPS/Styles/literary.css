@@ -146,17 +146,51 @@
   font-size: 1.25em;
 }
 
+.copyright-subheading {
+  margin: 1.2em 0 .6em;
+  text-indent: 0;
+  font-size: 1em;
+}
+
+.copyright-page .cp {
+  margin: .2em 0;
+  text-indent: 0;
+  font-size: .85em;
+  line-height: 1.5;
+}
+
+.copyright-page .cp-kai {
+  font-family: "Kaiti SC", KaiTi, serif;
+}
+
+.cp-line-rule {
+  height: 0;
+  margin: .6em 0;
+  border: 0;
+  border-top: 1px solid currentColor;
+}
+
 .copyright-meta {
   margin: 0;
   padding: 0;
-  list-style: none;
 }
 
 .copyright-meta-item {
+  display: grid;
+  grid-template-columns: minmax(4em, 7em) minmax(0, 1fr);
+  column-gap: .8em;
   margin: .38em 0;
   padding: 0;
   line-height: 1.55;
-  list-style: none;
+}
+
+.copyright-meta dt {
+  font-weight: bold;
+}
+
+.copyright-meta dd {
+  min-width: 0;
+  margin: 0;
 }
 
 .copyright-statement {

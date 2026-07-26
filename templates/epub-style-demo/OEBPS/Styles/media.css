@@ -17,6 +17,73 @@
   font-size: 0.9em;
 }
 
+.eq-table {
+  width: 100%;
+  margin: 1em 0;
+  border: 0;
+  border-collapse: collapse;
+  text-indent: 0;
+}
+
+.eq-table tbody,
+.eq-table td {
+  border: 0;
+}
+
+.eq-table td {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.eq-table .eq-formula {
+  width: 100%;
+  text-align: center;
+}
+
+.eq-table .eq-num {
+  padding-left: .5em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.eq-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(2em, 1fr);
+  align-items: center;
+  column-gap: 0.5em;
+  margin: 1em 0;
+  text-indent: 0;
+}
+
+.eq-grid math {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.eq-num {
+  grid-column: 3;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.sys-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em 0.65em;
+  margin: 1em 0;
+  text-indent: 0;
+}
+
+.sys-row math {
+  max-width: 100%;
+}
+
+.sys-label {
+  white-space: nowrap;
+}
+
 .img-left {
   float: left;
   width: 30%;

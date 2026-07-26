@@ -337,10 +337,21 @@ def validate_source(check: Check) -> None:
   for token in [
     "<mfrac", "<msqrt", "<mroot", "<msub", "<msup", "<msubsup",
     "<mover", "<munder", "<munderover", "<menclose", "<mfenced",
-    "<mtable", "<mlabeledtr", "<maligngroup", "<malignmark",
+    "<mtable", "<mtr", "<mtd",
     "<semantics", "<annotation", "<mmultiscripts", "<ms>",
   ]:
     check.require(token in math_text, f"16-math.xhtml missing MathML sample: {token}")
+  for token in [
+    'class="eq-table"', 'role="presentation"', 'class="eq-formula"',
+    'class="eq-grid"', 'class="eq-num"', 'class="sys-row"', 'class="sys-label"',
+  ]:
+    check.require(token in math_text, f"16-math.xhtml missing equation layout marker: {token}")
+  check.require("<mlabeledtr" not in math_text, "16-math.xhtml must not use mlabeledtr as the equation-numbering path")
+  for token in [
+    ".eq-table", "border-collapse: collapse", ".eq-formula",
+    ".eq-grid", "grid-template-columns", ".eq-num", ".sys-row", "flex-wrap: wrap",
+  ]:
+    check.require(token in media_css, f"media.css missing equation layout style: {token}")
 
   english_text = ENGLISH_PAGE.read_text(encoding="utf-8")
   for token in [
@@ -370,16 +381,25 @@ def validate_source(check: Check) -> None:
   for token in [
     'class="frontmatter copyright-page"',
     'class="copyright-heading"',
-    'class="copyright-meta"',
+    'class="copyright-transcript"',
+    'class="cp cp-kai"',
+    'class="cp-line-rule"',
+    '<dl class="copyright-meta"',
     'class="copyright-meta-item"',
+    "<dt>",
+    "<dd>",
   ]:
     check.require(token in frontmatter_text, f"15-frontmatter.xhtml missing copyright marker: {token}")
   for token in [
     ".copyright-page",
     ".copyright-heading",
+    ".copyright-page .cp",
+    ".cp-line-rule",
     ".copyright-meta",
     ".copyright-meta-item",
-    "list-style: none",
+    "grid-template-columns",
+    ".copyright-meta dt",
+    ".copyright-meta dd",
   ]:
     check.require(token in literary_css, f"literary.css missing copyright page style: {token}")
 

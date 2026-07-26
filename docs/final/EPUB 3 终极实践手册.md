@@ -246,6 +246,19 @@ h1, h2, h3, h4, h5, h6 {
 
 既有书若按用户明确要求在正文自由版保留 `ibooks:specified-fonts=true`，这属于书级历史例外：在本地报告记录原因，并用 `epub_lint.py --allow-free-body-ibooks-meta` 显式校验，不把该做法写回新书模板。
 
+### 4.6 校对期完整母版与发行子集
+
+校对会新增或替换字符时，不必为此维护一个内嵌 CJK 全集的校对 EPUB。推荐只维护一个内容版本：
+
+1. 在 EPUB 包外保留授权清晰、可子集化的完整 TTF/OTF 母版及许可证；
+2. 构建时汇总全部 XHTML（包括 `nav.xhtml`）、正文、标题、表格、图片 `alt` / `title` / `aria-label` 和 CSS 生成文字；
+3. 正文锁定字体与统一标题字体按“当前全书字符集”生成角色子集，避免文字在角色间移动后缺字；
+4. 数学字体若依赖 OpenType MATH 表、伸缩构件或组合字形，优先保留完整数学字体；
+5. 每轮校对后重建子集并检查 `cmap`；出现 `risk`、`fail` 或未解析运行时停止交付；
+6. 校对完成后冻结母版哈希、子集哈希和许可证，仍只交付同一个 EPUB。
+
+可变 TTF 很适合作为母版：从同一份文件实例化正文、常规标题和半粗标题的静态字重，再按书内实际字符子集化。完整母版不要写进 OPF，也不要与交付 EPUB 混放；只将静态子集及许可证放入 ZIP。
+
 ---
 
 ## 五、正文基础样式
@@ -305,6 +318,8 @@ code, pre, kbd, samp {
   font-family: "SF Mono", "Consolas", "Source Code Pro", monospace;
 }
 ```
+
+长篇中文书可另设经实测的紧凑阅读档，例如 `body { line-height: 1.6; }` 与 `p { margin: 0 0 1em; text-indent: 2em; }`；这组值与 Readest 的 CJK 覆盖默认值一致，适合用作对照样张，不替代上面的通用起点。行距不是平台常量，仍需用目标字号和屏宽实测；不要用 `!important` 阻止阅读器或读者调整。
 
 ### 墨水屏适配要点
 
@@ -471,6 +486,37 @@ figure.img-right img {
 推荐把 figure 宽度先放在 `25%–35%` 之间，本 demo 默认 `30%`。这个范围不是 EPUB 标准常量，而是兼顾 Kindle App 绕排阈值与 Readest 图片可读性的保守起点：宽度越大，图片越清楚，但剩余文本列越窄；宽度越小，环绕更稳，但图片可能显得偏小。`50%` 在某些设备上也能成功，是因为它仍然是百分比宽度，且当时的屏幕与字号还给正文留下了足够列宽；但它更接近阈值，窄屏或大字号下更容易被阅读器改排到图片下方。正式书稿要按目标阅读器、屏幕宽度、用户字号和正文长度实测微调。
 
 不要用 `em` 做 Kindle 主路径。`em` 会随用户字号放大，导致浮动盒和剩余列宽一起变化；百分比宽度绑定页面宽度，所以大字号下更稳定。图片高度不固定：内层 `img` 用 `height:auto` 保持天然宽高比；`aspect-ratio` 不作为 EPUB 主路径，因为旧阅读器支持不稳定，而且 figure 还要容纳 caption 的自然高度。短段落无法证明环绕失败，实际测试要让正文至少有数行能贴住浮动图片。
+
+### 五点五点一、不同宽高比插图并排
+
+原书若把一张窄高图和一张宽图放在同一行，并要求图形垂直协调、图题底部对齐，不需要用 HTML table。保留两张独立 `figure`，在每张图里增加一个等高的图像区：
+
+```xhtml
+<div class="figure-pair">
+  <figure class="figure figure-narrow">
+    <div class="figure-stage"><img src="figure-a.png" alt="……"/></div>
+    <figcaption>图 A</figcaption>
+  </figure>
+  <figure class="figure figure-wide">
+    <div class="figure-stage"><img src="figure-b.png" alt="……"/></div>
+    <figcaption>图 B</figcaption>
+  </figure>
+</div>
+```
+
+```css
+.figure-pair { display:flex; align-items:stretch; gap:1em; }
+.figure-pair .figure { display:flex; flex-direction:column; margin:0; }
+.figure-stage {
+  display:flex;
+  flex:1 1 auto;
+  align-items:center;
+  justify-content:center;
+}
+.figure-stage img { display:block; width:100%; height:auto; }
+```
+
+图像区负责垂直居中，纵向 `figure` 让图题自然落在共同底线；窄屏下把外层改为 `display:block`。`table` 只能作为某个目标阅读器无法正确渲染 Flex、且已经实测的专用回退，并应声明 `role="presentation"`；非表格内容默认仍使用 `figure`。
 
 ---
 
@@ -1142,9 +1188,55 @@ body.page-vrl {
 
 ---
 
+## 十点四点一、版权页
+
+版权页是前置书目信息页，不是必须照相还原的固定画面。清洗扫描来源时，应把 CIP、书名、著译者、出版发行、印刷、版次、印次、ISBN、定价和版权声明保留为真文本，并保持原书的信息与顺序。不要根据 OCR 猜测补字段，也不要把整页扫描图作为正文替代。
+
+```xhtml
+<section class="frontmatter copyright-page"
+         epub:type="frontmatter copyright-page"
+         aria-label="版权信息">
+  <p class="cp cp-kai">图书在版编目（CIP）数据</p>
+  <p class="cp">书名 / 作者著. — 出版地：出版社，年份</p>
+  <p class="cp">ISBN 000-0-00-000000-0</p>
+  <hr class="cp-line-rule"/>
+  <p class="cp">责任编辑：某某</p>
+  <p class="cp">出版发行：某某出版社</p>
+  <p class="cp">版权所有，侵权必究</p>
+</section>
+```
+
+这是存量书转录的保守主路径：每一行按原页顺序保存为真实段落，用普通 `hr` 表示可见分隔线；CSS 只在 `.copyright-page` 内生效。原书确实存在清楚的标签—值关系，或内容是原生电子书时，可以再使用 `h1` / `h2` 与 `dl` / `dt` / `dd`，并用 Grid 作宽屏增强；`dl + Grid` 不是扫描版权页的强制重构目标。
+
+相对字号、自然分页和真实阅读顺序优先；不使用固定页高、绝对定位或 `table` 伪造版面。版权页可绑定授权的无衬线角色字体，但这本身不构成整书正文锁定字体的理由。
+
+---
+
 ## 十点五、MathML
 
 Kindle Enhanced Typesetting 支持 MathML。含 MathML 的 XHTML 必须在 OPF manifest 上声明 `properties="mathml"`。
+
+正文中的 `x + y = 12` 等行内表达也适合使用 MathML，并可只给 `<math>` 绑定 `STIX Two Math`。不要把数学字体设给整个中文段落。需要在校对中追踪公式源时，把表达树与 TeX 源放在同一个 `semantics` 中：
+
+```xhtml
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+  <semantics>
+    <mrow>
+      <mi>x</mi><mo>+</mo><mi>y</mi><mo>=</mo><mn>12</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">x+y=12</annotation>
+  </semantics>
+</math>
+```
+
+```css
+math,
+math[display="inline"] {
+  font-family: "STIX Two Math", "ControlBook Serif", serif;
+}
+```
+
+`annotation` 是机器可审计的公式源，不应作为第二份可见文本。若数学字体包含 OpenType MATH 表，发行前应确认子集工具没有裁掉伸缩括号、根号、积分号等构件；不能确认时，数学字体保留全集通常比盲目子集更安全。
 
 ```xml
 <item id="math"
@@ -1153,7 +1245,36 @@ Kindle Enhanced Typesetting 支持 MathML。含 MathML 的 XHTML 必须在 OPF m
       properties="mathml"/>
 ```
 
-demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubsup`、`mover`、`munder`、`munderover`、`menclose`、`mfenced`、`mtable`、`mlabeledtr`、`maligngroup`、`malignmark`、`semantics`、`annotation`、`mmultiscripts`、`ms`、`mspace`、`mstyle`、`mpadded`、`mphantom`。
+demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubsup`、`mover`、`munder`、`munderover`、`menclose`、`mfenced`、`mtable`、`mtr`、`mtd`、`semantics`、`annotation`、`mmultiscripts`、`ms`、`mspace`、`mstyle`、`mpadded`、`mphantom`。
+
+公式内部结构留在 MathML，页面布局留在 HTML/CSS。对于已经在 Kindle Previewer 与 Readest 实测的单一生产包，编号公式可采用保守的 HTML table 外层；它只负责对齐，不表示数据表：
+
+```xhtml
+<table class="eq-table" role="presentation">
+  <tbody>
+    <tr>
+      <td class="eq-formula">
+        <math xmlns="http://www.w3.org/1998/Math/MathML"
+              display="block">…</math>
+      </td>
+      <td class="eq-num" aria-label="公式 1">（1）</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+```css
+.eq-table { width: 100%; border: 0; border-collapse: collapse; }
+.eq-table td { border: 0; padding: 0; vertical-align: middle; }
+.eq-formula { width: 100%; text-align: center; }
+.eq-num { padding-left: .5em; text-align: right; white-space: nowrap; }
+```
+
+通用样本仍可同时保留“公式在前、编号在后”的线性 `div`，再用 `.eq-grid` 作渐进增强。不要把 `mlabeledtr` 当作跨阅读器公式编号主路径，也不要给 `mtable` 设置固定宽度。含说明文字和多个公式的推导行可用可换行 Flex，但源码顺序仍要独立可读。
+
+HTML table 是经过目标版本实测后的保守布局，不是“Kindle 100% 兼容”声明；完整样式和方程组示例见 `docs/how-to/mathml-equation-layout.md`，证据必须记录 artifact、SHA、阅读器名称和版本。
+
+当前单书证据来自匿名外部生产样本 v2：此前版本的线性版权页、`role="presentation"` 公式布局表和 MathML/STIX Two Math 路径已由用户在 Kindle Previewer 3.106 与 Readest 0.11.20 确认可用；2026-07-26 最终校对基线的 SHA-256 为 `43eab14f3dec4645fb25ee5d830de1e3431d3423d61c97ad925fc6b1feb50ec2`。该精确 artifact 已通过结构校验，12 幅无损索引色 PNG 也已与优化前逐像素核对一致；但因新增 36 处行内 MathML 与 12 幅修复图，仍在 `reader-matrix.yaml` 中标为 `warn`，等待两个阅读器重新完成视觉复测后才升级为 `pass`。
 
 不支持 MathML 的目标阅读器需要文本公式或图片公式 fallback；不要把复杂公式只保存在不可读的截图里。
 

@@ -43,6 +43,9 @@
 |---|---|---|---|
 | `<h1>`–`<h6>` | 标题层级 | 推荐 | 不跳级 |
 | `<p>` | 正文段落 | 推荐 | 中文正文默认 `text-indent: 2em` |
+| `<section class="frontmatter copyright-page" epub:type="frontmatter copyright-page">` | 版权页主容器 | 推荐 | 真文本、自然分页；无可见标题时补 `aria-label` |
+| `.copyright-page > p.cp` | 存量版权页逐行保真 | 推荐 | 按原页阅读顺序；局部 CSS、普通 `hr` 分组，不使用整页图或固定坐标 |
+| `<dl>` / `<dt>` / `<dd>` | 结构化版权页标签和值 | 条件推荐 | 原书关系明确或原生电子书时使用；Grid 只作增强，不伪造信息 |
 | 文白 / 原译对照条目 | `<section>` + 真实标题 + 双文本段落 + 宽屏 float 对照 | 推荐 | 默认源序上下；仅 `min-width` 宽阅读区域左右显示；可用 38/58、48/48、58/38 preset；不用 `table` / `flex` / `grid` 承载正文 |
 | `<span>` | 行内样式容器 | 推荐 | 着重、波浪线、语言片段 |
 | `<div>` | 无语义块容器 | 可用 | 排版包装；不替代章节语义 |
@@ -104,6 +107,7 @@
 | `<figure>` | 图文组 | 推荐 | 图片 + 说明 |
 | `<img src alt>` | 图片 | 推荐 | `alt` 必填 |
 | `<figcaption>` | 图片说明 | 推荐 | 放在 `<figure>` 内 |
+| `.figure-pair` + 独立 `<figure>` + `.figure-stage` | 不同宽高比插图并排 | 条件推荐 | Flex 等高图像区垂直居中、图题底对齐；窄屏上下排列，不用数据表格伪造 |
 | 章节头图 | `<header>` + `figure.chapter-head-art` / `figure.chapter-head-banner` + 真实 `<h1>` | 推荐 | 小章标或满栏横幅；标题不能烘焙进图片 |
 | `<svg>` | 矢量图 | 可用 | 图标、线稿 |
 | `<picture>` | 响应式图片 | 条件可用 | KFX 可能只取 `<img>` |
@@ -145,8 +149,12 @@
 | `<mfrac>` / `<msqrt>` / `<mroot>` | 分式与根式 | 条件可用 | 16 号 demo 覆盖 |
 | `<msub>` / `<msup>` / `<msubsup>` / `<mmultiscripts>` | 上下标与复杂脚标 | 条件可用 | 避免未确认支持的扩展标签 |
 | `<mover>` / `<munder>` / `<munderover>` / `<menclose>` | 上下标记与围框 | 条件可用 | 适合积分、向量、框选 |
-| `<mfenced>` / `<mtable>` / `<mtr>` / `<mlabeledtr>` / `<mtd>` | 括号、矩阵与带编号行 | 条件可用 | 复杂表格需实测 |
-| `<semantics>` / `<annotation>` | 语义与备用源码 | 条件可用 | 可放 TeX annotation |
+| `<mfenced>` / `<mtable>` / `<mtr>` / `<mtd>` | 括号、矩阵、分段函数与方程组 | 条件可用 | 不给 `mtable` 固定宽度；复杂结构需实测 |
+| HTML `.eq-grid` + `.eq-num` | 公式居中与右侧编号 | 条件推荐 | MathML 只放公式；源码顺序为公式、编号；Grid 失效时线性降级 |
+| HTML `.eq-table[role="presentation"]` | Kindle/Readest 编号公式保守外层 | 实测后可用 | 公式仍是 MathML、编号在外；限定已验证的单一交付包，不外推所有 Kindle |
+| HTML `.sys-row` + MathML | 说明、方程组与结果并列 | 条件推荐 | Flex 可换行；源序必须独立可读 |
+| `<mlabeledtr>` | MathML 内部带编号行 | 风险 | 不作为跨阅读器公式编号主路径 |
+| `<semantics>` / `<annotation encoding="application/x-tex">` | 表达树与可审计公式源 | 生产推荐 | annotation 非空且不重复显示；便于校对与后续转换 |
 
 ---
 

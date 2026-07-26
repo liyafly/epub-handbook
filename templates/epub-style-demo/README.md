@@ -28,8 +28,8 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 10. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
 11. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
 12. `14-vertical-body.xhtml`：整页正文竖排。
-13. `15-frontmatter.xhtml`：版权信息、题献与题记。
-14. `16-math.xhtml`：数学公式与 MathML。
+13. `15-frontmatter.xhtml`：存量书逐行版权真文本、结构化 `dl` 增强、题献与题记。
+14. `16-math.xhtml`：语义 MathML，以及 presentation table 保守编号、Grid 增强和方程组布局。
 15. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试。
 16. `18-english-fiction.xhtml`：英文小说正文、轻量首字、手写体下沉首字、居中插图与大字号回归测试。
 17. `19-border-shadow-notes.xhtml`：边框、阴影、斜角感、SVG 花边实验、长条投影和不规则便签文本框。

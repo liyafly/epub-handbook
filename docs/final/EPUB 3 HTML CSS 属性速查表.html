@@ -348,6 +348,9 @@
           <tr><td><code>&lt;nav epub:type="landmarks"&gt;</code></td><td>地标</td><td><span class="status">推荐</span></td><td>封面、目录、正文开始</td></tr>
           <tr><td><code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code></td><td>标题层级</td><td><span class="status">推荐</span></td><td>不跳级</td></tr>
           <tr><td><code>&lt;p&gt;</code></td><td>正文段落</td><td><span class="status">推荐</span></td><td>中文正文默认缩进</td></tr>
+          <tr><td><code>&lt;section class="frontmatter copyright-page" epub:type="frontmatter copyright-page"&gt;</code></td><td>版权页主容器</td><td><span class="status">推荐</span></td><td>真文本、自然分页；无可见标题时补 <code>aria-label</code></td></tr>
+          <tr><td><code>.copyright-page &gt; p.cp</code></td><td>存量版权页逐行保真</td><td><span class="status">推荐</span></td><td>按原页阅读顺序；局部 CSS、普通 <code>hr</code> 分组</td></tr>
+          <tr><td><code>&lt;dl&gt;</code> / <code>&lt;dt&gt;</code> / <code>&lt;dd&gt;</code></td><td>结构化版权页标签和值</td><td><span class="status">条件推荐</span></td><td>原书关系明确或原生电子书时使用；Grid 只作增强</td></tr>
           <tr><td>文白 / 原译对照条目</td><td><code>&lt;section&gt;</code> + 真实标题 + 双文本段落</td><td><span class="status">推荐</span></td><td>默认纵向相邻；只在宽屏 <code>min-width</code> 增强中左右；可用 38/58、48/48、58/38 preset；不用 table 或固定双栏承载正文</td></tr>
           <tr><td><code>&lt;em&gt;</code></td><td>强调</td><td><span class="status">推荐</span></td><td>中文显示为着重号</td></tr>
           <tr><td><code>&lt;strong&gt;</code></td><td>重要</td><td><span class="status">推荐</span></td><td>语义强重要性</td></tr>
@@ -360,6 +363,7 @@
           <tr><td><code>&lt;dl&gt;</code> / <code>&lt;dt&gt;</code> / <code>&lt;dd&gt;</code></td><td>定义列表</td><td><span class="status">推荐</span></td><td>术语表、参数表</td></tr>
           <tr><td><code>&lt;table&gt;</code> / <code>&lt;thead&gt;</code> / <code>&lt;tbody&gt;</code></td><td>数据表格</td><td><span class="status">可用</span></td><td>只用于真实表格</td></tr>
           <tr><td><code>&lt;figure&gt;</code> / <code>&lt;img&gt;</code> / <code>&lt;figcaption&gt;</code></td><td>图片与说明</td><td><span class="status">推荐</span></td><td><code>alt</code> 必填</td></tr>
+          <tr><td><code>.figure-pair</code> + 独立 <code>&lt;figure&gt;</code> + <code>.figure-stage</code></td><td>不同宽高比插图并排</td><td><span class="status">条件推荐</span></td><td>等高图像区垂直居中、图题底对齐；窄屏上下排列，不用数据表格伪造</td></tr>
           <tr><td>章节头图</td><td><code>&lt;header&gt;</code> + <code>figure.chapter-head-art</code> / <code>figure.chapter-head-banner</code> + 真实 <code>&lt;h1&gt;</code></td><td><span class="status">推荐</span></td><td>小章标或满栏横幅；标题不能烘焙进图片</td></tr>
           <tr><td><code>&lt;picture&gt;</code> / <code>&lt;source&gt;</code></td><td>响应式图片</td><td><span class="status">条件可用</span></td><td>KFX 可能只取 img</td></tr>
           <tr><td><code>xmlns:epub="http://www.idpf.org/2007/ops"</code></td><td>声明 <code>epub:</code> 前缀</td><td><span class="status">必须</span></td><td>任何使用 <code>epub:type</code> 的 XHTML 根 <code>&lt;html&gt;</code> 都要写</td></tr>
@@ -368,6 +372,13 @@
           <tr><td><code>&lt;ol class="footnote-list"&gt;</code></td><td>注释列表</td><td><span class="status">推荐</span></td><td>放在 footnote aside 内</td></tr>
           <tr><td><code>&lt;li class="footnote-item" id="footnote-1"&gt;</code></td><td>单条注释目标</td><td><span class="status">推荐</span></td><td>noteref 的 href 指向这里</td></tr>
           <tr><td><code>&lt;ruby&gt;</code> / <code>&lt;rb&gt;</code> / <code>&lt;rt&gt;</code> / <code>&lt;rp&gt;</code></td><td>注音</td><td><span class="status">推荐</span></td><td>保留 rp 后备</td></tr>
+          <tr><td><code>&lt;math&gt;</code> / <code>&lt;mrow&gt;</code> / <code>&lt;mfrac&gt;</code></td><td>MathML 公式语义</td><td><span class="status">条件可用</span></td><td>XHTML manifest 声明 <code>properties="mathml"</code></td></tr>
+          <tr><td><code>&lt;mtable&gt;</code> / <code>&lt;mtr&gt;</code> / <code>&lt;mtd&gt;</code></td><td>矩阵、分段函数与方程组</td><td><span class="status">条件可用</span></td><td>不设固定宽度；复杂结构需实测</td></tr>
+          <tr><td><code>&lt;semantics&gt;</code> / <code>&lt;annotation encoding="application/x-tex"&gt;</code></td><td>表达树与可审计公式源</td><td><span class="status">生产推荐</span></td><td>annotation 非空且不重复显示</td></tr>
+          <tr><td><code>.eq-grid</code> + <code>.eq-num</code></td><td>公式居中与右侧编号</td><td><span class="status">条件推荐</span></td><td>源码顺序为公式、编号；Grid 失效时线性降级</td></tr>
+          <tr><td><code>.eq-table[role="presentation"]</code></td><td>Kindle/Readest 编号公式保守外层</td><td><span class="status">实测后可用</span></td><td>公式仍是 MathML、编号在外；只适用于已验证交付包</td></tr>
+          <tr><td><code>.sys-row</code> + MathML</td><td>说明、方程组与结果并列</td><td><span class="status">条件推荐</span></td><td>Flex 可换行；源序必须独立可读</td></tr>
+          <tr><td><code>&lt;mlabeledtr&gt;</code></td><td>MathML 内部带编号行</td><td><span class="status">风险</span></td><td>不作为跨阅读器公式编号主路径</td></tr>
         </tbody>
       </table>
     </section>
