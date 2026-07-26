@@ -14,7 +14,7 @@
 | Readest | 新兴跨平台对照 | 中文 EPUB 体验友好 | 仍需版本记录 |
 | KOReader | 电子墨水设备保守降级对照 | 支持 EPUB，允许覆盖字体与样式 | 自定义引擎与设备环境会放大 CSS 差异 |
 
-Readium 是阅读系统工具链与生态，不是单一终端 App。Thorium 基于 Readium Desktop toolkit；“Thorium 实测通过”不能自动外推为所有 Readium 下游 App 都通过。结构、EPUB2 / EPUB3 和渐进兼容策略见 [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md)。
+Readium 是阅读系统工具链与生态，不是单一终端 App。Thorium 基于 Readium Desktop toolkit；“Thorium 实测通过”不能自动外推为所有 Readium 下游 App 都通过。结构、EPUB2 / EPUB3 和渐进兼容策略见 [进阶：结构与兼容](进阶-结构与兼容.md)。
 
 ## 我该测哪个阅读器？
 

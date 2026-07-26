@@ -13,7 +13,7 @@ Swift 6.3 package for Apple-native EPUB processing. It is not a replacement for 
 - `EPUBStructuredTransforms` uses SwiftSoup in explicit XML mode for XHTML DOM transformations. `PopupFootnoteArchiveNormalizer` preserves existing local icon resources, recognizes a complete Sigil `noteref_N → footnote_N` section, injects a package-local default icon plus OPF manifest item only for text markers, normalizes missing `lang` / `xml:lang` from OPF language, emits a same-file grouped `aside + ol/li` body, and writes a new EPUB. It never invokes a skill, harness, or Python process.
 - `EPUBCLI` is the native service boundary for Swift CLI transactions; `epub-handbook-swift` is the executable JSON surface. The macOS/iOS GUI does not invoke this executable—it calls the same libraries directly when that feature is wired.
 
-`SWXMLHash` is intentionally not used: OPF/container XML has fixed structure and direct `XMLParser` delegates keep namespace/error policy explicit. The decision and POC evidence are in [../docs/experiments/2026-06-20-swift-xml-html-library-evaluation.md](../docs/experiments/2026-06-20-swift-xml-html-library-evaluation.md).
+`SWXMLHash` is intentionally not used: OPF/container XML has fixed structure and direct `XMLParser` delegates keep namespace/error policy explicit. The decision and POC evidence are archived in [../archive/experiments/2026-06-20-swift-xml-html-library-evaluation.md](../archive/experiments/2026-06-20-swift-xml-html-library-evaluation.md).
 
 ## Verify
 

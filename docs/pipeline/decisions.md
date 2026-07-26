@@ -24,7 +24,7 @@
 - `docs/how-to/` 拆为 guides（场景）、plans（计划）和 pipeline（流程）。
 - `docs/final/` 收回 `epub-pro` 架构副本（后随 2026-06-25 仓库整合移除）。
 - `docs/final/fixtures.md` 删除。
-- `docs/experiments/EPUB 3 章节扉页与竖排实战 · 补充 05.md` 归位到 `docs/source/`（后随仓库整合移除，内容已并入 final/）。
+- “EPUB 3 章节扉页与竖排实战 · 补充 05”历史稿已随仓库整合移除，内容已并入 `docs/final/`，原路径可从 git 历史追溯。
 - `docs/README.md` 增加新文档分类决策树。
 
 

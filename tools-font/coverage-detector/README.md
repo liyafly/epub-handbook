@@ -34,4 +34,4 @@ uv run python -m src.cli book.epub --standard-table custom.txt   # 可选：叠�
 
 ## 设计
 
-详见 `docs/superpowers/specs/2026-06-25-epub-字体覆盖检测器-design.md`
+实现边界以本目录说明、CLI `--help` 与测试为准；早期未跟踪设计稿已废弃。

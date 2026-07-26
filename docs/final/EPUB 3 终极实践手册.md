@@ -1351,7 +1351,7 @@ HTML table 是经过目标版本实测后的保守布局，不是“Kindle 100% 
 - Amazon: [Kindle Publishing Guidelines](https://kindlegen.s3.amazonaws.com/AmazonKindlePublishingGuidelines.pdf?rw_useCurrentProtocol=1)
 - W3C: [EPUB 3.3](https://www.w3.org/TR/epub-33/)
 - MDN: [text-decoration-style](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/text-decoration-style)
-- 本项目：实测素材来自 `wang-chapterpage-demo-v2.epub`，决策痕迹见 `docs/experiments/`
+- 本项目：实测素材来自 `wang-chapterpage-demo-v2.epub`，历史决策痕迹见 `archive/experiments/`
 
 
 ### 自检补充（A-lite / 弹注 / 字体）

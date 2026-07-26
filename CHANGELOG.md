@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **仓库分层与文档精简**：根 README 收敛为“做书 / 修书 / 查问题”三条普通人入口，
+  AI 与专业维护统一路由到 `AGENTS.md` 和 `scripts/README.md`。
+- `docs/learn/` 从线性 00–09 教程收敛为唯一入口、做书页、进阶结构兼容页和按需查页面。
+- 已完成的 `docs/meta/`、`docs/experiments/`、`docs/source/` 迁入 `archive/`；
+  未跟踪的 `docs/superpowers/` 退出仓库工作树。
+- `gui/` 保持 PARKED，`references/` 保持现状，Python 与 Swift 继续按 capability 并存。
+
 ## v0.2.6 - 2026-06-25
 
 > ⚠️ 字体工具仍在完善中

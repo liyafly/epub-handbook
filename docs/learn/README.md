@@ -1,59 +1,119 @@
-# 入门
+# 新手必读：3 分钟看懂，带着问题直接查
 
-本目录给第一次接触本仓的人。按顺序读完这些页面，你会知道如何构建 demo、如何检查自己的 EPUB、何时使用 AI skills，以及清洗后怎么用外部 diff 工具 review。
+这一页写给第一次做电子书、还不懂术语的人。
 
-> 文件名前缀（01、02…）只是稳定 ID，**不代表阅读顺序**。请按下面的推荐顺序读。
+**两种用法，选一种：**
 
-读完后，你就能进入：
+- **只想弄懂 EPUB 是什么** → 读完 [§1](#1-一句话什么是-epub) 就够了。
+- **手上已经有具体问题**（注释打不开、字体变方块、目录没了……）→ 直接跳到 [§3 带着问题直接查](#3-带着问题直接查)，不用从头读。
 
-- 工程契约（[docs/final/](../final/)）查看硬规则与速查表；
-- 批处理流水线（[docs/pipeline/](../pipeline/)）做批量清洗；
-- 外部 Diff 工具（按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre / VS Code）对比改前 / 改后。
+> 你不需要先背规范，也不需要先学 CSS。会在命令行里复制粘贴命令就行。遇到不懂的词，随时查 [术语表](glossary.md)。
 
-## 速查：一定要做 / 一定不要
+---
 
-**一定要做**：
+## 1. 一句话：什么是 EPUB
 
-1. EPUB 第一个 zip entry 必须是 `mimetype`，且内容是 `application/epub+zip`，不压缩。
-2. 所有正文是可选中的文本，不是图片（FXL 漫画除外，不在本仓范围）。
-3. OPF manifest 列出每个 epub 内的文件；spine 决定阅读顺序。
-4. 每个章节 XHTML 是合法 XML。
-5. 用 `xml:lang` 标记每段语言，特别是中英混排。
+**EPUB 就是一个“会自动换行的网站”，打包成了一个文件。** 里面是 HTML、CSS、图片和目录，压成一个 zip 包，后缀改成 `.epub`。
 
-**一定不要**：
+阅读器打开它时，会根据你的屏幕大小和字号设置，把文字**重新排版**。
 
-1. 不要把正文文字烤进图片。
-2. 不要硬编码字号；优先用 `em` / `%`。
-3. 不要用固定 `px` 锁死正文行高；需要基线行高时在 `body` 使用无单位值，并做大字号复测。
-4. 不要用 `display:flex` / `grid` / `position:absolute` 承载正文。
-5. 不要把弹注做成普通超链接；标准弹注要用 `epub:type`。
+这也是它和 PDF 最大的区别：
 
-## 读完入门后去哪？
-
-- **字体策略**：[docs/final/SPEC-实现约束.md §8](../final/SPEC-实现约束.md#8-字体链规则)
-- **弹注 / 注释**：[docs/how-to/duokan-footnote-fallback-fix.md](../how-to/duokan-footnote-fallback-fix.md)
-- **EPUB2 外壳弹注兼容实验**：[docs/how-to/epub2-popup-note-compatibility.md](../how-to/epub2-popup-note-compatibility.md)
-- **图片混排**：[docs/how-to/chapter-head-image.md](../how-to/chapter-head-image.md)
-- **英文小说**：[docs/how-to/english-fiction-layout.md](../how-to/english-fiction-layout.md)
-- **文白对照 / 古典文本**：[docs/how-to/classical-modern-layout.md](../how-to/classical-modern-layout.md)
-- **合集 / 大部头**：[docs/how-to/anthology-navigation.md](../how-to/anthology-navigation.md)
-- **批量清洗**：[docs/pipeline/](../pipeline/) + [docs/pipeline/cleanup-flow.md](../pipeline/cleanup-flow.md)
-- **现成 EPUB 精排建议**：[docs/pipeline/refinement-harnesses.md](../pipeline/refinement-harnesses.md)
-- **review 改前改后差异**：按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre / VS Code
-- **贡献回本仓**：[CONTRIBUTING.md](../../CONTRIBUTING.md)
-
-## 推荐阅读顺序
-
-| 顺序 | 页面 | 读完你能做什么 |
+|  | PDF | EPUB |
 | --- | --- | --- |
-| 00 | [EPUB 是什么](00-what-is-epub.md) | 用白话解释 EPUB、PDF 和阅读器差异 |
-| 01 | [5 分钟做一本最小 EPUB](01-first-epub.md) | 构建 demo，并裁出自己的最小书 |
-| 02 | [EPUB 内部结构](02-anatomy.md) | 看懂容器、OPF、正文、样式和资源的关系 |
-| 03 | [阅读器与测试范围](03-readers.md) | 选择需要验证的阅读器和转换器 |
-| 06 | [测试自己的 EPUB](06-test-your-own.md) | 对自己的书运行 validator 与基础检查 |
-| 04 | [AI skills](04-skills.md) | 按问题选择主入口和专项 skill |
-| 07 | [常见问题](07-faq.md) | 快速排查高频制作与兼容性问题 |
-| 08 | [EPUB2 / EPUB3 兼容](08-epub2-epub3-compatibility.md) | 判断版本、导航、XHTML 和弹注 fallback |
-| 09 | [用 book-starter 十分钟出一本书](09-make-a-book.md) | 复制最小骨架、改元数据、构建并用 epub-lint 体检 |
-| 05 | [清洗案例](05-case-study.md) | 跟完一套 before / after 清洗与 review |
-| 术语表 | [glossary](glossary.md) | 随时回查本仓使用的核心术语 |
+| 像什么 | 印好的纸，字号版式固定 | 会自动换行的网页 |
+| 放大字号 | 整页放大，要左右拖 | 文字重新排，仍然一屏读完 |
+
+因为是“重新排版”，同一本书在不同阅读器（Apple Books、Kindle、多看……）里可能长得不一样——**这就是本仓库要帮你解决的核心问题：做一本在常见阅读器里都不容易崩的书。**
+
+---
+
+## 2. 你想做什么？选一条路
+
+### A. 我只想读懂 EPUB 是什么
+
+本页读完就够了。想再深入结构原理，看 [§5](#5-想更深入再看什么进阶不是必读)。
+
+### B. 我想做一本自己的书（最快路径）
+
+**不要**从手写 XML 开始。直接复制现成骨架，三步出书：
+
+```sh
+# 1. 复制骨架（已经是一本结构合规的最小书）
+cp -r templates/book-starter ~/my-book && cd ~/my-book
+
+# 2. 改书名/作者，写正文
+#    - 编辑 OEBPS/package.opf 里的 dc:title / dc:creator
+#    - 编辑 OEBPS/Text/01-chapter.xhtml 写你的正文
+
+# 3. 构建 + 体检
+sh build.sh
+python3 <仓库路径>/scripts/epub_lint.py dist/*.epub   # error 清零就算过关
+```
+
+体检通过后，拖进 Apple Books 或 Kindle Previewer 看效果。
+详细步骤见 [做一本书](做一本书.md)。
+
+> 想从零一行行理解每个文件怎么来的，再看 [手写 XML 的原理路径](做一本书.md#附录想理解每个文件怎么来的)。
+
+### C. 我有一本别人做的 EPUB，想修 / 清洗它
+
+一条命令跑清洗流水线，它会**保留原件**、检查风险、生成清洗后的版本：
+
+```sh
+python3 scripts/epub_cleanup_pipeline.py /path/to/别人的.epub --work-dir work/book-a
+```
+
+它会在 `work/book-a/` 下留下改前备份、清洗结果和一份报告。
+完整流程和红线（哪些内容绝对不许改）见 [清洗流水线](../pipeline/cleanup-flow.md)。
+
+---
+
+## 3. 带着问题直接查
+
+遇到下面这些常见症状，直接点对应链接，不用顺着读全套教程。
+
+| 我遇到的问题 | 大概率原因 | 去哪修 |
+| --- | --- | --- |
+| **注释 / 弹注点不开** | 缺 `xmlns:epub` 声明，或注释目标和链接不在同一文件 | [常见问题 · 弹注](07-faq.md#epub2--epub3)、[多看弹注 fallback](../how-to/duokan-footnote-fallback-fix.md) |
+| **字体变方块 / 生僻字缺字** | 嵌入字体没覆盖到这些字，Kindle 回退失败 | [Kindle 字体渲染深度参考](../how-to/kindle-font-rendering-deep-dive.md) |
+| **字体没生效** | 字体文件、OPF 声明、CSS `@font-face` 三处没对齐 | [常见问题 · 阅读器](07-faq.md#阅读器) |
+| **目录失效 / 打开没目录** | OPF 漏标 `properties="nav"`，或 NCX 的 `dtb:uid` 和书的 id 不一致 | [结构与兼容 · 导航双轨](进阶-结构与兼容.md#4-导航双轨navxhtml-与-tocncx-的分工) |
+| **图片溢出屏幕右边** | 外层容器 padding 把 `width:100%` 的图撑出去了 | [章首图与图文混排](../how-to/chapter-head-image.md) |
+| **字号调大后版面挤坏** | 排版用了固定 `px` / `vh`，没用可缩放的 `em` / `%` | [SPEC 实现约束](../final/SPEC-实现约束.md) |
+| **Kindle Previewer 转换失败** | EPUB 本身结构有问题，或 Kindle 不支持某些写法 | [常见问题 · 阅读器](07-faq.md#阅读器)、[reader-matrix](../final/reader-matrix.yaml) |
+| **Apple Books 改了不刷新** | Apple Books 会缓存 | 先在 Books 里删掉旧版本，再重新拖入（[FAQ](07-faq.md#阅读器)） |
+| **清洗后正文文字被改了** | 触发红线，这是事故 | 回滚并重跑 `scripts/validate_text_invariance.py`（[FAQ](07-faq.md#ai-协作)） |
+
+> 你的问题不在表里？先翻 [完整常见问题](07-faq.md)，再看 [reader-matrix.yaml](../final/reader-matrix.yaml) 是否已有记录。
+
+---
+
+## 4. 五个迟早会碰到的词（先记这几个就够）
+
+真正需要的时候再记，不用背：
+
+- **EPUB** = 一个装着 HTML / CSS / 图片的 zip 包。
+- **OPF**（`package.opf`）= 这本书的“项目清单”，登记有哪些文件、书名作者是谁。
+- **spine** = 阅读顺序（先读哪章后读哪章），写在 OPF 里。
+- **nav.xhtml / NCX** = 目录。前者给新阅读器用，后者给旧阅读器和 Kindle 用，通常两个都留。
+- **弹注** = 点一下脚注就地弹出小窗，不用跳走。
+
+完整术语随时查 [术语表](glossary.md)。
+
+---
+
+## 5. 想更深入再看什么（进阶，不是必读）
+
+以下是给“想彻底搞懂”或“要给团队定规范”的人准备的，**小白可以先跳过**：
+
+- **EPUB 内部结构、版本差异与兼容** → [进阶：结构与兼容](进阶-结构与兼容.md)
+- **对外硬规则**（违反等于事故）→ [SPEC 实现约束](../final/SPEC-实现约束.md)
+- **用 AI 帮忙修书** → [AI skills 怎么用](04-skills.md)
+- **完整清洗案例（改前 / 改后全过程）** → [清洗案例](05-case-study.md)
+- **选择阅读器和测试范围** → [阅读器矩阵](03-readers.md)
+- **测试自己的 EPUB** → [测试自己的 EPUB](06-test-your-own.md)
+
+---
+
+看不懂任何一步，就回到这一页重新选路。做书走 [B](#b-我想做一本自己的书最快路径)，修书走 [C](#c-我有一本别人做的-epub想修--清洗它)，查问题走 [§3](#3-带着问题直接查)。
