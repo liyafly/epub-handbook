@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+[ -n "$ROOT" ] || {
+  echo "pre-commit must run inside a Git worktree" >&2
+  exit 1
+}
 cd "$ROOT"
 
 changed=$(git diff --cached --name-only)

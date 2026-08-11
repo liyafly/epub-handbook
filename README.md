@@ -56,7 +56,7 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub --work-dir work/boo
 | AI 能力契约与反向查表 | [docs/learn/04-skills.md](docs/learn/04-skills.md) |
 | Python / AI provider 与校验基线 | [scripts/README.md](scripts/README.md) |
 | 原生执行核心 | [swift/](swift/) |
-| 机器契约与适配表面 | `contracts/`、`adapters/` |
+| 机器契约与适配表面 | [contracts/](contracts/) 与 [adapters/](adapters/) |
 | 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
 | 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
 
@@ -66,6 +66,9 @@ provider；Swift 是 native 执行核心。`gui/` 当前 PARKED，不投入、�
 
 完整文档索引见 [docs/README.md](docs/README.md)，Python 脚本按受众和职责的索引见
 [scripts/README.md](scripts/README.md)。
+
+清洗工作目录统一使用 `work/<book>/`，其中保留输入、输出和本书报告，默认不入库。
+`work-epub/` 是旧的本地忽略目录：不会自动移动、删除或作为新流程的输出位置。
 
 ## 维护验证
 

@@ -46,13 +46,12 @@
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
   - [skills-matrix.md](pipeline/skills-matrix.md)
-  - [decisions.md](pipeline/decisions.md)
 
 ### 模板、工具与历史
 
 - Python 工具入口：[../scripts/README.md](../scripts/README.md)
 - 自造清洗 / diff demo：[../templates/cleanup-demo-books/](../templates/cleanup-demo-books/)
-- 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/](../references/)
+- 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/README.md](../references/README.md)
 - 已完成的设计、实施计划、实验和早期推导：[../archive/](../archive/)
 
 ## 新文档放哪

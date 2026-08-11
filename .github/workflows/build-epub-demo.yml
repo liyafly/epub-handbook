@@ -9,6 +9,7 @@ on:
       - 'CHANGELOG.md'
       - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
+      - 'THIRD_PARTY.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
@@ -23,11 +24,14 @@ on:
       - 'skills/**'
       - 'contracts/**'
       - 'adapters/**'
+      - 'records/**'
+      - 'references/**'
+      - 'tools-font/**'
+      - 'hooks/**'
       - 'swift/**'
       - 'gui/**'
       - 'mise.toml'
       - 'docs/final/**'
-      - 'docs/experiments/**'
       - 'docs/README.md'
       - 'docs/learn/**'
       - 'docs/how-to/**'
@@ -39,6 +43,7 @@ on:
       - 'CHANGELOG.md'
       - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
+      - 'THIRD_PARTY.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
       - '.python-version'
@@ -53,11 +58,14 @@ on:
       - 'skills/**'
       - 'contracts/**'
       - 'adapters/**'
+      - 'records/**'
+      - 'references/**'
+      - 'tools-font/**'
+      - 'hooks/**'
       - 'swift/**'
       - 'gui/**'
       - 'mise.toml'
       - 'docs/final/**'
-      - 'docs/experiments/**'
       - 'docs/README.md'
       - 'docs/learn/**'
       - 'docs/how-to/**'
@@ -90,6 +98,9 @@ jobs:
           npm install -g markdownlint-cli2
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
             'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
+            'THIRD_PARTY.md' 'contracts/**/*.md' 'adapters/**/*.md' \
+            'records/**/*.md' 'references/**/*.md' 'hooks/**/*.md' \
+            'tools-font/**/*.md' \
             'docs/README.md' \
             'docs/final/**/*.md' 'docs/learn/**/*.md' \
             'docs/how-to/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
@@ -98,6 +109,8 @@ jobs:
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
           python3 scripts/validate_skills_basic.py
+          python3 scripts/validate_contracts.py
+          python3 scripts/validate_python_entrypoint_inventory.py
           python3 scripts/validate_docs_consistency.py
           for test_file in scripts/test_*.py; do
             python3 "$test_file"

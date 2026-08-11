@@ -15,6 +15,7 @@ demo-epub/
 demo-fxl/
 templates/**/dist/
 
+# Legacy local working directory; new cleanup runs use work/<book>/.
 work-epub/
 work/
 .superpowers/
