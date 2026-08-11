@@ -26,6 +26,7 @@
 }
 
 .eq-table tbody,
+.eq-table tr,
 .eq-table td {
   border: 0;
 }
@@ -84,6 +85,24 @@
   white-space: nowrap;
 }
 
+/* Scoped candidate only: preserve semantic table structure and retest at target sizes. */
+.math-data-table {
+  width: 100%;
+  margin: 1em 0;
+  table-layout: fixed;
+  text-indent: 0;
+}
+
+.math-data-table th,
+.math-data-table td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.math-data-table math {
+  font-size: 0.82em;
+}
+
 .img-left {
   float: left;
   width: 30%;
@@ -115,6 +134,71 @@
   width: 320px;
   max-width: 100%;
   height: auto;
+}
+
+/* Individual image sizing belongs to the figure, not the generic img rule. */
+.image-instance-wide {
+  width: 72%;
+  max-width: 100%;
+}
+
+.image-instance-wide img,
+.image-pair-narrow img,
+.image-pair-wide img {
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+.image-pair {
+  margin: 1em 0;
+  text-indent: 0;
+}
+
+.image-pair-narrow,
+.image-pair-wide {
+  margin: 0 0 0.8em;
+  text-align: center;
+}
+
+.figure-stage {
+  text-align: center;
+}
+
+@media (min-width: 40em) {
+  .figure-pair {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 4%;
+  }
+
+  .figure-pair .image-pair-narrow,
+  .figure-pair .image-pair-wide {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+  }
+
+  .figure-pair .image-pair-narrow {
+    flex: 0 1 34%;
+  }
+
+  .figure-pair .image-pair-wide {
+    flex: 0 1 60%;
+  }
+
+  .figure-pair .figure-stage {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.image-layout-note {
+  text-indent: 0;
+  font-size: 0.9em;
 }
 
 .clear-both {

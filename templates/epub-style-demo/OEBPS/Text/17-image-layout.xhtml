@@ -62,6 +62,39 @@
       <p class="clear-both">清除浮动。</p>
     </div>
 
+    <h2>单图实例宽度</h2>
+    <p>
+      通用 <code>img</code> 只约束最大宽度；这个实例的展示宽度由外层 figure 决定，
+      不能由全局 <code>img { width: 100% }</code> 反向覆盖。图像仍按自身 3:4 源图框等比缩放。
+    </p>
+    <figure class="img-center image-instance-wide">
+      <img src="../Images/poster.png" alt="实例宽度由 figure 控制的海报图"/>
+      <figcaption>单图实例：figure 宽度 72%，内部图片随图框等比缩放。</figcaption>
+    </figure>
+
+    <h2>非等宽并排图框</h2>
+    <p>
+      两个图框按各自版面角色取不同宽度，而不是把图片强制均分；均复用 3:4 的仓库自有图像，
+      用来检查 figure 尺寸、caption 和内部图片的等比关系。
+    </p>
+    <div class="figure-pair image-pair">
+      <figure class="image-pair-narrow">
+        <div class="figure-stage">
+          <img src="../Images/poster.png" alt="窄图框，按三比四源图比例缩放"/>
+        </div>
+        <figcaption>窄图框：34%</figcaption>
+      </figure>
+      <figure class="image-pair-wide">
+        <div class="figure-stage">
+          <img src="../Images/poster.png" alt="宽图框，按三比四源图比例缩放"/>
+        </div>
+        <figcaption>宽图框：60%</figcaption>
+      </figure>
+    </div>
+    <p class="image-layout-note">
+      该实例是待复测 fixture，不继承任何外部书籍的 pass；请在目标阅读器、默认与大字号下分别记录结果。
+    </p>
+
     <h2>短段反例</h2>
     <figure class="img-right">
       <img src="../Images/poster.png" alt="短段右浮动 figure"/>

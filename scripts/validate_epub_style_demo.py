@@ -92,6 +92,16 @@ def selector_block(css: str, selector: str) -> str | None:
   return match.group("body") if match else None
 
 
+def selector_blocks(css: str, selector: str) -> list[str]:
+  css = strip_css_comments(css)
+  blocks: list[str] = []
+  for match in re.finditer(r"(?P<selectors>[^{}]+)\{(?P<body>[^{}]*)\}", css, re.S):
+    selectors = match.group("selectors")
+    if any(part.strip() == selector for part in selectors.split(",")):
+      blocks.append(match.group("body"))
+  return blocks
+
+
 def percentage_width(css: str, selector: str) -> float | None:
   block = selector_block(css, selector)
   if block is None:
@@ -332,6 +342,28 @@ def validate_source(check: Check) -> None:
   check.require("class=\"img-right\"" in image_layout, "17-image-layout must include figure.img-right")
   check.require("短段反例" in image_layout, "17-image-layout must include a short-text threshold counterexample")
   check.require("大字号 figure 回归" in image_layout, "17-image-layout must include large-font figure regression")
+  for token in [
+    'class="img-center image-instance-wide"', 'class="figure-pair image-pair"',
+    'class="image-pair-narrow"', 'class="image-pair-wide"',
+    'class="figure-stage"',
+  ]:
+    check.require(token in image_layout, f"17-image-layout.xhtml missing image sizing marker: {token}")
+  for token in [
+    ".image-instance-wide", ".figure-pair", ".image-pair-narrow", ".image-pair-wide",
+    ".figure-stage", "width: 72%", "flex: 0 1 34%", "flex: 0 1 60%",
+    "@media (min-width: 40em)", "display: flex", "align-items: center",
+  ]:
+    check.require(token in media_css, f"media.css missing scoped image sizing style: {token}")
+  image_pair_narrow_blocks = selector_blocks(media_css, ".figure-pair .image-pair-narrow")
+  image_pair_wide_blocks = selector_blocks(media_css, ".figure-pair .image-pair-wide")
+  check.require(image_pair_narrow_blocks, "media.css must define a wide-screen narrow figure-pair rule")
+  check.require(image_pair_wide_blocks, "media.css must define a wide-screen wide figure-pair rule")
+  for block in image_pair_narrow_blocks + image_pair_wide_blocks:
+    check.require("float:" not in block, "non-equal figure pair must not use float")
+  check.require(
+    re.search(r"(?m)^img\s*\{[^}]*\bwidth\s*:\s*100%", media_css, re.S) is None,
+    "media.css must not introduce a generic img width:100% rule for image sizing",
+  )
 
   math_text = MATH_PAGE.read_text(encoding="utf-8")
   for token in [
@@ -347,6 +379,35 @@ def validate_source(check: Check) -> None:
   ]:
     check.require(token in math_text, f"16-math.xhtml missing equation layout marker: {token}")
   check.require("<mlabeledtr" not in math_text, "16-math.xhtml must not use mlabeledtr as the equation-numbering path")
+  for token in [
+    'class="math-data-table"', '<thead>', '<tbody>', 'scope="col"',
+    'scope="rowgroup" rowspan="2"', 'scope="row"',
+  ]:
+    check.require(token in math_text, f"16-math.xhtml missing semantic data-table marker: {token}")
+  for token in [".math-data-table", "table-layout: fixed", ".math-data-table math"]:
+    check.require(token in media_css, f"media.css missing scoped MathML data-table style: {token}")
+  data_table_blocks = (
+    selector_blocks(media_css, ".math-data-table")
+    + selector_blocks(media_css, ".math-data-table th")
+    + selector_blocks(media_css, ".math-data-table td")
+    + selector_blocks(media_css, ".math-data-table math")
+  )
+  math_blocks = selector_blocks(media_css, ".math-data-table math")
+  check.require(
+    any(re.search(r"\bfont-size\s*:\s*[0-9]+(?:\.[0-9]+)?em\s*;", block) for block in math_blocks),
+    "media.css must give .math-data-table math a scoped relative em font-size candidate",
+  )
+  data_table_css = "\n".join(data_table_blocks)
+  for forbidden in ["overflow: hidden", "max-content"]:
+    check.require(forbidden not in data_table_css, f"math-data-table styles must not use {forbidden}")
+  data_table_match = re.search(r'<table class="math-data-table">(?P<body>.*?)</table>', math_text, re.S)
+  check.require(data_table_match is not None, "16-math.xhtml must contain the math-data-table fixture")
+  if data_table_match is not None:
+    data_table_markup = data_table_match.group("body")
+    check.require(data_table_markup.count("<math ") == 4, "math-data-table must contain four MathML formulas")
+    check.require(data_table_markup.count("<semantics>") == 4, "math-data-table formulas must all use semantics")
+    annotations = re.findall(r'<annotation encoding="application/x-tex">\s*(.*?)\s*</annotation>', data_table_markup, re.S)
+    check.require(len(annotations) == 4 and all(annotation for annotation in annotations), "math-data-table formulas must all have non-empty TeX annotations")
   for token in [
     ".eq-table", "border-collapse: collapse", ".eq-formula",
     ".eq-grid", "grid-template-columns", ".eq-num", ".sys-row", "flex-wrap: wrap",

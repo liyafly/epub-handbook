@@ -29,8 +29,8 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 11. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
 12. `14-vertical-body.xhtml`：整页正文竖排。
 13. `15-frontmatter.xhtml`：存量书逐行版权真文本、结构化 `dl` 增强、题献与题记。
-14. `16-math.xhtml`：语义 MathML，以及 presentation table 保守编号、Grid 增强和方程组布局。
-15. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试。
+14. `16-math.xhtml`：语义 MathML，以及 presentation table 保守编号、Grid 增强、方程组布局和保留 `<thead>`/`<tbody>`/`scope`/`rowspan` 的长公式数据表压力场景；局部相对字号仅为待复测候选。
+15. `17-image-layout.xhtml`：figure 图文环绕与 Kindle 大字号回归测试，以及由 figure 控制的单图实例宽度、默认上下且宽屏 Flex 增强为非等宽并排的图片场景。
 16. `18-english-fiction.xhtml`：英文小说正文、轻量首字、手写体下沉首字、居中插图与大字号回归测试。
 17. `19-border-shadow-notes.xhtml`：边框、阴影、斜角感、SVG 花边实验、长条投影和不规则便签文本框。
 18. `20-chapter-head-image.xhtml`：小型章节头图、满栏横幅头图、kicker、真实标题、窄屏保守宽度与单书 fallback。
@@ -45,6 +45,8 @@ OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Prev
 > 真实书籍应全书统一自由或锁定模式，见 `docs/final/SPEC-实现约束.md` §8。
 
 完整覆盖关系见 `SCENE_MATRIX.md`。
+
+新增 fixture 不继承任何外部书籍或旧构建产物的 `pass`。构建后仍须在目标阅读器、目标字号和目标字体设置下实测，再回写阅读器矩阵。
 
 ## 验证建议
 
