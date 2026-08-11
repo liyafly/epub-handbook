@@ -38,9 +38,11 @@ DOM 先放公式，再放编号。对于一个 EPUB 同时服务 Kindle 与 Read
 ```
 
 ```css
-.eq-table { width: 100%; border: 0; border-collapse: collapse; }
+.eq-table,
 .eq-table tbody,
+.eq-table tr,
 .eq-table td { border: 0; }
+.eq-table { width: 100%; border-collapse: collapse; }
 .eq-table td { padding: 0; vertical-align: middle; }
 .eq-formula { width: 100%; text-align: center; }
 .eq-num { padding-left: .5em; text-align: right; white-space: nowrap; }
@@ -78,7 +80,28 @@ DOM 先放公式，再放编号。对于一个 EPUB 同时服务 Kindle 与 Read
 
 方程组大括号使用普通可伸展 `<mo>{</mo>`；矩阵/分段内容放在 `mtable`。不要给 `mtable` 写固定 `width`，避免小屏和大字号下被裁切。
 
-## 3. 包声明与降级
+## 3. 长公式落在真实数据表中
+
+真实数据表先保留正确的 `thead`、`tbody`、`th scope`、`rowspan` 和 `colspan`，不要为了
+躲避分页把跨行分组拆成重复文字。公式仍放在数据单元格内的 MathML 中，再在该表的
+作用域内处理宽度与字号。
+
+单书实测可采用以下调试顺序：
+
+1. 固定表格结构和列宽，先复测默认字号与目标大字号；
+2. 若只有公式右端截断，只逐级收紧该表内 `math` 的相对字号；
+3. 每次只改一个变量，不同时改变 `rowspan`、列宽与公式结构；
+4. `max-content`、`overflow:hidden` 或横向滚动包装只有目标阅读器实测有效时才保留。
+
+匿名生产样本 v3.1 曾在 Readest 0.11.20 的字号 26–27 下把表内 MathML 从
+`0.88em` 调为 `0.78em` 后消除右端截断；同一精确 artifact 的真实跨行分组也在
+Apple Books 8.5 与 Kindle Previewer 3.106 保持稳定。这里可复用的是“保真结构、
+固定变量、按目标字号逐级测”的方法，`0.78em` 不是跨书常量。精确 SHA 与范围见
+`reader-matrix.yaml` 的 `external-production-v3-1-long-math-table`。仓库内的脱敏最小
+复现位于 `templates/epub-style-demo/OEBPS/Text/16-math.xhtml`；它使用独立候选字号，
+在目标阅读器复测前仍只是一条 `warn` fixture。
+
+## 4. 包声明与降级
 
 - 每个 `<math>` 都应具有 `xmlns="http://www.w3.org/1998/Math/MathML"`。
 - 校对型生产流程中，每个公式使用 `semantics`，并保存非空的 `annotation encoding="application/x-tex"`；annotation 不作为第二份可见正文。

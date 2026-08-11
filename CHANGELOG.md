@@ -9,6 +9,10 @@
 - `docs/learn/` 从线性 00–09 教程收敛为唯一入口、做书页、进阶结构兼容页和按需查页面。
 - 已完成的 `docs/meta/`、`docs/experiments/`、`docs/source/` 迁入 `archive/`；
   未跟踪的 `docs/superpowers/` 退出仓库工作树。
+- 归档历史流水线决策，修正归档索引、贡献指南与 CI 中残留的旧目录入口。
+- 将匿名技术书 v3.1 的长 MathML 表格与图片宽度实测分层回写到脱敏 demo、reader
+  matrix、场景指南、手册和排版决策记录；精确 pass 只绑定已验证 artifact SHA，
+  新 demo 保持 `warn` 待复测。
 - `gui/` 保持 PARKED，`references/` 保持现状，Python 与 Swift 继续按 capability 并存。
 
 ## v0.2.6 - 2026-06-25

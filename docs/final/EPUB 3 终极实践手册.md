@@ -1115,6 +1115,15 @@ figcaption {
 - 面向 Kindle 的图片应提前转为 sRGB JPEG / PNG，避免透明、CMYK、TIFF、多帧 GIF 和 WebP。
 - SVG 若包含复杂路径、文字、外部字体或滤镜，不要直接作为 Kindle 主路径；先栅格化，再把文字说明放回 HTML 正文或 `figcaption`。
 
+> **单书案例，不构成通用硬规则：**匿名生产样本曾因
+> `.repaired-vector img { width:100%; }` 覆盖单图百分比宽度而把插图撑满页面；改为由
+> `figure` / 单图 class 控制展示宽度，并按源图框确定并排比例后，在指定 Kindle
+> Previewer artifact 中通过抽查。新书可把“通用规则只限制 `max-width` / `height`”
+> 作为候选，但仍须用自己的图片和目标字号复测。精确范围见 `reader-matrix.yaml` 的
+> `external-production-v3-1-image-sizing`。脱敏最小复现已加入
+> `templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml`；它是新的待复测 fixture，
+> 不继承外部 artifact 的 `pass`。
+
 ---
 
 ## 十、竖排
@@ -1264,8 +1273,12 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 ```
 
 ```css
-.eq-table { width: 100%; border: 0; border-collapse: collapse; }
-.eq-table td { border: 0; padding: 0; vertical-align: middle; }
+.eq-table,
+.eq-table tbody,
+.eq-table tr,
+.eq-table td { border: 0; }
+.eq-table { width: 100%; border-collapse: collapse; }
+.eq-table td { padding: 0; vertical-align: middle; }
 .eq-formula { width: 100%; text-align: center; }
 .eq-num { padding-left: .5em; text-align: right; white-space: nowrap; }
 ```
@@ -1274,7 +1287,17 @@ demo 覆盖常用组合：`mfrac`、`msqrt`、`mroot`、`msub`、`msup`、`msubs
 
 HTML table 是经过目标版本实测后的保守布局，不是“Kindle 100% 兼容”声明；完整样式和方程组示例见 `docs/how-to/mathml-equation-layout.md`，证据必须记录 artifact、SHA、阅读器名称和版本。
 
-当前单书证据来自匿名外部生产样本 v2：此前版本的线性版权页、`role="presentation"` 公式布局表和 MathML/STIX Two Math 路径已由用户在 Kindle Previewer 3.106 与 Readest 0.11.20 确认可用；2026-07-26 最终校对基线的 SHA-256 为 `43eab14f3dec4645fb25ee5d830de1e3431d3423d61c97ad925fc6b1feb50ec2`。该精确 artifact 已通过结构校验，12 幅无损索引色 PNG 也已与优化前逐像素核对一致；但因新增 36 处行内 MathML 与 12 幅修复图，仍在 `reader-matrix.yaml` 中标为 `warn`，等待两个阅读器重新完成视觉复测后才升级为 `pass`。
+**单书案例，不构成通用硬规则：**匿名外部生产样本 v3.1 补了一条窄证据。精确 artifact
+`d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e` 中，真实
+`rowspan` 分组在 Apple Books 8.5 与 Kindle Previewer 3.106 的指定字号保持关系；
+长 MathML 的截断修复只在 Readest 0.11.20 明确验证。该修复仅在表作用域内把 MathML
+从 `0.88em` 调到 `0.78em`，没有改跨行关系、列宽或公式结构，也没有加入
+`max-content`、横向滚动或 `overflow:hidden`。这证明的是“先保真结构，再在固定列内
+按目标字号调相对字号”在该样本中有效，不证明 `0.78em` 是通用值；完整范围见
+`reader-matrix.yaml` 的 `external-production-v3-1-long-math-table`。其后的构建已有新
+SHA，除非重新实测，不继承本条 `pass`。脱敏最小复现已加入
+`templates/epub-style-demo/OEBPS/Text/16-math.xhtml`，当前在矩阵中仍为 `warn`，等待
+Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。
 
 不支持 MathML 的目标阅读器需要文本公式或图片公式 fallback；不要把复杂公式只保存在不可读的截图里。
 

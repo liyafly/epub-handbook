@@ -256,6 +256,8 @@ python3 scripts/validate_text_invariance.py \
 
 同时必须证明：
 
+- 结构变换的往返一致或字节幂等只能证明转换器可逆，不能证明往返前没有丢内容；
+  必须另与变换前冻结版本比较可见字符或目标节点签名，并证明增减恰好落在已授权决策内；
 - 最终连续正文逐字等于决策 JSON 合并结果；
 - 只允许决策 locator 指向的文字节点变化；目标 XHTML 的非文字 DOM / 属性签名保持不变，包括 tag 序列、`id/class/epub:type/href/src/alt/lang`、`em/strong`、ruby / rt 与 pagebreak；
 - noteref、注释正文、注释目标、图片 `src/alt` 和其他排除结构保持不变；
