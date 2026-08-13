@@ -395,6 +395,8 @@ code, pre, kbd, samp {
 
 英文正文不强制 `text-align: justify` 作为通用主路径。窄屏、大字号或阅读器断字支持弱时，英文 justify 容易产生大词距；除非目标平台已验证 hyphenation，优先左对齐。首字建议先用 `::first-letter`，避免把单词拆成 `<span>T</span>he` 后影响朗读或复制；旧式 span 首字和 float drop cap 可作为增强，但必须在大字号下复测。若下沉首字需要特殊字体，生产书应嵌入授权字体并声明 OPF font item；demo 可用 `"Snell Roundhand", "Segoe Script", cursive` 这类系统手写体链代替。
 
+> **匿名生产回填，不构成阅读器兼容性 pass：**2026-08-13，一份多册插图型英文 prose 合集经人工视觉验收确认整体效果良好。它采用正文自由、章题/章首字/诗歌与签名等展示角色局部嵌入、章首图与真实标题分离、正文图按 `figure` 角色定宽，以及 `::first-letter` / 真实 `span` 两种可并行构建的首字方案。单书使用过 `line-height:1.68`、`word-spacing:.035em`、`text-indent:1.3em`，以及 `46%` / `74%` / `54%` / `28%` 的章标、横幅、居中图和环绕图宽度；这些数值只说明一组可用起点，不是通用常量。普通叙述中的同形大写词不能因字符串相同而误套展示字体，小图也只有在后续正文足够长时才环绕。由于反馈未记录阅读器名称与版本，本次不更新 reader matrix 的 `pass` 状态；详细匿名方法见 `docs/how-to/english-fiction-layout.md`。
+
 ---
 
 ## 五点三、章节头图设置

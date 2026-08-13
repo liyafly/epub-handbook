@@ -13,6 +13,8 @@
 - 将匿名技术书 v3.1 的长 MathML 表格与图片宽度实测分层回写到脱敏 demo、reader
   matrix、场景指南、手册和排版决策记录；精确 pass 只绑定已验证 artifact SHA，
   新 demo 保持 `warn` 待复测。
+- 将匿名插图型英文合集的人工验收结论回填到英文排版指南、终极手册与排版决策记录；
+  保留正文自由与展示角色分层方法，不把单书数值或缺少版本信息的反馈写成阅读器 `pass`。
 - `gui/` 保持 PARKED，`references/` 保持现状，Python 与 Swift 继续按 capability 并存。
 
 ## v0.2.6 - 2026-06-25
