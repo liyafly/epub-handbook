@@ -177,6 +177,83 @@
       </math>
     </div>
 
+    <h2>分组数据表：长 MathML 的固定列宽压力</h2>
+    <p>
+      这是原创的观测记录样例，不对应外部书籍正文。表头、行组和行标题保留语义；
+      仅此场景把较长公式缩为候选相对字号，仍须在目标阅读器与目标字号下复测。
+    </p>
+    <table class="math-data-table">
+      <thead>
+        <tr>
+          <th scope="col">观测组</th>
+          <th scope="col">输入</th>
+          <th scope="col">关系式</th>
+          <th scope="col">记录</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="rowgroup" rowspan="2">离散采样</th>
+          <th scope="row">周期 1</th>
+          <td>
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+              <semantics>
+                <mrow>
+                  <mi>r</mi><mo>=</mo><mfrac><mrow><mi>u</mi><mo>+</mo><mi>v</mi><mo>+</mo><mi>w</mi></mrow><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup></mrow></mfrac>
+                  <mo>−</mo><mfrac><mi>q</mi><mrow><mn>2</mn><mo>+</mo><mi>t</mi></mrow></mfrac>
+                </mrow>
+                <annotation encoding="application/x-tex">r=(u+v+w)/(1+t^2)-q/(2+t)</annotation>
+              </semantics>
+            </math>
+          </td>
+          <td>基线</td>
+        </tr>
+        <tr>
+          <th scope="row">周期 2</th>
+          <td>
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+              <semantics>
+                <mrow>
+                  <mi>r</mi><mo>=</mo><mfrac><mrow><mi>u</mi><mo>+</mo><mi>v</mi><mo>+</mo><mi>w</mi><mo>+</mo><mi>z</mi></mrow><msqrt><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup></mrow></msqrt></mfrac>
+                </mrow>
+                <annotation encoding="application/x-tex">r=(u+v+w+z)/sqrt(1+t^2)</annotation>
+              </semantics>
+            </math>
+          </td>
+          <td>扩展</td>
+        </tr>
+        <tr>
+          <th scope="rowgroup" rowspan="2">反馈采样</th>
+          <th scope="row">周期 3</th>
+          <td>
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+              <semantics>
+                <mrow><mi>e</mi><mo>=</mo><msub><mi>y</mi><mi>n</mi></msub><mo>−</mo><mfrac><mrow><mi>a</mi><mi>x</mi></mrow><mrow><mn>1</mn><mo>+</mo><mi>b</mi><mi>x</mi></mrow></mfrac></mrow>
+                <annotation encoding="application/x-tex">e=y_n-ax/(1+bx)</annotation>
+              </semantics>
+            </math>
+          </td>
+          <td>校正前</td>
+        </tr>
+        <tr>
+          <th scope="row">周期 4</th>
+          <td>
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+              <semantics>
+                <mrow><mi>e</mi><mo>=</mo><msub><mi>y</mi><mi>n</mi></msub><mo>−</mo><mfrac><mrow><mi>a</mi><mi>x</mi><mo>+</mo><mi>c</mi></mrow><mrow><mn>1</mn><mo>+</mo><mi>b</mi><mi>x</mi><mo>+</mo><mi>d</mi></mrow></mfrac></mrow>
+                <annotation encoding="application/x-tex">e=y_n-(ax+c)/(1+bx+d)</annotation>
+              </semantics>
+            </math>
+          </td>
+          <td>校正后</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="math-note">
+      此处刻意不使用 <code>overflow:hidden</code>、<code>max-content</code> 或横向滚动包装。
+      <code>.math-data-table math</code> 的字号仅是 demo 候选值，不是跨阅读器规则。
+    </p>
+
     <h2>语义 annotation 与复杂脚标</h2>
     <div class="math-block">
       <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">

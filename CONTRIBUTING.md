@@ -6,8 +6,10 @@
 - fixture / 场景：在 `templates/epub-style-demo/` 添加新场景。
 - bug 修复：让 scripts、fixture 或文档更稳。
 - skill 改进：修订 `skills/*/SKILL.md`，保持 frontmatter 字段名不变。
-- 文档补充：guides / experiments / 入门。
-- 公版书清洗 demo：按 `samples/third-party/` 规范添加新样本。
+- 文档补充：`docs/how-to/` 场景指南、`docs/learn/` 入门说明或
+  `docs/pipeline/` 清洗流程。
+- 第三方来源：只在有明确保留理由和许可记录时添加实体 EPUB，并同步更新
+  `THIRD_PARTY.md`；普通参考材料放在 `references/`。
 
 ## 你不要贡献什么
 

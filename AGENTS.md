@@ -3,6 +3,8 @@
 本文件是本仓库给 AI 协作代理使用的通用主入口，也是 AI 工作约束的唯一维护源。
 Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件；平台专用入口只做跳转，不复制规则。
 
+普通人或只想做、修一本书的用户请看根 `README.md` 与 `docs/learn/`，无需阅读本文件；本文件面向 AI 代理与专业维护者。
+
 ## 启动读取顺序
 
 1. 先阅读本文件，判断任务属于「已有 EPUB 清洗」「源材料接入」「阅读器兼容性实测」「实现约束变更」还是「说明增强」。
@@ -36,8 +38,8 @@ Python 与 Swift **按 capability 并存，不默认删除 Python**：
 与 `docs/final/` 冲突时以 `docs/final/` 为准。
 
 **第三档 — 参考（不直接驱动行为）：**
-`docs/experiments/`、`docs/source/`、`docs/meta/`
-历史记录，可补充但不应反向覆盖约束层。
+`archive/` 与 git 历史。已完成的设计、实施计划、实验和早期推导只作背景补充，
+不应反向覆盖约束层。
 
 第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。`tools/` 已于 2026-05-28 移除，人工 diff review 使用 Calibre Editor 或 VS Code。
 
@@ -130,9 +132,9 @@ scripts/install-hooks.sh
 - 对外硬约束写入 `docs/final/`。
 - 某类书的实操方式写入 `docs/how-to/`。
 - 已有 EPUB 的流程、工具和模式写入 `docs/pipeline/`。
-- 计划、review 和维护说明写入 `docs/meta/`，不直接驱动行为。
-- 推导和实验记录写入 `docs/source/` 或 `docs/experiments/`。
+- 当前维护规则和架构总纲写入本文件；任务计划、review 先留在任务或 issue 中。
+- 已完成的计划、review、推导和实验记录归档到 `archive/` 或保留在 git 历史中，不直接驱动行为。
 - 排版决策记录写入 `records/`；仓库级文件只保存脱敏、可复用的机器可读判断。
 - 新增第三方来源说明写入 `THIRD_PARTY.md`。
 
-历史计划和实验快照只在任务明确要求时修改。不要为了统一措辞重写历史记录。
+历史计划和实验快照只在任务明确要求时修改。不要为了统一措辞重写 `archive/` 中的历史记录。

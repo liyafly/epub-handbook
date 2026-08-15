@@ -15,9 +15,9 @@ demo-epub/
 demo-fxl/
 templates/**/dist/
 
+# Legacy local working directory; new cleanup runs use work/<book>/.
 work-epub/
 work/
-docs/superpowers/
 .superpowers/
 
 # Python 缓存
@@ -33,7 +33,6 @@ gui/*.xcworkspace/
 gui/Tuist/Dependencies/
 gui/DerivedData/
 gui/Derived/
-docs/superpowers/
 .playwright-cli
 output/playwright
 tmp

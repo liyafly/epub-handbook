@@ -16,5 +16,6 @@
 ## 相关目录
 
 - 批处理清洗流程和工具说明在 [../pipeline/](../pipeline/)。
-- 治理索引和当前维护说明在 [../meta/](../meta/)；历史计划从 git 记录追溯。
+- 当前维护规则和架构总纲见 [AGENTS.md](../../AGENTS.md)；历史计划见
+  [archive/](../../archive/) 与 git 记录。
 - 对外硬约束仍以 [../final/](../final/) 为准。

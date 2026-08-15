@@ -25,6 +25,13 @@ def test_source_fixture() -> None:
     raise AssertionError(f"source fixture should validate cleanly: {check.errors}")
 
 
+def test_selector_blocks_strips_comments() -> None:
+  css = "/* retained fixture comment */ .math-data-table { overflow: hidden; }"
+  blocks = V.selector_blocks(css, ".math-data-table")
+  if blocks != [" overflow: hidden; "]:
+    raise AssertionError(f"comment-prefixed selector was not recognized: {blocks!r}")
+
+
 def test_epub_manifest_missing_member() -> None:
   with TemporaryDirectory() as raw:
     epub = Path(raw) / "missing-member.epub"
@@ -143,6 +150,7 @@ def test_run_epubcheck_treats_unusable_java_as_unavailable() -> None:
 
 def main() -> int:
   test_source_fixture()
+  test_selector_blocks_strips_comments()
   test_epub_manifest_missing_member()
   test_body_font_mode_contract_accepts_legacy_class_locked_book()
   test_body_font_mode_contract_accepts_direct_body_lock()

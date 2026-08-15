@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.10.0 - 2026-08-15
+
+本版本聚焦于仓库入口、维护治理和阅读器实测证据的整理，让新用户更容易开始做书，
+也让 AI 与专业维护者能够沿着统一规则复现 EPUB 处理流程。
+
+### Changed
+
+- **仓库分层与文档精简**：根 README 收敛为“做书 / 修书 / 查问题”三条普通人入口，
+  AI 与专业维护统一路由到 `AGENTS.md` 和 `scripts/README.md`。
+- `docs/learn/` 从线性 00–09 教程收敛为唯一入口、做书页、进阶结构兼容页和按需查页面。
+- 已完成的 `docs/meta/`、`docs/experiments/`、`docs/source/` 迁入 `archive/`；
+  未跟踪的 `docs/superpowers/` 退出仓库工作树。
+- 归档历史流水线决策，修正归档索引、贡献指南与 CI 中残留的旧目录入口。
+- 将匿名技术书 v3.1 的长 MathML 表格与图片宽度实测分层回写到脱敏 demo、reader
+  matrix、场景指南、手册和排版决策记录；精确 pass 只绑定已验证 artifact SHA，
+  新 demo 保持 `warn` 待复测。
+- 将匿名插图型英文合集的人工验收结论回填到英文排版指南、终极手册与排版决策记录；
+  保留正文自由与展示角色分层方法，不把单书数值或缺少版本信息的反馈写成阅读器 `pass`。
+- 将匿名英文单本小说两项选择性反馈回写：Apple Books 8.5 章题居中现象及其 CSS 级联解释，
+  以及 Reeden 不支持 `::first-letter` 的待验证假设；只落通用方法与待复测结论，不把缺少
+  artifact 或版本信息的反馈提升为全局决策或 reader matrix `pass`。
+- `gui/` 保持 PARKED，`references/` 保持现状，Python 与 Swift 继续按 capability 并存。
+
 ## v0.2.6 - 2026-06-25
 
 > ⚠️ 字体工具仍在完善中

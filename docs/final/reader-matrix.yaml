@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-07-26
+updated_at: 2026-08-11
 owner: epub-handbook
 
 lanes:
@@ -71,6 +71,12 @@ cases:
   - id: external-production-v2-copyright-math
     title: 匿名外部生产样本 v2：版权页与公式
     fixture: external-production-artifact
+  - id: external-production-v3-1-long-math-table
+    title: 匿名外部生产样本 v3.1：真实数据表中的长 MathML
+    fixture: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+  - id: external-production-v3-1-image-sizing
+    title: 匿名外部生产样本 v3.1：单图百分比宽度与并排比例
+    fixture: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
   - id: 17-image-layout
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
@@ -131,10 +137,14 @@ retest_priorities:
     readers: [kindle_previewer]
     focus: "用当前构建产物复测完整 demo 可打开性，若仍失败再按页面级 CSS / Ruby / footnote / A-lite 二分。"
   - rank: 3
+    case: 16-math
+    readers: [ibooks_macos, kindle_previewer, readest]
+    focus: "复测语义数据表中的真实 rowspan 分组、固定布局长 MathML 和场景内候选相对字号；不得继承外部生产样本的 pass。"
+  - rank: 4
     case: 17-image-layout
     readers: [kindle_previewer, readest]
-    focus: "复测 figure.img-left/right 主路径、25%–35% 宽度区间、短段反例与大字号回归。"
-  - rank: 4
+    focus: "复测 figure.img-left/right 主路径、单图实例宽度、34%/60% 非等宽并排、短段反例与大字号回归；不得继承外部生产样本的 pass。"
+  - rank: 5
     case: 07-font-family-order
     readers: [ibooks_ios, ibooks_macos, kindle_previewer, thorium]
     focus: "在临时授权素材工作区构建正文自由+局部字体、直接 body 锁定、原字体/子集字体和双版本对照；记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的码位、cmap、实际字形和用户字体切换表现。"
@@ -176,28 +186,28 @@ expectations:
     case: 17-image-layout
     status: warn
     reader_version: pending-kindle-app-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
+    artifact: "templates/epub-style-demo/dist/epub-style-demo-20260811-090829.epub#sha256=ac5097af3c63686efd514c179d95267d7f763f2292b48538a6b9dababdff223b"
     failed_page: 17-image-layout
-    issue: "Kindle App 实测 figure 浮动可环绕；需验证长正文阈值、短段反例与大字号回归。"
-    action: "本轮改为 figure 主路径，去掉 img 直挂对照；figure 使用 25%–35% 百分比宽度区间，demo 默认 30%，正文样例加长以满足环绕阈值。"
+    issue: "旧构建曾观察到 Kindle App 中 figure 浮动可环绕；当前精确 artifact 新增由 figure 控制的 72% 单图实例和 34%/60% 非等宽并排，尚未做 GUI 视觉复测。"
+    action: "保持 figure 主路径和内部 img 等比缩放；复测浮动阈值、实例宽度、非等宽并排、caption 及大字号回归。"
     workaround: "环绕失败时先检查正文长度、剩余列宽和字号；短段不能作为失败证据。"
   - reader: readest
     case: 17-image-layout
     status: warn
     reader_version: pending-user-version
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260521-230603.epub
+    artifact: "templates/epub-style-demo/dist/epub-style-demo-20260811-090829.epub#sha256=ac5097af3c63686efd514c179d95267d7f763f2292b48538a6b9dababdff223b"
     failed_page: 17-image-layout
-    issue: "img 直挂路径在部分阅读器图片偏小；figure 百分比宽度路径需复测。"
-    action: "本轮统一改为 figure + 25%–35% 百分比宽度，demo 默认 30%；待 Readest 复测确认尺寸与环绕。"
+    issue: "当前精确 artifact 使用 figure 百分比宽度，并新增 72% 单图实例与 34%/60% 非等宽并排；尚未在 Readest 复测尺寸、caption 和大字号重排。"
+    action: "复测 figure 环绕、实例宽度和非等宽并排；通用 img 只保留 max-width/height，展示宽度继续由 figure 或实例 class 决定。"
     workaround: "避免 direct img 作为主路径；带 caption 和环绕图统一使用 figure。"
   - reader: kindle_previewer
     case: 16-math
     status: warn
     reader_version: pending-equation-layout-retest
-    artifact: templates/epub-style-demo/dist/epub-style-demo-20260726-154528.epub
+    artifact: "templates/epub-style-demo/dist/epub-style-demo-20260811-090829.epub#sha256=ac5097af3c63686efd514c179d95267d7f763f2292b48538a6b9dababdff223b"
     failed_page: 16-math
-    issue: "demo 已加入 role=\"presentation\" 的保守公式布局表、HTML Grid 编号公式和 Flex 换行方程组；新 demo 尚未在 Kindle App/Previewer 做视觉实测。"
-    action: "manifest 保持 properties=\"mathml\"；公式在前、编号/标签在后的线性 DOM 不变。布局表来自单书生产样本，Grid/Flex 仍等待 Kindle App/Previewer、Apple Books 与 Thorium 复测。"
+    issue: "当前精确 artifact 含 role=\"presentation\" 的编号公式外层、Grid/Flex 降级，以及保留 thead/tbody/th scope/真实 rowspan 的固定布局长 MathML 数据表；新增数据表场景尚未做视觉实测。"
+    action: "manifest 保持 properties=\"mathml\"；用 Kindle Previewer、Readest 与 Apple Books 分别复测数据表分组、公式右端和目标大字号，外部生产样本的 pass 不转移给本 demo。"
     workaround: "Grid/Flex 被忽略时接受线性降级；布局表仅用于已验证目标，不得回退到 mlabeledtr 作为跨阅读器公式编号主路径。目标平台完全不支持 MathML 时另备文本或图片公式 fallback。"
   - reader: kindle_previewer
     case: external-production-v2-copyright-math
@@ -217,6 +227,48 @@ expectations:
     issue: "用户已确认本书此前 v2 的线性版权页、HTML 布局表编号公式和 MathML/STIX Two Math 路径可用。本次最终包沿用该结构并新增 36 处行内 MathML、12 幅无损索引色 PNG 修复图；结构校验与优化前后逐像素核对通过，但该精确 SHA 尚未重新完成 GUI 视觉复测。"
     action: "保留为单书证据并标记 warn；将最终 SHA 重新导入 Readest，检查版权页、行内公式、编号公式和字体覆盖后才改为 pass。"
     workaround: "不得把本书结论外推为所有 Readest 版本通用；其他书与版本仍需逐 artifact 实测。"
+  - reader: ibooks_macos
+    case: external-production-v3-1-long-math-table
+    status: pass
+    reader_version: "8.5 (6570)"
+    profile: "默认字号、放大一级、再放大一级"
+    artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+    failed_page: none
+    issue: "真实 rowspan=4/3 的分组在默认字号与放大一级保持连续；再放大一级时阅读器允许拆栏或分页，但行序与分组关系未错位。"
+    action: "保留真实 rowspan 和紧凑单元格；不为极大字号强压整表，也不把允许分页误判为失败。"
+    workaround: "此 pass 只覆盖该 artifact 的表格结构；其他数据表仍需按实际列数、公式长度和字号复测。"
+  - reader: readest
+    case: external-production-v3-1-long-math-table
+    status: pass
+    reader_version: "0.11.20 (20260720.043916)"
+    profile: "字号 26–27"
+    artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+    failed_page: none
+    issue: "表内 MathML 为 0.88em 时两条长公式右端截断；只在该表作用域内调为 0.78em 后，7 行公式完整留在固定公式列内。"
+    action: "保持 rowspan、列宽和 table 外壳不变，只给表内 MathML 留相对字号余量；撤回 max-content、横向滚动与 overflow:hidden 候选。"
+    workaround: "0.78em 是该书实测值，不是通用常量；新书从较大相对字号开始逐级复测，直到目标字号不截断。"
+  - reader: kindle_previewer
+    case: external-production-v3-1-long-math-table
+    status: pass
+    reader_version: "3.106"
+    profile: "表格分类；Kindle 电子书阅读器"
+    font_size: 10
+    artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+    failed_page: none
+    issue: "7 行数据表、rowspan=4/3 分组和公式列均完成转换，未出现行序、分组或公式编号错配。"
+    action: "保留真实表格语义与紧凑公式列；最终 Kindle 实机仍列为交付前抽查项。"
+    workaround: "Previewer pass 不等于所有 Kindle 设备通过；实机异常时按设备与字号另记 artifact。"
+  - reader: kindle_previewer
+    case: external-production-v3-1-image-sizing
+    status: pass
+    reader_version: "3.106"
+    profile: "Kindle 电子书阅读器；Publisher Font"
+    font_size: 4
+    artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+    failed_page: none
+    issue: "移除通用修复图 width:100% 对单图百分比宽度的覆盖，并按源图框比例设置两组并排容器后，抽查图未再撑满页面，并排关系与图题未错位。"
+    action: "通用图片规则只限制 max-width/height；展示宽度留给 figure 或单图作用域，并排比例按源图框而不是后期视觉缩放确定。"
+    workaround: "该 pass 只覆盖本次抽查图；其他宽高比与大字号仍需单独复测。"
   - reader: duokan
     case: 05-duokan-fallback
     status: pass
@@ -453,7 +505,7 @@ untested_cases:
     note: "列表 / 表格 / 代码；尚未实测。"
   - case: 07-font-family-order
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
-    note: "字体链顺序、正文自由/锁定和局部嵌入字体的 policy fixture；尚无同时具备 reader_version、artifact 与 issue 的阅读器实测记录。仓库暂按‘锁定正文配对 specified-fonts、自由正文默认不加’执行，兼容性结论须完成 retest_priorities rank 4 后回写 expectations。"
+    note: "字体链顺序、正文自由/锁定和局部嵌入字体的 policy fixture；尚无同时具备 reader_version、artifact 与 issue 的阅读器实测记录。仓库暂按‘锁定正文配对 specified-fonts、自由正文默认不加’执行，兼容性结论须完成 retest_priorities rank 5 后回写 expectations。"
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"

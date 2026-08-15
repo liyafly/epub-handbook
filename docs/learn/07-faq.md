@@ -28,7 +28,7 @@ A：这是红线触发。除非用户明确授权，否则回滚这次清洗。
 ## EPUB2 / EPUB3
 
 **Q：正文文件是 `.xhtml`，是不是说明这本书已经是 EPUB3？**
-A：不是。EPUB2 也使用 XHTML。先打开 OPF，看 `<package version="2.0">` 还是 `<package version="3.0">`。详细区别见 [08-epub2-epub3-compatibility.md](08-epub2-epub3-compatibility.md)。
+A：不是。EPUB2 也使用 XHTML。先打开 OPF，看 `<package version="2.0">` 还是 `<package version="3.0">`。详细区别见 [进阶：结构与兼容](进阶-结构与兼容.md)。
 
 **Q：EPUB2 能不能使用 EPUB3 的弹出注释？**
 A：部分阅读器可以识别兼容混写。需要在 XHTML 根 `<html>` 上增加 `xmlns:epub="http://www.idpf.org/2007/ops"`，再写 `epub:type="noteref"` 和 `epub:type="footnote"`。但这不会把 OPF2 升级成 EPUB3，`<aside>` 也不是严格 EPUB2 XHTML 主路径。请按 [EPUB2 外壳中的 popup note 兼容写法](../how-to/epub2-popup-note-compatibility.md) 保留双向链接并逐阅读器实测。

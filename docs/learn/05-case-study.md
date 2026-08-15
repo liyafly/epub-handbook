@@ -25,7 +25,7 @@ bash templates/cleanup-demo-books/build.sh
 
 CSS 拆分的关键原则：**拆，不是叠。** 不是把旧 CSS 复制四份再分别加新规则，而是按职责将旧文件中的每条规则归类到一个文件。拆分后，一个文件只做一件事：`base.css` 管正文节奏和标题，`notes.css` 管弹注和回跳，`media.css` 管图片和图注，`tables.css` 管表格样式。改脚注时改 `notes.css` 就行，不用担心误触正文排版。
 
-> 说明：这里的 `base/media/notes/tables.css` 是该样本书自身的简化拆分；模板 `templates/epub-style-demo/` 用的是更细的 8 层方案（`fonts/base/notes/effects/literary/media/vertical/poster.css`，见 SPEC §7 和 [02-anatomy.md](02-anatomy.md) §5）。两者都合法，按书的复杂度选。新书从模板起步时以 8 层为参考。
+> 说明：这里的 `base/media/notes/tables.css` 是该样本书自身的简化拆分；模板 `templates/epub-style-demo/` 用的是更细的 8 层方案（`fonts/base/notes/effects/literary/media/vertical/poster.css`，见 SPEC §7 和 [进阶：结构与兼容](进阶-结构与兼容.md) §5）。两者都合法，按书的复杂度选。新书从模板起步时以 8 层为参考。
 
 ### 红线 gate：validate_text_invariance.py 做了什么
 
