@@ -174,6 +174,8 @@ OPF 必须声明实际打包的字体文件，并继续保留通用 fallback。K
 
 不要用 `<span>T</span>he` 这种拆词方式作为主路径，它会影响复制、朗读和辅助技术。需要展示下沉时，优先选择 `A` / `I` 这类单字词开头，或把拆词风险明确标为增强路径。
 
+`::first-letter` 本身是伪元素，不是所有渲染器都实现。匿名英文单本小说（2026-08-12）在 Reeden（一个 Flutter/Hive 阅读器）上实测首字不放大，同一包在 Readest、Apple Books、Kindle 均正常；因为没拿到 Reeden 版本号和截图，这条只能记为待验证假设，不进 reader-matrix 的 pass/fail。需要为不实现伪元素的阅读器准备 fallback 时，可另行构建真实 `<span class="en-initial">W</span>` 节点版本；span 与 `::first-letter` 两套规则不应并存——WebKit 系里 `::first-letter` 可能同样命中 span 内的字母，再加字号会叠乘。
+
 ## 强调与特殊文本
 
 - 斜体：书名、内心独白、外语词、强调语气。按语义用 `em` 或项目专用类，不要全书滥用。

@@ -71,6 +71,12 @@
 }
 ```
 
+## 标题居中
+
+章节标题要居中时，`text-align: center` 应声明在 `h1` / `.chapter-kicker` 等被选中的元素自身，不要只写在容器 `.chapter-header` 上依赖继承。阅读系统一旦在标题元素自身指定对齐方式，该值就会覆盖容器的继承值；在 `h1` 自身声明 `text-align: center` 即可，通常不需要 `!important`。
+
+匿名英文单本小说在 Apple Books 8.5（6570）中出现过容器已居中、`h1` 仍退回 start 对齐的现象；检查 `BookEPUB.framework` 用户样式表时发现 `h1`–`h6` 被指定为 `text-align: -webkit-auto`，在 `h1` 自身声明居中后恢复。因为反馈缺少可追溯 artifact，这里只把它作为通用级联方法的解释与待复测假设，不记为 reader matrix 结论。
+
 ## 禁止事项
 
 - 不把章节标题烘焙进头图；标题必须保留为真实 `h1` 文本。

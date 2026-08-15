@@ -395,6 +395,8 @@ code, pre, kbd, samp {
 
 英文正文不强制 `text-align: justify` 作为通用主路径。窄屏、大字号或阅读器断字支持弱时，英文 justify 容易产生大词距；除非目标平台已验证 hyphenation，优先左对齐。首字建议先用 `::first-letter`，避免把单词拆成 `<span>T</span>he` 后影响朗读或复制；旧式 span 首字和 float drop cap 可作为增强，但必须在大字号下复测。若下沉首字需要特殊字体，生产书应嵌入授权字体并声明 OPF font item；demo 可用 `"Snell Roundhand", "Segoe Script", cursive` 这类系统手写体链代替。
 
+> **匿名生产回填（待验证假设，不构成 reader matrix 结论）：** 匿名英文单本小说在 Reeden（Flutter/Hive 阅读器）上实测 `::first-letter` 首字不放大，同一包在 Readest / Apple Books / Kindle 均正常；因未记录 Reeden 版本号，只记作待验证假设。需要为不支持伪元素的阅读器准备 fallback 时，可另行构建真实 `<span>` 首字节点版本；span 与 `::first-letter` 规则不应并存（WebKit 系可能叠乘字号）。详见 `docs/how-to/english-fiction-layout.md`。
+
 > **匿名生产回填，不构成阅读器兼容性 pass：**2026-08-13，一份多册插图型英文 prose 合集经人工视觉验收确认整体效果良好。它采用正文自由、章题/章首字/诗歌与签名等展示角色局部嵌入、章首图与真实标题分离、正文图按 `figure` 角色定宽，以及 `::first-letter` / 真实 `span` 两种可并行构建的首字方案。单书使用过 `line-height:1.68`、`word-spacing:.035em`、`text-indent:1.3em`，以及 `46%` / `74%` / `54%` / `28%` 的章标、横幅、居中图和环绕图宽度；这些数值只说明一组可用起点，不是通用常量。普通叙述中的同形大写词不能因字符串相同而误套展示字体，小图也只有在后续正文足够长时才环绕。由于反馈未记录阅读器名称与版本，本次不更新 reader matrix 的 `pass` 状态；详细匿名方法见 `docs/how-to/english-fiction-layout.md`。
 
 ---
@@ -446,6 +448,10 @@ code, pre, kbd, samp {
 ```
 
 同一本 EPUB 里优先把小章标的保守宽度作为默认 fallback：`35%` 左右加 `max-width`。空间充足且已复测时，再对少数页面加增强类到 `40%` 左右。横幅头图使用 `width:100%; max-width:100%`，高度由源图比例决定；若需要更矮或更高，应裁好横向源图，而不是在 CSS 里硬写高度。EPUB 的“满屏宽”通常只能稳定做到“满正文内容栏宽”，不要为了贴屏幕边缘去破坏用户页边距。不要用 `vh`、absolute positioning 或大段顶部空白来控制章首；如果需要整页视觉封面，走 A-lite，而不是把普通章节做成固定版式。
+
+章题居中应声明在被选中的 `h1` / kicker 自身，不要只写在 `.chapter-header` 容器上依赖继承。阅读系统一旦在标题元素自身指定对齐方式，该值就会覆盖容器的继承值；直接在 `h1` 自身声明 `text-align: center` 即可，通常不需要 `!important`。
+
+> **匿名生产回填（待补 artifact，不构成 reader matrix 结论）：** Apple Books 8.5（6570）中出现过容器已居中、`h1` 仍退回 start 对齐的现象；检查 `BookEPUB.framework` 用户样式表时发现 `h1`–`h6` 被指定为 `text-align: -webkit-auto`，在 `h1` 自身声明 `text-align: center` 后恢复。因缺少可追溯 artifact，当前只保留为上述通用级联方法的解释和待复测假设。
 
 ---
 
