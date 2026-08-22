@@ -11,21 +11,28 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 2. 已有 EPUB 清洗：继续阅读 `docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md` 和 `docs/pipeline/refinement-harnesses.md`。
 3. 源材料接入：继续阅读 `skills/epub-source-intake/SKILL.md`，先建立可审计的 source bundle。
 4. 阅读器兼容性实测：继续阅读 `templates/epub-style-demo/README.md`、`templates/epub-style-demo/SCENE_MATRIX.md` 和 `docs/final/reader-matrix.yaml`。
-5. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
-6. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
+5. Go CLI 架构、迁移或删除旧实现：继续阅读 `docs/pipeline/go-cli-rearchitecture.md`，严格按阶段和 parity gate 执行。
+6. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
+7. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
 
 ## 架构分工
 
-Python 与 Swift **按 capability 并存，不默认删除 Python**：
+目标架构是 **Go 模块化单体 CLI + 私有字体 provider**。详细目录、契约、阶段、验收和旧代码删除
+顺序见 `docs/pipeline/go-cli-rearchitecture.md`。Go 实现尚未完成前，Python/Swift 只作为迁移基线存在：
 
-| 层 | 用什么 | 职责 |
+| 层 | 目标 / 当前状态 | 职责 |
 |---|---|---|
-| AI / agent provider | **Python**（`scripts/` + `skills/`） | 给 AI agent 调用；CLI 与验证基线的首要 provider |
-| 执行核心 | **Swift**（`swift/`） | GUI 能执行的大部分能力，native 首要 provider |
-| 字体 / 图片转换 | **`tools-font/`**（HTML 工具）+ **独立 Python 项目**（`uv` 管理） | 字体预览、覆盖/子集化、图片转换；Swift/GUI 起子进程调 CLI |
-| GUI | **Swift，薄**（`gui/`） | **PARKED**：当前非焦点，不投入、不作依赖；执行逻辑向 `swift/` 收口 |
-| 机器契约 | `contracts/` + `adapters/` | Python/Swift 按 capability 并存的契约与 agent 适配表面 |
+| 公开 CLI / agent runtime | **Go**（待按迁移蓝图实现） | 唯一公开命令、capability registry、事务、流水线与多平台发行 |
+| 迁移 oracle | **Python**（`scripts/`） | 当前 CLI 与验证基线；逐 capability 达到 Go parity 后收缩，不一次性删除 |
+| 字体工具 | **独立 provider**（初始为 Python + FontTools） | 覆盖、子集化和复杂字体处理；随发行包交付，用户不需要安装 Python/`uv` |
+| CSS | **Go 规则层 + 纯 Go parser adapter** | lossless token/patch；复杂字体层叠暂由字体 provider，禁止用正则解析复杂 CSS |
+| Swift / GUI | **FROZEN，待删除**（`swift/` + `gui/`） | 不再增加 capability；只有达到蓝图的 parity/release gate 后才删除，移动端不在范围内 |
+| 机器契约 | `contracts/` + `adapters/` | provider-neutral capability、request/result 与 agent 适配表面 |
 | 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |
+
+禁止向 Swift/GUI 增加新功能，也禁止在 Go parity gate 前批量删除它们。最终 skill 只能调用统一
+`epub-handbook` CLI，不得依赖 Go internal package、旧 Python 路径或私有 provider 路径。
+在迁移蓝图 Phase 7 完成前，本文件下方已有 EPUB 流程中的 Python 命令仍是当前可执行入口。
 
 ## 规范来源优先级（三档）
 

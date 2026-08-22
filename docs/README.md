@@ -40,6 +40,7 @@
 ### 批处理流水线
 
 - [pipeline/](pipeline/)：已有 EPUB 的清洗流程与工具
+  - [go-cli-rearchitecture.md](pipeline/go-cli-rearchitecture.md)：Go CLI 目标架构、provider 边界与分阶段迁移蓝图
   - [cleanup-flow.md](pipeline/cleanup-flow.md)
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
   - [refinement-harnesses.md](pipeline/refinement-harnesses.md)
