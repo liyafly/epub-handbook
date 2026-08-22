@@ -55,14 +55,15 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub --work-dir work/boo
 | 场景化排版指南 | [docs/how-to/](docs/how-to/) |
 | AI 能力契约与反向查表 | [docs/learn/04-skills.md](docs/learn/04-skills.md) |
 | Python / AI provider 与校验基线 | [scripts/README.md](scripts/README.md) |
-| 原生执行核心 | [swift/](swift/) |
+| Go CLI 目标架构与迁移蓝图 | [docs/pipeline/go-cli-rearchitecture.md](docs/pipeline/go-cli-rearchitecture.md) |
+| 冻结的旧原生实现 | [swift/](swift/) 与 [gui/](gui/) |
 | 机器契约与适配表面 | [contracts/](contracts/) 与 [adapters/](adapters/) |
 | 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
 | 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
 
-Python 和 Swift 按 capability 并存：Python 是 AI agent、CLI 与验证基线的首要
-provider；Swift 是 native 执行核心。`gui/` 当前 PARKED，不投入、不作依赖。
-字体和图片转换工具位于 `tools-font/` 及其独立 Python 项目。
+目标架构已经确定为一个面向 Windows、macOS、Linux 的 Go CLI。当前 Python 是 CLI 与验证基线；
+`swift/` 和 `gui/` 已冻结，不再增加功能，并在 Go 达到逐 capability parity 和发行门槛后删除。
+字体能力继续使用随发行包交付的独立 provider，用户不需要自行安装 Python 工具链。
 
 完整文档索引见 [docs/README.md](docs/README.md)，Python 脚本按受众和职责的索引见
 [scripts/README.md](scripts/README.md)。

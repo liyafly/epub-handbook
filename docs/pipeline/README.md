@@ -4,6 +4,9 @@
 
 ## 核心文档（按读取顺序）
 
+维护 Go CLI、contracts、providers 或旧实现迁移时，先读
+[go-cli-rearchitecture.md](go-cli-rearchitecture.md)；它不改变普通清洗任务的以下顺序：
+
 1. [cleanup-flow.md](cleanup-flow.md)：流水线主流程（preflight -> 可选结构规范化 -> EPUB3 迁移 -> 精排建议 -> 红线 gate -> diff review -> reader-matrix 回写）
 2. [oneclick-epub3-converter.md](oneclick-epub3-converter.md)：已有 EPUB 一命令审计、旧 EPUB/EPUB2 转 EPUB3、弹注和 CJK 角色排版覆盖层
 3. [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)：重复 CSS 收口、系统优先字体链和局部样式合并
