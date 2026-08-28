@@ -54,7 +54,11 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 
 已有 EPUB 默认遵循「保留 before → preflight → 必要时格式化和文件名反混淆 → EPUB3 迁移 → 精排建议 → 红线校验 → 人工 diff review」：
 
-1. 复制输入文件，保留不可修改的 before 基线。禁止在唯一原件上直接修改。
+书级项目默认位于 `work-epub/<book>/`，每本书是独立本地 Git 仓库，目录固定为
+`01 源文件/`、`02 校对材料/`和 `03 制作工作区/`。详细边界见
+`docs/pipeline/book-workspace.md`。手册主仓库忽略 `work-epub/`，禁止把书级 Git 误加为 submodule。
+
+1. 把入选底本保留在 `01 源文件/`，记录 SHA-256；编辑只发生在 `03 制作工作区/epub/` 或新候选 EPUB。禁止在唯一原件上直接修改。
 2. 运行 `python3 scripts/epub_preflight_harness.py <input.epub>`，先判断 DRM、加密标记、文件损坏和结构风险。
 3. 如果资源目录混乱、文件名明显混淆或需要稳定 diff，先 dry-run：
 
@@ -68,8 +72,8 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告。
 5. 将 normalized EPUB 作为后续输入。运行迁移 harness、精排 harness 和相关专项 skill。
 6. 运行 `python3 scripts/validate_text_invariance.py before.epub after.epub --path-map <normalize-report.json>`，再用 Calibre Editor 或 VS Code 做人工 diff review。
-7. 把值得复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书且不含正文的排版判断写入 `work/<book>/reports/decisions.json`。授权正文校订的含文决策另存为 `work/<book>/reports/text-review-decisions.json`，不得改名混入上述两类记录。
-8. 留下输入、输出、preflight、迁移结果或跳过理由、结构规范化报告、精排建议、红线结果、diff review 结论、阅读器实测或跳过理由、需要回写的文档和 skill 清单。
+7. 把值得跨书复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书的排版结论默认汇总到书根的 `制作说明.md`。只有工具需要机器可读输入时，才在 `02 校对材料/` 按需保留书级决策 artifact。授权正文校订的含文决策必须放在 `02 校对材料/正文校订/`，不得混入仓库级 `records/`。
+8. preflight、dry-run、lint 和中间 JSON 放入 `03 制作工作区/.pipeline/` 并默认忽略；在 `制作说明.md` 持久记录输入/输出 SHA、迁移或跳过理由、红线结果、diff review、阅读器实测与需回写项。正在被 gate 引用的 path map 或校订决策不得提前删除。
 
 用户明确授权校订正文时，正文不变 gate 不得被删除、伪造为通过或用宽泛 allow-list 掩盖；应切换到 `docs/final/SPEC-实现约束.md` §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1 的授权正文校订分支。该分支必须冻结现版与参考版、记录篇章映射和 SHA、逐项导出结构化审阅决策、拒绝待查/缺失手工文本，并在新候选 EPUB 上继续执行 metadata、spine、锚点、封面、DRM、非文字 DOM / 属性、注释和图片红线；篇名与 nav / NCX 标签同步须另列授权。
 
@@ -139,7 +143,7 @@ scripts/install-hooks.sh
 - 对外硬约束写入 `docs/final/`。
 - 某类书的实操方式写入 `docs/how-to/`。
 - 已有 EPUB 的流程、工具和模式写入 `docs/pipeline/`。
-- 当前维护规则和架构总纲写入本文件；任务计划、review 先留在任务或 issue 中。
+- 当前维护规则和架构总纲写入本文件；书级制作记录写入 `work-epub/<book>/制作说明.md`，任务计划、review 先留在任务或 issue 中。
 - 已完成的计划、review、推导和实验记录归档到 `archive/` 或保留在 git 历史中，不直接驱动行为。
 - 排版决策记录写入 `records/`；仓库级文件只保存脱敏、可复用的机器可读判断。
 - 新增第三方来源说明写入 `THIRD_PARTY.md`。

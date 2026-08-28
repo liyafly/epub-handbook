@@ -4,12 +4,12 @@
 
 ## 两层存储
 
-- 书级：`work/<book>/reports/decisions.json`，随本地清洗工作目录保存，不入 Git。该文件仍使用本工具的逐行 JSON 格式。
+- 书级：默认把人可读结论写入 `work-epub/<book>/制作说明.md`。只有工具需要机器可读输入时，才使用 `work-epub/<book>/02 校对材料/排版决策.jsonl`，该文件使用本工具的逐行 JSON 格式。
 - 仓库级：`records/typeset-decisions.jsonl`，只收录 `scope: "global"` 且确认可复用的判断，进入 Git。
 
 把书级判断提升为全局规则前，应重新核对适用场景、阅读器证据和隐私边界。
 
-授权正文校订生成的 `text-review-decisions.json`、静态审阅 HTML 和逐篇 diff 属于本地审校证据，不是本目录的排版决策日志。它们可能包含正文片段，只能放在 `work/<book>/reports/`，不得改名为这里的 `decisions.json`、不得用 `epub_decision_log.py` 导入，也不得提升到仓库级 `records/`。
+授权正文校订生成的 `text-review-decisions.json`、静态审阅 HTML 和逐篇 diff 属于本地审校证据，不是本目录的排版决策日志。它们可能包含正文片段，只能放在 `work-epub/<book>/02 校对材料/正文校订/`，不得改名为排版决策日志、不得用 `epub_decision_log.py` 导入，也不得提升到手册仓库级 `records/`。
 
 ## Schema
 

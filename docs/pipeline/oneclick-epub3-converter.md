@@ -6,6 +6,8 @@
 > 对应 skill：`$epub3-migrator`
 > 兼容变换器入口：`scripts/epub3_oneclick_converter.py`
 
+新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页为保留流水线内部结构的可读性，仍以 `work/book-a/` 表示工具的 `--work-dir`；新项目实际应指向 `work-epub/<book>/03 制作工作区/.pipeline/`。
+
 ## 适用范围
 
 适合这类输入：

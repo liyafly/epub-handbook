@@ -16,7 +16,7 @@ description: 用于分析 EPUB、XHTML、HTML、Markdown 或纯文本中的结�
    python3 scripts/epub_content_analyzer.py <input> --format json
    ```
 
-   仅在本地 `work/<book>/reports/` 需要人工核对时加 `--include-snippets`；不把正文片段写入 `records/`。
+   仅在本地书级 `03 制作工作区/.pipeline/` 需要人工核对时加 `--include-snippets`；不把正文片段写入 `records/`。
 3. 按 `evidence` 和 `confidence` 复核候选角色：
    - 显式标签、`epub:type`、稳定 class 优先。
    - 相邻块关系次之。

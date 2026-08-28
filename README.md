@@ -31,7 +31,8 @@ python3 <仓库路径>/scripts/epub_lint.py dist/*.epub
 一条命令会保留 before 基线、检查风险，并把结果和报告写进独立工作目录：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub --work-dir work/book-a
+python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub \
+  --work-dir 'work-epub/book-a/03 制作工作区/.pipeline'
 ```
 
 不要在唯一原件上直接修改。需要人工批准的结构规范化、正文红线和 diff review
@@ -68,8 +69,9 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub --work-dir work/boo
 完整文档索引见 [docs/README.md](docs/README.md)，Python 脚本按受众和职责的索引见
 [scripts/README.md](scripts/README.md)。
 
-清洗工作目录统一使用 `work/<book>/`，其中保留输入、输出和本书报告，默认不入库。
-`work-epub/` 是旧的本地忽略目录：不会自动移动、删除或作为新流程的输出位置。
+每本书使用 `work-epub/<book>/` 独立工作区，并在该目录自行初始化 Git；
+手册主仓库仍忽略整个 `work-epub/`，不把书级仓库当成 submodule。统一目录和过程文件约定见
+[一书一 Git 工作区](docs/pipeline/book-workspace.md)。
 
 ## 维护验证
 

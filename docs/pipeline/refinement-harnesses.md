@@ -4,6 +4,9 @@
 
 底层 harness 默认只读或 dry-run。`epub_cleanup_pipeline.py` 会复制 before 基线后调用写出步骤；所有写出步骤都不会原地覆盖输入文件。
 
+新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。下文命令中的
+`work/` 是 `work-epub/<book>/03 制作工作区/.pipeline/` 的流水线内部简写，不是书级顶层目录。
+
 ## 十二个入口
 
 | 脚本 | 做什么 | 何时运行 |

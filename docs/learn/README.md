@@ -61,10 +61,11 @@ python3 <仓库路径>/scripts/epub_lint.py dist/*.epub   # error 清零就算�
 一条命令跑清洗流水线，它会**保留原件**、检查风险、生成清洗后的版本：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py /path/to/别人的.epub --work-dir work/book-a
+python3 scripts/epub_cleanup_pipeline.py /path/to/别人的.epub \
+  --work-dir 'work-epub/book-a/03 制作工作区/.pipeline'
 ```
 
-它会在 `work/book-a/` 下留下改前备份、清洗结果和一份报告。
+它会在该书 `03 制作工作区/.pipeline/` 下留下改前备份、清洗结果和一份报告。一本书的完整目录见 [一书一 Git 工作区](../pipeline/book-workspace.md)。
 完整流程和红线（哪些内容绝对不许改）见 [清洗流水线](../pipeline/cleanup-flow.md)。
 
 ---

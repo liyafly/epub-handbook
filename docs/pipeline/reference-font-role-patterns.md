@@ -118,4 +118,4 @@ type-meta
 | .footnote | type-note | yes | 楷体系统链 | 注释 | pending |
 ```
 
-这个表放进单书工作目录的 `notes.md`，不放真实书稿到仓库。
+这个表放进书根 `制作说明.md`，不放真实书稿到手册主仓库。
