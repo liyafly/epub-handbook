@@ -23,6 +23,10 @@
 | 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、SVG 花边实验、长条投影、不规则边缘、手剪纸边框 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
 | 章节头图设置 | `Text/20-chapter-head-image.xhtml` | 小型头图、满栏横幅头图、真实 h1、kicker/副标题、35% 单书 fallback、40% 复测增强类、大字号不裁切、横向不溢出 | Kindle Previewer / Apple Books / Thorium |
 | 文白 / 原译对照 | `Text/21-classical-modern.xhtml` | 条目级 section、局部目录、样本式双文本段落、默认上下、短组 40em 以上双 float 增强；文白默认 38/58、原译接近 48/48、原文较长 58/38，单书可后加载覆盖；长组 `.parallel-stack-pair` 上下并允许分页、轻量回目录链接；必测字号 1/3/4/5/6/7，日夜模式，默认/Publisher Font/Bookerly 或 Original 字体；失败态必须上下，不能半宽错位 | Kindle Previewer / Kindle 设备 KFX / Kindle App / Apple Books / Readest / Thorium |
+| 章题两列骨架：body background 饰图（待测） | `Text/22-chapter-title-bg.xhtml` | `文心` 系列行 + `『忽然做了大人与古人了』` / `一`；`display:table/table-cell` 的 5.8em 靠右紧凑骨架，题名左、章次右且同顶；窄列逐字下排，`@supports` 同时探测 standard/WebKit/EPUB `vertical-rl`；body background 左下约 25%，可见内容仅章题组件，页面 100% border-box 以观察单 spine 是否分第二页 | Apple Books / Reeden / Kindle Previewer |
+| 章题两列骨架：inline absolute 饰图（待测） | `Text/23-chapter-title-inline.xhtml` | 与 22 页同一 `文心` 式 5.8em 章题骨架；inline `<img>` 缩至左下约 25% 并使用 `position:absolute`，不进入正常流、不单独占 spine 页；可见内容仅章题组件与饰图，根/section/body 100% border-box | Apple Books / Reeden / Kindle Previewer |
+| 着重号比较：横排（待测） | `Text/24-text-emphasis.xhtml` | 原生标准/EPUB `under right`、原生 Kindle/WebKit `-webkit-...: under` 单值、逐字 ruby 字面圆点、逐字 ruby 空 `rt` + CSS generated dot；另有 `ruby-position: under` 风险对照；可换行短段 | Apple Books / Reeden / Kindle Previewer / Thorium |
+| 着重号比较：body 真竖排（待测） | `Text/25-text-emphasis-vertical.xhtml` | `body.page-vrl` 真竖排中复现原生两种 position、`ruby-position: over` 主样本与 `under` 风险对照，记录圆点位置、行距和降级 | Apple Books / Reeden / Kindle Previewer / Thorium |
 
 ## 退役对照页
 

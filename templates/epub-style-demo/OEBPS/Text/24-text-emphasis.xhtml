@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>着重号比较：横排</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/effects.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>二十四、着重号比较</h1>
+    <p class="emphasis-sample">横排原生标准方案：<span class="emphasis-native-standard">重点文字</span>（标准/EPUB 使用 <code>under right</code>）。</p>
+    <p class="emphasis-sample">横排 Kindle/WebKit 方案：<span class="emphasis-native-kindle">重点文字</span>（只给 <code>-webkit-text-emphasis-position: under</code> 单值）。</p>
+    <p class="emphasis-sample emphasis-ruby-literal">逐字 ruby + 字面圆点：<ruby>重<rt>●</rt></ruby><ruby>点<rt>●</rt></ruby><ruby>标<rt>●</rt></ruby><ruby>记<rt>●</rt></ruby>。</p>
+    <p class="emphasis-sample emphasis-ruby-generated">逐字 ruby + 空 rt / CSS 圆点：<ruby>重<rt></rt></ruby><ruby>点<rt></rt></ruby><ruby>标<rt></rt></ruby><ruby>记<rt></rt></ruby>。</p>
+    <p class="emphasis-sample emphasis-ruby-under">ruby-position: under 风险对照：<ruby>重<rt>●</rt></ruby><ruby>点<rt>●</rt></ruby>（Amazon 目标表仅列 over）。</p>
+
+    <h2>可换行短段</h2>
+    <p class="emphasis-wrap-probe">这是一段刻意保持较短、但会随窄屏和大字号换行的着重号探针：<span class="emphasis-native-standard">重要</span>、<span class="emphasis-native-kindle">可靠</span>、<span class="emphasis-ruby-literal"><ruby>可<rt>●</rt></ruby><ruby>读<rt>●</rt></ruby></span>与<span class="emphasis-ruby-generated"><ruby>降<rt></rt></ruby><ruby>级<rt></rt></ruby></span>。</p>
+    <p class="emphasis-probe-note">本页只比较横排；下一页把同一组方案放到 body 真竖排中。空 rt 是合法 XHTML 节点，生成圆点属于待实测增强。</p>
+  </section>
+</body>
+</html>
