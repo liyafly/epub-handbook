@@ -1,0 +1,41 @@
+name: Architecture Guard
+
+# 独立必过 job，故意不与其它测试合并 —— 架构违规必须单独、醒目地红。
+# 见 docs/final/SPEC-go-architecture.md §5.1.1。
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  archguard:
+    name: archguard (架构守卫)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 检测 archguard 是否被改动
+        # 规则 0：archguard 是架构的可执行定义，改动它必须经人类审阅。
+        # 这里只警告并标注，实际拦截由 CODEOWNERS 强制。
+        if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if git diff --name-only "$base" HEAD | grep -q '^internal/archguard/'; then
+            echo "::warning title=archguard 被改动::本 PR 触碰了 internal/archguard/。" \
+                 "守卫红了应该改代码，不是改守卫。请在 PR 描述里说明理由。"
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: 架构守卫
+        run: go test ./internal/archguard/ -v

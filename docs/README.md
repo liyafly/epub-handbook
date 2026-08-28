@@ -20,10 +20,15 @@
 ### 工程契约
 
 - [final/SPEC-实现约束.md](final/SPEC-实现约束.md)：实现硬规则
+- [final/SPEC-go-architecture.md](final/SPEC-go-architecture.md)：Go 重写期第一档架构硬约束；涉及 Go、CLI、skills 执行面或旧实现迁移时必读
 - [final/字体别名命名规范.md](final/字体别名命名规范.md)：字体 alias、文件名与 class 的短别名规范
 - [final/EPUB 3 终极实践手册.md](final/EPUB%203%20终极实践手册.md)：对外手册
 - [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB%203%20HTML%20CSS%20属性速查表.md)：属性速查表
 - [final/reader-matrix.yaml](final/reader-matrix.yaml)：阅读器兼容性实测矩阵
+
+### 进行中的迁移
+
+- [pipeline/go-rewrite-handoff.md](pipeline/go-rewrite-handoff.md)：Go 重写状态、已裁决事项、守卫和 W0–W5 接手顺序
 
 ### 场景指南
 
@@ -41,7 +46,7 @@
 
 - [pipeline/](pipeline/)：已有 EPUB 的清洗流程与工具
   - [book-workspace.md](pipeline/book-workspace.md)：一书一 Git 的本地工作区约定
-  - [go-cli-rearchitecture.md](pipeline/go-cli-rearchitecture.md)：Go CLI 目标架构、provider 边界与分阶段迁移蓝图
+  - [go-cli-rearchitecture.md](pipeline/go-cli-rearchitecture.md)：SPEC 落地前的 Go CLI 背景蓝图；与 `final/SPEC-go-architecture.md` 冲突时以后者为准
   - [cleanup-flow.md](pipeline/cleanup-flow.md)
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
   - [refinement-harnesses.md](pipeline/refinement-harnesses.md)
@@ -70,6 +75,8 @@
 |- 已有 EPUB 的清洗流程 / 工具 / 模式 -> docs/pipeline/
 |
 |- AI / 专业维护规则与架构总纲 -> AGENTS.md
+|
+|- 进行中的迁移状态 / 交接 -> docs/pipeline/
 |
 `- 已完成的计划、review、实验、早期推导 -> archive/ 或 git 历史
 ```
