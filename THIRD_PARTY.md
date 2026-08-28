@@ -30,3 +30,19 @@ checkout inspected during the initial implementation was commit
 
 The handbook implementation does not provide DRM decryption and does not copy
 the reference project's desktop UI or third-party Python dependencies.
+
+## Local Style-Only Reference: 《悲惨世界》
+
+- Source: a user-supplied local EPUB named `悲惨世界1.2[雨果]_epub3.epub`;
+  no copy of the EPUB is stored in this repository and no public source link
+  was supplied.
+- Author metadata: 雨果 (Victor Hugo). The package does not identify a
+  translator, publisher, ISBN, or license.
+- SHA-256 inspected on 2026-08-26:
+  `49efa8a736296e4167b515cf47bcc568776a9fd19d7fc7548e50194c799d4579`.
+- Scope: local inspection of EPUB 3 / Duokan-compatible CSS patterns such as
+  illustration floats and note markup. It is not a textual collation source,
+  a layout template, or redistributable project material.
+- Rights: the work and this particular edition remain subject to the rights of
+  their respective author, translator, editor, publisher, and other rights
+  holders; no permission to redistribute the supplied EPUB is asserted.

@@ -11,6 +11,64 @@
   text-emphasis-position: under;
 }
 
+/* Compare the standards spelling with the Kindle/WebKit single-value form.
+ * Do not combine `under right` with the prefixed declaration: Kindle's
+ * Enhanced Typesetting support table lists only `over` / `under` there. */
+.emphasis-native-standard {
+  -epub-text-emphasis: filled dot;
+  -epub-text-emphasis-position: under right;
+  text-emphasis: filled dot;
+  text-emphasis-position: under right;
+}
+
+.emphasis-native-kindle {
+  -webkit-text-emphasis: filled dot;
+  -webkit-text-emphasis-position: under;
+  text-emphasis-style: filled dot;
+  text-emphasis-position: under;
+}
+
+.emphasis-sample,
+.emphasis-wrap-probe,
+.emphasis-probe-note {
+  text-indent: 0;
+  text-align: left;
+}
+
+.emphasis-ruby-literal ruby,
+.emphasis-ruby-generated ruby {
+  ruby-align: center;
+  ruby-position: over;
+}
+
+/* Amazon's compatibility table lists `over`; keep `under` as an explicit
+ * risk probe rather than silently treating it as the production fallback. */
+.emphasis-ruby-under ruby {
+  ruby-position: under;
+}
+
+.emphasis-ruby-literal rt,
+.emphasis-ruby-generated rt,
+.emphasis-ruby-under rt {
+  font-size: .55em;
+  line-height: 1;
+}
+
+.emphasis-ruby-generated rt::after {
+  content: "●";
+}
+
+.emphasis-wrap-probe {
+  margin-top: 1.2em;
+  padding: .6em .7em;
+  border-left: .25em solid #8f4f20;
+}
+
+.emphasis-probe-note {
+  font-size: .85em;
+  line-height: 1.5;
+}
+
 .wavy {
   text-decoration: underline;
   text-decoration-style: wavy;

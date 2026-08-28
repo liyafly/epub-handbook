@@ -1,0 +1,209 @@
+@charset "utf-8";
+
+/*
+ * Reader compatibility probes for chapter openings.
+ *
+ * The table-cell skeleton is intentionally conservative: on a narrow
+ * viewport each title and chapter-number character wraps into its own line.
+ * Readers with writing-mode support get the vertical-rl enhancement below.
+ */
+.chapter-compat-head {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  text-indent: 0;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+html.chapter-compat-document,
+html.chapter-compat-document body,
+html.chapter-compat-document body > .chapter-compat-section {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+.chapter-compat-section {
+  position: relative;
+}
+
+.chapter-compat-series {
+  margin: 0;
+  padding: .7em .8em 0;
+  text-align: left;
+  text-indent: 0;
+  font-size: .9em;
+  line-height: 1.2;
+}
+
+.chapter-compat-title-grid {
+  display: table;
+  width: 5.8em;
+  margin: 1.1em 7.5% 0 auto;
+  border-collapse: collapse;
+  direction: ltr;
+}
+
+.chapter-compat-title-cell,
+.chapter-compat-number-cell {
+  display: table-cell;
+  vertical-align: top;
+  margin: 0;
+  padding: 0;
+  line-height: 1.3;
+  text-indent: 0;
+}
+
+.chapter-compat-title-cell {
+  width: 4.1em;
+  text-align: left;
+}
+
+.chapter-compat-number-cell {
+  width: 1.7em;
+  text-align: right;
+}
+
+.chapter-compat-title-text,
+.chapter-compat-number-text {
+  display: block;
+  width: 1.35em;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  text-indent: 0;
+  font-weight: 400;
+}
+
+.chapter-compat-title-text { font-size: 1.45em; }
+
+.chapter-compat-number-text {
+  margin-left: auto;
+  font-size: .95em;
+}
+
+/* The decoration is painted by the body and never creates a flow node. */
+body.chapter-compat-background {
+  background-image: url("../Images/chapter-banner.png");
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 25% auto;
+}
+
+/* The inline probe keeps the image in the XHTML for fallback inspection,
+ * while absolute positioning prevents it from occupying normal flow. */
+.chapter-compat-inline .chapter-compat-ornament {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  top: auto;
+  z-index: 0;
+  display: block;
+  width: 25%;
+  max-width: 25%;
+  height: auto;
+  margin: 0;
+}
+
+.chapter-compat-inline .chapter-compat-title-grid {
+  position: relative;
+  z-index: 1;
+}
+
+@supports (writing-mode: vertical-rl),
+         (-webkit-writing-mode: vertical-rl),
+         (-epub-writing-mode: vertical-rl) {
+  .chapter-compat-title-text,
+  .chapter-compat-number-text {
+    writing-mode: vertical-rl;
+    -webkit-writing-mode: vertical-rl;
+    -epub-writing-mode: vertical-rl;
+    width: 1.35em;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+/* Horizontal prosody probes.  A uses semantic ruby.  B keeps each base
+ * character and its literal marker in two table rows so the fallback does
+ * not depend on generated content or a reader's ruby implementation. */
+.prosody-sample,
+.prosody-intro,
+.prosody-legend,
+.prosody-probe-note {
+  margin: .55em 0;
+  text-indent: 0;
+  text-align: left;
+}
+
+.prosody-legend {
+  padding: .45em .6em;
+  border-left: .22em solid #8f4f20;
+  font-size: .9em;
+  line-height: 1.5;
+}
+
+.prosody-label {
+  font-weight: 700;
+}
+
+/* Standard ruby plus the WebKit legacy spelling used by older readers. */
+.prosody-ruby {
+  ruby-position: under;
+  -webkit-ruby-position: under;
+  vertical-align: baseline;
+}
+
+.prosody-ruby rt {
+  font-size: .62em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Each character is an atomic inline table, so line breaks can occur
+ * between marked characters while the base/marker pair stays together. */
+.prosody-fallback-char {
+  display: inline-table;
+  margin: 0 .035em;
+  vertical-align: baseline;
+  border-collapse: collapse;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.prosody-fallback-row {
+  display: table-row;
+}
+
+.prosody-fallback-cell {
+  display: table-cell;
+  min-width: 1em;
+  padding: 0 .03em;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.prosody-fallback-base {
+  font-size: 1em;
+  line-height: 1.2;
+}
+
+.prosody-fallback-mark {
+  font-size: .62em;
+  line-height: 1;
+}
+
+.prosody-probe-note {
+  font-size: .85em;
+  line-height: 1.5;
+}

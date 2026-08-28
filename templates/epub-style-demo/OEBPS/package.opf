@@ -5,12 +5,12 @@
          xml:lang="zh-CN"
          prefix="rendition: http://www.idpf.org/vocab/rendition/# ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="bookid">urn:uuid:29c40923-5f6a-4a93-8a2b-92e8bc4d0a11</dc:identifier>
-    <dc:title>EPUB Style Demo</dc:title>
+    <dc:identifier id="bookid">urn:uuid:8d44e6fa-381c-46be-9652-c998bdde622c</dc:identifier>
+    <dc:title>EPUB Style Demo – Chapter/Emphasis Compat</dc:title>
     <dc:creator>EPUB Handbook</dc:creator>
     <dc:language>zh-CN</dc:language>
     <dc:date>2026-05-23</dc:date>
-    <meta property="dcterms:modified">2026-05-23T00:00:00Z</meta>
+    <meta property="dcterms:modified">2026-08-28T09:20:26Z</meta>
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
@@ -29,6 +29,7 @@
     <item id="css-literary" href="Styles/literary.css" media-type="text/css"/>
     <item id="css-media" href="Styles/media.css" media-type="text/css"/>
     <item id="css-vertical" href="Styles/vertical.css" media-type="text/css"/>
+    <item id="css-chapter-compat" href="Styles/chapter-compat.css" media-type="text/css"/>
     <item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>
     <item id="poster" href="Images/poster.png" media-type="image/png"/>
     <item id="chapter-banner-image" href="Images/chapter-banner.png" media-type="image/png"/>
@@ -52,6 +53,10 @@
     <item id="border-shadow-notes" href="Text/19-border-shadow-notes.xhtml" media-type="application/xhtml+xml" properties="svg"/>
     <item id="chapter-head-image" href="Text/20-chapter-head-image.xhtml" media-type="application/xhtml+xml"/>
     <item id="classical-modern" href="Text/21-classical-modern.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-title-bg" href="Text/22-chapter-title-bg.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-title-inline" href="Text/23-chapter-title-inline.xhtml" media-type="application/xhtml+xml"/>
+    <item id="text-emphasis" href="Text/24-text-emphasis.xhtml" media-type="application/xhtml+xml"/>
+    <item id="text-emphasis-vertical" href="Text/25-text-emphasis-vertical.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -74,5 +79,9 @@
     <itemref idref="border-shadow-notes"/>
     <itemref idref="chapter-head-image"/>
     <itemref idref="classical-modern"/>
+    <itemref idref="chapter-title-bg"/>
+    <itemref idref="chapter-title-inline"/>
+    <itemref idref="text-emphasis"/>
+    <itemref idref="text-emphasis-vertical"/>
   </spine>
 </package>

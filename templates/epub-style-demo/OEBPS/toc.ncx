@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
-    <meta name="dtb:uid" content="urn:uuid:29c40923-5f6a-4a93-8a2b-92e8bc4d0a11"/>
+    <meta name="dtb:uid" content="urn:uuid:8d44e6fa-381c-46be-9652-c998bdde622c"/>
     <meta name="dtb:depth" content="1"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
   <docTitle>
-    <text>EPUB Style Demo</text>
+    <text>EPUB Style Demo – Chapter/Emphasis Compat</text>
   </docTitle>
   <navMap>
     <navPoint id="navpoint-1" playOrder="1">
@@ -85,6 +85,22 @@
     <navPoint id="navpoint-22" playOrder="19">
       <navLabel><text>文白对照</text></navLabel>
       <content src="Text/21-classical-modern.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-23" playOrder="20">
+      <navLabel><text>章题骨架：body 背景饰图</text></navLabel>
+      <content src="Text/22-chapter-title-bg.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-24" playOrder="21">
+      <navLabel><text>章题骨架：inline absolute 饰图</text></navLabel>
+      <content src="Text/23-chapter-title-inline.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-25" playOrder="22">
+      <navLabel><text>着重号比较：横排</text></navLabel>
+      <content src="Text/24-text-emphasis.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-26" playOrder="23">
+      <navLabel><text>着重号比较：body 真竖排</text></navLabel>
+      <content src="Text/25-text-emphasis-vertical.xhtml"/>
     </navPoint>
   </navMap>
 </ncx>
