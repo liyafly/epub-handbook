@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-08-11
+updated_at: 2026-08-28
 owner: epub-handbook
 
 lanes:
@@ -92,6 +92,21 @@ cases:
   - id: 21-classical-modern
     title: 文白 / 原译对照
     fixture: templates/epub-style-demo/OEBPS/Text/21-classical-modern.xhtml
+  - id: 22-chapter-title-bg
+    title: 章题两列骨架：body 背景饰图
+    fixture: templates/epub-style-demo/OEBPS/Text/22-chapter-title-bg.xhtml
+  - id: 23-chapter-title-inline
+    title: 章题两列骨架：inline absolute 饰图
+    fixture: templates/epub-style-demo/OEBPS/Text/23-chapter-title-inline.xhtml
+  - id: 24-text-emphasis
+    title: 着重号比较：横排
+    fixture: templates/epub-style-demo/OEBPS/Text/24-text-emphasis.xhtml
+  - id: 25-text-emphasis-vertical
+    title: 着重号比较：body 真竖排
+    fixture: templates/epub-style-demo/OEBPS/Text/25-text-emphasis-vertical.xhtml
+  - id: 26-prosody-fallback
+    title: 横排语调标记兼容：Ruby 与 HTML fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/26-prosody-fallback.xhtml
   - id: synthetic-city-field-notes
     title: 自造清洗 demo：明日城巡游手记
     fixture: templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
@@ -515,3 +530,18 @@ untested_cases:
   - case: 15-frontmatter
     fixture: templates/epub-style-demo/OEBPS/Text/15-frontmatter.xhtml
     note: "前言 / 版权等前置页；尚未实测。"
+  - case: 22-chapter-title-bg
+    fixture: templates/epub-style-demo/OEBPS/Text/22-chapter-title-bg.xhtml
+    note: "章题两列骨架与 body 背景饰图；尚未实测。"
+  - case: 23-chapter-title-inline
+    fixture: templates/epub-style-demo/OEBPS/Text/23-chapter-title-inline.xhtml
+    note: "章题两列骨架与 inline absolute 饰图；尚未实测。"
+  - case: 24-text-emphasis
+    fixture: templates/epub-style-demo/OEBPS/Text/24-text-emphasis.xhtml
+    note: "横排着重号标准、WebKit 与 Ruby fallback 对照；尚未实测。"
+  - case: 25-text-emphasis-vertical
+    fixture: templates/epub-style-demo/OEBPS/Text/25-text-emphasis-vertical.xhtml
+    note: "body 真竖排着重号对照；尚未实测。"
+  - case: 26-prosody-fallback
+    fixture: templates/epub-style-demo/OEBPS/Text/26-prosody-fallback.xhtml
+    note: "横排语调标记的 semantic Ruby 与真实 HTML 双层 fallback；尚未实测。"

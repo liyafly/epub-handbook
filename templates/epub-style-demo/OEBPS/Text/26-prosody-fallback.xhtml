@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="zh-CN"
+      lang="zh-CN">
+<head>
+  <title>横排语调标记兼容：Ruby 与 HTML fallback</title>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>
+  <link rel="stylesheet" type="text/css" href="../Styles/chapter-compat.css"/>
+</head>
+<body>
+  <section epub:type="chapter" aria-labelledby="prosody-title" aria-describedby="prosody-legend">
+    <h1 id="prosody-title">二十六、横排语调标记兼容</h1>
+    <p class="prosody-intro">本页只测试横排语调标记，不把三角标记当作圆点着重号。A 是语义 Ruby；B 是真实 HTML 双层 fallback。</p>
+    <p id="prosody-legend" class="prosody-legend">说明：<span aria-hidden="true">△</span> 表示上扬，<span aria-hidden="true">▽</span> 表示下抑。三角标记只作视觉提示；屏幕阅读器仍应先读出基字，含义由本说明提供。</p>
+
+    <h2 id="prosody-ruby-heading">A．semantic ruby.prosody</h2>
+    <p class="prosody-sample"><span class="prosody-label">单字符：</span>语气落在<ruby class="prosody-ruby"><rb>啊</rb><rp>（</rp><rt aria-hidden="true">△</rt><rp>）</rp></ruby>上。</p>
+    <p class="prosody-sample"><span class="prosody-label">多字符连续：</span><ruby class="prosody-ruby"><rb>轻</rb><rp>（</rp><rt aria-hidden="true">△</rt><rp>）</rp></ruby><ruby class="prosody-ruby"><rb>声</rb><rp>（</rp><rt aria-hidden="true">▽</rt><rp>）</rp></ruby><ruby class="prosody-ruby"><rb>连</rb><rp>（</rp><rt aria-hidden="true">△</rt><rp>）</rp></ruby><ruby class="prosody-ruby"><rb>读</rb><rp>（</rp><rt aria-hidden="true">▽</rt><rp>）</rp></ruby>时不插入空格。</p>
+    <p class="prosody-sample"><span class="prosody-label">标点旁：</span><ruby class="prosody-ruby"><rb>好</rb><rp>（</rp><rt aria-hidden="true">△</rt><rp>）</rp></ruby>！<ruby class="prosody-ruby"><rb>呢</rb><rp>（</rp><rt aria-hidden="true">▽</rt><rp>）</rp></ruby>，标记与标点相邻。</p>
+    <p class="prosody-sample prosody-wrap-probe"><span class="prosody-label">行末换行附近：</span>这段文字故意拉长，观察窄屏或大字号下，接近行末的 <ruby class="prosody-ruby"><rb>临</rb><rp>（</rp><rt aria-hidden="true">△</rt><rp>）</rp></ruby><ruby class="prosody-ruby"><rb>界</rb><rp>（</rp><rt aria-hidden="true">▽</rt><rp>）</rp></ruby>，以及后续文字是否自然换行。</p>
+
+    <h2 id="prosody-fallback-heading">B．真实 HTML 双层 fallback</h2>
+    <p class="prosody-sample"><span class="prosody-label">单字符：</span>语气落在<span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">啊</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">△</span></span></span>上。</p>
+    <p class="prosody-sample"><span class="prosody-label">多字符连续：</span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">轻</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">△</span></span></span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">声</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">▽</span></span></span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">连</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">△</span></span></span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">读</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">▽</span></span></span>时不插入空格；每一对都是字在上、三角在下的真实文本。</p>
+    <p class="prosody-sample"><span class="prosody-label">标点旁：</span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">好</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">△</span></span></span>！<span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">呢</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">▽</span></span></span>，标记与标点相邻。</p>
+    <p class="prosody-sample prosody-wrap-probe"><span class="prosody-label">行末换行附近：</span>这段文字故意拉长，观察窄屏或大字号下，接近行末的 <span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">临</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">△</span></span></span><span class="prosody-fallback-char"><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-base">界</span></span><span class="prosody-fallback-row"><span class="prosody-fallback-cell prosody-fallback-mark" aria-hidden="true">▽</span></span></span>，以及后续文字是否自然换行。</p>
+
+    <p class="prosody-probe-note">B 不使用 <code>content</code> 或伪元素绘制三角；底层标记是实际存在的 <code>span</code> 文本，样式只负责用保守的 <code>inline-table</code>／<code>table-row</code>／<code>table-cell</code> 排成上下两层。</p>
+  </section>
+</body>
+</html>
