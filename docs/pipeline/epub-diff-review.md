@@ -16,7 +16,7 @@
 6. 应用后证明最终连续正文逐字等于决策合并结果，并生成“现版 → 候选”与“候选 → 参考版”两份 unified diff；第二份不是失败，而是审阅后明确保留的例外清单。
 7. 只允许决策 locator 指向的文字节点变化；同一 XHTML 内的 tag 序列和 `id/class/epub:type/href/src/alt/lang`、强调、ruby / rt、pagebreak 等非文字 DOM / 属性必须另做签名。篇名和导航同步若均已授权，可单列 nav.xhtml / toc.ncx 标签白名单，但标签须等于最终篇名，链接和顺序不得变化。
 
-页面和决策 JSON 可能含受版权正文，只能留在 `work/<book>/reports/`。仓库级 `records/` 只保存不含正文的可复用判断。
+页面和决策 JSON 可能含受版权正文，只能留在书级 `02 校对材料/正文校订/`。手册仓库级 `records/` 只保存不含正文的可复用判断。
 
 ## 主路径：Calibre Editor（推荐）
 
@@ -30,39 +30,40 @@ Calibre 自带的「Compare to another book」提供字符级 HTML / CSS diff、
 6. 图片差异：双击图片节点弹出像素 + 尺寸 + 体积 overlay。
 7. 字体 / 音频等二进制：Calibre 只显示「内容不同」，要核对 SHA-256 走精细路径。
 
-完成后把结论抄到工作目录的 `notes.md`，按 [cleanup-flow.md §16](cleanup-flow.md) 的标准模板组织。
+完成后把结论写入书根 `制作说明.md`，按 [cleanup-flow.md §16](cleanup-flow.md) 的标准模板组织。
 
 ## 精细路径：VS Code + `unzip`
 
 适合：单文件逐行核对、PR 内贴可粘贴的 diff、批处理多本 EPUB、shell 脚本里嵌套。
 
 ```sh
-# 1. 解压
-mkdir -p work/before-extracted work/after-extracted
-unzip -q before.epub -d work/before-extracted
-unzip -q after.epub  -d work/after-extracted
+# 1. 解压到书级忽略区
+DIFF_WORK='work-epub/book-a/03 制作工作区/.pipeline/diff'
+mkdir -p "$DIFF_WORK/before-extracted" "$DIFF_WORK/after-extracted"
+unzip -q before.epub -d "$DIFF_WORK/before-extracted"
+unzip -q after.epub  -d "$DIFF_WORK/after-extracted"
 
 # 2. 整树概览（不需要 git 仓库）
-git diff --no-index --stat work/before-extracted work/after-extracted
+git diff --no-index --stat "$DIFF_WORK/before-extracted" "$DIFF_WORK/after-extracted"
 
 # 3. 单文件字符级 diff（中英文混排都能看清）
 git diff --no-index --color-words \
-  work/before-extracted/OEBPS/Text/01-body.xhtml \
-  work/after-extracted/OEBPS/Text/01-body.xhtml
+  "$DIFF_WORK/before-extracted/OEBPS/Text/01-body.xhtml" \
+  "$DIFF_WORK/after-extracted/OEBPS/Text/01-body.xhtml"
 
 # 4. VS Code 内对照单文件
 code --diff \
-  work/before-extracted/OEBPS/Styles/base.css \
-  work/after-extracted/OEBPS/Styles/base.css
+  "$DIFF_WORK/before-extracted/OEBPS/Styles/base.css" \
+  "$DIFF_WORK/after-extracted/OEBPS/Styles/base.css"
 
 # 5. VS Code 整树侧边栏（需扩展 moshfeu.compare-folders）
-code work/before-extracted work/after-extracted
+code "$DIFF_WORK/before-extracted" "$DIFF_WORK/after-extracted"
 # 然后命令面板 → Compare Folders: Compare With ...
 
 # 6. 资源层 SHA-256 列表
-( cd work/before-extracted && find . -type f -exec shasum -a 256 {} + ) | sort > work/before.sha256
-( cd work/after-extracted  && find . -type f -exec shasum -a 256 {} + ) | sort > work/after.sha256
-diff -u work/before.sha256 work/after.sha256
+( cd "$DIFF_WORK/before-extracted" && find . -type f -exec shasum -a 256 {} + ) | sort > "$DIFF_WORK/before.sha256"
+( cd "$DIFF_WORK/after-extracted"  && find . -type f -exec shasum -a 256 {} + ) | sort > "$DIFF_WORK/after.sha256"
+diff -u "$DIFF_WORK/before.sha256" "$DIFF_WORK/after.sha256"
 ```
 
 Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。

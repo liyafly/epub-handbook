@@ -13,6 +13,19 @@
 8. 用户确认 -> 9. reader-matrix 回写
 ```
 
+## 书级工作区
+
+新项目先按 [一书一 Git 工作区](book-workspace.md) 建立 `work-epub/<book>/`。本流水线的
+`before/after/reports` 是工具内部目录，统一放在书级工作区的忽略区：
+
+```sh
+BOOK_ROOT='work-epub/book-a'
+PIPELINE_WORK="$BOOK_ROOT/03 制作工作区/.pipeline"
+```
+
+下文为了突出流水线内部结构，仍用 `work/...` 作简写；在书级项目中应将这个
+`work` 理解为 `$PIPELINE_WORK`，不再新建仓库根级 `work/<book>/`。
+
 ## 一命令入口
 
 需要快速生成 before 基线、转换产物和审计报告时，优先运行：
@@ -20,7 +33,7 @@
 ```sh
 python3 scripts/epub_cleanup_pipeline.py \
   /path/to/input.epub \
-  --work-dir work/book-a
+  --work-dir "$PIPELINE_WORK"
 ```
 
 它收口本页可以自动执行的部分：before 复制、preflight、EPUB3 转换、产物 preflight、弹注校验、metadata / DRM / anchors 红线子集校验、独立正文文本 gate、精排建议、文本结构角色分析和 AI findings。人工 diff review、文本角色 class 写入和阅读器实测仍必须继续执行。
@@ -235,7 +248,7 @@ python3 scripts/validate_text_invariance.py "$REDLINE_BASE" work/after/cleaned.e
 | `manual` | 使用人工填写的最终片段 | `manual_text` 非空 |
 | `pending` | 待查 | 禁止应用 |
 
-导出的 JSON 至少包含 schema version、差异源报告 SHA-256、现版/参考 artifact 身份、item count、稳定 id、篇章、两侧片段和最终决策。应用前必须满足 `pending=0`、`undecided=0`、`manual_missing=0`。含正文片段的 Markdown、HTML 与 JSON 只留在 `work/<book>/reports/`，不得复制进 `records/` 或提交为仓库级样本。
+导出的 JSON 至少包含 schema version、差异源报告 SHA-256、现版/参考 artifact 身份、item count、稳定 id、篇章、两侧片段和最终决策。应用前必须满足 `pending=0`、`undecided=0`、`manual_missing=0`。含正文片段的 Markdown、HTML 与 JSON 只留在书级 `02 校对材料/正文校订/`，不得复制进 `records/` 或提交为手册仓库级样本。
 
 ### 防止审阅结果过期
 
@@ -293,7 +306,7 @@ uv run python scripts/epub_decision_log.py add \
   --source manual-review
 ```
 
-只属于当前书的判断写到 `work/<book>/reports/decisions.json`，把同一命令的 `--file` 指向该路径并使用 `--scope book`。两层记录都禁止保存正文文本；完整 schema 和隐私红线见 [`records/README.md`](../../records/README.md)。
+只属于当前书的判断默认写入书根 `制作说明.md`。只有后续工具需要机器可读输入时，才把同一命令的 `--file` 指向 `02 校对材料/排版决策.jsonl` 并使用 `--scope book`。两层记录都禁止保存正文文本；完整 schema 和隐私红线见 [`records/README.md`](../../records/README.md)。
 
 ## 9. 用户确认
 
@@ -385,7 +398,7 @@ python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub --form
 
 如果检测到，建议回到 `epub-source-intake`，重新 OCR 后再清洗。
 
-## 16. 标准 `notes.md` 模板
+## 16. 书级 `制作说明.md` 清洗记录模板
 
 ````md
 # 清洗记录：<书名>
@@ -478,7 +491,7 @@ python3 scripts/validate_text_invariance.py \
 **默认零模型：**
 
 ```sh
-python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir work/book-a
+python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir "$PIPELINE_WORK"
 ```
 
 默认 `--planner rules` 不调用任何模型，纯标准库，可离线/气隙运行。结构规范化仍保持显式批准：需要时先用 `--normalize dry-run` 检查报告，再在新的工作目录以 `--normalize apply --approve-normalize` 执行。脚本只会做**确定性可判定**的改动：
@@ -492,7 +505,7 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub --work-dir work/book-a
 
 ```sh
 python3 scripts/epub_cleanup_loop.py /path/book.epub \
-  --work-dir work/book-a \
+  --work-dir "$PIPELINE_WORK" \
   --enable-structural
 ```
 
@@ -502,7 +515,7 @@ python3 scripts/epub_cleanup_loop.py /path/book.epub \
 
 ```sh
 python3 scripts/epub_cleanup_loop.py /path/book.epub \
-  --work-dir work/book-a \
+  --work-dir "$PIPELINE_WORK" \
   --planner handshake
 ```
 
