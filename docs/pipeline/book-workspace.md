@@ -57,16 +57,10 @@ JSON。结束时把需要长期保留的事实汇总到 `制作说明.md`：
 
 ## 流水线用法
 
-```sh
-BOOK_ROOT='work-epub/book-a'
-PIPELINE_WORK="$BOOK_ROOT/03 制作工作区/.pipeline"
+将当前清洗入口的 `--work-dir` 指向 `03 制作工作区/.pipeline/`。迁移期的可执行命令集中保留在
+[`cleanup-flow.md`](cleanup-flow.md)，不在各场景文档重复旧执行面；Go CLI 完成后统一使用对应 capability。
 
-python3 scripts/epub_cleanup_pipeline.py \
-  "$BOOK_ROOT/01 源文件/source.epub" \
-  --work-dir "$PIPELINE_WORK"
-```
-
-工具仍会在 `$PIPELINE_WORK` 内产生 `before/`、`after/` 和 `reports/`；这些是流水线内部路径，不是新的书级顶层目录。经确认的最终 EPUB 移入 `03 制作工作区/dist/`。
+工具仍会在该忽略区内产生 `before/`、`after/` 和 `reports/`；这些是流水线内部路径，不是新的书级顶层目录。经确认的最终 EPUB 移入 `03 制作工作区/dist/`。
 
 ## Git 约定
 

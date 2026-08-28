@@ -7,32 +7,40 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 
 ## 启动读取顺序
 
+0. **若任务涉及 Go 实现、CLI 命令面、SKILL.md 改写、`scripts/` 迁移或旧实现删除，先读 [`docs/final/SPEC-go-architecture.md`](docs/final/SPEC-go-architecture.md)，再回到本文件。**
+   该 SPEC 是 Go 重写期的第一档硬约束，且其架构规则由 `internal/archguard/` 的自动化守卫强制。
 1. 先阅读本文件，判断任务属于「已有 EPUB 清洗」「源材料接入」「阅读器兼容性实测」「实现约束变更」还是「说明增强」。
 2. 已有 EPUB 清洗：继续阅读 `docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md` 和 `docs/pipeline/refinement-harnesses.md`。
 3. 源材料接入：继续阅读 `skills/epub-source-intake/SKILL.md`，先建立可审计的 source bundle。
 4. 阅读器兼容性实测：继续阅读 `templates/epub-style-demo/README.md`、`templates/epub-style-demo/SCENE_MATRIX.md` 和 `docs/final/reader-matrix.yaml`。
-5. Go CLI 架构、迁移或删除旧实现：继续阅读 `docs/pipeline/go-cli-rearchitecture.md`，严格按阶段和 parity gate 执行。
+5. Go CLI 架构、迁移或删除旧实现：以 `docs/final/SPEC-go-architecture.md` 为准，再读 `docs/pipeline/go-rewrite-handoff.md` 了解当前状态。`docs/pipeline/go-cli-rearchitecture.md` 只保留为 SPEC 落地前的背景蓝图，冲突时不得覆盖 SPEC。
 6. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
 7. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
 
 ## 架构分工
 
-目标架构是 **Go 模块化单体 CLI + 私有字体 provider**。详细目录、契约、阶段、验收和旧代码删除
-顺序见 `docs/pipeline/go-cli-rearchitecture.md`。Go 实现尚未完成前，Python/Swift 只作为迁移基线存在：
+目标架构是 **Go 单一 CLI + 私有字体 provider**。依赖方向、十条不变式、任务模板、迁移映射和删除顺序
+以 `docs/final/SPEC-go-architecture.md` 为唯一硬约束；当前进度见 `docs/pipeline/go-rewrite-handoff.md`。
+Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 
 | 层 | 目标 / 当前状态 | 职责 |
 |---|---|---|
-| 公开 CLI / agent runtime | **Go**（待按迁移蓝图实现） | 唯一公开命令、capability registry、事务、流水线与多平台发行 |
+| 公开 CLI / agent runtime | **Go**（`cmd/epub`，待实现） | 唯一公开命令、capability registry、流水线与统一 JSON 信封 |
 | 迁移 oracle | **Python**（`scripts/`） | 当前 CLI 与验证基线；逐 capability 达到 Go parity 后收缩，不一次性删除 |
 | 字体工具 | **独立 provider**（初始为 Python + FontTools） | 覆盖、子集化和复杂字体处理；随发行包交付，用户不需要安装 Python/`uv` |
-| CSS | **Go 规则层 + 纯 Go parser adapter** | lossless token/patch；复杂字体层叠暂由字体 provider，禁止用正则解析复杂 CSS |
-| Swift / GUI | **FROZEN，待删除**（`swift/` + `gui/`） | 不再增加 capability；只有达到蓝图的 parity/release gate 后才删除，移动端不在范围内 |
-| 机器契约 | `contracts/` + `adapters/` | provider-neutral capability、request/result 与 agent 适配表面 |
+| CSS | **Go scan/editset 规则层** | 只产出 lossless byte-range edit；禁止整文档序列化，禁止用正则解析复杂 CSS |
+| Swift / GUI | **已裁决删除**（`swift/` + `gui/`） | 不再增加 capability；删除时机按 Go 架构 SPEC §7.5 |
+| 机器契约 | `contracts/`；迁移期保留 `adapters/` | capability、request/result 与 redline 事实来源 |
 | 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |
 
-禁止向 Swift/GUI 增加新功能，也禁止在 Go parity gate 前批量删除它们。最终 skill 只能调用统一
-`epub-handbook` CLI，不得依赖 Go internal package、旧 Python 路径或私有 provider 路径。
-在迁移蓝图 Phase 7 完成前，本文件下方已有 EPUB 流程中的 Python 命令仍是当前可执行入口。
+迁移期额外硬约束：
+
+- **禁止修改 `internal/archguard/`**。守卫失败时修改实现；若确信守卫有误，停下来交由人类审阅。
+- 不得向文档新增 `python3 scripts/...` 或 `scripts/*.sh` 引用；`tools/parity/legacy-refs.txt` 只减不增。
+- `skills/` 下不得出现 `.py` / `.sh`；SKILL.md 最终只能调用 `epub run <capability-id>`，不得依赖 Go internal package、旧 Python 路径或私有 provider 路径。
+- 禁止向 Swift/GUI 增加新功能。Python capability 未通过 SPEC §5.2 parity gate 前不得删除对应 oracle。
+
+本文件下方已有 EPUB 流程中的 Python 命令仍是迁移期当前可执行入口，但不得复制成新的执行面引用。
 
 ## 规范来源优先级（三档）
 
@@ -48,7 +56,7 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 `archive/` 与 git 历史。已完成的设计、实施计划、实验和早期推导只作背景补充，
 不应反向覆盖约束层。
 
-第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。`tools/` 已于 2026-05-28 移除，人工 diff review 使用 Calibre Editor 或 VS Code。
+第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；Go 重写期仅重新引入受 SPEC 约束的 `tools/parity/` 迁移脚手架。人工 diff review 使用 Calibre Editor 或 VS Code。
 
 ## 已有 EPUB 固定流程
 
