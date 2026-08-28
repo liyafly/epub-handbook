@@ -5,12 +5,12 @@
          xml:lang="zh-CN"
          prefix="rendition: http://www.idpf.org/vocab/rendition/# ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="bookid">urn:uuid:8d44e6fa-381c-46be-9652-c998bdde622c</dc:identifier>
-    <dc:title>EPUB Style Demo – Chapter/Emphasis Compat</dc:title>
+    <dc:identifier id="bookid">urn:uuid:3905affa-a810-4759-91f8-a1d8520f8a6a</dc:identifier>
+    <dc:title>EPUB Style Demo – Chapter/Emphasis/Prosody Compat v6</dc:title>
     <dc:creator>EPUB Handbook</dc:creator>
     <dc:language>zh-CN</dc:language>
     <dc:date>2026-05-23</dc:date>
-    <meta property="dcterms:modified">2026-08-28T09:20:26Z</meta>
+    <meta property="dcterms:modified">2026-08-28T14:08:45Z</meta>
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
@@ -57,6 +57,7 @@
     <item id="chapter-title-inline" href="Text/23-chapter-title-inline.xhtml" media-type="application/xhtml+xml"/>
     <item id="text-emphasis" href="Text/24-text-emphasis.xhtml" media-type="application/xhtml+xml"/>
     <item id="text-emphasis-vertical" href="Text/25-text-emphasis-vertical.xhtml" media-type="application/xhtml+xml"/>
+    <item id="prosody-fallback" href="Text/26-prosody-fallback.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -83,5 +84,6 @@
     <itemref idref="chapter-title-inline"/>
     <itemref idref="text-emphasis"/>
     <itemref idref="text-emphasis-vertical"/>
+    <itemref idref="prosody-fallback"/>
   </spine>
 </package>
