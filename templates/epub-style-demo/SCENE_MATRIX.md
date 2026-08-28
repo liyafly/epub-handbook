@@ -27,6 +27,7 @@
 | 章题两列骨架：inline absolute 饰图（待测） | `Text/23-chapter-title-inline.xhtml` | 与 22 页同一 `文心` 式 5.8em 章题骨架；inline `<img>` 缩至左下约 25% 并使用 `position:absolute`，不进入正常流、不单独占 spine 页；可见内容仅章题组件与饰图，根/section/body 100% border-box | Apple Books / Reeden / Kindle Previewer |
 | 着重号比较：横排（待测） | `Text/24-text-emphasis.xhtml` | 原生标准/EPUB `under right`、原生 Kindle/WebKit `-webkit-...: under` 单值、逐字 ruby 字面圆点、逐字 ruby 空 `rt` + CSS generated dot；另有 `ruby-position: under` 风险对照；可换行短段 | Apple Books / Reeden / Kindle Previewer / Thorium |
 | 着重号比较：body 真竖排（待测） | `Text/25-text-emphasis-vertical.xhtml` | `body.page-vrl` 真竖排中复现原生两种 position、`ruby-position: over` 主样本与 `under` 风险对照，记录圆点位置、行距和降级 | Apple Books / Reeden / Kindle Previewer / Thorium |
+| 横排语调标记兼容 fallback（v6，待测） | `Text/26-prosody-fallback.xhtml` | A 为 semantic `ruby.prosody`（真实 `rt` 的 `△/▽`、标准 `ruby-position: under` + WebKit legacy）；B 为真实 HTML 双层 `inline-table/table-row/table-cell`，底层标记是 `span` 文本而非 generated content；覆盖单字符、多字符连续、标点旁和行末换行附近，使用 `aria-hidden` 与邻近说明保持可访问语义 | Apple Books / Reeden / Kindle Previewer / Thorium |
 
 ## 退役对照页
 
