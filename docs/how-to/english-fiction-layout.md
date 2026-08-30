@@ -218,7 +218,7 @@ OPF 必须声明实际打包的字体文件，并继续保留通用 fallback。K
 
 ## 工作流
 
-1. 先跑 `scripts/epub_ai_harness.py <path>`，确认 EPUB 版本、OPF/nav/NCX、语言、图片格式和脚注风险。
+1. 先跑 `epub run epub.layout.audit --input <path> --json`，确认 EPUB 版本、OPF/nav/NCX、语言、图片格式和脚注风险。
 2. 抽 2-3 个代表章节：普通章节、插图章节、标题/列表/引用密集章节。
 3. 修 `lang` / `xml:lang`。
 4. 归一段落类：首段、普通段、无缩进段、摘录/引用、诗/戏剧。

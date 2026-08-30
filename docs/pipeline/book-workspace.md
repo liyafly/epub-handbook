@@ -52,13 +52,12 @@ JSON。结束时把需要长期保留的事实汇总到 `制作说明.md`：
 - preflight、lint、红线、diff review 和阅读器实测结论；
 - 用户对黄线或正文变更的授权。
 
-两类文件不能当作普通缓存删除：正在被 `validate_text_invariance.py --path-map`
+两类文件不能当作普通缓存删除：正在被 `epub redline --path-map`
 引用的路径映射，以及授权正文校订的决策 artifact。
 
 ## 流水线用法
 
-将当前清洗入口的 `--work-dir` 指向 `03 制作工作区/.pipeline/`。迁移期的可执行命令集中保留在
-[`cleanup-flow.md`](cleanup-flow.md)，不在各场景文档重复旧执行面；Go CLI 完成后统一使用对应 capability。
+清洗的中间产物（dry-run 报告、红线输出、normalize 映射等）统一放 `03 制作工作区/.pipeline/`。可执行命令集中在 [`cleanup-flow.md`](cleanup-flow.md)，不在各场景文档重复；全部通过 `epub run <capability-id>` 与 `epub redline` 执行。
 
 工具仍会在该忽略区内产生 `before/`、`after/` 和 `reports/`；这些是流水线内部路径，不是新的书级顶层目录。经确认的最终 EPUB 移入 `03 制作工作区/dist/`。
 
