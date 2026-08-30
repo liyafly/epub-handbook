@@ -17,7 +17,7 @@ description: 优化 EPUB 竖排、Ruby 注音、中西文混排方向和非海�
 
 ```sh
 epub run epub.notes.popup.normalize --input <产物> --json    # 涉及弹注时
-epub run epub.style.demo.maintain --input <demo 产物> --json # 涉及 demo 模板时（能力迁移中：findings 出现 warn capability.not-implemented 表示校验逻辑尚未执行）
+epub run epub.style.demo.maintain --input <demo 产物> --json # 涉及 demo 模板时
 epub redline --check all <before.epub> <after.epub>          # 每次改书后
 ```
 

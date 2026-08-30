@@ -18,7 +18,7 @@ description: 优化英文 EPUB 书籍排版，包括书籍类型判断、英语�
 
 ```sh
 epub run epub.notes.popup.normalize --input <产物> --json    # 涉及弹注时
-epub run epub.style.demo.maintain --input <demo 产物> --json # 涉及 demo 模板时（能力迁移中：findings 出现 warn capability.not-implemented 表示校验逻辑尚未执行）
+epub run epub.style.demo.maintain --input <demo 产物> --json # 涉及 demo 模板时
 epub redline --check all <before.epub> <after.epub>          # 每次改书后
 ```
 

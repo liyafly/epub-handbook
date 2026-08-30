@@ -22,7 +22,7 @@ epub run epub.style.demo.maintain --input <dist 产物>.epub --json
 epub run epub.notes.popup.normalize --input <dist 产物>.epub --json
 ```
 
-`epub.style.demo.maintain` Go 实现迁移中：`--input` 指向构建产物 EPUB 时为产物校验，缺省/指向 demo 源树 `templates/epub-style-demo` 时校验源树；当前运行会在 findings 里得到 `warn capability.not-implemented`，且 CLI 用法检查要求提供临时 `--output`（或加全局 `--dry-run`）才能通过。迁移完成前，产物结构判断以 `epub run epub.notes.popup.normalize` 的 findings 与人工复核为准。
+`epub.style.demo.maintain` 是双模式能力：`--input` 指向构建产物 EPUB 时校验产物，缺省或指向 demo 源树 `templates/epub-style-demo` 时校验源树；两种模式都不需要 `--output`。
 
 本机有 `xmllint` 时可对 `templates/epub-style-demo/OEBPS/package.opf`、`nav.xhtml`、`toc.ncx` 额外运行 `xmllint --noout ...`；没有时记录跳过理由。
 
@@ -30,7 +30,7 @@ epub run epub.notes.popup.normalize --input <dist 产物>.epub --json
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
 - `epub run epub.notes.popup.normalize` 的 facts：`noterefs`（noteref 数）、`text_files`（XHTML 文件数）、`violations`（结构违反数）；violations > 0 时 `findings` 出现 `error popupnotes`，`detail` 指明具体文件与问题。
-- `epub.style.demo.maintain` 迁移期返回：`warn capability.not-implemented`（events 显示 skipped）表示校验逻辑尚未执行——不要把此时的 `status: complete` 当作通过。
+- `epub.style.demo.maintain` 的 facts：`epub.style.demo.maintain.mode`（`source-tree` 源树模式 / `artifact` 产物模式）与 `epub.style.demo.maintain.errors`（校验错误计数）。校验失败时 `status: failed`，`findings` 出现 `error styledemo` 条目；产物模式下缺 EPUBCheck 时另有 `warn styledemo.epubcheck-skipped`（结构校验已跑，EPUBCheck 留给 CI）。
 
 ## 依据返回怎么判断
 
