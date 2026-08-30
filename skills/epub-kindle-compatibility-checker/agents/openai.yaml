@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB Kindle 兼容检查"
-  short_description: "检查 Kindle/KDP 版式风险。"
-  default_prompt: "使用 $epub-kindle-compatibility-checker 审核这个 EPUB 的 Kindle 交付风险。"
+  short_description: "检查 Kindle/KDP 版式风险并跟进转换日志。"
+  default_prompt: "使用 $epub-kindle-compatibility-checker 审核这个 EPUB 的 Kindle 交付风险，并给出需要补的修复。"

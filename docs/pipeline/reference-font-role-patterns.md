@@ -48,7 +48,7 @@
 清洗时必须运行：
 
 ```sh
-python3 scripts/epub_preflight_harness.py input.epub --format json
+epub run epub.package.nav.audit --input input.epub --json
 ```
 
 如果 CSS 引用的字体文件不存在，不要猜测缺失字体内容，也不要把别的字体文件改名顶替。保留报告并人工判断：删除失效 URL、补授权字体，或只保留系统 fallback。
@@ -84,9 +84,9 @@ python3 scripts/epub_preflight_harness.py input.epub --format json
 
 样本包里有 `.ttf`，不代表它们可以复制到新书、demo 或仓库。分析只借鉴角色分工。需要嵌入字体时，单独核对授权和 OPF manifest。
 
-## 4. 一键转换器提供的角色类
+## 4. EPUB3 迁移提供的角色类
 
-`scripts/epub3_oneclick_converter.py` 注入 `Styles/epub3-enhancements.css`，其中包含：
+`epub run epub.package.migrate.epub3` 注入 `Styles/epub3-enhancements.css`，其中包含：
 
 ```text
 type-body
@@ -102,7 +102,7 @@ type-meta
 
 建议顺序：
 
-1. 先运行一键流水线，拿到 `reports/refinement.json`。
+1. 先按 [cleanup-flow.md](cleanup-flow.md) 的按序能力入口清洗，拿到 `epub.layout.audit` 精排建议报告。
 2. 列出书内已有 class 与 element 用法。
 3. 将标题、引文、注释、强调、metadata 映射到角色类。
 4. 每次只改一类，跑文本红线 gate。

@@ -4,15 +4,15 @@
 
 ## 基本流程
 
-1. 先跑 harness 判断输入类型：
+1. 先跑 layout 审计判断输入类型：
 
    ```sh
-   python3 scripts/epub_ai_harness.py --mode cleanup path/to/book.epub
+   epub run epub.layout.audit --input path/to/book.epub --json
    ```
 
 2. 已有 EPUB 先用 `epub-layout-auditor` 做总审稿。
-3. 按 findings 分派到专项 skill。
-4. 每次改动后运行 `scripts/validate_text_invariance.py`。
+3. 按 findings 分派到专项 skill；skill 只负责判断与验证说明，实际执行通过 `epub run <capability-id>` 调用 Go CLI。
+4. 每次改动后运行 `epub redline` 校验正文不变。
 5. 按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 或 VS Code 做人工 diff review。
 
 ## 当前 skill 一览

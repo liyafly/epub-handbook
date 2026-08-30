@@ -2,6 +2,12 @@
 
 > 本文件是 Go 重写的**第一档硬约束**（等同 `docs/final/` 其它 SPEC）。
 > 与旧对话、平台提示词、`archive/` 冲突时，以本文件为准。
+>
+> **迁移状态（2026-08-29）**：W0–W5 全部完成。16 个 A 类 capability 已在 Go 侧注册并通过
+> parity gate；棘轮（§2 INV-10）归零；`scripts/`、`adapters/`、`swift/`、`gui/`、
+> `tools/parity/` 与 Python 环境文件已按 §7.5 顺序删除。§5.2 的 `--legacy-report`
+> 与 §7 的迁移映射保留为历史依据；`epub_lint.py` 无对应契约，其职责由
+> `epub.package.nav.audit` + `epub redline` + CI EPUBCheck 承担（裁决见交接文档）。
 
 ---
 
@@ -638,6 +644,9 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 
 允许清单（新增需在此登记并说明）：
 - `archive/zip`、`encoding/json`、`regexp` — stdlib
+- `golang.org/x/text` — 仅 `unicode/norm`（redline 文本归一化对齐 Python
+  `unicodedata.normalize("NFC")`）与 `encoding/ianaindex`（structure_normalize
+  的 decode_text 编码链回编）。2026-08-29 登记。
 - JSON Schema 校验库 — 仅 `archguard` 和 `report` 测试用，不进主二进制
 
 **注意**：Go 的 `regexp` 是 RE2，不支持 lookahead / lookbehind / 反向引用。

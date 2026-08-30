@@ -56,7 +56,7 @@
 
 ### 模板、工具与历史
 
-- Python 工具入口：[../scripts/README.md](../scripts/README.md)
+- 唯一 CLI 入口：[../cmd/epub](../cmd/epub)（仓库根 `go run ./cmd/epub`，能力清单 `epub capabilities`）
 - 自造清洗 / diff demo：[../templates/cleanup-demo-books/](../templates/cleanup-demo-books/)
 - 第三方来源记录：[../THIRD_PARTY.md](../THIRD_PARTY.md) 与 [../references/README.md](../references/README.md)
 - 已完成的设计、实施计划、实验和早期推导：[../archive/](../archive/)

@@ -228,7 +228,7 @@
 - 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
 - 没有任何角色选择器或角色类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
 - `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；自由模式下不设置此 meta，局部角色的 `@font-face` 不单独触发此 meta。这是本仓当前可审计的包结构 policy；Apple Books 各版本中的字体切换与局部嵌入字体表现仍列在 `reader-matrix.yaml` 的 `07-font-family-order` 待复测项，不冒充实测结论。
-- 既有 EPUB 若因历史兼容或用户明确要求在正文自由模式保留该 meta，必须在书级报告记录理由，并用 `epub_lint.py --allow-free-body-ibooks-meta` 显式豁免；该例外不得写回 starter、preset 或新书模板。
+- 既有 EPUB 若因历史兼容或用户明确要求在正文自由模式保留该 meta，必须在书级报告记录理由，并在书根 `制作说明.md` 显式记录豁免条目；该例外不得写回 starter、preset 或新书模板。
 - 正文字体模式是**全书级决策**：同一本新建生产书要么全书自由（`body` 与普通正文 `p` 都无字体规则，OPF 无此 meta），要么全书锁定（直接 `body` 规则，OPF 加一份 meta）。不按页混用；既有书的 `body-font-locked` class 只作为兼容输入保留，不向新模板扩散。
 - 同一本书同时交付正文自由版与锁定版时，两版必须从同一个已定稿内容基线派生。允许差异只限字体 CSS、字体资源、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明；另允许每个 rendition 唯一的 `dcterms:modified` 反映各自实际打包时间。双版本比较可忽略该字段的值，但不得忽略缺失、多份或非 UTC `YYYY-MM-DDThh:mm:ssZ`。同一批成对构建应优先只取一次 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH` 传给两版，以减少无意义 diff；分步打包时的合法时间差不视为内容漂移。核心 `dc:*` metadata、spine、XHTML、注释、图片和其他资源必须一致。任何超出此白名单的差异都要另行授权并记录。
 - 新建字体 alias、文件名和 class 必须遵循 [字体别名命名规范](字体别名命名规范.md)：使用 `en` / `st` / `kt` / `fs` / `ht` / `tszt-*` 等角色缩写；不得新增 `Book*`、`RareSong*` 或 `.book-*` 字体命名。
@@ -244,7 +244,7 @@ AI 检测到自己将要触发以下任一改动时，必须停止并询问用�
 
 | 红线 | 说明 | 校验方式（自动） |
 | --- | --- | --- |
-| 正文文本 | 去除标签后的纯文本不允许变化；标点、错别字、通假字一律不动 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check text` |
+| 正文文本 | 去除标签后的纯文本不允许变化；标点、错别字、通假字一律不动 | `epub redline --check text before.epub after.epub` |
 | `dc:title` / `dc:creator` / `dc:identifier` / `dc:language` | OPF 核心元数据 | `--check metadata` |
 | spine 阅读顺序 | `<itemref>` 序列不可重排 | `--check spine` |
 | 章节锚点 id | 影响第三方书签、旧链接、阅读器进度 | `--check anchors` |
@@ -267,7 +267,7 @@ AI 检测到自己将要触发以下任一改动时，必须停止并询问用�
 4. 审阅状态至少包括 `adopt_reference`、`keep_current`、`manual`、`pending`。应用前必须满足：`pending=0`、未决项为 0、选择 `manual` 的项目均有最终文字。
 5. 决策 JSON 必须携带 schema 版本、差异源报告 SHA-256、现版/参考 artifact 身份、item count 和逐项决策。应用器必须重新生成或重新核对差异片段；SHA、id、篇章、片段或数量任一不符即停止。
 6. 只写出新的候选 EPUB，不覆盖现版或参考版。应用后必须证明最终连续正文等于决策合并结果，并生成“现版 → 候选”与“候选 → 参考版”两份 diff，后者用于显示明确保留的例外。
-7. `validate_text_invariance.py --check text` 与 `--check all` 在本分支会如实报告授权文字变化，不能作为通过 gate。必须改跑 `--check metadata,spine,cover,drm,anchors`，并额外验证：只允许决策 locator 指向的文字节点变化；目标 XHTML 的非文字 DOM / 属性签名（tag 序列、`id` / `class` / `epub:type` / `href` / `src` / `alt` / `lang`、ruby / rt 和 pagebreak 等）保持不变。若篇名同步已获授权，可把对应 nav.xhtml / toc.ncx 标签列入成员白名单，但必须证明标签等于最终篇名且链接、顺序不变；注释入口、注释正文、图片引用和其他排除结构仍须保持原样。
+7. `epub redline --check text` 与 `--check all` 在本分支会如实报告授权文字变化，不能作为通过 gate。必须改跑 `epub redline --check metadata,spine,cover,drm,anchors`，并额外验证：只允许决策 locator 指向的文字节点变化；目标 XHTML 的非文字 DOM / 属性签名（tag 序列、`id` / `class` / `epub:type` / `href` / `src` / `alt` / `lang`、ruby / rt 和 pagebreak 等）保持不变。若篇名同步已获授权，可把对应 nav.xhtml / toc.ncx 标签列入成员白名单，但必须证明标签等于最终篇名且链接、顺序不变；注释入口、注释正文、图片引用和其他排除结构仍须保持原样。
 8. 若同时生成正文自由版与锁定版，必须应用同一份决策 JSON，并断言两版目标正文完全一致；字体差异继续遵守 §8 的双版本白名单。
 
 ### §10.2 黄线（默认可改，但人工 review 必须看见）
@@ -297,7 +297,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 ### §10.4 元规则
 
 - 改动可见性：任何改动都必须在外部 diff 工具（Calibre / VS Code）中可见；不允许秘密改动。
-- 校验时机：每次 AI 改动后立刻跑 `validate_text_invariance.py`。普通清洗触发红线立即回滚；进入 §10.1.1 后，预期的授权文字差异由决策 artifact 验证，不因此回滚，但其余红线或任何未获授权差异仍立即回滚。
+- 校验时机：每次 AI 改动后立刻跑 `epub redline`。普通清洗触发红线立即回滚；进入 §10.1.1 后，预期的授权文字差异由决策 artifact 验证，不因此回滚，但其余红线或任何未获授权差异仍立即回滚。
 - DRM 检测：处理前先尝试 `unzip -l`，失败或发现 `encryption.xml` 立刻停止。
 - 来源记录：清洗操作必须在书根 `制作说明.md` 记录改了什么、为什么、用哪个 skill。
 - 可回滚：清洗前 epub 保留为 `before/` 备份；不允许就地覆盖。
@@ -306,13 +306,13 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 | 检测项 | 命令 | 通过条件 |
 | --- | --- | --- |
-| 文本红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check text` | 退出码 0 |
-| DRM 检测 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check drm` | 不输出 `DRM detected` |
-| 核心 metadata 红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check metadata` | 退出码 0 |
-| spine 红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check spine` | 退出码 0 |
-| 章节锚点红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check anchors` | 退出码 0 |
-| 封面红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check cover` | 退出码 0 |
-| 全量红线 | `python3 scripts/validate_text_invariance.py before.epub after.epub --check all` | 退出码 0 |
+| 文本红线 | `epub redline --check text before.epub after.epub` | 退出码 0 |
+| DRM 检测 | `epub redline --check drm before.epub after.epub` | 不输出 `DRM detected` |
+| 核心 metadata 红线 | `epub redline --check metadata before.epub after.epub` | 退出码 0 |
+| spine 红线 | `epub redline --check spine before.epub after.epub` | 退出码 0 |
+| 章节锚点红线 | `epub redline --check anchors before.epub after.epub` | 退出码 0 |
+| 封面红线 | `epub redline --check cover before.epub after.epub` | 退出码 0 |
+| 全量红线 | `epub redline --check all before.epub after.epub` | 退出码 0 |
 
 上表适用于普通清洗。进入 §10.1.1 后，正文变化由已核验的决策 artifact 负责证明；其余红线仍必须逐项通过，不得声称“全量红线通过”。
 
@@ -357,7 +357,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 #### 适配性判断
 
-跑 `python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub`，看 findings：
+跑 `epub run epub.layout.audit --input work/before/source.epub --json`，看 findings：
 
 - 找到的问题多在「能做」清单：适合走清洗流水线。
 - 找到的问题多在「不能做」清单：不要走，回到源头。

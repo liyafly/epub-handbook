@@ -5,10 +5,10 @@
 
 ## 怎么用本目录
 
-1. 跑 `python3 scripts/epub_ai_harness.py --mode cleanup work/before/source.epub`。
+1. 跑 `epub run epub.layout.audit --input work/before/source.epub --json`。
 2. 对照本目录的「特征」找匹配模式。
 3. 按推荐 skill 顺序执行。
-4. 每步后跑 `validate_text_invariance.py` + diff 工具确认。
+4. 每步后跑 `epub redline --check all` + diff 工具确认。
 
 ## 模式 A：网上下载的扫描书
 
@@ -101,7 +101,7 @@
 format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 ```
 
-先 review dry-run 的 `mappings` 和 `warnings`，写盘后把实际 JSON 报告交给 `validate_text_invariance.py --path-map <report.json>`。
+先 review dry-run 的 `mappings` 和 `warnings`，写盘后把实际 JSON 报告中的 `mappings` 提取出来，交给 `epub redline --path-map <mappings.json>`。
 
 如果规范化后只剩 `missing-css-font-fallback` 警告，保留 CSS 中的 `local()` fallback 并人工复核。不要把缺失字体别名自动绑定到任意嵌入字体；非字体资源断链仍必须修复。
 

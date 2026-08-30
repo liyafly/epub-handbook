@@ -27,13 +27,13 @@ CSS 拆分的关键原则：**拆，不是叠。** 不是把旧 CSS 复制四份
 
 > 说明：这里的 `base/media/notes/tables.css` 是该样本书自身的简化拆分；模板 `templates/epub-style-demo/` 用的是更细的 8 层方案（`fonts/base/notes/effects/literary/media/vertical/poster.css`，见 SPEC §7 和 [进阶：结构与兼容](进阶-结构与兼容.md) §5）。两者都合法，按书的复杂度选。新书从模板起步时以 8 层为参考。
 
-### 红线 gate：validate_text_invariance.py 做了什么
+### 红线 gate：`epub redline` 做了什么
 
 ```sh
-python3 scripts/validate_text_invariance.py before.epub after.epub
+epub redline before.epub after.epub
 ```
 
-这个脚本检查以下几个维度，任何一个不通过都视为红线触发：
+这条命令检查以下几个维度，任何一个不通过都视为红线触发：
 
 | 维度 | 检查方式 | 为什么是红线 |
 | --- | --- | --- |
@@ -70,13 +70,13 @@ python3 scripts/validate_text_invariance.py before.epub after.epub
 
 这对文件故意改写正文，用来验证红线 gate 会失败。它不是合法清洗结果，只用于教学和 diff 文本层演示。
 
-当你运行 `validate_text_invariance.py` 对比这对文件时，脚本会输出具体的差异位置和内容，让你看到红线 gate 是如何工作的。
+当你运行 `epub redline` 对比这对文件时，命令会输出具体的差异位置和内容，让你看到红线 gate 是如何工作的。
 
 ## 学到了什么
 
 - 现成 EPUB 的清洗要先守红线，再谈样式整理。
 - CSS 拆分按职责，不是按来源；一个文件一种职责。
-- `validate_text_invariance.py` 是自动化红线 gate，覆盖文本、元素、spine、metadata 四个维度。
+- `epub redline` 是自动化红线 gate，覆盖文本、元素、spine、metadata 四个维度。
 - 外部 diff 工具（Calibre / VS Code）负责让人看见结构、文本、样式、资源、元数据五层变化。它不是自动的——需要人看懂每层的变化是否合理。
 - 自造 demo 可以覆盖脚注、表格、代码、Ruby、竖排增强和红线反例，不受第三方来源质量限制。
 

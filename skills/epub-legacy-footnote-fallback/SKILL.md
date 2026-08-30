@@ -5,147 +5,40 @@ description: 在项目标准 EPUB 3 grouped footnote 结构上叠加多看旧版
 
 # EPUB 旧版弹注 Fallback
 
-只有目标 EPUB 必须保留多看旧版 popup-note 兼容性时才使用这个 skill。它是兼容层，不是项目默认 note 模式。
+## 何时用
 
-## 固定目标
+- 只有目标 EPUB 必须保留多看旧版 popup-note 兼容性时才使用；它是兼容层，不是项目默认 note 模式——普通项目输出用 `epub-popup-footnote-converter`。
+- 权威结构源是 `docs/final/SPEC-实现约束.md` §1；本 skill 不得与该节分叉，不得单方面新增或改名同族 class。
+- 主形态保留项目标准结构：XHTML 根声明 `xmlns:epub="http://www.idpf.org/2007/ops"`；noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`，`href` 指向同一 XHTML 文件内的 note `li`；每个 XHTML 文件只有一个 grouped note body（`<aside epub:type="footnote" role="doc-footnote">`）；本地 notes 放 `ol.footnote-list`；note target 是 `li.footnote-item`；backlink 是 `◎`。
+- 禁止事项：不删除 `footnote-list`、`footnote-item` 等中性类；不只保留 `duokan-*` 类；不复制第二份可见 note list；不把 `duokan-footnote-content` 放在单个 `li` 上（旧多看兼容验证的是 grouped `ol` 上的类）；不使用 JavaScript 或 `display:none` note body；不在多看 fallback 范围外添加阅读器私有 note 属性。
 
-权威结构源是 `docs/final/SPEC-实现约束.md` §1；以下内容保持 skill 可独立执行，并不得与该节分叉。
+## 调什么
 
-保留项目标准结构作为主形态：
-
-- XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
-- noteref 是带 `epub:type="noteref"` 和 `role="doc-noteref"` 的 `<a>`。
-- noteref `href` 指向同一 XHTML 文件内的 note `li`。
-- 每个 XHTML 文件只有一个 grouped note body：`<aside epub:type="footnote" role="doc-footnote">`。
-- 所有本地 notes 放在 `ol.footnote-list`。
-- 每条 note target 是 `li.footnote-item`。
-- backlink 是 `◎`。
-
-在同一结构上叠加 legacy hooks：
-
-- noteref anchor 增加 `duokan-footnote`。
-- grouped `ol.footnote-list` 增加 `duokan-footnote-content`。
-- 每个 note `li` 增加 `duokan-footnote-item`。
-- noteref anchor 内放 note icon 图片。
-
-不要为 fallback 创建第二份 note body。
-
-## XHTML 模式
-
-```html
-<p>
-  正文文字
-  <sup>
-    <a id="note-1"
-       class="noteref-icon duokan-footnote"
-       epub:type="noteref"
-       role="doc-noteref"
-       href="#footnote-1">
-      <img alt="注" src="../Images/note.png"/>
-    </a>
-  </sup>
-  继续正文。
-</p>
-
-<aside epub:type="footnote" role="doc-footnote">
-  <div><hr class="footnote-line"/></div>
-  <ol class="footnote-list duokan-footnote-content">
-    <li class="footnote-item duokan-footnote-item" id="footnote-1">
-      <p class="footnote">
-        <a class="footnote-back"
-           epub:type="backlink"
-           role="doc-backlink"
-           href="#note-1">◎</a>
-        富文本注释内容。
-      </p>
-    </li>
-  </ol>
-</aside>
-```
-
-## 转换流程
-
-1. 从已经符合，或可先转换为，标准 `aside > ol.footnote-list > li.footnote-item` 模式的文件开始。
-2. 确保 XHTML 根 `<html>` 声明 `xmlns:epub="http://www.idpf.org/2007/ops"`。
-3. 尽量保留 id。确保 noteref id 和 note target id 在当前 XHTML 内唯一。
-4. 给每个 noteref anchor 增加 `duokan-footnote`，但不要删除 `epub:type`、`role`、`id` 或 `href`。
-5. 确保 noteref anchor 包含图片图标。已有本地图标时保留原 `img src`；只有缺少图片热区且需要新增 legacy fallback 资源时，才使用 `../Images/note.png`。
-6. 给 grouped `ol.footnote-list` 增加 `duokan-footnote-content`；不要把它放到 `li` 上。
-7. 给每个 `li.footnote-item` 增加 `duokan-footnote-item`。
-8. 确保 noteref 实际引用的图标资源已在 OPF manifest 声明且文件存在；只有新增默认图标时才补 `Images/note.png`。
-9. 验证所有 href/backlink target 都解析到同一 XHTML 文件内。
-
-## CSS
-
-如果 EPUB 还没有样式化这些类，把以下规则合并到活动 note CSS：
-
-```css
-.noteref-icon,
-a.duokan-footnote {
-  text-decoration: none;
-}
-
-.noteref-icon img,
-a.duokan-footnote img {
-  width: auto;
-  height: 1em;
-  vertical-align: baseline;
-}
-
-ol.duokan-footnote-content {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-}
-
-.footnote-item.duokan-footnote-item {
-  list-style-type: none;
-}
-```
-
-如果源文件没有 `.footnote-line`，可以添加可见分隔线：要么使用 `footnote-line` 规则，要么给 `.duokan-footnote-content` 加 border；同一路径不要两者都用。
-
-## 禁止事项
-
-- 普通项目输出不要使用这个 skill；默认用 `epub-popup-footnote-converter`。
-- 不删除 `footnote-list`、`footnote-item` 等中性类。
-- 不只保留 `duokan-*` 类。
-- 不复制一份第二个可见 note list。
-- 不把 `duokan-footnote-content` 放在单个 `li` 上；旧多看兼容验证的是 grouped `ol` 上的类。
-- 不使用 JavaScript 或 `display:none` note body。
-- 不在多看 fallback 范围外添加阅读器私有 note 属性。
-
-## 验证 fixture
-
-使用这些本地参考：
-
-- `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`：单条兼容样例。
-- `templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml`：历史多条 fallback notes 对照，不进入默认 demo 构建。
-
-应用 fallback 后运行 stdlib-only validator：
+本 skill 是 AI 手工改写类 skill：在标准结构上叠加 legacy hooks，不创建第二份 note body。改写后必须校验：
 
 ```sh
-scripts/validate-popup-notes.sh
+epub run epub.notes.popup.normalize --input <产物> --json
+epub redline --check all <before.epub> <after.epub>
 ```
 
-多条 note 验证：
-
-- 同一 XHTML 文件内有多条 notes 时，每个 trigger 只能打开它指向的 `li` 内容。
-- 标准 EPUB 路径必须能通过 href -> target id 精确解析。
-
-## Dry-run 约定
-
-本 skill 默认 dry-run。直接调用只输出预期改动 JSON；加 `--commit` 才真正改。
-
-代理协议示例（注释说明代理动作，不是独立 shell 命令）：
+涉及 demo 模板改动时再加：
 
 ```sh
-# 代理调用当前 skill，并将 dry-run JSON 写入 work/dry-run.json
-
-# 人工审查
-cat work/dry-run.json | jq
-
-# 用户确认后，由映射 provider 写出新的 EPUB 产物
+epub run epub.style.demo.maintain --input <demo 产物> --json # 能力迁移中：findings 出现 warn capability.not-implemented 表示校验逻辑尚未执行
 ```
 
-dry-run 输出格式见 [docs/pipeline/cleanup-flow.md](../../docs/pipeline/cleanup-flow.md)。
+## 返回怎么读
+
+- `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
+- `epub run epub.notes.popup.normalize` 的 facts：`noterefs`（noteref 数）、`text_files`（XHTML 文件数）、`violations`（结构违反数）；violations > 0 时 `findings` 出现 `error popupnotes`，`detail` 指明具体文件与问题。
+- `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过。
+
+## 依据返回怎么判断
+
+- 叠加的 legacy hooks（缺一不可，且不得替换标准属性）：noteref anchor 增加 `duokan-footnote`；grouped `ol.footnote-list` 增加 `duokan-footnote-content`；每个 note `li` 增加 `duokan-footnote-item`；noteref anchor 内放 note icon 图片。
+- 改写流程判据：从已符合（或可先转换为）标准 `aside > ol.footnote-list > li.footnote-item` 模式的文件开始；尽量保留 id，noteref id 与 note target id 在当前 XHTML 内唯一；给 noteref anchor 加 `duokan-footnote` 时不删除 `epub:type`、`role`、`id`、`href`；已有本地图标时保留原 `img src`，只有缺少图片热区且需要新增 legacy fallback 资源时才用 `../Images/note.png`，并确保该图标已在 OPF manifest 声明且文件存在；所有 href/backlink target 必须解析到同一 XHTML 文件内。
+- 结构校验返回 `violations: 0` 且无 `popupnotes` findings → 结构合格；出现 `error popupnotes` → 按 detail 修复后重跑，不得绕过。
+- 多条 note 的人工验证：同一 XHTML 文件内有多条 notes 时，每个 trigger 只能打开它指向的 `li` 内容；标准 EPUB 路径必须能通过 href → target id 精确解析。
+- CSS：EPUB 还没有样式化这些类时，把 `.noteref-icon, a.duokan-footnote { text-decoration: none; }`、`.noteref-icon img, a.duokan-footnote img { width:auto; height:1em; vertical-align: baseline; }`、`ol.duokan-footnote-content { list-style-type:none; padding:0; margin:0; }`、`.footnote-item.duokan-footnote-item { list-style-type:none; }` 合并进活动 note CSS；源文件没有 `.footnote-line` 时可加可见分隔线——要么用 `footnote-line` 规则，要么给 `.duokan-footnote-content` 加 border，同一路径不要两者都用。
+- fixture 参考：`templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`（单条兼容样例）；历史多条样例在 `templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml`（不进入默认 demo 构建）。
+- `status == approval-required` → 停下来问人；红线未通过 → 回滚或修复后重跑，再做人工 diff review。

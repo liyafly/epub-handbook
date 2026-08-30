@@ -10,17 +10,16 @@
 
 ## 公共清洗
 
-先保留不可修改的 before，再生成 EPUB3 基线。基线通过 preflight 后运行：
+先保留不可修改的 before，再生成 EPUB3 基线。基线通过结构审计后运行：
 
 ```sh
-python3 scripts/epub_css_cleanup.py \
-  work/book-a/intermediate/step-1-epub3.epub \
+epub run epub.css.layering.optimize \
+  --input work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
-  --merge-scoped-local-css \
-  --format json > work/book-a/reports/css-cleanup.json
+  --json merge_scoped_local_css=true > work/book-a/reports/css-cleanup.json
 ```
 
-公共脚本只做可复用且可验证的变换：
+该能力只做可复用且可验证的变换：
 
 - 合并完全重复 CSS；
 - 将结构相同、少量属性不同的样式拆成公共层和 override；
@@ -28,7 +27,7 @@ python3 scripts/epub_css_cleanup.py \
 - 同步 XHTML `<link>` 和 OPF CSS manifest；
 - 可选把引用页面集合互不重叠的局部 CSS 改写为 `body.css-local-*` 作用域，并归并到一个 `clean-scoped-local.css`。
 
-`--merge-scoped-local-css` 只处理可证明互不交叠、且不是多数页面共用层的局部样式。两个样式只要被同一个 XHTML 同时引用，就跳过这组并在报告中记录 warning，避免改变原有级联顺序。
+`merge_scoped_local_css=true` 只处理可证明互不交叠、且不是多数页面共用层的局部样式。两个样式只要被同一个 XHTML 同时引用，就跳过这组并在报告中记录 warning，避免改变原有级联顺序。
 
 ## 验证
 
@@ -36,15 +35,15 @@ python3 scripts/epub_css_cleanup.py \
 
 ```sh
 unzip -tqq work/book-a/after/final.epub
-python3 scripts/epub_preflight_harness.py \
-  work/book-a/after/final.epub \
-  --format json
-bash scripts/validate-popup-notes.sh \
-  --epub work/book-a/after/final.epub
-python3 scripts/validate_text_invariance.py \
+epub run epub.package.nav.audit \
+  --input work/book-a/after/final.epub \
+  --json
+epub run epub.notes.popup.normalize \
+  --input work/book-a/after/final.epub \
+  --json
+epub redline --check all \
   work/book-a/intermediate/step-1-epub3.epub \
-  work/book-a/after/final.epub \
-  --check all
+  work/book-a/after/final.epub
 ```
 
 继续核对：

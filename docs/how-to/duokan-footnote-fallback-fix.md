@@ -77,8 +77,8 @@ ol.duokan-footnote-content {
 ```sh
 bash templates/epub-style-demo/build.sh
 EPUB="$(ls -t templates/epub-style-demo/dist/*.epub | head -1)"
-bash scripts/validate-epub-style-demo.sh --epub "$EPUB"
-bash scripts/validate-popup-notes.sh --epub "$EPUB"
+epub run epub.style.demo.maintain --input "$EPUB" --json
+epub run epub.notes.popup.normalize --input "$EPUB" --json
 ```
 
 再在目标多看版本中检查：
