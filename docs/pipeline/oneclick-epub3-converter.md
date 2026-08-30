@@ -1,12 +1,10 @@
-# 一命令 EPUB 清洗与 EPUB3 转换
+# EPUB 清洗与 EPUB3 转换
 
 > 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
-> 流水线入口：`scripts/epub_cleanup_pipeline.py`
-> 迁移 plan/apply：`scripts/epub3_migration_harness.py` + `scripts/epub3_migration_apply_harness.py`
+> 执行入口：`epub run epub.package.migrate.epub3`（结构规范化：`epub run epub.structure.normalize`）
 > 对应 skill：`$epub3-migrator`
-> 兼容变换器入口：`scripts/epub3_oneclick_converter.py`
 
-新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页为保留流水线内部结构的可读性，仍以 `work/book-a/` 表示工具的 `--work-dir`；新项目实际应指向 `work-epub/<book>/03 制作工作区/.pipeline/`。
+新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页为保留流水线内部结构的可读性，仍以 `work/book-a/` 表示流水线工作目录；新项目实际应指向 `work-epub/<book>/03 制作工作区/.pipeline/`。
 
 ## 适用范围
 
@@ -22,45 +20,64 @@
 - OCR 校对。
 - 正文改写。
 - 图片压缩或转码。
-- 字体内嵌。脚本只写多字体使用规则，不打包字体。
+- 字体内嵌。迁移只写多字体使用规则，不打包字体。
 
 ## 只做 EPUB3 迁移
 
-不需要完整清洗工作目录时，先生成只读计划，再显式写出新文件：
+不需要完整清洗工作目录时，先用 dry-run 生成只读计划，再显式写出新文件：
 
 ```sh
-python3 scripts/epub3_migration_harness.py \
-  input.epub \
-  --format json > migration-plan.json
-
-python3 scripts/epub3_migration_apply_harness.py \
-  input.epub \
+epub run epub.package.migrate.epub3 \
+  --input input.epub \
   --output migrated.epub \
-  --format json > migration-apply.json
+  --dry-run --json > migration-plan.json
+
+epub run epub.package.migrate.epub3 \
+  --input input.epub \
+  --output migrated.epub \
+  --json > migration-apply.json
 ```
 
-apply harness 拒绝覆盖已有输出，并在报告中保留 before/after SHA-256 与底层转换明细。旧 `epub3_migration_harness.py --write-output` 继续兼容，但新流程使用 plan/apply 分离入口。
+正式执行不原地覆盖输入 EPUB（`--output` 不得与 `--input` 相同），并在报告中保留 before/after SHA-256 与底层转换明细。
 
-## 一条命令
+## 按序执行
 
-用一个新的脱敏工作目录承接真实文件，不把真实文件名写进提交记录：
+用一个新的脱敏工作目录承接真实文件，不把真实文件名写进提交记录。Go CLI 没有一键流水线命令，按序执行：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py \
-  /path/to/input.epub \
-  --work-dir work/book-a
+mkdir -p work/book-a/before work/book-a/after work/book-a/reports
+cp /path/to/input.epub work/book-a/before/source.epub
+
+epub run epub.package.nav.audit \
+  --input work/book-a/before/source.epub \
+  --json > work/book-a/reports/preflight.json
+
+epub run epub.package.migrate.epub3 \
+  --input work/book-a/before/source.epub \
+  --output work/book-a/after/cleaned.epub \
+  --json > work/book-a/reports/migrate.json
+
+epub run epub.notes.popup.normalize \
+  --input work/book-a/after/cleaned.epub \
+  --json > work/book-a/reports/popup.json
+
+epub redline --check metadata,drm,anchors \
+  --allow-list '*/nav.xhtml' \
+  work/book-a/before/source.epub work/book-a/after/cleaned.epub
+
+epub run epub.layout.audit \
+  --input work/book-a/after/cleaned.epub \
+  --json > work/book-a/reports/findings.json
 ```
 
-入口会自动完成：
+按序完成：
 
 1. 复制输入为 `work/book-a/before/source.epub`，保留不可修改基线。
-2. 跑前置 preflight；有阻断错误立即停止。
-3. 调用底层 EPUB3 转换器。
-4. 跑产物 preflight、弹注 validator、红线子集 gate 和独立正文文本 gate。
-5. 生成精排建议和 AI findings。
-6. 写入 `work/book-a/reports/pipeline.json`。
-
-默认只落盘这一份汇总 JSON。需要逐项排障归档时加 `--keep-step-reports`，再额外保留 preflight、conversion、popup、redline、refinement 和 findings 文件。结构规范化报告不受此开关影响，始终单独保留。
+2. 跑前置结构审计；有 error 级 finding 立即停止。
+3. 调用 EPUB3 迁移能力（含底层转换器全部阶段）。
+4. 跑弹注结构校验、红线子集 gate 和正文文本 gate。
+5. 生成精排建议和审计 findings。
+6. 各报告以 `--json` 统一信封写入 `reports/`，逐项归档。
 
 输出 EPUB 位于 `work/book-a/after/cleaned.epub`，包含：
 
@@ -77,30 +94,29 @@ python3 scripts/epub_cleanup_pipeline.py \
 - 图片 noteref 的 `sup` 使用 `class="note-marker"`；其零行高外壳与相对上移图标只作用于脚注，避免 `sup img` 撑高正文行距。
 - 普通尾注转为同文件 grouped popup footnote。
 
-流水线不会替代人工 diff review 和真实阅读器复测。`reports/pipeline.json` 会把它们列为剩余步骤。
+流水线不会替代人工 diff review 和真实阅读器复测。审计报告的 `nextCommands` 会把它们列为剩余步骤。
 
 ## 可选结构规范化
 
-内部目录混乱、文件名明显混淆或需要稳定 diff 时，先用同一个入口生成 dry-run 报告：
+内部目录混乱、文件名明显混淆或需要稳定 diff 时，先生成 dry-run 报告：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py \
-  /path/to/input.epub \
-  --work-dir work/book-a-normalize-review \
-  --normalize dry-run
+epub run epub.structure.normalize \
+  --input /path/to/input.epub \
+  --output work/book-a-normalize-review/after/step-0-normalized.epub \
+  --dry-run --json > work/book-a-normalize-review/reports/normalize-dry-run.json
 ```
 
-检查 `work/book-a-normalize-review/reports/normalize-dry-run.json` 的两个阶段后，在新的工作目录显式批准：
+检查报告的两个阶段后，在新的输出路径显式实跑：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py \
-  /path/to/input.epub \
-  --work-dir work/book-a-normalized \
-  --normalize apply \
-  --approve-normalize
+epub run epub.structure.normalize \
+  --input /path/to/input.epub \
+  --output work/book-a-normalized/after/step-0-normalized.epub \
+  --json > work/book-a-normalized/reports/normalize.json
 ```
 
-`apply` 不接受隐式确认。每次运行使用新的工作目录，避免覆盖 before 基线和旧报告。
+实跑不接受隐式确认：必须先 review `--dry-run` 报告。每次运行使用新的输出路径，避免覆盖 before 基线和旧报告。
 
 ## 字体策略
 
@@ -116,14 +132,13 @@ python3 scripts/epub_cleanup_pipeline.py \
 
 ## 可选 CSS 去重与局部样式合并
 
-合订 EPUB 如果重复携带每册 CSS，可在 EPUB3 基线通过 preflight 后运行：
+合订 EPUB 如果重复携带每册 CSS，可在 EPUB3 基线通过结构审计后运行：
 
 ```sh
-python3 scripts/epub_css_cleanup.py \
-  work/book-a/intermediate/step-1-epub3.epub \
+epub run epub.css.layering.optimize \
+  --input work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
-  --merge-scoped-local-css \
-  --format json > work/book-a/reports/css-cleanup.json
+  --json merge_scoped_local_css=true > work/book-a/reports/css-cleanup.json
 ```
 
 清洗器会：
@@ -134,15 +149,14 @@ python3 scripts/epub_css_cleanup.py \
 - 同步更新 XHTML `<link>` 和 OPF CSS manifest；
 - 可选把引用页面集合互不重叠的局部样式归并为 `clean-scoped-local.css`，规则改写为 `body.css-local-*` 作用域；引用集合有交叠时跳过并报告。
 
-这是公共脚本的保守边界。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
+这是该能力的保守边界。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
 
 清洗前后必须运行完整红线 gate：
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   work/book-a/intermediate/step-1-epub3.epub \
-  work/book-a/after/final.epub \
-  --check all
+  work/book-a/after/final.epub
 ```
 
 ## 可选合集卷封与版权页精排
@@ -150,14 +164,13 @@ python3 scripts/validate_text_invariance.py \
 既有合订 EPUB 如果每卷以“单图封面 + 紧邻版权信息页”开头，可在 CSS 清洗后单独运行：
 
 ```sh
-python3 scripts/epub_anthology_refinement.py \
-  work/book-a/after/final.epub \
+epub run epub.alite.convert \
+  --input work/book-a/after/final.epub \
   --output work/book-a/after/final-anthology.epub \
-  --expect-volumes <N> \
-  --format json > work/book-a/reports/anthology-refinement.json
+  --json expect_volumes=<N> > work/book-a/reports/anthology-refinement.json
 ```
 
-脚本把单图卷封转换为 A-lite `contain` 背景并保留 `<img class="poster-fallback">`，避免裁图或空白页；版权信息页只增加紧凑排版容器和 class，不改书名、作者、ISBN 或链接文字。`--expect-volumes` 用来阻止漏识别时继续交付。
+该能力把单图卷封转换为 A-lite `contain` 背景并保留 `<img class="poster-fallback">`，避免裁图或空白页；版权信息页只增加紧凑排版容器和 class，不改书名、作者、ISBN 或链接文字。`expect_volumes` 用来阻止漏识别时继续交付。
 
 完成验证后，面向交付方新建精简目录，不复制中间包和转换器日志：
 
@@ -209,30 +222,26 @@ Sigil 的旧式 `section[epub:type="footnotes"]` 若包含多条 `aside#footnote
 完整文本 gate 不把 noteref 的数字、图标或 backlink 的 `◎` 当作正文，但仍逐字比较所有注释正文：
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub \
-  --check all
+  work/book-a/after/cleaned.epub
 ```
 
 ## 验证
 
 ```sh
 unzip -tqq work/book-a/after/cleaned.epub
-python3 scripts/epub_preflight_harness.py work/book-a/after/cleaned.epub --format json
-bash scripts/validate-popup-notes.sh --epub work/book-a/after/cleaned.epub
-python3 scripts/validate_text_invariance.py \
-  work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub \
-  --check metadata,drm,anchors \
-  --allow-list '*/nav.xhtml'
-
-python3 scripts/validate_text_invariance.py \
-  work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub \
-  --check text \
+epub run epub.package.nav.audit --input work/book-a/after/cleaned.epub --json
+epub run epub.notes.popup.normalize --input work/book-a/after/cleaned.epub --json
+epub redline --check metadata,drm,anchors \
   --allow-list '*/nav.xhtml' \
-  --allow-list '*/toc.ncx'
+  work/book-a/before/source.epub \
+  work/book-a/after/cleaned.epub
+
+epub redline --check text \
+  --allow-list '*/nav.xhtml' --allow-list '*/toc.ncx' \
+  work/book-a/before/source.epub \
+  work/book-a/after/cleaned.epub
 ```
 
 正文文本 gate 是硬门禁。若转换触发它，流水线立即停止，不把该产物当作可交付结果。
@@ -271,15 +280,15 @@ mkdir -p work/book-a/after/kindle-preview-output
 - 真实书名、作者、ISBN、ASIN、水印、私有 metadata。
 - Kindle Previewer 生成的完整临时路径日志，除非已替换成本地占位路径。
 
-## 兼容底层变换器入口
+## 底层变换器入口
 
-只有在上层已经完成 before 备份、preflight 和审计记录，并且需要兼容旧自动化时，才直接调用旧入口：
+旧 `epub3_oneclick_converter.py` 兼容入口已收口：`epub run epub.package.migrate.epub3` 是唯一执行入口。需要直接触发底层转换时（上层仍须先完成 before 备份、结构审计和审计记录），运行：
 
 ```sh
-python3 scripts/epub3_oneclick_converter.py \
-  work/before/source.epub \
+epub run epub.package.migrate.epub3 \
+  --input work/before/source.epub \
   --output work/after/cleaned.epub \
-  --format json > work/after/cleaned.report.json
+  --json > work/after/cleaned.report.json
 ```
 
-实现已按 package、navigation、XHTML、notes 与 converter orchestration 拆到 `scripts/epub3_conversion/`；旧脚本只保留 CLI 与 import 兼容表面。
+实现按 package、navigation、XHTML、notes 与转换编排拆为该能力的内部阶段。

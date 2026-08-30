@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB 文学结构格式化"
-  short_description: "格式化章首和文学结构。"
-  default_prompt: "使用 $epub-literary-structure-formatter 格式化这些章首、前置页和文学结构。"
+  short_description: "语义化章首、前置页、诗、信件与文白对照。"
+  default_prompt: "使用 $epub-literary-structure-formatter 在不改写正文的前提下格式化这些章首、前置页和文学结构。"

@@ -5,7 +5,7 @@
 
 ## 目标
 
-故意制造一对不合格 before / after，用来演示 `validate_text_invariance.py` 如何拦住正文改写。
+故意制造一对不合格 before / after，用来演示 `epub redline` 如何拦住正文改写。
 
 ## 覆盖点
 
@@ -16,10 +16,9 @@
 ## 验证
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   templates/cleanup-demo-books/dist/redline-trap-before.epub \
-  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
-  --check all
+  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub
 ```
 
 预期：退出码 1，并报告 `text: modified ...`。

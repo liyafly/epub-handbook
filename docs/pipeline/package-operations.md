@@ -1,14 +1,14 @@
 # EPUB 包操作工具
 
 > 状态：流程文档；用于 EPUB 合并、按目录拆分、元数据编辑和封面替换。
-> 推荐入口：四个单能力 harness；兼容入口：`scripts/epub_package_tool.py`。
+> 推荐入口：四个单能力 `epub run` 命令。
 > 对应 skill：`$epub-package-operator`。
 
 ## 适用范围
 
 package operations 借鉴 `epub-gadget` 中合并 / 拆分、封面和元数据编辑的实用思路，但实现保持本仓约束：
 
-- 只使用 Python 标准库。
+- 由 Go CLI 单一二进制提供，不需要 Python 环境。
 - 不原地覆盖输入 EPUB。
 - 遇到 `META-INF/encryption.xml` 默认停止，不做 DRM 解密或字体混淆处理。
 - 合并和拆分会重新生成 `nav.xhtml`、`toc.ncx`、OPF manifest 和 spine。
@@ -17,44 +17,28 @@ package operations 借鉴 `epub-gadget` 中合并 / 拆分、封面和元数据�
 
 ## 单任务直接运行
 
-每个写操作有独立 harness，要求显式输出并拒绝覆盖已有产物：
+每个写操作是独立 capability，要求显式输出：
 
 | 能力 | 推荐入口 |
 | --- | --- |
-| 合并多本 EPUB | `python3 scripts/epub_package_merge_harness.py <a.epub> <b.epub> --output <merged.epub>` |
-| 按目录索引拆分 EPUB | `python3 scripts/epub_package_split_harness.py <book.epub> --output-dir <dir> --split-points <indices>` |
-| 写入元数据 | `python3 scripts/epub_metadata_edit_harness.py <book.epub> --output <out.epub> --metadata-json '<object>'` |
-| 替换封面 | `python3 scripts/epub_cover_replace_harness.py <book.epub> --output <out.epub> --cover <image>` |
+| 合并多本 EPUB | `epub run epub.package.merge --input <a.epub> --output <merged.epub> --json extra_inputs=<b.epub>` |
+| 按目录索引拆分 EPUB | `epub run epub.package.split --input <book.epub> --output <dir>/<首册>.epub --json split_points=<indices> output_dir=<dir>` |
+| 写入元数据 | `epub run epub.metadata.edit --input <book.epub> --output <out.epub> --json 'metadata_json={"title":"新标题"}'` |
+| 替换封面 | `epub run epub.cover.replace --input <book.epub> --output <out.epub> --json cover=<image>` |
 
-读取元数据和列出拆分点仍走兼容 CLI；旧写入子命令也继续可用：
-
-```sh
-python3 scripts/epub_package_tool.py --help
-```
-
-兼容子命令：
-
-| 目标 | 子命令 |
-| --- | --- |
-| 合并多本 EPUB | `merge` |
-| 查看可拆分目录点 | `split-targets` |
-| 按目录索引拆分 EPUB | `split` |
-| 读取元数据 | `metadata-read` |
-| 写入元数据 | `metadata-write` |
-| 替换封面 | `replace-cover` |
-
-每个写操作都要求显式传入 `--output` 或 `--output-dir`，不会直接覆盖原 EPUB。需要正式交付时，按对应小节的验证建议检查输出。
+每个写操作都要求显式传入 `--output`（split 的分段产物实际写入 `output_dir`，其 `--output` 仅用于通过 CLI 写权限检查，不实际写入），不会直接覆盖原 EPUB。需要正式交付时，按对应小节的验证建议检查输出。
 
 ## 合并 EPUB
 
 ```sh
-python3 scripts/epub_package_tool.py merge \
-  volume-01.epub volume-02.epub \
+epub run epub.package.merge \
+  --input volume-01.epub \
   --output merged.epub \
-  --title "合集标题" > merged.report.json
+  --json extra_inputs=volume-02.epub \
+  'title=合集标题' > merged.report.json
 ```
 
-新流程优先使用等价的 `epub_package_merge_harness.py`；上面的命令保留给已有自动化。
+合并场景的能力自带 text 红线会把后续册的文件记为新增（error findings，退出码 1），产物仍会写出；是否符合预期以随后的显式 `epub redline` 与人工 diff review 为准。
 
 合并时会：
 
@@ -68,32 +52,32 @@ python3 scripts/epub_package_tool.py merge \
 
 ```sh
 unzip -tqq merged.epub
-python3 scripts/epub_preflight_harness.py merged.epub --format json
-python3 scripts/validate_text_invariance.py volume-01.epub merged.epub --check drm,anchors
+epub run epub.package.nav.audit --input merged.epub --json
+epub redline --check drm,anchors volume-01.epub merged.epub
 ```
 
-合并会改变 spine、metadata 和书籍结构，不适合跑完整 text invariance 对比；至少检查 ZIP、preflight、DRM 和锚点。
+合并会改变 spine、metadata 和书籍结构，不适合跑完整 text invariance 对比；至少检查 ZIP、结构审计、DRM 和锚点。
 
 ## 列出拆分点
 
 ```sh
-python3 scripts/epub_package_tool.py split-targets book.epub > split-targets.json
+epub run epub.package.nav.audit --input book.epub --json
 ```
 
-拆分点来自 EPUB3 nav；没有 nav 时回退到 NCX；仍没有目录时回退到 spine 文件列表。返回项包含 `title`、`href` 和 `level`。
+拆分点来自 EPUB3 nav；没有 nav 时回退到 NCX；仍没有目录时回退到 spine 文件列表。审计报告的 `facts.summary` 给出 manifest / spine 数量等结构事实，`nextCommands` 提示后续命令。
 
 ## 拆分 EPUB
 
 ```sh
-python3 scripts/epub_package_tool.py split \
-  book.epub \
-  --output-dir split-out \
-  --split-points 0,12,30 > split.report.json
+epub run epub.package.split \
+  --input book.epub \
+  --output split-out/book_01.epub \
+  --json split_points=0,12,30 output_dir=split-out > split.report.json
 ```
 
-新流程优先使用 `epub_package_split_harness.py`，它会在输出目录非空时停止。
+该能力会在输出目录非空时停止。`--output` 仅用于通过 CLI 写权限检查，分段产物实际写入 `output_dir`。
 
-`--split-points` 使用 `split-targets` 返回数组的索引。每个索引是一个新分册的开始位置，输出文件命名为 `<原文件名>_01.epub`、`<原文件名>_02.epub`。
+`split_points` 使用目录条目的索引。每个索引是一个新分册的开始位置，输出文件命名为 `<原文件名>_01.epub`、`<原文件名>_02.epub`。
 
 拆分时会：
 
@@ -107,29 +91,23 @@ python3 scripts/epub_package_tool.py split \
 ```sh
 for epub in split-out/*.epub; do
   unzip -tqq "$epub"
-  python3 scripts/epub_preflight_harness.py "$epub" --format json
+  epub run epub.package.nav.audit --input "$epub" --json
 done
 ```
 
 ## 读取和写入元数据
 
-读取：
+读取：暂无独立读取能力，直接解包查看 OPF `<metadata>`，或用 `epub run epub.package.nav.audit --input book.epub --json` 查看包结构事实。写入：
 
 ```sh
-python3 scripts/epub_package_tool.py metadata-read book.epub > metadata.json
-```
-
-写入：
-
-```sh
-python3 scripts/epub_package_tool.py metadata-write \
-  book.epub \
+epub run epub.metadata.edit \
+  --input book.epub \
   --output book-metadata.epub \
-  --metadata-json '{"title":"新标题","author":"作者","language":"zh-CN"}' \
+  --json 'metadata_json={"title":"新标题","author":"作者","language":"zh-CN"}' \
   > metadata-write.report.json
 ```
 
-新流程优先使用 `epub_metadata_edit_harness.py`；读取仍使用 `metadata-read`。
+`metadata_json` 是内联 JSON 对象文本，键值均为字符串。
 
 支持字段：
 
@@ -142,24 +120,21 @@ python3 scripts/epub_package_tool.py metadata-write \
 - `identifier`
 - `rights`
 
-元数据写入不改 spine 和正文。验证建议：
+元数据写入不改 spine 和正文。能力运行自带的内置 metadata 红线会把预期中的字段变更记为 findings（退出码 1），产物仍会写出；验证建议用显式 redline 排除 metadata：
 
 ```sh
-python3 scripts/validate_text_invariance.py \
-  book.epub book-metadata.epub \
-  --check text,spine,cover,drm,anchors
+epub redline --check text,spine,cover,drm,anchors \
+  book.epub book-metadata.epub
 ```
 
 ## 替换封面
 
 ```sh
-python3 scripts/epub_package_tool.py replace-cover \
-  book.epub \
+epub run epub.cover.replace \
+  --input book.epub \
   --output book-cover.epub \
-  --cover cover.png > cover.report.json
+  --json cover=cover.png > cover.report.json
 ```
-
-新流程优先使用 `epub_cover_replace_harness.py`。
 
 封面替换会：
 
@@ -174,10 +149,9 @@ python3 scripts/epub_package_tool.py replace-cover \
 验证建议：
 
 ```sh
-python3 scripts/epub_preflight_harness.py book-cover.epub --format json
-python3 scripts/validate_text_invariance.py \
-  book.epub book-cover.epub \
-  --check text,metadata,spine,drm,anchors
+epub run epub.package.nav.audit --input book-cover.epub --json
+epub redline --check text,metadata,spine,drm,anchors \
+  book.epub book-cover.epub
 ```
 
 `cover` 校验不适合用于封面替换，因为封面本来就是预期变更。

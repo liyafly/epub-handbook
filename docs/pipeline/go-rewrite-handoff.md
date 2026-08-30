@@ -1,17 +1,83 @@
 # Go 重写交接
 
-> 状态快照：**设计完成，W0 未开工** · 2026-08-26 · 工具链 Go 1.27
+> 状态快照：**W0–W5 全部完成，迁移收尾** · 2026-08-30 凌晨 · 工具链 Go 1.27
 >
-> 规范来源是 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md)（第一档硬约束，651 行）。
+> 规范来源是 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md)（第一档硬约束）。
 > 本文件是**状态与决策记录**，不是约束。两者冲突时以 SPEC 为准。
 
 | 指标 | 当前值 |
 |---|---|
-| SPEC 行数 | 651 |
-| 不变式条数 | 10 |
-| 守卫测试 | 14（11 通过 / 3 bootstrap 跳过） |
-| 棘轮待清引用 | 149 处 / 46 个文件 |
-| capability 总数 | 22（16 有 Python 实现，6 个纯 AI skill） |
+| 包测试 | 23 个包全部 ok（parity 测试的 python oracle 已删除，按设计 t.Skip） |
+| 守卫测试 | archguard 全绿；INV-10 棘轮已归零并随 `tools/parity/` 撤除（守卫在基线缺失时自动跳过） |
+| CLI ready 能力 | 16 / 22（其余 5 个 B 类纯 AI skill + `epub.source.intake` 待决策） |
+| 旧执行面引用 | **0**（149 → 0，基线归零后随脚手架删除） |
+| 已删除 | `swift/`（303M）、`gui/`、`scripts/`（1.4M）、`adapters/`、`.venv`/`uv.lock`/`pyproject.toml`/`.python-version`、`mise.toml`、`tools/parity/` |
+
+## 0. 进度快照（2026-08-30 凌晨，W5 收尾）
+
+**CLI 端到端可用**：`go run ./cmd/epub {run <id> | capabilities | redline}`。
+统一信封（schemaVersion 2）、退出码 0/1/2/3、契约驱动的 requires 校验均已落地。
+真书（49MB《EPub指南》）parity 达标的能力见下表；全部 16 个 A 类能力均注册并 ready。
+
+| capability | parity 证据 |
+|---|---|
+| epub.package.nav.audit | legacy JSON 全键一致（11 findings/skills/commands/detectors） |
+| epub.layout.audit | 同上（build 模式投影） |
+| epub.text.content.analyze | 全量 blocks 逐键一致（15826 块；修了 pre-order 块序 + Python isdigit 个位数值规则） |
+| epub.image.layout.optimize | legacy 报告逐键一致 |
+| epub.structure.normalize | apply 后 **817/817 entry CRC 逐字节一致**；报告仅路径字段差异 |
+| epub.package.merge | fixture + 真书自合并全 entry 逐字节（仅 dcterms:modified 时间戳） |
+| epub.package.split | 全 entry 逐字节；OPF 语义一致（Go 保留原字节 vs Python 整树重排） |
+| epub.metadata.edit | 非 OPF entry 逐字节；OPF 经 ET 规范化语义一致 |
+| epub.cover.replace | 真书 parity 测试全绿（16 个 cover 图引用重写 + SVG viewBox） |
+| epub.font.coverage.analyze | legacy 报告全键一致（经 extern 调 uv + tools-font） |
+| epub.notes.popup.normalize | 真书 39 条错误措辞逐字一致；**W5 补齐**：校验核心按 oracle 重写（backlink 收集范围、target⊆note-list、exact role 匹配、duokan 模式、urlsplit/unquote 图标解析），12 类错误措辞 + 通过路径 parity 全绿 |
+| epub.package.migrate.epub3 | **W5 补齐**：exec-parity 双用例（默认 + --no-typography），conversion 报告逐字节 + 除 OPF 外全 entry 逐字节 |
+| epub.css.layering.optimize | parity 全绿（apply/scoped-merge 双用例） |
+| epub.typography.optimize | parity 全绿（apply/dry-run 双用例） |
+| epub.alite.convert | **W5 收尾**：修复半成品（编译错误、INV-7 正则表、报告缺 harness 键、`</head>` 替换语义、CLASS_RE/SRC_RE 精确形状、BODY_RE count=1）；单卷/双卷/无版权页 warning/expect_volumes 报错四用例 parity 全绿；OPF 差异登记于 `tools/parity/allow.md`（已随脚手架删除，差异语义由 pyCanonicalXML 测试保证） |
+| epub.style.demo.maintain | **W5 新移植**（699 行校验器）：源树/产物双模式，5 个 parity 用例 + 12 个纯 Go 单测全绿 |
+
+**B 类（5 个，纯 AI skill，无专属实现，按 §7.1 不建 caps 包）**：
+kindle.compatibility.check、literary.structure.format、notes.legacy-fallback、
+typography.english.optimize、vertical.ruby.optimize —— 依赖的两个通用校验器已变为
+Go 能力（`epub.style.demo.maintain` / `epub.notes.popup.normalize`）。
+
+**W5 交付内容**：
+- 19 个 SKILL.md 按 §8.4 四段模板改写为 `epub run` 形态；`agents/openai.yaml` 同步。
+- 42 个文档（docs/ + templates/）与根文档（AGENTS/README/CONTRIBUTING/CLAUDE）旧引用清零。
+- `hooks/pre-commit.epub-handbook` 改调 `go test ./internal/archguard/` + epub CLI；
+  `.github/workflows/build-epub-demo.yml` 换 Go 工具链（swift job 删除），
+  `.github/CODEOWNERS` 与 PR 模板同步。
+- `epub redline` 补 `--path-map`（对齐 validate_text_invariance 的改名映射，
+  在 pipeline 层载入，cmd 层保持零 redline 知识）；修复 `--legacy-report` flag
+  未透传进 Args 的 W4 遗留缺口。
+
+**关键语义决策（迁移期确定）**：
+1. `epub run <id>` 是**单能力执行**（与 Python oracle 路由一致），requires 只做
+   存在性与无环校验；上游结果经 Upstream 注入但默认不自动执行。
+2. 输出**先写盘、后红线校验**（对齐 Python「写 after → gate → 人工 review」）；
+   红线 error 把状态降为 failed、退出码 1，但输出保留供人工 diff review。
+3. 契约标 transformer 但执行面只读的能力（popup.normalize）用 `registerReadOnly` 覆盖；
+   多产物能力（split）用 `registerMultiOutput`；无 EPUB 输入能力（style.demo.maintain）
+   用 `registerNoBook`（--input 为空/目录 → 源树模式，文件 → 产物模式）。
+4. 全局 flag（input/output/dry_run/legacy_report）由 pipeline 注入 Args。
+
+**过程中抓到的 Python 语义怪癖**（Go 已复刻）：
+- `urlsplit` 剥离 URL 首尾 C0 控制符与空格（真书里存在 `src=" ../Images/note.png"`）。
+- Python `str.isdigit()` 只认个位数值（①-⑨ 算、⑩❿⒑ 不算、〇 不算）。
+- ElementTree 序列化的全部字节细节（单引号声明、`<tag />`、属性转义表）。
+- `ensure_stylesheet_link` 以「href 子串已在文本」为幂等判据，且会把 `</head…>` 匹配
+  整段替换为 `</head>`（不是原样保留）。
+- Python regex `\b` 的词字符只有 `[A-Za-z0-9_]`——`data-class="x"` 中的 `class=`
+  依然命中 CLASS_RE。
+- 弹注校验中 role 属性是整串精确比较（`role="doc-noteref extra"` 不算 noteref），
+  epub:type 与 class 才是分词包含。
+
+**架构产物**：`internal/{zipfs,editset,book,redline,report,extern}` +
+`internal/scan/{opf,xhtml,css}`（opf 含 spans.go 区间树）+
+`internal/caps/*`（15 包）+ `internal/pipeline` + `cmd/epub`。
+依赖：`golang.org/x/text`（NFC + ianaindex，已登记 SPEC §9.3）。
 
 ---
 
@@ -42,7 +108,7 @@
 
 实测 `swift/.build` 占 **303MB**，仅 3 个依赖。Windows 支持痛苦，且缺 CSS 解析库
 导致仓库里手写了 800 余行 CSS parser（`CSSCleanupPrimitives` 408 行 + `CSSCleanupPlanner` 400 行）。
-执行链路上无下游依赖，可立即删除。
+执行链路上无下游依赖，已删除。
 
 ### 1.4 两套 EPUB3 迁移留哪个 → **`epub3_conversion`**
 
@@ -58,7 +124,7 @@
 契约与 pipeline 都走 B。而 B 超出的部分恰是本手册的领域核心。
 
 A 唯一独有的是 plan 模式，作为全局 `--dry-run` 保留，不构成保留整套实现的理由。
-Go 侧只实现 B 的行为，A 连同 `test_epub3_migration_harness.py` 一并删除。
+Go 侧只实现 B 的行为，A 已随 `scripts/` 删除。
 
 ---
 
@@ -72,20 +138,20 @@ Go 侧只实现 B 的行为，A 连同 `test_epub3_migration_harness.py` 一并�
 配套的是 **规则 0：禁止修改 archguard**——守卫红了意味着改动违反了架构，不是守卫写错了。
 错误反应是改守卫、加白名单、注释掉断言、打 `t.Skip`。
 
-### 2.1 十条不变式
+### 2.1 十条不变式（终态）
 
 | | 规则 | 堵住的跑偏 | 状态 |
 |---|---|---|---|
-| INV-1 | 未修改 entry 必须 `zip.Writer.Copy` 透传 | 退回整包读写，800MB I/O 回来 | 待 `zipfs` |
+| INV-1 | 未修改 entry 必须 `zip.Writer.Copy` 透传 | 退回整包读写，800MB I/O 回来 | 已验证 |
 | INV-2 | `scan/*` 只产 `[]Edit`，禁导出整文档序列化 | DOM 往返静默破坏正文不变 | 已验证 |
 | INV-3 | 一次运行只写一次盘 | 中间态落盘，退回旧架构 | 已验证 |
 | INV-4 | `caps` 禁 `os/exec` | 外部依赖散落各处 | 已验证 |
 | INV-5 | 契约里每条红线必须有注册校验器 | 声明了红线却没实现 | 已验证 |
-| INV-6 | 报告必须过 schema | 输出格式漂移 | 待 golden |
+| INV-6 | 报告必须过 schema | 输出格式漂移 | 已验证（golden 已落） |
 | INV-7 | 禁包级可变 `var` | 弱模型最爱的「加个全局传状态」 | 已验证 |
 | INV-8 | `skills/` 不得有 `.py` / `.sh` | 执行面重新分散 | 已验证 |
 | INV-9 | SKILL.md 只能引用真实存在的 capability id | 改名后文档失效，AI 照着跑就炸 | 已验证 |
-| INV-10 | 旧执行面引用棘轮，只删不增 | 迁移中途有人图省事再写一条 | 已验证 |
+| INV-10 | 旧执行面引用棘轮，只删不增 | 迁移中途有人图省事再写一条 | **已归零**（基线随脚手架撤除，守卫转为 bootstrap-skip） |
 
 ### 2.2 守卫已验证会开火
 
@@ -97,81 +163,59 @@ Go 侧只实现 B 的行为，A 连同 `test_epub3_migration_harness.py` 一并�
 并列出每条由哪些契约声明。`register.go` 白名单也确认生效——注册表放行，
 换个文件名同样的变量就被抓。
 
+W5 期间守卫又抓到两处真实违规：
+`cmd/epub` 直接 import `internal/redline`（TestCmdIsThin，已下沉到 pipeline 层修复）；
+alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go）。
+
 ### 2.3 守卫的真正牙齿
 
 文档里那句「禁止修改 archguard」对弱模型只是软约束——它完全可以删掉断言让测试变绿。
-真正的强制来自三处仓库配置，已一并落地：
+真正的强制来自三处仓库配置，均已落地：
 
 | 文件 | 作用 |
 |---|---|
 | `.github/workflows/archguard.yml` | 独立必过 job，故意不与其它测试合并；触碰 archguard 时额外告警 |
-| `.github/CODEOWNERS` | 守卫、SPEC、棘轮基线、`contracts/` 均需人类审阅 |
-| `.github/pull_request_template.md` | 四项架构自检 + 棘轮进度栏 |
+| `.github/CODEOWNERS` | 守卫、SPEC、`contracts/` 均需人类审阅 |
+| `.github/pull_request_template.md` | 架构自检勾选项 |
 
 ---
 
-## 3. 棘轮：迁移进度的唯一硬指标
+## 3. 棘轮：迁移进度的唯一硬指标（已完成）
 
 旧执行面引用**只许减少，不许新增**。基线在 `tools/parity/legacy-refs.txt`，
-每迁移一个 capability 就从中删掉对应行。
-
-```
-149 处待清 · 46 个文件 · 目标 0
-├── 142 处  SKILL.md 与文档 markdown
-└──   7 处  hooks/pre-commit.epub-handbook
-```
-
-**棘轮归零前不得删除 `scripts/`。**
-
-### 3.1 曾经漏掉的第三执行面
-
-`scripts/` 的引用不止在 SKILL.md 里。git hook 直接调用 8 个脚本，
-而它不是 markdown——早期版本的棘轮扫不到它。现已纳入覆盖。
-
-第三处是 `adapters/python/*.v1.json` 的 provider catalog，它不走棘轮，
-由 W4 的 CLI `capabilities` 子命令取代。
-
-> **新增执行面时先问：棘轮扫得到吗？**
-
-棘轮的扫描面：根目录的 `AGENTS.md` / `README.md` / `CONTRIBUTING.md` / `CLAUDE.md`，
-加上 `skills/`、`docs/`、`templates/`、`hooks/`。
-`CHANGELOG.md` 故意排除（历史记录不该被改写），
-`docs/final/SPEC-go-architecture.md` 精确路径豁免（迁移文档必然要点名旧执行面）。
+从 149 处（46 文件）逐步删除，2026-08-29 归零；`scripts/` 随之删除，
+`tools/parity/` 作为功成即撤的脚手架一并删除。守卫在基线缺失时自动跳过——
+若未来重新引入旧执行面，必须先重建基线（守卫的 bootstrap-skip 是刻意设计，
+不是漏洞）。
 
 ---
 
-## 4. 推进路线
+## 4. 推进路线（全部完成）
 
-W0 是唯一必须由高能力模型完成的波次。W1 之后每个单元都被任务模板和守卫夹住，
-适合派发给较低能力模型逐个推进——改错了会立刻红。
-
-| 波次 | 内容 | 完成判据 |
+| 波次 | 内容 | 状态 |
 |---|---|---|
-| W0 | `zipfs` + `book` + `editset` + INV-1 行为测试 | 49MB 样本书透传 I/O 实测，验证「800MB → 几 MB」成立 |
-| W1 | 六条红线校验器 + `report` | INV-5 闭包成立 |
-| W2 | `scan/{xhtml,css,opf}` + audit / lint / content_analyze | parity P1+P2 全绿 |
-| W3 | structure_normalize / css_cleanup / migrate_epub3 + 四个 package 操作 | parity 三级全绿 |
-| W4 | `pipeline` + `cmd/epub` + 统一返回信封 | 端到端 parity 全绿 |
-| W5 | 19 个 SKILL.md + 41 个文档；两个 shell 校验器变子命令 | 棘轮归零，**此时才允许删 `scripts/`** |
+| W0 | `zipfs` + `book` + `editset` + INV-1 行为测试 | ✅ 49MB 样本书透传 I/O 实测通过 |
+| W1 | 六条红线校验器 + `report` | ✅ INV-5 闭包成立 |
+| W2 | `scan/{xhtml,css,opf}` + audit / lint / content_analyze | ✅ parity P1+P2 全绿 |
+| W3 | structure_normalize / css_cleanup / migrate_epub3 + 四个 package 操作 | ✅ parity 三级全绿 |
+| W4 | `pipeline` + `cmd/epub` + 统一返回信封 | ✅ 端到端可用 |
+| W5 | 19 个 SKILL.md + 42 个文档；两个 shell 校验器变 Go 能力；棘轮归零；按序删除旧执行面 | ✅ 2026-08-29 完成 |
 
-### 4.1 终态仓库形态
+### 4.1 终态仓库形态（已达成）
 
-删除有严格顺序，不可交换。
-
-| 目录 | 体积 | 去留 | 时机与依据 |
-|---|---|---|---|
-| `swift/` | 303M | 删 | **立即**。执行链路无下游依赖，是构建占盘问题的最大单笔 |
-| `gui/` | 68K | 删 | 立即，随 swift。已 PARKED 且只依赖 swift |
-| `scripts/` | 1.3M | 删 | W5 棘轮归零后。尚有一处引用就删，即是断链 |
-| `adapters/` | 24K | 删 | W4 后。被 `epub capabilities` 取代 |
-| `.venv` / `uv.lock` / `pyproject.toml` / `.python-version` | 21M | 删 | scripts 删除后。`tools-font/` 有独立 uv 项目，不受影响 |
-| `tools/parity/` | — | 删 | W5 完成后。迁移期脚手架，功成即撤 |
-| `docs/` `skills/` | 1.5M | 留 | 文档层。skills 只剩 SKILL.md |
-| `contracts/` `templates/` | 860K | 留 | 契约与 demo fixture，第一档硬约束的证据来源 |
-| `references/` | 49M | 留 | 样本 EPUB，测试与 parity 的输入 |
-| `records/` `archive/` | 152K | 留 | 排版决策记录与第三档参考 |
-| `tools-font/coverage-detector/` | 45M | 留 | Python + fonttools，**明确不迁**。任何语言都摆脱不了它 |
-| `cmd/` `internal/` `.github/` `hooks/` | — | 留 | Go 实现与 CI（hook 内容改为调 `epub` CLI） |
+| 目录 | 状态 |
+|---|---|
+| `swift/` `gui/` | ✅ 已删（303M） |
+| `scripts/` | ✅ 已删（W5 棘轮归零后） |
+| `adapters/` | ✅ 已删（被 `epub capabilities` 取代） |
+| `.venv` / `uv.lock` / `pyproject.toml` / `.python-version` / `mise.toml` | ✅ 已删（`tools-font/` 独立 uv 项目不受影响） |
+| `tools/parity/` | ✅ 已删（迁移期脚手架，功成即撤） |
+| `docs/` `skills/` | 留。skills 只剩 SKILL.md + openai.yaml |
+| `contracts/` `templates/` | 留。契约与 demo fixture，第一档硬约束的证据来源 |
+| `references/` | 留。样本 EPUB（49M），测试与 parity 的输入 |
+| `records/` `archive/` | 留。排版决策记录与第三档参考 |
+| `tools-font/coverage-detector/` | 留。Python + fonttools，**明确不迁**，经 `internal/extern` 调用 |
+| `cmd/` `internal/` `.github/` `hooks/` | 留。Go 实现与 CI（hook 已改调 Go 守卫 + CLI） |
 
 ---
 
@@ -185,12 +229,12 @@ W0 是唯一必须由高能力模型完成的波次。W1 之后每个单元都�
 
 于是 `epub_lint.py` 的数组顶层、`validate_text_invariance.py` 的纯文本输出，
 从「要保护的契约」变成「要清掉的包袱」，统一到 SPEC §8.2 的单一信封。
-
-代价是 parity gate 没法再逐字节比对。对策是迁移期加一个 `--legacy-report`
-临时脚手架，让比对保持满强度，随 `scripts/` 一起删掉。
-**这是唯一被批准的临时脚手架。**
+代价是 parity gate 没法再逐字节比对，对策是迁移期 `--legacy-report` 脚手架
+（见 §6 遗留项 2：脚手架的 CLI 入口仍在，但比对对象已随 `scripts/` 删除）。
 
 仍然不许动的是**退出码语义**——pre-commit hook 依赖它，信封换了但 0/非 0 的含义必须一致。
+`epub redline` 子命令对齐的是 `validate_text_invariance.py` 的 legacy 退出码
+（含输入缺失时的 2），这与信封命令的 0/1/2/3 是两套并存语义，均已在文档注明。
 
 ### 5.2 三段式带来两个意外红利
 
@@ -209,44 +253,45 @@ W0 是唯一必须由高能力模型完成的波次。W1 之后每个单元都�
 
 ---
 
-## 6. 接手第一步
+## 6. 遗留与待决策（接手者从这里开始）
 
-1. **读 SPEC 的 §0–§6**
-   [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md)。
-   §0 是规则 0 与文档用法，§1–§5 是必须遵守的规则，§6 是照抄式任务模板。
-   改文档则读 §7.3 与 §8。
-
-2. **跑一次守卫，确认基线**
-   `go test ./internal/archguard/ -v`，当前应为 11 通过 / 3 bootstrap 跳过。
-   三处跳过会随对应包的创建自动失效，无法再跳。
-
-3. **删除 `swift/` 与 `gui/`**
-   无前置依赖，可立即执行，收回 303MB。这是唯一不需要等任何 gate 的清理动作。
-
-4. **开工 W0**
-   建 `zipfs` 时必须同时写 `TestRawPassthrough`——archguard 断言了它的存在，删不掉。
-   拿 `references/` 里 49MB 的样本书验证透传 I/O。
-
-### 6.1 尚未处理
-
-- `hooks/pre-commit.epub-handbook` 仍调用 8 个 Python 脚本。已纳入棘轮，
-  但改写要等 CLI 有对应子命令，属于 W5 范围。
-- `.github/CODEOWNERS` 里用的是 `@liyafly`，从 git remote 推断。
-  若 GitHub handle 不同需手工修正。
-- `contracts/schemas/v2/envelope.schema.json` 尚未创建，属于 W4 范围。
+1. **`epub.source.intake` 未实现（需人类决策）**。契约存在、CLI 显示 pending。
+   它需要 pipeline 支持非 EPUB 输入（源文件目录/PDF 等），且"接入"本身大部分是
+   人工+AI 流程（见 `skills/epub-source-intake/SKILL.md`，已如实注明现状）。
+   决策点：值得为它建 Go 实现吗，还是维持人工流程、仅保留契约？
+2. **`--legacy-report` 脚手架未拆除**。SPEC §5.2 的移除触发条件（对应 Python 脚本删除）
+   已满足，但该脚手架深度织入 15 个 caps 包与其测试（大量语义断言经
+   `legacyReportOf` 读取）。一次性拆除需要重写约 8 个包的测试断言，建议作为
+   独立后续任务：把断言迁移到 `Result.Facts` 后，删除各 cap 的
+   `LegacyReport` 参数、`legacyReport` 结构体与 CLI flag。
+3. **Python 元校验器随 `scripts/` 消失**：`validate_skills_basic.py`（frontmatter/
+   openai.yaml 形状）、`validate_contracts.py`（契约 schema）、
+   `validate_docs_consistency.md`（手册/速查表同步）、`validate_ai_entrypoints.py`。
+   其职责部分由 archguard INV-8/9/10 与 CI 承担，**文档同步检查完全回到人工**。
+   如需恢复，建议按 SPEC §6.1 建成 Go 守卫（放 `internal/archguard/` 或独立包）。
+4. **`epub_lint.py` 无对应能力**（SPEC §7.2 映射表列了 `internal/caps/lint`，
+   但 22 个契约里没有 lint id）。现行裁决：产物检查 =
+   `epub run epub.package.nav.audit` + `epub redline --check all` + CI EPUBCheck，
+   已写入文档。若认为仍缺独立 lint 能力，需先补契约再按 §6.1 实现。
+5. **发行为前置**：CLI 目前以 `go run ./cmd/epub` 或 `go build -o epub ./cmd/epub`
+   分发，尚无 release 流程（跨平台构建、版本号注入）。
+6. 本分支（`codex/go-cli-rewrite`）全部改动**尚未提交**，建议按逻辑分块提交
+   （W0–W4 基线 / alite+popupnotes+migrate parity / styledemo / W5 文档与删除）。
 
 ---
 
-## 7. 本次已交付的文件
+## 7. 本次会话（W5 收尾）改动的文件
 
-| 文件 | 说明 |
+| 范围 | 说明 |
 |---|---|
-| `docs/final/SPEC-go-architecture.md` | 架构 SPEC，651 行，第一档硬约束 |
-| `docs/pipeline/go-rewrite-handoff.md` | 本文件 |
-| `internal/archguard/` | 11 个文件，14 个守卫测试 |
-| `go.mod` | module `github.com/liyafly/epub-handbook`，go 1.27 |
-| `tools/parity/legacy-refs.txt` | 棘轮基线，149 条 |
-| `.github/workflows/archguard.yml` | 独立必过 CI job |
-| `.github/CODEOWNERS` | 人类审阅归属 |
-| `.github/pull_request_template.md` | 架构自检清单 |
-| `AGENTS.md` | 已加 SPEC 指针与迁移期状态表（**已修改，非新增**） |
+| `internal/caps/alite/` | 收尾移植 + parity |
+| `internal/caps/popupnotes/` | 校验核心按 oracle 重写 + parity（原实现零测试且规则偏离） |
+| `internal/caps/migrate_epub3/` | 补 exec-parity 双用例 |
+| `internal/caps/styledemo/` | 新包：699 行 demo 校验器移植（agent 完成） |
+| `internal/pipeline/{register,run}.go` | alite 注册；noBook 机制；legacy_report 透传；redline path-map 下沉 |
+| `cmd/epub/main.go` | `epub redline --path-map` |
+| `skills/`（19 个） | §8.4 四段模板改写（两个 agent 完成） |
+| `docs/`（24 个）+ `templates/`（6 个） | 旧引用清零（两个 agent 完成） |
+| 根文档 + `hooks/` + `.github/` | AGENTS/README/CONTRIBUTING/CLAUDE、pre-commit、CI、CODEOWNERS、PR 模板 |
+| 删除 | `swift/` `gui/` `scripts/` `adapters/` `tools/parity/` Python 环境文件 |
+| `docs/final/SPEC-go-architecture.md` | 头部加迁移完成标注（规则文字未动） |

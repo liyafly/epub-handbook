@@ -48,7 +48,7 @@ cp -r templates/book-starter ~/my-book && cd ~/my-book
 
 # 3. 构建 + 体检
 sh build.sh
-python3 <仓库路径>/scripts/epub_lint.py dist/*.epub   # error 清零就算过关
+epub run epub.package.nav.audit --input dist/book-starter-<时间戳>.epub --json   # error 清零就算过关
 ```
 
 体检通过后，拖进 Apple Books 或 Kindle Previewer 看效果。
@@ -58,14 +58,16 @@ python3 <仓库路径>/scripts/epub_lint.py dist/*.epub   # error 清零就算�
 
 ### C. 我有一本别人做的 EPUB，想修 / 清洗它
 
-一条命令跑清洗流水线，它会**保留原件**、检查风险、生成清洗后的版本：
+Go CLI 没有一键清洗流水线：按固定顺序逐能力跑，**保留原件**、先检查风险、再生成清洗后的版本，步间人工 review：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py /path/to/别人的.epub \
-  --work-dir 'work-epub/book-a/03 制作工作区/.pipeline'
+epub run epub.package.nav.audit --input /path/to/别人的.epub --json
+epub run epub.structure.normalize --input /path/to/别人的.epub --dry-run --json
 ```
 
-它会在该书 `03 制作工作区/.pipeline/` 下留下改前备份、清洗结果和一份报告。一本书的完整目录见 [一书一 Git 工作区](../pipeline/book-workspace.md)。
+dry-run 报告人工确认后去掉 `--dry-run` 实跑，再按 `epub.package.migrate.epub3` → `epub.css.layering.optimize` → `epub.typography.optimize` 逐能力精排，最后用 `epub redline --check all` 比对改前与改后，校验正文不变。
+
+改前备份、各步产物与 `--json` 报告按约定放在该书 `03 制作工作区/.pipeline/` 下。一本书的完整目录见 [一书一 Git 工作区](../pipeline/book-workspace.md)。
 完整流程和红线（哪些内容绝对不许改）见 [清洗流水线](../pipeline/cleanup-flow.md)。
 
 ---
@@ -84,7 +86,7 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/别人的.epub \
 | **字号调大后版面挤坏** | 排版用了固定 `px` / `vh`，没用可缩放的 `em` / `%` | [SPEC 实现约束](../final/SPEC-实现约束.md) |
 | **Kindle Previewer 转换失败** | EPUB 本身结构有问题，或 Kindle 不支持某些写法 | [常见问题 · 阅读器](07-faq.md#阅读器)、[reader-matrix](../final/reader-matrix.yaml) |
 | **Apple Books 改了不刷新** | Apple Books 会缓存 | 先在 Books 里删掉旧版本，再重新拖入（[FAQ](07-faq.md#阅读器)） |
-| **清洗后正文文字被改了** | 触发红线，这是事故 | 回滚并重跑 `scripts/validate_text_invariance.py`（[FAQ](07-faq.md#ai-协作)） |
+| **清洗后正文文字被改了** | 触发红线，这是事故 | 回滚并重跑 `epub redline --check all`（[FAQ](07-faq.md#ai-协作)） |
 
 > 你的问题不在表里？先翻 [完整常见问题](07-faq.md)，再看 [reader-matrix.yaml](../final/reader-matrix.yaml) 是否已有记录。
 

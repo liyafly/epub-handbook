@@ -13,11 +13,10 @@ cp /path/to/your-book.epub work/source.epub
 
 ## 1. 用本仓预检和 lint 跑一次
 
-本机不要求安装 EPUBCheck。日常先用本仓脚本检查 ZIP、container、OPF、manifest 引用和清洗风险；EPUBCheck 只在 GitHub Actions 里作为 CI gate 跑。
+本机不要求安装 EPUBCheck。日常先用本仓 CLI 检查 ZIP、container、OPF、manifest 引用和清洗风险；正文不变红线由 `epub redline` 比对清洗前后产物；EPUBCheck 只在 GitHub Actions 里作为 CI gate 跑。
 
 ```sh
-python3 scripts/epub_preflight_harness.py work/source.epub --format json
-python3 scripts/epub_lint.py work/source.epub
+epub run epub.package.nav.audit --input work/source.epub --json
 ```
 
 error 必须修，warning 看情况记录。
@@ -25,10 +24,10 @@ error 必须修，warning 看情况记录。
 ## 2. 用本仓 validator 跑一次
 
 ```sh
-bash scripts/validate-epub-style-demo.sh --epub work/source.epub
+epub run epub.style.demo.maintain --input work/source.epub --json
 ```
 
-这个脚本是为 `templates/epub-style-demo/` 设计的，对真实 epub 会报很多 fixture 相关失败。真正有用的是它附带的通用校验：mimetype、container、OPF 完整性、CSS url() 引用。
+这个能力是为 `templates/epub-style-demo/` 设计的，对真实 epub 会报很多 fixture 相关失败。真正有用的是它附带的通用校验：mimetype、container、OPF 完整性、CSS url() 引用。
 
 ## 3. 用外部 diff 工具确认基线（可选）
 
@@ -52,17 +51,18 @@ cp work/source.epub work/source-copy.epub
 或者直接跑：
 
 ```sh
-python3 scripts/epub_preflight_harness.py work/source.epub
-python3 scripts/epub_refinement_harness.py work/source.epub
-python3 scripts/epub_ai_harness.py --mode cleanup work/source.epub
+epub run epub.package.nav.audit --input work/source.epub --json
+epub run epub.text.content.analyze --input work/source.epub --json
+epub run epub.font.coverage.analyze --input work/source.epub --json
+epub run epub.layout.audit --input work/source.epub --json
 ```
 
 ## 5. 决定是否清洗
 
-把 preflight / refinement / findings 对照 [cleanup-flow.md](../pipeline/cleanup-flow.md)：
+把 nav.audit / 精排分析 / findings 对照 [cleanup-flow.md](../pipeline/cleanup-flow.md)：
 
 - 红线很多（文本错误、缺核心 metadata）-> 不要清洗，先回到源头校对。
-- 不是 EPUB3 或缺 nav -> 先走 `scripts/epub3_migration_harness.py` 生成 EPUB3 基线。
+- 不是 EPUB3 或缺 nav -> 先走 `epub run epub.package.migrate.epub3` 生成 EPUB3 基线。
 - 黄线为主（样式 / 字体 / 结构混乱）-> 可以进入清洗流水线。
 - 绿线为主（仅格式化噪声）-> 不一定值得清洗。
 

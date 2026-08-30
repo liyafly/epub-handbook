@@ -6,13 +6,14 @@ Together they define capability identity, safety red lines, dependencies and sup
 adapter surfaces; they do not define EPUB policy, which remains in `docs/final/` and
 the demo evidence.
 
-`../adapters/` consumes these contracts to publish provider-specific catalogs and
-public-entrypoint inventories. Adapters must not redefine a capability or make an
-unregistered provider executable.
+The Go CLI consumes these contracts directly: `internal/pipeline/contract.go` loads
+and resolves the `requires` chain, `internal/archguard` enforces the red-line closure
+(INV-5) and validates that SKILL.md files only reference real capability ids (INV-9).
+Adapters must not redefine a capability or make an unregistered provider executable.
 
-Validate the contract graph and Python entrypoint inventory with:
+Validate the contract graph with:
 
 ```sh
-python3 scripts/validate_contracts.py
-python3 scripts/validate_python_entrypoint_inventory.py
+go test ./internal/archguard/ -v
+go test ./internal/pipeline/
 ```

@@ -19,10 +19,9 @@
 ## 验证
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   templates/cleanup-demo-books/dist/paper-garden-before.epub \
-  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub \
-  --check all
+  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
 ```
 
 预期：退出码 0。

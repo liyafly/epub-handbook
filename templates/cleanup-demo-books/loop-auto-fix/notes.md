@@ -6,10 +6,9 @@
 
 ```sh
 bash templates/cleanup-demo-books/build.sh
-python3 scripts/epub_cleanup_loop.py \
-  templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
-  --work-dir work/loop-auto-fix \
-  --format json
+epub run epub.package.nav.audit \
+  --input templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
+  --json
 ```
 
-预期：至少一轮 `applied` 含 `add-xml-lang`，最终产物写入 `work/loop-auto-fix/after/cleaned.epub`，并通过逐轮文本红线。
+预期：findings 中每章一条 `missing-html-lang`（`auto_fixable: true`），提示 `<html>` 根元素缺 `lang` / `xml:lang`。Go CLI 没有多轮自动 loop 命令；修复按 [清洗流水线](../../../docs/pipeline/cleanup-flow.md) 的固定顺序逐能力执行，最后用 `epub redline --check all` 验证正文不变。

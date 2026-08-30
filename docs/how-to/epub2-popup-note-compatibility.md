@@ -136,9 +136,10 @@
 
 ```sh
 unzip -t book.epub
-python3 scripts/epub_preflight_harness.py book.epub --format json
-python3 scripts/epub_lint.py book.epub
+epub run epub.package.nav.audit --input book.epub --json
 ```
+
+结构检查由 `epub.package.nav.audit` 覆盖；已有改造前 EPUB 时，正文不变再用 `epub redline --check all` 比对；EPUBCheck 只在 GitHub Actions 作为 CI gate 运行。
 
 ### 7.2 注释行为
 

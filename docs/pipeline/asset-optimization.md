@@ -129,7 +129,7 @@ pyftsubset OEBPS/Fonts/NotoSerifSC.otf \
 
 - §1 健康检查：列出 WebP、大图、大字体作为黄线候选。
 - §4 清洗执行：由 `epub-image-layout-optimizer` 和 `epub-typography-optimizer` 调用本指南命令。
-- §5 红线校验：`validate_text_invariance.py --check all` 必须退出 0。
+- §5 红线校验：`epub redline --check all` 必须退出 0。
 - §6 Diff 报告：资源层显示文件 hash、大小和格式变化。
 
 ## 6. 验证清单
@@ -138,8 +138,10 @@ pyftsubset OEBPS/Fonts/NotoSerifSC.otf \
 ! find OEBPS -name "*.webp" -o -name "*.avif" | grep .
 grep -rn "\.webp" OEBPS/ || true
 grep -E "media-type=\"image/webp\"" OEBPS/package.opf && echo "WebP MIME still in OPF" || echo "OPF clean"
-python3 scripts/epub_lint.py <artifact.epub>
+epub run epub.package.nav.audit --input <artifact.epub> --json
 ```
+
+产物结构检查由 nav.audit 与 `epub redline`（正文不变）组合覆盖；EPUBCheck 在 GitHub Actions 作为 CI gate 运行。
 
 ## 7. 不做的
 

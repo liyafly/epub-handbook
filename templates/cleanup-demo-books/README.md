@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `city-field-notes` | 样式分层、脚注、表格、代码、资源改动 | 文本不变，红线应通过 |
 | `paper-garden` | 诗段、Ruby、blockquote、竖排增强 | 文本不变，红线应通过 |
-| `loop-auto-fix` | 多轮 loop 正向演示：章节根元素故意漏语言属性 | loop 应自动应用 `add-xml-lang`，正文不变 |
+| `loop-auto-fix` | 多轮 loop 正向演示：章节根元素故意漏语言属性 | 审计应检出 `missing-html-lang`（auto_fixable），正文不变 |
 | `redline-trap` | 故意改写正文的反例 | 红线应失败 |
 
 ## 生成
@@ -26,24 +26,21 @@ bash templates/cleanup-demo-books/build.sh
 ## 验证
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   templates/cleanup-demo-books/dist/city-field-notes-before.epub \
-  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub \
-  --check all
+  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
 
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   templates/cleanup-demo-books/dist/paper-garden-before.epub \
-  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub \
-  --check all
+  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
 ```
 
 反例必须失败：
 
 ```sh
-python3 scripts/validate_text_invariance.py \
+epub redline --check all \
   templates/cleanup-demo-books/dist/redline-trap-before.epub \
-  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
-  --check all
+  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub
 ```
 
 ## Diff 演示
@@ -58,10 +55,9 @@ python3 scripts/validate_text_invariance.py \
 
 ```sh
 bash templates/cleanup-demo-books/build.sh
-python3 scripts/epub_cleanup_loop.py \
-  templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
-  --work-dir work/loop-auto-fix \
-  --format json
+epub run epub.package.nav.audit \
+  --input templates/cleanup-demo-books/dist/loop-auto-fix-before.epub \
+  --json
 ```
 
-报告中应至少有一项 `add-xml-lang` 自动动作；最终产物为 `work/loop-auto-fix/after/cleaned.epub`。
+Go CLI 没有多轮自动 loop 命令：报告中应出现 `missing-html-lang` finding（`auto_fixable: true`）。修复按 [清洗流水线](../../docs/pipeline/cleanup-flow.md) 的固定顺序逐能力执行，最后用 `epub redline --check all` 验证正文不变。
