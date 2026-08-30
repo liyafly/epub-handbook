@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "status": "complete",
+  "input": {
+    "uri": "file:///inputs/sample.epub",
+    "kind": "epub",
+    "contentDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "events": [
+    {"step": "epub.image.layout.optimize", "status": "completed", "message": "planner run (read-only): 3 findings across 6 kinds, 0 warnings"}
+  ]
+}
