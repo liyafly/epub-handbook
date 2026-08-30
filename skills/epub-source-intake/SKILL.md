@@ -25,12 +25,12 @@ description: 从非 EPUB 源材料建立 EPUB 制作入口，包括纯文本、M
 epub run epub.source.intake --input <源文件目录或文件> --json
 ```
 
-注意：该能力 Go 实现迁移中，当前运行只做用法与输入检查——对非 EPUB 输入（`.txt`/`.pdf`/目录）会得到 `error input.invalid-epub`（`status: failed`，退出码 1），对 EPUB 输入会在 findings 里得到 `warn capability.not-implemented`。两者都表示抽取与结构化逻辑尚未接入，应以人工流程为准，不要把任何一次运行当作"接入完成"。
+注意：该能力设计上暂无 Go 实现，当前运行只做用法与输入检查——对非 EPUB 输入（`.txt`/`.pdf`/目录）得到 `error input.invalid-epub`，对 EPUB 输入得到 `error capability.not-implemented`；两者都是 `status: failed`、退出码 1，表示抽取与结构化逻辑尚未接入，应以人工流程为准，不要把任何一次运行当作"接入完成"。
 
 ## 返回怎么读
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
-- 迁移期的两种预期返回：`warn capability.not-implemented`（events 显示 skipped，表示能力未接入）；`error input.invalid-epub`（`detail` 说明输入不是 zip/EPUB，表示 CLI 尚不支持纯源文件输入）。
+- 该能力运行的两种预期返回（均为 `status: failed`、退出码 1）：`error capability.not-implemented`（events 显示 skipped，表示能力未接入）；`error input.invalid-epub`（`detail` 说明输入不是 zip/EPUB，表示 CLI 尚不支持纯源文件输入）。
 - 除这两种返回外，本 skill 的"结果"是人工产出的 source bundle 与来源记录本身，不是命令输出。
 
 ## 依据返回怎么判断

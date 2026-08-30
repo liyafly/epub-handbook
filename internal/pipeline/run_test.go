@@ -48,6 +48,42 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	}
 }
 
+// TestRunPendingCapabilityFails 锁定 pending 能力语义：契约存在但无 Go
+// 实现时必须 failed + exit 1，不得伪装成 complete/exit 0。
+func TestRunPendingCapabilityFails(t *testing.T) {
+	epub := buildSampleEpub(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.source.intake",
+		InputPath:    epub,
+		Args:         Args{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := outcome.Envelope
+	if env.Status != report.StatusFailed {
+		t.Errorf("pending 能力 status = %q, want failed", env.Status)
+	}
+	if outcome.ExitCode != ExitFailed {
+		t.Errorf("pending 能力退出码 = %d, want 1", outcome.ExitCode)
+	}
+	found := false
+	for _, f := range env.Findings {
+		if f.ID == "capability.not-implemented" {
+			found = true
+			if f.Level != "error" {
+				t.Errorf("finding level = %q, want error", f.Level)
+			}
+			if strings.Contains(f.Detail, "oracle") {
+				t.Errorf("finding detail 不应再指向已删除的 Python oracle: %q", f.Detail)
+			}
+		}
+	}
+	if !found {
+		t.Error("缺少 capability.not-implemented finding")
+	}
+}
+
 func TestRunUsageErrors(t *testing.T) {
 	epub := buildSampleEpub(t)
 	cases := []struct {

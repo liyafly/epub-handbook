@@ -158,12 +158,16 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		step := c.ID
 		runner, ok := registry[c.ID]
 		if !ok {
+			// 契约存在但无 Go 实现（B 类纯 AI/人工 skill 或待决策能力）：
+			// 必须 failed + error finding。返回 complete/exit 0 会让只看
+			// status 与退出码的调用方把未执行当成功。
+			failed = true
 			events = append(events, report.Event{Step: step, Status: "skipped",
-				Message: "capability not implemented in Go yet (migration in progress)"})
+				Message: "capability has no Go implementation"})
 			findings = append(findings, report.Finding{
-				Level: "warn", ID: "capability.not-implemented",
-				Title:  "Capability not implemented in Go yet",
-				Detail: fmt.Sprintf("%s has no Go implementation; run the Python oracle for this step", c.ID),
+				Level: "error", ID: "capability.not-implemented",
+				Title:  "Capability not implemented in Go",
+				Detail: fmt.Sprintf("%s has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`", c.ID),
 			})
 			continue
 		}
