@@ -77,7 +77,7 @@
 
 ## V
 
-- **Validator**：校验器。本仓有 demo validator、popup validator 和 `validate_text_invariance.py`。
+- **Validator**：校验器。本仓有 demo validator（`epub run epub.style.demo.maintain`）、popup validator（`epub run epub.notes.popup.normalize`）和红线校验 `epub redline`。
 
 ## X
 

@@ -13,7 +13,7 @@ body 不锁字体）。用途是「十分钟出一本结构合规的书」，进
 
    ```sh
    sh build.sh
-   python3 <仓库路径>/scripts/epub_lint.py dist/<产物>.epub
+   go run ./cmd/epub run epub.package.nav.audit --input dist/<产物>.epub --json
    ```
 
 ## 换 preset
@@ -33,4 +33,6 @@ cp <仓库路径>/templates/style-presets/academic-cn/Styles/*.css OEBPS/Styles/
 取消 `fonts.css` 中直接 `body` 规则的注释；不必修改每页 XHTML，也不要给裸 `p`
 重复指定字体。随后在
 `package.opf` metadata 加 `<meta property="ibooks:specified-fonts">true</meta>`
-并在 `<package>` 声明 ibooks prefix。`epub_lint.py` 的 L-F05/L-O01 会检查配对。
+并在 `<package>` 声明 ibooks prefix。meta 与字体锁定的配对关系暂无独立 lint 能力，
+以 `epub run epub.package.nav.audit` 的 findings、demo 校验器（本仓模板）与人工
+diff review 复核（见 `docs/pipeline/go-rewrite-handoff.md` 遗留项 4）。

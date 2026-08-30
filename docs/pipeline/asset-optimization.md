@@ -78,17 +78,11 @@ done
 ### 3.5 红线：cover-image 不动
 
 ```sh
-python3 -c "
-import xml.etree.ElementTree as ET
-root = ET.parse('OEBPS/package.opf').getroot()
-ns = {'opf': 'http://www.idpf.org/2007/opf'}
-for item in root.findall('.//opf:item', ns):
-    if 'cover-image' in (item.get('properties') or ''):
-        print('COVER:', item.get('href'))
-"
+unzip -p book.epub OEBPS/package.opf | grep 'cover-image'
 ```
 
-这个文件路径必须从所有批量处理命令里排除。
+定位声明行后，该 href 指向的文件必须从所有批量处理命令里排除；
+构建产物可用 `epub run epub.package.nav.audit --input book.epub --json` 复核封面声明。
 
 ## 4. 字体处理
 

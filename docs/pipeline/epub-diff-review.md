@@ -2,7 +2,7 @@
 
 要对比改前 / 改后两个 EPUB（清洗前后、模板改动前后等），本仓推荐两条本地路径，二选一或组合使用。两条路径都在本地运行，文件不离开设备。
 
-普通清洗的红线层（正文文本 / 核心 metadata / spine / 章节锚点 / 封面）由 `scripts/validate_text_invariance.py` 兜底，与本节工具无关。红线先跑，diff review 是人工补看其余四层。用户明确授权正文校订时，改走下节的结构化决策路径；不能把预期文字变化伪装成 text gate 通过。
+普通清洗的红线层（正文文本 / 核心 metadata / spine / 章节锚点 / 封面）由 `epub redline` 兜底，与本节工具无关。红线先跑，diff review 是人工补看其余四层。用户明确授权正文校订时，改走下节的结构化决策路径；不能把预期文字变化伪装成 text gate 通过。
 
 ## 授权正文校订：静态审阅页 + JSON
 
@@ -74,11 +74,11 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 
 | 层 | 看什么 | 主路径（Calibre） | 精细路径（VS Code） | 自动化兜底 |
 | --- | --- | --- | --- | --- |
-| 结构 | OPF manifest / spine / nav.xhtml / toc.ncx 文件级 add/del/mod | 左侧文件树颜色 | `git diff --no-index --stat` | `validate_text_invariance.py --check spine` |
+| 结构 | OPF manifest / spine / nav.xhtml / toc.ncx 文件级 add/del/mod | 左侧文件树颜色 | `git diff --no-index --stat` | `epub redline --check spine` |
 | 文本 | 普通清洗正文不变；授权校订与决策一致 | 字符级 diff | `git diff --no-index --color-words *.xhtml` | 普通：`--check text` 必须 0；授权：决策 SHA/逐项片段/最终文字验证 |
 | 样式 | CSS selector 增删、属性变更 | 字符级 diff | `--color-words *.css` 或 `code --diff` | — |
-| 资源 | 图片 / 字体 / 音频 SHA-256 与体积 | 像素 + 尺寸 overlay | `shasum -a 256` 列表 diff | `validate_text_invariance.py --check cover`（封面红线） |
-| 元数据 | dc:* / `<meta>` 字段 | OPF 字符级 diff | 同上对 `*.opf` | `validate_text_invariance.py --check metadata`（必须 0） |
+| 资源 | 图片 / 字体 / 音频 SHA-256 与体积 | 像素 + 尺寸 overlay | `shasum -a 256` 列表 diff | `epub redline --check cover`（封面红线） |
+| 元数据 | dc:* / `<meta>` 字段 | OPF 字符级 diff | 同上对 `*.opf` | `epub redline --check metadata`（必须 0） |
 
 ## 故障排查
 
@@ -93,5 +93,5 @@ Linux 上 `shasum -a 256` 等价于 `sha256sum`，输出列序兼容。
 ## 不做什么
 
 - 不渲染 EPUB（不是阅读器）；阅读器渲染效果走 reader-matrix 实测。
-- 不替代红线 gate；普通清洗正文仍靠 `validate_text_invariance.py`。授权正文校订只替换 text gate 的证明方式，metadata、spine、锚点、封面和 DRM 红线不变。
+- 不替代红线 gate；普通清洗正文仍靠 `epub redline`。授权正文校订只替换 text gate 的证明方式，metadata、spine、锚点、封面和 DRM 红线不变。
 - 不向外网传文件；本节所有命令本地执行。

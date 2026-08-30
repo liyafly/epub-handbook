@@ -244,7 +244,7 @@ h1, h2, h3, h4, h5, h6 {
 - 为以后锁定字体准备的 CSS 模板放在工作目录，不打包进正文自由版；交付包不得保留指向缺失字体的 `@font-face`、CSS URL 或 OPF item。
 - 子集化后保持 `st` / `kt` / `fs` 等角色 alias 与包内路径稳定，只替换字体文件字节，并重新跑字体覆盖、preflight、EPUB lint 和两版正文一致性检查。
 
-既有书若按用户明确要求在正文自由版保留 `ibooks:specified-fonts=true`，这属于书级历史例外：在本地报告记录原因，并用 `epub_lint.py --allow-free-body-ibooks-meta` 显式校验，不把该做法写回新书模板。
+既有书若按用户明确要求在正文自由版保留 `ibooks:specified-fonts=true`，这属于书级历史例外：在本地报告记录原因，并在书级 `制作说明.md` 显式记录豁免条目，不把该做法写回新书模板。
 
 ### 4.6 校对期完整母版与发行子集
 

@@ -95,17 +95,12 @@ EPUB=work/before/source.epub
 epub run epub.package.nav.audit --input "$EPUB" --json > work/preflight.json
 
 unzip -t "$EPUB" >/dev/null && echo "zip OK" || { echo "zip broken"; exit 1; }
+unzip -p "$EPUB" mimetype   # 应输出 application/epub+zip
+```
 
-python3 -c "
-import zipfile
-with zipfile.ZipFile('$EPUB') as z:
-    first = z.infolist()[0]
-    assert first.filename == 'mimetype', 'first entry must be mimetype'
-    assert first.compress_type == zipfile.ZIP_STORED, 'mimetype must be stored'
-    assert z.read('mimetype') == b'application/epub+zip', 'mimetype content invalid'
-print('mimetype OK')
-"
-
+mimetype 必须是首个 entry、STORED 存储、内容精确为 `application/epub+zip`；
+构建产物的完整容器校验由 `epub run epub.style.demo.maintain --input <产物> --json`
+与 CI 的 EPUBCheck 覆盖。
 unzip -p "$EPUB" META-INF/container.xml | head -5 >/dev/null && echo "container.xml OK" || { echo "container.xml missing"; exit 1; }
 unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
 ```
