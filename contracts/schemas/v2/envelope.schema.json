@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epub-handbook.local/contracts/schemas/v2/envelope.schema.json",
+  "title": "Run envelope",
+  "type": "object",
+  "required": ["schemaVersion", "capability", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": "2"},
+    "capability": {"type": "string"},
+    "status": {"type": "string", "enum": ["complete", "failed", "cancelled", "approval-required"]},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"}
+      }
+    },
+    "facts": {"type": "object"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["level", "id", "title"],
+        "additionalProperties": false,
+        "properties": {
+          "level": {"type": "string", "enum": ["error", "warn", "info"]},
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "detail": {"type": "string"},
+          "location": {"type": "string"}
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "step": {"type": "string"},
+          "status": {"type": "string", "enum": ["started", "completed", "failed", "skipped"]},
+          "message": {"type": "string"}
+        }
+      }
+    },
+    "nextCommands": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}
