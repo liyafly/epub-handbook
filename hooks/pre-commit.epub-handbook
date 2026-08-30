@@ -11,15 +11,13 @@ cd "$ROOT"
 changed=$(git diff --cached --name-only)
 
 git diff --check --cached
-python3 scripts/validate_ai_entrypoints.py
-python3 scripts/validate_skills_basic.py
-python3 scripts/validate_docs_consistency.py
-python3 scripts/test_epub_ai_harness.py
+go build ./...
+go test ./internal/archguard/
 
-if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|scripts/validate_|scripts/epub_ai_harness.py|scripts/test_epub_ai_harness.py|docs/final/)'; then
+if printf '%s\n' "$changed" | grep -Eq '^(templates/epub-style-demo/|docs/final/)'; then
   artifact=$(sh templates/epub-style-demo/build.sh)
-  scripts/validate-epub-style-demo.sh --epub "$artifact"
-  scripts/validate-popup-notes.sh --epub "$artifact"
+  go run ./cmd/epub run epub.style.demo.maintain --input "$artifact" --json > /dev/null
+  go run ./cmd/epub run epub.notes.popup.normalize --input "$artifact" --json > /dev/null
   if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout \
       templates/epub-style-demo/OEBPS/package.opf \

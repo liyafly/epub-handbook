@@ -2,9 +2,8 @@
 # 守卫红了应该改代码，不是改守卫 —— 所以它的改动必须经人类审阅。
 /internal/archguard/            @liyafly
 
-# 架构 SPEC 本身，以及它引用的迁移基线。
+# 架构 SPEC 本身。
 /docs/final/SPEC-go-architecture.md   @liyafly
-/tools/parity/legacy-refs.txt         @liyafly
 
 # 能力契约是 Go 侧红线闭包（INV-5）和 skill 引用校验（INV-9）的事实来源。
 /contracts/                     @liyafly
