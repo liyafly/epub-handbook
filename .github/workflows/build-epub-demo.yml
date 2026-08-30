@@ -12,25 +12,21 @@ on:
       - 'THIRD_PARTY.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
-      - '.python-version'
-      - 'pyproject.toml'
-      - 'uv.lock'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'tools-font/**'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
       - 'templates/book-starter/**'
       - 'templates/fixtures-tiny/**'
       - 'templates/cleanup-demo-books/**'
-      - 'scripts/**'
       - 'skills/**'
       - 'contracts/**'
-      - 'adapters/**'
       - 'records/**'
       - 'references/**'
-      - 'tools-font/**'
       - 'hooks/**'
-      - 'swift/**'
-      - 'gui/**'
-      - 'mise.toml'
       - 'docs/final/**'
       - 'docs/README.md'
       - 'docs/learn/**'
@@ -46,25 +42,21 @@ on:
       - 'THIRD_PARTY.md'
       - 'README.md'
       - '.markdownlint-cli2.jsonc'
-      - '.python-version'
-      - 'pyproject.toml'
-      - 'uv.lock'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'tools-font/**'
       - 'templates/epub-style-demo/**'
       - 'templates/style-presets/**'
       - 'templates/book-starter/**'
       - 'templates/fixtures-tiny/**'
       - 'templates/cleanup-demo-books/**'
-      - 'scripts/**'
       - 'skills/**'
       - 'contracts/**'
-      - 'adapters/**'
       - 'records/**'
       - 'references/**'
-      - 'tools-font/**'
       - 'hooks/**'
-      - 'swift/**'
-      - 'gui/**'
-      - 'mise.toml'
       - 'docs/final/**'
       - 'docs/README.md'
       - 'docs/learn/**'
@@ -79,13 +71,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.14
-        uses: actions/setup-python@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          python-version: '3.14'
-
-      - name: Setup uv
-        run: python3 -m pip install --disable-pip-version-check uv
+          go-version: '1.27'
 
       - name: Clean dist
         run: rm -rf templates/epub-style-demo/dist
@@ -98,26 +87,24 @@ jobs:
           npm install -g markdownlint-cli2
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
             'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
-            'THIRD_PARTY.md' 'contracts/**/*.md' 'adapters/**/*.md' \
+            'THIRD_PARTY.md' 'contracts/**/*.md' \
             'records/**/*.md' 'references/**/*.md' 'hooks/**/*.md' \
             'tools-font/**/*.md' \
             'docs/README.md' \
             'docs/final/**/*.md' 'docs/learn/**/*.md' \
             'docs/how-to/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
 
-      - name: Validate local fixtures and skills
+      - name: Architecture guards and tests
+        run: |
+          go build ./...
+          go test ./internal/archguard/ -v
+          go test ./...
+
+      - name: Validate demo artifact with epub CLI
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
-          python3 scripts/validate_skills_basic.py
-          python3 scripts/validate_contracts.py
-          python3 scripts/validate_python_entrypoint_inventory.py
-          python3 scripts/validate_docs_consistency.py
-          for test_file in scripts/test_*.py; do
-            python3 "$test_file"
-          done
-          python3 scripts/validate_ai_entrypoints.py
-          scripts/validate-epub-style-demo.sh --epub "$epub"
-          scripts/validate-popup-notes.sh --epub "$epub"
+          go run ./cmd/epub run epub.style.demo.maintain --input "$epub" --json
+          go run ./cmd/epub run epub.notes.popup.normalize --input "$epub" --json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -177,25 +164,3 @@ jobs:
           path: templates/epub-style-demo/dist/*.epub.epubcheck.xml
           if-no-files-found: warn
           retention-days: 30
-
-  swift-core:
-    runs-on: macos-26
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify Swift package
-        run: swift test --package-path swift
-
-      - name: Setup mise
-        uses: jdx/mise-action@v2
-
-      - name: Install Tuist
-        run: mise install
-
-      - name: Generate and test AppKit macOS target
-        run: |
-          cd gui
-          mise exec -- tuist generate --no-open
-          xcodebuild -quiet -workspace EPUBHandbook.xcworkspace -scheme HandbookMac \
-            -destination 'platform=macOS' test CODE_SIGNING_ALLOWED=NO
