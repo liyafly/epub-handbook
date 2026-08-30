@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.package.nav.audit",
+  "status": "failed",
+  "input": {
+    "path": "references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub",
+    "sha256": "ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac"
+  },
+  "facts": {
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.summary": {
+      "language": "zh-CN",
+      "manifest_items": 813,
+      "media_counts": {
+        "css": 3,
+        "fonts": 18,
+        "images": 611,
+        "other": 3,
+        "xhtml": 178
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 178,
+      "zip_entries": 817
+    }
+  },
+  "findings": [
+    {
+      "level": "warn",
+      "id": "audit.0",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/sgc-nav.css -\u003e ../Fonts/SimHei.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.1",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/YaSong.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.2",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/FangSong.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.3",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/ZhunYuan.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.4",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/KaiTi.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.5",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/SimHei.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.6",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
+      "detail": "missing-css-font-fallback",
+      "location": "Styles/Stylesheet.css -\u003e ../Fonts/XiaoBiaoSong.ttf"
+    },
+    {
+      "level": "warn",
+      "id": "audit.7",
+      "title": "Convert this image to JPEG/PNG for EPUB delivery",
+      "location": "Images/huaji.gif"
+    },
+    {
+      "level": "warn",
+      "id": "audit.8",
+      "title": "Convert this image to JPEG/PNG for EPUB delivery",
+      "location": "Images/border-slice-2.gif"
+    },
+    {
+      "level": "error",
+      "id": "audit.9",
+      "title": "Inline SVG XHTML item missing properties=\"svg\"",
+      "location": "Text/Chapter5-3-9.xhtml"
+    },
+    {
+      "level": "error",
+      "id": "audit.10",
+      "title": "MathML XHTML item missing properties=\"mathml\"",
+      "location": "Text/Chapter8-8.xhtml"
+    }
+  ],
+  "events": [
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed"
+    }
+  ],
+  "nextCommands": [
+    "epub run epub.layout.audit --input references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub"
+  ]
+}

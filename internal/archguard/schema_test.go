@@ -11,13 +11,15 @@ import (
 	"testing"
 )
 
-// TestReportSchema 断言 INV-6：所有 golden 报告都合 contracts/schemas/v1 的 schema。
+// TestReportSchema 断言 INV-6：所有 golden 报告都按其 schemaVersion 合对应版本的
+// contracts/schemas schema —— v1（迁移期形状）对 v1/run-report.schema.json；
+// v2 统一信封（CLI 实际输出，SPEC §8.2）对 v2/envelope.schema.json。
 //
 // 报告格式是 agent、未来的 GUI、以及 parity gate P2 三方的契约，不能悄悄漂移。
 //
 // 这里用的是**最小可用**的 JSON Schema 子集校验器（required / type / const /
 // enum / properties / additionalProperties / items / $ref-本地文件），
-// 足够覆盖 v1 这批 schema 的形状。若日后 schema 用上 allOf/oneOf/pattern 等，
+// 足够覆盖 v1/v2 这批 schema 的形状。若日后 schema 用上 allOf/oneOf/pattern 等，
 // 换成 SPEC §9.3 已预授权的测试专用 schema 库，不要在这里堆特例。
 func TestReportSchema(t *testing.T) {
 	root := repoRoot(t)
@@ -50,7 +52,9 @@ func TestReportSchema(t *testing.T) {
 			"  §4 禁止清单第 8 条：不写 parity 测试就迁移 capability 是架构跑偏。")
 	}
 
-	loader := &schemaLoader{dir: schemaDir, cache: map[string]map[string]any{}}
+	v1Loader := &schemaLoader{dir: schemaDir, cache: map[string]map[string]any{}}
+	v2Loader := &schemaLoader{dir: filepath.Join(root, "contracts", "schemas", "v2"),
+		cache: map[string]map[string]any{}}
 	sort.Strings(goldens)
 
 	for _, g := range goldens {
@@ -64,14 +68,20 @@ func TestReportSchema(t *testing.T) {
 			t.Errorf("%s 不是合法 JSON: %v", g, err)
 			continue
 		}
-		schema, err := loader.load("run-report.schema.json")
+		// 按 golden 自身的 schemaVersion 分发；缺字段或未知版本落入 v1 分支，
+		// 由 v1 schema 的 const "1" 报错。
+		loader, schemaName := v1Loader, "run-report.schema.json"
+		if obj, ok := doc.(map[string]any); ok && obj["schemaVersion"] == "2" {
+			loader, schemaName = v2Loader, "envelope.schema.json"
+		}
+		schema, err := loader.load(schemaName)
 		if err != nil {
-			t.Fatalf("加载 run-report schema 失败: %v", err)
+			t.Fatalf("加载 %s 失败: %v", schemaName, err)
 		}
 		rel, _ := filepath.Rel(root, g)
 		for _, problem := range validate(loader, schema, doc, "$") {
 			t.Errorf("%s: %s\n"+
-				"  INV-6：报告必须合 contracts/schemas/v1 的 schema。\n"+
+				"  INV-6：报告必须合 contracts/schemas 对应版本的 schema。\n"+
 				"  不要改 schema 去迁就报告 —— schema 是对外契约。", rel, problem)
 		}
 	}

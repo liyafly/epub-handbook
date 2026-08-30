@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.style.demo.maintain",
+  "status": "complete",
+  "facts": {
+    "epub.style.demo.maintain.errors": 0,
+    "epub.style.demo.maintain.mode": "source-tree"
+  },
+  "events": [
+    {
+      "step": "epub.style.demo.maintain",
+      "status": "completed"
+    }
+  ]
+}

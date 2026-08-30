@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.source.intake",
+  "status": "failed",
+  "input": {
+    "path": "references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub",
+    "sha256": "ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac"
+  },
+  "findings": [
+    {
+      "level": "error",
+      "id": "capability.not-implemented",
+      "title": "Capability not implemented in Go",
+      "detail": "epub.source.intake has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`"
+    }
+  ],
+  "events": [
+    {
+      "step": "epub.source.intake",
+      "status": "skipped",
+      "message": "capability has no Go implementation"
+    }
+  ]
+}
