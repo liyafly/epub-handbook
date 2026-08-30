@@ -25,8 +25,8 @@
    ```sh
    git clone <your fork URL>
    cd epub-handbook
-   # 没装 uv 时，macOS 可先运行：brew install uv
-   uv sync
+   # 需要 Go 1.27 或更新版本：https://go.dev/dl/
+   go version
    ```
 
 2. 建分支：
@@ -35,21 +35,22 @@
    git checkout -b feat/your-topic
    ```
 
-3. 修改：遵守 [AGENTS.md](AGENTS.md) 的规范来源优先级和最小验证矩阵。
+3. 修改：遵守 [AGENTS.md](AGENTS.md) 的规范来源优先级和最小验证矩阵。架构相关改动
+   先读 `docs/final/SPEC-go-architecture.md`；`internal/archguard/` 下的守卫测试禁止修改。
 
 4. 跑校验：
 
-   如果修改 `scripts/`，请先本地运行对应的 `scripts/test_*.py`；pre-commit hook 只提供快反馈，CI 会运行更完整的验证矩阵。
+   修改 Go 代码请本地运行 `go test ./...`；pre-commit hook 只提供快反馈，CI 会运行更完整的验证矩阵。
 
    修改 `docs/final/EPUB 3 HTML CSS 属性速查表.md` 时，必须同步重新生成或手工同步同名 `.html` 派生文件，并核对主体内容一致。
 
    ```sh
+   go test ./...
+   go test ./internal/archguard/ -v
    bash templates/epub-style-demo/build.sh
    NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)
-   bash scripts/validate-epub-style-demo.sh --epub templates/epub-style-demo/dist/"$NEW"
-   bash scripts/validate-popup-notes.sh --epub templates/epub-style-demo/dist/"$NEW"
-   uv run python scripts/validate_ai_entrypoints.py
-   uv run python scripts/validate_skills_basic.py
+   go run ./cmd/epub run epub.style.demo.maintain --input templates/epub-style-demo/dist/"$NEW" --json
+   go run ./cmd/epub run epub.notes.popup.normalize --input templates/epub-style-demo/dist/"$NEW" --json
    ```
 
 5. commit：使用 [conventional commits](https://www.conventionalcommits.org/) 风格，如 `feat:` / `fix:` / `docs:` / `chore:`。
@@ -77,7 +78,7 @@
 
 附上：
 
-1. 你的环境（OS / Python 版本 / browser）。
+1. 你的环境（OS / Go 版本 / 阅读器与版本）。
 2. 复现命令。
 3. 完整错误输出。
 4. 你期望的行为。

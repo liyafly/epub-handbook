@@ -4,12 +4,16 @@
 
 如果你只是想做一本书、修一本现成 EPUB，或排查一个具体问题，从下面三条路里选一条即可。
 
+CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o epub ./cmd/epub` 后直接使用）。
+`epub capabilities --json` 列出全部能力；所有命令返回统一 JSON 信封，退出码 0/1/2/3
+（0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
+
 ## 我想……
 
 | 目标 | 最短入口 |
 | --- | --- |
 | 做一本新书 | [做一本书](docs/learn/做一本书.md) |
-| 修 / 清洗一本现成 EPUB | [运行一键清洗](#修一本现成-epub) |
+| 修 / 清洗一本现成 EPUB | [运行清洗流程](#修一本现成-epub) |
 | 查目录、弹注、字体、图片等问题 | [新手必读的症状直达表](docs/learn/README.md#3-带着问题直接查) |
 
 ### 做一本书
@@ -21,22 +25,26 @@ cp -r templates/book-starter ~/my-book
 cd ~/my-book
 # 改 OEBPS/package.opf 和 OEBPS/Text/01-chapter.xhtml
 sh build.sh
-python3 <仓库路径>/scripts/epub_lint.py dist/*.epub
+go run ./cmd/epub run epub.package.nav.audit --input dist/*.epub --json
 ```
 
 详细步骤、手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
 
 ### 修一本现成 EPUB
 
-一条命令会保留 before 基线、检查风险，并把结果和报告写进独立工作目录：
+清洗是按序的单能力执行，每步之间保留人工 review（没有一键流水线）：
 
 ```sh
-python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub \
-  --work-dir 'work-epub/book-a/03 制作工作区/.pipeline'
+go run ./cmd/epub run epub.package.nav.audit --input input.epub --json
+go run ./cmd/epub run epub.structure.normalize --input input.epub --output normalized.epub --dry-run --json
+# 人工 review dry-run 报告后去掉 --dry-run 实跑
+go run ./cmd/epub run epub.package.migrate.epub3 --input normalized.epub --output migrated.epub --dry-run --json
+# 同样 review 后实跑，再按需 css.layering.optimize / typography.optimize
+go run ./cmd/epub redline --check all input.epub migrated.epub
 ```
 
-不要在唯一原件上直接修改。需要人工批准的结构规范化、正文红线和 diff review
-仍会保留；完整说明见 [清洗流程](docs/pipeline/cleanup-flow.md)。
+不要在唯一原件上直接修改；需要人工批准的结构规范化、正文红线和 diff review
+仍会保留。完整说明见 [清洗流程](docs/pipeline/cleanup-flow.md)。
 
 ### 查一个具体问题
 
@@ -55,19 +63,17 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub \
 | 已有 EPUB 流水线 | [docs/pipeline/](docs/pipeline/) |
 | 场景化排版指南 | [docs/how-to/](docs/how-to/) |
 | AI 能力契约与反向查表 | [docs/learn/04-skills.md](docs/learn/04-skills.md) |
-| Python / AI provider 与校验基线 | [scripts/README.md](scripts/README.md) |
-| Go CLI 目标架构与迁移蓝图 | [docs/pipeline/go-cli-rearchitecture.md](docs/pipeline/go-cli-rearchitecture.md) |
-| 冻结的旧原生实现 | [swift/](swift/) 与 [gui/](gui/) |
-| 机器契约与适配表面 | [contracts/](contracts/) 与 [adapters/](adapters/) |
+| Go CLI 实现与架构守卫 | [cmd/epub](cmd/epub/) 与 [internal/](internal/) |
+| 机器契约 | [contracts/](contracts/) |
 | 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
 | 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
 
-目标架构已经确定为一个面向 Windows、macOS、Linux 的 Go CLI。当前 Python 是 CLI 与验证基线；
-`swift/` 和 `gui/` 已冻结，不再增加功能，并在 Go 达到逐 capability parity 和发行门槛后删除。
-字体能力继续使用随发行包交付的独立 provider，用户不需要自行安装 Python 工具链。
+架构是面向 Windows、macOS、Linux 的 Go 单一 CLI（`cmd/epub` + `internal/`），
+架构规则由 `internal/archguard/` 的守卫测试强制；旧的 Python 脚本、Swift/GUI 实现和
+provider 适配层已按迁移计划删除。字体能力继续使用随发行包交付的独立 provider，
+用户不需要自行安装 Python 工具链。
 
-完整文档索引见 [docs/README.md](docs/README.md)，Python 脚本按受众和职责的索引见
-[scripts/README.md](scripts/README.md)。
+完整文档索引见 [docs/README.md](docs/README.md)。
 
 每本书使用 `work-epub/<book>/` 独立工作区，并在该目录自行初始化 Git；
 手册主仓库仍忽略整个 `work-epub/`，不把书级仓库当成 submodule。统一目录和过程文件约定见
@@ -75,12 +81,11 @@ python3 scripts/epub_cleanup_pipeline.py /path/to/input.epub \
 
 ## 维护验证
 
-按改动类型执行 [AGENTS.md](AGENTS.md) 的最小验证矩阵。文档与入口变更至少运行：
+按改动类型执行 [AGENTS.md](AGENTS.md) 的最小验证矩阵。Go 代码与入口变更至少运行：
 
 ```sh
-python3 scripts/validate_docs_consistency.py
-python3 scripts/validate_ai_entrypoints.py
-python3 scripts/validate_skills_basic.py
+go test ./...
+go test ./internal/archguard/
 git diff --check
 ```
 
