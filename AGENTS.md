@@ -19,28 +19,24 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 
 ## 架构分工
 
-目标架构是 **Go 单一 CLI + 私有字体 provider**。依赖方向、十条不变式、任务模板、迁移映射和删除顺序
-以 `docs/final/SPEC-go-architecture.md` 为唯一硬约束；当前进度见 `docs/pipeline/go-rewrite-handoff.md`。
-Go 实现尚未完成前，Python 仍是当前可执行 oracle：
+架构是 **Go 单一 CLI + 私有字体 provider**。依赖方向、十条不变式、任务模板和迁移映射
+以 `docs/final/SPEC-go-architecture.md` 为唯一硬约束；迁移历史见 `docs/pipeline/go-rewrite-handoff.md`。
 
-| 层 | 目标 / 当前状态 | 职责 |
+| 层 | 状态 | 职责 |
 |---|---|---|
-| 公开 CLI / agent runtime | **Go**（`cmd/epub`，待实现） | 唯一公开命令、capability registry、流水线与统一 JSON 信封 |
-| 迁移 oracle | **Python**（`scripts/`） | 当前 CLI 与验证基线；逐 capability 达到 Go parity 后收缩，不一次性删除 |
-| 字体工具 | **独立 provider**（初始为 Python + FontTools） | 覆盖、子集化和复杂字体处理；随发行包交付，用户不需要安装 Python/`uv` |
+| 公开 CLI / agent runtime | **Go**（`cmd/epub` + `internal/`，已落地） | 唯一公开命令、capability registry、流水线与统一 JSON 信封 |
+| 字体工具 | **独立 provider**（Python + FontTools，`tools-font/`） | 覆盖、子集化和复杂字体处理；随发行包交付，用户不需要安装 Python/`uv` |
 | CSS | **Go scan/editset 规则层** | 只产出 lossless byte-range edit；禁止整文档序列化，禁止用正则解析复杂 CSS |
-| Swift / GUI | **已裁决删除**（`swift/` + `gui/`） | 不再增加 capability；删除时机按 Go 架构 SPEC §7.5 |
-| 机器契约 | `contracts/`；迁移期保留 `adapters/` | capability、request/result 与 redline 事实来源 |
+| 机器契约 | `contracts/` | capability、request/result 与 redline 事实来源 |
 | 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |
 
-迁移期额外硬约束：
+旧执行面（Python `scripts/`、Swift/GUI、`adapters/` provider 适配层）已按 SPEC §7.5 顺序删除；
+架构规则由 `internal/archguard/` 的守卫测试强制。硬约束：
 
 - **禁止修改 `internal/archguard/`**。守卫失败时修改实现；若确信守卫有误，停下来交由人类审阅。
-- 不得向文档新增 `python3 scripts/...` 或 `scripts/*.sh` 引用；`tools/parity/legacy-refs.txt` 只减不增。
-- `skills/` 下不得出现 `.py` / `.sh`；SKILL.md 最终只能调用 `epub run <capability-id>`，不得依赖 Go internal package、旧 Python 路径或私有 provider 路径。
-- 禁止向 Swift/GUI 增加新功能。Python capability 未通过 SPEC §5.2 parity gate 前不得删除对应 oracle。
-
-本文件下方已有 EPUB 流程中的 Python 命令仍是迁移期当前可执行入口，但不得复制成新的执行面引用。
+- 不得向文档新增旧执行面引用；`tools/parity/legacy-refs.txt` 棘轮已归零，应保持为零。
+- `skills/` 下不得出现 `.py` / `.sh`；SKILL.md 只能调用 `epub run <capability-id>`，不得依赖 Go internal package 或私有 provider 路径。
+- 新增 capability 必须走 SPEC §6.1 任务模板并通过 §5.2 parity gate。
 
 ## 规范来源优先级（三档）
 
@@ -56,7 +52,7 @@ Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 `archive/` 与 git 历史。已完成的设计、实施计划、实验和早期推导只作背景补充，
 不应反向覆盖约束层。
 
-第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；Go 重写期仅重新引入受 SPEC 约束的 `tools/parity/` 迁移脚手架。人工 diff review 使用 Calibre Editor 或 VS Code。
+第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；迁移期使用的 `tools/parity/` 脚手架已随迁移完成删除。人工 diff review 使用 Calibre Editor 或 VS Code。
 
 ## 已有 EPUB 固定流程
 
@@ -67,19 +63,17 @@ Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 `docs/pipeline/book-workspace.md`。手册主仓库忽略 `work-epub/`，禁止把书级 Git 误加为 submodule。
 
 1. 把入选底本保留在 `01 源文件/`，记录 SHA-256；编辑只发生在 `03 制作工作区/epub/` 或新候选 EPUB。禁止在唯一原件上直接修改。
-2. 运行 `python3 scripts/epub_preflight_harness.py <input.epub>`，先判断 DRM、加密标记、文件损坏和结构风险。
+2. 运行 `epub run epub.package.nav.audit --input <input.epub> --json`，先判断 DRM、加密标记、文件损坏和结构风险。
 3. 如果资源目录混乱、文件名明显混淆或需要稳定 diff，先 dry-run：
 
    ```sh
-   python3 scripts/epub_structure_tool.py normalize input.epub \
-     --output normalized.epub \
-     --dry-run \
-     --report-format json
+   epub run epub.structure.normalize --input input.epub \
+     --output normalized.epub --dry-run --json
    ```
 
-4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告。
-5. 将 normalized EPUB 作为后续输入。运行迁移 harness、精排 harness 和相关专项 skill。
-6. 运行 `python3 scripts/validate_text_invariance.py before.epub after.epub --path-map <normalize-report.json>`，再用 Calibre Editor 或 VS Code 做人工 diff review。
+4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告（`legacy_report=true` 可让报告携带 oracle 形状明细）。
+5. 将 normalized EPUB 作为后续输入。按序运行 `epub.package.migrate.epub3`、精排能力（`epub.layout.audit` / `epub.text.content.analyze` / `epub.image.layout.optimize` / `epub.font.coverage.analyze` / `epub.typography.optimize` 等）和相关专项 skill。
+6. 运行 `epub redline --check all --path-map <normalize 报告> before.epub after.epub`（报告提取方式见 `docs/pipeline/cleanup-flow.md` §1.5），再用 Calibre Editor 或 VS Code 做人工 diff review。
 7. 把值得跨书复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书的排版结论默认汇总到书根的 `制作说明.md`。只有工具需要机器可读输入时，才在 `02 校对材料/` 按需保留书级决策 artifact。授权正文校订的含文决策必须放在 `02 校对材料/正文校订/`，不得混入仓库级 `records/`。
 8. preflight、dry-run、lint 和中间 JSON 放入 `03 制作工作区/.pipeline/` 并默认忽略；在 `制作说明.md` 持久记录输入/输出 SHA、迁移或跳过理由、红线结果、diff review、阅读器实测与需回写项。正在被 gate 引用的 path map 或校订决策不得提前删除。
 
@@ -87,7 +81,7 @@ Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 
 边界：
 
-- `scripts/epub_structure_tool.py` 只使用 Python 标准库，不提供 DRM 解密。
+- `epub run epub.structure.normalize` 不提供 DRM 解密。
 - 文件名反混淆只处理 EPUB 内部资源路径，依据 OPF manifest id 生成可读文件名，并同步更新引用。
 - 默认遇到加密标记即停止。声明目标在 ZIP 中不存在时，工具可移除 stale encryption 引用；只有工具明确识别为标准字体 obfuscation 且任务得到明确授权时，才可按工具说明单独处理。真实存在的未知加密资源不得猜测或绕过。
 
@@ -119,7 +113,7 @@ Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 - 图文环绕主路径使用 `figure.img-left/right`。`float` 和百分比 `width` 放在 `<figure>`，内部 `<img>` 使用 `width:100%; height:auto`。
 - `.wavy` 等带样式下划线必须先写基础 `text-decoration: underline;`，再写 `text-decoration-style`。
 - 含 MathML 的 XHTML 必须在 OPF manifest 声明 `properties="mathml"`。
-- 修改弹注结构后必须运行 `scripts/validate-popup-notes.sh`；构建后优先用 `--epub <artifact>` 复核产物。
+- 修改弹注结构后必须运行 `epub run epub.notes.popup.normalize --input <artifact> --json`；构建后优先对 dist 产物复核。
 - 任何阅读器实测规则必须能追溯到 demo、artifact、阅读器名称和版本、现象与结论。信息不完整时只能记录为待验证假设。
 - 新增第三方 EPUB 参考样本时，必须同步更新 `THIRD_PARTY.md`，写清来源、作者、许可和链接。
 
@@ -130,20 +124,17 @@ Go 实现尚未完成前，Python 仍是当前可执行 oracle：
 | 改动类型 | 至少运行 |
 | --- | --- |
 | 任意改动 | `git diff --check` |
-| AI 入口或维护文档 | `python3 scripts/validate_ai_entrypoints.py` |
-| skills | `python3 scripts/validate_skills_basic.py` |
-| 文档、skills、模板或字体规则同步 | `python3 scripts/validate_docs_consistency.py` |
-| Python 脚本 | 对应的 `scripts/test_*.py`；必要时 `python3 -m py_compile <files>` |
-| 已有 EPUB 清洗 | preflight、结构规范化 dry-run 或跳过理由、`validate_text_invariance.py`、人工 diff review |
-| demo、validator 或 `docs/final/` | build demo、`scripts/validate-epub-style-demo.sh --epub <artifact>`、`scripts/validate-popup-notes.sh --epub <artifact>` |
+| Go 代码 | `go build ./...` 与 `go test ./...` |
+| 架构相关改动（依赖方向、capability、SKILL.md、文档执行面） | `go test ./internal/archguard/ -v` |
+| 已有 EPUB 清洗 | `epub run epub.package.nav.audit`、结构规范化 dry-run 或跳过理由、`epub redline --check all`、人工 diff review |
+| demo、validator 或 `docs/final/` | build demo、`epub run epub.style.demo.maintain --input <artifact> --json`、`epub run epub.notes.popup.normalize --input <artifact> --json` |
 | OPF、nav、NCX | 额外运行 `xmllint --noout ...`；本机没有 `xmllint` 时记录跳过理由 |
-| 任意 EPUB 产物 | `python3 scripts/epub_lint.py <artifact>`，error 必须清零或逐条给出豁免理由 |
-| demo / starter 构建产物 | 本地跑 demo validator、popup note validator 与 `scripts/epub_lint.py`；EPUBCheck 只在 GitHub Actions 作为 CI gate 运行 |
+| 任意 EPUB 产物 | `epub run epub.package.nav.audit --input <artifact> --json` 与 `epub redline --check all`；error 必须清零或逐条给出豁免理由；EPUBCheck 只在 GitHub Actions 作为 CI gate 运行 |
 
-可选安装 hook 模板：
+可选安装 hook 模板（本仓 hook 不调外部脚本，只调 Go 守卫与 CLI）：
 
 ```sh
-scripts/install-hooks.sh
+cp hooks/pre-commit.epub-handbook .git/hooks/pre-commit
 ```
 
 ## 文档落点
