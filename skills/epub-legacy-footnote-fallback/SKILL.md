@@ -24,7 +24,7 @@ epub redline --check all <before.epub> <after.epub>
 涉及 demo 模板改动时再加：
 
 ```sh
-epub run epub.style.demo.maintain --input <demo 产物> --json # 能力迁移中：findings 出现 warn capability.not-implemented 表示校验逻辑尚未执行
+epub run epub.style.demo.maintain --input <demo 产物> --json # 校验 demo 产物结构
 ```
 
 ## 返回怎么读
