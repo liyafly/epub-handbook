@@ -64,7 +64,7 @@ epub capabilities [--json]                            # 列出全部能力及 Go
 | `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `epub.notes.legacy-fallback` |
 | `epub-style-demo-maintainer` | 维护 demo fixture、reader matrix、SPEC 和最终文档同步 | `epub.style.demo.maintain` |
 
-个别能力 Go 实现仍在迁移中：`epub run` 该能力时 findings 会出现 `warn capability.not-implemented`，此时以对应 skill 描述的人工/分析流程为准，`epub capabilities` 可随时确认最新状态。
+16 个能力已在 Go CLI 就绪。其余能力（5 个纯 AI/人工分析类 skill + `epub.source.intake`）设计上没有 Go 实现：`epub run` 它们会得到 `status: failed`、退出码 1 和 `error capability.not-implemented` finding，此时以对应 skill 描述的人工/分析流程为准，`epub capabilities` 可随时确认最新就绪状态。
 
 ## 两类常见场景
 
