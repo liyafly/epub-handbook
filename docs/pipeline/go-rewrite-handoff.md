@@ -1,6 +1,6 @@
 # Go 重写交接
 
-> 状态快照：**W0–W5 全部完成，迁移收尾** · 2026-08-30 凌晨 · 工具链 Go 1.27
+> 状态快照：**W0–W5 全部完成，迁移收尾** · 2026-08-30 · 工具链 Go 1.27
 >
 > 规范来源是 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md)（第一档硬约束）。
 > 本文件是**状态与决策记录**，不是约束。两者冲突时以 SPEC 为准。
@@ -11,6 +11,7 @@
 | 守卫测试 | archguard 全绿；INV-10 棘轮已归零并随 `tools/parity/` 撤除（守卫在基线缺失时自动跳过） |
 | CLI ready 能力 | 16 / 22（其余 5 个 B 类纯 AI skill + `epub.source.intake` 待决策） |
 | 旧执行面引用 | **0**（149 → 0，基线归零后随脚手架删除） |
+| 信封 schema | v2 `contracts/schemas/v2/envelope.schema.json` 已落地；INV-6 按 golden 的 schemaVersion 分发校验（§8） |
 | 已删除 | `swift/`（303M）、`gui/`、`scripts/`（1.4M）、`adapters/`、`.venv`/`uv.lock`/`pyproject.toml`/`.python-version`、`mise.toml`、`tools/parity/` |
 
 ## 0. 进度快照（2026-08-30 凌晨，W5 收尾）
@@ -255,28 +256,31 @@ alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go�
 
 ## 6. 遗留与待决策（接手者从这里开始）
 
-1. **`epub.source.intake` 未实现（需人类决策）**。契约存在、CLI 显示 pending。
+1. **`epub.source.intake` 未实现（需人类决策）**。契约存在、CLI 显示 pending
+   （review sweep 后 `epub run` 它返回 `failed` / 退出码 1，见 §8.2）。
    它需要 pipeline 支持非 EPUB 输入（源文件目录/PDF 等），且"接入"本身大部分是
    人工+AI 流程（见 `skills/epub-source-intake/SKILL.md`，已如实注明现状）。
    决策点：值得为它建 Go 实现吗，还是维持人工流程、仅保留契约？
 2. **`--legacy-report` 脚手架未拆除**。SPEC §5.2 的移除触发条件（对应 Python 脚本删除）
-   已满足，但该脚手架深度织入 15 个 caps 包与其测试（大量语义断言经
-   `legacyReportOf` 读取）。一次性拆除需要重写约 8 个包的测试断言，建议作为
-   独立后续任务：把断言迁移到 `Result.Facts` 后，删除各 cap 的
-   `LegacyReport` 参数、`legacyReport` 结构体与 CLI flag。
+   已满足，但该脚手架深度织入 caps 包与其测试（2026-08-30 实测：117 处引用、
+   37 个文件，其中 48 处在测试断言里——测试经 `Facts["legacyReport"]` 以 legacy
+   形状断言语义，拆除须逐包重设计断言面）。作为独立后续任务：把断言迁移到
+   `Result.Facts` 后，删除各 cap 的 `LegacyReport` 参数、`legacyReport` 结构体
+   与 CLI flag。
 3. **Python 元校验器随 `scripts/` 消失**：`validate_skills_basic.py`（frontmatter/
    openai.yaml 形状）、`validate_contracts.py`（契约 schema）、
    `validate_docs_consistency.md`（手册/速查表同步）、`validate_ai_entrypoints.py`。
-   其职责部分由 archguard INV-8/9/10 与 CI 承担，**文档同步检查完全回到人工**。
-   如需恢复，建议按 SPEC §6.1 建成 Go 守卫（放 `internal/archguard/` 或独立包）。
+   其职责部分由 archguard INV-8/9/10 与 CI 承担，**文档同步检查完全回到人工**；
+   SKILL.md frontmatter 形状与契约 JSON 形状目前同样无守卫。如需恢复，建议按
+   SPEC §6.1 建成 Go 守卫（放 `internal/archguard/` 或独立包，需人类审阅）。
 4. **`epub_lint.py` 无对应能力**（SPEC §7.2 映射表列了 `internal/caps/lint`，
    但 22 个契约里没有 lint id）。现行裁决：产物检查 =
    `epub run epub.package.nav.audit` + `epub redline --check all` + CI EPUBCheck，
    已写入文档。若认为仍缺独立 lint 能力，需先补契约再按 §6.1 实现。
 5. **发行为前置**：CLI 目前以 `go run ./cmd/epub` 或 `go build -o epub ./cmd/epub`
    分发，尚无 release 流程（跨平台构建、版本号注入）。
-6. 本分支（`codex/go-cli-rewrite`）全部改动**尚未提交**，建议按逻辑分块提交
-   （W0–W4 基线 / alite+popupnotes+migrate parity / styledemo / W5 文档与删除）。
+6. ~~本分支改动尚未提交~~ 已解决：W5 改动按逻辑分块提交完毕；
+   review sweep 改动见 §8。
 
 ---
 
@@ -294,4 +298,34 @@ alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go�
 | `docs/`（24 个）+ `templates/`（6 个） | 旧引用清零（两个 agent 完成） |
 | 根文档 + `hooks/` + `.github/` | AGENTS/README/CONTRIBUTING/CLAUDE、pre-commit、CI、CODEOWNERS、PR 模板 |
 | 删除 | `swift/` `gui/` `scripts/` `adapters/` `tools/parity/` Python 环境文件 |
+
+---
+
+## 8. Review sweep（2026-08-30 晚）
+
+迁移完成后对全仓做了一轮 review，修复批次如下：
+
+1. **skill 文档陈旧注记清零**：`epub.style.demo.maintain` 已 ready，但
+   `epub-style-demo-maintainer`、`epub-kindle-compatibility-checker`、
+   `epub-english-typography-optimizer`、`epub-vertical-ruby-optimizer`、
+   `epub-legacy-footnote-fallback` 五个 SKILL.md 与 `skills/README.md` 仍写
+   "迁移中 / warn capability.not-implemented"，已全部改为现状
+   （双模式、无需 `--output`，facts 形状按实跑核对）。
+2. **pending 能力信封语义反转**：`epub run <pending-id>` 原返回
+   `status: complete` + 退出码 0（仅 warn finding），现在返回
+   `status: failed` + 退出码 1 + `error capability.not-implemented`；
+   消息不再指向已删除的 Python oracle。`TestRunPendingCapabilityFails`
+   锁定该语义。理由：只看 status/退出码的调用方不应把"未执行"当成功。
+3. **INV-6 补上 v2 信封**：此前守卫只校验根 `testdata/` 下 3 个 v1 形状
+   golden，而生产输出全是 v2 信封（SPEC §8.2 声称的
+   `contracts/schemas/v2/envelope.schema.json` 不存在）。本轮落地该 schema，
+   新增 `testdata/envelope/` 三个真实 CLI 捕获的 golden（源树校验、
+   pending 拒绝、nav audit findings），并把 `archguard/schema_test.go`
+   改为按 golden 的 schemaVersion 分发（v1 → v1 schema，v2 → v2 schema）。
+   **这是规则 0 下的守卫演进**：只扩了覆盖面（v1 路径原样保留），
+   变更经仓库所有者明确授权；已做负向验证（未知字段与非法枚举会被拦截）。
+4. **CHANGELOG**：补 v0.3.0 条目（此前停在 v0.2.10，Go 重写没有记录）。
+5. **复查后不动的项**：normalize dry-run 的 format 事件消息 `dry_run=false`
+   是 Python parity 语义（阶段 1 刻意始终执行，dry-run 只作用于阶段 2），
+   报告字段在逐字节 parity 范围内，不改。
 | `docs/final/SPEC-go-architecture.md` | 头部加迁移完成标注（规则文字未动） |

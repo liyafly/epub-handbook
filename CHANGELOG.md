@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.3.0 - 2026-08-30
+
+Go 单一 CLI 重写落地（SPEC-go-architecture W0–W5），并完成一轮迁移后 review 收尾。
+
+### Added
+
+- **`cmd/epub` + `internal/`**：唯一公开 CLI（`epub run <id>` / `epub capabilities` /
+  `epub redline`），统一 JSON 信封（schemaVersion 2）、退出码 0/1/2/3、契约驱动的
+  requires 校验。16 个 A 类 capability 全部注册并通过 parity gate。
+- **`internal/archguard/`**：十条不变式的可执行守卫（INV-1 至 INV-10），配套独立
+  CI job、CODEOWNERS 与 PR 模板自检。
+- **`contracts/schemas/v2/envelope.schema.json`**：统一信封的 JSON Schema；
+  INV-6 守卫按 golden 的 schemaVersion 分发校验（v1 迁移期形状保留）。
+  golden 报告含真实 CLI 捕获（源树校验、pending 拒绝、nav audit findings）。
+
+### Changed
+
+- `skills/`（19 个 SKILL.md）全部改写为 `epub run <capability-id>` 形态；
+  `docs/` 与根文档的旧执行面引用清零（棘轮 149 → 0）。
+- pre-commit hook 与 CI 改调 Go 守卫与 epub CLI；EPUBCheck 保留为 CI gate。
+- **pending 能力语义**：契约存在但无 Go 实现的能力（5 个纯 AI/人工 skill +
+  `epub.source.intake`）现在返回 `status: failed`、退出码 1、`error
+  capability.not-implemented`，不再伪装成 `complete` / 退出码 0。
+- `epub redline` 补 `--path-map`；`--legacy-report` 迁移期脚手架保留（拆除为
+  独立后续任务）。
+
+### Removed
+
+- 旧执行面整体删除：`scripts/`（75 py + 3 sh）、`swift/`（303M）、`gui/`、
+  `adapters/`、`tools/parity/`、Python 环境文件（`.venv` / `uv.lock` /
+  `pyproject.toml` / `.python-version` / `mise.toml`）。
+- `tools-font/coverage-detector/` 明确不迁，保持 Python 独立项目，经
+  `internal/extern` 调用。
+
 ## v0.2.10 - 2026-08-15
 
 本版本聚焦于仓库入口、维护治理和阅读器实测证据的整理，让新用户更容易开始做书，
