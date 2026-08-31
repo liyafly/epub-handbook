@@ -39,6 +39,7 @@ templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
 21. `24-text-emphasis.xhtml`：横排着重号对照（标准 `under right`、Kindle/WebKit 单值 `under`、ruby 字面圆点与空 `rt` 生成圆点）及可换行短段。
 22. `25-text-emphasis-vertical.xhtml`：body 真竖排着重号对照。
 23. `26-prosody-fallback.xhtml`：横排 `△/▽` 语调标记对照；A 使用 `ruby.prosody` 的真实 `rt`，B 使用真实 HTML 双层 `inline-table/table-row/table-cell`，覆盖单字符、多字符连续、标点旁和行末换行附近，且 B 不依赖 generated content。
+24. `28-chapter-opening-block.xhtml`：生产书反向提炼的横排块级独立章首页；章次与章名在同一 `h1` 中作两个 block span，标题组以 `25%` 上边距和 `5%` 右安全区靠右；背景色、左下饰图与 `5.5em auto` 尺寸只写在 `poster.css` 的 body modifier，XHTML 无 inline style、无真实饰图 `<img>`，专门观察 Kindle 顶部留白、Readest body 背景绘制与 Reeden 块级标题间距。
 
 退役对照页放在 `retired/`，不进入默认 OPF/nav/toc：`03b-poster-fullbleed.xhtml`、`06-multi-legacy-note-fallback.xhtml`、`11-chapter-opening.xhtml`、`12-literary-fiction.xhtml`、`13-duokan-rich-fallback.xhtml`。这些页面只保留历史对照价值；新增规则优先补活跃页或场景指南。
 
@@ -58,4 +59,4 @@ OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Prev
 - Kindle / KFX：重点看封面识别、弹注触发、竖排、表格和背景图。
 - KOReader / Thorium / Calibre：重点看 CSS 兼容差异和窄屏重排。
 
-这个模板不包含第三方字体和版权图片，便于直接纳入版本管理。本轮章题/着重号/语调标记兼容构建使用独立 EPUB identity，以避免阅读器命中旧 UUID 缓存。
+这个模板不包含第三方字体和版权图片，便于直接纳入版本管理。本轮兼容构建使用独立 EPUB identity，以避免阅读器命中旧 UUID 缓存。scene 28 作为脱敏的横排生产骨架，饰图仅由共享 CSS 的 body background 绘制；未脱敏且未完成实测的旧竖排场景已移除。

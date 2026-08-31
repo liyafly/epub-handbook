@@ -27,6 +27,7 @@ FONTS_CSS = OEBPS / "Styles" / "fonts.css"
 NOTES_CSS = OEBPS / "Styles" / "notes.css"
 POSTER_CSS = OEBPS / "Styles" / "poster.css"
 POSTER_CONTAIN_PAGE = OEBPS / "Text" / "03c-poster-contain.xhtml"
+CHAPTER_OPENING_BLOCK_PAGE = OEBPS / "Text" / "28-chapter-opening-block.xhtml"
 RUBY_NOTE_PAGE = OEBPS / "Text" / "02-ruby-note.xhtml"
 FRONTMATTER_PAGE = OEBPS / "Text" / "15-frontmatter.xhtml"
 IMAGE_LAYOUT = OEBPS / "Text" / "17-image-layout.xhtml"
@@ -251,6 +252,10 @@ def validate_source(check: Check) -> None:
     href_to_item.get("Text/03c-poster-contain.xhtml") is not None,
     "03c-poster-contain.xhtml must be in manifest",
   )
+  check.require(
+    href_to_item.get("Text/28-chapter-opening-block.xhtml") is not None,
+    "28-chapter-opening-block.xhtml must be in manifest",
+  )
 
   nav_root = parse_xml(NAV, check)
   if nav_root is not None:
@@ -305,6 +310,47 @@ def validate_source(check: Check) -> None:
     'class="poster-fallback"',
   ]:
     check.require(token in poster_contain_text, f"03c-poster-contain.xhtml missing marker: {token}")
+  check.require(
+    active_poster_css.count('url("../Images/chapter-banner.png")') == 1,
+    "chapter-opening block must use exactly one poster.css chapter-banner background layer",
+  )
+  chapter_opening_block_text = CHAPTER_OPENING_BLOCK_PAGE.read_text(encoding="utf-8")
+  for token in [
+    'body class="fullpage poster-bg-chapter-opening"',
+    'section class="fullframe chapter-opening-frame"',
+    'class="chapter-opening-main"',
+    'class="chapter-opening-heading"',
+    'class="chapter-opening-number"',
+    'class="chapter-opening-title"',
+  ]:
+    check.require(token in chapter_opening_block_text, f"28-chapter-opening-block.xhtml missing marker: {token}")
+  check.require(
+    "style=" not in chapter_opening_block_text,
+    "28-chapter-opening-block.xhtml must keep the background out of inline style",
+  )
+  check.require(
+    "<img" not in chapter_opening_block_text,
+    "28-chapter-opening-block.xhtml ornament must not enter normal flow as img",
+  )
+  check.require(
+    re.search(
+      r"body\.poster-bg-chapter-opening\s*\{[^}]*background:\s*#d8f4f8\s+url\(\"\.\./Images/chapter-banner\.png\"\)\s+no-repeat\s+left bottom\s*;[^}]*background-size:\s*5\.5em auto\s*;",
+      active_poster_css,
+    ) is not None,
+    "chapter-opening block background must be shared CSS at left bottom / 5.5em auto",
+  )
+  check.require(
+    re.search(r"\.chapter-opening-main\s*\{[^}]*margin:\s*25% 5% 0 0\s*;", active_poster_css) is not None,
+    "chapter-opening block title group must retain its production-derived top/right spacing",
+  )
+  check.require(
+    re.search(r"\.chapter-opening-number\s*,\s*\.chapter-opening-title\s*\{[^}]*display:\s*block\s*;", active_poster_css) is not None,
+    "chapter-opening ordinal and title must remain block spans",
+  )
+  check.require(
+    re.search(r"\.chapter-opening-title\s*\{[^}]*padding-top:\s*1\.3em\s*;", active_poster_css) is not None,
+    "chapter-opening title must retain its block-level gap below the ordinal",
+  )
   check.require("position: absolute" not in active_poster_css, "poster.css must not use position:absolute")
   check.require(re.search(r"\b[0-9.]+v[hw]\b", active_poster_css) is None, "poster.css must not use vh/vw units")
 

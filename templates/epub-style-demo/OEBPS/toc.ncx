@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
-    <meta name="dtb:uid" content="urn:uuid:3905affa-a810-4759-91f8-a1d8520f8a6a"/>
+    <meta name="dtb:uid" content="urn:uuid:d79d7680-4676-4f7b-8fce-2e3fb7bed355"/>
     <meta name="dtb:depth" content="1"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
   <docTitle>
-    <text>EPUB Style Demo – Chapter/Emphasis/Prosody Compat v6</text>
+    <text>EPUB Style Demo – Chapter Opening Compat v17</text>
   </docTitle>
   <navMap>
     <navPoint id="navpoint-1" playOrder="1">
@@ -105,6 +105,10 @@
     <navPoint id="navpoint-27" playOrder="24">
       <navLabel><text>横排语调标记兼容：Ruby 与 HTML fallback</text></navLabel>
       <content src="Text/26-prosody-fallback.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-chapter-opening-block" playOrder="25">
+      <navLabel><text>横排块级独立章首页</text></navLabel>
+      <content src="Text/28-chapter-opening-block.xhtml"/>
     </navPoint>
   </navMap>
 </ncx>
