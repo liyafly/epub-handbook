@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -127,7 +127,7 @@ func buildFixtureEpub(t *testing.T, path string, files map[string]string) {
 	for name := range files {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		fw, err := w.Create(name)
 		if err != nil {
@@ -208,17 +208,17 @@ func TestCSSCleanupFixture(t *testing.T) {
 
 	rep := mustRun(t, source, output, true)
 	if rep.CSSFilesBefore != 6 || rep.FactoredStylesheets != 0 ||
-		rep.DuplicateStylesheetsRemoved != 2 || rep.ScopedLocalStylesheetsMerged != 0 ||
+		rep.DuplicateStylesheetsRemoved != 0 || rep.ScopedLocalStylesheetsMerged != 0 ||
 		rep.ScopeClassesAdded != 0 {
 		t.Fatalf("报告计数不符: %+v", rep)
 	}
 	if rep.OverridesCreated != 0 || rep.FontDeclarationsRewritten != 9 ||
-		rep.XHTMLFilesUpdated != 2 || rep.CSSManifestItemsRemoved != 2 ||
-		rep.CSSManifestItemsAdded != 0 || rep.CSSFilesAfter != 4 || len(rep.Warnings) != 1 ||
+		rep.XHTMLFilesUpdated != 0 || rep.CSSManifestItemsRemoved != 0 ||
+		rep.CSSManifestItemsAdded != 0 || rep.CSSFilesAfter != 6 || len(rep.Warnings) != 1 ||
 		!strings.Contains(rep.Warnings[0], "disabled for lossless safety") {
 		t.Fatalf("报告计数不符: %+v", rep)
 	}
-	if !rep.SemanticFactoringDisabled || !rep.ScopedMergeDisabled || rep.DuplicateDeduplication != "byte-exact" {
+	if !rep.SemanticFactoringDisabled || !rep.ScopedMergeDisabled || rep.DuplicateDeduplication != "disabled" {
 		t.Fatalf("安全策略事实不符: %+v", rep)
 	}
 
@@ -226,6 +226,8 @@ func TestCSSCleanupFixture(t *testing.T) {
 	for _, name := range []string{
 		"OEBPS/Styles/style0002.css",
 		"OEBPS/Styles/style0003.css",
+		"OEBPS/Styles/style0004.css",
+		"OEBPS/Styles/style0005.css",
 		"OEBPS/Styles/style0006.css",
 		"OEBPS/Styles/component.css",
 	} {
@@ -234,8 +236,6 @@ func TestCSSCleanupFixture(t *testing.T) {
 		}
 	}
 	for _, name := range []string{
-		"OEBPS/Styles/style0004.css",
-		"OEBPS/Styles/style0005.css",
 		"OEBPS/Styles/clean-shared-01.css",
 		"OEBPS/Styles/clean-scoped-local.css",
 	} {
@@ -266,10 +266,10 @@ func TestCSSCleanupFixture(t *testing.T) {
 	for _, check := range []struct{ text, want string }{
 		{chapter1, `href="../Styles/style0002.css"`},
 		{chapter1, `href="../Styles/component.css"`},
-		{chapter2, `href="../Styles/style0002.css"`},
+		{chapter2, `href="../Styles/style0004.css"`},
 		{chapter3, `href="../Styles/style0006.css"`},
 		{toc1, `href="../Styles/style0003.css"`},
-		{toc2, `href="../Styles/style0003.css"`},
+		{toc2, `href="../Styles/style0005.css"`},
 		{chapter1, "正文（补充说明）继续。"},
 	} {
 		if !strings.Contains(check.text, check.want) {
@@ -282,12 +282,12 @@ func TestCSSCleanupFixture(t *testing.T) {
 
 	// OPF manifest：css href 集合断言。
 	opfHrefs := manifestCSSHrefs(t, files["OEBPS/content.opf"])
-	for _, want := range []string{"Styles/style0002.css", "Styles/style0003.css", "Styles/style0006.css", "Styles/component.css"} {
+	for _, want := range []string{"Styles/style0002.css", "Styles/style0003.css", "Styles/style0004.css", "Styles/style0005.css", "Styles/style0006.css", "Styles/component.css"} {
 		if !contains(opfHrefs, want) {
 			t.Fatalf("manifest 缺少 %s: %v", want, opfHrefs)
 		}
 	}
-	for _, gone := range []string{"Styles/style0004.css", "Styles/style0005.css", "Styles/clean-shared-01.css", "Styles/clean-scoped-local.css"} {
+	for _, gone := range []string{"Styles/clean-shared-01.css", "Styles/clean-scoped-local.css"} {
 		if contains(opfHrefs, gone) {
 			t.Fatalf("manifest 不应包含 %s: %v", gone, opfHrefs)
 		}
@@ -296,7 +296,7 @@ func TestCSSCleanupFixture(t *testing.T) {
 	// 幂等：对输出再跑一遍，报告仍只说明 requested scoped merge was skipped。
 	secondOutput := filepath.Join(dir, "cleaned-again.epub")
 	second := mustRun(t, output, secondOutput, true)
-	if second.CSSFilesBefore != 4 || second.CSSFilesAfter != 4 ||
+	if second.CSSFilesBefore != 6 || second.CSSFilesAfter != 6 ||
 		second.FactoredStylesheets != 0 || second.ScopedLocalStylesheetsMerged != 0 ||
 		len(second.Warnings) != 1 {
 		t.Fatalf("第二次运行计数不符: %+v", second)
@@ -377,6 +377,57 @@ func TestCleanupDoesNotDeduplicateAcrossCSSBaseDirectories(t *testing.T) {
 		if string(got[name]) != css {
 			t.Fatalf("%s must survive because CSS base URI differs: %q", name, got[name])
 		}
+	}
+}
+
+func TestCleanupPreservesByteIdenticalCSSWithDistinctReferences(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "referenced-duplicates.epub")
+	output := filepath.Join(dir, "out.epub")
+	files := cssCleanupFixtureFiles()
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"],
+		`<dc:title>CSS Cleanup Fixture</dc:title>`,
+		`<dc:title>CSS Cleanup Fixture</dc:title><meta refines="#s4" property="role">duplicate-style</meta>`, 1)
+	files["OEBPS/Styles/component.css"] = `@import "style0004.css";` + "\n.component { margin: 0 auto; }\n"
+	buildFixtureEpub(t, input, files)
+	rep := mustRun(t, input, output, false)
+	if rep.DuplicateStylesheetsRemoved != 0 || rep.DuplicateDeduplication != "disabled" {
+		t.Fatalf("referenced duplicate CSS must not be removed: %+v", rep)
+	}
+	got := readZipData(t, output)
+	if _, ok := got["OEBPS/Styles/style0004.css"]; !ok {
+		t.Fatal("byte-identical CSS with its own manifest id/import target was removed")
+	}
+	opfText := string(got["OEBPS/content.opf"])
+	if !strings.Contains(opfText, `id="s4"`) || !strings.Contains(opfText, `refines="#s4"`) {
+		t.Fatalf("manifest identity/refines changed: %s", opfText)
+	}
+	if !strings.Contains(string(got["OEBPS/Styles/component.css"]), `@import "style0004.css"`) {
+		t.Fatal("CSS @import target changed")
+	}
+}
+
+func TestCleanupDoesNotRewriteFontFaceDescriptor(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "font-face.epub")
+	output := filepath.Join(dir, "out.epub")
+	files := cssCleanupFixtureFiles()
+	files["OEBPS/Styles/style0002.css"] = `@font-face {
+  font-family: "SimHei";
+  src: url("../Fonts/book.woff2");
+}
+body { font-family: "SimHei"; }
+`
+	files["OEBPS/Styles/style0004.css"] = `p { color: black; }` + "\n"
+	buildFixtureEpub(t, input, files)
+	mustRun(t, input, output, false)
+	got := string(readZipData(t, output)["OEBPS/Styles/style0002.css"])
+	if !strings.Contains(got, `@font-face {
+  font-family: "SimHei";`) {
+		t.Fatalf("@font-face family descriptor was rewritten: %s", got)
+	}
+	if !strings.Contains(got, `body { font-family: `+heiChain+`; }`) {
+		t.Fatalf("qualified style rule was not rewritten: %s", got)
 	}
 }
 

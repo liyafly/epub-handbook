@@ -4,7 +4,8 @@
 //   - sanitize_css：删除装饰分隔行、补缺失分号、把旧系统字体链
 //     （cnepub/SimSun/SimHei/STKaiti）规范化为三条标准链；
 //   - 高风险同构抽取已禁用：在 token/span 保真方案完成前不重建既有 CSS；
-//   - 重复去重只接受同目录、逐字节完全相同的样式表；
+//   - 既有 stylesheet 去重同样禁用：即使同目录逐字节相同，manifest id、
+//     OPF refines/fallback 或其它 CSS 的 @import 仍可能赋予它独立语义；
 //   - XHTML link 重写（srcset→URI→url()→@import 之外的 link 版本：
 //     仅 <link href="….css">）；
 //   - --merge-scoped-local-css 当前安全拒绝并报告 warning，不改 link/body；
@@ -126,7 +127,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	rep.CSSFilesBefore = len(cssItems)
 
-	cssBytes := map[string][]byte{}
 	cssPaths := sortedKeys(cssItems)
 	for _, cssPath := range cssPaths {
 		if !m.has(cssPath) {
@@ -174,11 +174,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err := m.patch(cssPath, fontEdits); err != nil {
 			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
 		}
-		finalData, err := m.raw(cssPath)
-		if err != nil {
-			return report.Result{}, cleanupErrf("%v", err)
-		}
-		cssBytes[cssPath] = bytes.Clone(finalData)
 		rep.FontDeclarationsRewritten += rewrites
 	}
 
@@ -186,38 +181,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	removed := map[string]bool{}
 	generated := map[string][]byte{}
 
-	// Semantic shape factoring and scoped merging are deliberately disabled.
+	// Semantic shape factoring, existing-entry deduplication, and scoped
+	// merging are deliberately disabled.
 	// Rebuilding a stylesheet from normalized selectors/declarations cannot be
 	// proven lossless for CSS strings, custom properties, or case-sensitive
-	// selectors. The only safe existing-entry deduplication is byte equality
-	// after the explicitly authorized byte-range cleanup above.
+	// selectors. Byte equality is also insufficient for deleting an entry:
+	// its manifest id/attributes may be referenced by OPF metadata or fallback
+	// relationships, and another stylesheet may @import its distinct path.
 	rep.SemanticFactoringDisabled = true
 	rep.ScopedMergeDisabled = true
-	rep.DuplicateDeduplication = "byte-exact"
-	canonicalPaths := make([]string, 0, len(cssPaths))
-	for _, cssPath := range cssPaths {
-		data, ok := cssBytes[cssPath]
-		if !ok || removed[cssPath] {
-			continue
-		}
-		canonical := ""
-		for _, candidate := range canonicalPaths {
-			// CSS relative URLs and @import resolve against the stylesheet's
-			// own directory. Byte equality across directories is therefore not
-			// semantic equality and must not trigger link/path replacement.
-			if pyDirname(candidate) == pyDirname(cssPath) && bytes.Equal(data, cssBytes[candidate]) {
-				canonical = candidate
-				break
-			}
-		}
-		if canonical == "" {
-			canonicalPaths = append(canonicalPaths, cssPath)
-			continue
-		}
-		mapping[cssPath] = []string{canonical}
-		removed[cssPath] = true
-		rep.DuplicateStylesheetsRemoved++
-	}
+	rep.DuplicateDeduplication = "disabled"
 
 	// 既有 CSS entry 的清理已由 m.patch 保持原始坐标；这里只处理
 	// entry 删除和新生成的完整 entry。
@@ -747,18 +720,26 @@ func topLevelSemicolon(data []byte, start, end int) bool {
 
 func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet) ([]editset.Edit, int, error) {
 	var edits []editset.Edit
-	for _, decl := range sheet.Declarations {
-		if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") {
+	for _, rule := range sheet.Rules {
+		// A declaration-shaped entry inside an at-rule is a descriptor, not
+		// necessarily a CSS property. In particular @font-face font-family
+		// registers one face name and must never become a fallback list.
+		if rule.AtRule {
 			continue
 		}
-		if decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
-			return nil, 0, fmt.Errorf("font-family span out of bounds: %+v", decl.ValueSpan)
+		for _, decl := range rule.Declarations {
+			if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") {
+				continue
+			}
+			if decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
+				return nil, 0, fmt.Errorf("font-family span out of bounds: %+v", decl.ValueSpan)
+			}
+			replacement := systemFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))
+			if replacement == "" || replacement == string(data[decl.ValueSpan.Start:decl.ValueSpan.End]) {
+				continue
+			}
+			edits = append(edits, editset.Replace(path, int64(decl.ValueSpan.Start), int64(decl.ValueSpan.Len()), []byte(replacement)))
 		}
-		replacement := systemFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))
-		if replacement == "" || replacement == string(data[decl.ValueSpan.Start:decl.ValueSpan.End]) {
-			continue
-		}
-		edits = append(edits, editset.Replace(path, int64(decl.ValueSpan.Start), int64(decl.ValueSpan.Len()), []byte(replacement)))
 	}
 	return edits, len(edits), editset.Validate(edits)
 }
