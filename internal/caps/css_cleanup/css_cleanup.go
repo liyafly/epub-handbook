@@ -3,28 +3,25 @@
 //
 //   - sanitize_css：删除装饰分隔行、补缺失分号、把旧系统字体链
 //     （cnepub/SimSun/SimHei/STKaiti）规范化为三条标准链；
-//   - 同构抽取：stylesheet_shape 相同且 ≥3 个文件、≥2 个变体才合并为
-//     clean-shared-NN.css，差异声明落 clean-override-<stem>.css；
-//   - sha256（归一化文本）重复去重；
+//   - 高风险同构抽取已禁用：在 token/span 保真方案完成前不重建既有 CSS；
+//   - 重复去重只接受同目录、逐字节完全相同的样式表；
 //   - XHTML link 重写（srcset→URI→url()→@import 之外的 link 版本：
 //     仅 <link href="….css">）；
-//   - --merge-scoped-local-css：把互不重叠的本地样式表合并进
-//     clean-scoped-local.css（css-local-NN scope class + body 前缀规则）；
+//   - --merge-scoped-local-css 当前安全拒绝并报告 warning，不改 link/body；
 //   - manifest 增删与 OPF 字节区间编辑（INV-2：不整文档重序列化）。
 //
-// 字节保真策略：CSS / XHTML 用与 Python 完全相同的正则语义做字符串级
-// 重写；OPF 相对 Python oracle 的 ET 整体重写是**更少字节改动**的预期
-// 差异（SPEC §5.2 P3），parity 测试对 OPF 做语义比对。
+// 字节保真策略：CSS / XHTML 只生成不重叠的原始 byte-range edits；未知
+// 或非法 CSS 返回安全错误，不经 UTF-8 replacement 或整 entry 序列化。
 package csscleanup
 
 import (
+	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
@@ -52,7 +49,7 @@ func cleanupErrf(format string, a ...any) error {
 type Params struct {
 	// Output 是输出路径（仅写入 legacy 报告字段；本包不落盘，INV-3）。
 	Output string
-	// MergeScopedLocalCSS 对齐 Python --merge-scoped-local-css。
+	// MergeScopedLocalCSS 保留 CLI 兼容；当前因 lossless 约束安全禁用。
 	MergeScopedLocalCSS bool
 	// LegacyReport 为 true 时把 Python 形状的 JSON 报告放进
 	// Result.Facts["legacyReport"]（json.RawMessage），供 parity gate P2。
@@ -61,23 +58,30 @@ type Params struct {
 
 // legacyCleanupReport 对齐 CleanupReport.as_dict（dataclass 字段序即 JSON 键序）。
 type legacyCleanupReport struct {
-	Harness                      string   `json:"harness"`
-	Input                        string   `json:"input"`
-	Output                       string   `json:"output"`
-	OPF                          string   `json:"opf"`
-	CSSFilesBefore               int      `json:"css_files_before"`
-	CSSFilesAfter                int      `json:"css_files_after"`
-	FactoredStylesheets          int      `json:"factored_stylesheets"`
-	DuplicateStylesheetsRemoved  int      `json:"duplicate_stylesheets_removed"`
-	OverridesCreated             int      `json:"overrides_created"`
-	FontDeclarationsRewritten    int      `json:"font_declarations_rewritten"`
-	XHTMLFilesUpdated            int      `json:"xhtml_files_updated"`
-	CSSManifestItemsRemoved      int      `json:"css_manifest_items_removed"`
-	CSSManifestItemsAdded        int      `json:"css_manifest_items_added"`
-	ScopedLocalStylesheetsMerged int      `json:"scoped_local_stylesheets_merged"`
-	ScopeClassesAdded            int      `json:"scope_classes_added"`
-	Warnings                     []string `json:"warnings"`
+	Harness                      string `json:"harness"`
+	Input                        string `json:"input"`
+	Output                       string `json:"output"`
+	OPF                          string `json:"opf"`
+	CSSFilesBefore               int    `json:"css_files_before"`
+	CSSFilesAfter                int    `json:"css_files_after"`
+	FactoredStylesheets          int    `json:"factored_stylesheets"`
+	DuplicateStylesheetsRemoved  int    `json:"duplicate_stylesheets_removed"`
+	OverridesCreated             int    `json:"overrides_created"`
+	FontDeclarationsRewritten    int    `json:"font_declarations_rewritten"`
+	XHTMLFilesUpdated            int    `json:"xhtml_files_updated"`
+	CSSManifestItemsRemoved      int    `json:"css_manifest_items_removed"`
+	CSSManifestItemsAdded        int    `json:"css_manifest_items_added"`
+	ScopedLocalStylesheetsMerged int    `json:"scoped_local_stylesheets_merged"`
+	ScopeClassesAdded            int    `json:"scope_classes_added"`
+	// 下列安全策略只进入统一 facts，不进入必须保持旧 Python 形状的
+	// legacyReport JSON。
+	SemanticFactoringDisabled bool     `json:"-"`
+	ScopedMergeDisabled       bool     `json:"-"`
+	DuplicateDeduplication    string   `json:"-"`
+	Warnings                  []string `json:"warnings"`
 }
+
+const scopedMergeDisabledWarning = "MergeScopedLocalCSS requested but disabled for lossless safety; existing CSS entries, links, and body classes were left unchanged"
 
 // ---- Run（SPEC §6.1 三段式：扫描 → 应用 → 报告） ----
 
@@ -122,8 +126,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	rep.CSSFilesBefore = len(cssItems)
 
-	cssText := map[string]string{}
-	parsed := map[string][]cssRule{}
+	cssBytes := map[string][]byte{}
 	cssPaths := sortedKeys(cssItems)
 	for _, cssPath := range cssPaths {
 		if !m.has(cssPath) {
@@ -134,32 +137,81 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err != nil {
 			return report.Result{}, cleanupErrf("%v", err)
 		}
-		cleaned, rewrites := sanitizeCSS(decodeUTF8Replace(data))
-		cssText[cssPath] = cleaned
-		rep.FontDeclarationsRewritten += rewrites
-		if rules, ok := parseStylesheet(cleaned); ok {
-			parsed[cssPath] = rules
+		ornamentEdits, err := ornamentEditsFor(cssPath, data)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
 		}
+		if err := m.patch(cssPath, ornamentEdits); err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
+		}
+		cleaned, err := m.raw(cssPath)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%v", err)
+		}
+		sheet, err := css.Parse(cleaned)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: CSS parse failed: %v", cssPath, err)
+		}
+		missingEdits, err := missingSemicolonEdits(cssPath, cleaned, sheet)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
+		}
+		if err := m.patch(cssPath, missingEdits); err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
+		}
+		fixed, err := m.raw(cssPath)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%v", err)
+		}
+		sheet, err = css.Parse(fixed)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: CSS parse after semicolon repair failed: %v", cssPath, err)
+		}
+		fontEdits, rewrites, err := fontFamilyEdits(cssPath, fixed, sheet)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
+		}
+		if err := m.patch(cssPath, fontEdits); err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
+		}
+		finalData, err := m.raw(cssPath)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%v", err)
+		}
+		cssBytes[cssPath] = bytes.Clone(finalData)
+		rep.FontDeclarationsRewritten += rewrites
 	}
 
 	mapping := map[string][]string{}
 	removed := map[string]bool{}
 	generated := map[string][]byte{}
 
-	// 同构抽取（shape 相同 + ≥3 文件 + ≥2 变体）。
-	factorShapes(m, cssPaths, cssText, parsed, mapping, removed, generated, &rep)
-
-	// sha256（归一化文本）重复去重。
-	digestOwner := map[string]string{}
+	// Semantic shape factoring and scoped merging are deliberately disabled.
+	// Rebuilding a stylesheet from normalized selectors/declarations cannot be
+	// proven lossless for CSS strings, custom properties, or case-sensitive
+	// selectors. The only safe existing-entry deduplication is byte equality
+	// after the explicitly authorized byte-range cleanup above.
+	rep.SemanticFactoringDisabled = true
+	rep.ScopedMergeDisabled = true
+	rep.DuplicateDeduplication = "byte-exact"
+	canonicalPaths := make([]string, 0, len(cssPaths))
 	for _, cssPath := range cssPaths {
-		text, ok := cssText[cssPath]
+		data, ok := cssBytes[cssPath]
 		if !ok || removed[cssPath] {
 			continue
 		}
-		digest := sha256Text(text)
-		canonical, seen := digestOwner[digest]
-		if !seen {
-			digestOwner[digest] = cssPath
+		canonical := ""
+		for _, candidate := range canonicalPaths {
+			// CSS relative URLs and @import resolve against the stylesheet's
+			// own directory. Byte equality across directories is therefore not
+			// semantic equality and must not trigger link/path replacement.
+			if pyDirname(candidate) == pyDirname(cssPath) && bytes.Equal(data, cssBytes[candidate]) {
+				canonical = candidate
+				break
+			}
+		}
+		if canonical == "" {
+			canonicalPaths = append(canonicalPaths, cssPath)
 			continue
 		}
 		mapping[cssPath] = []string{canonical}
@@ -167,12 +219,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		rep.DuplicateStylesheetsRemoved++
 	}
 
-	// files 模型更新（对齐 Python 的 files dict 操作）。
-	for _, cssPath := range cssPaths {
-		if value, ok := cssText[cssPath]; ok && !removed[cssPath] {
-			m.set(cssPath, []byte(value))
-		}
-	}
+	// 既有 CSS entry 的清理已由 m.patch 保持原始坐标；这里只处理
+	// entry 删除和新生成的完整 entry。
 	for _, cssPath := range sortedKeys(removed) {
 		m.drop(cssPath)
 	}
@@ -187,16 +235,21 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if !ok {
 			continue
 		}
-		text, changed := rewriteCSSLinks(decodeUTF8Replace(data), xhtmlPath, mapping)
+		edits, changed, err := rewriteCSSLinkEdits(xhtmlPath, data, mapping)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: %v", xhtmlPath, err)
+		}
 		if changed {
-			m.set(xhtmlPath, []byte(text))
+			if err := m.patch(xhtmlPath, edits); err != nil {
+				return report.Result{}, cleanupErrf("%s: %v", xhtmlPath, err)
+			}
 			rep.XHTMLFilesUpdated++
 		}
 	}
 
 	// scoped-local 合并。
 	if p.MergeScopedLocalCSS {
-		consolidateScopedLocalCSS(m, xhtmlPaths, opfDir, removed, generated, &rep)
+		rep.Warnings = append(rep.Warnings, scopedMergeDisabledWarning)
 	}
 
 	// css_files_after：最终 files 里以 .css 结尾（大小写不敏感）的数量。
@@ -226,20 +279,23 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 // buildResult 装配统一信封的 Result 段（含 legacy-report 脚手架）。
 func buildResult(p Params, rep legacyCleanupReport, mapping map[string][]string) report.Result {
 	facts := map[string]any{
-		"opf":                         rep.OPF,
-		"cssFilesBefore":              rep.CSSFilesBefore,
-		"cssFilesAfter":               rep.CSSFilesAfter,
-		"factoredStylesheets":         rep.FactoredStylesheets,
-		"duplicateStylesheetsRemoved": rep.DuplicateStylesheetsRemoved,
-		"overridesCreated":            rep.OverridesCreated,
-		"fontDeclarationsRewritten":   rep.FontDeclarationsRewritten,
-		"xhtmlFilesUpdated":           rep.XHTMLFilesUpdated,
-		"cssManifestItemsRemoved":     rep.CSSManifestItemsRemoved,
-		"cssManifestItemsAdded":       rep.CSSManifestItemsAdded,
+		"opf":                          rep.OPF,
+		"cssFilesBefore":               rep.CSSFilesBefore,
+		"cssFilesAfter":                rep.CSSFilesAfter,
+		"factoredStylesheets":          rep.FactoredStylesheets,
+		"duplicateStylesheetsRemoved":  rep.DuplicateStylesheetsRemoved,
+		"overridesCreated":             rep.OverridesCreated,
+		"fontDeclarationsRewritten":    rep.FontDeclarationsRewritten,
+		"xhtmlFilesUpdated":            rep.XHTMLFilesUpdated,
+		"cssManifestItemsRemoved":      rep.CSSManifestItemsRemoved,
+		"cssManifestItemsAdded":        rep.CSSManifestItemsAdded,
 		"scopedLocalStylesheetsMerged": rep.ScopedLocalStylesheetsMerged,
-		"scopeClassesAdded":           rep.ScopeClassesAdded,
-		"warnings":                    rep.Warnings,
-		"mergeScopedLocalCss":         p.MergeScopedLocalCSS,
+		"scopeClassesAdded":            rep.ScopeClassesAdded,
+		"semanticFactoringDisabled":    rep.SemanticFactoringDisabled,
+		"scopedMergeDisabled":          rep.ScopedMergeDisabled,
+		"duplicateDeduplication":       rep.DuplicateDeduplication,
+		"warnings":                     rep.Warnings,
+		"mergeScopedLocalCss":          p.MergeScopedLocalCSS,
 	}
 	findings := make([]report.Finding, 0, len(rep.Warnings))
 	for _, w := range rep.Warnings {
@@ -286,7 +342,7 @@ func buildResult(p Params, rep legacyCleanupReport, mapping map[string][]string)
 	}
 }
 
-// ---- sanitize_css ----
+// ---- sanitize_css (lossless byte-range edits) ----
 
 // systemFontFamily 复刻 system_font_family：压缩空白并小写后查表。
 func systemFontFamily(value string) string {
@@ -302,145 +358,471 @@ func systemFontFamily(value string) string {
 	return ""
 }
 
-// sanitizeCSS 逐行复刻 sanitize_css：删装饰行 → 补缺失分号 → 字体链
-// 规范化 → strip + 结尾补一个换行。
+// sanitizeCSS retains the old test-facing convenience signature. The write
+// path below uses the individual edit-producing helpers directly, so a parse
+// error never results in a replacement string being written.
 func sanitizeCSS(value string) (string, int) {
-	value = ornamentRe.ReplaceAllString(value, "")
-	value = fixMissingSemis(value)
-	rewrites := 0
-	var b strings.Builder
-	last := 0
-	for _, d := range css.FontFamilyDecls(value) {
-		replacement := systemFontFamily(d.Value)
-		if replacement == "" {
-			continue
-		}
-		rewrites++
-		b.WriteString(value[last:d.ValueSpan.Start])
-		b.WriteString(replacement)
-		last = d.ValueSpan.End
+	data := []byte(value)
+	edits, rewrites, err := sanitizeCSSData("<css>", data)
+	if err != nil {
+		return value, 0
 	}
-	b.WriteString(value[last:])
-	value = b.String()
-	return pyStrip(value) + "\n", rewrites
+	cleaned, err := editset.Apply("<css>", data, edits)
+	if err != nil {
+		return value, 0
+	}
+	return string(cleaned), rewrites
 }
 
-// fixMissingSemis 复刻 MISSING_SEMICOLON_RE 的 re.sub
-// （(?m)(^\s*[-\w]+\s*:\s*[^;{}\n]+)\n(?=\s*[-\w]+\s*:) → \1;\n）。
-// RE2 无前瞻，按行扫描手工实现：行首匹配「属性: 值」且该行以换行结尾、
-// 换行之后（允许跨行空白）出现下一个「属性:」时补分号。
-func fixMissingSemis(text string) string {
-	var b strings.Builder
-	last := 0
-	lineStart := 0
-	appendMatch := func(end int) {
-		b.WriteString(text[last:end])
-		last = end
+func sanitizeCSSData(path string, data []byte) ([]editset.Edit, int, error) {
+	ornament, err := ornamentEditsFor(path, data)
+	if err != nil {
+		return nil, 0, err
 	}
-	for lineStart < len(text) {
-		if mEnd, ok := matchMissingSemiAt(text, lineStart); ok {
-			// 命中：group(1) 保持原样 + ";" + "\n"。
-			b.WriteString(text[last:mEnd-1])
-			b.WriteString(";\n")
-			last = mEnd
-			lineStart = mEnd
-			continue
-		}
-		// 推进到下一行行首。
-		nl := strings.IndexByte(text[lineStart:], '\n')
-		if nl < 0 {
-			lineStart = len(text)
-			break
-		}
-		lineStart += nl + 1
+	cleaned, err := editset.Apply(path, data, ornament)
+	if err != nil {
+		return nil, 0, err
 	}
-	appendMatch(len(text))
-	return b.String()
+	sheet, err := css.Parse(cleaned)
+	if err != nil {
+		return nil, 0, err
+	}
+	missing, err := missingSemicolonEdits(path, cleaned, sheet)
+	if err != nil {
+		return nil, 0, err
+	}
+	fixed, err := editset.Apply(path, cleaned, missing)
+	if err != nil {
+		return nil, 0, err
+	}
+	sheet, err = css.Parse(fixed)
+	if err != nil {
+		return nil, 0, err
+	}
+	fontEdits, rewrites, err := fontFamilyEdits(path, fixed, sheet)
+	if err != nil {
+		return nil, 0, err
+	}
+	// Return edits in the original coordinate space. Each later pass was
+	// rebased by composing the in-memory projection, just as fileModel.patch
+	// does for a multi-stage cleanup.
+	all := append([]editset.Edit(nil), ornament...)
+	var missingOriginal []editset.Edit
+	if len(missing) > 0 {
+		// Translate the edits from the ornament projection to original offsets.
+		missingOriginal, err = rebaseCSSStage(path, data, ornament, missing)
+		if err != nil {
+			return nil, 0, err
+		}
+		all = append(all, missingOriginal...)
+	}
+	if len(fontEdits) > 0 {
+		// fontEdits are relative to the fixed projection. First map them
+		// back through the missing-semicolon edits into the ornament
+		// projection, then through ornament deletion into the original.
+		translated, err := rebaseCSSStage(path, cleaned, missing, fontEdits)
+		if err != nil {
+			return nil, 0, err
+		}
+		translated, err = rebaseCSSStage(path, data, ornament, translated)
+		if err != nil {
+			return nil, 0, err
+		}
+		all = append(all, translated...)
+	}
+	return all, rewrites, editset.Validate(all)
 }
 
-// matchMissingSemiAt 在行首 lineStart 尝试匹配
-// ^\s*[-\w]+\s*:\s*[^;{}\n]+\n(?=\s*[-\w]+\s*:)，返回完整匹配终点。
-func matchMissingSemiAt(text string, lineStart int) (int, bool) {
-	i := lineStart
-	for i < len(text) {
-		r, size := utf8DecodeRune(text[i:])
-		if r == '\n' || !isSpaceRune(r) {
+// rebaseCSSStage is a small local adapter around fileModel's coordinate
+// composition. It applies old edits to a synthetic path and maps new edits by
+// searching the unchanged source boundaries. The cleanup Run path uses
+// fileModel.patch; this helper only serves the compatibility sanitizeCSS API.
+func rebaseCSSStage(path string, base []byte, old, next []editset.Edit) ([]editset.Edit, error) {
+	if len(old) == 0 {
+		return append([]editset.Edit(nil), next...), nil
+	}
+	projected, err := editset.Apply(path, base, old)
+	if err != nil {
+		return nil, err
+	}
+	var out []editset.Edit
+	for _, e := range next {
+		offset, length, err := rebaseRange(e.Offset, e.Length, old, len(projected))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, editset.Replace(path, offset, length, e.Replacement))
+	}
+	return out, nil
+}
+
+func ornamentEditsFor(path string, data []byte) ([]editset.Edit, error) {
+	if !utf8.Valid(data) {
+		return nil, css.ErrInvalidUTF8
+	}
+	var edits []editset.Edit
+	comment, quote, url := false, byte(0), false
+	for lineStart := 0; lineStart < len(data); {
+		lineEnd := lineStart
+		for lineEnd < len(data) && data[lineEnd] != '\n' {
+			lineEnd++
+		}
+		contentEnd := lineEnd
+		if contentEnd > lineStart && data[contentEnd-1] == '\r' {
+			contentEnd--
+		}
+		protected := comment || quote != 0 || url
+		for i := lineStart; i < contentEnd; i++ {
+			if comment {
+				if i+1 < contentEnd && data[i] == '*' && data[i+1] == '/' {
+					comment = false
+					i++
+				}
+				continue
+			}
+			if quote != 0 {
+				if data[i] == '\\' && i+1 < contentEnd {
+					i++
+					continue
+				}
+				if data[i] == quote {
+					quote = 0
+				}
+				continue
+			}
+			if url {
+				if data[i] == '\\' && i+1 < contentEnd {
+					i++
+					continue
+				}
+				if data[i] == ')' {
+					url = false
+				}
+				continue
+			}
+			if i+1 < contentEnd && data[i] == '/' && data[i+1] == '*' {
+				comment = true
+				protected = true
+				i++
+				continue
+			}
+			if data[i] == '\'' || data[i] == '"' {
+				quote = data[i]
+				protected = true
+				continue
+			}
+			if hasURLPrefix(data, i) {
+				url = true
+				protected = true
+			}
+		}
+		if !protected && ornamentLine(data[lineStart:contentEnd]) {
+			edits = append(edits, editset.Replace(path, int64(lineStart), int64(contentEnd-lineStart), []byte{}))
+		}
+		if lineEnd == len(data) {
 			break
 		}
-		i += size
+		lineStart = lineEnd + 1
 	}
-	nameStart := i
-	for i < len(text) {
-		r, size := utf8DecodeRune(text[i:])
-		if r == '\n' || !(isWordRune(r) || r == '-') {
+	return edits, editset.Validate(edits)
+}
+
+func ornamentLine(line []byte) bool {
+	trimmed := strings.TrimSpace(string(line))
+	if !strings.Contains(trimmed, "标题") {
+		return false
+	}
+	return dashRunPrefix(trimmed) >= 3 && dashRunSuffix(trimmed) >= 3
+}
+
+func dashRunPrefix(s string) int {
+	n := 0
+	for len(s) > 0 {
+		if strings.HasPrefix(s, "—") {
+			n++
+			s = s[len("—"):]
+			continue
+		}
+		if s[0] == '-' {
+			n++
+			s = s[1:]
+			continue
+		}
+		break
+	}
+	return n
+}
+
+func dashRunSuffix(s string) int {
+	n := 0
+	for len(s) > 0 {
+		if strings.HasSuffix(s, "—") {
+			n++
+			s = s[:len(s)-len("—")]
+			continue
+		}
+		if s[len(s)-1] == '-' {
+			n++
+			s = s[:len(s)-1]
+			continue
+		}
+		break
+	}
+	return n
+}
+
+func hasURLPrefix(data []byte, pos int) bool {
+	if pos+3 > len(data) || !strings.EqualFold(string(data[pos:pos+3]), "url") {
+		return false
+	}
+	if pos > 0 && (isWordASCII(data[pos-1]) || data[pos-1] == '-') {
+		return false
+	}
+	i := pos + 3
+	for i < len(data) && (data[i] == ' ' || data[i] == '\t' || data[i] == '\r' || data[i] == '\n' || data[i] == '\f') {
+		i++
+	}
+	return i < len(data) && data[i] == '('
+}
+
+func missingSemicolonEdits(path string, data []byte, sheet *css.Stylesheet) ([]editset.Edit, error) {
+	var edits []editset.Edit
+	for _, rule := range sheet.Rules {
+		if rule.AtRule && len(rule.Declarations) == 0 {
+			continue
+		}
+		span := rule.BodySpan
+		if span.Start >= span.End {
+			continue
+		}
+		for _, at := range missingSemicolonsInSpan(data, span) {
+			edits = append(edits, editset.Insert(path, int64(at), []byte(";")))
+		}
+	}
+	return edits, editset.Validate(edits)
+}
+
+func missingSemicolonsInSpan(data []byte, span css.Span) []int {
+	var inserts []int
+	lineStart := span.Start
+	for lineStart < span.End {
+		lineEnd := lineStart
+		for lineEnd < span.End && data[lineEnd] != '\n' {
+			lineEnd++
+		}
+		contentEnd := lineEnd
+		if contentEnd > lineStart && data[contentEnd-1] == '\r' {
+			contentEnd--
+		}
+		if simpleDeclarationLine(data, lineStart, contentEnd) &&
+			!topLevelSemicolon(data, lineStart, contentEnd) {
+			nextStart := lineEnd
+			if nextStart < span.End && data[nextStart] == '\n' {
+				nextStart++
+			}
+			if nextStart < span.End {
+				nextEnd := nextStart
+				for nextEnd < span.End && data[nextEnd] != '\n' {
+					nextEnd++
+				}
+				nextContentEnd := nextEnd
+				if nextContentEnd > nextStart && data[nextContentEnd-1] == '\r' {
+					nextContentEnd--
+				}
+				if simpleDeclarationLine(data, nextStart, nextContentEnd) {
+					inserts = append(inserts, contentEnd)
+				}
+			}
+		}
+		if lineEnd == span.End {
 			break
 		}
-		i += size
+		lineStart = lineEnd + 1
 	}
-	if i == nameStart {
-		return 0, false
+	return inserts
+}
+
+func simpleDeclarationLine(data []byte, start, end int) bool {
+	trimmed := trimCSSByteSpan(data, start, end)
+	if trimmed.Start == trimmed.End {
+		return false
 	}
-	for i < len(text) {
-		r, size := utf8DecodeRune(text[i:])
-		if r == '\n' || !isSpaceRune(r) {
-			break
+	colon := -1
+	paren, bracket, brace := 0, 0, 0
+	for i := trimmed.Start; i < trimmed.End; {
+		if next, ok := skipCSSOpaque(data, i, trimmed.End); ok {
+			i = next
+			continue
 		}
-		i += size
-	}
-	if i >= len(text) || text[i] != ':' {
-		return 0, false
-	}
-	i++
-	for i < len(text) {
-		r, size := utf8DecodeRune(text[i:])
-		if r == '\n' || !isSpaceRune(r) {
-			break
-		}
-		i += size
-	}
-	valStart := i
-	for i < len(text) {
-		r, _ := utf8DecodeRune(text[i:])
-		if r == '\n' || r == ';' || r == '{' || r == '}' {
-			break
+		switch data[i] {
+		case '(':
+			paren++
+		case ')':
+			if paren == 0 {
+				return false
+			}
+			paren--
+		case '[':
+			bracket++
+		case ']':
+			if bracket == 0 {
+				return false
+			}
+			bracket--
+		case '{':
+			brace++
+		case '}':
+			if brace == 0 {
+				return false
+			}
+			brace--
+		case ';':
+			if paren == 0 && bracket == 0 && brace == 0 {
+				// A terminal semicolon is accepted as a candidate for the
+				// look-ahead line. The caller separately checks whether the
+				// current line itself needs a repair.
+				if trimCSSByteSpan(data, i+1, trimmed.End).Start != trimCSSByteSpan(data, i+1, trimmed.End).End {
+					return false
+				}
+			}
+		case ':':
+			if paren == 0 && bracket == 0 && brace == 0 && colon < 0 {
+				colon = i
+			}
 		}
 		i++
 	}
-	if i == valStart || i >= len(text) || text[i] != '\n' {
-		return 0, false
-	}
-	if !lookaheadNextDecl(text, i+1) {
-		return 0, false
-	}
-	return i + 1, true
-}
-
-// lookaheadNextDecl 复刻前瞻 (?=\s*[-\w]+\s*:)：允许跨行空白。
-func lookaheadNextDecl(text string, pos int) bool {
-	i := skipPySpace(text, pos)
-	start := i
-	for i < len(text) {
-		r, size := utf8DecodeRune(text[i:])
-		if r == '\n' || !(isWordRune(r) || r == '-') {
-			break
-		}
-		i += size
-	}
-	if i == start {
+	if colon < 0 || paren != 0 || bracket != 0 || brace != 0 {
 		return false
 	}
-	i = skipPySpace(text, i)
-	return i < len(text) && text[i] == ':'
-}
-
-func utf8DecodeRune(s string) (rune, int) {
-	for _, r := range s {
-		return r, len(string(r))
+	name := trimCSSByteSpan(data, trimmed.Start, colon)
+	value := trimCSSByteSpan(data, colon+1, trimmed.End)
+	if name.Start == name.End || value.Start == value.End {
+		return false
 	}
-	return 0, 0
+	for i := name.Start; i < name.End; i++ {
+		if !isPropertyNameByte(data[i]) {
+			return false
+		}
+	}
+	return true
 }
 
-// ---- parse_stylesheet / shape ----
+func topLevelSemicolon(data []byte, start, end int) bool {
+	trimmed := trimCSSByteSpan(data, start, end)
+	paren, bracket, brace := 0, 0, 0
+	for i := trimmed.Start; i < trimmed.End; {
+		if next, ok := skipCSSOpaque(data, i, trimmed.End); ok {
+			i = next
+			continue
+		}
+		switch data[i] {
+		case '(':
+			paren++
+		case ')':
+			if paren > 0 {
+				paren--
+			}
+		case '[':
+			bracket++
+		case ']':
+			if bracket > 0 {
+				bracket--
+			}
+		case '{':
+			brace++
+		case '}':
+			if brace > 0 {
+				brace--
+			}
+		case ';':
+			if paren == 0 && bracket == 0 && brace == 0 {
+				return true
+			}
+		}
+		i++
+	}
+	return false
+}
+
+func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet) ([]editset.Edit, int, error) {
+	var edits []editset.Edit
+	for _, decl := range sheet.Declarations {
+		if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") {
+			continue
+		}
+		if decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
+			return nil, 0, fmt.Errorf("font-family span out of bounds: %+v", decl.ValueSpan)
+		}
+		replacement := systemFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))
+		if replacement == "" || replacement == string(data[decl.ValueSpan.Start:decl.ValueSpan.End]) {
+			continue
+		}
+		edits = append(edits, editset.Replace(path, int64(decl.ValueSpan.Start), int64(decl.ValueSpan.Len()), []byte(replacement)))
+	}
+	return edits, len(edits), editset.Validate(edits)
+}
+
+func trimCSSByteSpan(data []byte, start, end int) css.Span {
+	for start < end && isCSSSpaceByte(data[start]) {
+		start++
+	}
+	for end > start && isCSSSpaceByte(data[end-1]) {
+		end--
+	}
+	return css.Span{Start: start, End: end}
+}
+
+func isCSSSpaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f'
+}
+
+func isPropertyNameByte(b byte) bool {
+	return b == '-' || b == '_' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
+func isWordASCII(b byte) bool {
+	return b == '_' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
+func skipCSSOpaque(data []byte, pos, end int) (int, bool) {
+	if pos+1 < end && data[pos] == '/' && data[pos+1] == '*' {
+		for i := pos + 2; i+1 < end; i++ {
+			if data[i] == '*' && data[i+1] == '/' {
+				return i + 2, true
+			}
+		}
+		return end, true
+	}
+	if data[pos] == '\'' || data[pos] == '"' {
+		q := data[pos]
+		for i := pos + 1; i < end; i++ {
+			if data[i] == '\\' {
+				i++
+				continue
+			}
+			if data[i] == q {
+				return i + 1, true
+			}
+		}
+		return end, true
+	}
+	if hasURLPrefix(data, pos) {
+		for i := pos + 3; i < end; i++ {
+			if data[i] == '\\' {
+				i++
+				continue
+			}
+			if data[i] == ')' {
+				return i + 1, true
+			}
+		}
+		return end, true
+	}
+	return pos, false
+}
+
+// ---- parse_stylesheet (read-only compatibility view) ----
 
 // cssRule 对齐 Python 的 Rule（selector + (name, value) 声明二元组）。
 type cssRule struct {
@@ -448,86 +830,67 @@ type cssRule struct {
 	declarations [][2]string
 }
 
-// parseStylesheet 复刻 parse_stylesheet：注释剥离后按 RULE_RE 迭代；
-// 出现 @ 规则、空选择器或无冒号声明时整体判为不可解析（返回 false）。
+// ErrUnsupportedCSSShape distinguishes valid CSS that the old semantic
+// factoring algorithm cannot represent from malformed CSS. It is retained
+// for read-only callers; Run does not need to parse stylesheet shape because
+// semantic factoring is disabled until a token/span implementation exists.
+var ErrUnsupportedCSSShape = errors.New("css cleanup: unsupported stylesheet shape")
+
+type unsupportedCSSShapeError struct {
+	detail string
+}
+
+func (e *unsupportedCSSShapeError) Error() string { return e.detail }
+func (e *unsupportedCSSShapeError) Unwrap() error { return ErrUnsupportedCSSShape }
+
+// parseStylesheet is retained as a compatibility view for old in-package
+// tests. The write path uses parseStylesheetSafe so syntax errors become a
+// hard, diagnosable cleanup error rather than a silent fallback.
 func parseStylesheet(value string) ([]cssRule, bool) {
-	stripped := css.StripComments(value)
+	rules, err := parseStylesheetSafe([]byte(value))
+	return rules, err == nil && len(rules) > 0
+}
+
+func parseStylesheetSafe(value []byte) ([]cssRule, error) {
+	sheet, err := css.Parse(value)
+	if err != nil {
+		return nil, err
+	}
 	var rules []cssRule
-	for _, r := range css.Rules(stripped) {
-		selector := normalizeSpace(r.Selector)
+	for _, rule := range sheet.Rules {
+		if rule.AtRule {
+			// Flattening a conditional or declaration at-rule into a generated
+			// top-level stylesheet changes cascade semantics. This is a valid
+			// stylesheet, but an unsupported shape for the old factoring view.
+			return nil, &unsupportedCSSShapeError{
+				detail: fmt.Sprintf("unsupported at-rule @%s", rule.AtRuleName),
+			}
+		}
+		// Keep the source projection exact. These values are read-only and
+		// must never become a normalized serialization input.
+		selector := rule.Selector
 		if selector == "" || strings.HasPrefix(selector, "@") {
-			return nil, false
+			return nil, &unsupportedCSSShapeError{detail: "empty or at-rule selector"}
 		}
 		var decls [][2]string
-		for _, raw := range strings.Split(r.Body, ";") {
-			raw = pyStrip(raw)
-			if raw == "" {
-				continue
+		for _, decl := range rule.Declarations {
+			name := decl.Name
+			value := decl.Value
+			if name == "" {
+				return nil, &unsupportedCSSShapeError{detail: "empty declaration name"}
 			}
-			i := strings.IndexByte(raw, ':')
-			if i < 0 {
-				return nil, false
-			}
-			decls = append(decls, [2]string{pyStrip(raw[:i]), normalizeSpace(raw[i+1:])})
+			decls = append(decls, [2]string{name, value})
 		}
 		rules = append(rules, cssRule{selector: selector, declarations: decls})
 	}
 	if len(rules) == 0 {
-		return nil, false
+		return nil, &unsupportedCSSShapeError{detail: "stylesheet contains no qualified rules"}
 	}
-	return rules, true
+	return rules, nil
 }
 
-// stylesheetShape 复刻 stylesheet_shape：(selector, 小写声明名序列) 元组。
-// 返回可哈希的签名字符串。
-func stylesheetShape(rules []cssRule) string {
-	var b strings.Builder
-	for _, rule := range rules {
-		b.WriteString(rule.selector)
-		b.WriteByte(0)
-		for _, d := range rule.declarations {
-			b.WriteString(strings.ToLower(d[0]))
-			b.WriteByte(0)
-		}
-		b.WriteByte(1)
-	}
-	return b.String()
-}
-
-func declsEqual(a, b [][2]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// isCleanupGeneratedCSS 复刻 is_cleanup_generated_css。
-func isCleanupGeneratedCSS(cssPath string) bool {
-	name := pyBasename(cssPath)
-	return strings.HasPrefix(name, "clean-shared-") ||
-		strings.HasPrefix(name, "clean-override-") ||
-		strings.HasPrefix(name, "clean-scoped-local")
-}
-
-// formatRules 复刻 format_rules（固定两空格缩进格式）。
-func formatRules(rules []cssRule) []byte {
-	var chunks []string
-	for _, rule := range rules {
-		chunks = append(chunks, rule.selector+" {")
-		for _, d := range rule.declarations {
-			chunks = append(chunks, "  "+d[0]+": "+d[1]+";")
-		}
-		chunks = append(chunks, "}", "")
-	}
-	return []byte(pyRStrip(strings.Join(chunks, "\n")) + "\n")
-}
-
-// uniqueZipPath 复刻 unique_zip_path（stem-2、stem-3 … 探测）。
+// uniqueZipPath is retained for compatibility with the removed factoring
+// helpers. The active Run path never creates generated CSS entries.
 func uniqueZipPath(has func(string) bool, base string) string {
 	stem, ext := pySplitExt(base)
 	candidate := base
@@ -539,143 +902,200 @@ func uniqueZipPath(has func(string) bool, base string) string {
 	return candidate
 }
 
-// sha256Text 复刻 sha256_text：sha256(normalize_css(text))。
-func sha256Text(value string) string {
-	normalized := strings.ToLower(removeAllSpace(css.StripComments(value)))
-	sum := sha256.Sum256([]byte(normalized))
-	return hex.EncodeToString(sum[:])
-}
-
-// factorShapes 复刻同构抽取主循环。
-func factorShapes(m *fileModel, cssPaths []string, cssText map[string]string, parsed map[string][]cssRule,
-	mapping map[string][]string, removed map[string]bool, generated map[string][]byte, rep *legacyCleanupReport) {
-
-	groups := map[string][]string{}
-	for _, cssPath := range cssPaths {
-		rules, ok := parsed[cssPath]
-		if !ok || isCleanupGeneratedCSS(cssPath) {
-			continue
-		}
-		sig := stylesheetShape(rules)
-		groups[sig] = append(groups[sig], cssPath)
-	}
-	var groupLists [][]string
-	for _, paths := range groups {
-		groupLists = append(groupLists, paths)
-	}
-	sort.Slice(groupLists, func(i, j int) bool { return groupLists[i][0] < groupLists[j][0] })
-
-	sharedIndex := 1
-	for _, paths := range groupLists {
-		if len(paths) < 3 || distinctDigestCount(paths, cssText) < 2 {
-			continue
-		}
-		sortedPaths := append([]string(nil), paths...)
-		sort.Strings(sortedPaths)
-		canonical := sortedPaths[0]
-		cssDir := pyDirname(canonical)
-		sharedPath := uniqueZipPath(m.unionHas, pyJoinPath(cssDir, fmt.Sprintf("clean-shared-%02d.css", sharedIndex)))
-		sharedIndex++
-		canonicalRules := parsed[canonical]
-		generated[sharedPath] = formatRules(canonicalRules)
-		for _, cssPath := range sortedPaths {
-			rules := parsed[cssPath]
-			var changed []cssRule
-			for i, rule := range rules {
-				if i < len(canonicalRules) && !declsEqual(rule.declarations, canonicalRules[i].declarations) {
-					changed = append(changed, rule)
-				}
-			}
-			replacement := []string{sharedPath}
-			if len(changed) > 0 {
-				overrideBase := pyJoinPath(cssDir, "clean-override-"+pyPathStem(cssPath)+".css")
-				overridePath := uniqueZipPath(m.unionHas, overrideBase)
-				generated[overridePath] = formatRules(changed)
-				replacement = append(replacement, overridePath)
-				rep.OverridesCreated++
-			}
-			mapping[cssPath] = replacement
-			removed[cssPath] = true
-		}
-		rep.FactoredStylesheets += len(sortedPaths)
-	}
-}
-
-func distinctDigestCount(paths []string, cssText map[string]string) int {
-	seen := map[string]bool{}
-	for _, p := range paths {
-		seen[sha256Text(cssText[p])] = true
-	}
-	return len(seen)
-}
-
 // ---- XHTML link 重写（LINK_RE 的手工实现，含引号反向引用） ----
 
 type linkMatch struct {
 	start, end int
+	valueStart int
+	valueEnd   int
+	quote      byte
 	href       string
 }
 
-// findLinkMatch 复刻 LINK_RE
-// `<link\b[^>]*\bhref=(["'])([^"']+\.css)(\1)[^>]*/?>`（re.I）的 finditer：
-// [^>]* 贪心回溯取最右的 \bhref= 候选。
+// findLinkMatch is a quote-aware XHTML link scanner. It returns only the
+// href value span, so callers can patch that value without serializing the
+// surrounding tag or document.
 func findLinkMatch(text string, from int) (linkMatch, bool) {
-	for i := from; i < len(text); {
-		idx := indexFold(text, "<link", i)
-		if idx < 0 {
+	for i := max(from, 0); i < len(text); {
+		if text[i] != '<' {
+			i++
+			continue
+		}
+		if strings.HasPrefix(text[i:], "<!--") {
+			end := strings.Index(text[i+4:], "-->")
+			if end < 0 {
+				return linkMatch{}, false
+			}
+			i += end + 7
+			continue
+		}
+		if strings.HasPrefix(text[i:], "<![CDATA[") {
+			end := strings.Index(text[i+9:], "]]>")
+			if end < 0 {
+				return linkMatch{}, false
+			}
+			i += end + 12
+			continue
+		}
+		if i+len("<link") > len(text) || !strings.EqualFold(text[i+1:i+len("<link")], "link") {
+			if end, ok := htmlTagEnd(text, i+1); ok {
+				i = end + 1
+			} else {
+				i++
+			}
+			continue
+		}
+		idx := i
+		nameEnd := idx + len("<link")
+		if nameEnd < len(text) && !isHTMLTagBoundary(text[nameEnd]) {
+			i = idx + 1
+			continue
+		}
+		tagClose, ok := htmlTagEnd(text, nameEnd)
+		if !ok {
 			return linkMatch{}, false
 		}
-		nameEnd := idx + len("<link")
-		// <link\b：link 后必须不是 \w 字符（或已到串尾）。
-		if nameEnd < len(text) {
-			r, size := utf8DecodeRune(text[nameEnd:])
-			if isWordRune(r) {
-				i = idx + size
-				continue
-			}
+		if valueStart, valueEnd, quote, href, ok := htmlHrefAttr(text, nameEnd, tagClose); ok {
+			return linkMatch{start: idx, end: tagClose + 1,
+				valueStart: valueStart, valueEnd: valueEnd,
+				quote: quote, href: href}, true
 		}
-		tagClose := strings.IndexByte(text[nameEnd:], '>')
-		if tagClose < 0 {
-			return linkMatch{}, false // [^>]* 无法越过 '>'，后面也不会再有完整标签
-		}
-		tagClose += nameEnd
-		// 收集区间内的 \bhref= 候选（贪心 → 从右往左尝试）。
-		var cands []int
-		for p := indexFold(text, "href=", nameEnd); p >= 0 && p < tagClose; {
-			if wordBoundaryAt(text, p) {
-				cands = append(cands, p)
-			}
-			next := indexFold(text, "href=", p+len("href="))
-			if next < 0 || next >= tagClose {
-				break
-			}
-			p = next
-		}
-		for k := len(cands) - 1; k >= 0; k-- {
-			p := cands[k]
-			vp := p + len("href=")
-			if vp >= len(text) {
-				continue
-			}
-			q := text[vp]
-			if q != '"' && q != '\'' {
-				continue
-			}
-			ve := strings.IndexByte(text[vp+1:], q)
-			if ve < 0 {
-				continue
-			}
-			valStart := vp + 1
-			valEnd := valStart + ve
-			href := text[valStart:valEnd]
-			if len(href) < 4 || !strings.EqualFold(href[len(href)-4:], ".css") {
-				continue
-			}
-			return linkMatch{start: idx, end: tagClose + 1, href: href}, true
-		}
-		i = idx + 1
+		i = tagClose + 1
 	}
 	return linkMatch{}, false
+}
+
+func htmlTagEnd(text string, from int) (int, bool) {
+	quote := byte(0)
+	for i := from; i < len(text); i++ {
+		if quote != 0 {
+			if text[i] == '\\' && i+1 < len(text) {
+				i++
+				continue
+			}
+			if text[i] == quote {
+				quote = 0
+			}
+			continue
+		}
+		if text[i] == '\'' || text[i] == '"' {
+			quote = text[i]
+			continue
+		}
+		if text[i] == '>' {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func htmlHrefAttr(text string, from, end int) (valueStart, valueEnd int, quote byte, href string, ok bool) {
+	var found bool
+	for i := from; i < end; {
+		for i < end && isHTMLSpace(text[i]) {
+			i++
+		}
+		if i >= end || text[i] == '/' {
+			break
+		}
+		nameStart := i
+		for i < end && isHTMLAttrNameByte(text[i]) {
+			i++
+		}
+		if nameStart == i {
+			i++
+			continue
+		}
+		name := text[nameStart:i]
+		for i < end && isHTMLSpace(text[i]) {
+			i++
+		}
+		if i >= end || text[i] != '=' {
+			continue
+		}
+		i++
+		for i < end && isHTMLSpace(text[i]) {
+			i++
+		}
+		if i >= end || (text[i] != '\'' && text[i] != '"') {
+			continue
+		}
+		q := text[i]
+		start := i + 1
+		i = start
+		for i < end && text[i] != q {
+			if text[i] == '\\' && i+1 < end {
+				i += 2
+				continue
+			}
+			i++
+		}
+		if i >= end {
+			return 0, 0, 0, "", false
+		}
+		if strings.EqualFold(name, "href") && i > start {
+			candidate := text[start:i]
+			if len(candidate) >= 4 && strings.EqualFold(candidate[len(candidate)-4:], ".css") {
+				valueStart, valueEnd, quote, href, found = start, i, q, candidate, true
+			}
+		}
+		i++
+	}
+	return valueStart, valueEnd, quote, href, found
+}
+
+// rewriteCSSLinkEdits returns edits against the supplied XHTML bytes. An
+// existing link's href is the only original range replaced. If one stylesheet
+// expands to multiple targets, additional link tags are inserted at a stable
+// boundary; the existing tag is never rewritten as a whole.
+func rewriteCSSLinkEdits(xhtmlPath string, data []byte, mapping map[string][]string) ([]editset.Edit, bool, error) {
+	if !utf8.Valid(data) {
+		return nil, false, fmt.Errorf("XHTML is not valid UTF-8: %w", css.ErrInvalidUTF8)
+	}
+	text := string(data)
+	dir := pyDirname(xhtmlPath)
+	var edits []editset.Edit
+	changed := false
+	for pos := 0; ; {
+		m, ok := findLinkMatch(text, pos)
+		if !ok {
+			break
+		}
+		pos = m.end
+		cssPath := pyNormPath(pyJoinPath(dir, m.href))
+		targets, hit := mapping[cssPath]
+		if !hit || len(targets) == 0 {
+			continue
+		}
+		changed = true
+		firstHref := relHref(xhtmlPath, targets[0])
+		edits = append(edits, editset.Replace(xhtmlPath, int64(m.valueStart), int64(m.valueEnd-m.valueStart), []byte(escapeXHTMLValue(firstHref, m.quote))))
+		if len(targets) == 1 {
+			continue
+		}
+		for _, target := range targets[1:] {
+			clone := append([]byte(nil), data[m.start:m.end]...)
+			localStart := m.valueStart - m.start
+			localEnd := m.valueEnd - m.start
+			href := []byte(escapeXHTMLValue(relHref(xhtmlPath, target), m.quote))
+			clone = append(append(append([]byte(nil), clone[:localStart]...), href...), clone[localEnd:]...)
+			repl := append([]byte{'\n'}, clone...)
+			edits = append(edits, editset.Insert(xhtmlPath, int64(m.end), repl))
+		}
+	}
+	if err := editset.Validate(edits); err != nil {
+		return nil, false, err
+	}
+	return edits, changed, nil
+}
+
+func escapeXHTMLValue(value string, quote byte) string {
+	value = strings.ReplaceAll(value, "&", "&amp;")
+	value = strings.ReplaceAll(value, "<", "&lt;")
+	if quote == '\'' {
+		return strings.ReplaceAll(value, "'", "&#39;")
+	}
+	return strings.ReplaceAll(value, `"`, "&quot;")
 }
 
 // rewriteCSSLinks 复刻 rewrite_css_links。
@@ -707,21 +1127,6 @@ func rewriteCSSLinks(text, xhtmlPath string, mapping map[string][]string) (strin
 	}
 	b.WriteString(text[last:])
 	return b.String(), true
-}
-
-// linkedCSSPaths 复刻 linked_css_paths。
-func linkedCSSPaths(text, xhtmlPath string) []string {
-	var out []string
-	dir := pyDirname(xhtmlPath)
-	for pos := 0; ; {
-		m, ok := findLinkMatch(text, pos)
-		if !ok {
-			break
-		}
-		out = append(out, pyNormPath(pyJoinPath(dir, m.href)))
-		pos = m.end
-	}
-	return out
 }
 
 // replacementLinks 复刻 replacement_links：每个目标生成一个 link，按
@@ -758,6 +1163,23 @@ func replaceFirstHref(link, newHref string) string {
 	}
 }
 
+// linkedCSSPaths is retained only for compatibility with the old
+// read-only helper surface. Run never calls it: scoped-local CSS merging is
+// disabled until it can be implemented with a lossless token/span edit plan.
+func linkedCSSPaths(text, xhtmlPath string) []string {
+	var out []string
+	dir := pyDirname(xhtmlPath)
+	for pos := 0; ; {
+		m, ok := findLinkMatch(text, pos)
+		if !ok {
+			break
+		}
+		out = append(out, pyNormPath(pyJoinPath(dir, m.href)))
+		pos = m.end
+	}
+	return out
+}
+
 // ---- scoped-local 合并 ----
 
 // consolidateScopedLocalCSS 逐行复刻 consolidate_scoped_local_css。
@@ -770,7 +1192,7 @@ func consolidateScopedLocalCSS(m *fileModel, xhtmlPaths []string, opfDir string,
 		if !ok {
 			continue
 		}
-		for _, cssPath := range linkedCSSPaths(decodeUTF8Replace(data), xhtmlPath) {
+		for _, cssPath := range linkedCSSPaths(string(data), xhtmlPath) {
 			if refs[cssPath] == nil {
 				refs[cssPath] = map[string]bool{}
 			}
@@ -788,7 +1210,7 @@ func consolidateScopedLocalCSS(m *fileModel, xhtmlPaths []string, opfDir string,
 			continue
 		}
 		data, _ := m.get(cssPath)
-		if rules, ok := parseStylesheet(decodeUTF8Replace(data)); ok {
+		if rules, err := parseStylesheetSafe(data); err == nil {
 			candidates[cssPath] = rules
 		}
 	}
@@ -842,18 +1264,33 @@ func consolidateScopedLocalCSS(m *fileModel, xhtmlPaths []string, opfDir string,
 	}
 	for _, xhtmlPath := range sortedKeys(affectedPages) {
 		data, _ := m.get(xhtmlPath)
-		text := decodeUTF8Replace(data)
 		for _, cssPath := range mergePaths {
 			if refs[cssPath][xhtmlPath] {
-				updated, added := addBodyClass(text, scopeByPath[cssPath])
-				text = updated
+				edits, added, err := addBodyClassEdits(xhtmlPath, data, scopeByPath[cssPath])
+				if err != nil {
+					rep.Warnings = append(rep.Warnings, "skipped body scope for "+xhtmlPath+": "+err.Error())
+					continue
+				}
+				if err := m.patch(xhtmlPath, edits); err != nil {
+					rep.Warnings = append(rep.Warnings, "skipped body scope for "+xhtmlPath+": "+err.Error())
+					continue
+				}
+				data, _ = m.get(xhtmlPath)
 				if added {
 					rep.ScopeClassesAdded++
 				}
 			}
 		}
-		text, _ = rewriteCSSLinks(text, xhtmlPath, mapping)
-		m.set(xhtmlPath, []byte(text))
+		edits, changed, err := rewriteCSSLinkEdits(xhtmlPath, data, mapping)
+		if err != nil {
+			rep.Warnings = append(rep.Warnings, "skipped scoped links for "+xhtmlPath+": "+err.Error())
+			continue
+		}
+		if changed {
+			if err := m.patch(xhtmlPath, edits); err != nil {
+				rep.Warnings = append(rep.Warnings, "skipped scoped links for "+xhtmlPath+": "+err.Error())
+			}
+		}
 	}
 
 	for _, cssPath := range mergePaths {
@@ -880,7 +1317,7 @@ func formatScopedRules(scopeClass, cssPath string, rules []cssRule) []string {
 // scopedSelector 复刻 scoped_selector。
 func scopedSelector(selector, scopeClass string) string {
 	var scoped []string
-	for _, part := range strings.Split(selector, ",") {
+	for _, part := range selectorListParts(selector) {
 		part = pyStrip(part)
 		if bodyPrefixLen(part) > 0 {
 			// re.sub(r"^body", f"body.{scope}", part, count=1, flags=re.I)
@@ -890,6 +1327,101 @@ func scopedSelector(selector, scopeClass string) string {
 		}
 	}
 	return strings.Join(scoped, ",\n")
+}
+
+// selectorListParts splits only commas at the top level of a selector list.
+// Commas in :is(), attribute strings, comments, and escaped sequences remain
+// part of the selector. An unbalanced selector is kept opaque rather than
+// guessed into multiple selectors.
+func selectorListParts(selector string) []string {
+	data := []byte(selector)
+	var parts []string
+	start := 0
+	paren, bracket, brace := 0, 0, 0
+	for i := 0; i < len(data); {
+		if i+1 < len(data) && data[i] == '/' && data[i+1] == '*' {
+			next, err := skipHTMLCSSComment(data, i)
+			if err != nil {
+				return []string{selector}
+			}
+			i = next
+			continue
+		}
+		if data[i] == '\'' || data[i] == '"' {
+			next, err := skipHTMLCSSString(data, i)
+			if err != nil {
+				return []string{selector}
+			}
+			i = next
+			continue
+		}
+		if data[i] == '\\' {
+			if i+1 >= len(data) {
+				return []string{selector}
+			}
+			i += 2
+			continue
+		}
+		switch data[i] {
+		case '(':
+			paren++
+		case ')':
+			if paren == 0 {
+				return []string{selector}
+			}
+			paren--
+		case '[':
+			bracket++
+		case ']':
+			if bracket == 0 {
+				return []string{selector}
+			}
+			bracket--
+		case '{':
+			brace++
+		case '}':
+			if brace == 0 {
+				return []string{selector}
+			}
+			brace--
+		case ',':
+			if paren == 0 && bracket == 0 && brace == 0 {
+				parts = append(parts, selector[start:i])
+				start = i + 1
+			}
+		}
+		i++
+	}
+	if paren != 0 || bracket != 0 || brace != 0 {
+		return []string{selector}
+	}
+	return append(parts, selector[start:])
+}
+
+func skipHTMLCSSComment(data []byte, start int) (int, error) {
+	for i := start + 2; i+1 < len(data); i++ {
+		if data[i] == '*' && data[i+1] == '/' {
+			return i + 2, nil
+		}
+	}
+	return len(data), css.ErrUnterminated
+}
+
+func skipHTMLCSSString(data []byte, start int) (int, error) {
+	q := data[start]
+	for i := start + 1; i < len(data); i++ {
+		if data[i] == '\\' {
+			if i+1 >= len(data) {
+				return len(data), css.ErrUnterminated
+			}
+			i++
+			continue
+		}
+		if data[i] == q {
+			return i + 1, nil
+		}
+	}
+	return len(data), css.ErrUnterminated
 }
 
 // bodyPrefixLen 复刻 re.match(r"^body(?:\b|[.#:[ ])", part, re.I)：
@@ -910,54 +1442,223 @@ func bodyPrefixLen(part string) int {
 }
 
 // addBodyClass 复刻 add_body_class。
+type bodyTagSpan struct {
+	start, end           int
+	attrsStart, attrsEnd int
+}
+
+// addBodyClassEdits scans the opening body tag and changes only its class
+// value (or inserts a new class attribute). It never serializes the XHTML
+// document or replaces the tag as a whole.
+func addBodyClassEdits(path string, data []byte, className string) ([]editset.Edit, bool, error) {
+	if className == "" || !isHTMLClassName(className) {
+		return nil, false, fmt.Errorf("unsafe body class %q", className)
+	}
+	tag, ok := findBodyOpenTag(data)
+	if !ok {
+		return nil, false, nil
+	}
+	attrs := data[tag.attrsStart:tag.attrsEnd]
+	if classAttr, found := findClassAttrBytes(attrs, 0); found {
+		if contains(strings.Fields(classAttr.classes), className) {
+			return nil, false, nil
+		}
+		value := append([]byte(nil), attrs[classAttr.valueStart:classAttr.valueEnd]...)
+		if len(value) > 0 && !isHTMLSpace(value[len(value)-1]) {
+			value = append(value, ' ')
+		}
+		value = append(value, className...)
+		edits := []editset.Edit{editset.Replace(path,
+			int64(tag.attrsStart+classAttr.valueStart),
+			int64(classAttr.valueEnd-classAttr.valueStart), value)}
+		return edits, true, editset.Validate(edits)
+	}
+	edits := []editset.Edit{editset.Insert(path, int64(tag.end-1),
+		[]byte(` class="`+className+`"`))}
+	return edits, true, editset.Validate(edits)
+}
+
+// addBodyClass is the old test-facing string helper and delegates to the
+// byte-range implementation used by Run.
 func addBodyClass(text, className string) (string, bool) {
-	loc := bodyTagRe.FindStringSubmatchIndex(text)
-	if loc == nil {
+	edits, added, err := addBodyClassEdits("<xhtml>", []byte(text), className)
+	if err != nil || !added {
 		return text, false
 	}
-	attrs := text[loc[2]:loc[3]]
-	newAttrs, added := addClassToAttrs(attrs, className)
-	if !added {
+	updated, err := editset.Apply("<xhtml>", []byte(text), edits)
+	if err != nil {
 		return text, false
 	}
-	updated := text[:loc[0]] + "<body" + newAttrs + ">" + text[loc[1]:]
-	return updated, updated != text
+	return string(updated), true
+}
+
+func findBodyOpenTag(data []byte) (bodyTagSpan, bool) {
+	for i := 0; i < len(data); i++ {
+		if i+3 < len(data) && data[i] == '<' && data[i+1] == '!' &&
+			data[i+2] == '-' && data[i+3] == '-' {
+			end := indexBytes(data, []byte("-->"), i+4)
+			if end < 0 {
+				return bodyTagSpan{}, false
+			}
+			i = end + 2
+			continue
+		}
+		if i+5 >= len(data) || data[i] != '<' || data[i+1] == '/' ||
+			!equalFoldBytes(data[i+1:i+5], []byte("body")) {
+			continue
+		}
+		nameEnd := i + len("<body")
+		if nameEnd < len(data) && !isHTMLTagBoundary(data[nameEnd]) {
+			continue
+		}
+		quote := byte(0)
+		for j := nameEnd; j < len(data); j++ {
+			if quote != 0 {
+				if data[j] == '\\' && j+1 < len(data) {
+					j++
+					continue
+				}
+				if data[j] == quote {
+					quote = 0
+				}
+				continue
+			}
+			switch data[j] {
+			case '\'', '"':
+				quote = data[j]
+			case '>':
+				if j > nameEnd && data[j-1] == '/' {
+					return bodyTagSpan{}, false
+				}
+				return bodyTagSpan{start: i, end: j + 1,
+					attrsStart: nameEnd, attrsEnd: j}, true
+			}
+		}
+		return bodyTagSpan{}, false
+	}
+	return bodyTagSpan{}, false
+}
+
+func indexBytes(data, needle []byte, from int) int {
+	if from < 0 || from > len(data) {
+		return -1
+	}
+	if len(needle) == 0 {
+		return from
+	}
+	if at := bytes.Index(data[from:], needle); at >= 0 {
+		return from + at
+	}
+	return -1
+}
+
+func equalFoldBytes(a, b []byte) bool {
+	return bytes.EqualFold(a, b)
+}
+
+func isHTMLSpace(b byte) bool {
+	switch b {
+	case ' ', '\t', '\r', '\n', '\f':
+		return true
+	default:
+		return false
+	}
+}
+
+func isHTMLTagBoundary(b byte) bool {
+	return isHTMLSpace(b) || b == '>' || b == '/'
+}
+
+func isHTMLAttrNameByte(b byte) bool {
+	return b == ':' || b == '_' || b == '-' || b >= 'a' && b <= 'z' ||
+		b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
+func isHTMLClassName(name string) bool {
+	for i := 0; i < len(name); i++ {
+		b := name[i]
+		if !(b == '_' || b == '-' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func findClassAttrBytes(data []byte, from int) (classAttrMatch, bool) {
+	for i := from; i < len(data); {
+		for i < len(data) && isHTMLSpace(data[i]) {
+			i++
+		}
+		if i >= len(data) || data[i] == '/' {
+			return classAttrMatch{}, false
+		}
+		start := i
+		for i < len(data) && isHTMLAttrNameByte(data[i]) {
+			i++
+		}
+		if start == i {
+			i++
+			continue
+		}
+		name := data[start:i]
+		for i < len(data) && isHTMLSpace(data[i]) {
+			i++
+		}
+		if i >= len(data) || data[i] != '=' {
+			for i < len(data) && !isHTMLSpace(data[i]) {
+				i++
+			}
+			continue
+		}
+		i++
+		for i < len(data) && isHTMLSpace(data[i]) {
+			i++
+		}
+		if i >= len(data) {
+			return classAttrMatch{}, false
+		}
+		q := data[i]
+		if q != '\'' && q != '"' {
+			for i < len(data) && !isHTMLSpace(data[i]) {
+				i++
+			}
+			continue
+		}
+		valueStart := i + 1
+		i = valueStart
+		for i < len(data) {
+			if data[i] == '\\' && i+1 < len(data) {
+				i += 2
+				continue
+			}
+			if data[i] == q {
+				if bytes.EqualFold(name, []byte("class")) {
+					return classAttrMatch{start: start, end: i + 1,
+						valueStart: valueStart, valueEnd: i, quote: q,
+						classes: string(data[valueStart:i])}, true
+				}
+				i++
+				break
+			}
+			i++
+		}
+		if i >= len(data) {
+			return classAttrMatch{}, false
+		}
+	}
+	return classAttrMatch{}, false
 }
 
 type classAttrMatch struct {
-	start, end int
-	classes    string
+	start, end           int
+	valueStart, valueEnd int
+	quote                byte
+	classes              string
 }
 
 // findClassAttr 匹配 \bclass=(["'])([^"']*)(\1)（re.I，反向引用手工实现）。
 func findClassAttr(text string, from int) (classAttrMatch, bool) {
-	for i := from; i < len(text); {
-		p := indexFold(text, "class=", i)
-		if p < 0 {
-			return classAttrMatch{}, false
-		}
-		i = p + len("class=")
-		if !wordBoundaryAt(text, p) {
-			continue
-		}
-		if i >= len(text) {
-			return classAttrMatch{}, false
-		}
-		q := text[i]
-		if q != '"' && q != '\'' {
-			continue
-		}
-		ve := strings.IndexByte(text[i+1:], q)
-		if ve < 0 {
-			continue
-		}
-		return classAttrMatch{
-			start:   p,
-			end:     i + 1 + ve + 1,
-			classes: text[i+1 : i+1+ve],
-		}, true
-	}
-	return classAttrMatch{}, false
+	return findClassAttrBytes([]byte(text), from)
 }
 
 // classTokens 复刻 class_tokens（首个 class 属性的空白切分）。

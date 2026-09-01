@@ -3,6 +3,8 @@ package zipfs
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -230,4 +232,256 @@ func mustLookup(t *testing.T, a *Archive, name string) *Entry {
 		t.Fatalf("input zip 缺少 %s", name)
 	}
 	return e
+}
+
+func TestWriteToRefusesExistingOutputAndPreservesLegacySidecar(t *testing.T) {
+	inPath := writeTempZip(t, buildInputZip(t))
+	in, err := Open(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	plans := []Plan{{Name: "mimetype", Source: mustLookup(t, in, "mimetype")}}
+	outPath := filepath.Join(t.TempDir(), "out.epub")
+	want := []byte("keep existing output")
+	if err := os.WriteFile(outPath, want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := outPath + ".tmp"
+	sidecarWant := []byte("keep legacy sidecar")
+	if err := os.WriteFile(sidecar, sidecarWant, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := in.WriteTo(outPath, plans); !errors.Is(err, ErrOutputExists) {
+		t.Fatalf("existing output error = %v, want ErrOutputExists", err)
+	}
+	if got, err := os.ReadFile(outPath); err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("existing output changed: %q (%v)", got, err)
+	}
+	if got, err := os.ReadFile(sidecar); err != nil || !bytes.Equal(got, sidecarWant) {
+		t.Fatalf("legacy sidecar changed: %q (%v)", got, err)
+	}
+}
+
+func TestWriteDirectoryCommitsAsOneTransaction(t *testing.T) {
+	inPath := writeTempZip(t, buildInputZip(t))
+	in, err := Open(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	plans := []Plan{{Name: "mimetype", Source: mustLookup(t, in, "mimetype")}}
+	parent := t.TempDir()
+	outDir := filepath.Join(parent, "segments")
+	if err := in.WriteDirectory(t.Context(), outDir, []DirectoryPlan{
+		{Name: "one.epub", Plans: plans},
+		{Name: "two.epub", Plans: plans},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one.epub", "two.epub"} {
+		if _, err := os.Stat(filepath.Join(outDir, name)); err != nil {
+			t.Fatalf("missing committed output %s: %v", name, err)
+		}
+	}
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.Name() != "segments" {
+			t.Errorf("staging sibling left after commit: %s", entry.Name())
+		}
+	}
+}
+
+func TestWriteDirectoryFailureCleansStagingAndOutput(t *testing.T) {
+	inPath := writeTempZip(t, buildInputZip(t))
+	in, err := Open(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	parent := t.TempDir()
+	outDir := filepath.Join(parent, "segments")
+	good := []Plan{{Name: "mimetype", Source: mustLookup(t, in, "mimetype")}}
+	bad := []Plan{{Name: "../escape", Content: []byte("bad")}}
+	err = in.WriteDirectory(t.Context(), outDir, []DirectoryPlan{
+		{Name: "one.epub", Plans: good},
+		{Name: "two.epub", Plans: bad},
+	})
+	if err == nil {
+		t.Fatal("invalid staged plan should fail")
+	}
+	if _, statErr := os.Stat(outDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("output directory after failed transaction = %v", statErr)
+	}
+	entries, readErr := os.ReadDir(parent)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("staging sibling left after failed transaction: %+v", entries)
+	}
+}
+
+func TestWriteDirectoryRefusesExistingOutputDirectory(t *testing.T) {
+	inPath := writeTempZip(t, buildInputZip(t))
+	in, err := Open(inPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	plans := []Plan{{Name: "mimetype", Source: mustLookup(t, in, "mimetype")}}
+
+	for _, tc := range []struct {
+		name     string
+		sentinel []byte
+	}{
+		{name: "empty"},
+		{name: "with sentinel", sentinel: []byte("keep existing directory")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parent := t.TempDir()
+			outDir := filepath.Join(parent, "segments")
+			if err := os.Mkdir(outDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if tc.sentinel != nil {
+				if err := os.WriteFile(filepath.Join(outDir, "sentinel"), tc.sentinel, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			err := in.WriteDirectory(t.Context(), outDir, []DirectoryPlan{{Name: "new.epub", Plans: plans}})
+			if !errors.Is(err, ErrOutputExists) {
+				t.Fatalf("existing output directory error = %v, want ErrOutputExists", err)
+			}
+			info, err := os.Stat(outDir)
+			if err != nil {
+				t.Fatalf("existing output directory disappeared: %v", err)
+			}
+			if !info.IsDir() {
+				t.Fatalf("existing output path changed to non-directory: %v", info.Mode())
+			}
+			if tc.sentinel != nil {
+				got, err := os.ReadFile(filepath.Join(outDir, "sentinel"))
+				if err != nil || !bytes.Equal(got, tc.sentinel) {
+					t.Fatalf("existing directory sentinel changed: %q (%v)", got, err)
+				}
+			} else if entries, err := os.ReadDir(outDir); err != nil || len(entries) != 0 {
+				t.Fatalf("existing empty output directory changed: entries=%v err=%v", entries, err)
+			}
+			entries, err := os.ReadDir(parent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 1 || entries[0].Name() != "segments" {
+				t.Fatalf("staging sibling left after refused commit: %+v", entries)
+			}
+		})
+	}
+}
+
+func TestRenameDirNoReplacePreservesExistingDirectory(t *testing.T) {
+	parent := t.TempDir()
+	src := filepath.Join(parent, "staging")
+	dst := filepath.Join(parent, "output")
+	if err := os.Mkdir(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := renameDirNoReplace(src, dst)
+	if errors.Is(err, errRenameNoReplaceUnsupported) {
+		t.Skipf("platform has no atomic no-replace rename: %v", err)
+	}
+	if !errors.Is(err, ErrOutputExists) {
+		t.Fatalf("existing directory error = %v, want ErrOutputExists", err)
+	}
+	if info, statErr := os.Stat(dst); statErr != nil || !info.IsDir() {
+		t.Fatalf("existing destination changed: info=%v err=%v", info, statErr)
+	}
+	if _, statErr := os.Stat(src); statErr != nil {
+		t.Fatalf("source disappeared after refused rename: %v", statErr)
+	}
+}
+
+func TestRenameNoReplacePreservesExistingFile(t *testing.T) {
+	parent := t.TempDir()
+	src := filepath.Join(parent, "staging.epub")
+	dst := filepath.Join(parent, "output.epub")
+	srcWant := []byte("staging")
+	dstWant := []byte("keep existing output")
+	if err := os.WriteFile(src, srcWant, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, dstWant, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := renameNoReplace(src, dst)
+	if errors.Is(err, errRenameNoReplaceUnsupported) {
+		t.Skipf("platform has no atomic no-replace rename: %v", err)
+	}
+	if !errors.Is(err, ErrOutputExists) {
+		t.Fatalf("existing file error = %v, want ErrOutputExists", err)
+	}
+	if got, readErr := os.ReadFile(dst); readErr != nil || !bytes.Equal(got, dstWant) {
+		t.Fatalf("existing destination changed: %q (%v)", got, readErr)
+	}
+	if got, readErr := os.ReadFile(src); readErr != nil || !bytes.Equal(got, srcWant) {
+		t.Fatalf("source changed after refused rename: %q (%v)", got, readErr)
+	}
+}
+
+func TestRenameDirNoReplaceHasOneConcurrentWinner(t *testing.T) {
+	parent := t.TempDir()
+	dst := filepath.Join(parent, "output")
+	const contenders = 8
+	sources := make([]string, contenders)
+	for i := range sources {
+		sources[i] = filepath.Join(parent, fmt.Sprintf("staging-%d", i))
+		if err := os.Mkdir(sources[i], 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, contenders)
+	for _, src := range sources {
+		go func() {
+			<-start
+			results <- renameDirNoReplace(src, dst)
+		}()
+	}
+	close(start)
+
+	winners := 0
+	outputExists := 0
+	unsupported := 0
+	for range contenders {
+		err := <-results
+		switch {
+		case err == nil:
+			winners++
+		case errors.Is(err, ErrOutputExists):
+			outputExists++
+		case errors.Is(err, errRenameNoReplaceUnsupported):
+			unsupported++
+		default:
+			t.Fatalf("concurrent rename error = %v", err)
+		}
+	}
+	if unsupported == contenders {
+		t.Skip("platform has no atomic no-replace rename")
+	}
+	if winners != 1 || outputExists != contenders-1 {
+		t.Fatalf("concurrent rename results: winners=%d output-exists=%d unsupported=%d", winners, outputExists, unsupported)
+	}
+	if info, err := os.Stat(dst); err != nil || !info.IsDir() {
+		t.Fatalf("winning destination missing or not a directory: info=%v err=%v", info, err)
+	}
 }

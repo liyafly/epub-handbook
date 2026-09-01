@@ -98,8 +98,8 @@ func TestSkillCommandsExist(t *testing.T) {
 	}
 }
 
-// TestNoLegacyExecutionSurface 是迁移期的**棘轮**：
-// 记录在案的旧执行面引用只许减少，不许新增。
+// TestNoLegacyExecutionSurface 是终态零容忍守卫：迁移期基线已经归零，
+// legacy-refs.txt 必须继续存在；删除它不能重新打开 bootstrap skip。
 //
 // 基线文件 tools/parity/legacy-refs.txt 每行一个 "<相对路径>\t<引用>"。
 // 迁移一个 capability 就从基线里删掉对应行；**永远不许往里加行**。
@@ -110,8 +110,7 @@ func TestNoLegacyExecutionSurface(t *testing.T) {
 	baseline := map[string]bool{}
 	raw, err := os.ReadFile(baselinePath)
 	if os.IsNotExist(err) {
-		t.Skip("bootstrap：tools/parity/legacy-refs.txt 尚未生成。\n" +
-			"  W5 开始前必须生成基线，否则棘轮无从起步。")
+		t.Fatalf("终态旧执行面守卫缺少 tools/parity/legacy-refs.txt；该零基线必须保留，不能以删除文件绕过扫描")
 	}
 	if err != nil {
 		t.Fatalf("读取基线失败: %v", err)

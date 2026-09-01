@@ -3,8 +3,8 @@ package split
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -279,7 +279,7 @@ func TestParitySplitBuildsIndependentSegments(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{
+	res, err := Run(t.Context(), b, Params{
 		SplitPoints:  []int{0},
 		OutputDir:    goOutDir,
 		LegacyReport: true,
@@ -325,7 +325,7 @@ func TestSplitRefusesEncryptionAndBadPoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{SplitPoints: []int{0}, OutputDir: outDir})
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: outDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,18 +339,191 @@ func TestSplitRefusesEncryptionAndBadPoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b2.Close()
-	res2, err := Run(context.Background(), b2, Params{SplitPoints: []int{5}, OutputDir: outDir})
+	res2, err := Run(t.Context(), b2, Params{SplitPoints: []int{5}, OutputDir: outDir})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res2.Status != report.StatusFailed || res2.Findings[0].Title != "split point out of range: 5" {
 		t.Errorf("越界切分点应拒绝: %+v", res2.Findings)
 	}
-	res3, err := Run(context.Background(), b2, Params{OutputDir: outDir})
+	res3, err := Run(t.Context(), b2, Params{OutputDir: outDir})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res3.Status != report.StatusFailed || res3.Findings[0].Title != "split: at least one split point is required" {
 		t.Errorf("缺切分点应拒绝: %+v", res3.Findings)
+	}
+}
+
+func TestSplitProjectionValidationManual(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("拆分书", "split", []byte("cover")))
+	outDir := filepath.Join(dir, "out")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s findings=%+v", res.Status, res.Findings)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "source_01.epub")); err != nil {
+		t.Fatalf("segment not committed: %v", err)
+	}
+}
+
+func writeTwoChapterEntries(badSecond bool) []zipEntry {
+	f := func(s string) []byte { return []byte(s) }
+	second := `<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="two">第二章</h1><p>第二段正文。</p></body></html>`
+	if badSecond {
+		second = `<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="two">第二章`
+	}
+	return []zipEntry{
+		{name: "META-INF/container.xml", content: f(`<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
+		{name: "OEBPS/content.opf", content: f(`<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:two</dc:identifier><dc:title>两章书</dc:title><dc:creator>作者</dc:creator><dc:language>zh-CN</dc:language><meta name="cover" content="cover-image"/></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="one" href="Text/one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="Text/two.xhtml" media-type="application/xhtml+xml"/><item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg" properties="cover-image"/></manifest><spine><itemref idref="nav" linear="no"/><itemref idref="one"/><itemref idref="two"/></spine></package>`)},
+		{name: "OEBPS/nav.xhtml", content: f(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="Text/one.xhtml#one">第一章</a></li><li><a href="Text/two.xhtml#two">第二章</a></li></ol></nav></body></html>`)},
+		{name: "OEBPS/Text/one.xhtml", content: f(`<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="one">第一章</h1><p>第一段正文。</p></body></html>`)},
+		{name: "OEBPS/Text/two.xhtml", content: f(second)},
+		{name: "OEBPS/Images/cover.jpg", content: []byte("cover bytes")},
+		{name: "mimetype", content: f("wrong")},
+	}
+}
+
+func TestSplitOutputDirectoryPreflightAndDryRun(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeTwoChapterEntries(false))
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusFailed || len(res.Findings) == 0 {
+		t.Fatalf("empty output dir should fail: %+v", res)
+	}
+	if _, statErr := os.Stat("source_01.epub"); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("empty output dir may not write cwd: %v", statErr)
+	}
+
+	existingDir := filepath.Join(dir, "existing-dir")
+	if err := os.Mkdir(existingDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(existingDir, "marker")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err = Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: existingDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusFailed {
+		t.Fatalf("existing output dir should fail: %+v", res)
+	}
+	if got, readErr := os.ReadFile(marker); readErr != nil || string(got) != "keep" {
+		t.Fatalf("existing output dir changed: %q (%v)", got, readErr)
+	}
+
+	existingFile := filepath.Join(dir, "existing-file")
+	if err := os.WriteFile(existingFile, []byte("keep file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err = Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: existingFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusFailed {
+		t.Fatalf("existing output file should fail: %+v", res)
+	}
+	if got, readErr := os.ReadFile(existingFile); readErr != nil || string(got) != "keep file" {
+		t.Fatalf("existing output file changed: %q (%v)", got, readErr)
+	}
+
+	dryDir := filepath.Join(dir, "dry-run")
+	res, err = Run(t.Context(), b, Params{SplitPoints: []int{0, 1}, OutputDir: dryDir, DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("dry-run capability result should remain complete for pipeline: %s", res.Status)
+	}
+	if _, statErr := os.Stat(dryDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("dry-run created output directory: %v", statErr)
+	}
+	planned, ok := res.Facts["plannedOutputs"].([]string)
+	if !ok || len(planned) != 2 {
+		t.Fatalf("dry-run planned outputs = %#v", res.Facts["plannedOutputs"])
+	}
+}
+
+func TestSplitValidationFailureLeavesNoArtifacts(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeTwoChapterEntries(true))
+	outDir := filepath.Join(dir, "segments")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0, 1}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusFailed || len(res.Findings) == 0 {
+		t.Fatalf("malformed second segment should fail with finding: %+v", res)
+	}
+	if _, statErr := os.Stat(outDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("failed split left output directory: %v", statErr)
+	}
+	entries, readErr := os.ReadDir(dir)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, entry := range entries {
+		if entry.Name() != filepath.Base(source) {
+			t.Errorf("failed split left sibling artifact: %s", entry.Name())
+		}
+	}
+}
+
+func TestSplitCommitsAllSegmentsTogether(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeTwoChapterEntries(false))
+	outDir := filepath.Join(dir, "segments")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0, 1}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("split status = %s findings=%+v", res.Status, res.Findings)
+	}
+	for _, name := range []string{"source_01.epub", "source_02.epub"} {
+		if _, statErr := os.Stat(filepath.Join(outDir, name)); statErr != nil {
+			t.Fatalf("missing committed segment %s: %v", name, statErr)
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("unexpected transaction siblings: %+v", entries)
 	}
 }

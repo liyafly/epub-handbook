@@ -7,12 +7,12 @@
 
 | 指标 | 当前值 |
 |---|---|
-| 包测试 | 23 个包全部 ok（parity 测试的 python oracle 已删除，按设计 t.Skip） |
-| 守卫测试 | archguard 全绿；INV-10 棘轮已归零并随 `tools/parity/` 撤除（守卫在基线缺失时自动跳过） |
+| 包测试 | 28 个包由 `go test ./...` 覆盖；本轮触及的迁移 oracle 测试已改为 Go-native fixture / golden，不以缺文件 skip 代替回归验证 |
+| 守卫测试 | archguard 全绿；INV-10 棘轮已归零，零条目基线继续执行零容忍扫描 |
 | CLI ready 能力 | 16 / 22（其余 5 个 B 类纯 AI skill + `epub.source.intake` 待决策） |
-| 旧执行面引用 | **0**（149 → 0，基线归零后随脚手架删除） |
+| 旧执行面引用 | **0**（149 → 0；零条目基线保留，仅迁移脚手架删除） |
 | 信封 schema | v2 `contracts/schemas/v2/envelope.schema.json` 已落地；INV-6 按 golden 的 schemaVersion 分发校验（§8） |
-| 已删除 | `swift/`（303M）、`gui/`、`scripts/`（1.4M）、`adapters/`、`.venv`/`uv.lock`/`pyproject.toml`/`.python-version`、`mise.toml`、`tools/parity/` |
+| 已删除 | `swift/`（303M）、`gui/`、`scripts/`（1.4M）、`adapters/`、`.venv`/`uv.lock`/`pyproject.toml`/`.python-version`、`mise.toml`、`tools/parity/` 中除零基线外的迁移脚手架 |
 
 ## 0. 进度快照（2026-08-30 凌晨，W5 收尾）
 
@@ -37,7 +37,7 @@
 | epub.css.layering.optimize | parity 全绿（apply/scoped-merge 双用例） |
 | epub.typography.optimize | parity 全绿（apply/dry-run 双用例） |
 | epub.alite.convert | **W5 收尾**：修复半成品（编译错误、INV-7 正则表、报告缺 harness 键、`</head>` 替换语义、CLASS_RE/SRC_RE 精确形状、BODY_RE count=1）；单卷/双卷/无版权页 warning/expect_volumes 报错四用例 parity 全绿；OPF 差异登记于 `tools/parity/allow.md`（已随脚手架删除，差异语义由 pyCanonicalXML 测试保证） |
-| epub.style.demo.maintain | **W5 新移植**（699 行校验器）：源树/产物双模式，5 个 parity 用例 + 12 个纯 Go 单测全绿 |
+| epub.style.demo.maintain | 源树/产物双模式；scene 28 的 manifest/spine/nav/NCX、共享 CSS、块级标题和无 inline/img 契约同时校验源码与构建产物，21 个 Go-native 测试全绿 |
 
 **B 类（5 个，纯 AI skill，无专属实现，按 §7.1 不建 caps 包）**：
 kindle.compatibility.check、literary.structure.format、notes.legacy-fallback、
@@ -152,7 +152,7 @@ Go 侧只实现 B 的行为，A 已随 `scripts/` 删除。
 | INV-7 | 禁包级可变 `var` | 弱模型最爱的「加个全局传状态」 | 已验证 |
 | INV-8 | `skills/` 不得有 `.py` / `.sh` | 执行面重新分散 | 已验证 |
 | INV-9 | SKILL.md 只能引用真实存在的 capability id | 改名后文档失效，AI 照着跑就炸 | 已验证 |
-| INV-10 | 旧执行面引用棘轮，只删不增 | 迁移中途有人图省事再写一条 | **已归零**（基线随脚手架撤除，守卫转为 bootstrap-skip） |
+| INV-10 | 旧执行面引用棘轮，只删不增 | 迁移中途有人图省事再写一条 | **已归零**（保留零条目基线，守卫继续扫描） |
 
 ### 2.2 守卫已验证会开火
 
@@ -185,9 +185,9 @@ alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go�
 
 旧执行面引用**只许减少，不许新增**。基线在 `tools/parity/legacy-refs.txt`，
 从 149 处（46 文件）逐步删除，2026-08-29 归零；`scripts/` 随之删除，
-`tools/parity/` 作为功成即撤的脚手架一并删除。守卫在基线缺失时自动跳过——
-若未来重新引入旧执行面，必须先重建基线（守卫的 bootstrap-skip 是刻意设计，
-不是漏洞）。
+`tools/parity/` 的 allow/parity 脚手架一并删除。零条目的 `legacy-refs.txt`
+必须继续保留，使守卫在终态仍执行零容忍扫描；缺失基线会触发 bootstrap-skip，
+不再视为可接受的完成态。
 
 ---
 
@@ -210,7 +210,7 @@ alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go�
 | `scripts/` | ✅ 已删（W5 棘轮归零后） |
 | `adapters/` | ✅ 已删（被 `epub capabilities` 取代） |
 | `.venv` / `uv.lock` / `pyproject.toml` / `.python-version` / `mise.toml` | ✅ 已删（`tools-font/` 独立 uv 项目不受影响） |
-| `tools/parity/` | ✅ 已删（迁移期脚手架，功成即撤） |
+| `tools/parity/` | ✅ 迁移脚手架已删；仅保留零条目 `legacy-refs.txt` 供 INV-10 持续扫描 |
 | `docs/` `skills/` | 留。skills 只剩 SKILL.md + openai.yaml |
 | `contracts/` `templates/` | 留。契约与 demo fixture，第一档硬约束的证据来源 |
 | `references/` | 留。样本 EPUB（49M），测试与 parity 的输入 |
@@ -297,7 +297,7 @@ alite 半成品的包级正则表（TestNoPackageState，已迁入 register.go�
 | `skills/`（19 个） | §8.4 四段模板改写（两个 agent 完成） |
 | `docs/`（24 个）+ `templates/`（6 个） | 旧引用清零（两个 agent 完成） |
 | 根文档 + `hooks/` + `.github/` | AGENTS/README/CONTRIBUTING/CLAUDE、pre-commit、CI、CODEOWNERS、PR 模板 |
-| 删除 | `swift/` `gui/` `scripts/` `adapters/` `tools/parity/` Python 环境文件 |
+| 删除 | `swift/` `gui/` `scripts/` `adapters/` `tools/parity/` 迁移脚手架（零基线除外）和 Python 环境文件 |
 
 ---
 

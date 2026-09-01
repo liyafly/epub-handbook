@@ -3,6 +3,8 @@
 package split
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -172,16 +174,58 @@ func contentSpinePaths(pkg *pkgInfo) []string {
 // collectReferencedResources 复刻 split.collect_referenced_resources 的
 // BFS（栈式 pop；与 Python 的 set 语义一致，结果与遍历序无关）。
 func collectReferencedResources(names map[string]bool, read func(string) ([]byte, error), pkg *pkgInfo, contentPaths map[string]bool) map[string]bool {
+	resources, _ := collectReferencedResourcesContext(nil, names, read, pkg, contentPaths)
+	return resources
+}
+
+func collectReferencedResourcesContext(ctx context.Context, names map[string]bool, read func(string) ([]byte, error), pkg *pkgInfo, contentPaths map[string]bool) (map[string]bool, error) {
+	if read == nil {
+		return nil, fmt.Errorf("resource closure: nil reader")
+	}
+	if pkg == nil {
+		return nil, fmt.Errorf("resource closure: nil package")
+	}
 	referenced := map[string]bool{}
 	scanned := map[string]bool{}
 	var queue []string
+	// The cover image is package-level metadata, not necessarily referenced by
+	// every selected XHTML. Keep it in every segment so cover redline semantics
+	// remain valid after partitioning.
+	for _, item := range pkg.manifest {
+		if ctx != nil {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+		if !hasProp(item.properties, "cover-image") || contentPaths[item.archivePath] {
+			continue
+		}
+		if !names[item.archivePath] {
+			return nil, fmt.Errorf("resource closure: manifest target missing from source: %s", item.archivePath)
+		}
+		if names[item.archivePath] {
+			referenced[item.archivePath] = true
+			queue = append(queue, item.archivePath)
+		}
+	}
 	for p := range contentPaths {
+		if !names[p] {
+			return nil, fmt.Errorf("resource closure: selected content missing from source: %s", p)
+		}
 		queue = append(queue, p)
 	}
 	for len(queue) > 0 {
+		if ctx != nil {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
 		current := queue[len(queue)-1]
 		queue = queue[:len(queue)-1]
 		if scanned[current] || !names[current] {
+			if !names[current] {
+				return nil, fmt.Errorf("resource closure: queued resource missing from source: %s", current)
+			}
 			continue
 		}
 		scanned[current] = true
@@ -191,24 +235,49 @@ func collectReferencedResources(names map[string]bool, read func(string) ([]byte
 		}
 		data, err := read(current)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("resource closure: read %s: %w", current, err)
 		}
 		if !utf8Valid(data) {
-			continue
+			return nil, fmt.Errorf("resource closure: %s is not valid UTF-8", current)
 		}
-		for _, raw := range collectRawURIs(string(data)) {
+		var rawURIs []string
+		if ext == ".css" {
+			rawURIs, err = collectCSSURIsStrict(string(data))
+		} else {
+			rawURIs, err = collectRawURIsStrict(string(data))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("resource closure: parse references in %s: %w", current, err)
+		}
+		for _, raw := range rawURIs {
+			if ctx != nil {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			}
 			if raw == "" || strings.HasPrefix(raw, "#") || pyIsExternalURI(raw) {
 				continue
 			}
-			target, terr := resolveRelativePath(current, pyURLSplit(raw).path)
-			if terr != nil {
+			parts := pyURLSplit(raw)
+			if parts.path == "" {
 				continue
 			}
-			if _, inManifest := pkg.byPath[target]; inManifest && !contentPaths[target] && !referenced[target] {
+			target, terr := resolveRelativePath(current, parts.path)
+			if terr != nil {
+				return nil, fmt.Errorf("resource closure: resolve %q from %s: %w", raw, current, terr)
+			}
+			if !names[target] {
+				return nil, fmt.Errorf("resource closure: referenced target missing from source: %s (from %s)", target, current)
+			}
+			if !contentPaths[target] && !referenced[target] {
 				referenced[target] = true
 				queue = append(queue, target)
 			}
 		}
 	}
-	return referenced
+	return referenced, nil
+}
+
+func hasProp(value, wanted string) bool {
+	return strings.Contains(" "+strings.Join(strings.Fields(value), " ")+" ", " "+wanted+" ")
 }

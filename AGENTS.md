@@ -7,13 +7,13 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 
 ## 启动读取顺序
 
-0. **若任务涉及 Go 实现、CLI 命令面、SKILL.md 改写、`scripts/` 迁移或旧实现删除，先读 [`docs/final/SPEC-go-architecture.md`](docs/final/SPEC-go-architecture.md)，再回到本文件。**
-   该 SPEC 是 Go 重写期的第一档硬约束，且其架构规则由 `internal/archguard/` 的自动化守卫强制。
+0. **若任务涉及 Go 实现、CLI 命令面、SKILL.md 改写、`scripts/` 迁移或旧实现删除，先完整阅读 [`docs/final/SPEC-go-architecture.md`](docs/final/SPEC-go-architecture.md) 与 [`docs/final/SPEC-go-modern-guidelines.md`](docs/final/SPEC-go-modern-guidelines.md)，再回到本文件。**
+   前者是 Go 重写期的第一档架构硬约束，后者是必须经过版本门禁、且服从架构/EPUB safety/wire schema/lossless 约束的 Go 编程指南；架构规则由 `internal/archguard/` 的自动化守卫强制。
 1. 先阅读本文件，判断任务属于「已有 EPUB 清洗」「源材料接入」「阅读器兼容性实测」「实现约束变更」还是「说明增强」。
 2. 已有 EPUB 清洗：继续阅读 `docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md` 和 `docs/pipeline/refinement-harnesses.md`。
 3. 源材料接入：继续阅读 `skills/epub-source-intake/SKILL.md`，先建立可审计的 source bundle。
 4. 阅读器兼容性实测：继续阅读 `templates/epub-style-demo/README.md`、`templates/epub-style-demo/SCENE_MATRIX.md` 和 `docs/final/reader-matrix.yaml`。
-5. Go CLI 架构、迁移或删除旧实现：以 `docs/final/SPEC-go-architecture.md` 为准，再读 `docs/pipeline/go-rewrite-handoff.md` 了解当前状态。`docs/pipeline/go-cli-rearchitecture.md` 只保留为 SPEC 落地前的背景蓝图，冲突时不得覆盖 SPEC。
+5. Go CLI 架构、迁移或删除旧实现：以 `docs/final/SPEC-go-architecture.md` 为准，并同时按 `docs/final/SPEC-go-modern-guidelines.md` §2 检测 `go.mod`、读取适用规则，再读 `docs/pipeline/go-rewrite-handoff.md` 了解当前状态。`docs/pipeline/go-cli-rearchitecture.md` 只保留为 SPEC 落地前的背景蓝图，冲突时不得覆盖 SPEC。
 6. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
 7. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
 
@@ -52,7 +52,7 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 `archive/` 与 git 历史。已完成的设计、实施计划、实验和早期推导只作背景补充，
 不应反向覆盖约束层。
 
-第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；迁移期使用的 `tools/parity/` 脚手架已随迁移完成删除。人工 diff review 使用 Calibre Editor 或 VS Code。
+第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；`tools/parity/` 只保留零条目的 `legacy-refs.txt`，用于让 INV-10 持续执行零容忍扫描，其余迁移脚手架均已删除。人工 diff review 使用 Calibre Editor 或 VS Code。
 
 ## 已有 EPUB 固定流程
 

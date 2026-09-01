@@ -21,6 +21,7 @@
 
 - [final/SPEC-实现约束.md](final/SPEC-实现约束.md)：实现硬规则
 - [final/SPEC-go-architecture.md](final/SPEC-go-architecture.md)：Go 重写期第一档架构硬约束；涉及 Go、CLI、skills 执行面或旧实现迁移时必读
+- [final/SPEC-go-modern-guidelines.md](final/SPEC-go-modern-guidelines.md)：Go 1.27 现代编程指南；修改 Go 前检测 `go.mod` 并读取适用规则，服从架构、EPUB safety、wire schema 与 lossless 约束
 - [final/字体别名命名规范.md](final/字体别名命名规范.md)：字体 alias、文件名与 class 的短别名规范
 - [final/EPUB 3 终极实践手册.md](final/EPUB%203%20终极实践手册.md)：对外手册
 - [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB%203%20HTML%20CSS%20属性速查表.md)：属性速查表

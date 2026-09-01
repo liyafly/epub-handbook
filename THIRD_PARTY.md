@@ -32,6 +32,34 @@ on 2026-06-18 inspected `ff8c171d0b9dfd3c44c0e2621e1054b39feaa0a0`.
 The handbook implementation does not provide DRM decryption and does not copy
 the reference project's desktop UI or third-party dependencies.
 
+## Coding/Behavioral Reference: JetBrains/go-modern-guidelines
+
+[`JetBrains/go-modern-guidelines`](https://github.com/JetBrains/go-modern-guidelines)
+is used as a coding and standard-library behavior reference for the Go 1.27
+implementation. This repository records the exact inspected source at commit
+[`91a30b36f05bb6424bd77e9817811c0e9c003aa2`](https://github.com/JetBrains/go-modern-guidelines/tree/91a30b36f05bb6424bd77e9817811c0e9c003aa2)
+(2026-08-31). The auditable facts are `internal/guidelines/guidelines.json`,
+`FEATURES.md`, and `plugin/skills/use-modern-go/SKILL.md`; the fixed commit
+contains 54 guideline IDs. The upstream work is licensed under
+[Apache License 2.0](https://github.com/JetBrains/go-modern-guidelines/blob/91a30b36f05bb6424bd77e9817811c0e9c003aa2/LICENSE).
+
+The handbook's Chinese synthesis is not a replacement for the upstream
+tool's version detection or `list`/`explain` workflow. It does not copy the
+upstream examples verbatim. Its recommendations are subordinate to this
+repository's architecture, EPUB safety/redline, wire-schema, deterministic
+output, and lossless-editing constraints; in particular, no automatic
+`encoding/json` v1-to-v2, UUID, ServeMux, or public generic-method migration is
+implied.
+
+## CSS Parser: tdewolff/parse
+
+[`github.com/tdewolff/parse/v2`](https://github.com/tdewolff/parse) v2.8.16 is
+used by the Go CSS scanner as a CSS Syntax Level 3 lexer/parser for syntax
+diagnostics. The repository's adapter owns the raw-byte token and span model;
+the dependency is not used to serialize or reformat existing stylesheets.
+The upstream project is MIT-licensed; the exact module version is recorded in
+`go.mod` and `go.sum`.
+
 ## Local Style-Only Reference: 《悲惨世界》
 
 - Source: a user-supplied local EPUB named `悲惨世界1.2[雨果]_epub3.epub`;

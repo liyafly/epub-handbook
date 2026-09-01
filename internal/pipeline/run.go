@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -60,9 +62,8 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		}
 		root = found
 	}
-	// ResolveChain 校验契约存在性与 requires 无环；`epub run` 本身
-	// 只执行请求的能力（与 Python oracle 的单能力路由一致），链编排
-	// 属于完整清洗流水线的范畴。
+	// ResolveChain 校验契约存在性与 requires 无环，并返回依赖在前的完整
+	// 拓扑链。Run 必须执行整条链，不能把 chain 重置成最终 capability。
 	chain, err := ResolveChain(root, opts.CapabilityID)
 	if err != nil {
 		return Outcome{ExitCode: ExitUsage}, err
@@ -74,7 +75,6 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	if contract.ID != opts.CapabilityID {
 		return usage("unknown capability: %s", opts.CapabilityID)
 	}
-	chain = []Contract{contract}
 	noBookCap := IsNoBook(contract.ID)
 	inputIsDir := false
 	if opts.InputPath != "" {
@@ -86,13 +86,20 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	} else if !noBookCap {
 		return usage("--input is required")
 	}
-	needsWrite := contract.Permissions.RequiresWriteAccess && !IsReadOnly(contract.ID) && !noBookCap
+	needsWrite := chainNeedsWrite(chain)
+	multiOutputCap := IsMultiOutput(contract.ID)
 	if needsWrite && !opts.DryRun {
-		if opts.OutputPath == "" {
-			return usage("--output is required for capability %s", contract.ID)
-		}
-		if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
-			return usage("output must not overwrite the input EPUB")
+		if multiOutputCap {
+			if opts.Args.Get("output_dir") == "" {
+				return usage("output_dir is required for capability %s", contract.ID)
+			}
+		} else {
+			if opts.OutputPath == "" {
+				return usage("--output is required for capability %s", contract.ID)
+			}
+			if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
+				return usage("output must not overwrite the input EPUB")
+			}
 		}
 	}
 
@@ -122,16 +129,16 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 
 	// 全局 flag 经 Args 透传给 capability：--output / --input / --dry-run /
 	// --legacy-report（迁移期脚手架，cap 侧读取 legacy_report 键）。
-	runArgs := Args{"input": opts.InputPath, "output": opts.OutputPath}
-	if opts.DryRun {
-		runArgs["dry_run"] = "true"
-	}
-	if opts.LegacyReport {
-		runArgs["legacy_report"] = "true"
-	}
+	// 先复制兼容性的 KEY=VALUE，再由正式全局 flag 最终覆盖保留键，避免
+	// 用户参数伪造 pipeline 的输入、输出或事务模式。
+	runArgs := make(Args, len(opts.Args)+4)
 	for k, v := range opts.Args {
 		runArgs[k] = v
 	}
+	runArgs["input"] = opts.InputPath
+	runArgs["output"] = opts.OutputPath
+	runArgs["dry_run"] = strconv.FormatBool(opts.DryRun)
+	runArgs["legacy_report"] = strconv.FormatBool(opts.LegacyReport)
 	if noBookCap {
 		// noBook 能力的输入语义：--input 指向目录 → 该目录即 demo 源树；
 		// 为空或指向文件 → 缺省为仓库内 demo 源树（用户 KEY=VALUE 可覆盖）。
@@ -154,46 +161,74 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	var facts = map[string]any{}
 	failed := false
 
-	for _, c := range chain {
-		step := c.ID
-		runner, ok := registry[c.ID]
-		if !ok {
-			// 契约存在但无 Go 实现（B 类纯 AI/人工 skill 或待决策能力）：
-			// 必须 failed + error finding。返回 complete/exit 0 会让只看
-			// status 与退出码的调用方把未执行当成功。
+	redLines := chainRedLines(chain)
+	if needsWrite && b != nil {
+		preflight, preflightErr := redline.Check(
+			redline.OriginalState(b), redline.OriginalState(b),
+			[]string{redline.CheckDRM}, redline.Options{
+				AllowFontObfuscation: runArgs.Bool("allow_font_obfuscation"),
+			},
+		)
+		if preflightErr != nil {
 			failed = true
-			events = append(events, report.Event{Step: step, Status: "skipped",
-				Message: "capability has no Go implementation"})
+			events = append(events, report.Event{Step: "drm-preflight", Status: "failed", Message: preflightErr.Error()})
 			findings = append(findings, report.Finding{
-				Level: "error", ID: "capability.not-implemented",
-				Title:  "Capability not implemented in Go",
-				Detail: fmt.Sprintf("%s has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`", c.ID),
+				Level: "error", ID: "redline.drm-preflight-failed",
+				Title: "DRM preflight failed", Detail: preflightErr.Error(), Location: "drm",
 			})
-			continue
-		}
-		result, err := runner(ctx, b, opts.Args, up)
-		if err != nil {
+		} else if len(preflight) > 0 {
 			failed = true
-			events = append(events, report.Event{Step: step, Status: "failed", Message: err.Error()})
-			findings = append(findings, report.Finding{
-				Level: "error", ID: "capability.run-failed",
-				Title: "Capability failed", Detail: err.Error(), Location: step,
-			})
-			break
+			events = append(events, report.Event{Step: "drm-preflight", Status: "failed", Message: "DRM detected, refusing to process."})
+			findings = appendRedlineFindings(findings, preflight)
+		} else {
+			events = append(events, report.Event{Step: "drm-preflight", Status: "completed"})
 		}
-		events = append(events, report.Event{Step: step, Status: "completed"})
-		findings = append(findings, result.Findings...)
-		events = append(events, result.Events...)
-		for k, v := range result.Facts {
-			facts[step+"."+k] = v
-		}
-		for from, to := range result.Renames {
-			redline.AddPathMapping(renames, from, to)
-		}
-		up[c.ID] = result
-		if result.Status == report.StatusFailed {
-			failed = true
-			break
+	}
+
+	if !failed {
+		for _, c := range chain {
+			step := c.ID
+			runner, ok := registry[c.ID]
+			if !ok {
+				// 契约存在但无 Go 实现（B 类纯 AI/人工 skill 或待决策能力）：
+				// 依赖失败必须阻断后续 capability，不能继续调用最终 stage。
+				failed = true
+				events = append(events, report.Event{Step: step, Status: "skipped",
+					Message: "capability has no Go implementation"})
+				findings = append(findings, report.Finding{
+					Level: "error", ID: "capability.not-implemented",
+					Title:  "Capability not implemented in Go",
+					Detail: fmt.Sprintf("%s has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`", c.ID),
+				})
+				break
+			}
+			result, err := runner(ctx, b, runArgs, up)
+			if err != nil {
+				failed = true
+				events = append(events, report.Event{Step: step, Status: "failed", Message: err.Error()})
+				findings = append(findings, report.Finding{
+					Level: "error", ID: "capability.run-failed",
+					Title: "Capability failed", Detail: err.Error(), Location: step,
+				})
+				break
+			}
+			stageFailed := result.Status == report.StatusFailed || hasErrorFinding(result.Findings)
+			stageStatus := "completed"
+			if stageFailed {
+				stageStatus = "failed"
+			}
+			events = append(events, report.Event{Step: step, Status: stageStatus})
+			findings = append(findings, result.Findings...)
+			events = append(events, result.Events...)
+			for k, v := range result.Facts {
+				facts[step+"."+k] = v
+			}
+			mergeRenames(renames, result.Renames)
+			up[c.ID] = result
+			if stageFailed {
+				failed = true
+				break
+			}
 		}
 	}
 
@@ -206,20 +241,62 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		env.Status = report.StatusComplete
 	}
 
-	// 输出落盘：唯一一次（INV-3），在红线校验之前 —— 与 Python 流程一致：
-	// 先产出 after 文件，红线结论供人工 diff review，输出不销毁。
-	// dry-run 与能力失败不写。
-	if !failed && !opts.DryRun && needsWrite && !IsMultiOutput(contract.ID) {
-		if opts.OutputPath == "" {
-			return usage("--output is required for capability %s", contract.ID)
+	// 红线门禁：链上全部契约的 redLines 并集，对比书的原始态与当前态。
+	// 普通 redline 必须在唯一的 b.WriteTo 之前通过；失败时不创建输出文件。
+	// noBook 能力没有 Book 可比对（当前契约 redLines 均为空）；
+	// 若未来声明红线，需要为无 Book 场景另行设计，不得静默跳过。
+	if len(redLines) > 0 && !failed && b != nil && !multiOutputCap {
+		redlineFindings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), redLines, redline.Options{
+			PathMap:              renames,
+			AllowList:            []string{"*/nav.xhtml", "*/toc.ncx"},
+			AllowFontObfuscation: runArgs.Bool("allow_font_obfuscation"),
+		})
+		if err != nil {
+			failed = true
+			env.Status = report.StatusFailed
+			events = append(events, report.Event{Step: "redline", Status: "failed", Message: err.Error()})
+			findings = append(findings, report.Finding{
+				Level: "error", ID: "redline.check-failed",
+				Title: "Redline validation failed", Detail: err.Error(), Location: "redline",
+			})
+		} else {
+			findings = appendRedlineFindings(findings, redlineFindings)
+			if len(redlineFindings) > 0 {
+				failed = true
+				env.Status = report.StatusFailed
+				events = append(events, report.Event{Step: "redline", Status: "failed",
+					Message: fmt.Sprintf("%d findings", len(redlineFindings))})
+			} else {
+				events = append(events, report.Event{Step: "redline", Status: "completed",
+					Message: "0 findings"})
+			}
 		}
-		if err := b.WriteTo(opts.OutputPath); err != nil {
+	} else if len(redLines) > 0 && !failed && multiOutputCap {
+		// split 自己在组提交之前逐段执行红线与结构校验；pipeline 不应再拿
+		// 未承载各段改动的原 Book 做虚假的单输出 post-check。
+		events = append(events, report.Event{Step: "redline", Status: "completed",
+			Message: "validated by multi-output capability before group commit"})
+	}
+
+	// 输出落盘：单输出链在全部 stage 与普通 redline 通过后只写一次。
+	// dry-run 与能力失败不写；multi-output 的 split runner 自己管理段产物。
+	if !failed && !opts.DryRun && needsWrite && !multiOutputCap {
+		if b == nil {
+			env.Status = report.StatusFailed
+			failed = true
+			findings = append(findings, report.Finding{
+				Level: "error", ID: "output.no-book",
+				Title: "Cannot write output without an EPUB input",
+			})
+			events = append(events, report.Event{Step: "write-output", Status: "failed", Message: "input book is nil"})
+		} else if err := b.WriteToContext(ctx, opts.OutputPath); err != nil {
 			env.Status = report.StatusFailed
 			failed = true
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "output.write-failed",
 				Title: "Failed to write output EPUB", Detail: err.Error(),
 			})
+			events = append(events, report.Event{Step: "write-output", Status: "failed", Message: err.Error()})
 		} else {
 			outRef := &report.Artifact{Path: opts.OutputPath}
 			if sum, err := fileSHA256(opts.OutputPath); err == nil {
@@ -228,40 +305,6 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			env.Output = outRef
 			events = append(events, report.Event{Step: "write-output", Status: "completed", Message: opts.OutputPath})
 		}
-	}
-
-	// 红线门禁：链上全部契约的 redLines 并集，对比书的原始态与当前态。
-	// 在写盘之后执行（Python 先写 after 再跑 gate）：error 级发现把状态
-	// 降为 failed、退出码 1，但输出保留供人工 diff review。
-	var redLines []string
-	for _, c := range chain {
-		redLines = append(redLines, c.RedLines...)
-	}
-	redLines = dedupe(redLines)
-	// noBook 能力没有 Book 可比对（当前契约 redLines 均为空）；
-	// 若未来声明红线，需要为无 Book 场景另行设计，不得静默跳过。
-	if len(redLines) > 0 && !failed && b != nil {
-		redlineFindings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), redLines, redline.Options{
-			PathMap:   renames,
-			AllowList: []string{"*/nav.xhtml", "*/toc.ncx"},
-		})
-		if err != nil {
-			return Outcome{Envelope: env, ExitCode: ExitFailed}, fmt.Errorf("redline: %w", err)
-		}
-		for _, f := range redlineFindings {
-			findings = append(findings, report.Finding{
-				Level:    "error",
-				ID:       "redline." + f.Check,
-				Title:    f.Message,
-				Location: f.Check,
-			})
-		}
-		if len(redlineFindings) > 0 {
-			failed = true
-			env.Status = report.StatusFailed
-		}
-		events = append(events, report.Event{Step: "redline", Status: "completed",
-			Message: fmt.Sprintf("%d findings", len(redlineFindings))})
 	}
 
 	if opts.DryRun {
@@ -290,6 +333,9 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 func nextCommands(id string, opts Options) []string {
 	var out []string
 	if opts.DryRun {
+		if IsMultiOutput(id) {
+			return []string{"epub run " + id + " --input <reviewed-input> output_dir=<out-dir>"}
+		}
 		out = append(out, "epub run "+id+" --input <reviewed-input> --output <out.epub>")
 		return out
 	}
@@ -379,6 +425,68 @@ func dedupe(in []string) []string {
 		}
 	}
 	return out
+}
+
+func chainNeedsWrite(chain []Contract) bool {
+	for _, c := range chain {
+		if c.Permissions.RequiresWriteAccess && !IsReadOnly(c.ID) && !IsNoBook(c.ID) {
+			return true
+		}
+	}
+	return false
+}
+
+func chainRedLines(chain []Contract) []string {
+	var out []string
+	for _, c := range chain {
+		out = append(out, c.RedLines...)
+	}
+	return dedupe(out)
+}
+
+func mergeRenames(dst, src map[string]string) {
+	keys := make([]string, 0, len(src))
+	for from := range src {
+		keys = append(keys, from)
+	}
+	slices.Sort(keys)
+	for _, from := range keys {
+		redline.AddPathMapping(dst, from, src[from])
+	}
+	// A capability may report more than one rename in a single map. Resolve
+	// those links before the next stage so redline sees the final path even
+	// when the source map's insertion order is unavailable.
+	for from := range dst {
+		seen := map[string]bool{from: true}
+		for {
+			to := dst[from]
+			next, ok := dst[to]
+			if !ok || seen[to] {
+				break
+			}
+			dst[from] = next
+			seen[to] = true
+		}
+	}
+}
+
+func appendRedlineFindings(dst []report.Finding, src []redline.Finding) []report.Finding {
+	for _, f := range src {
+		dst = append(dst, report.Finding{
+			Level: "error", ID: "redline." + f.Check,
+			Title: f.Message, Location: f.Check,
+		})
+	}
+	return dst
+}
+
+func hasErrorFinding(findings []report.Finding) bool {
+	for _, f := range findings {
+		if f.Level == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func samePath(a, b string) (string, string, error) {

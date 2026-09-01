@@ -255,6 +255,94 @@ func validateBodyFontModeContract(pkgRoot *element, baseCSS, fontsCSS string, xh
 			context, pyBool(hasDirectRule), pyListOrNone(lockedHrefs), pyBool(hasMeta)))
 }
 
+// validateChapterOpeningContract 校验 scene 28 的 poster.css/XHTML 联动契约。
+// 该 helper 同时用于源树和 EPUB 产物，且只读 CSS/XHTML 文本，不做任何
+// 序列化或重写。
+func validateChapterOpeningContract(posterCSS, chapterOpeningText string, errs *[]string) {
+	require := func(cond bool, msg string) {
+		if !cond {
+			*errs = append(*errs, msg)
+		}
+	}
+	activePosterCSS := stripCSSComments(posterCSS)
+	require(strings.Count(activePosterCSS, `url("../Images/chapter-banner.png")`) == 1,
+		"chapter-opening block must use exactly one poster.css chapter-banner background layer")
+	for _, token := range chapterOpeningTokens {
+		require(strings.Contains(chapterOpeningText, token),
+			"28-chapter-opening-block.xhtml missing marker: "+token)
+	}
+	require(!strings.Contains(chapterOpeningText, "style="),
+		"28-chapter-opening-block.xhtml must keep the background out of inline style")
+	require(!strings.Contains(chapterOpeningText, "<img"),
+		"28-chapter-opening-block.xhtml ornament must not enter normal flow as img")
+	require(reChapterOpeningBackground.MatchString(activePosterCSS),
+		"chapter-opening block background must be shared CSS at left bottom / 5.5em auto")
+	require(reChapterOpeningMain.MatchString(activePosterCSS),
+		"chapter-opening block title group must retain its production-derived top/right spacing")
+	require(reChapterOpeningNumberTitle.MatchString(activePosterCSS),
+		"chapter-opening ordinal and title must remain block spans")
+	require(reChapterOpeningTitlePadding.MatchString(activePosterCSS),
+		"chapter-opening title must retain its block-level gap below the ordinal")
+}
+
+// validateChapterOpeningNavigation proves that scene 28 is not merely present
+// in the ZIP: it must be a unique manifest item and remain reachable through
+// the reading order and both EPUB navigation documents.
+func validateChapterOpeningNavigation(pkgRoot, navRoot, ncxRoot *element, errs *[]string) {
+	require := func(cond bool, msg string) {
+		if !cond {
+			*errs = append(*errs, msg)
+		}
+	}
+	if pkgRoot != nil {
+		manifestHrefCount := 0
+		manifestIDCount := 0
+		matchingID := ""
+		for _, item := range findallPath(pkgRoot, [2]string{opfNS, "manifest"}, [2]string{opfNS, "item"}) {
+			if item.attrOr("id") == chapterOpeningID {
+				manifestIDCount++
+			}
+			if item.attrOr("href") == chapterOpeningHref {
+				manifestHrefCount++
+				matchingID = item.attrOr("id")
+			}
+		}
+		require(manifestHrefCount == 1,
+			"28-chapter-opening-block.xhtml must appear exactly once in manifest")
+		require(manifestIDCount == 1 && matchingID == chapterOpeningID,
+			"28-chapter-opening-block.xhtml must use unique manifest id=chapter-opening-block")
+
+		spineCount := 0
+		for _, itemref := range findallPath(pkgRoot, [2]string{opfNS, "spine"}, [2]string{opfNS, "itemref"}) {
+			if itemref.attrOr("idref") == chapterOpeningID {
+				spineCount++
+			}
+		}
+		require(spineCount == 1,
+			"28-chapter-opening-block.xhtml must appear exactly once in spine")
+	}
+	if navRoot != nil {
+		navCount := 0
+		for _, link := range findAllDesc(navRoot, xhtmlNS, "a") {
+			if link.attrOr("href") == chapterOpeningHref {
+				navCount++
+			}
+		}
+		require(navCount == 1,
+			"28-chapter-opening-block.xhtml must appear exactly once in nav.xhtml")
+	}
+	if ncxRoot != nil {
+		ncxCount := 0
+		for _, content := range findAllDesc(ncxRoot, ncxNS, "content") {
+			if content.attrOr("src") == chapterOpeningHref {
+				ncxCount++
+			}
+		}
+		require(ncxCount == 1,
+			"28-chapter-opening-block.xhtml must appear exactly once in toc.ncx")
+	}
+}
+
 // ---- 源树模式 ----
 
 // validateSource 逐行对齐 validate_source。
@@ -384,6 +472,7 @@ func validateSource(src diskSource, errs *[]string) error {
 			}
 		}
 	}
+	validateChapterOpeningNavigation(packageRoot, navRoot, ncxRoot, errs)
 
 	baseCSS, err := src.readUTF8(relBaseCSS)
 	if err != nil {
@@ -418,12 +507,17 @@ func validateSource(src diskSource, errs *[]string) error {
 	if err != nil {
 		return err
 	}
+	chapterOpeningText, err := src.readUTF8(relChapterOpening)
+	if err != nil {
+		return err
+	}
 	for _, token := range posterCSSTokens {
 		require(strings.Contains(posterCSS, token), "poster.css missing single-image contain fallback style: "+token)
 	}
 	for _, token := range posterPageTokens {
 		require(strings.Contains(posterContainText, token), "03c-poster-contain.xhtml missing marker: "+token)
 	}
+	validateChapterOpeningContract(posterCSS, chapterOpeningText, errs)
 	require(!strings.Contains(activePosterCSS, "position: absolute"), "poster.css must not use position:absolute")
 	require(!reVhVw.MatchString(activePosterCSS), "poster.css must not use vh/vw units")
 
@@ -705,6 +799,7 @@ func validateEpubZip(arch *zipfs.Archive, errs *[]string) error {
 		nameSet[n] = true
 	}
 	require(nameSet[zipPackage], "EPUB missing OEBPS/package.opf")
+	var packageRoot *element
 	if nameSet[zipPackage] {
 		pkgData, err := arch.Read(zipPackage)
 		if err != nil {
@@ -714,6 +809,7 @@ func validateEpubZip(arch *zipfs.Archive, errs *[]string) error {
 		if perr != nil {
 			return perr
 		}
+		packageRoot = root
 		xhtmlTexts := map[string]string{}
 		for _, item := range findallPath(root, [2]string{opfNS, "manifest"}, [2]string{opfNS, "item"}) {
 			href := item.attrOr("href")
@@ -755,6 +851,61 @@ func validateEpubZip(arch *zipfs.Archive, errs *[]string) error {
 		} else {
 			*errs = append(*errs, "EPUB artifact missing Styles/base.css or Styles/fonts.css")
 		}
+	}
+
+	var navRoot, ncxRoot *element
+	for _, document := range []struct {
+		path string
+		dst  **element
+	}{
+		{path: zipNav, dst: &navRoot},
+		{path: zipNCX, dst: &ncxRoot},
+	} {
+		if !nameSet[document.path] {
+			*errs = append(*errs, "EPUB artifact missing "+document.path)
+			continue
+		}
+		data, err := arch.Read(document.path)
+		if err != nil {
+			return err
+		}
+		root, err := parseXMLDoc(data)
+		if err != nil {
+			return err
+		}
+		*document.dst = root
+	}
+	validateChapterOpeningNavigation(packageRoot, navRoot, ncxRoot, errs)
+
+	var posterCSS, chapterOpeningText string
+	posterFound := nameSet[zipPosterCSS]
+	chapterOpeningFound := nameSet[zipChapterOpening]
+	if !posterFound {
+		*errs = append(*errs, "EPUB artifact missing "+zipPosterCSS)
+	} else {
+		data, err := arch.Read(zipPosterCSS)
+		if err != nil {
+			return err
+		}
+		posterCSS, err = pyDecodeUTF8(data)
+		if err != nil {
+			return err
+		}
+	}
+	if !chapterOpeningFound {
+		*errs = append(*errs, "EPUB artifact missing "+zipChapterOpening)
+	} else {
+		data, err := arch.Read(zipChapterOpening)
+		if err != nil {
+			return err
+		}
+		chapterOpeningText, err = pyDecodeUTF8(data)
+		if err != nil {
+			return err
+		}
+	}
+	if posterFound && chapterOpeningFound {
+		validateChapterOpeningContract(posterCSS, chapterOpeningText, errs)
 	}
 	return nil
 }

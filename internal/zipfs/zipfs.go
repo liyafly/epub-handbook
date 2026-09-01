@@ -7,12 +7,14 @@ package zipfs
 
 import (
 	"archive/zip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -30,6 +32,13 @@ var (
 	ErrMissing = errors.New("zipfs: entry not found")
 	// ErrInvalidPlan 表示写出的 Plan 既不透传也没有内容。
 	ErrInvalidPlan = errors.New("zipfs: plan has neither source nor content")
+	// ErrOutputExists 表示调用者指定的输出目标已经存在。
+	// 写操作默认不覆盖任何既有文件或目录。
+	ErrOutputExists = errors.New("zipfs: output already exists")
+	// ErrInvalidOutputPath 表示输出路径为空或不是一个安全的路径。
+	ErrInvalidOutputPath = errors.New("zipfs: invalid output path")
+	// ErrInvalidOutputName 表示目录事务中的产物名不是安全 basename。
+	ErrInvalidOutputName = errors.New("zipfs: invalid output name")
 )
 
 // fixedTime 与 Python oracle（scripts/epub_lib.py FIXED_ZIP_TIME）给重写
@@ -136,17 +145,47 @@ type Plan struct {
 	Deleted bool
 }
 
+// DirectoryPlan 描述目录事务中的一个最终 EPUB 文件。
+// Name 必须是安全 basename；Plans 内的 entry 名仍然是 EPUB 归档路径。
+type DirectoryPlan struct {
+	Name  string
+	Plans []Plan
+}
+
 // WriteTo 把全部 Plan 写成一个新容器。写盘只发生在这里：
-// 先写 <outPath>.tmp 再原子改名，中间态永不暴露。
+// 先在同目录创建不可预测的随机临时文件，再原子改名；既有输出和
+// 传统的 <outPath>.tmp sidecar 都不会被覆盖。
 func (a *Archive) WriteTo(outPath string, plans []Plan) error {
+	return a.writeTo(nil, outPath, plans)
+}
+
+// WriteToContext 是 WriteTo 的可取消版本，供需要把 context 贯穿到大
+// ZIP 写循环的调用方使用。WriteTo 保留原有 API 作为兼容入口。
+func (a *Archive) WriteToContext(ctx context.Context, outPath string, plans []Plan) error {
+	return a.writeTo(ctx, outPath, plans)
+}
+
+func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := validateOutputFilePath(outPath); err != nil {
+		return err
+	}
 	seen := make(map[string]bool, len(plans))
 	for i := range plans {
 		p := &plans[i]
 		if p.Deleted {
 			continue
 		}
+		if err := ValidateEntryName(p.Name); err != nil {
+			return fmt.Errorf("zipfs: plan %q: %w", p.Name, err)
+		}
 		if p.Source == nil && p.Content == nil {
 			return fmt.Errorf("%w: %s", ErrInvalidPlan, p.Name)
+		}
+		if p.Source != nil && p.Content == nil && p.Source.Name() != p.Name {
+			return fmt.Errorf("zipfs: passthrough source name %q does not match plan name %q", p.Source.Name(), p.Name)
 		}
 		if seen[p.Name] {
 			return fmt.Errorf("zipfs: duplicate output entry %q", p.Name)
@@ -154,26 +193,33 @@ func (a *Archive) WriteTo(outPath string, plans []Plan) error {
 		seen[p.Name] = true
 	}
 
-	if dir := filepath.Dir(outPath); dir != "" {
+	dir := filepath.Dir(outPath)
+	if dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
+			return fmt.Errorf("zipfs: create output parent %q: %w", dir, err)
 		}
 	}
-	tmpPath := outPath + ".tmp"
-	tmp, err := os.Create(tmpPath)
-	if err != nil {
+	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	written := false
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(outPath)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("zipfs: create temporary output beside %q: %w", outPath, err)
+	}
+	tmpPath := tmp.Name()
+	committed := false
 	defer func() {
-		if !written {
-			tmp.Close()
+		if !committed {
+			_ = tmp.Close()
 			os.Remove(tmpPath)
 		}
 	}()
 
 	w := zip.NewWriter(tmp)
 	for i := range plans {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		p := &plans[i]
 		if p.Deleted {
 			continue
@@ -198,15 +244,176 @@ func (a *Archive) WriteTo(outPath string, plans []Plan) error {
 			return fmt.Errorf("zipfs: write %q: %w", p.Name, err)
 		}
 	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("zipfs: close writer: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("zipfs: close output: %w", err)
 	}
-	if err := os.Rename(tmpPath, outPath); err != nil {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := renameNoReplace(tmpPath, outPath); err != nil {
 		return fmt.Errorf("zipfs: rename output: %w", err)
 	}
-	written = true
+	committed = true
 	return nil
+}
+
+// WriteDirectory 以目录为单位提交多个 EPUB。所有文件先写入 outputDir
+// 的同目录随机 sibling staging 目录；全部成功后只执行一次
+// staging→outputDir 的 rename。outputDir 必须在调用前不存在，失败时
+// 自动清理 staging，不会留下半成品或可预测的 <out>.tmp。
+func (a *Archive) WriteDirectory(ctx context.Context, outputDir string, outputs []DirectoryPlan) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	parent, err := prepareOutputDir(outputDir)
+	if err != nil {
+		return err
+	}
+	if len(outputs) == 0 {
+		return fmt.Errorf("zipfs: output directory has no planned files")
+	}
+	seen := make(map[string]bool, len(outputs))
+	for _, output := range outputs {
+		if err := ValidateOutputName(output.Name); err != nil {
+			return fmt.Errorf("zipfs: %q: %w", output.Name, err)
+		}
+		if seen[output.Name] {
+			return fmt.Errorf("zipfs: duplicate output file %q", output.Name)
+		}
+		seen[output.Name] = true
+	}
+
+	base := filepath.Base(filepath.Clean(outputDir))
+	stage, err := os.MkdirTemp(parent, "."+base+".staging-*")
+	if err != nil {
+		return fmt.Errorf("zipfs: create staging directory beside %q: %w", outputDir, err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.RemoveAll(stage)
+		}
+	}()
+
+	for _, output := range outputs {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
+		finalPath := filepath.Join(stage, output.Name)
+		if err := a.writeTo(ctx, finalPath, output.Plans); err != nil {
+			return fmt.Errorf("zipfs: write staged output %q: %w", output.Name, err)
+		}
+	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := renameDirNoReplace(stage, outputDir); err != nil {
+		return fmt.Errorf("zipfs: commit output directory: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+// WriteDir 是 WriteDirectory 的简短别名，供 book 层使用。
+func (a *Archive) WriteDir(ctx context.Context, outputDir string, outputs []DirectoryPlan) error {
+	return a.WriteDirectory(ctx, outputDir, outputs)
+}
+
+// ValidateOutputDirAbsent performs the read-only portion of the directory
+// transaction preflight. It deliberately does not create parent directories;
+// callers can use it for dry-run validation without any filesystem mutation.
+func ValidateOutputDirAbsent(outputDir string) error {
+	if err := validateOutputDirPath(outputDir); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(outputDir); err == nil {
+		return fmt.Errorf("%w: %s", ErrOutputExists, outputDir)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("zipfs: inspect output directory %q: %w", outputDir, err)
+	}
+	return nil
+}
+
+// ValidateOutputName 校验目录事务中最终文件的名称必须是 basename。
+func ValidateOutputName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsRune(name, 0) ||
+		filepath.Base(name) != name || name == filepath.VolumeName(name) {
+		return ErrInvalidOutputName
+	}
+	return nil
+}
+
+// ValidateEntryName 校验 ZIP entry 名不会是空路径、绝对路径或目录。
+func ValidateEntryName(name string) error {
+	if name == "" || strings.ContainsRune(name, 0) || strings.HasPrefix(name, "/") ||
+		strings.HasSuffix(name, "/") {
+		return ErrInvalidOutputPath
+	}
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(name)))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return ErrInvalidOutputPath
+	}
+	return nil
+}
+
+func validateOutputFilePath(path string) error {
+	if path == "" || strings.ContainsRune(path, 0) {
+		return ErrInvalidOutputPath
+	}
+	if info, err := os.Lstat(path); err == nil {
+		_ = info
+		return fmt.Errorf("%w: %s", ErrOutputExists, path)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("zipfs: inspect output %q: %w", path, err)
+	}
+	base := filepath.Base(path)
+	if base == "" || base == "." || base == ".." {
+		return ErrInvalidOutputPath
+	}
+	return nil
+}
+
+func prepareOutputDir(outputDir string) (string, error) {
+	clean := filepath.Clean(outputDir)
+	if err := ValidateOutputDirAbsent(outputDir); err != nil {
+		return "", err
+	}
+	parent := filepath.Dir(clean)
+	if parent == "" {
+		parent = "."
+	}
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return "", fmt.Errorf("zipfs: create output parent %q: %w", parent, err)
+	}
+	if _, err := os.Lstat(outputDir); err == nil {
+		return "", fmt.Errorf("%w: %s", ErrOutputExists, outputDir)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("zipfs: inspect output directory %q: %w", outputDir, err)
+	}
+	return parent, nil
+}
+
+func validateOutputDirPath(outputDir string) error {
+	if outputDir == "" || strings.ContainsRune(outputDir, 0) {
+		return ErrInvalidOutputPath
+	}
+	clean := filepath.Clean(outputDir)
+	base := filepath.Base(clean)
+	if clean == "." || clean == string(filepath.Separator) || base == "." || base == ".." || base == "" {
+		return ErrInvalidOutputPath
+	}
+	return nil
+}
+
+func contextErr(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.Err()
 }
