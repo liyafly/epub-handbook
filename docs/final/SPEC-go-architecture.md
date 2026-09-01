@@ -5,7 +5,8 @@
 >
 > **迁移状态（2026-08-29）**：W0–W5 全部完成。16 个 A 类 capability 已在 Go 侧注册并通过
 > parity gate；棘轮（§2 INV-10）归零；`scripts/`、`adapters/`、`swift/`、`gui/`、
-> `tools/parity/` 与 Python 环境文件已按 §7.5 顺序删除。§5.2 的 `--legacy-report`
+> `tools/parity/` 的迁移脚手架与 Python 环境文件已按 §7.5 顺序删除；仅保留零条目的
+> `tools/parity/legacy-refs.txt`，使 INV-10 在终态继续扫描而不是 bootstrap-skip。§5.2 的 `--legacy-report`
 > 与 §7 的迁移映射保留为历史依据；`epub_lint.py` 无对应契约，其职责由
 > `epub.package.nav.audit` + `epub redline` + CI EPUBCheck 承担（裁决见交接文档）。
 
@@ -30,6 +31,7 @@
 §9 是**理由**，给人看的，你可以跳过。
 
 改 Go 代码看 §1–§6；改 SKILL.md 或文档看 §8 和 §7.3。
+Go 代码的版本化风格与 API 选择另见 [`SPEC-go-modern-guidelines.md`](SPEC-go-modern-guidelines.md)；动手前须按该文档 §2 读取 `go.mod` 和完整适用规则，但它服从本 SPEC 的架构、EPUB safety、wire schema 与 lossless 约束。
 
 ---
 
@@ -504,7 +506,7 @@ Go 重写完成后，仓库只剩**文档层 + Go 实现 + 明确不迁的 Pytho
 | `scripts/` | 75 py + 3 sh | **W5 棘轮归零后** | 只要还有一处文档/hook 引用它，删了就是断链 |
 | `adapters/` | 24K | W4 后 | 被 `epub capabilities` 子命令取代 |
 | `.venv` / `uv.lock` / `pyproject.toml` / `.python-version` | 21M | `scripts/` 删除后 | `tools-font/` 有独立的 uv 项目，不受影响 |
-| `tools/parity/` | — | W5 完成后 | 迁移期脚手架，功成即撤 |
+| `tools/parity/` | — | W5 完成后 | 删除迁移脚手架；保留零条目的 `legacy-refs.txt` 作为终态守卫输入 |
 
 **顺序约束**（不可交换）：
 
@@ -647,6 +649,9 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 - `golang.org/x/text` — 仅 `unicode/norm`（redline 文本归一化对齐 Python
   `unicodedata.normalize("NFC")`）与 `encoding/ianaindex`（structure_normalize
   的 decode_text 编码链回编）。2026-08-29 登记。
+- `github.com/tdewolff/parse/v2` v2.8.16 — CSS Syntax Level 3 lexer/parser
+  仅用于 CSS 语法诊断与 token/span adapter 的保守扫描；不用其序列化样式表。
+  上游项目采用 MIT 许可。
 - JSON Schema 校验库 — 仅 `archguard` 和 `report` 测试用，不进主二进制
 
 **注意**：Go 的 `regexp` 是 RE2，不支持 lookahead / lookbehind / 反向引用。

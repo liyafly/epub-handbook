@@ -58,6 +58,7 @@
     <item id="text-emphasis" href="Text/24-text-emphasis.xhtml" media-type="application/xhtml+xml"/>
     <item id="text-emphasis-vertical" href="Text/25-text-emphasis-vertical.xhtml" media-type="application/xhtml+xml"/>
     <item id="prosody-fallback" href="Text/26-prosody-fallback.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -85,5 +86,6 @@
     <itemref idref="text-emphasis"/>
     <itemref idref="text-emphasis-vertical"/>
     <itemref idref="prosody-fallback"/>
+    <itemref idref="chapter-opening-block"/>
   </spine>
 </package>

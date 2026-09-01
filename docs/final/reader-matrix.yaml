@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-08-28
+updated_at: 2026-09-01
 owner: epub-handbook
 
 lanes:
@@ -107,6 +107,9 @@ cases:
   - id: 26-prosody-fallback
     title: 横排语调标记兼容：Ruby 与 HTML fallback
     fixture: templates/epub-style-demo/OEBPS/Text/26-prosody-fallback.xhtml
+  - id: 28-chapter-opening-block
+    title: 横排块级独立章首页：共享 body 背景
+    fixture: templates/epub-style-demo/OEBPS/Text/28-chapter-opening-block.xhtml
   - id: synthetic-city-field-notes
     title: 自造清洗 demo：明日城巡游手记
     fixture: templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
@@ -545,3 +548,6 @@ untested_cases:
   - case: 26-prosody-fallback
     fixture: templates/epub-style-demo/OEBPS/Text/26-prosody-fallback.xhtml
     note: "横排语调标记的 semantic Ruby 与真实 HTML 双层 fallback；尚未实测。"
+  - case: 28-chapter-opening-block
+    fixture: templates/epub-style-demo/OEBPS/Text/28-chapter-opening-block.xhtml
+    note: "待验证假设（从主库提交 402ee73 语义同步）：横排章首页由同一 h1 内的两个 block span 构成；标题组保留 25% 顶部余量和 5% 右安全区；左下 5.5em auto 饰图仅由共享 poster.css 的 body background 绘制，XHTML 无 inline style 与真实饰图 img。精确同步验证产物为 templates/epub-style-demo/dist/epub-style-demo-20260901-chapter-opening-block-sync.epub#sha256=435188966fe8166d7486df86832ce7acaef1d94a4b02d64bf544d0139a74fdd2；XML 与 ZIP 完整性已通过，Kindle 顶部留白、Readest 背景绘制、Reeden 块级标题间距和 Apple Books 分页仍需对该产物独立实测，不继承生产书或主库旧构建的 pass。"

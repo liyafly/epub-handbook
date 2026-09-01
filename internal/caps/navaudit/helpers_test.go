@@ -1,40 +1,11 @@
 package navaudit
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
-	"path/filepath"
-	"runtime"
-	"sort"
+	"slices"
 	"testing"
 )
-
-func testContext() context.Context { return context.Background() }
-
-// runPyPreflight 调 Python preflight oracle，返回 JSON 解析后的 map 与退出码。
-func runPyPreflight(t *testing.T, repoRoot, scripts, epub string) (map[string]any, int) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	script := filepath.Join(scripts, "epub_preflight_harness.py")
-	cmd := exec.Command("python3", script, epub, "--format", "json")
-	cmd.Dir = repoRoot
-	out, err := cmd.Output()
-	code := 0
-	if exit, ok := err.(*exec.ExitError); ok {
-		code = exit.ExitCode()
-	} else if err != nil {
-		t.Fatalf("运行 python oracle 失败: %v", err)
-	}
-	var report map[string]any
-	if err := json.Unmarshal(out, &report); err != nil {
-		t.Fatalf("oracle 输出不是 JSON: %v", err)
-	}
-	return report, code
-}
 
 // diffJSON 比较任意 JSON 值，返回不一致时的双方摘要（空串表示一致）。
 func diffJSON(t *testing.T, got, want any) string {
@@ -50,7 +21,7 @@ func diffJSON(t *testing.T, got, want any) string {
 	if string(gb) == string(wb) {
 		return ""
 	}
-	return fmt.Sprintf("--- go ---\n%s\n--- python ---\n%s", clip(string(gb), 2000), clip(string(wb), 2000))
+	return fmt.Sprintf("--- got ---\n%s\n--- want ---\n%s", clip(string(gb), 10000), clip(string(wb), 10000))
 }
 
 // roundTrip 把任意值经 JSON 往返成 map/slice，消除结构体字段序差异。
@@ -89,7 +60,7 @@ func normalizeJSON(v any) any {
 		for k := range x {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			m[k] = x[k]
 		}

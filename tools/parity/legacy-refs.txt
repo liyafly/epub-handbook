@@ -1,0 +1,2 @@
+# Zero baseline retained so TestNoLegacyExecutionSurface keeps scanning.
+# Do not add legacy references here; remove them from the implementation/docs.

@@ -11,19 +11,13 @@ const (
 	kaiChain  = `"Kaiti SC", "STKaiti", "KaiTi", serif`
 )
 
-// ornamentRe 对齐 ORNAMENT_RE：装饰分隔行（——标题——）整行删除。
-var ornamentRe = regexp.MustCompile(`(?m)^\s*[—-]{3,}.*?标题.*?[—-]{3,}\s*$`)
-
-// bodyTagRe 对齐 BODY_RE `<body\b(?P<attrs>[^>]*)>`（re.I）。
-var bodyTagRe = regexp.MustCompile(`(?i)<body\b([^>]*)>`)
-
 // idSanitizeRe 对齐 add_css_manifest_item 的
 // re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
 var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
 
 // scoped-local 合并阶段排除的文件名（excluded_names）。
 var scopedExcludedNames = map[string]bool{
-	"epub3-enhancements.css": true,
+	"epub3-enhancements.css":   true,
 	"anthology-refinement.css": true,
 	"clean-scoped-local.css":   true,
 }

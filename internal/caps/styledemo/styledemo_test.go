@@ -3,12 +3,10 @@ package styledemo
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -26,40 +24,10 @@ func repoRoot(t *testing.T) string {
 	return repo
 }
 
-const oracleScript = "scripts/validate_epub_style_demo.py"
-
-// runPyOracle 运行 Python oracle，返回退出码与 stdout/stderr。
-// python3 或脚本不存在时跳过（oracle 可能已按 SPEC §5.3 删除）。
-func runPyOracle(t *testing.T, scriptPath, workDir string, args ...string) (int, string, string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	if _, err := os.Stat(scriptPath); err != nil {
-		t.Skipf("%s 不存在（oracle 已删除）", oracleScript)
-	}
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("parity 用例需要 python3")
-	}
-	cmd := exec.Command("python3", append([]string{scriptPath}, args...)...)
-	cmd.Dir = workDir
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	return code, out.String(), errb.String()
-}
-
 // goLegacyLines 用源树模式跑 Go 实现并取 legacyReport 行。
 func goLegacyLines(t *testing.T, b *book.Book, demoDir string) (string, []string) {
 	t.Helper()
-	res, err := Run(context.Background(), b, Params{DemoDir: demoDir, LegacyReport: true})
+	res, err := Run(t.Context(), b, Params{DemoDir: demoDir, LegacyReport: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,42 +42,22 @@ func goLegacyLines(t *testing.T, b *book.Book, demoDir string) (string, []string
 	return res.Status, lines
 }
 
-// normalizePyArtifactStderr 剥离 epubcheck 环境相关的 WARN 行。
-// Go 侧不执行 epubcheck（INV-4），该行不进 legacyReport。
-func normalizePyArtifactStderr(stderr string) ([]string, bool) {
-	var lines []string
-	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "WARN: epubcheck skipped") {
-			continue
-		}
-		if strings.Contains(line, "epubcheck failed") {
-			return nil, false
-		}
-		lines = append(lines, line)
-	}
-	return lines, true
-}
-
-func assertLinesEqual(t *testing.T, pyLines, goLines []string) {
+func assertLinesContain(t *testing.T, lines []string, wants ...string) {
 	t.Helper()
-	if strings.Join(pyLines, "\n") != strings.Join(goLines, "\n") {
-		t.Errorf("输出行不一致:\n--- python ---\n%s\n--- go ---\n%s",
-			strings.Join(pyLines, "\n"), strings.Join(goLines, "\n"))
+	joined := strings.Join(lines, "\n")
+	for _, want := range wants {
+		if !strings.Contains(joined, want) {
+			t.Errorf("输出缺少 %q:\n%s", want, joined)
+		}
 	}
 }
 
 // buildDemoEpub 用模板自带 build.sh 构建产物 EPUB（产物落在临时目录，
-// 不污染仓库 dist/）。zip 缺失时跳过。
+// 不污染仓库 dist/）。
 func buildDemoEpub(t *testing.T, repo, outPath string) {
 	t.Helper()
-	if _, err := exec.LookPath("zip"); err != nil {
-		t.Skip("构建 demo 产物需要 zip 命令")
-	}
 	script := filepath.Join(repo, "templates", "epub-style-demo", "build.sh")
-	cmd := exec.Command("sh", script, outPath)
+	cmd := exec.CommandContext(t.Context(), "sh", script, outPath)
 	cmd.Dir = repo
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
@@ -126,49 +74,26 @@ func demoDirOf(repo string) string {
 	return filepath.Join(repo, "templates", "epub-style-demo")
 }
 
-// ---- parity：源树默认模式 ----
+// ---- 源树默认模式 ----
 
-func TestParitySourceTreeDefault(t *testing.T) {
+func TestSourceTreeDefault(t *testing.T) {
 	repo := repoRoot(t)
-	code, stdout, stderr := runPyOracle(t, filepath.Join(repo, oracleScript), repo)
-	if code != 0 {
-		t.Fatalf("python oracle 应退出 0，实际 %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
-	}
-	if strings.TrimSpace(stdout) != "epub-style-demo validation ok" {
-		t.Fatalf("python stdout: %q", stdout)
-	}
-	var pyLines []string
-	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-		if line != "" {
-			pyLines = append(pyLines, line)
-		}
-	}
-
 	status, goLines := goLegacyLines(t, nil, demoDirOf(repo))
-	if code == 0 && status != "complete" {
+	if status != "complete" {
 		t.Fatalf("go status 应为 complete，实际 %s", status)
 	}
-	if len(pyLines) == 0 {
-		pyLines = []string{"epub-style-demo validation ok"}
+	if len(goLines) != 1 || goLines[0] != "epub-style-demo validation ok" {
+		t.Fatalf("go lines: %v", goLines)
 	}
-	assertLinesEqual(t, pyLines, goLines)
 }
 
-// ---- parity：构建产物模式 ----
+// ---- 构建产物模式 ----
 
-func TestParityArtifactOK(t *testing.T) {
+func TestArtifactOK(t *testing.T) {
 	repo := repoRoot(t)
 	dir := t.TempDir()
 	epub := filepath.Join(dir, "demo.epub")
 	buildDemoEpub(t, repo, epub)
-
-	code, stdout, stderr := runPyOracle(t, filepath.Join(repo, oracleScript), repo, "--epub", epub)
-	if code != 0 {
-		t.Fatalf("python oracle 应退出 0，实际 %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
-	}
-	if strings.TrimSpace(stdout) != "epub-style-demo validation ok" {
-		t.Fatalf("python stdout: %q", stdout)
-	}
 
 	b, err := book.Open(epub)
 	if err != nil {
@@ -184,9 +109,84 @@ func TestParityArtifactOK(t *testing.T) {
 	}
 }
 
-// ---- parity：破坏产物（mimetype 改 deflate + 缺一个 manifest 指向的文件） ----
+func TestArtifactChapterOpeningContractBroken(t *testing.T) {
+	repo := repoRoot(t)
+	dir := t.TempDir()
+	srcEpub := filepath.Join(dir, "demo.epub")
+	buildDemoEpub(t, repo, srcEpub)
 
-func TestParityArtifactBroken(t *testing.T) {
+	broken := filepath.Join(dir, "broken-chapter-opening.epub")
+	rewriteEpubEntry(t, srcEpub, broken, zipPosterCSS, func(data []byte) []byte {
+		return bytes.ReplaceAll(data, []byte("background-size: 5.5em auto;"), []byte("background-size: 6em auto;"))
+	})
+
+	b, err := book.Open(broken)
+	if err != nil {
+		t.Fatalf("book.Open(broken chapter opening) 失败: %v", err)
+	}
+	defer b.Close()
+	status, lines := goLegacyLines(t, b, demoDirOf(repo))
+	if status != "failed" {
+		t.Fatalf("go status 应为 failed，实际 %s", status)
+	}
+	assertLinesContain(t, lines,
+		"ERROR: chapter-opening block background must be shared CSS at left bottom / 5.5em auto")
+}
+
+func TestArtifactChapterOpeningNavigationContractBroken(t *testing.T) {
+	repo := repoRoot(t)
+	dir := t.TempDir()
+	srcEpub := filepath.Join(dir, "demo.epub")
+	buildDemoEpub(t, repo, srcEpub)
+	cases := []struct {
+		name, entry, old, replacement, want string
+	}{
+		{
+			name: "manifest duplicate", entry: zipPackage,
+			old: `    <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>`,
+			replacement: `    <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-opening-block-duplicate" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>`,
+			want: "must appear exactly once in manifest",
+		},
+		{
+			name: "spine missing", entry: zipPackage,
+			old: `idref="chapter-opening-block"`, replacement: `idref="chapter-opening-block-missing"`,
+			want: "must appear exactly once in spine",
+		},
+		{
+			name: "nav missing", entry: zipNav,
+			old: `href="Text/28-chapter-opening-block.xhtml"`, replacement: `href="Text/26-prosody-fallback.xhtml"`,
+			want: "must appear exactly once in nav.xhtml",
+		},
+		{
+			name: "ncx missing", entry: zipNCX,
+			old: `src="Text/28-chapter-opening-block.xhtml"`, replacement: `src="Text/26-prosody-fallback.xhtml"`,
+			want: "must appear exactly once in toc.ncx",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			broken := filepath.Join(dir, strings.ReplaceAll(tc.name, " ", "-")+".epub")
+			rewriteEpubEntry(t, srcEpub, broken, tc.entry, func(data []byte) []byte {
+				return replaceBytesRequired(t, data, []byte(tc.old), []byte(tc.replacement))
+			})
+			b, err := book.Open(broken)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			status, lines := goLegacyLines(t, b, demoDirOf(repo))
+			if status != "failed" {
+				t.Fatalf("go status 应为 failed，实际 %s", status)
+			}
+			assertLinesContain(t, lines, tc.want)
+		})
+	}
+}
+
+// ---- 破坏产物（mimetype 改 deflate + 缺一个 manifest 指向的文件） ----
+
+func TestArtifactBroken(t *testing.T) {
 	repo := repoRoot(t)
 	dir := t.TempDir()
 	srcEpub := filepath.Join(dir, "demo.epub")
@@ -194,15 +194,6 @@ func TestParityArtifactBroken(t *testing.T) {
 
 	broken := filepath.Join(dir, "broken.epub")
 	corruptDemoEpub(t, srcEpub, broken)
-
-	code, _, stderr := runPyOracle(t, filepath.Join(repo, oracleScript), repo, "--epub", broken)
-	if code != 1 {
-		t.Fatalf("python oracle 应退出 1，实际 %d\nstderr: %s", code, stderr)
-	}
-	pyLines, ok := normalizePyArtifactStderr(stderr)
-	if !ok {
-		t.Skip("环境里 epubcheck 可用且产物触发 epubcheck 失败（环境相关，跳过）")
-	}
 
 	b, err := book.Open(broken)
 	if err != nil {
@@ -213,7 +204,9 @@ func TestParityArtifactBroken(t *testing.T) {
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
-	assertLinesEqual(t, pyLines, goLines)
+	assertLinesContain(t, goLines,
+		"ERROR: EPUB mimetype must be stored",
+		"ERROR: EPUB manifest href missing in zip: Text/18-english-fiction.xhtml")
 }
 
 // corruptDemoEpub 复制产物 zip：mimetype 改为 deflate，并删除
@@ -261,9 +254,9 @@ func corruptDemoEpub(t *testing.T, srcPath, dstPath string) {
 	}
 }
 
-// ---- parity：产物缺 mimetype entry（KeyError 消息形状） ----
+// ---- 产物缺 mimetype entry（KeyError 消息形状） ----
 
-func TestParityArtifactNoMimetype(t *testing.T) {
+func TestArtifactNoMimetype(t *testing.T) {
 	repo := repoRoot(t)
 	dir := t.TempDir()
 	srcEpub := filepath.Join(dir, "demo.epub")
@@ -271,15 +264,6 @@ func TestParityArtifactNoMimetype(t *testing.T) {
 
 	broken := filepath.Join(dir, "nomime.epub")
 	stripMimetypeEpub(t, srcEpub, broken)
-
-	code, _, stderr := runPyOracle(t, filepath.Join(repo, oracleScript), repo, "--epub", broken)
-	if code != 1 {
-		t.Fatalf("python oracle 应退出 1，实际 %d\nstderr: %s", code, stderr)
-	}
-	pyLines, ok := normalizePyArtifactStderr(stderr)
-	if !ok {
-		t.Skip("环境里 epubcheck 可用且产物触发 epubcheck 失败（环境相关，跳过）")
-	}
 
 	b, err := book.Open(broken)
 	if err != nil {
@@ -290,7 +274,9 @@ func TestParityArtifactNoMimetype(t *testing.T) {
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
-	assertLinesEqual(t, pyLines, goLines)
+	assertLinesContain(t, goLines,
+		"ERROR: EPUB mimetype must be first zip entry",
+		"EPUB validation failed:")
 }
 
 // stripMimetypeEpub 复制产物 zip 但删除 mimetype entry。
@@ -333,43 +319,140 @@ func stripMimetypeEpub(t *testing.T, srcPath, dstPath string) {
 	}
 }
 
-// ---- parity：破坏源树（临时布局 + 拷贝 oracle 脚本） ----
-
-func TestParityBrokenSourceTree(t *testing.T) {
-	repo := repoRoot(t)
-	if _, err := os.Stat(filepath.Join(repo, oracleScript)); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已随迁移删除）", oracleScript)
-	}
-	layout := t.TempDir() // <layout>/scripts/… + <layout>/templates/epub-style-demo/OEBPS
-	scriptsDir := filepath.Join(layout, "scripts")
-	demoDir := filepath.Join(layout, "templates", "epub-style-demo")
-	if err := os.MkdirAll(filepath.Join(scriptsDir), 0o755); err != nil {
+func rewriteEpubEntry(t *testing.T, srcPath, dstPath, entryName string, mutate func([]byte) []byte) {
+	t.Helper()
+	zr, err := zip.OpenReader(srcPath)
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer zr.Close()
+	out, err := os.Create(dstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer out.Close()
+	zw := zip.NewWriter(out)
+	found := false
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Name == entryName {
+			found = true
+			data = mutate(data)
+		}
+		fw, err := zw.CreateHeader(&zip.FileHeader{Name: f.Name, Method: f.Method})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		t.Fatalf("EPUB 中找不到待改 entry %s", entryName)
+	}
+}
+
+// ---- 破坏源树 ----
+
+func TestBrokenSourceTree(t *testing.T) {
+	repo := repoRoot(t)
+	demoDir := filepath.Join(t.TempDir(), "epub-style-demo")
 	if err := os.MkdirAll(demoDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	copyFile(t, filepath.Join(repo, oracleScript), filepath.Join(scriptsDir, "validate_epub_style_demo.py"))
 	copyTree(t, filepath.Join(repo, "templates", "epub-style-demo", "OEBPS"), filepath.Join(demoDir, "OEBPS"))
 	breakDemoTree(t, demoDir)
-
-	// Python：脚本 ROOT = <layout>（从脚本自身位置推导），无需参数。
-	code, _, stderr := runPyOracle(t, filepath.Join(scriptsDir, "validate_epub_style_demo.py"), layout)
-	if code != 1 {
-		t.Fatalf("python oracle 应退出 1，实际 %d\nstderr: %s", code, stderr)
-	}
-	var pyLines []string
-	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-		if line != "" {
-			pyLines = append(pyLines, line)
-		}
-	}
 
 	status, goLines := goLegacyLines(t, nil, demoDir)
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
-	assertLinesEqual(t, pyLines, goLines)
+	assertLinesContain(t, goLines,
+		"ERROR: Spine idref missing from manifest: poster-contain",
+		"ERROR: MathML content missing OPF properties=mathml: Text/16-math.xhtml",
+		"ERROR: 03c-poster-contain.xhtml must be in manifest",
+		"ERROR: classical-text must float left in the wide enhancement")
+}
+
+func TestSourceChapterOpeningContractBroken(t *testing.T) {
+	repo := repoRoot(t)
+	demoDir := filepath.Join(t.TempDir(), "epub-style-demo")
+	copyTree(t, filepath.Join(repo, "templates", "epub-style-demo", "OEBPS"), filepath.Join(demoDir, "OEBPS"))
+	posterPath := filepath.Join(demoDir, zipPosterCSS)
+	poster := readSmall(t, posterPath)
+	poster = strings.Replace(poster, "margin: 25% 5% 0 0;", "margin: 20% 5% 0 0;", 1)
+	writeSmall(t, posterPath, poster)
+
+	status, lines := goLegacyLines(t, nil, demoDir)
+	if status != "failed" {
+		t.Fatalf("go status 应为 failed，实际 %s", status)
+	}
+	assertLinesContain(t, lines,
+		"ERROR: chapter-opening block title group must retain its production-derived top/right spacing")
+}
+
+func TestSourceChapterOpeningNavigationContractBroken(t *testing.T) {
+	repo := repoRoot(t)
+	cases := []struct {
+		name, rel, old, replacement, want string
+	}{
+		{
+			name: "manifest duplicate", rel: relPackage,
+			old: `    <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>`,
+			replacement: `    <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-opening-block-duplicate" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>`,
+			want: "must appear exactly once in manifest",
+		},
+		{
+			name: "spine missing", rel: relPackage,
+			old: `idref="chapter-opening-block"`, replacement: `idref="chapter-opening-block-missing"`,
+			want: "must appear exactly once in spine",
+		},
+		{
+			name: "nav missing", rel: relNav,
+			old: `href="Text/28-chapter-opening-block.xhtml"`, replacement: `href="Text/26-prosody-fallback.xhtml"`,
+			want: "must appear exactly once in nav.xhtml",
+		},
+		{
+			name: "ncx missing", rel: relNCX,
+			old: `src="Text/28-chapter-opening-block.xhtml"`, replacement: `src="Text/26-prosody-fallback.xhtml"`,
+			want: "must appear exactly once in toc.ncx",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			demoDir := filepath.Join(t.TempDir(), "epub-style-demo")
+			copyTree(t, filepath.Join(repo, "templates", "epub-style-demo", "OEBPS"), filepath.Join(demoDir, "OEBPS"))
+			path := filepath.Join(demoDir, tc.rel)
+			data := replaceBytesRequired(t, []byte(readSmall(t, path)), []byte(tc.old), []byte(tc.replacement))
+			writeSmall(t, path, string(data))
+			status, lines := goLegacyLines(t, nil, demoDir)
+			if status != "failed" {
+				t.Fatalf("go status 应为 failed，实际 %s", status)
+			}
+			assertLinesContain(t, lines, tc.want)
+		})
+	}
+}
+
+func replaceBytesRequired(t *testing.T, data, old, replacement []byte) []byte {
+	t.Helper()
+	updated := bytes.Replace(data, old, replacement, 1)
+	if bytes.Equal(updated, data) {
+		t.Fatalf("fixture mutation target not found: %q", old)
+	}
+	return updated
 }
 
 // breakDemoTree 与 parity 探针一致的三处破坏：
@@ -686,21 +769,21 @@ func TestFindAllDescAndIterAll(t *testing.T) {
 }
 
 func TestRunRequiresDemoDir(t *testing.T) {
-	if _, err := Run(context.Background(), nil, Params{}); err == nil {
+	if _, err := Run(t.Context(), nil, Params{}); err == nil {
 		t.Error("b=nil 且无 demo_dir 应返回错误")
 	}
 	empty := t.TempDir()
-	if _, err := Run(context.Background(), nil, Params{DemoDir: empty}); err == nil {
+	if _, err := Run(t.Context(), nil, Params{DemoDir: empty}); err == nil {
 		t.Error("空 demo 目录缺 package.opf 应返回错误（对齐 Python 未捕获异常）")
 	}
-	if _, err := Run(context.Background(), &book.Book{}, Params{}); err == nil {
+	if _, err := Run(t.Context(), &book.Book{}, Params{}); err == nil {
 		t.Error("b 非 nil 且无 demo_dir 应返回错误")
 	}
 }
 
 func TestRunSourceTreeOK(t *testing.T) {
 	repo := repoRoot(t)
-	res, err := Run(context.Background(), nil, Params{DemoDir: demoDirOf(repo), LegacyReport: true})
+	res, err := Run(t.Context(), nil, Params{DemoDir: demoDirOf(repo), LegacyReport: true})
 	if err != nil {
 		t.Fatal(err)
 	}

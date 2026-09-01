@@ -216,7 +216,7 @@ func init() {
 			}
 		}
 		return splitcap.Run(ctx, b, splitcap.Params{
-			SplitPoints: points, OutputDir: args.Get("output_dir"), LegacyReport: args.Bool("legacy_report"),
+			SplitPoints: points, OutputDir: args.Get("output_dir"), DryRun: args.Bool("dry_run"), LegacyReport: args.Bool("legacy_report"),
 		})
 	})
 	register("epub.metadata.edit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

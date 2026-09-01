@@ -106,5 +106,9 @@
       <navLabel><text>横排语调标记兼容：Ruby 与 HTML fallback</text></navLabel>
       <content src="Text/26-prosody-fallback.xhtml"/>
     </navPoint>
+    <navPoint id="navpoint-chapter-opening-block" playOrder="25">
+      <navLabel><text>横排块级独立章首页</text></navLabel>
+      <content src="Text/28-chapter-opening-block.xhtml"/>
+    </navPoint>
   </navMap>
 </ncx>

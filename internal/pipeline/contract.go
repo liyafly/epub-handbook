@@ -96,7 +96,7 @@ func AllContracts(root string) ([]Contract, error) {
 }
 
 // ResolveChain 计算从 id 出发（含自身）的执行链：拓扑序，依赖在前。
-// 契约缺失的依赖被跳过（迁移期可能尚未登记），环形依赖报错。
+// 根 capability 或任一 requires 缺失都报 ErrUnknownCapability，环形依赖报错。
 func ResolveChain(root, id string) ([]Contract, error) {
 	seen := map[string]bool{}
 	var out []Contract
@@ -112,14 +112,15 @@ func ResolveChain(root, id string) ([]Contract, error) {
 		visiting[cid] = true
 		c, err := LoadContract(root, cid)
 		if err != nil {
-			if errors.Is(err, ErrUnknownCapability) {
-				visiting[cid] = false
-				return nil // 迁移期：未登记的依赖跳过
-			}
+			visiting[cid] = false
 			return err
 		}
 		for _, dep := range c.Requires {
 			if err := visit(dep); err != nil {
+				visiting[cid] = false
+				if errors.Is(err, ErrUnknownCapability) {
+					return fmt.Errorf("pipeline: %s requires unknown capability %s: %w", cid, dep, err)
+				}
 				return err
 			}
 		}

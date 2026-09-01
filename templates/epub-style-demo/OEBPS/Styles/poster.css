@@ -130,3 +130,100 @@ body.poster-bg-contain {
     visibility: hidden;
   }
 }
+
+/* Production-derived horizontal chapter-opening baseline. The complete
+ * background declaration lives in CSS, not in each XHTML body. Keeping the
+ * ornament out of the DOM prevents it from consuming a second page. */
+body.poster-bg-chapter-opening {
+  color: #2f86b3;
+  background: #d8f4f8 url("../Images/chapter-banner.png") no-repeat left bottom;
+  -webkit-background-size: 5.5em auto;
+  background-size: 5.5em auto;
+  writing-mode: horizontal-tb;
+  -webkit-writing-mode: horizontal-tb;
+  -epub-writing-mode: horizontal-tb;
+  direction: ltr;
+  overflow: hidden;
+  page-break-before: always;
+  page-break-after: always;
+  -webkit-page-break-before: always;
+  -webkit-page-break-after: always;
+}
+
+.chapter-opening-frame {
+  width: 100%;
+  height: auto;
+  min-height: 90%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  overflow: hidden;
+  text-align: right;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.chapter-opening-main {
+  float: right;
+  clear: right;
+  width: 100%;
+  margin: 25% 5% 0 0;
+  padding: 0;
+  text-align: right;
+  text-indent: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.chapter-opening-heading {
+  display: block;
+  position: static;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: 1;
+  text-align: right;
+  text-indent: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.chapter-opening-number,
+.chapter-opening-title {
+  display: block;
+  position: static;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: right;
+  text-indent: 0;
+}
+
+.chapter-opening-number {
+  color: #6595a5;
+  font-family: "Baoli SC", "LiSu", serif;
+  font-size: 1.45em;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.chapter-opening-title {
+  color: #2f86b3;
+  font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
+  font-size: 2em;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  padding-top: 1.3em;
+  white-space: normal;
+}

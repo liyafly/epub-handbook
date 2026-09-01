@@ -5,6 +5,7 @@
 package book
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -229,8 +230,16 @@ func (b *Book) deleteEntry(path string) error {
 // WriteTo 把当前状态落盘为一个新的 EPUB。这是整本书唯一的落盘点。
 // 未修改的 entry 由 zipfs 原样透传（INV-1）。
 func (b *Book) WriteTo(path string) error {
-	plans := make([]zipfs.Plan, 0, len(b.order)+len(b.added))
+	return b.arch.WriteTo(path, b.plans())
+}
 
+// WriteToContext 是 WriteTo 的可取消版本。
+func (b *Book) WriteToContext(ctx context.Context, path string) error {
+	return b.arch.WriteToContext(ctx, path, b.plans())
+}
+
+func (b *Book) plans() []zipfs.Plan {
+	plans := make([]zipfs.Plan, 0, len(b.order)+len(b.added))
 	// mimetype 永远第一个（OCF 要求）；未被修改时透传。
 	if e, ok := b.byName["mimetype"]; ok && !b.deleted["mimetype"] {
 		p := zipfs.Plan{Name: "mimetype", Source: e}
@@ -258,7 +267,53 @@ func (b *Book) WriteTo(path string) error {
 		}
 		plans = append(plans, p)
 	}
-	return b.arch.WriteTo(path, plans)
+	return plans
+}
+
+// GroupOutput 是目录事务中的一个 EPUB 产物。Name 必须是安全 basename；
+// Book 只提供内存投影，实际写盘由 zipfs 在同目录 staging 中完成。
+type GroupOutput struct {
+	Name string
+	Book *Book
+}
+
+// ValidateOutputDirAbsent is the read-only preflight used by multi-output
+// capabilities. Keeping the filesystem check behind book preserves the
+// package boundary: capabilities never touch zipfs directly.
+func ValidateOutputDirAbsent(path string) error {
+	return zipfs.ValidateOutputDirAbsent(path)
+}
+
+// CommitGroup 将多个打开的 Book 作为一个目录事务提交。任何产物写入、
+// 校验或 rename 失败都会由 zipfs 清理 staging，outputDir 不会留下半成品。
+// 调用方仍负责关闭传入的 Book；split 在成功与失败路径都会统一关闭。
+func CommitGroup(ctx context.Context, outputDir string, outputs []GroupOutput) error {
+	if ctx == nil {
+		return errors.New("book: nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	plans := make([]zipfs.DirectoryPlan, 0, len(outputs))
+	for _, output := range outputs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if output.Book == nil {
+			return fmt.Errorf("book: nil group output %q", output.Name)
+		}
+		plans = append(plans, zipfs.DirectoryPlan{Name: output.Name, Plans: output.Book.plans()})
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(plans) == 0 {
+		return errors.New("book: group has no outputs")
+	}
+	// All group members are opened from the same source archive in the split
+	// capability. Their plan snapshots are complete before this call, so the
+	// only filesystem mutation is the zipfs directory commit.
+	return outputs[0].Book.arch.WriteDirectory(ctx, outputDir, plans)
 }
 
 // ValidatePath 校验 entry 路径不会逃逸容器根（对齐 epub_lib.validate_archive_path）。

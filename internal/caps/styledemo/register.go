@@ -16,32 +16,40 @@ const (
 
 // demo 源树内相对 OEBPS 的固定文件（Python 顶部 OEBPS 常量）。
 const (
-	relPackage     = "OEBPS/package.opf"
-	relNav         = "OEBPS/nav.xhtml"
-	relNCX         = "OEBPS/toc.ncx"
-	relBaseCSS     = "OEBPS/Styles/base.css"
-	relFontsCSS    = "OEBPS/Styles/fonts.css"
-	relPosterCSS   = "OEBPS/Styles/poster.css"
-	relNotesCSS    = "OEBPS/Styles/notes.css"
-	relMediaCSS    = "OEBPS/Styles/media.css"
-	relLiterary    = "OEBPS/Styles/literary.css"
-	relEffects     = "OEBPS/Styles/effects.css"
-	relPosterPage  = "OEBPS/Text/03c-poster-contain.xhtml"
-	relRubyPage    = "OEBPS/Text/02-ruby-note.xhtml"
-	relFrontPage   = "OEBPS/Text/15-frontmatter.xhtml"
-	relImagePage   = "OEBPS/Text/17-image-layout.xhtml"
-	relEnglish     = "OEBPS/Text/18-english-fiction.xhtml"
-	relNoteBoxes   = "OEBPS/Text/19-border-shadow-notes.xhtml"
-	relChapterHead = "OEBPS/Text/20-chapter-head-image.xhtml"
-	relClassical   = "OEBPS/Text/21-classical-modern.xhtml"
-	relMathPage    = "OEBPS/Text/16-math.xhtml"
+	relPackage        = "OEBPS/package.opf"
+	relNav            = "OEBPS/nav.xhtml"
+	relNCX            = "OEBPS/toc.ncx"
+	relBaseCSS        = "OEBPS/Styles/base.css"
+	relFontsCSS       = "OEBPS/Styles/fonts.css"
+	relPosterCSS      = "OEBPS/Styles/poster.css"
+	relNotesCSS       = "OEBPS/Styles/notes.css"
+	relMediaCSS       = "OEBPS/Styles/media.css"
+	relLiterary       = "OEBPS/Styles/literary.css"
+	relEffects        = "OEBPS/Styles/effects.css"
+	relPosterPage     = "OEBPS/Text/03c-poster-contain.xhtml"
+	relRubyPage       = "OEBPS/Text/02-ruby-note.xhtml"
+	relFrontPage      = "OEBPS/Text/15-frontmatter.xhtml"
+	relImagePage      = "OEBPS/Text/17-image-layout.xhtml"
+	relEnglish        = "OEBPS/Text/18-english-fiction.xhtml"
+	relNoteBoxes      = "OEBPS/Text/19-border-shadow-notes.xhtml"
+	relChapterHead    = "OEBPS/Text/20-chapter-head-image.xhtml"
+	relClassical      = "OEBPS/Text/21-classical-modern.xhtml"
+	relMathPage       = "OEBPS/Text/16-math.xhtml"
+	relChapterOpening = "OEBPS/Text/28-chapter-opening-block.xhtml"
+
+	chapterOpeningHref = "Text/28-chapter-opening-block.xhtml"
+	chapterOpeningID   = "chapter-opening-block"
 )
 
 // artifact 模式里的固定 zip 路径。
 const (
-	zipBaseCSS  = "OEBPS/Styles/base.css"
-	zipFontsCSS = "OEBPS/Styles/fonts.css"
-	zipPackage  = "OEBPS/package.opf"
+	zipBaseCSS        = "OEBPS/Styles/base.css"
+	zipFontsCSS       = "OEBPS/Styles/fonts.css"
+	zipPosterCSS      = "OEBPS/Styles/poster.css"
+	zipPackage        = "OEBPS/package.opf"
+	zipNav            = "OEBPS/nav.xhtml"
+	zipNCX            = "OEBPS/toc.ncx"
+	zipChapterOpening = "OEBPS/Text/28-chapter-opening-block.xhtml"
 )
 
 // methodStore 对齐 zipfile.ZIP_STORED。
@@ -85,6 +93,12 @@ var (
 	// 16-math 的 data-table fixture 与 TeX 注释。
 	reMathDataTable = regexp.MustCompile(`(?s)<table class="math-data-table">(.*?)</table>`)
 	reTeXAnnotation = regexp.MustCompile(`(?s)<annotation encoding="application/x-tex">\s*(.*?)\s*</annotation>`)
+
+	// scene 28 的 poster.css contract（与 Python 的四个 re.search 等价）。
+	reChapterOpeningBackground   = regexp.MustCompile(`(?s)body\.poster-bg-chapter-opening\s*\{[^}]*background:\s*#d8f4f8\s+url\("\.\./Images/chapter-banner\.png"\)\s+no-repeat\s+left bottom\s*;[^}]*background-size:\s*5\.5em auto\s*;`)
+	reChapterOpeningMain         = regexp.MustCompile(`(?s)\.chapter-opening-main\s*\{[^}]*margin:\s*25% 5% 0 0\s*;`)
+	reChapterOpeningNumberTitle  = regexp.MustCompile(`(?s)\.chapter-opening-number\s*,\s*\.chapter-opening-title\s*\{[^}]*display:\s*block\s*;`)
+	reChapterOpeningTitlePadding = regexp.MustCompile(`(?s)\.chapter-opening-title\s*\{[^}]*padding-top:\s*1\.3em\s*;`)
 )
 
 // token 表（逐条对齐 validate_source 里的字面量列表）。
@@ -102,6 +116,15 @@ var (
 		`body class="fullpage poster-bg-contain"`,
 		`section class="fullframe"`,
 		`class="poster-fallback"`,
+	}
+
+	chapterOpeningTokens = [...]string{
+		`body class="fullpage poster-bg-chapter-opening"`,
+		`section class="fullframe chapter-opening-frame"`,
+		`class="chapter-opening-main"`,
+		`class="chapter-opening-heading"`,
+		`class="chapter-opening-number"`,
+		`class="chapter-opening-title"`,
 	}
 
 	noteCSSTokens = [...]string{

@@ -160,7 +160,9 @@ func relHref(fromZipPath, toZipPath string) string {
 func isSpaceRune(r rune) bool { return unicode.IsSpace(r) }
 
 // pyStrip 复刻 str.strip()（无参：剥两侧 Unicode 空白）。
-func pyStrip(s string) string { return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) }) }
+func pyStrip(s string) string {
+	return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) })
+}
 
 // pyRStrip 复刻 str.rstrip()。
 func pyRStrip(s string) string {
@@ -226,6 +228,14 @@ func wordBoundaryAt(text string, i int) bool {
 		after = isWordRune(r)
 	}
 	return before != after
+}
+
+// utf8DecodeRune is the small compatibility helper used by scanners that
+// need the byte width alongside the decoded rune. Invalid input is handled by
+// the caller's conservative branch; it is never written back as replacement
+// text.
+func utf8DecodeRune(text string) (rune, int) {
+	return utf8.DecodeRuneInString(text)
 }
 
 // skipPySpace 跳过 Unicode 空白（含换行），对齐正则 \s* 的贪心消耗。

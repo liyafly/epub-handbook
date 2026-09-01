@@ -148,12 +148,9 @@ func (ins *inspector) summaryFields() map[string]any {
 }
 
 func (ins *inspector) nextCommands() []string {
-	var out []string
-	for _, c := range ins.commands {
-		// Python 侧命令是给 legacy 报告的；新信封只给 epub 形态。
-		out = append(out, c)
-	}
-	return out
+	// commands 既用于 legacyReport 的 suggested_commands，也用于新信封的
+	// nextCommands；两种报告都必须只暴露当前 Go CLI 的执行面。
+	return append([]string(nil), ins.commands...)
 }
 
 func (ins *inspector) addFinding(level, message, path, kind string) {
@@ -209,11 +206,12 @@ func slicesContains(list []string, v string) bool {
 // inspect 是 inspect_path(path, "cleanup") 对 EPUB 输入的主流程。
 func (ins *inspector) inspect() {
 	q := shlexQuote(ins.b.InputPath())
-	ins.addCommand("python3 scripts/epub_preflight_harness.py " + q + " --format json")
-	ins.addCommand("scripts/epub_ai_harness.py --mode cleanup " + q)
-	ins.addCommand("python3 scripts/epub_refinement_harness.py " + q + " --format json")
-	ins.addCommand("scripts/validate-popup-notes.sh --epub " + q)
-	ins.addCommand("python3 scripts/validate_text_invariance.py " + q + " " + q + " --check all")
+	// 旧 preflight / AI / refinement 入口已合并为 Go capability。保留原有
+	// 推荐顺序，但让报告中的每一项都能由当前 `epub` CLI 直接执行。
+	ins.addCommand("epub run epub.package.nav.audit --input " + q + " --json")
+	ins.addCommand("epub run epub.layout.audit --input " + q + " --json")
+	ins.addCommand("epub run epub.notes.popup.normalize --input " + q + " --dry-run --json")
+	ins.addCommand("epub redline --check all <before.epub> <after.epub>")
 
 	ins.summary.ZipEntries = len(ins.b.Names())
 
@@ -242,7 +240,7 @@ func (ins *inspector) inspect() {
 	if len(ins.findings) == 0 {
 		ins.addFinding("info", "No immediate structural issue detected by harness", "", "")
 	}
-	ins.addCommand("scripts/validate_skills_basic.py")
+	ins.addCommand("epub capabilities --json")
 	// preflight 特有：epubcheck 可用性（经 extern；本机无 → 注释行占位）。
 	ins.tools.Keys = append(ins.tools.Keys, "epubcheck")
 	if ok, _ := extern.LookPath("epubcheck"); ok {
@@ -297,8 +295,8 @@ func (ins *inspector) inspectOPF() {
 			"Manifest filenames contain decoded special characters; run structure normalization before richer cleanup",
 			"", "filename-obfuscation")
 		ins.addSkill("epub-structure-normalizer", "warn")
-		ins.addCommand("python3 scripts/epub_structure_tool.py normalize " + q +
-			" --output work/after/step-0-normalized.epub --dry-run --report-format json")
+		ins.addCommand("epub run epub.structure.normalize --input " + q +
+			" --output work/after/step-0-normalized.epub --dry-run --json")
 	}
 
 	// 版本与迁移。
@@ -310,8 +308,9 @@ func (ins *inspector) inspectOPF() {
 		ins.addFinding("warn", "EPUB 2 package should be migrated to EPUB 3 before richer cleanup/features", "", "epub3-migration")
 		ins.addSkill("epub3-migrator", "warn")
 		ins.addSkill("epub-package-nav-auditor", "warn")
-		ins.addCommand("python3 scripts/epub3_migration_harness.py " + q + " --format json")
-		ins.addCommand("python3 scripts/epub3_migration_apply_harness.py " + q + " --output work/after/step-1-epub3.epub --format json")
+		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q + " --dry-run --json")
+		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q +
+			" --output work/after/step-1-epub3.epub --json")
 	}
 
 	// 语言。
@@ -548,14 +547,14 @@ func (ins *inspector) mediaDrivenSkills(pkg *opf.Package, q string) {
 	}
 	if ins.summary.MediaCounts["xhtml"] > 0 {
 		ins.addSkill("epub-content-analyzer", "info")
-		ins.addCommand("python3 scripts/epub_content_analyzer.py " + q + " --format json")
+		ins.addCommand("epub run epub.text.content.analyze --input " + q + " --json")
 	}
 	if ins.summary.MediaCounts["images"] > 0 {
 		ins.addSkill("epub-image-layout-optimizer", "info")
 	}
 	if ins.summary.MediaCounts["fonts"] > 0 {
 		ins.addSkill("epub-font-coverage-analyzer", "info")
-		ins.addCommand("python3 scripts/epub_font_coverage_adapter.py " + q + " --format json")
+		ins.addCommand("epub run epub.font.coverage.analyze --input " + q + " --json")
 	}
 	lang := ins.summary.Language
 	if ins.summary.MediaCounts["xhtml"] > 0 && !strings.HasPrefix(strings.ToLower(lang), "en") {
