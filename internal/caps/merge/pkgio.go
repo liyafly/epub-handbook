@@ -6,6 +6,7 @@ package merge
 import (
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -79,9 +80,12 @@ func readPackage(names map[string]bool, read func(string) ([]byte, error)) (*pkg
 	if opfPath == "" {
 		return nil, toolErrf("container.xml has no rootfile full-path")
 	}
-	opfPath, err = validateArchivePath(opfPath, "container.xml rootfile")
+	opfPath, err = pypath.ValidateArchivePath(opfPath, "container.xml rootfile")
 	if err != nil {
-		return nil, err
+		// 重新包成 *toolError：pypath 是层 5，够不到本包的 ErrPackageTool
+		// 哨兵，而这条路径在下沉前是 toolErrf 产生的（errors.Is(err,
+		// ErrPackageTool) 为真）。文本不变，只把可判性接回来。
+		return nil, toolErrf("%v", err)
 	}
 	if !names[opfPath] {
 		return nil, toolErrf("container.xml rootfile does not resolve: %s", opfPath)
@@ -151,10 +155,10 @@ func readPackage(names map[string]bool, read func(string) ([]byte, error)) (*pkg
 		if itemID == "" || href == "" {
 			return nil, toolErrf("%s: manifest item missing id or href", opfPath)
 		}
-		if pyIsExternalURI(href) {
+		if pypath.IsExternalURI(href) {
 			continue
 		}
-		archivePath, err := resolveRelativePath(opfPath, pyURLSplit(href).path)
+		archivePath, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path)
 		if err != nil {
 			return nil, err
 		}

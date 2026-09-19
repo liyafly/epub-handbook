@@ -31,15 +31,9 @@
 package migrateepub3
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -69,20 +63,15 @@ const canonicalMimetype = "application/epub+zip"
 // Params 是 capability 参数。PopupNotes / Typography 对齐 Python 的
 // popup_notes / typography（默认开启，由注册闭包把 no_* 反转传入）。
 type Params struct {
-	PopupNotes   bool
-	Typography   bool
-	DryRun       bool
-	LegacyReport bool
-	// Output 仅为 legacy 报告的 output 字段（本包不落盘）。
-	Output string
+	PopupNotes bool
+	Typography bool
+	DryRun     bool
 }
 
-// conversionReport 对齐 epub3_conversion/models.py 的 ConversionReport
-// as_dict 键序（dataclass 字段序即 JSON 键序）。
+// conversionReport 是转换过程的计数累加器；字段经 buildResult 逐项映射为
+// 统一信封的 camelCase facts（输入/输出 SHA-256 由 pipeline 信封的
+// input / output 段承担，本包不重复计算）。
 type conversionReport struct {
-	Harness               string   `json:"harness"`
-	InputSHA256           string   `json:"input_sha256"`
-	Output                string   `json:"output"`
 	OPF                   string   `json:"opf"`
 	PackageVersionBefore  *string  `json:"package_version_before"`
 	NavEntries            int      `json:"nav_entries"`
@@ -150,18 +139,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 // scanPhase 逐行复刻 converter.convert_epub（只读 b）。
 func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	rep := &conversionReport{
-		Harness:              "epub3_oneclick_converter",
-		Output:               p.Output,
-		ManifestItemsAdded:   []string{},
-		MetadataUpdates:      []string{},
-		TypographyRoles:      []string{},
-		Warnings:             []string{},
+		ManifestItemsAdded: []string{},
+		MetadataUpdates:    []string{},
+		TypographyRoles:    []string{},
+		Warnings:           []string{},
 	}
-	sum, err := fileSHA256Hex(b.InputPath())
-	if err != nil {
-		return nil, err
-	}
-	rep.InputSHA256 = sum
 
 	files := newWorkFiles(b)
 	// Python：files["mimetype"] = b"application/epub+zip"（无条件重置）。
@@ -272,27 +254,27 @@ func buildEdits(b *book.Book, files *workFiles) ([]editset.Edit, error) {
 	return edits, nil
 }
 
-// buildResult 装配统一信封（含 legacy-report 脚手架）。
+// buildResult 把 conversionReport 逐项映射为统一信封的 facts / findings / events。
 func buildResult(p Params, rep *conversionReport) report.Result {
 	var versionBefore any
 	if rep.PackageVersionBefore != nil {
 		versionBefore = *rep.PackageVersionBefore
 	}
 	facts := map[string]any{
-		"opf":                    rep.OPF,
-		"packageVersionBefore":   versionBefore,
-		"navEntries":             rep.NavEntries,
-		"xhtmlFilesUpdated":      rep.XHTMLFilesUpdated,
-		"stylesheetLinksAdded":   rep.StylesheetLinksAdded,
-		"plainNotesConverted":    rep.PlainNotesConverted,
-		"duokanNotesNormalized":  rep.DuokanNotesNormalized,
-		"manifestItemsAdded":     rep.ManifestItemsAdded,
-		"manifestItemsUpdated":   rep.ManifestItemsUpdated,
-		"metadataUpdates":        rep.MetadataUpdates,
-		"typographyRoles":        rep.TypographyRoles,
-		"warnings":               rep.Warnings,
-		"popupNotes":             p.PopupNotes,
-		"typography":             p.Typography,
+		"opf":                   rep.OPF,
+		"packageVersionBefore":  versionBefore,
+		"navEntries":            rep.NavEntries,
+		"xhtmlFilesUpdated":     rep.XHTMLFilesUpdated,
+		"stylesheetLinksAdded":  rep.StylesheetLinksAdded,
+		"plainNotesConverted":   rep.PlainNotesConverted,
+		"duokanNotesNormalized": rep.DuokanNotesNormalized,
+		"manifestItemsAdded":    rep.ManifestItemsAdded,
+		"manifestItemsUpdated":  rep.ManifestItemsUpdated,
+		"metadataUpdates":       rep.MetadataUpdates,
+		"typographyRoles":       rep.TypographyRoles,
+		"warnings":              rep.Warnings,
+		"popupNotes":            p.PopupNotes,
+		"typography":            p.Typography,
 	}
 	var findings []report.Finding
 	for _, w := range rep.Warnings {
@@ -304,13 +286,6 @@ func buildResult(p Params, rep *conversionReport) report.Result {
 		Message: fmt.Sprintf("nav_entries=%d xhtml_files_updated=%d plain_notes=%d duokan=%d",
 			rep.NavEntries, rep.XHTMLFilesUpdated, rep.PlainNotesConverted, rep.DuokanNotesNormalized),
 	}}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err == nil {
-			// 存 json.RawMessage，避免 []byte 被信封编码成 base64。
-			facts["legacyReport"] = json.RawMessage(bytes.TrimSuffix(raw, []byte("\n")))
-		}
-	}
 	return report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
@@ -355,19 +330,6 @@ func opfPathFromContainer(files *workFiles) (string, error) {
 		return "", convErrf("container rootfile does not resolve: %s", label)
 	}
 	return opfPath, nil
-}
-
-func fileSHA256Hex(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", convErrf("%v", err)
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", convErrf("%v", err)
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // ---- package passes（scripts/epub3_conversion/package.py） ----

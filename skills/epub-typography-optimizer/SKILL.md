@@ -34,7 +34,7 @@ epub run epub.typography.optimize --input <书> --output <新书> --json
 epub run epub.typography.optimize --input <书> --output <新书> --json preset=academic-cn
 ```
 
-可选 KEY=VALUE：`preset=literary-cn|academic-cn|classical-annotated-cn`（缺省 `literary-cn`）；`preset_dir=<目录>` 仅自定义 preset 库时使用。写型能力：`--output` 必填且指向新文件。需要旧报告形状明细时加 `legacy_report=true`。
+可选 KEY=VALUE：`preset=literary-cn|academic-cn|classical-annotated-cn`（缺省 `literary-cn`）；`preset_dir=<目录>` 仅自定义 preset 库时使用。写型能力：`--output` 必填且指向新文件。逐层样式表动作与新增 manifest 条目明细直接在 facts 里（见下）。
 
 改后校验：
 
@@ -52,11 +52,12 @@ epub run epub.font.coverage.analyze --input <新书> --json
 - facts 键前缀 `epub.typography.optimize.`：
   - `preset`、`layers`、`notes`：本次 preset 名、其样式层清单与注释策略。
   - `coverage`：类覆盖度——`usedClasses`（XHTML 用到的 preset 类）、`coveredClasses`（样式表已覆盖的类）、`ratio`、`threshold`，有 `warning` 时表示低于阈值。
-  - `stylesheets`、`xhtmlLinks`：涉及的样式表与 `<link>` 数。
-  - `manifestItemsAdded`（实跑后）：为样式表新增的 manifest 条目数。
+  - `stylesheets`、`xhtmlLinks`：涉及的样式表与被改写 `<link>` 的 XHTML 文件数。
+  - `stylesheetActions`：逐层动作数组，每项 `path`（书内样式表路径）、`source`（preset 内来源）、`action`（`add | replace`）。
+  - `xhtmlLinkFiles`：被改写 `<link>` 的 XHTML 文件路径列表。
+  - `manifestItemsAdded`（实跑后）：为样式表新增的 manifest 条目数；`manifestItemsAddedHrefs` 列出新增条目的 href。
   - `dryRun`：是否 dry-run。
 - findings：`warn typography.low-coverage`（覆盖度低于阈值）；run 内置红线失败时出现 `error redline.<check>`（text/anchors）。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（preset apply 报告）。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
 
 ## 依据返回怎么判断

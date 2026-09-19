@@ -22,11 +22,13 @@ package operations 借鉴 `epub-gadget` 中合并 / 拆分、封面和元数据�
 | 能力 | 推荐入口 |
 | --- | --- |
 | 合并多本 EPUB | `epub run epub.package.merge --input <a.epub> --output <merged.epub> --json extra_inputs=<b.epub>` |
-| 按目录索引拆分 EPUB | `epub run epub.package.split --input <book.epub> --output <dir>/<首册>.epub --json split_points=<indices> output_dir=<dir>` |
+| 按目录索引拆分 EPUB | `epub run epub.package.split --input <book.epub> --json split_points=<indices> output_dir=<dir>` |
 | 写入元数据 | `epub run epub.metadata.edit --input <book.epub> --output <out.epub> --json 'metadata_json={"title":"新标题"}'` |
 | 替换封面 | `epub run epub.cover.replace --input <book.epub> --output <out.epub> --json cover=<image>` |
 
-每个写操作都要求显式传入 `--output`（split 的分段产物实际写入 `output_dir`，其 `--output` 仅用于通过 CLI 写权限检查，不实际写入），不会直接覆盖原 EPUB。需要正式交付时，按对应小节的验证建议检查输出。
+单产物写操作要求显式传入 `--output`；split 是多产物能力，只接受 `output_dir`，
+由能力在目录中做分段产物的组提交。所有写操作都不会直接覆盖原 EPUB。
+需要正式交付时，按对应小节的验证建议检查输出。
 
 ## 合并 EPUB
 
@@ -71,11 +73,10 @@ epub run epub.package.nav.audit --input book.epub --json
 ```sh
 epub run epub.package.split \
   --input book.epub \
-  --output split-out/book_01.epub \
   --json split_points=0,12,30 output_dir=split-out > split.report.json
 ```
 
-该能力会在输出目录非空时停止。`--output` 仅用于通过 CLI 写权限检查，分段产物实际写入 `output_dir`。
+该能力会在输出目录非空时停止；分段产物全部写入 `output_dir`，不接受占位 `--output`。
 
 `split_points` 使用目录条目的索引。每个索引是一个新分册的开始位置，输出文件命名为 `<原文件名>_01.epub`、`<原文件名>_02.epub`。
 

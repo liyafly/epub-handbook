@@ -26,11 +26,7 @@ epub run epub.font.coverage.analyze --input <书> --json
 
 可选 KEY=VALUE：`profile=ideal-browser|kindle-pessimistic`（缺省 `kindle-pessimistic`）。只读能力，不需要 `--output`。
 
-需要旧报告形状明细（`char_inventory` 问题字与位置、`chain_health` 字体链健康、`unresolved` 逐条、`text_runs` 等）时加 `legacy_report=true`：
-
-```sh
-epub run epub.font.coverage.analyze --input <书> --json legacy_report=true
-```
+detector 的明细段（问题字与位置、字体链健康、未解析 CSS run、文本 run）默认就在 `facts` 里（见下文 `charInventory` / `chainHealth` / `unresolved` / `textRuns`），无需额外参数。
 
 ## 返回怎么读
 
@@ -43,7 +39,8 @@ epub run epub.font.coverage.analyze --input <书> --json legacy_report=true
   - `error fontcoverage.fail`：该 profile 下存在 fail 级覆盖缺口。
   - `warn fontcoverage.risk`：存在 risk 级缺口或 unresolved CSS run。
   - `error fontcoverage.adapter`：外部检测器未产出合法报告（输入缺失、provider 不可用等），此时结论无效。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（detector 原始 JSON，含 `char_inventory`、`unresolved`、`chain_health`、`summary` 等）。
+- `facts.charInventory`：问题字逐条（字符、码点、出现位置、原因）；`facts.unresolved`：未解析 CSS run 逐条；`facts.chainHealth`：字体链健康；`facts.textRuns`：文本 run 统计；段内字段沿用 detector 原始键名。
+- `facts.detectorExitCode` / `facts.detectorStderr`：只在 provider 成功返回可解析报告时出现（`detectorStderr` 还需 stderr 非空），用于排查 detector 的告警噪声。provider 失败时能力 `status: failed` 且不输出任何 facts，原因只在 `findings[]` 的 `fontcoverage.adapter` 里。
 
 ## 依据返回怎么判断
 

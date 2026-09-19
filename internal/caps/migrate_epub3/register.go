@@ -80,11 +80,11 @@ var xmlEncodingRe = regexp.MustCompile(`(?i)encoding\s*=\s*["']([A-Za-z0-9._-]+)
 // fontMediaTypes / imageMediaByExt 对齐 core.py 的 FONT_MEDIA_TYPES 与
 // IMAGE_MEDIA_BY_EXT。
 var fontMediaTypes = map[string]bool{
-	"application/x-font-ttf":       true,
-	"application/x-font-opentype":  true,
-	"application/font-sfnt":        true,
-	"font/ttf":                     true,
-	"font/otf":                     true,
+	"application/x-font-ttf":      true,
+	"application/x-font-opentype": true,
+	"application/font-sfnt":       true,
+	"font/ttf":                    true,
+	"font/otf":                    true,
 }
 
 var imageMediaByExt = map[string]string{

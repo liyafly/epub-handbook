@@ -16,6 +16,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // CapabilityID 是本能力的契约 id。
@@ -32,36 +33,34 @@ func refinementErrf(format string, args ...any) error {
 type Params struct {
 	// ExpectVolumes 对齐 --expect-volumes；nil 表示不校验。
 	ExpectVolumes *int
-	// LegacyReport 输出 RefinementReport 形状。
-	LegacyReport bool
-	// Output 仅为 legacy 报告字段（本包不落盘，INV-3）。
+	// Output 是 pipeline 透传的输出路径；本包不落盘（INV-3），也不再
+	// 把它写进报告，仅保留字段以维持 Params 形状。
 	Output string
 }
 
-// legacyReport 对齐 RefinementReport.as_dict 的键序（harness 为首键）。
-type legacyReport struct {
-	Harness               string   `json:"harness"`
-	Input                 string   `json:"input"`
-	Output                string   `json:"output"`
-	OPF                   string   `json:"opf"`
-	PosterPagesRefined    int      `json:"poster_pages_refined"`
-	CopyrightPagesRefined int      `json:"copyright_pages_refined"`
-	StylesheetsAdded      int      `json:"stylesheets_added"`
-	PosterPages           []string `json:"poster_pages"`
-	CopyrightPages        []string `json:"copyright_pages"`
-	Warnings              []string `json:"warnings"`
+// refinementReport 是精排结果的内部累积形态，字段一一映射到 facts。
+type refinementReport struct {
+	OPF                   string
+	PosterPagesRefined    int
+	CopyrightPagesRefined int
+	StylesheetsAdded      int
+	PosterPages           []string
+	CopyrightPages        []string
+	Warnings              []string
+	// ScanWarnings 是 xhtml.ScanRegions 截断告警（见 ensureStylesheetLink /
+	// addClassToTag / hasClassToken），与 Warnings（无相邻版权页）分开计数，
+	// 各自映射独立的 finding ID，互不干扰既有 alite.no-copyright 断言。
+	ScanWarnings []string
 }
 
 // Run 执行精排（SPEC §6.1 三段式）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
-	rep := legacyReport{
-		Harness:        "epub_anthology_refinement",
-		Input:          b.InputPath(),
-		Output:         p.Output,
+	rep := refinementReport{
 		PosterPages:    []string{},
 		CopyrightPages: []string{},
 		Warnings:       []string{},
+		ScanWarnings:   []string{},
 	}
 
 	opfPath, opfData, err := loadOPF(b)
@@ -126,10 +125,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err != nil {
 			return report.Result{}, err
 		}
-		refined, err := refinePoster(decodeUTF8Replace(raw), vol, cand.imageHref, styleHref)
+		refined, posterWarnings, err := refinePoster(decodeUTF8Replace(raw), vol, cand.imageHref, styleHref)
 		if err != nil {
 			return report.Result{}, err
 		}
+		rep.ScanWarnings = append(rep.ScanWarnings, prefixWarnings(cand.poster, posterWarnings)...)
 		edits = append(edits, editset.Replace(cand.poster, 0, int64(len(raw)), []byte(refined)))
 		rep.PosterPages = append(rep.PosterPages, cand.poster)
 
@@ -142,10 +142,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				return report.Result{}, err
 			}
 			copyrightStyleHref := relHref(cand.copyrightPath, cssZipPath)
-			cRefined, err := refineCopyright(decodeUTF8Replace(cRaw), copyrightStyleHref)
+			cRefined, copyrightWarnings, err := refineCopyright(decodeUTF8Replace(cRaw), copyrightStyleHref)
 			if err != nil {
 				return report.Result{}, err
 			}
+			rep.ScanWarnings = append(rep.ScanWarnings, prefixWarnings(cand.copyrightPath, copyrightWarnings)...)
 			edits = append(edits, editset.Replace(cand.copyrightPath, 0, int64(len(cRaw)), []byte(cRefined)))
 			rep.CopyrightPages = append(rep.CopyrightPages, cand.copyrightPath)
 		} else {
@@ -185,22 +186,24 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	res.Facts = map[string]any{
-		"poster_pages_refined":    rep.PosterPagesRefined,
-		"copyright_pages_refined": rep.CopyrightPagesRefined,
-		"stylesheets_added":       rep.StylesheetsAdded,
-		"warnings":                len(rep.Warnings),
+		"opf":                   rep.OPF,
+		"posterPagesRefined":    rep.PosterPagesRefined,
+		"copyrightPagesRefined": rep.CopyrightPagesRefined,
+		"stylesheetsAdded":      rep.StylesheetsAdded,
+		"posterPages":           rep.PosterPages,
+		"copyrightPages":        rep.CopyrightPages,
+		"warnings":              rep.Warnings,
+		"scanWarnings":          rep.ScanWarnings,
 	}
 	for _, w := range rep.Warnings {
 		res.Findings = append(res.Findings, report.Finding{
 			Level: "warn", ID: "alite.no-copyright", Title: w,
 		})
 	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = rawMessage(raw)
+	for _, w := range rep.ScanWarnings {
+		res.Findings = append(res.Findings, report.Finding{
+			Level: "warn", ID: "alite.markup-scan-truncated", Title: w,
+		})
 	}
 	return res, nil
 }
@@ -287,42 +290,50 @@ func addClassToAttrs(attrs, className string) (string, bool) {
 
 // addClassToTag 对齐 add_class_to_tag：pattern = <tag\b(?P<attrs>[^>]*)>（re.I），
 // required_class 不在首个 class 属性分词中则原样保留。
-func addClassToTag(value, tag, className, requiredClass string) string {
-	lower := strings.ToLower(value)
+//
+// 原实现手写 strings.Index(lower, "<"+tag) 扫描全文，对注释 / CDATA /
+// <script> 里同形的 `<tag …>` 文字没有排除；`>` 的定位也不感知引号，
+// 属性值里出现 `>` 会截断标签。改为基于 xhtml.ScanRegions 的 RegionTag：
+// 只在真实标签字节内匹配，引号感知天然继承自扫描器。
+//
+// 命中匹配标签（tag 名 + 满足 requiredClass）时始终按 `<tag newAttrs>`
+// 原样输出（tag 用调用方传入的规范小写名，不用原文大小写），即使
+// className 已存在也照常重写——与 Python/原 Go 实现一致（未改动此侧写）。
+//
+// 第二个返回值是告警：区域扫描截断时，截断点之后的 <tag> 不再加 class，
+// 调用方必须转成 finding，不能静默半改。
+func addClassToTag(value, tag, className, requiredClass string) (string, []string) {
+	regions, stop := xhtml.ScanRegions(value)
+	var warnings []string
+	if stop != xhtml.ScanComplete {
+		warnings = append(warnings, fmt.Sprintf(
+			"markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); <%s> class additions after this offset left unchanged",
+			stop, tag))
+	}
+	if len(regions) == 0 {
+		return value, warnings
+	}
 	var out strings.Builder
-	pos := 0
-	open := "<" + tag
-	for {
-		i := strings.Index(lower[pos:], open)
-		if i < 0 {
-			out.WriteString(value[pos:])
-			return out.String()
-		}
-		i += pos
-		after := i + len(open)
-		if after < len(value) && isPyWordByte(value[after]) {
-			// Python \b：tag 名后必须紧跟非词字符。
-			out.WriteString(value[pos : i+len(open)])
-			pos = i + len(open)
+	out.Grow(len(value))
+	last := 0
+	for _, r := range regions {
+		if r.Kind != xhtml.RegionTag {
 			continue
 		}
-		gt := strings.IndexByte(value[i:], '>')
-		if gt < 0 {
-			out.WriteString(value[pos:])
-			return out.String()
+		name, attrs, closing := xhtml.TagParts(value[r.Start:r.End])
+		if closing || !strings.EqualFold(name, tag) {
+			continue
 		}
-		gt += i
-		attrs := value[i+len(open) : gt]
 		if requiredClass != "" && !containsToken(classTokens(attrs), requiredClass) {
-			out.WriteString(value[pos : gt+1])
-			pos = gt + 1
 			continue
 		}
 		newAttrs, _ := addClassToAttrs(attrs, className)
-		out.WriteString(value[pos:i])
+		out.WriteString(value[last:r.Start])
 		out.WriteString("<" + tag + newAttrs + ">")
-		pos = gt + 1
+		last = r.End
 	}
+	out.WriteString(value[last:])
+	return out.String(), warnings
 }
 
 func containsToken(tokens []string, want string) bool {
@@ -485,26 +496,92 @@ func isCopyrightPage(value string) bool {
 	return ulListRe.MatchString(body[2])
 }
 
+// prefixWarnings 给一批扫描截断告警统一加上文档路径前缀，方便调用方把
+// 它们摊平进 rep.ScanWarnings 后仍能定位是哪个 XHTML。
+func prefixWarnings(path string, warnings []string) []string {
+	if len(warnings) == 0 {
+		return nil
+	}
+	out := make([]string, len(warnings))
+	for i, w := range warnings {
+		out[i] = path + ": " + w
+	}
+	return out
+}
+
 // ensureStylesheetLink 复刻 epub_lib.ensure_stylesheet_link：幂等判据是
-// href 子串已在文本中；HEAD_END_RE 命中的整个结束标签被替换为
-// link + "</head>"（原标签内的空白等不保留）。
-func ensureStylesheetLink(text, href string) (string, bool) {
+// href 子串已在文本中；命中的真实 </head> 结束标签被整个替换为
+// link + "</head>"（原标签内的空白/大小写不保留，与原实现一致）。
+//
+// 原实现用 headEndRe 对整页文本跑正则，一段「展示旧写法」的 HTML 注释里
+// 若原样写出 `</head>`，新链接会被插进注释里 —— 已修复：只在
+// xhtml.ScanRegions 认定的真实 RegionTag（且是 head 的闭合标签）内定位。
+//
+// 第三个返回值是告警：扫描遇到无法闭合的结构而截断时，截断点之后即便
+// 存在真实 </head> 也找不到，必须转成 finding，不能静默跳过插入。
+func ensureStylesheetLink(text, href string) (string, bool, []string) {
 	if strings.Contains(text, href) {
-		return text, false
+		return text, false, nil
 	}
-	link := `  <link href="` + href + `" type="text/css" rel="stylesheet"/>` + "\n"
-	loc := headEndRe.FindStringIndex(text)
-	if loc == nil {
-		return text, false
+	regions, stop := xhtml.ScanRegions(text)
+	var warnings []string
+	if stop != xhtml.ScanComplete {
+		warnings = append(warnings, fmt.Sprintf(
+			"markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); stylesheet link insertion point search stopped early",
+			stop))
 	}
-	return text[:loc[0]] + link + "</head>" + text[loc[1]:], true
+	for _, r := range regions {
+		if r.Kind != xhtml.RegionTag {
+			continue
+		}
+		name, _, closing := xhtml.TagParts(text[r.Start:r.End])
+		if !closing || !strings.EqualFold(name, "head") {
+			continue
+		}
+		link := `  <link href="` + href + `" type="text/css" rel="stylesheet"/>` + "\n"
+		return text[:r.Start] + link + "</head>" + text[r.End:], true, warnings
+	}
+	return text, false, warnings
+}
+
+// hasClassToken 判断 content 内是否存在真实标签、其 class 属性含 want
+// token。原判据 cardRe 是裸正则（`\bclass=["'][^"']*\bcopyright-card\b`，
+// 不要求前导 `<`），版权页正文若原样写出 `class="copyright-card"`
+// 这段示例文字会被误判为「结构已存在」，导致真正的 <section> 包裹被
+// 跳过——漏做变换，text redline 抓不到（没有文本变化可比），只能靠人工
+// 发现。改为只在 xhtml.ScanRegions 的真实 RegionTag（非闭合标签）属性内
+// 查找。
+//
+// 第二个返回值是截断告警；截断后未扫到的区域保守视为「未找到」，交由
+// 调用方按常规路径补齐包裹（顶多多包一层，不会丢正文/结构）。
+func hasClassToken(content, want string) (bool, []string) {
+	regions, stop := xhtml.ScanRegions(content)
+	var warnings []string
+	if stop != xhtml.ScanComplete {
+		warnings = append(warnings, fmt.Sprintf(
+			"markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); copyright-card detection stopped early",
+			stop))
+	}
+	for _, r := range regions {
+		if r.Kind != xhtml.RegionTag {
+			continue
+		}
+		_, attrs, closing := xhtml.TagParts(content[r.Start:r.End])
+		if closing {
+			continue
+		}
+		if containsToken(classTokens(attrs), want) {
+			return true, warnings
+		}
+	}
+	return false, warnings
 }
 
 // refinePoster 对齐 refine_poster。BODY_RE.sub(count=1) 用区间拼接复刻。
-func refinePoster(value string, volume int, imageHref, styleHref string) (string, error) {
+func refinePoster(value string, volume int, imageHref, styleHref string) (string, []string, error) {
 	loc := bodyRe.FindStringSubmatchIndex(value)
 	if loc == nil {
-		return "", refinementErrf("poster page missing body")
+		return "", nil, refinementErrf("poster page missing body")
 	}
 	attrs := value[loc[2]+len("<body") : loc[3]]
 	attrs = strings.TrimSuffix(attrs, ">")
@@ -515,28 +592,36 @@ func refinePoster(value string, volume int, imageHref, styleHref string) (string
 		"    <img class=\"poster-fallback\" alt=\"\" src=\"" + imageHref + "\"/>\n" +
 		"  </section>\n"
 	updated := value[:loc[0]] + "<body" + attrs + ">" + content + "</body>" + value[loc[1]:]
-	updated, _ = ensureStylesheetLink(updated, styleHref)
-	return updated, nil
+	updated, _, warnings := ensureStylesheetLink(updated, styleHref)
+	return updated, warnings, nil
 }
 
 // refineCopyright 对齐 refine_copyright。
-func refineCopyright(value, styleHref string) (string, error) {
+func refineCopyright(value, styleHref string) (string, []string, error) {
 	loc := bodyRe.FindStringSubmatchIndex(value)
 	if loc == nil {
-		return "", refinementErrf("copyright page missing body")
+		return "", nil, refinementErrf("copyright page missing body")
 	}
 	attrs := value[loc[2]+len("<body") : loc[3]]
 	attrs = strings.TrimSuffix(attrs, ">")
 	attrs, _ = addClassToAttrs(attrs, "anthology-copyright-page")
 	content := value[loc[4]:loc[5]]
-	content = addClassToTag(content, "p", "copyright-heading", "cp")
-	content = addClassToTag(content, "ul", "copyright-meta", "list")
-	content = addClassToTag(content, "li", "copyright-meta-item", "i")
-	if !cardRe.MatchString(content) {
+	var warnings []string
+	var w []string
+	content, w = addClassToTag(content, "p", "copyright-heading", "cp")
+	warnings = append(warnings, w...)
+	content, w = addClassToTag(content, "ul", "copyright-meta", "list")
+	warnings = append(warnings, w...)
+	content, w = addClassToTag(content, "li", "copyright-meta-item", "i")
+	warnings = append(warnings, w...)
+	hasCard, w := hasClassToken(content, "copyright-card")
+	warnings = append(warnings, w...)
+	if !hasCard {
 		content = "\n  <section class=\"copyright-card\" epub:type=\"frontmatter copyright-page\">" +
 			content + "\n  </section>\n"
 	}
 	updated := value[:loc[0]] + "<body" + attrs + ">" + content + "</body>" + value[loc[1]:]
-	updated, _ = ensureStylesheetLink(updated, styleHref)
-	return updated, nil
+	updated, _, w = ensureStylesheetLink(updated, styleHref)
+	warnings = append(warnings, w...)
+	return updated, warnings, nil
 }

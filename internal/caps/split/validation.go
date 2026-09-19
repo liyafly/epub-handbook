@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
@@ -194,7 +195,7 @@ func validateRetainedReferences(ctx context.Context, segment *book.Book, project
 		if documentPath == "mimetype" || documentPath == "META-INF/container.xml" || documentPath == "META-INF/encryption.xml" {
 			continue
 		}
-		ext := strings.ToLower(pathExt(documentPath))
+		ext := strings.ToLower(pypath.PathExt(documentPath))
 		if ext == ".css" {
 			data, err := segment.Current(documentPath)
 			if err != nil {
@@ -301,13 +302,13 @@ func validateRetainedReference(ctx context.Context, segment *book.Book, basePath
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	parts := pyURLSplit(raw)
-	if raw == "" || pyIsExternalURI(raw) || parts.scheme != "" || parts.netloc != "" || strings.HasPrefix(parts.path, "/") {
+	parts := pypath.URLSplit(raw)
+	if raw == "" || pypath.IsExternalURI(raw) || parts.Scheme != "" || parts.Netloc != "" || strings.HasPrefix(parts.Path, "/") {
 		return nil
 	}
 	targetPath := basePath
-	if parts.path != "" {
-		resolved, err := resolveRelativePath(basePath, parts.path)
+	if parts.Path != "" {
+		resolved, err := pypath.ResolveRelativePath(basePath, parts.Path)
 		if err != nil {
 			return fmt.Errorf("resource reference %s=%q from %s: %w", kind, raw, basePath, err)
 		}
@@ -369,13 +370,13 @@ func validateLocalReference(ctx context.Context, segment *book.Book, basePath, r
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	parts := pyURLSplit(raw)
-	if pyIsExternalURI(raw) || parts.scheme != "" || parts.netloc != "" {
+	parts := pypath.URLSplit(raw)
+	if pypath.IsExternalURI(raw) || parts.Scheme != "" || parts.Netloc != "" {
 		return nil
 	}
 	targetPath := basePath
-	if parts.path != "" {
-		resolved, err := resolveRelativePath(basePath, parts.path)
+	if parts.Path != "" {
+		resolved, err := pypath.ResolveRelativePath(basePath, parts.Path)
 		if err != nil {
 			return fmt.Errorf("navigation href %q from %s: %w", raw, basePath, err)
 		}
@@ -384,7 +385,7 @@ func validateLocalReference(ctx context.Context, segment *book.Book, basePath, r
 	if !segment.Has(targetPath) {
 		return fmt.Errorf("navigation target missing: %s (from %s)", targetPath, basePath)
 	}
-	if parts.fragment == "" {
+	if parts.Fragment == "" {
 		return nil
 	}
 	data, err := segment.Current(targetPath)
@@ -395,8 +396,8 @@ func validateLocalReference(ctx context.Context, segment *book.Book, basePath, r
 	if err != nil {
 		return fmt.Errorf("parse navigation anchor target %s: %w", targetPath, err)
 	}
-	if !ids[parts.fragment] {
-		return fmt.Errorf("navigation anchor target missing: %s#%s", targetPath, parts.fragment)
+	if !ids[parts.Fragment] {
+		return fmt.Errorf("navigation anchor target missing: %s#%s", targetPath, parts.Fragment)
 	}
 	return nil
 }

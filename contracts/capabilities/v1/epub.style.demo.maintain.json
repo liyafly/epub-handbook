@@ -7,7 +7,7 @@
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/execution-plan.schema.json",
   "redLines": [],
-  "permissions": {"requiresWriteAccess": true, "network": "none"},
-  "requires": [],
-  "adapters": ["openai", "claude", "mcp", "cli"]
+  "permissions": {"requiresWriteAccess": false, "network": "none"},
+  "execution": {"input": "epub-or-tree", "output": "none"},
+  "requires": []
 }

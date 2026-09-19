@@ -24,14 +24,12 @@ description: 整理已有 EPUB 的资源目录，并按固定顺序先格式化�
 # 1) dry-run：全局 --dry-run 只扫描不写输出
 epub run epub.structure.normalize --input <原始 EPUB> --output <normalized.epub> --dry-run --json
 
-# 2) 人工 review facts 里的 mappings 后实跑，并保存信封（内含 normalize JSON 报告）
-epub run epub.structure.normalize --input <原始 EPUB> --output <normalized.epub> --json legacy_report=true > work/normalize-envelope.json
+# 2) 人工 review facts 里的 mappings 后实跑，并原样保存 --json 信封
+epub run epub.structure.normalize --input <原始 EPUB> --output <normalized.epub> --json > work/normalize-envelope.json
 
-# 3) 提取 normalize JSON 报告（含改名映射），立刻作为红线 gate 的路径映射
-jq -r '.facts["epub.structure.normalize.legacyReport"]' work/normalize-envelope.json > work/normalize-report.json
-
-# 4) 两文件红线比对（flag 必须写在两个路径之前）；inspect 确认只含标准字体混淆时加 --allow-font-obfuscation
-epub redline --check all --path-map work/normalize-report.json <before.epub> <normalized.epub>
+# 3) 两文件红线比对：信封直接作为 --path-map（读取 facts["epub.structure.normalize.mappings"]）；
+#    flag 必须写在两个路径之前；inspect 确认只含标准字体混淆时加 --allow-font-obfuscation
+epub redline --check all --path-map work/normalize-envelope.json <before.epub> <normalized.epub>
 ```
 
 检查加密边界（只读体检）：
@@ -49,10 +47,10 @@ epub run epub.structure.normalize --input <书> --output <临时副本> --json m
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。
 - 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required（dry-run review）；3 用法错误（参数非法、文件不存在、缺 `--output`）。
 - facts 键前缀 `epub.structure.normalize.`：
-  - `mappings[]`（`from`/`to` 改名映射）、`warnings[]`、`stages[]`（每阶段的 `operation`、`mappings`、`warnings`、`removed_stale_encryption_resources` 等）、`movedResources`、`renamedResources`、`rewrittenFiles`、`dryRun`。
-  - `mode=inspect` 时：`manifestResources`、`fontObfuscationResources`、`removedStaleEncryptionResources`、`opf`。
+  - 所有 mode 都给出：`operation`、`mode`、`dryRun`、`opf`、`manifestResources`、`movedResources`、`renamedResources`、`rewrittenFiles`、`fontObfuscationResources`、`removedStaleEncryptionResources`、`mappings[]`（`from`/`to` 改名映射）、`warnings[]`。`mappings` 与 `warnings` 为空时是空数组，不是 `null`。
+  - 只有多阶段的默认 mode（format + deobfuscate）额外给出 `stages[]`：每阶段的 `operation`、`mappings`、`warnings`、`removed_stale_encryption_resources` 等逐阶段明细；单阶段 mode（`inspect` / `format` / `deobfuscate`）没有这个键。
 - findings：
-  - `warn structure.warning`：warnings 转化（不安全/缺失的本地引用未改动、stale encryption 移除等）。
+  - `warn structure.warning`：warnings 转化（不安全/缺失的本地引用未改动、stale encryption 移除等；`markup scan stopped at byte offset N` 表示该 XHTML/SVG 有未闭合的注释、CDATA、PI、声明或标签，该偏移之后的引用没有改写）。
   - `error redline.<check>`：run 内置红线门禁（text/metadata/spine/anchors/cover/drm）。
   - `error capability.run-failed`：保守重写失败（典型原因是遇到不支持的加密），事件里可见 `EPUB cannot be rewritten conservatively`。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
@@ -64,5 +62,6 @@ epub run epub.structure.normalize --input <书> --output <临时副本> --json m
 - 实跑 `status == failed` 且事件提示保守重写失败 → 存在 DRM 或非字体加密：停止，不解密、不猜测、不绕过；只有工具明确识别为标准字体混淆且任务得到明确授权时才可继续。
 - `findings` 出现 `redline.*` error → 立即停：输出文件保留供人工 diff review，先修源再重跑；不允许用宽泛 allow-list 掩盖。
 - `structure.warning` → 逐条人工复核；CSS 字体断链按「不猜测、不删声明、保留 `local()` fallback」处理。
+- `structure.warning` 出现 `markup scan stopped at byte offset N` → 该文件在偏移 N 之后的所有本地引用都没跟着改名，改名后会断链。修源（补上未闭合的注释/标签/引号）后重跑，不要直接进入下一步。
 - 红线通过 → 用 Calibre Editor 或 VS Code 做人工 diff review，再进入 EPUB3 迁移（`epub3-migrator`）与 OPF/nav 审核（`epub-package-nav-auditor`）、排版专项 skill；不要把结构规范化与 EPUB3 package 迁移混成一步。
 - 行为目标参考 [cnwxi/epub_tool](https://github.com/cnwxi/epub_tool) 的 `reformat` 与文件名 `decrypt` 工作流；第三方说明见 `THIRD_PARTY.md`。

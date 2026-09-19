@@ -5,7 +5,10 @@
 package migrateepub3
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // xhtmlDefaultLanguage 逐行复刻 core.xhtml_default_language。
@@ -198,7 +201,11 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 				defaultNoteIconUsed = true
 			}
 			var normalized int
-			text, normalized = normalizeDuokanNotes(text)
+			var duokanWarnings []string
+			text, normalized, duokanWarnings = normalizeDuokanNotes(text)
+			for _, w := range duokanWarnings {
+				rep.Warnings = append(rep.Warnings, zipPath+": "+w)
+			}
 			if normalized > 0 {
 				rep.DuokanNotesNormalized += normalized
 				changed = true
@@ -326,25 +333,91 @@ func convertSigilLegacyNotes(text, noteHref string) (string, int, int) {
 	return rebuilt, convertedCount, markerReplacements
 }
 
-// normalizeDuokanNotes 逐行复刻 core.normalize_duokan_notes。
-func normalizeDuokanNotes(text string) (string, int) {
+// normalizeDuokanNotes 复刻 core.normalize_duokan_notes，但把 class 改名限制在
+// **真实标签字节内**（xhtml.ScanRegions 的 RegionTag）。
+//
+// Python 版对全文做 re.subn，而 `class="duokan-footnote"` 这个针不含 `<` / `>`：
+// 一本讲 EPUB 制作的书在正文里原样写出这段 class（`&lt;li class="duokan-…"&gt;`
+// 只转义了尖括号，属性部分是裸字节）就会被当成标记改掉。样本书
+// 《EPub指南》的 Chapter12-2 / Chapter8-6 正是如此，实跑会触发 8 条
+// error redline.text —— 产物虽保留供人工 review，但这条能力在这本书上不可用。
+// 交接文档 §10 把它记为"红线能拦住但尚未修"，这里按 structure_normalize 已经
+// 验证过的区域化方案修掉。
+//
+// 保持全文替换的两条不受影响：`duokanAside` 需要字面 `<aside`，`>⊙</a>` 需要
+// 字面 `>` 与 `</a>`，转义后的正文（`&lt;aside`、`&gt;⊙&lt;/a&gt;`）都不可能命中。
+//
+// 第三个返回值是告警：区域扫描在无法闭合的结构处截断时，其后的标签不再改写，
+// 必须让人知道，不能静默半改。
+func normalizeDuokanNotes(text string) (string, int, []string) {
 	if !strings.Contains(text, "duokan-footnote") && !strings.Contains(text, `epub:type="footnote"`) {
-		return text, 0
+		return text, 0, nil
 	}
 	count := 0
 	updated := text
 	var n int
 	updated, n = pyPatterns["duokanAside"].subTemplate(updated, `<aside epub:type="footnote" role="doc-footnote"`, 0)
 	count += n
-	updated, n = subLiteral(updated, `class="duokan-footnote-content"`, `class="footnote-list"`)
-	count += n
-	updated, n = subLiteral(updated, `class="duokan-footnote-item"`, `class="footnote-item"`)
-	count += n
-	updated, n = subLiteral(updated, `class="duokan-footnote"`, `class="noteref-icon"`)
-	count += n
+
+	// class 改名表按 Python 的先后顺序应用 —— `duokan-footnote-content` 与
+	// `duokan-footnote-item` 必须先于 `duokan-footnote`，否则后者会先把前两个
+	// 的前缀吃掉。函数内声明而非包级：INV-7 禁止包级可变状态。
+	rewrites := [...][2]string{
+		{`class="duokan-footnote-content"`, `class="footnote-list"`},
+		{`class="duokan-footnote-item"`, `class="footnote-item"`},
+		{`class="duokan-footnote"`, `class="noteref-icon"`},
+	}
+	renamed, warnings := rewriteInTags(updated, func(tag string) (string, int) {
+		total := 0
+		for _, rw := range rewrites {
+			out, k := subLiteral(tag, rw[0], rw[1])
+			tag = out
+			total += k
+		}
+		return tag, total
+	})
+	updated = renamed.text
+	count += renamed.count
+
 	updated, n = subLiteral(updated, `>⊙</a>`, `>◎</a>`)
 	count += n
-	return updated, count
+	return updated, count, warnings
+}
+
+// tagRewriteResult 是 rewriteInTags 的产物：改写后的文本与命中计数。
+type tagRewriteResult struct {
+	text  string
+	count int
+}
+
+// rewriteInTags 对文档里每个真实标签的字节区间调用 fn，其余字节（正文字符
+// 数据、注释、CDATA、处理指令、DOCTYPE、<script>/<style> 内容）原样透传。
+// 区域扫描截断时返回一条告警，截断点之后的标签保持不变。
+func rewriteInTags(text string, fn func(tag string) (string, int)) (tagRewriteResult, []string) {
+	regions, stop := xhtml.ScanRegions(text)
+	var warnings []string
+	if stop != xhtml.ScanComplete {
+		warnings = append(warnings, fmt.Sprintf(
+			"markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); duokan note classes after this offset left unchanged", stop))
+	}
+	if len(regions) == 0 {
+		return tagRewriteResult{text: text}, warnings
+	}
+	var out strings.Builder
+	out.Grow(len(text))
+	total, last := 0, 0
+	for _, r := range regions {
+		if r.Kind != xhtml.RegionTag {
+			continue
+		}
+		out.WriteString(text[last:r.Start])
+		segment, n := fn(text[r.Start:r.End])
+		out.WriteString(segment)
+		total += n
+		last = r.End
+	}
+	out.WriteString(text[last:])
+	return tagRewriteResult{text: out.String(), count: total}, warnings
 }
 
 // markNoteMarkerSup 逐行复刻 core.mark_note_marker_sup。

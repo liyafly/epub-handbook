@@ -8,10 +8,8 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -155,7 +153,7 @@ func runGo(t *testing.T, fixture, output string, mode Mode, dryRun bool) (report
 		t.Fatalf("book.Open: %v", err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{Mode: mode, DryRun: dryRun, Output: output, LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{Mode: mode, DryRun: dryRun})
 	if err != nil {
 		return res, err
 	}
@@ -222,20 +220,35 @@ func assertMimetypeStored(t *testing.T, zr *zip.ReadCloser) {
 	}
 }
 
-func legacyReportOf(t *testing.T, res report.Result) []byte {
+// normFacts 是统一信封 facts 的测试视图（camelCase 键与 buildResult 一致）。
+type normFacts struct {
+	Operation                       string        `json:"operation"`
+	Mode                            string        `json:"mode"`
+	DryRun                          bool          `json:"dryRun"`
+	OPF                             string        `json:"opf"`
+	ManifestResources               int           `json:"manifestResources"`
+	MovedResources                  int           `json:"movedResources"`
+	RenamedResources                int           `json:"renamedResources"`
+	RewrittenFiles                  int           `json:"rewrittenFiles"`
+	FontObfuscationResources        int           `json:"fontObfuscationResources"`
+	RemovedStaleEncryptionResources int           `json:"removedStaleEncryptionResources"`
+	Mappings                        []mapping     `json:"mappings"`
+	Warnings                        []string      `json:"warnings"`
+	Stages                          []stageReport `json:"stages"`
+}
+
+// factsOf 经 JSON 往返读取 Result.Facts，同时保证 facts 可序列化。
+func factsOf(t *testing.T, res report.Result) normFacts {
 	t.Helper()
-	raw, ok := res.Facts["legacyReport"]
-	if !ok {
-		t.Fatal("Result.Facts 缺少 legacyReport")
+	raw, err := json.Marshal(res.Facts)
+	if err != nil {
+		t.Fatalf("facts 不可序列化: %v", err)
 	}
-	switch v := raw.(type) {
-	case json.RawMessage:
-		return v
-	case []byte:
-		return v
+	var out normFacts
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("facts 解码失败: %v\n%s", err, raw)
 	}
-	t.Fatalf("legacyReport 类型错误: %T", raw)
-	return nil
+	return out
 }
 
 // ---- 语义测试（对齐 test_epub_structure_tool.py 的断言） ----
@@ -250,10 +263,7 @@ func TestFormatMatchesPythonAssertions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var rep legacyRewriteReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.MovedResources != 7 || rep.RenamedResources != 0 {
 		t.Fatalf("moved=%d renamed=%d, want 7/0；mappings=%v", rep.MovedResources, rep.RenamedResources, rep.Mappings)
 	}
@@ -320,10 +330,7 @@ func TestFormatDryRunOnlyPlans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var rep legacyRewriteReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if !rep.DryRun || rep.RewrittenFiles != 0 || rep.MovedResources != 7 {
 		t.Fatalf("dry-run 报告错误: %+v", rep)
 	}
@@ -342,10 +349,7 @@ func TestDeobfuscateMatchesPythonAssertions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var rep legacyRewriteReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.FontObfuscationResources != 1 || rep.RenamedResources != 5 || rep.MovedResources != 7 {
 		t.Fatalf("报告错误: %+v", rep)
 	}
@@ -419,10 +423,7 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var wf legacyWorkflowReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &wf); err != nil {
-		t.Fatal(err)
-	}
+	wf := factsOf(t, res)
 	if wf.Operation != "normalize" || len(wf.Stages) != 2 {
 		t.Fatalf("workflow 报告形状错误: %+v", wf)
 	}
@@ -475,10 +476,7 @@ func TestNormalizeDryRunKeepsStage1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var wf legacyWorkflowReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &wf); err != nil {
-		t.Fatal(err)
-	}
+	wf := factsOf(t, res)
 	if wf.DryRun != true || wf.Stages[0].DryRun != false || wf.Stages[1].DryRun != true {
 		t.Fatalf("dry_run 传播错误: %+v", wf)
 	}
@@ -500,10 +498,7 @@ func TestRemoveStaleEncryptionReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var wf legacyWorkflowReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &wf); err != nil {
-		t.Fatal(err)
-	}
+	wf := factsOf(t, res)
 	if wf.Stages[0].RemovedStaleEncryptionResources != 1 {
 		t.Fatalf("stale 计数错误: %+v", wf.Stages[0])
 	}
@@ -532,15 +527,12 @@ func TestInspectReportsWithoutEdits(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{Mode: ModeInspect, LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{Mode: ModeInspect})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var rep legacyRewriteReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
-	if rep.Operation != "inspect" || rep.Output != nil || rep.DryRun {
+	rep := factsOf(t, res)
+	if rep.Operation != "inspect" || rep.Mode != "inspect" || rep.DryRun || len(rep.Stages) != 0 {
 		t.Fatalf("inspect 报告形状错误: %+v", rep)
 	}
 	if rep.ManifestResources != 7 || rep.FontObfuscationResources != 1 {
@@ -647,239 +639,158 @@ func TestETSerializerPinnedRules(t *testing.T) {
 	}
 }
 
-// ---- parity（同一 fixture 分别跑 Python oracle 与 Go 实现，逐 entry 比对） ----
+// ---- 信封回归与幂等（原 Python oracle parity 的 Go 原生替代） ----
 
-func chdir(t *testing.T, dir string) func() {
-	t.Helper()
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	return func() { _ = os.Chdir(old) }
-}
-
-// pythonScriptPath 解析 oracle 脚本绝对路径（不可用时跳过测试）。
-func pythonScriptPath(t *testing.T) string {
-	t.Helper()
-	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repoRoot, "scripts", "epub_structure_tool.py")
-	if _, err := os.Stat(script); err != nil {
-		t.Skip("scripts/epub_structure_tool.py 不存在（oracle 已删除）")
-	}
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 不可用")
-	}
-	return script
-}
-
-// runPythonStructureTool 在 dir 下跑 scripts/epub_structure_tool.py 并返回 JSON 报告。
-func runPythonStructureTool(t *testing.T, dir string, args ...string) map[string]any {
-	t.Helper()
-	return runPythonScript(t, dir, pythonScriptPath(t), args...)
-}
-
-// runPythonScript 以显式脚本路径跑 oracle（chdir 之后的调用用它）。
-func runPythonScript(t *testing.T, dir, script string, args ...string) map[string]any {
-	t.Helper()
-	full := append([]string{script}, args...)
-	cmd := exec.Command("python3", full...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("python oracle 运行失败: %v\nstderr: %s", err, stderr.String())
-	}
-	var out map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
-		t.Fatalf("python oracle 输出不是 JSON: %v\nstdout: %s", err, stdout.String())
-	}
-	return out
-}
-
-// zeroUncertainFields 把两边报告中的不确定字段置空（normalize stage[1].input
-// 是 Python 临时目录路径，每次运行都变化；parity 比对时忽略）。
-func zeroUncertainFields(v any) {
-	obj, ok := v.(map[string]any)
-	if !ok {
-		return
-	}
-	stages, ok := obj["stages"].([]any)
-	if !ok || len(stages) < 2 {
-		return
-	}
-	if st, ok := stages[1].(map[string]any); ok {
-		st["input"] = ""
-	}
-}
-
-func readZipFiles(t *testing.T, path string) map[string]*zip.File {
-	t.Helper()
-	zr := openZip(t, path)
-	out := map[string]*zip.File{}
-	for _, f := range zr.File {
-		out[f.Name] = f
-	}
-	return out
-}
-
-func parityCase(t *testing.T, mode Mode, encrypted string, dryRun bool) {
-	t.Helper()
+func TestFormatIdempotent(t *testing.T) {
 	dir := t.TempDir()
-	buildFixture(t, filepath.Join(dir, "fixture.epub"), encrypted)
-	op, _ := mode.pythonOperation()
-
-	// 1. Python oracle（相对路径，报告里的 input/output 与 Go 对齐）。
-	pyArgs := []string{op, "fixture.epub", "--output", "out.epub", "--report-format", "json"}
-	if dryRun {
-		pyArgs = append(pyArgs, "--dry-run")
+	fixture := filepath.Join(dir, "fixture.epub")
+	buildFixture(t, fixture, "")
+	round1 := filepath.Join(dir, "round1.epub")
+	if _, err := runGo(t, fixture, round1, ModeFormat, false); err != nil {
+		t.Fatalf("Run 1: %v", err)
 	}
-	pyReport := runPythonStructureTool(t, dir, pyArgs...)
-	if !dryRun {
-		if err := os.Rename(filepath.Join(dir, "out.epub"), filepath.Join(dir, "py.epub")); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// 2. Go 实现（chdir 使 InputPath 为相对路径形状）。
-	restore := chdir(t, dir)
-	defer restore()
-	b, err := book.Open("fixture.epub")
+	round2 := filepath.Join(dir, "round2.epub")
+	res, err := runGo(t, round1, round2, ModeFormat, false)
 	if err != nil {
-		t.Fatalf("book.Open: %v", err)
+		t.Fatalf("Run 2: %v", err)
 	}
-	res, err := Run(context.Background(), b, Params{Mode: mode, DryRun: dryRun, Output: "out.epub", LegacyReport: true})
-	if err != nil {
-		t.Fatalf("Go Run: %v", err)
-	}
-	if !dryRun {
-		if err := b.WriteTo("out.epub"); err != nil {
-			t.Fatalf("WriteTo: %v", err)
-		}
-	}
-	b.Close()
-
-	// 3. 逐 entry 比对 CRC32 / 内容 / mimetype 方法。
-	if !dryRun {
-		pyFiles := readZipFiles(t, filepath.Join(dir, "py.epub"))
-		goFiles := readZipFiles(t, filepath.Join(dir, "out.epub"))
-		if len(pyFiles) != len(goFiles) {
-			t.Fatalf("entry 数不一致: python=%d go=%d", len(pyFiles), len(goFiles))
-		}
-		for name, pf := range pyFiles {
-			gf, ok := goFiles[name]
-			if !ok {
-				t.Fatalf("Go 产物缺少 entry %s", name)
-			}
-			if pf.CRC32 != gf.CRC32 {
-				pyData := zipRead(t, openZip(t, filepath.Join(dir, "py.epub")), name)
-				goData := zipRead(t, openZip(t, filepath.Join(dir, "out.epub")), name)
-				t.Fatalf("entry %s CRC32 不一致 (python=%d go=%d)\npython=%q\ngo=%q",
-					name, pf.CRC32, gf.CRC32, pyData, goData)
-			}
-		}
-		// mimetype：内容规范 + STORED。
-		for name, files := range map[string]map[string]*zip.File{"py": pyFiles, "go": goFiles} {
-			mf, ok := files["mimetype"]
-			if !ok {
-				t.Fatalf("%s 产物缺少 mimetype", name)
-			}
-			if mf.Method != zip.Store {
-				t.Fatalf("%s 产物 mimetype 应为 STORED", name)
-			}
-		}
-	}
-
-	// 4. legacy 报告逐字段比对（P2）。
-	var goReport map[string]any
-	if err := json.Unmarshal(legacyReportOf(t, res), &goReport); err != nil {
-		t.Fatal(err)
-	}
-	zeroUncertainFields(goReport)
-	zeroUncertainFields(pyReport)
-	if !reflect.DeepEqual(goReport, pyReport) {
-		goJSON, _ := json.MarshalIndent(goReport, "", "  ")
-		pyJSON, _ := json.MarshalIndent(pyReport, "", "  ")
-		t.Fatalf("legacy 报告不一致:\n--- go ---\n%s\n--- python ---\n%s", goJSON, pyJSON)
-	}
-}
-
-func TestParityFormat(t *testing.T)          { parityCase(t, ModeFormat, "", false) }
-func TestParityFormatDryRun(t *testing.T)    { parityCase(t, ModeFormat, "", true) }
-func TestParityDeobfuscate(t *testing.T)     { parityCase(t, ModeDeobfuscate, "font", false) }
-func TestParityNormalize(t *testing.T)       { parityCase(t, ModeNormalize, "", false) }
-func TestParityNormalizeDryRun(t *testing.T) { parityCase(t, ModeNormalize, "", true) }
-
-// TestParityFormatIdempotent 覆盖「输入已是 ET 规范形」的路径：对 Python
-// format 过一次的产物再跑一次 format，Go 与 Python 的输出必须仍逐 entry
-// 一致（真实书籍会被本工具反复处理，这正是字节保真最要紧的场景）。
-func TestParityFormatIdempotent(t *testing.T) {
-	script := pythonScriptPath(t)
-	dir := t.TempDir()
-	buildFixture(t, filepath.Join(dir, "fixture.epub"), "")
-	// 第一轮：双方各自 format。
-	runPythonScript(t, dir, script, "format", "fixture.epub", "--output", "round1.epub", "--report-format", "json")
-	if err := os.Rename(filepath.Join(dir, "round1.epub"), filepath.Join(dir, "py1.epub")); err != nil {
-		t.Fatal(err)
-	}
-	restore := chdir(t, dir)
-	defer restore()
-	b, err := book.Open("fixture.epub")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Run(context.Background(), b, Params{Mode: ModeFormat, Output: "round1.epub"}); err != nil {
-		t.Fatalf("Go Run: %v", err)
-	}
-	if err := b.WriteTo("round1.epub"); err != nil {
-		t.Fatal(err)
-	}
-	b.Close()
-
-	// 第二轮：Python 处理自己的 round1 产物，Go 处理自己的 round1 产物。
-	runPythonScript(t, dir, script, "format", "round1.epub", "--output", "py2.epub", "--report-format", "json")
-
-	b2, err := book.Open("round1.epub")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := Run(context.Background(), b2, Params{Mode: ModeFormat, Output: "out.epub", LegacyReport: true})
-	if err != nil {
-		t.Fatalf("Go Run 2: %v", err)
-	}
-	if err := b2.WriteTo("out.epub"); err != nil {
-		t.Fatal(err)
-	}
-	b2.Close()
-
-	pyFiles := readZipFiles(t, filepath.Join(dir, "py2.epub"))
-	goFiles := readZipFiles(t, filepath.Join(dir, "out.epub"))
-	if len(pyFiles) != len(goFiles) {
-		t.Fatalf("entry 数不一致: python=%d go=%d", len(pyFiles), len(goFiles))
-	}
-	for name, pf := range pyFiles {
-		gf, ok := goFiles[name]
-		if !ok {
-			t.Fatalf("Go 产物缺少 entry %s", name)
-		}
-		if pf.CRC32 != gf.CRC32 {
-			t.Fatalf("entry %s CRC32 不一致 (python=%d go=%d)", name, pf.CRC32, gf.CRC32)
-		}
-	}
-	// 幂等：第二轮应零移动、零重写。
-	var rep legacyRewriteReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
-	if rep.MovedResources != 0 || rep.RewrittenFiles != 0 {
+	// 幂等：第二轮应零移动、零重写、零映射，产物逐 entry 与第一轮一致。
+	rep := factsOf(t, res)
+	if rep.MovedResources != 0 || rep.RewrittenFiles != 0 || len(rep.Mappings) != 0 {
 		t.Fatalf("第二次 format 应为 no-op: %+v", rep)
+	}
+	first := openZip(t, round1)
+	second := openZip(t, round2)
+	if len(first.File) != len(second.File) {
+		t.Fatalf("entry 数不一致: %d vs %d", len(first.File), len(second.File))
+	}
+	for _, f := range first.File {
+		if got := zipRead(t, second, f.Name); !bytes.Equal(got, zipRead(t, first, f.Name)) {
+			t.Fatalf("entry %s 第二轮字节变化", f.Name)
+		}
+	}
+}
+
+// TestFactsKeysAreStable 锁定单阶段与两阶段的 facts 键集合、mappings 形状
+// （{from,to}，供 `epub redline --path-map` 直接消费）以及 warnings→findings 映射。
+func TestFactsKeysAreStable(t *testing.T) {
+	base := []string{
+		"operation", "mode", "dryRun", "opf", "manifestResources", "movedResources", "renamedResources",
+		"rewrittenFiles", "fontObfuscationResources", "removedStaleEncryptionResources", "mappings", "warnings",
+	}
+	cases := []struct {
+		name    string
+		mode    Mode
+		variant string
+		extra   []string
+	}{
+		{"format", ModeFormat, "", nil},
+		{"deobfuscate", ModeDeobfuscate, "font", nil},
+		{"normalize", ModeNormalize, "stale", []string{"stages"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			fixture := filepath.Join(dir, "fixture.epub")
+			buildFixture(t, fixture, tc.variant)
+			res, err := runGo(t, fixture, filepath.Join(dir, "out.epub"), tc.mode, false)
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			want := append(append([]string{}, base...), tc.extra...)
+			for _, k := range want {
+				if _, ok := res.Facts[k]; !ok {
+					t.Errorf("facts 缺少 %q", k)
+				}
+			}
+			if len(res.Facts) != len(want) {
+				t.Errorf("facts 键数 = %d, want %d: %v", len(res.Facts), len(want), res.Facts)
+			}
+			raw, err := json.Marshal(res.Facts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var generic map[string]any
+			if err := json.Unmarshal(raw, &generic); err != nil {
+				t.Fatal(err)
+			}
+			maps, ok := generic["mappings"].([]any)
+			if !ok {
+				t.Fatalf("mappings 必须是数组: %T", generic["mappings"])
+			}
+			if tc.mode != ModeFormat && len(maps) == 0 {
+				t.Fatal("deobfuscate/normalize 应产生改名映射")
+			}
+			for _, m := range maps {
+				item, _ := m.(map[string]any)
+				if _, ok := item["from"].(string); !ok {
+					t.Fatalf("mapping 缺 from: %v", m)
+				}
+				if _, ok := item["to"].(string); !ok {
+					t.Fatalf("mapping 缺 to: %v", m)
+				}
+			}
+			rep := factsOf(t, res)
+			if rep.Operation == "" || rep.Mode != string(tc.mode) || rep.OPF == "" {
+				t.Errorf("operation/mode/opf 错误: %+v", rep)
+			}
+			if len(rep.Warnings) != len(res.Findings) {
+				t.Errorf("warnings(%d) 应逐条映射为 findings(%d)", len(rep.Warnings), len(res.Findings))
+			}
+			if tc.variant == "stale" {
+				if rep.RemovedStaleEncryptionResources != 1 || len(rep.Warnings) == 0 {
+					t.Errorf("顶层 stale 计数/告警应汇总各阶段: %+v", rep)
+				}
+				if len(rep.Stages) != 2 || len(rep.Mappings) != len(rep.Stages[0].Mappings)+len(rep.Stages[1].Mappings) {
+					t.Errorf("顶层 mappings 应为各阶段拼接: %+v", rep)
+				}
+			}
+		})
+	}
+}
+
+// TestStageSlicesSerializeAsArrays 锁定 facts["stages"] 里每个阶段的
+// mappings / warnings 始终序列化为数组而不是 null。stageReport 的唯一构造点
+// 已把两者初始化为空切片；这个测试保证以后新增构造路径时不会退回 null，
+// 因为 SKILL.md 记录的 jq 取长度用法在 null 上会失败。
+func TestStageSlicesSerializeAsArrays(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "fixture.epub")
+	buildFixture(t, fixture, "")
+	res, err := runGo(t, fixture, filepath.Join(dir, "out.epub"), ModeNormalize, false)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	raw, err := json.Marshal(res.Facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		t.Fatal(err)
+	}
+	stages, ok := generic["stages"].([]any)
+	if !ok || len(stages) == 0 {
+		t.Fatalf("stages 必须是非空数组: %T", generic["stages"])
+	}
+	sawEmpty := false
+	for i, s := range stages {
+		stage, ok := s.(map[string]any)
+		if !ok {
+			t.Fatalf("stage %d 不是对象: %T", i, s)
+		}
+		for _, key := range []string{"mappings", "warnings"} {
+			list, ok := stage[key].([]any)
+			if !ok {
+				t.Errorf("stage %d 的 %q 必须是数组，实际 %T (%v)", i, key, stage[key], stage[key])
+				continue
+			}
+			if len(list) == 0 {
+				sawEmpty = true
+			}
+		}
+	}
+	if !sawEmpty {
+		t.Error("fixture 未产生空的阶段切片，本测试无法验证空数组形状")
 	}
 }

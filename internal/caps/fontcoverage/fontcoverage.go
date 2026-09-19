@@ -27,15 +27,12 @@ var ErrAdapter = errors.New("fontcoverage: adapter error")
 type Params struct {
 	// Profile 是检测档案：ideal-browser | kindle-pessimistic。
 	Profile string
-	// LegacyReport 输出 adapter 的原始 JSON 形状（保持 detector 键序）。
-	LegacyReport bool
 	// ToolRoot 覆盖 tools-font/coverage-detector 的位置（测试用）。
 	ToolRoot string
 }
 
-// detectorReport 保持 detector JSON 的键插入序（Python dict 语义）。
+// detectorReport 是 detector 顶层 JSON 对象（键 → 值）。
 type detectorReport struct {
-	keys []string
 	vals map[string]any
 }
 
@@ -62,44 +59,12 @@ func parseOrdered(data []byte) (*detectorReport, error) {
 		if err := dec.Decode(&v); err != nil {
 			return nil, err
 		}
-		rep.keys = append(rep.keys, key)
 		rep.vals[key] = v
 	}
 	if _, err := dec.Token(); err != nil { // closing }
 		return nil, err
 	}
 	return rep, nil
-}
-
-// set 追加（或覆盖）一个键；新键排在已有键之后，对齐 Python dict 追加语义。
-func (r *detectorReport) set(key string, v any) {
-	if _, exists := r.vals[key]; !exists {
-		r.keys = append(r.keys, key)
-	}
-	r.vals[key] = v
-}
-
-// MarshalJSON 保持键插入序输出。
-func (r *detectorReport) MarshalJSON() ([]byte, error) {
-	var buf []byte
-	buf = append(buf, '{')
-	for i, k := range r.keys {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		kb, err := json.Marshal(k)
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, kb...)
-		buf = append(buf, ':')
-		vb, err := json.Marshal(r.vals[k])
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, vb...)
-	}
-	return append(buf, '}'), nil
 }
 
 // Run 执行字体覆盖检测（只读）。
@@ -127,10 +92,25 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		toolRoot = filepath.Join(root, "tools-font", "coverage-detector")
 	}
-	run, _ := extern.Run(toolRoot, []string{
+	run, runErr := extern.Run(ctx, toolRoot, []string{
 		"uv", "run", "python", "-m", "src.cli", input,
 		"--profile", p.Profile, "--json", "--quiet",
 	})
+	if runErr != nil {
+		// ctx 取消/超时（大书 uv run 跑很久时被上层 Ctrl-C 或 deadline 打断）：
+		// extern.Run 已经把 ctx 的错误联结进 runErr。这里必须原样透传，不能
+		// 走 adapterFailure —— adapterFailure 只包 ErrAdapter，会让
+		// errors.Is(err, context.Canceled) 在 pipeline 那层失效，取消就被
+		// 误判成 capability.run-failed（"工具坏了"）而不是"没跑完"。
+		if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
+			return res, runErr
+		}
+		// 进程根本没起来（uv 在 LookPath 之后消失、权限不足、工作目录缺失…）。
+		// 丢掉这个 error 会让下面的 parseOrdered 拿着零值 CmdResult 走失败分支，
+		// 报出 "exit code 0" —— 暗示工具跑完了且干净退出，恰好把真正的原因
+		// （工具没装 / 起不来）藏起来。extern.ErrToolMissing 也在这里。
+		return adapterFailure(&res, fmt.Sprintf("coverage detector could not be started: %v", runErr))
+	}
 	det, perr := parseOrdered(run.Stdout)
 	if perr != nil {
 		detail := trimmed(run.Stderr)
@@ -146,20 +126,24 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return adapterFailure(&res, "coverage detector returned an unsupported report schema")
 	}
 	status := statusFor(det, p.Profile)
-	det.set("capability", CapabilityID)
-	det.set("status", status)
-	det.set("profile", p.Profile)
-	det.set("detector_exit_code", run.ExitCode)
-	if s := trimmed(run.Stderr); s != "" {
-		det.set("detector_stderr", s)
-	}
 
+	// facts：`profile` / `status` 是本次结论；detector 报告的各段以 camelCase
+	// 键原样透出（段内字段沿用 detector 的 snake_case 键名）：`summary`、
+	// `charInventory`（问题字与出现位置）、`unresolved`（未解析 CSS run）、
+	// `chainHealth`（字体链健康）、`textRuns`；`detectorExitCode` /
+	// `detectorStderr` 便于排查 provider 本身的问题。
 	res.Facts = map[string]any{
-		"profile": p.Profile,
-		"status":  status,
+		"profile":          p.Profile,
+		"status":           status,
+		"detectorExitCode": run.ExitCode,
 	}
-	if summary, ok := det.vals["summary"]; ok {
-		res.Facts["summary"] = summary
+	for key, fact := range detectorFactKeys() {
+		if v, ok := det.vals[key]; ok {
+			res.Facts[fact] = v
+		}
+	}
+	if s := trimmed(run.Stderr); s != "" {
+		res.Facts["detectorStderr"] = s
 	}
 	switch status {
 	case "fail":
@@ -174,14 +158,19 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			Title: "Font coverage detector reported risk for profile " + p.Profile,
 		})
 	}
-	if p.LegacyReport {
-		raw, err := json.Marshal(det)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
-	}
 	return res, nil
+}
+
+// detectorFactKeys 把 detector JSON 顶层段映射到正式 facts 键
+// （函数而非包级 var：INV-7 禁止包级可变状态）。
+func detectorFactKeys() map[string]string {
+	return map[string]string{
+		"summary":        "summary",
+		"char_inventory": "charInventory",
+		"unresolved":     "unresolved",
+		"chain_health":   "chainHealth",
+		"text_runs":      "textRuns",
+	}
 }
 
 // statusFor 复刻 status_for，含 Python 的短路优先级：

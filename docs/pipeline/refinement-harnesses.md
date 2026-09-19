@@ -113,15 +113,17 @@ coverage 低于 30% 时先完成 class 体系迁移；coverage 足够且人工�
 
 ## 图片转化工具建议
 
-本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure：
+本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure。
+**这些工具都不由 CLI 探测或调用**（`facts.toolAvailability` 目前只探测 `epubcheck`），
+需要自己确认已安装、自己运行，然后回到 EPUB 层复核：
 
-| 工具 | 用途 | 报告中的处理 |
+| 工具 | 用途 | 人工注意事项 |
 | --- | --- | --- |
-| [ImageMagick `magick`](https://imagemagick.org/command-line-tools/) | WebP / TIFF / GIF / SVG 等转 JPEG / PNG，必要时 resize / identify | `epub.package.nav.audit` 检测 `magick` 是否在 PATH |
-| [oxipng](https://github.com/oxipng/oxipng) | PNG 无损优化 | 检测 PATH；建议用于已经确认视觉质量的 PNG |
-| [pngquant](https://pngquant.org/) | PNG 有损量化压缩 | 检测 PATH；必须人工抽样看质量 |
-| [jpegoptim](https://github.com/tjko/jpegoptim) | JPEG 优化 / 压缩 | 检测 PATH；必须保留原图备份 |
-| [svgo](https://github.com/svg/svgo) | SVG 清理 / 优化 | 检测 PATH；Kindle 主路径仍优先预栅格化风险 SVG |
+| [ImageMagick `magick`](https://imagemagick.org/command-line-tools/) | WebP / TIFF / GIF / SVG 等转 JPEG / PNG，必要时 resize / identify | 转换后回到 `epub.package.nav.audit` 复核格式、manifest 与封面 |
+| [oxipng](https://github.com/oxipng/oxipng) | PNG 无损优化 | 建议用于已经确认视觉质量的 PNG |
+| [pngquant](https://pngquant.org/) | PNG 有损量化压缩 | 必须人工抽样看质量 |
+| [jpegoptim](https://github.com/tjko/jpegoptim) | JPEG 优化 / 压缩 | 必须保留原图备份 |
+| [svgo](https://github.com/svg/svgo) | SVG 清理 / 优化 | Kindle 主路径仍优先预栅格化风险 SVG |
 
 外部工具只改资源字节。资源改完后必须重新运行：
 
@@ -132,12 +134,14 @@ epub redline --check all <redline-base.epub> work/after/step-N-images.epub
 
 ## 输出字段
 
-各能力默认输出统一信封（`status` / `facts` / `findings` / `nextCommands`，见 [SPEC-go-architecture §8.2](../final/SPEC-go-architecture.md)）。迁移期脚手架 `legacy_report=true` 会把 Python oracle 形状的原始报告保留在 `facts.legacyReport`。
+各能力默认输出统一信封（`status` / `facts` / `findings` / `nextCommands`，见 [SPEC-go-architecture §8.2](../final/SPEC-go-architecture.md)）。曾经的 `legacy_report=true` 脚手架已于 2026-09-04 拆除，原先只在 legacy 报告里出现的明细全部提升为下列正式 `facts` 键。
 
 `epub.package.nav.audit`：
 
-- `status`: `complete` / `failed`
+- `status`: `complete` / `failed`；`facts.auditStatus`: `pass` / `warn` / `fail`
 - `facts.summary`: zip entry、manifest / spine 数量、媒体类型计数等包结构统计
+- `facts.findingsByLevel` / `facts.recommendedSkills` / `facts.actionableFindings`（数组，无命中时为 `[]`）：分级计数、候选 skill 与可执行发现
+- `facts.toolAvailability`：**只探测 `epubcheck`**（`{"epubcheck": true|false}`）；EPUBCheck 正式门禁在 GitHub Actions 运行
 - `findings[]`: package / XML / manifest / CSS url findings
 - `nextCommands[]`: 可交给 AI 的后续命令候选
 
@@ -155,17 +159,18 @@ epub redline --check all <redline-base.epub> work/after/step-N-images.epub
 `epub.layout.audit`：
 
 - `facts.summary` / `findings[]`: 版本、nav、图片、字体、弹注、Ruby / 竖排等统计与分阶段建议
-- `legacy_report=true` 时 `facts.legacyReport` 保留完整 facts（含 `tool_availability`：本机是否有 `magick`、`oxipng`、`pngquant`、`jpegoptim`、`svgo`；EPUBCheck 在 GitHub Actions 中检查）
+- `facts.toolAvailability`：与 `epub.package.nav.audit` 同一实现，**只探测 `epubcheck`** 一项（图片工具不探测，见上节）；EPUBCheck 正式门禁在 GitHub Actions 运行。`facts.findingsByLevel` / `facts.recommendedSkills` / `facts.actionableFindings` 给出分级计数、候选 skill 与可执行发现
 - `nextCommands[]`: 候选 skills 与后续命令
 
 `epub.text.content.analyze`：
 
 - `facts`: blocks 总数、`review_required` 计数与角色分布
-- 完整 blocks 明细（locator、候选结构角色、置信度、证据和字体/排版角色建议）在 `legacy_report=true` 时保留于 `facts.legacyReport`
+- `facts.blockList`：逐块明细数组（locator、`primary_role`、`candidate_roles`、`confidence`、`review_required`、`evidence`、`typography` 含字体/排版角色建议）；`facts.sourceErrors`：逐文件解析错误
 - 默认不输出正文；需要片段时加 `include_snippets=true`
 
 `epub.font.coverage.analyze`：
 
 - `facts.summary.by_profile_risk`: reader profile 下的 `ok | risk | fail`
 - `facts.profile` / `facts.status`: 本次 profile 与总体结论
-- `legacy_report=true` 时 `facts.legacyReport` 保留问题字、覆盖位置、原因、出现位置和 `chain_health` / `unresolved` 明细
+- `facts.charInventory`（问题字、覆盖位置、原因、出现位置）、`facts.unresolved`（未解析的 CSS run）、`facts.chainHealth`（字体链健康）、`facts.textRuns`
+- `facts.detectorExitCode` 只在 detector **成功返回可解析报告**时出现（`facts.detectorStderr` 再加一个条件：stderr 非空），用于排查 provider 的告警噪声。detector 缺失 / 崩溃 / 返回非 JSON 时能力整体 `status: failed`（退出码 1）且**不输出任何 facts**，原因只在 `findings[]` 的 `fontcoverage.adapter` 一条里

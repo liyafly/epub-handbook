@@ -1,11 +1,14 @@
 package pipeline
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -50,37 +53,49 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 
 // TestRunPendingCapabilityFails 锁定 pending 能力语义：契约存在但无 Go
 // 实现时必须 failed + exit 1，不得伪装成 complete/exit 0。
+// （B 类纯 AI skill epub.kindle.compatibility.check 设计上永无 Go 实现。）
 func TestRunPendingCapabilityFails(t *testing.T) {
 	epub := buildSampleEpub(t)
-	outcome, err := Run(t.Context(), Options{
-		CapabilityID: "epub.source.intake",
-		InputPath:    epub,
-		Args:         Args{},
-	})
-	if err != nil {
-		t.Fatal(err)
+	pending := []string{
+		"epub.kindle.compatibility.check",
+		"epub.literary.structure.format",
+		"epub.notes.legacy-fallback",
+		"epub.typography.english.optimize",
+		"epub.vertical.ruby.optimize",
 	}
-	env := outcome.Envelope
-	if env.Status != report.StatusFailed {
-		t.Errorf("pending 能力 status = %q, want failed", env.Status)
-	}
-	if outcome.ExitCode != ExitFailed {
-		t.Errorf("pending 能力退出码 = %d, want 1", outcome.ExitCode)
-	}
-	found := false
-	for _, f := range env.Findings {
-		if f.ID == "capability.not-implemented" {
-			found = true
-			if f.Level != "error" {
-				t.Errorf("finding level = %q, want error", f.Level)
+	for _, id := range pending {
+		t.Run(id, func(t *testing.T) {
+			outcome, err := Run(t.Context(), Options{
+				CapabilityID: id,
+				InputPath:    epub,
+				Args:         Args{},
+			})
+			if err != nil {
+				t.Fatal(err)
 			}
-			if strings.Contains(f.Detail, "oracle") {
-				t.Errorf("finding detail 不应再指向已删除的 Python oracle: %q", f.Detail)
+			env := outcome.Envelope
+			if env.Status != report.StatusFailed {
+				t.Errorf("pending 能力 status = %q, want failed", env.Status)
 			}
-		}
-	}
-	if !found {
-		t.Error("缺少 capability.not-implemented finding")
+			if outcome.ExitCode != ExitFailed {
+				t.Errorf("pending 能力退出码 = %d, want 1", outcome.ExitCode)
+			}
+			found := false
+			for _, f := range env.Findings {
+				if f.ID == "capability.not-implemented" {
+					found = true
+					if f.Level != "error" {
+						t.Errorf("finding level = %q, want error", f.Level)
+					}
+					if strings.Contains(f.Detail, "oracle") {
+						t.Errorf("finding detail 不应再指向已删除的 Python oracle: %q", f.Detail)
+					}
+				}
+			}
+			if !found {
+				t.Error("缺少 capability.not-implemented finding")
+			}
+		})
 	}
 }
 
@@ -166,5 +181,60 @@ func TestCapabilitiesListsContracts(t *testing.T) {
 	}
 	if !strings.Contains(ImplementedIDs()[0], "epub.") {
 		t.Errorf("registry id 形态异常: %v", ImplementedIDs())
+	}
+}
+
+// TestNextCommandsPrefersCapabilitySuggestions 锁定 SPEC §8.2 的 nextCommands
+// 组装规则：能力依本次结果算出的建议优先（即使 status 是 failed），自引用的
+// 「再跑一遍自己」被剔除，能力没给建议时才退回 pipeline 的静态文本。
+func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
+	root := t.TempDir()
+	writeTestContract(t, root, "test.nc.cap", nil, false, nil)
+	writeTestContract(t, root, "test.nc.static", nil, false, nil)
+
+	installTestRunner(t, "test.nc.cap", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		return report.Result{
+			Capability: "test.nc.cap",
+			Status:     report.StatusFailed,
+			Findings:   []report.Finding{{Level: "error", ID: "test.err", Title: "boom"}},
+			NextCommands: []string{
+				"epub run test.nc.cap --input x.epub --json", // 自引用，必须被剔除
+				"epub run epub.layout.audit --input x.epub --json",
+				"epub run epub.layout.audit --input x.epub --json", // 重复，去重
+			},
+		}, nil
+	})
+	installTestRunner(t, "test.nc.static", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		return report.Result{Capability: "test.nc.static", Status: report.StatusComplete}, nil
+	})
+
+	in := buildSampleEpub(t)
+
+	got, err := Run(t.Context(), Options{RepoRoot: root, CapabilityID: "test.nc.cap", InputPath: in})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"epub run epub.layout.audit --input x.epub --json"}
+	if !slices.Equal(got.Envelope.NextCommands, want) {
+		t.Errorf("失败能力的 nextCommands = %q, want %q", got.Envelope.NextCommands, want)
+	}
+
+	// 能力没给建议时退回静态分支（本 id 无静态文案，故为空）。
+	got, err = Run(t.Context(), Options{RepoRoot: root, CapabilityID: "test.nc.static", InputPath: in})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Envelope.NextCommands) != 0 {
+		t.Errorf("无建议能力的 nextCommands = %q, want 空", got.Envelope.NextCommands)
+	}
+}
+
+func TestNormalizeNextCommandUsesFlagFirstOrder(t *testing.T) {
+	c := Contract{ID: "epub.structure.normalize"}
+	c.Execution.Output = ExecOutputSingle
+	got := nextCommands(c, Options{}, true)
+	want := "epub redline --check all --path-map <normalize-envelope.json> <before> <after>"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("nextCommands = %q, want [%q]", got, want)
 	}
 }

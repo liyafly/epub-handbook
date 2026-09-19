@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -96,6 +97,36 @@ func collect(t *testing.T, root, sub string, includeTests bool) []goFile {
 }
 
 // imports 返回该文件 import 的全部路径（已去引号）。
+// importAliases 返回本文件里「本地包名 → 仓库内包目录」的映射，
+// 例如 `import navaudit "github.com/…/internal/caps/navaudit"` →
+// {"navaudit": "internal/caps/navaudit"}。没有显式别名时用导入路径的最后一段
+// （本仓所有包的包名都与目录名一致，或有显式别名）。标准库与第三方不入表。
+//
+// 有了它，选择器调用（pkg.Func(...)）才能被归到具体的仓库内包 ——
+// selectorCalls 只给出 `pkg` 这个字面标识符，别名与同名包区分不了。
+func importAliases(g goFile) map[string]string {
+	out := map[string]string{}
+	for _, spec := range g.AST.Imports {
+		p, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		target := internalPkg(p)
+		if target == "" {
+			continue
+		}
+		local := path.Base(target)
+		if spec.Name != nil {
+			if spec.Name.Name == "_" || spec.Name.Name == "." {
+				continue
+			}
+			local = spec.Name.Name
+		}
+		out[local] = target
+	}
+	return out
+}
+
 func imports(g goFile) []string {
 	var out []string
 	for _, spec := range g.AST.Imports {

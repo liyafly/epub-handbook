@@ -10,7 +10,20 @@ import (
 var bannedSerializerPrefix = []string{
 	"Marshal", "Serialize", "Render", "Encode", "Format",
 	"ToXML", "ToHTML", "ToXHTML", "ToCSS", "Dump", "Emit",
+	// 2026-09-07 补充（经仓库所有者授权，只扩覆盖面不放宽规则）：
+	// 硬判据只拦 []byte 返回值，而本包的文档注释又明确允许「读取小片段返回
+	// string」，于是一个返回 string 的整文档函数只要不叫上面那些名字就能同时
+	// 绕过两条判据。下面这批是「把整份文档交出去」最常见的命名。
+	"String", "Bytes", "Whole", "Document", "Unparse", "Reserialize",
 }
+
+// 未列入的判断（记下来，避免被当成遗漏）：
+//   - "Build" 不禁。它的形状是「从结构化条目生成一份新文档」（如从 TOC 条目
+//     生成 nav / NCX），输入侧没有原文档，不存在 INV-2 要防的解析→重序列化
+//     往返破坏。这是一个在受守卫不变式上的judgement call，值得人类复核。
+//   - 「首参是文档、单一 string 返回值」这种结构判据没有采用：scan/css 的
+//     StripComments 正是这个形状且是正当用途，加了就要开白名单，而开白名单
+//     本身被规则 0 禁止。这条缺口靠 AST 关不掉，如实留在这里。
 
 // TestNoWholeDocSerializer 断言 INV-2：scan/* 不得导出整文档序列化能力。
 //

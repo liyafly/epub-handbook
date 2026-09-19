@@ -33,6 +33,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // CapabilityID 是契约 id（contracts/capabilities/v1/epub.typography.optimize.json）。
@@ -62,49 +63,37 @@ type Params struct {
 	PresetDir string
 	// Output 是输出路径（报告字段 + 前置校验；本包不落盘，INV-3）。
 	Output string
-	// DryRun 对齐 Python --dry-run：只出报告，不应用、不写 written_output。
+	// DryRun 为 true 时只出报告，不应用、不写输出。
 	DryRun bool
-	// LegacyReport 为 true 时把 Python 形状的 JSON 报告放进
-	// Result.Facts["legacyReport"]（json.RawMessage），供 parity gate P2。
-	LegacyReport bool
 }
 
-// ---- legacy 报告形状（dict 插入序 = 结构体字段序） ----
+// ---- 报告累加器（只进入 Result.Facts，不再有独立 JSON 形状） ----
 
-type legacyCoverage struct {
-	UsedClasses    []string       `json:"used_classes"`
-	CoveredClasses []string       `json:"covered_classes"`
-	Ratio          report.PyFloat `json:"ratio"`
-	Threshold      report.PyFloat `json:"threshold"`
-	Warning        *string        `json:"warning"`
+// presetCoverage 是类覆盖度统计，序列化进 facts["coverage"]。
+type presetCoverage struct {
+	UsedClasses    []string
+	CoveredClasses []string
+	Ratio          float64
+	Threshold      float64
+	Warning        *string
 }
 
-type legacyStylesheetAction struct {
+// stylesheetAction 是逐层样式表动作，序列化进 facts["stylesheetActions"]。
+type stylesheetAction struct {
 	Path   string `json:"path"`
 	Source string `json:"source"`
 	Action string `json:"action"`
 }
 
-// legacyPresetReport 对齐 dry-run 与 apply 共有的键（version..dry_run）。
-type legacyPresetReport struct {
-	Version    string                   `json:"version"`
-	Preset     string                   `json:"preset"`
-	Input      string                   `json:"input"`
-	Coverage   legacyCoverage           `json:"coverage"`
-	Stylesheets []legacyStylesheetAction `json:"stylesheets"`
-	XHTMLLinks []string                 `json:"xhtml_links"`
-	Layers     []string                 `json:"layers"`
-	Notes      string                   `json:"notes"`
-	Output     string                   `json:"output"`
-	DryRun     bool                     `json:"dry_run"`
-}
-
-// legacyPresetApplyReport 在 apply 时追加 manifest_items_added 与
-// written_output（保持 Python 的插入序）。
-type legacyPresetApplyReport struct {
-	legacyPresetReport
-	ManifestItemsAdded []string `json:"manifest_items_added"`
-	WrittenOutput      string   `json:"written_output"`
+// presetReport 汇总 dry-run 与 apply 共有的报告字段。
+type presetReport struct {
+	Preset      string
+	Coverage    presetCoverage
+	Stylesheets []stylesheetAction
+	XHTMLLinks  []string
+	Layers      []string
+	Notes       string
+	DryRun      bool
 }
 
 // ---- preset 读取 ----
@@ -294,7 +283,7 @@ func pyRound4(v float64) float64 {
 }
 
 // coverageReport 复刻 coverage_report（threshold 比较用四舍五入后的 ratio）。
-func coverageReport(used, styled map[string]bool) legacyCoverage {
+func coverageReport(used, styled map[string]bool) presetCoverage {
 	covered := map[string]bool{}
 	for c := range used {
 		if styled[c] {
@@ -311,11 +300,11 @@ func coverageReport(used, styled map[string]bool) legacyCoverage {
 		w := coverageWarningText
 		warning = &w
 	}
-	return legacyCoverage{
+	return presetCoverage{
 		UsedClasses:    sortedSet(used),
 		CoveredClasses: sortedSet(covered),
-		Ratio:          report.PyFloat(rounded),
-		Threshold:      report.PyFloat(coverageThreshold),
+		Ratio:          rounded,
+		Threshold:      coverageThreshold,
 		Warning:        warning,
 	}
 }
@@ -383,27 +372,26 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	exists := func(name string) bool { return b.Has(name) }
 	actions := stylesheetActions(exists, opfPath, filepath.Join(presetDir, p.Preset), config.Layers)
 
-	reportBase := legacyPresetReport{
-		Version:     "1",
+	reportBase := presetReport{
 		Preset:      p.Preset,
-		Input:       b.InputPath(),
 		Coverage:    coverageReport(used, styled),
 		Stylesheets: actions,
 		XHTMLLinks:  xhtmlPaths,
 		Layers:      append([]string(nil), config.Layers...),
 		Notes:       config.Notes,
-		Output:      p.Output,
 		DryRun:      p.DryRun,
 	}
 
 	facts := map[string]any{
-		"preset":       p.Preset,
-		"coverage":     map[string]any{},
-		"stylesheets":  len(actions),
-		"xhtmlLinks":   len(xhtmlPaths),
-		"layers":       append([]string(nil), config.Layers...),
-		"notes":        config.Notes,
-		"dryRun":       p.DryRun,
+		"preset":            p.Preset,
+		"coverage":          coverageFacts(reportBase.Coverage),
+		"stylesheets":       len(actions),
+		"stylesheetActions": actions,
+		"xhtmlLinks":        len(xhtmlPaths),
+		"xhtmlLinkFiles":    append([]string{}, xhtmlPaths...),
+		"layers":            append([]string(nil), config.Layers...),
+		"notes":             config.Notes,
+		"dryRun":            p.DryRun,
 	}
 	findings := []report.Finding{}
 	if reportBase.Coverage.Warning != nil {
@@ -411,14 +399,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	if p.DryRun {
-		facts["coverage"] = coverageFacts(reportBase.Coverage)
-		if p.LegacyReport {
-			rawJSON, err := report.MarshalLegacy(reportBase)
-			if err != nil {
-				return report.Result{Capability: CapabilityID, Status: report.StatusFailed}, err
-			}
-			facts["legacyReport"] = jsonRawMessage(rawJSON)
-		}
 		return report.Result{
 			Capability: CapabilityID,
 			Status:     report.StatusComplete,
@@ -472,11 +452,24 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if !ok {
 			return report.Result{}, presetErrf("'utf-8' codec can't decode text resource: %s", path)
 		}
-		updated, err := rewriteStylesheetLinks(text, path, cssPaths)
+		updated, warnings, err := rewriteStylesheetLinks(text, path, cssPaths)
 		if err != nil {
 			return report.Result{}, err
 		}
+		for _, w := range warnings {
+			findings = append(findings, report.Finding{
+				Level: "warn", ID: "typography.markup-scan-truncated", Title: w, Location: path,
+			})
+		}
 		if updated != text {
+			// 整文件替换（不是最小区间 Edit）：与本仓其余 caps（structure_normalize、
+			// alite、cover、merge、metadata、migrate_epub3、split）对已改动 entry
+			// 的处理方式一致 —— 它们全部是 `editset.Replace(path, 0, len(old), new)`。
+			// INV-1 只要求「未被编辑命中的 entry 原样透传」，不要求已改动的 entry
+			// 用最小区间；改成基于 wholeLineIndent/RegionTag 偏移拼最小 Edit 需要把
+			// 删除/插入拆成若干条不重叠区间编辑，边际复杂度不小，却拿不到任何额外
+			// 正确性收益（不影响 INV-1/INV-2，也不影响正文不变红线），且会让这一个
+			// 文件的编辑策略偏离本仓其它 caps 的统一约定。评估结论：维持整文件替换。
 			edits = append(edits, editset.Replace(path, 0, int64(len(data)), []byte(updated)))
 		}
 	}
@@ -486,26 +479,14 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	// 3. 报告（不落盘）。
-	applyRep := legacyPresetApplyReport{
-		legacyPresetReport: reportBase,
-		ManifestItemsAdded: added,
-		WrittenOutput:      p.Output,
-	}
-	facts["coverage"] = coverageFacts(reportBase.Coverage)
 	facts["manifestItemsAdded"] = len(added)
-	if p.LegacyReport {
-		rawJSON, err := report.MarshalLegacy(applyRep)
-		if err != nil {
-			return report.Result{Capability: CapabilityID, Status: report.StatusFailed}, err
-		}
-		facts["legacyReport"] = jsonRawMessage(rawJSON)
-	}
+	facts["manifestItemsAddedHrefs"] = added
 	return report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
 		Facts:      facts,
 		Findings:   nonNilFindings(findings),
-		Events:     []report.Event{{Step: "style-preset-apply", Status: "completed",
+		Events: []report.Event{{Step: "style-preset-apply", Status: "completed",
 			Message: fmt.Sprintf("preset=%s layers=%d manifest_added=%d", p.Preset, len(config.Layers), len(added))}},
 	}, nil
 }
@@ -583,12 +564,12 @@ func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
 }
 
 // stylesheetActions 复刻 stylesheet_actions。
-func stylesheetActions(exists func(string) bool, opfPath, presetDir string, layers []string) []legacyStylesheetAction {
+func stylesheetActions(exists func(string) bool, opfPath, presetDir string, layers []string) []stylesheetAction {
 	stylesDir := pyJoinPath(pyDirname(opfPath), "Styles")
 	// presetDir = <repo>/templates/style-presets/<name>；Python 的
 	// relative_to(ROOT) 需要 repoRoot = presetDir 上三层。
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(filepath.FromSlash(presetDir))))
-	actions := make([]legacyStylesheetAction, 0, len(layers))
+	actions := make([]stylesheetAction, 0, len(layers))
 	for _, layer := range layers {
 		path := pyJoinPath(stylesDir, layer)
 		source := filepath.Join(filepath.FromSlash(presetDir), "Styles", layer)
@@ -600,7 +581,7 @@ func stylesheetActions(exists func(string) bool, opfPath, presetDir string, laye
 		if exists(path) {
 			action = "replace"
 		}
-		actions = append(actions, legacyStylesheetAction{Path: path, Source: rel, Action: action})
+		actions = append(actions, stylesheetAction{Path: path, Source: rel, Action: action})
 	}
 	return actions
 }
@@ -689,40 +670,118 @@ func isStylesheetLinkAttrs(attrs string) bool {
 
 // rewriteStylesheetLinks 复刻 rewrite_stylesheet_links：删除全部
 // stylesheet link 行，再在 </head> 所在行的行首前插入新链接。
-func rewriteStylesheetLinks(text, xhtmlPath string, cssPaths []string) (string, error) {
-	var b strings.Builder
-	last := 0
-	for _, loc := range typoLinkRe.FindAllStringSubmatchIndex(text, -1) {
-		attrs := text[loc[4]:loc[5]]
-		if !isStylesheetLinkAttrs(attrs) {
+//
+// 定位与增删只发生在 xhtml.ScanRegions 认定的真实标签字节内（RegionTag）：
+// 原实现对整页文本跑正则，一段「展示旧写法」的 HTML 注释里若原样写出
+// `</head>` 或 `<link ...>`，新链接会被插进注释里、注释里的示例 <link>
+// 行也会被一起删掉 —— 那是正文/注释被误当标记，已修复。<script> 字符串
+// 字面量、CDATA 同理不参与匹配。
+//
+// 与原正则保留的行为一致：`<link>` / `</head>` 必须是所在行第一个非空白
+// 字符（对齐原 `(?m)^[ \t]*` 锚点语义），否则该次出现不参与删除/定位——
+// 这不是本次要修的缺陷，只是照抄原语义。
+//
+// 第二个返回值是告警：区域扫描遇到无法闭合的结构而截断时，截断点之后的
+// `<link>`/`</head>` 不再改写，调用方必须转成 finding，不能静默半改。
+func rewriteStylesheetLinks(text, xhtmlPath string, cssPaths []string) (string, []string, error) {
+	regions, stop := xhtml.ScanRegions(text)
+	var warnings []string
+	if stop != xhtml.ScanComplete {
+		warnings = append(warnings, fmt.Sprintf(
+			"%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); stylesheet links after this offset left unchanged",
+			xhtmlPath, stop))
+	}
+
+	type deletion struct{ start, end int }
+	var deletes []deletion
+	headStart := -1
+	headIndent := ""
+	headFound := false
+
+	for _, r := range regions {
+		if r.Kind != xhtml.RegionTag {
 			continue
 		}
-		b.WriteString(text[last:loc[0]])
-		last = loc[1]
+		tag := text[r.Start:r.End]
+		name, attrs, closing := xhtml.TagParts(tag)
+		switch {
+		case !closing && strings.EqualFold(name, "link"):
+			if !isStylesheetLinkAttrs(attrs) {
+				continue
+			}
+			lineStart, _, ok := wholeLineIndent(text, r.Start)
+			if !ok {
+				continue
+			}
+			end := r.End
+			for end < len(text) && (text[end] == ' ' || text[end] == '\t') {
+				end++
+			}
+			switch {
+			case strings.HasPrefix(text[end:], "\r\n"):
+				end += 2
+			case end < len(text) && text[end] == '\n':
+				end++
+			}
+			deletes = append(deletes, deletion{start: lineStart, end: end})
+		case closing && !headFound && strings.EqualFold(name, "head"):
+			lineStart, indent, ok := wholeLineIndent(text, r.Start)
+			if !ok {
+				continue
+			}
+			headStart, headIndent, headFound = lineStart, indent, true
+		}
 	}
-	b.WriteString(text[last:])
-	without := b.String()
 
-	head := typoHeadEndRe.FindStringSubmatchIndex(without)
-	if head == nil {
-		return "", presetErrf("XHTML has no </head>: %s", xhtmlPath)
+	if !headFound {
+		return "", warnings, presetErrf("XHTML has no </head>: %s", xhtmlPath)
 	}
-	indent := without[head[2]:head[3]] + "  "
-	var links strings.Builder
+
+	var out strings.Builder
+	out.Grow(len(text) + 64)
+	last := 0
+	di := 0
+	for di < len(deletes) && deletes[di].start < headStart {
+		out.WriteString(text[last:deletes[di].start])
+		last = deletes[di].end
+		di++
+	}
+	out.WriteString(text[last:headStart])
+	indent := headIndent + "  "
 	for _, cssPath := range cssPaths {
-		links.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + relHref(xhtmlPath, cssPath) + `"/>` + "\n")
+		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + relHref(xhtmlPath, cssPath) + `"/>` + "\n")
 	}
-	return without[:head[0]] + links.String() + without[head[0]:], nil
+	last = headStart
+	for ; di < len(deletes); di++ {
+		out.WriteString(text[last:deletes[di].start])
+		last = deletes[di].end
+	}
+	out.WriteString(text[last:])
+	return out.String(), warnings, nil
+}
+
+// wholeLineIndent 判断 pos 在 text 中是否是其所在行第一个非空白字符（对齐
+// 原正则 `(?m)^[ \t]*` 的锚点语义：从上一个换行符或文本开头到 pos 之间
+// 必须全部是空格/制表符）。返回该行起点与那段缩进文本。
+func wholeLineIndent(text string, pos int) (lineStart int, indent string, ok bool) {
+	lineStart = strings.LastIndexByte(text[:pos], '\n') + 1
+	indent = text[lineStart:pos]
+	for i := 0; i < len(indent); i++ {
+		if indent[i] != ' ' && indent[i] != '\t' {
+			return lineStart, indent, false
+		}
+	}
+	return lineStart, indent, true
 }
 
 // ---- 报告助手 ----
 
-func coverageFacts(c legacyCoverage) map[string]any {
+func coverageFacts(c presetCoverage) map[string]any {
 	facts := map[string]any{
 		"usedClasses":    c.UsedClasses,
 		"coveredClasses": c.CoveredClasses,
-		"ratio":          float64(c.Ratio),
-		"threshold":      float64(c.Threshold),
+		"ratio":          c.Ratio,
+		"threshold":      c.Threshold,
 	}
 	if c.Warning != nil {
 		facts["warning"] = *c.Warning
@@ -774,12 +833,6 @@ func opfPathFromContainer(b *book.Book) (string, error) {
 		return "", presetErrf("container rootfile does not resolve: %s", display)
 	}
 	return opfPath, nil
-}
-
-// jsonRawMessage 把 MarshalLegacy 的输出作为 RawMessage 存入 Facts，
-// 避免 []byte 被信封编码成 base64。
-func jsonRawMessage(raw []byte) json.RawMessage {
-	return json.RawMessage(bytes.TrimSuffix(raw, []byte("\n")))
 }
 
 func isRegularFile(path string) bool {

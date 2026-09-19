@@ -5,14 +5,12 @@
 // 只扫描 manifest / spine / nav / CSS / XHTML 产出六类排版 finding，
 // 不产生 edits、不调用 b.Apply。
 //
-// legacy-report 形状与 Python `json.dumps(report, ensure_ascii=False, indent=2)`
-// 逐字节一致（version/epub/findings/warnings 与 finding 键序按 :246-254），
-// 供 SPEC §5.2 的 P2 parity 使用。
+// 逐图明细以正式 facts 键 `imageFindings` 输出（每项 scene / finding /
+// file / selector / image / candidates），扫描警告以 `warningList` 输出。
 package imagelayout
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -26,14 +24,11 @@ import (
 // CapabilityID 是契约里的 capability id。
 const CapabilityID = "epub.image.layout.optimize"
 
-// Params 是本 capability 的参数。
-type Params struct {
-	// LegacyReport 把 Python oracle 的原始 JSON 形状放进 Facts["legacyReport"]。
-	LegacyReport bool
-}
+// Params 是本 capability 的参数（当前无可选项，保留以稳定 Run 签名）。
+type Params struct{}
 
-// legacyFinding 对齐 Python finding() 的键序（:246-254）。
-type legacyFinding struct {
+// imageFinding 是一条逐图 finding（facts.imageFindings 元素）。
+type imageFinding struct {
 	Scene      string      `json:"scene"`
 	Finding    string      `json:"finding"`
 	File       string      `json:"file"`
@@ -42,12 +37,12 @@ type legacyFinding struct {
 	Candidates []candidate `json:"candidates"`
 }
 
-// legacyReport 对齐 analyze_epub 返回 dict 的键序。
-type legacyReport struct {
-	Version  string          `json:"version"`
-	EPUB     string          `json:"epub"`
-	Findings []legacyFinding `json:"findings"`
-	Warnings []string        `json:"warnings"`
+// advisorReport 是 analyzeEpub 的原始产出，字段全部进入 facts。
+type advisorReport struct {
+	Version  string         `json:"version"`
+	EPUB     string         `json:"epub"`
+	Findings []imageFinding `json:"findings"`
+	Warnings []string       `json:"warnings"`
 }
 
 // Run 执行本 capability。只读：扫描 → 报告（无 apply 段）。
@@ -61,8 +56,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
 		Facts: map[string]any{
-			"findings": len(rep.Findings),
-			"warnings": len(rep.Warnings),
+			"findings":      len(rep.Findings),
+			"warnings":      len(rep.Warnings),
+			"reportVersion": rep.Version,
+			"imageFindings": rep.Findings,
+			"warningList":   rep.Warnings,
 		},
 	}
 	for _, f := range rep.Findings {
@@ -73,13 +71,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			Detail:   f.File + " · " + f.Image,
 			Location: f.Selector,
 		})
-	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
 	}
 	return res, nil
 }
@@ -105,22 +96,22 @@ func findingTitle(kind string) string {
 }
 
 // analyzeEpub 对齐 analyze_epub 主体。
-func analyzeEpub(b *book.Book) (legacyReport, error) {
+func analyzeEpub(b *book.Book) (advisorReport, error) {
 	container, err := b.Current(opf.ContainerPath)
 	if err != nil {
-		return legacyReport{}, fmt.Errorf("missing META-INF/container.xml")
+		return advisorReport{}, fmt.Errorf("missing META-INF/container.xml")
 	}
 	opfPath, err := opf.FindOPFPath(container)
 	if err != nil {
-		return legacyReport{}, err
+		return advisorReport{}, err
 	}
 	opfData, err := b.Current(opfPath)
 	if err != nil {
-		return legacyReport{}, err
+		return advisorReport{}, err
 	}
 	pkg, err := opf.Parse(opfPath, opfData)
 	if err != nil {
-		return legacyReport{}, err
+		return advisorReport{}, err
 	}
 	opfDir := dirName(pkg.Path)
 
@@ -130,11 +121,11 @@ func analyzeEpub(b *book.Book) (legacyReport, error) {
 	}
 	chapterPaths, coverPaths, err := navPaths(b, pkg)
 	if err != nil {
-		return legacyReport{}, err
+		return advisorReport{}, err
 	}
 	cssRules := cssClassDeclarations(b)
 
-	results := []legacyFinding{}
+	results := []imageFinding{}
 	warnings := []string{}
 
 	for _, ref := range pkg.Spine {
@@ -272,7 +263,7 @@ func analyzeEpub(b *book.Book) (legacyReport, error) {
 		}
 	}
 
-	return legacyReport{
+	return advisorReport{
 		Version:  "1",
 		EPUB:     b.InputPath(),
 		Findings: results,
@@ -281,8 +272,8 @@ func analyzeEpub(b *book.Book) (legacyReport, error) {
 }
 
 // newFinding 对齐 finding()：scene 固定 image-layout，候选表深拷贝。
-func newFinding(kind, file, selector, image string) legacyFinding {
-	return legacyFinding{
+func newFinding(kind, file, selector, image string) imageFinding {
+	return imageFinding{
 		Scene:      "image-layout",
 		Finding:    kind,
 		File:       file,

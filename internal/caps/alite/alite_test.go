@@ -6,16 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-// ---- fixture（逐字对齐 scripts/test_epub_anthology_refinement.py 的 write_epub） ----
+// ---- fixture（两卷合集：海报页 + 版权页 + 正文） ----
 
 func aliteXHTML(title, body string) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
@@ -143,12 +142,15 @@ func TestClassAttrHelpers(t *testing.T) {
 
 	// addClassToTag：required_class 不满足时保留原样。
 	src := `<p class="cp">a</p><ul class="list"><li class="i">x</li><li>x</li></ul>`
-	got := addClassToTag(src, "li", "copyright-meta-item", "i")
+	got, warnings := addClassToTag(src, "li", "copyright-meta-item", "i")
 	want := `<p class="cp">a</p><ul class="list"><li class="i copyright-meta-item">x</li><li>x</li></ul>`
 	if got != want {
 		t.Errorf("addClassToTag:\n got  %s\n want %s", got, want)
 	}
-	if got := addClassToTag(src, "li", "meta", "missing"); got != src {
+	if len(warnings) != 0 {
+		t.Errorf("addClassToTag 不应产生截断告警: %v", warnings)
+	}
+	if got, _ := addClassToTag(src, "li", "meta", "missing"); got != src {
 		t.Errorf("required_class gate: %s", got)
 	}
 }
@@ -181,9 +183,12 @@ func TestPosterAndCopyrightDetection(t *testing.T) {
 
 func TestRefinePosterExact(t *testing.T) {
 	poster := aliteXHTML("封面", `<p class="center"><img alt="" src="../Images/poster1.jpg"/></p>`)
-	refined, err := refinePoster(poster, 1, "../Images/poster1.jpg", "../Styles/anthology-refinement.css")
+	refined, warnings, err := refinePoster(poster, 1, "../Images/poster1.jpg", "../Styles/anthology-refinement.css")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("refinePoster 不应产生截断告警: %v", warnings)
 	}
 	for _, want := range []string{
 		`<body class="fullpage poster-bg poster-bg-volume-001">`,
@@ -197,7 +202,7 @@ func TestRefinePosterExact(t *testing.T) {
 		}
 	}
 	// 幂等：已含 href 子串则不再插 link。
-	again, _ := ensureStylesheetLink(refined, "../Styles/anthology-refinement.css")
+	again, _, _ := ensureStylesheetLink(refined, "../Styles/anthology-refinement.css")
 	if strings.Count(again, "anthology-refinement.css") != strings.Count(refined, "anthology-refinement.css") {
 		t.Error("ensureStylesheetLink must be idempotent via href substring check")
 	}
@@ -224,35 +229,7 @@ func TestStylesheetContent(t *testing.T) {
 	}
 }
 
-// ---- parity（Python oracle 逐字节比对；OPF 因 ET 重排只比语义） ----
-
-func runPythonHarness(t *testing.T, args ...string) (int, string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", args[0])
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已删除）", args[0])
-	}
-	cmd := exec.Command("python3", append([]string{script}, args[1:]...)...)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	return code, out.String()
-}
+// ---- 端到端（Go 原生：facts、产物 entry 与幂等性） ----
 
 func readZipEntries(t *testing.T, path string) map[string][]byte {
 	t.Helper()
@@ -288,147 +265,92 @@ func readZipEntries(t *testing.T, path string) map[string][]byte {
 	return out
 }
 
-// pyCanonicalXML 把 EPUB 内某 entry 经 Python ET 规范化为 JSON。
-// alite 的 OPF 在 Python 侧是整树重序列化、Go 侧是字节区间插入
-// （保留原格式字节）——因此 OPF 只比语义；XHTML/CSS/Image 两侧字节一致。
-func pyCanonicalXML(t *testing.T, epubPath, entry string) string {
-	t.Helper()
-	script := `import sys, json, zipfile
-from xml.etree import ElementTree as ET
-with zipfile.ZipFile(sys.argv[1]) as zf:
-    data = zf.read(sys.argv[2])
-def canon(e):
-    text = e.text or ""
-    return {"tag": e.tag, "attrs": [[k, v] for k, v in e.attrib.items()],
-            "text": text if text.strip() else "", "kids": [canon(c) for c in e]}
-print(json.dumps(canon(ET.fromstring(data)), ensure_ascii=False))`
-	out, err := exec.Command("python3", "-c", script, epubPath, entry).Output()
-	if err != nil {
-		t.Fatalf("canonicalize %s@%s: %v", epubPath, entry, err)
-	}
-	return string(out)
-}
-
-func runGoRefinement(t *testing.T, input, output, reportOutput string, expectVolumes *int) []byte {
+// runGoRefinement 跑 Go 实现并写出产物，返回 Result。
+func runGoRefinement(t *testing.T, input, output string, expectVolumes *int) report.Result {
 	t.Helper()
 	b, err := book.Open(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{
-		ExpectVolumes: expectVolumes,
-		LegacyReport:  true,
-		Output:        reportOutput,
-	})
+	res, err := Run(context.Background(), b, Params{ExpectVolumes: expectVolumes, Output: output})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := b.WriteTo(output); err != nil {
 		t.Fatal(err)
 	}
-	raw, ok := res.Facts["legacyReport"]
-	if !ok {
-		t.Fatal("Result.Facts 缺少 legacyReport")
-	}
-	switch v := raw.(type) {
-	case json.RawMessage: // Go 1.27：RawMessage 与 jsontext.Value 同一类型
-		return v
-	case []byte:
-		return v
-	case string:
-		return []byte(v)
-	default:
-		t.Fatalf("legacyReport 类型错误: %T", raw)
-		return nil
-	}
+	return res
 }
 
-func TestParityAnthologyRefinement(t *testing.T) {
+func TestAnthologyRefinement(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	writeFixtureEpub(t, source, aliteFixture())
 
-	pyOut := filepath.Join(dir, "py-refined.epub")
-	code, pyReport := runPythonHarness(t, "epub_anthology_refinement.py",
-		source, "--output", pyOut, "--expect-volumes", "2", "--format", "json")
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d", code)
-	}
-
 	goOut := filepath.Join(dir, "go-refined.epub")
-	goReport := runGoRefinement(t, source, goOut, pyOut, intPtr(2))
+	res := runGoRefinement(t, source, goOut, intPtr(2))
+	if res.Status != report.StatusComplete || len(res.Findings) != 0 {
+		t.Fatalf("status=%s findings=%v", res.Status, res.Findings)
+	}
+	wantFacts := map[string]any{
+		"opf":                   "OEBPS/content.opf",
+		"posterPagesRefined":    2,
+		"copyrightPagesRefined": 2,
+		"stylesheetsAdded":      1,
+		"posterPages":           []string{"OEBPS/Text/poster1.xhtml", "OEBPS/Text/poster2.xhtml"},
+		"copyrightPages":        []string{"OEBPS/Text/copyright1.xhtml", "OEBPS/Text/copyright2.xhtml"},
+		"warnings":              []string{},
+	}
+	assertFacts(t, res.Facts, wantFacts)
 
-	// P2：legacy 报告逐字节一致。
-	if strings.TrimSpace(string(goReport)) != strings.TrimSpace(pyReport) {
-		t.Errorf("legacy report mismatch:\n--- python ---\n%s\n--- go ---\n%s", pyReport, goReport)
+	entries := readZipEntries(t, goOut)
+	css, ok := entries["OEBPS/Styles/anthology-refinement.css"]
+	if !ok {
+		t.Fatal("产物缺少 anthology-refinement.css")
 	}
-
-	// P3：除 OPF 外逐 entry 字节一致。
-	pyEntries := readZipEntries(t, pyOut)
-	goEntries := readZipEntries(t, goOut)
-	for name := range pyEntries {
-		if _, ok := goEntries[name]; !ok {
-			t.Errorf("go 输出缺少 entry %s", name)
+	if string(css) != stylesheetRstripped([]posterImageLine{{1, "../Images/poster1.jpg"}, {2, "../Images/poster2.jpg"}}) {
+		t.Errorf("CSS 内容不符:\n%s", css)
+	}
+	for _, name := range []string{"OEBPS/Text/poster1.xhtml", "OEBPS/Text/poster2.xhtml", "OEBPS/Text/copyright1.xhtml", "OEBPS/Text/copyright2.xhtml"} {
+		if !strings.Contains(string(entries[name]), `href="../Styles/anthology-refinement.css"`) {
+			t.Errorf("%s 缺少样式链接", name)
 		}
 	}
-	for name := range goEntries {
-		if _, ok := pyEntries[name]; !ok {
-			t.Errorf("go 输出多出 entry %s", name)
-		}
+	if !strings.Contains(string(entries["OEBPS/Text/poster1.xhtml"]), `poster-bg-volume-001`) ||
+		!strings.Contains(string(entries["OEBPS/Text/poster2.xhtml"]), `poster-bg-volume-002`) {
+		t.Error("海报页缺少卷号 body class")
 	}
-	for name := range pyEntries {
-		if name == "OEBPS/content.opf" {
-			continue
-		}
-		if string(pyEntries[name]) != string(goEntries[name]) {
-			t.Errorf("entry %s 字节不一致:\n--- python ---\n%s\n--- go ---\n%s",
-				name, clipStr(string(pyEntries[name]), 600), clipStr(string(goEntries[name]), 600))
-		}
+	if string(entries["OEBPS/Text/chapter.xhtml"]) != aliteFixture()["OEBPS/Text/chapter.xhtml"] {
+		t.Error("正文页不得改动")
 	}
-	if pyCanonicalXML(t, pyOut, "OEBPS/content.opf") != pyCanonicalXML(t, goOut, "OEBPS/content.opf") {
-		t.Error("OPF 语义不一致")
+	opf := string(entries["OEBPS/content.opf"])
+	if strings.Count(opf, `href="Styles/anthology-refinement.css"`) != 1 {
+		t.Errorf("manifest 应恰好追加一条样式项:\n%s", opf)
 	}
 
 	// 二次运行：CSS 已存在且字节相同 → 不重复写；manifest href 已存在 → 不追加。
-	pySecond := filepath.Join(dir, "py-second.epub")
-	code, pySecondReport := runPythonHarness(t, "epub_anthology_refinement.py",
-		pyOut, "--output", pySecond, "--expect-volumes", "2", "--format", "json")
-	if code != 0 {
-		t.Fatalf("python oracle 二次运行退出码 %d", code)
-	}
 	goSecond := filepath.Join(dir, "go-second.epub")
-	goSecondReport := runGoRefinement(t, pyOut, goSecond, pySecond, intPtr(2))
-	if strings.TrimSpace(string(goSecondReport)) != strings.TrimSpace(pySecondReport) {
-		t.Errorf("second-run report mismatch:\n--- python ---\n%s\n--- go ---\n%s",
-			pySecondReport, goSecondReport)
-	}
-	pySecondEntries := readZipEntries(t, pySecond)
-	goSecondEntries := readZipEntries(t, goSecond)
-	for name := range pySecondEntries {
-		if name == "OEBPS/content.opf" {
-			continue
-		}
-		if string(pySecondEntries[name]) != string(goSecondEntries[name]) {
+	second := runGoRefinement(t, goOut, goSecond, intPtr(2))
+	wantFacts["stylesheetsAdded"] = 0
+	assertFacts(t, second.Facts, wantFacts)
+	secondEntries := readZipEntries(t, goSecond)
+	for name := range entries {
+		if string(entries[name]) != string(secondEntries[name]) {
 			t.Errorf("second run: entry %s 字节不一致", name)
 		}
 	}
-	if pyCanonicalXML(t, pySecond, "OEBPS/content.opf") != pyCanonicalXML(t, goSecond, "OEBPS/content.opf") {
-		t.Error("second run: OPF 语义不一致")
+	for name := range secondEntries {
+		if _, ok := entries[name]; !ok {
+			t.Errorf("second run 多出 entry %s", name)
+		}
 	}
 }
 
-func TestParityExpectVolumesMismatch(t *testing.T) {
+func TestExpectVolumesMismatch(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	writeFixtureEpub(t, source, aliteFixture())
-
-	pyOut := filepath.Join(dir, "py-wrong.epub")
-	code, _ := runPythonHarness(t, "epub_anthology_refinement.py",
-		source, "--output", pyOut, "--expect-volumes", "3", "--format", "json")
-	if code != 1 {
-		t.Fatalf("python oracle 应以退出码 1 失败，实际 %d", code)
-	}
 
 	b, err := book.Open(source)
 	if err != nil {
@@ -437,11 +359,11 @@ func TestParityExpectVolumesMismatch(t *testing.T) {
 	defer b.Close()
 	_, goErr := Run(context.Background(), b, Params{ExpectVolumes: intPtr(3)})
 	if goErr == nil || !strings.Contains(goErr.Error(), "expected 3 volume poster pages, found 2") {
-		t.Fatalf("go 侧应报同样的卷数错误，实际: %v", goErr)
+		t.Fatalf("应报卷数错误，实际: %v", goErr)
 	}
 }
 
-func TestParityPosterWithoutCopyright(t *testing.T) {
+func TestPosterWithoutCopyright(t *testing.T) {
 	files := aliteFixture()
 	// 第二卷无相邻版权页（spine 以 chapter 收尾）。
 	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"],
@@ -454,28 +376,35 @@ func TestParityPosterWithoutCopyright(t *testing.T) {
 	source := filepath.Join(dir, "source.epub")
 	writeFixtureEpub(t, source, files)
 
-	pyOut := filepath.Join(dir, "py-warn.epub")
-	code, pyReport := runPythonHarness(t, "epub_anthology_refinement.py",
-		source, "--output", pyOut, "--format", "json")
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d", code)
-	}
-	if !strings.Contains(pyReport, "poster page has no adjacent copyright page: OEBPS/Text/poster2.xhtml") {
-		t.Fatalf("python 报告缺 warning:\n%s", pyReport)
-	}
-
 	goOut := filepath.Join(dir, "go-warn.epub")
-	goReport := runGoRefinement(t, source, goOut, pyOut, nil)
-	if strings.TrimSpace(string(goReport)) != strings.TrimSpace(pyReport) {
-		t.Errorf("legacy report mismatch:\n--- python ---\n%s\n--- go ---\n%s", pyReport, goReport)
+	res := runGoRefinement(t, source, goOut, nil)
+	warning := "poster page has no adjacent copyright page: OEBPS/Text/poster2.xhtml"
+	assertFacts(t, res.Facts, map[string]any{
+		"posterPagesRefined":    2,
+		"copyrightPagesRefined": 1,
+		"copyrightPages":        []string{"OEBPS/Text/copyright1.xhtml"},
+		"warnings":              []string{warning},
+	})
+	if len(res.Findings) != 1 || res.Findings[0].ID != "alite.no-copyright" || res.Findings[0].Level != "warn" || res.Findings[0].Title != warning {
+		t.Fatalf("findings = %+v", res.Findings)
+	}
+}
+
+// assertFacts 按 JSON 语义比较 facts 中给定的键。
+func assertFacts(t *testing.T, got map[string]any, want map[string]any) {
+	t.Helper()
+	for k, w := range want {
+		g, ok := got[k]
+		if !ok {
+			t.Errorf("facts 缺少 %q", k)
+			continue
+		}
+		gj, _ := json.Marshal(g)
+		wj, _ := json.Marshal(w)
+		if string(gj) != string(wj) {
+			t.Errorf("facts[%q] = %s, want %s", k, gj, wj)
+		}
 	}
 }
 
 func intPtr(n int) *int { return &n }
-
-func clipStr(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}

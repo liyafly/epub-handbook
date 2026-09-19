@@ -97,7 +97,7 @@ func TestRunExecutesFullChainAndExposesUpstream(t *testing.T) {
 
 	outcome, err := Run(t.Context(), Options{
 		RepoRoot: root, CapabilityID: "test.run.a", InputPath: buildSampleEpub(t),
-		Args: Args{"input": "forged.epub", "output": "forged.epub", "dry_run": "true", "legacy_report": "true"},
+		Args: Args{"input": "forged.epub", "output": "forged.epub", "dry_run": "true"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -140,8 +140,8 @@ func TestRunReservedArgsAreOverriddenByGlobalOptions(t *testing.T) {
 	input := buildSampleEpub(t)
 	outcome, err := Run(t.Context(), Options{
 		RepoRoot: root, CapabilityID: "test.args", InputPath: input,
-		OutputPath: "actual-out.epub", DryRun: false, LegacyReport: false,
-		Args: Args{"input": "forged-in", "output": "forged-out", "dry_run": "true", "legacy_report": "true"},
+		OutputPath: "actual-out.epub", DryRun: false,
+		Args: Args{"input": "forged-in", "output": "forged-out", "dry_run": "true"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestRunReservedArgsAreOverriddenByGlobalOptions(t *testing.T) {
 	if outcome.ExitCode != ExitOK {
 		t.Fatalf("exit = %d", outcome.ExitCode)
 	}
-	want := map[string]string{"input": input, "output": "actual-out.epub", "dry_run": "false", "legacy_report": "false"}
+	want := map[string]string{"input": input, "output": "actual-out.epub", "dry_run": "false"}
 	for k, v := range want {
 		if got[k] != v {
 			t.Errorf("args[%q] = %q, want %q", k, got[k], v)
@@ -157,20 +157,29 @@ func TestRunReservedArgsAreOverriddenByGlobalOptions(t *testing.T) {
 	}
 }
 
-func TestRunDependencyFailureBlocksDownstreamAndOutput(t *testing.T) {
+// TestRunUpstreamStatusFailedIsDiagnosticNotBlocking 锁定链语义：requires
+// 上游 Status failed（如真书上的 nav.audit）不得阻断目标 stage 与落盘，
+// 其 findings 落入 facts，信封只得到 info 摘要。
+func TestRunUpstreamStatusFailedIsDiagnosticNotBlocking(t *testing.T) {
 	root := t.TempDir()
-	writeTestContract(t, root, "test.fail.c", nil, true, nil)
-	writeTestContract(t, root, "test.fail.b", []string{"test.fail.c"}, true, nil)
+	writeTestContract(t, root, "test.fail.c", nil, false, nil)
+	writeTestContract(t, root, "test.fail.b", []string{"test.fail.c"}, false, nil)
 	writeTestContract(t, root, "test.fail.a", []string{"test.fail.b"}, true, nil)
 
 	var calls []string
 	installTestRunner(t, "test.fail.c", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
 		calls = append(calls, "c")
 		return report.Result{Capability: "test.fail.c", Status: report.StatusFailed,
-			Findings: []report.Finding{{Level: "error", ID: "test.failure", Title: "upstream failed"}}}, nil
+			Findings: []report.Finding{
+				{Level: "error", ID: "test.failure", Title: "upstream failed"},
+				{Level: "warn", ID: "test.warning", Title: "upstream warned"},
+			}}, nil
 	})
-	installTestRunner(t, "test.fail.b", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+	installTestRunner(t, "test.fail.b", func(_ context.Context, _ *book.Book, _ Args, up Upstream) (report.Result, error) {
 		calls = append(calls, "b")
+		if up["test.fail.c"].Status != report.StatusFailed {
+			return report.Result{}, errors.New("upstream c result not exposed")
+		}
 		return report.Result{Capability: "test.fail.b", Status: report.StatusComplete}, nil
 	})
 	installTestRunner(t, "test.fail.a", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
@@ -185,26 +194,35 @@ func TestRunDependencyFailureBlocksDownstreamAndOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Envelope.Status != report.StatusFailed || result.ExitCode != ExitFailed {
-		t.Fatalf("outcome = %#v, want failed", result)
+	if result.Envelope.Status != report.StatusComplete || result.ExitCode != ExitOK {
+		t.Fatalf("outcome = %#v, want complete/exit 0", result.Envelope)
 	}
-	if strings.Join(calls, "") != "c" {
-		t.Fatalf("runner calls = %q, want c", calls)
+	if strings.Join(calls, "") != "cba" {
+		t.Fatalf("runner calls = %q, want cba", calls)
 	}
-	if _, err := os.Stat(out); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("output stat error = %v, output should not exist", err)
+	if result.Envelope.Output == nil || result.Envelope.Output.SHA256 == "" {
+		t.Fatalf("output artifact = %#v", result.Envelope.Output)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("output missing: %v", err)
+	}
+	assertUpstreamDiagnostics(t, result.Envelope, "test.fail.c", report.StatusFailed, 1, 1)
+	if got := result.Envelope.Facts["test.fail.b.status"]; got != report.StatusComplete {
+		t.Errorf("facts[test.fail.b.status] = %v", got)
 	}
 }
 
-func TestRunErrorFindingBlocksDownstreamAndOutput(t *testing.T) {
+// TestRunUpstreamErrorFindingIsDiagnosticNotBlocking：上游 complete 但带
+// error finding，同样不阻断；信封 findings 不得含 error 级条目。
+func TestRunUpstreamErrorFindingIsDiagnosticNotBlocking(t *testing.T) {
 	root := t.TempDir()
-	writeTestContract(t, root, "test.finding.c", nil, true, nil)
+	writeTestContract(t, root, "test.finding.c", nil, false, nil)
 	writeTestContract(t, root, "test.finding.a", []string{"test.finding.c"}, true, nil)
 
 	called := false
 	installTestRunner(t, "test.finding.c", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
 		return report.Result{Capability: "test.finding.c", Status: report.StatusComplete,
-			Findings: []report.Finding{{Level: "error", ID: "test.error-finding", Title: "blocked"}}}, nil
+			Findings: []report.Finding{{Level: "error", ID: "test.error-finding", Title: "diagnostic"}}}, nil
 	})
 	installTestRunner(t, "test.finding.a", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
 		called = true
@@ -218,15 +236,112 @@ func TestRunErrorFindingBlocksDownstreamAndOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if result.Envelope.Status != report.StatusComplete || result.ExitCode != ExitOK {
+		t.Fatalf("outcome = %#v, want complete/exit 0", result.Envelope)
+	}
+	if !called {
+		t.Fatal("target runner did not run after upstream error finding")
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("output missing: %v", err)
+	}
+	assertUpstreamDiagnostics(t, result.Envelope, "test.finding.c", report.StatusComplete, 1, 0)
+}
+
+// TestRunUpstreamRunnerErrorStillBlocks：上游 runner 返回 Go error 是工具
+// 故障而非书的问题，仍然阻断目标 stage 与落盘。
+func TestRunUpstreamRunnerErrorStillBlocks(t *testing.T) {
+	root := t.TempDir()
+	writeTestContract(t, root, "test.runerr.c", nil, false, nil)
+	writeTestContract(t, root, "test.runerr.a", []string{"test.runerr.c"}, true, nil)
+
+	called := false
+	installTestRunner(t, "test.runerr.c", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		return report.Result{}, errors.New("tool exploded")
+	})
+	installTestRunner(t, "test.runerr.a", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		called = true
+		return report.Result{Capability: "test.runerr.a", Status: report.StatusComplete}, nil
+	})
+
+	out := filepath.Join(t.TempDir(), "out.epub")
+	result, err := Run(t.Context(), Options{
+		RepoRoot: root, CapabilityID: "test.runerr.a", InputPath: buildSampleEpub(t), OutputPath: out,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.Envelope.Status != report.StatusFailed || result.ExitCode != ExitFailed {
-		t.Fatalf("outcome = %#v, want failed", result)
+		t.Fatalf("outcome = %#v, want failed", result.Envelope)
 	}
 	if called {
-		t.Fatal("downstream runner ran after error finding")
+		t.Fatal("target runner ran after upstream runner error")
+	}
+	if result.Envelope.Output != nil {
+		t.Fatalf("output artifact should be nil: %#v", result.Envelope.Output)
 	}
 	if _, err := os.Stat(out); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("output stat error = %v, output should not exist", err)
 	}
+	if !hasFindingID(result.Envelope.Findings, "capability.run-failed") {
+		t.Fatalf("capability.run-failed finding missing: %#v", result.Envelope.Findings)
+	}
+}
+
+// assertUpstreamDiagnostics 断言上游 stage 的非阻断诊断形状。
+func assertUpstreamDiagnostics(t *testing.T, env report.Envelope, id, wantStatus string, wantErr, wantWarn int) {
+	t.Helper()
+	if got := env.Facts[id+".status"]; got != wantStatus {
+		t.Errorf("facts[%s.status] = %v, want %s", id, got, wantStatus)
+	}
+	upFindings, ok := env.Facts[id+".findings"].([]report.Finding)
+	if !ok {
+		t.Fatalf("facts[%s.findings] = %#v, want []report.Finding", id, env.Facts[id+".findings"])
+	}
+	gotErr, gotWarn := 0, 0
+	for _, f := range upFindings {
+		switch f.Level {
+		case "error":
+			gotErr++
+		case "warn":
+			gotWarn++
+		}
+	}
+	if gotErr != wantErr || gotWarn != wantWarn {
+		t.Errorf("facts[%s.findings] = %d error / %d warn, want %d / %d", id, gotErr, gotWarn, wantErr, wantWarn)
+	}
+	for _, f := range env.Findings {
+		if f.Level == "error" {
+			t.Errorf("envelope has error-level finding from upstream: %#v", f)
+		}
+	}
+	info := false
+	for _, f := range env.Findings {
+		if f.ID == "upstream.diagnostics" && f.Level == "info" && f.Location == id {
+			info = true
+		}
+	}
+	if !info {
+		t.Errorf("upstream.diagnostics info finding missing: %#v", env.Findings)
+	}
+	stageEvent := false
+	for _, e := range env.Events {
+		if e.Step == id && e.Status == "completed" && strings.HasPrefix(e.Message, "diagnostic:") {
+			stageEvent = true
+		}
+	}
+	if !stageEvent {
+		t.Errorf("upstream diagnostic event missing: %#v", env.Events)
+	}
+}
+
+func hasFindingID(findings []report.Finding, id string) bool {
+	for _, f := range findings {
+		if f.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRunDRMPreflightBlocksRunnerAndOutput(t *testing.T) {
@@ -292,7 +407,9 @@ func TestRunDRMPreflightAllowsStaleOnlyEncryption(t *testing.T) {
 	}
 }
 
-func TestRunRedlineFailureBlocksOutput(t *testing.T) {
+// TestRunRedlineFailureWritesOutputButFails：红线 error 把状态降为 failed /
+// 退出码 1，但输出仍然写出并在信封 output 中报告，供人工 diff review。
+func TestRunRedlineFailureWritesOutputButFails(t *testing.T) {
 	root := t.TempDir()
 	writeTestContract(t, root, "test.redline", nil, true, []string{"text"})
 	installTestRunner(t, "test.redline", func(_ context.Context, b *book.Book, _ Args, _ Upstream) (report.Result, error) {
@@ -319,17 +436,25 @@ func TestRunRedlineFailureBlocksOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result.Envelope.Status != report.StatusFailed || result.ExitCode != ExitFailed {
-		t.Fatalf("outcome = %#v, want failed", result)
+		t.Fatalf("outcome = %#v, want failed", result.Envelope)
 	}
-	if _, err := os.Stat(out); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("output stat error = %v, output should not exist", err)
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("output must be retained for diff review: %v", err)
+	}
+	if result.Envelope.Output == nil || result.Envelope.Output.Path != out || result.Envelope.Output.SHA256 == "" {
+		t.Fatalf("output artifact = %#v, want path+sha256", result.Envelope.Output)
 	}
 	if len(result.Envelope.Findings) == 0 || !strings.HasPrefix(result.Envelope.Findings[0].ID, "redline.") {
 		t.Fatalf("redline finding missing: %#v", result.Envelope.Findings)
 	}
+	if !hasEvent(result.Envelope.Events, "redline", "failed") || !hasEvent(result.Envelope.Events, "write-output", "completed") {
+		t.Fatalf("events = %#v, want redline:failed and write-output:completed", result.Envelope.Events)
+	}
 }
 
-func TestRunRedlineValidatorErrorBlocksOutput(t *testing.T) {
+// TestRunRedlineValidatorErrorWritesOutputButFails：红线校验器本身出错同样
+// failed / 退出码 1，输出仍保留。
+func TestRunRedlineValidatorErrorWritesOutputButFails(t *testing.T) {
 	root := t.TempDir()
 	writeTestContract(t, root, "test.redline.error", nil, true, []string{"unknown-check"})
 	installTestRunner(t, "test.redline.error", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
@@ -344,20 +469,26 @@ func TestRunRedlineValidatorErrorBlocksOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result.Envelope.Status != report.StatusFailed || result.ExitCode != ExitFailed {
-		t.Fatalf("outcome = %#v, want failed", result)
+		t.Fatalf("outcome = %#v, want failed", result.Envelope)
 	}
-	if _, err := os.Stat(out); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("output stat error = %v, output should not exist", err)
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("output must be retained for diff review: %v", err)
 	}
-	found := false
-	for _, f := range result.Envelope.Findings {
-		if f.ID == "redline.check-failed" {
-			found = true
-		}
+	if result.Envelope.Output == nil || result.Envelope.Output.SHA256 == "" {
+		t.Fatalf("output artifact = %#v, want sha256", result.Envelope.Output)
 	}
-	if !found {
+	if !hasFindingID(result.Envelope.Findings, "redline.check-failed") {
 		t.Fatalf("validator-error finding missing: %#v", result.Envelope.Findings)
 	}
+}
+
+func hasEvent(events []report.Event, step, status string) bool {
+	for _, e := range events {
+		if e.Step == step && e.Status == status {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRunSuccessfulSingleOutputWritesOnce(t *testing.T) {
@@ -396,6 +527,14 @@ func writeTestContract(t *testing.T, root, id string, requires []string, write b
 	}
 	c := Contract{SchemaVersion: "1", ID: id, Version: "1", Kind: "transformer", Requires: requires, RedLines: redLines}
 	c.Permissions.RequiresWriteAccess = write
+	// execution 是必填契约字段（capability-manifest.schema.json），pipeline 的
+	// noBookCap / multiOutputCap / chainNeedsWrite 都读它。合成契约漏了它就等于
+	// 声明「不落盘」，落盘相关的用例会全部走空路径。
+	c.Execution.Input = ExecInputEpub
+	c.Execution.Output = ExecOutputNone
+	if write {
+		c.Execution.Output = ExecOutputSingle
+	}
 	raw, err := json.Marshal(c)
 	if err != nil {
 		t.Fatal(err)

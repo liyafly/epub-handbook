@@ -14,10 +14,3 @@ const (
 // idSanitizeRe 对齐 add_css_manifest_item 的
 // re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
 var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
-
-// scoped-local 合并阶段排除的文件名（excluded_names）。
-var scopedExcludedNames = map[string]bool{
-	"epub3-enhancements.css":   true,
-	"anthology-refinement.css": true,
-	"clean-scoped-local.css":   true,
-}

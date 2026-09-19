@@ -169,32 +169,79 @@ func CompareFiles(beforePath, afterPath string, checkArg string, o Options) (Rep
 	return Report{Code: rep.code, Lines: renderReport(rep, o)}, nil
 }
 
-// LoadPathMap 从 legacy JSON 报告载入改名映射，复刻 load_path_map：
-// 顶层 stages 列表或单个对象，逐项取 mappings，链式传递。
+// pathMapShapes 是 --path-map 接受的形状说明（错误信息里复用）。
+const pathMapShapes = `expected a v2 envelope with facts "*.mappings", ` +
+	`{"stages":[{"mappings":[...]}]} or {"mappings":[...]}`
+
+// LoadPathMap 从 JSON 报告载入改名映射，接受三种形状：
+//
+//   - `epub run epub.structure.normalize --json` 的 v2 统一信封：对象含
+//     `schemaVersion` 与 `facts`，取 facts 中键名为 `mappings` 或以
+//     `.mappings` 结尾（如 `epub.structure.normalize.mappings`）的数组；
+//   - `{"stages":[{"mappings":[...]}]}`：多阶段报告；
+//   - `{"mappings":[...]}`：单阶段报告。
+//
+// 每个 mapping 是 `{"from": ..., "to": ...}`，按出现顺序链式传递
+// （AddPathMapping），信封的多个 facts 键按键名排序后依次处理。
+//
+// 认不出任何 mappings 数组时返回 ErrInput（退出码 3），**不返回空映射**：
+// 用户显式传了 --path-map，静默给出零条映射只会让改名后的正文被误判成
+// "文件缺失 / 新增文件"，噪声淹没真正的红线问题。空数组（未改名的成功
+// normalize 会输出 `"mappings": []`）仍然合法，只是没有映射可用。
 func LoadPathMap(data []byte) (map[string]string, error) {
 	var root any
 	if err := json.Unmarshal(data, &root); err != nil {
 		return nil, inputErr("cannot read --path-map JSON: %v", err)
 	}
 	pathMap := map[string]string{}
-	var sources []any
-	if obj, ok := root.(map[string]any); ok {
+	obj, ok := root.(map[string]any)
+	if !ok {
+		return nil, inputErr("--path-map JSON must be a JSON object; %s", pathMapShapes)
+	}
+	var lists [][]any
+	if facts, isEnvelope := envelopeFacts(obj); isEnvelope {
+		keys := make([]string, 0, len(facts))
+		for k := range facts {
+			if k == "mappings" || strings.HasSuffix(k, ".mappings") {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			list, ok := facts[k].([]any)
+			if !ok {
+				return nil, inputErr("--path-map envelope facts[%q] must be an array of {from,to} mappings", k)
+			}
+			lists = append(lists, list)
+		}
+	} else {
+		sources := []any{obj}
 		if stages, ok := obj["stages"].([]any); ok {
 			sources = stages
-		} else {
-			sources = []any{obj}
+		}
+		for _, src := range sources {
+			stage, ok := src.(map[string]any)
+			if !ok {
+				continue
+			}
+			raw, present := stage["mappings"]
+			if !present {
+				continue
+			}
+			list, ok := raw.([]any)
+			if !ok {
+				return nil, inputErr("--path-map \"mappings\" must be an array of {from,to} mappings")
+			}
+			lists = append(lists, list)
 		}
 	}
-	for _, src := range sources {
-		obj, ok := src.(map[string]any)
-		if !ok {
-			continue
-		}
-		mappings, ok := obj["mappings"].([]any)
-		if !ok {
-			continue
-		}
-		for _, m := range mappings {
+	if len(lists) == 0 {
+		return nil, inputErr("--path-map JSON contains no mappings array; %s "+
+			"(a failed epub.structure.normalize run emits no mappings — rerun it and pass the successful envelope)",
+			pathMapShapes)
+	}
+	for _, list := range lists {
+		for _, m := range list {
 			item, ok := m.(map[string]any)
 			if !ok {
 				return nil, inputErr("each mapping must contain string from/to paths")
@@ -208,6 +255,19 @@ func LoadPathMap(data []byte) (map[string]string, error) {
 		}
 	}
 	return pathMap, nil
+}
+
+// envelopeFacts 识别 v2 统一信封（SPEC §8.2）：顶层同时含 schemaVersion
+// 与 facts 对象时返回 facts。
+//
+// `facts` 缺失或为 null（失败信封的常见形态）时按 legacy 形状继续尝试，
+// 最终由 LoadPathMap 的"零 mappings"判定统一报输入错误。
+func envelopeFacts(obj map[string]any) (map[string]any, bool) {
+	if _, ok := obj["schemaVersion"]; !ok {
+		return nil, false
+	}
+	facts, ok := obj["facts"].(map[string]any)
+	return facts, ok
 }
 
 func openState(path string) (*zipfs.Archive, error) {

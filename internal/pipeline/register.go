@@ -4,7 +4,7 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +21,7 @@ import (
 	migrateepub3 "github.com/liyafly/epub-handbook/internal/caps/migrate_epub3"
 	navaudit "github.com/liyafly/epub-handbook/internal/caps/navaudit"
 	popupnotes "github.com/liyafly/epub-handbook/internal/caps/popupnotes"
+	sourceintake "github.com/liyafly/epub-handbook/internal/caps/sourceintake"
 	splitcap "github.com/liyafly/epub-handbook/internal/caps/split"
 	structurenormalize "github.com/liyafly/epub-handbook/internal/caps/structure_normalize"
 	styledemo "github.com/liyafly/epub-handbook/internal/caps/styledemo"
@@ -67,6 +68,24 @@ var readOnly = map[string]bool{}
 // （如 epub.style.demo.maintain 的 demo 源树 / 构建产物双模式）。
 var noBook = map[string]bool{}
 
+// sourceInput 记录以非 EPUB 源材料为输入的只读 planner 能力：--input 必填，
+// 可以是目录或任意文件，pipeline 从不 book.Open，b 恒为 nil，解析后的绝对
+// 路径以 runArgs["source_path"] 传入（如 epub.source.intake）。
+var sourceInput = map[string]bool{}
+
+// 执行形态取值（契约 execution 字段，见 contracts/schemas/v1/
+// capability-manifest.schema.json）。运行时以契约为准；下面四张表只记录
+// 「作者在注册点声明的形态」，由 TestRegistryMatchesContractExecution 与契约
+// 逐条对账 —— 两者不一致时立刻红，而不是让代码与契约各说各话。
+const (
+	ExecInputEpub       = "epub"
+	ExecInputEpubOrTree = "epub-or-tree"
+	ExecInputSourcePath = "source-path"
+	ExecOutputSingle    = "single"
+	ExecOutputMulti     = "multi"
+	ExecOutputNone      = "none"
+)
+
 // register 登记一个 capability。仅供本文件 init() 调用。
 func register(id string, r Runner) {
 	registry[id] = r
@@ -88,7 +107,7 @@ func registerReadOnly(id string, r Runner) {
 	readOnly[id] = true
 }
 
-// IsReadOnly 报告能力是否只读执行面（忽略契约的 requiresWriteAccess）。
+// IsReadOnly 报告注册点声明的形态是否为只读（契约 execution.output=none）。
 func IsReadOnly(id string) bool { return readOnly[id] }
 
 // registerNoBook 登记无 EPUB 输入也能运行的能力（只读；--input 为空或
@@ -100,6 +119,16 @@ func registerNoBook(id string, r Runner) {
 
 // IsNoBook 报告能力是否支持无 EPUB 输入（源树/目录模式）。
 func IsNoBook(id string) bool { return noBook[id] }
+
+// registerSourceInput 登记源材料输入能力（只读 planner；--input 为目录或任意
+// 文件，永不 book.Open，b 恒为 nil）。
+func registerSourceInput(id string, r Runner) {
+	registry[id] = r
+	sourceInput[id] = true
+}
+
+// IsSourceInput 报告能力是否以非 EPUB 源材料为输入（目录或任意文件）。
+func IsSourceInput(id string) bool { return sourceInput[id] }
 
 // Implemented 报告 capability 是否已有 Go 实现。
 func Implemented(id string) bool {
@@ -119,58 +148,69 @@ func ImplementedIDs() []string {
 
 func init() {
 	register("epub.package.nav.audit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return navaudit.Run(ctx, b, navaudit.Params{LegacyReport: args.Bool("legacy_report")})
+		return navaudit.Run(ctx, b, navaudit.Params{})
 	})
 	register("epub.layout.audit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return navaudit.Run(ctx, b, navaudit.Params{
-			LegacyReport: args.Bool("legacy_report"),
-			Report:       "layout-audit",
-		})
+		return navaudit.Run(ctx, b, navaudit.Params{Report: "layout-audit"})
 	})
 	register("epub.text.content.analyze", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return contentanalyze.Run(ctx, b, contentanalyze.Params{
 			IncludeSnippets: args.Bool("include_snippets"),
-			LegacyReport:    args.Bool("legacy_report"),
 			SourceName:      args.Get("source_name"),
 			SourceContent:   args.Get("source_content"),
 		})
 	})
 	register("epub.image.layout.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return imagelayout.Run(ctx, b, imagelayout.Params{LegacyReport: args.Bool("legacy_report")})
+		return imagelayout.Run(ctx, b, imagelayout.Params{})
 	})
 	register("epub.font.coverage.analyze", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		profile := args.Get("profile")
 		if profile == "" {
 			profile = "kindle-pessimistic"
 		}
-		return fontcoverage.Run(ctx, b, fontcoverage.Params{
-			Profile:      profile,
-			LegacyReport: args.Bool("legacy_report"),
-		})
+		return fontcoverage.Run(ctx, b, fontcoverage.Params{Profile: profile})
 	})
 	registerReadOnly("epub.notes.popup.normalize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return popupnotes.Run(ctx, b, popupnotes.Params{LegacyReport: args.Bool("legacy_report")})
+		return popupnotes.Run(ctx, b, popupnotes.Params{})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return styledemo.Run(ctx, b, styledemo.Params{
-			DemoDir:      args.Get("demo_dir"),
-			LegacyReport: args.Bool("legacy_report"),
+		return styledemo.Run(ctx, b, styledemo.Params{DemoDir: args.Get("demo_dir")})
+	})
+	registerSourceInput("epub.source.intake", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+		maxFiles := 0
+		if v := args.Get("max_files"); v != "" {
+			// 参数非法是用法错误（SPEC §8.5 退出码 3），不是能力失败；
+			// <=0 必须显式拒绝：静默回落到默认 5000 会被读成"不限"。
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return report.Result{}, usageErrorf("max_files 必须是正整数，得到 %q", v)
+			}
+			if n <= 0 {
+				return report.Result{}, usageErrorf(
+					"max_files 必须大于 0，得到 %q（省略该参数即用默认上限 %d）", v, sourceintake.DefaultMaxFiles)
+			}
+			maxFiles = n
+		}
+		res, err := sourceintake.Run(ctx, b, sourceintake.Params{
+			SourcePath: args.Get("source_path"),
+			MaxFiles:   maxFiles,
 		})
+		if errors.Is(err, sourceintake.ErrNotRegularFile) {
+			return report.Result{}, &UsageError{Err: err}
+		}
+		return res, err
 	})
 	register("epub.package.migrate.epub3", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return migrateepub3.Run(ctx, b, migrateepub3.Params{
-			PopupNotes:   !args.Bool("no_popup_notes"),
-			Typography:   !args.Bool("no_typography"),
-			DryRun:       args.Bool("dry_run"),
-			LegacyReport: args.Bool("legacy_report"),
-			Output:       args.Get("output"),
+			PopupNotes: !args.Bool("no_popup_notes"),
+			Typography: !args.Bool("no_typography"),
+			DryRun:     args.Bool("dry_run"),
 		})
 	})
 	register("epub.css.layering.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return csscleanup.Run(ctx, b, csscleanup.Params{
 			Output:              args.Get("output"),
 			MergeScopedLocalCSS: args.Bool("merge_scoped_local_css"),
-			LegacyReport:        args.Bool("legacy_report"),
 		})
 	})
 	register("epub.typography.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -179,11 +219,10 @@ func init() {
 			preset = "literary-cn"
 		}
 		return typographycap.Run(ctx, b, typographycap.Params{
-			Preset:       preset,
-			PresetDir:    args.Get("preset_dir"),
-			Output:       args.Get("output"),
-			DryRun:       args.Bool("dry_run"),
-			LegacyReport: args.Bool("legacy_report"),
+			Preset:    preset,
+			PresetDir: args.Get("preset_dir"),
+			Output:    args.Get("output"),
+			DryRun:    args.Bool("dry_run"),
 		})
 	})
 	register("epub.package.merge", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -201,7 +240,7 @@ func init() {
 		}
 		return mergecap.Run(ctx, b, mergecap.Params{
 			Inputs: inputs, Title: title,
-			Output: args.Get("output"), LegacyReport: args.Bool("legacy_report"),
+			Output: args.Get("output"),
 		})
 	})
 	registerMultiOutput("epub.package.split", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -210,23 +249,24 @@ func init() {
 			if f = strings.TrimSpace(f); f != "" {
 				n, err := strconv.Atoi(f)
 				if err != nil {
-					return report.Result{}, fmt.Errorf("split_points: %w", err)
+					// 参数非法是用法错误（SPEC §8.5 退出码 3），不是能力失败。
+					return report.Result{}, usageErrorf("split_points 必须是逗号分隔的整数，得到 %q", f)
 				}
 				points = append(points, n)
 			}
 		}
 		return splitcap.Run(ctx, b, splitcap.Params{
-			SplitPoints: points, OutputDir: args.Get("output_dir"), DryRun: args.Bool("dry_run"), LegacyReport: args.Bool("legacy_report"),
+			SplitPoints: points, OutputDir: args.Get("output_dir"), DryRun: args.Bool("dry_run"),
 		})
 	})
 	register("epub.metadata.edit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return metadatacap.Run(ctx, b, metadatacap.Params{
-			MetadataJSON: args.Get("metadata_json"), Output: args.Get("output"), LegacyReport: args.Bool("legacy_report"),
+			MetadataJSON: args.Get("metadata_json"), Output: args.Get("output"),
 		})
 	})
 	register("epub.cover.replace", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return covercap.Run(ctx, b, covercap.Params{
-			Cover: args.Get("cover"), Output: args.Get("output"), LegacyReport: args.Bool("legacy_report"),
+			Cover: args.Get("cover"), Output: args.Get("output"),
 		})
 	})
 	register("epub.structure.normalize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -235,10 +275,8 @@ func init() {
 			mode = "normalize"
 		}
 		return structurenormalize.Run(ctx, b, structurenormalize.Params{
-			Mode:         structurenormalize.Mode(mode),
-			DryRun:       args.Bool("dry_run"),
-			LegacyReport: args.Bool("legacy_report"),
-			Output:       args.Get("output"),
+			Mode:   structurenormalize.Mode(mode),
+			DryRun: args.Bool("dry_run"),
 		})
 	})
 	register("epub.alite.convert", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -246,13 +284,13 @@ func init() {
 		if v := args.Get("expect_volumes"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return report.Result{}, fmt.Errorf("expect_volumes: %w", err)
+				// 同 split_points：用法错误走退出码 3。
+				return report.Result{}, usageErrorf("expect_volumes 必须是整数，得到 %q", v)
 			}
 			expect = &n
 		}
 		return alite.Run(ctx, b, alite.Params{
 			ExpectVolumes: expect,
-			LegacyReport:  args.Bool("legacy_report"),
 			Output:        args.Get("output"),
 		})
 	})

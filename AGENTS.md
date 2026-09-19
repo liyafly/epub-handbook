@@ -7,13 +7,11 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 
 ## 启动读取顺序
 
-0. **若任务涉及 Go 实现、CLI 命令面、SKILL.md 改写、`scripts/` 迁移或旧实现删除，先完整阅读 [`docs/final/SPEC-go-architecture.md`](docs/final/SPEC-go-architecture.md) 与 [`docs/final/SPEC-go-modern-guidelines.md`](docs/final/SPEC-go-modern-guidelines.md)，再回到本文件。**
-   前者是 Go 重写期的第一档架构硬约束，后者是必须经过版本门禁、且服从架构/EPUB safety/wire schema/lossless 约束的 Go 编程指南；架构规则由 `internal/archguard/` 的自动化守卫强制。
 1. 先阅读本文件，判断任务属于「已有 EPUB 清洗」「源材料接入」「阅读器兼容性实测」「实现约束变更」还是「说明增强」。
-2. 已有 EPUB 清洗：继续阅读 `docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md` 和 `docs/pipeline/refinement-harnesses.md`。
-3. 源材料接入：继续阅读 `skills/epub-source-intake/SKILL.md`，先建立可审计的 source bundle。
-4. 阅读器兼容性实测：继续阅读 `templates/epub-style-demo/README.md`、`templates/epub-style-demo/SCENE_MATRIX.md` 和 `docs/final/reader-matrix.yaml`。
-5. Go CLI 架构、迁移或删除旧实现：以 `docs/final/SPEC-go-architecture.md` 为准，并同时按 `docs/final/SPEC-go-modern-guidelines.md` §2 检测 `go.mod`、读取适用规则，再读 `docs/pipeline/go-rewrite-handoff.md` 了解当前状态。`docs/pipeline/go-cli-rearchitecture.md` 只保留为 SPEC 落地前的背景蓝图，冲突时不得覆盖 SPEC。
+2. **Go 实现 / CLI 命令面 / SKILL.md 改写 / 删除旧实现：先完整读 [`SPEC-go-architecture.md`](docs/final/SPEC-go-architecture.md)（第一档架构硬约束，由 `internal/archguard/` 守卫强制）与 [`SPEC-go-modern-guidelines.md`](docs/final/SPEC-go-modern-guidelines.md) §2（先检测 `go.mod` 再取适用规则），再读 `docs/pipeline/go-rewrite-handoff.md` 了解当前状态。** `docs/pipeline/go-cli-rearchitecture.md` 只是 SPEC 落地前的背景蓝图，冲突时不得覆盖 SPEC。
+3. 已有 EPUB 清洗：`docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md`、`docs/pipeline/refinement-harnesses.md`。
+4. 源材料接入：`skills/epub-source-intake/SKILL.md`，先建立可审计的 source bundle。
+5. 阅读器兼容性实测：`templates/epub-style-demo/README.md`、`templates/epub-style-demo/SCENE_MATRIX.md`、`docs/final/reader-matrix.yaml`。
 6. 只有在任务需要时才读取对应的 `skills/*/SKILL.md`；技能索引和推荐顺序见 `skills/README.md`。
 7. 若模型或客户端不会自动发现本文件，提示词必须显式要求先读取根目录 `AGENTS.md`。
 
@@ -25,13 +23,15 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 | 层 | 状态 | 职责 |
 |---|---|---|
 | 公开 CLI / agent runtime | **Go**（`cmd/epub` + `internal/`，已落地） | 唯一公开命令、capability registry、流水线与统一 JSON 信封 |
-| 字体工具 | **独立 provider**（Python + FontTools，`tools-font/`） | 覆盖、子集化和复杂字体处理；随发行包交付，用户不需要安装 Python/`uv` |
+| 字体工具 | **独立 provider**（Python + FontTools，`tools-font/`） | 覆盖、子集化与复杂字体处理；不打包进发行包，由 `internal/extern` 调起。安装与缺失时的降级行为见 `tools-font/README.md` |
 | CSS | **Go scan/editset 规则层** | 只产出 lossless byte-range edit；禁止整文档序列化，禁止用正则解析复杂 CSS |
 | 机器契约 | `contracts/` | capability、request/result 与 redline 事实来源 |
 | 规范/证据 | `docs/final/` + `templates/` + `reader-matrix.yaml` | policy/evidence 唯一来源 |
 
-旧执行面（Python `scripts/`、Swift/GUI、`adapters/` provider 适配层）已按 SPEC §7.5 顺序删除；
-架构规则由 `internal/archguard/` 的守卫测试强制。硬约束：
+公开命令面是 **harness 中立**的：CLI 不含任何模型 key、endpoint 或厂商适配层，
+能力面由 `epub capabilities` 自描述，接入方（skill / MCP / 其它 Agent 工具）自己决定怎么调。
+旧执行面（Python `scripts/`、Swift/GUI、`adapters/` provider 适配层、旧 `tools/`）均已删除，
+迁移史见 `docs/pipeline/go-rewrite-handoff.md`。架构规则由 `internal/archguard/` 的守卫测试强制。硬约束：
 
 - **禁止修改 `internal/archguard/`**。守卫失败时修改实现；若确信守卫有误，停下来交由人类审阅。
 - 不得向文档新增旧执行面引用；`tools/parity/legacy-refs.txt` 棘轮已归零，应保持为零。
@@ -52,7 +52,7 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 `archive/` 与 git 历史。已完成的设计、实施计划、实验和早期推导只作背景补充，
 不应反向覆盖约束层。
 
-第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。旧 `tools/` 已于 2026-05-28 移除；`tools/parity/` 只保留零条目的 `legacy-refs.txt`，用于让 INV-10 持续执行零容忍扫描，其余迁移脚手架均已删除。人工 diff review 使用 Calibre Editor 或 VS Code。
+第三方来源记录写入 `THIRD_PARTY.md` 与 `references/`；实体 `.epub` 只在有明确保留理由和许可记录时入 git。人工 diff review 使用 Calibre Editor 或 VS Code。
 
 ## 已有 EPUB 固定流程
 
@@ -71,13 +71,13 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
      --output normalized.epub --dry-run --json
    ```
 
-4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并保存 JSON 报告（`legacy_report=true` 可让报告携带 oracle 形状明细）。
+4. 人工确认 dry-run 报告中的两个阶段：先格式化资源目录，再按 OPF manifest id 做文件名反混淆。确认后移除 `--dry-run` 写出 normalized EPUB，并原样保存 `--json` 信封（其 `facts["epub.structure.normalize.mappings"]` 即改名映射）。
 5. 将 normalized EPUB 作为后续输入。按序运行 `epub.package.migrate.epub3`、精排能力（`epub.layout.audit` / `epub.text.content.analyze` / `epub.image.layout.optimize` / `epub.font.coverage.analyze` / `epub.typography.optimize` 等）和相关专项 skill。
-6. 运行 `epub redline --check all --path-map <normalize 报告> before.epub after.epub`（报告提取方式见 `docs/pipeline/cleanup-flow.md` §1.5），再用 Calibre Editor 或 VS Code 做人工 diff review。
+6. 运行 `epub redline --check all --path-map <normalize 信封.json> before.epub after.epub`（信封可直接作为路径映射，见 `docs/pipeline/cleanup-flow.md` §1.5），再用 Calibre Editor 或 VS Code 做人工 diff review。
 7. 把值得跨书复用的人工判断写入 `records/typeset-decisions.jsonl`；只属于当前书的排版结论默认汇总到书根的 `制作说明.md`。只有工具需要机器可读输入时，才在 `02 校对材料/` 按需保留书级决策 artifact。授权正文校订的含文决策必须放在 `02 校对材料/正文校订/`，不得混入仓库级 `records/`。
 8. preflight、dry-run、lint 和中间 JSON 放入 `03 制作工作区/.pipeline/` 并默认忽略；在 `制作说明.md` 持久记录输入/输出 SHA、迁移或跳过理由、红线结果、diff review、阅读器实测与需回写项。正在被 gate 引用的 path map 或校订决策不得提前删除。
 
-用户明确授权校订正文时，正文不变 gate 不得被删除、伪造为通过或用宽泛 allow-list 掩盖；应切换到 `docs/final/SPEC-实现约束.md` §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1 的授权正文校订分支。该分支必须冻结现版与参考版、记录篇章映射和 SHA、逐项导出结构化审阅决策、拒绝待查/缺失手工文本，并在新候选 EPUB 上继续执行 metadata、spine、锚点、封面、DRM、非文字 DOM / 属性、注释和图片红线；篇名与 nav / NCX 标签同步须另列授权。
+用户明确授权校订正文时，**正文不变 gate 不得被删除、伪造为通过或用宽泛 allow-list 掩盖**；应切换到 `docs/final/SPEC-实现约束.md` §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1 的授权正文校订分支，该分支的逐条要求以那两处为准。
 
 边界：
 
@@ -110,10 +110,8 @@ Codex、Claude Code 以及其他代理开始工作前都必须先读取本文件
 - `templates/` 样本应能独立打包，生成产物放在模板自己的 `dist/`。
 - Kindle、Apple Books、Thorium、KOReader 等阅读器兼容性问题，不允许只靠手册推断修改。
 - demo EPUB 必须覆盖普通正文、中英混排、大字号标题、图片或封面、表格、代码、标准弹注、legacy fallback、A-lite、竖排和字体链。
-- 图文环绕主路径使用 `figure.img-left/right`。`float` 和百分比 `width` 放在 `<figure>`，内部 `<img>` 使用 `width:100%; height:auto`。
-- `.wavy` 等带样式下划线必须先写基础 `text-decoration: underline;`，再写 `text-decoration-style`。
-- 含 MathML 的 XHTML 必须在 OPF manifest 声明 `properties="mathml"`。
-- 修改弹注结构后必须运行 `epub run epub.notes.popup.normalize --input <artifact> --json`；构建后优先对 dist 产物复核。
+- **具体排版条目一律查 `docs/final/SPEC-实现约束.md`，本文件不复制**（图文环绕、带样式下划线、
+  MathML `properties`、弹注 class 词汇、字体归属等）。本文件只登记维护规则与流程。
 - 任何阅读器实测规则必须能追溯到 demo、artifact、阅读器名称和版本、现象与结论。信息不完整时只能记录为待验证假设。
 - 新增第三方 EPUB 参考样本时，必须同步更新 `THIRD_PARTY.md`，写清来源、作者、许可和链接。
 

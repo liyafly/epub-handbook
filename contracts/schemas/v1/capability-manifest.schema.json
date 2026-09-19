@@ -3,7 +3,7 @@
   "$id": "https://epub-handbook.local/contracts/schemas/v1/capability-manifest.schema.json",
   "title": "Capability manifest",
   "type": "object",
-  "required": ["schemaVersion", "id", "version", "kind", "legacySkillSlugs", "inputSchema", "outputSchema", "redLines", "permissions", "requires", "adapters"],
+  "required": ["schemaVersion", "id", "version", "kind", "legacySkillSlugs", "inputSchema", "outputSchema", "redLines", "permissions", "execution", "requires"],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {"const": "1"},
@@ -23,7 +23,15 @@
         "network": {"type": "string", "enum": ["none", "readonly", "full"]}
       }
     },
-    "requires": {"type": "array", "items": {"type": "string"}},
-    "adapters": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["openai", "claude", "mcp", "cli", "gui"]}}
+    "execution": {
+      "type": "object",
+      "required": ["input", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "input": {"type": "string", "enum": ["epub", "epub-or-tree", "source-path"]},
+        "output": {"type": "string", "enum": ["single", "multi", "none"]}
+      }
+    },
+    "requires": {"type": "array", "items": {"type": "string"}}
   }
 }

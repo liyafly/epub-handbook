@@ -2,9 +2,9 @@
 //
 // 它是唯一允许构造对外 JSON 的地方：
 //   - Envelope（schemaVersion 2）：CLI 的统一返回信封（SPEC §8.2）；
-//   - V1RunReport：迁移期 golden 报告，受 contracts/schemas/v1 约束（INV-6）；
-//   - MarshalLegacy：与 Python json.dumps(ensure_ascii=False, indent=2)
-//     逐字节兼容的序列化，供 --legacy-report parity 脚手架使用。
+//   - V1RunReport：v1 形状的 golden 报告，受 contracts/schemas/v1 约束（INV-6）；
+//   - MarshalLegacy：不转义 HTML / 非 ASCII、缩进 2 空格、带尾随换行的
+//     JSON 序列化 helper，供需要稳定字节形状的 v1 报告输出使用。
 package report
 
 import (

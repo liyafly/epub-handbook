@@ -8,6 +8,6 @@
   "outputSchema": "contracts/schemas/v1/execution-plan.schema.json",
   "redLines": [],
   "permissions": {"requiresWriteAccess": false, "network": "none"},
-  "requires": [],
-  "adapters": ["openai", "claude", "mcp", "cli"]
+  "execution": {"input": "source-path", "output": "none"},
+  "requires": []
 }

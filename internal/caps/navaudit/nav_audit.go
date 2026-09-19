@@ -1,8 +1,9 @@
 // Package navaudit 移植 epub.package.nav.audit（scripts/epub_preflight_harness.py
 // 与 scripts/epub_ai/ 的检查家族）。它是只读 validator：不产生 edits。
 //
-// legacy-report 形状对齐 preflight harness 的 JSON（10 基键 + harness /
-// preflight_status / next_gate）；新信封 findings 与其一一对应。
+// 输出统一信封：findings 与 preflight harness 的检查项一一对应，附加的
+// 结构化 facts（findingsByLevel / recommendedSkills / toolAvailability /
+// actionableFindings）见 summary.go。
 package navaudit
 
 import (
@@ -16,8 +17,8 @@ import (
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
-// legacyFinding 对齐 epub_ai finding() 的键序：level, message[, path[, kind]]。
-type legacyFinding struct {
+// auditFinding 是检查项的内部累积形态：level, message[, path[, kind]]。
+type auditFinding struct {
 	Level   string `json:"level"`
 	Message string `json:"message"`
 	Path    string `json:"path,omitempty"`
@@ -26,10 +27,8 @@ type legacyFinding struct {
 
 // Params 是 nav.audit 的参数。
 type Params struct {
-	// LegacyReport 输出 preflight harness 的原始 JSON 形状。
-	LegacyReport bool
-	// Report 选报告族：preflight（默认）或 layout-audit（AI harness 形状，
-	// 无 harness/preflight_status/next_gate 包装，也无 spine 特判）。
+	// Report 选报告族：preflight（默认）或 layout-audit（AI harness 家族，
+	// 无 spine 特判）。
 	Report string // "preflight" | "layout-audit"
 }
 
@@ -39,7 +38,7 @@ type inspector struct {
 	opfPath     string
 	mode        string
 	summary     *orderedSummary
-	findings    []legacyFinding
+	findings    []auditFinding
 	skills      []string
 	skillLv     map[string]string
 	commands    []string
@@ -47,9 +46,11 @@ type inspector struct {
 	textChars   int
 	imageRefs   int
 	layoutAudit bool
+	// lookPath 是外部工具探测器（默认 externToolProbe）。
+	lookPath toolProbe
 }
 
-// orderedSummary 保证 legacy JSON 的键序与 Python dict 插入序一致。
+// orderedSummary 是 summary 的内部累积形态（键序固定）。
 type orderedSummary struct {
 	ZipEntries          int            `json:"zip_entries"`
 	OPF                 string         `json:"opf,omitempty"`
@@ -74,8 +75,27 @@ func (t *orderedTools) add(name string, ok bool) {
 	}
 }
 
-// Run 执行 nav.audit（只读）。
+// toolProbe 报告某个外部工具是否可用。默认实现走 internal/extern
+// （INV-4：caps 不得 import os/exec）；测试注入桩，使 golden 与本机 PATH 无关。
+type toolProbe func(name string) bool
+
+// externToolProbe 是生产实现：extern.LookPath，工具缺失时返回 false。
+func externToolProbe(name string) bool {
+	ok, _ := extern.LookPath(name)
+	return ok
+}
+
+// Run 执行 nav.audit（只读）。外部工具探测走 internal/extern。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	return run(ctx, b, p, externToolProbe)
+}
+
+// run 是 Run 的可注入内核：lookPath 固定外部工具探测结果，
+// 供 golden 测试摆脱开发机 PATH（`brew install epubcheck` 不应让测试变红）。
+func run(_ context.Context, b *book.Book, p Params, lookPath toolProbe) (report.Result, error) {
+	if lookPath == nil {
+		lookPath = externToolProbe
+	}
 	ins := &inspector{
 		b:           b,
 		mode:        "cleanup",
@@ -83,6 +103,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		summary:     &orderedSummary{MediaCounts: map[string]int{"xhtml": 0, "css": 0, "images": 0, "fonts": 0, "other": 0}},
 		skillLv:     map[string]string{},
 		tools:       &orderedTools{Values: map[string]bool{}},
+		lookPath:    lookPath,
 	}
 	ins.inspect()
 
@@ -114,13 +135,20 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	} else if warnCount > 0 {
 		status = "warn"
 	}
-	if p.LegacyReport {
-		if p.Report == "layout-audit" {
-			res.Facts["legacyReport"] = ins.legacyLayoutAudit(status)
-		} else {
-			res.Facts["legacyReport"] = ins.legacyReport(status)
-		}
+	// spine 特判（仅 preflight 族）：spine 为空追加一条 error finding。
+	if ins.summary.SpineItems == 0 && !ins.layoutAudit {
+		res.Findings = append(res.Findings, report.Finding{
+			Level: "error", ID: "audit." + fmt.Sprint(len(res.Findings)),
+			Title: "OPF spine is missing or empty",
+		})
+		status = "fail"
+		res.Status = report.StatusFailed
 	}
+	res.Facts["auditStatus"] = status
+	res.Facts["findingsByLevel"] = countFindingsByLevel(res.Findings)
+	res.Facts["recommendedSkills"] = ins.orderedSkills()
+	res.Facts["toolAvailability"] = ins.toolAvailability()
+	res.Facts["actionableFindings"] = ins.detectActionable()
 	res.NextCommands = ins.nextCommands()
 	return res, nil
 }
@@ -148,13 +176,14 @@ func (ins *inspector) summaryFields() map[string]any {
 }
 
 func (ins *inspector) nextCommands() []string {
-	// commands 既用于 legacyReport 的 suggested_commands，也用于新信封的
-	// nextCommands；两种报告都必须只暴露当前 Go CLI 的执行面。
-	return append([]string(nil), ins.commands...)
+	// commands 即新信封的 nextCommands；只暴露当前 Go CLI 的执行面。
+	// 用 make(..., 0, n) 而非 append(nil, ...)：空列表必须序列化为 []，不是 null。
+	out := make([]string, 0, len(ins.commands))
+	return append(out, ins.commands...)
 }
 
 func (ins *inspector) addFinding(level, message, path, kind string) {
-	f := legacyFinding{Level: level, Message: message}
+	f := auditFinding{Level: level, Message: message}
 	if path != "" {
 		f.Path = path
 	}
@@ -243,7 +272,7 @@ func (ins *inspector) inspect() {
 	ins.addCommand("epub capabilities --json")
 	// preflight 特有：epubcheck 可用性（经 extern；本机无 → 注释行占位）。
 	ins.tools.Keys = append(ins.tools.Keys, "epubcheck")
-	if ok, _ := extern.LookPath("epubcheck"); ok {
+	if ins.lookPath("epubcheck") {
 		ins.tools.Values["epubcheck"] = true
 		ins.addCommand("epubcheck " + q)
 	} else {

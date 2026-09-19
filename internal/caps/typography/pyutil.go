@@ -160,7 +160,9 @@ func relHref(fromZipPath, toZipPath string) string {
 func isSpaceRune(r rune) bool { return unicode.IsSpace(r) }
 
 // pyStrip 复刻 str.strip()（无参：剥两侧 Unicode 空白）。
-func pyStrip(s string) string { return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) }) }
+func pyStrip(s string) string {
+	return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) })
+}
 
 // pyRStrip 复刻 str.rstrip()。
 func pyRStrip(s string) string {

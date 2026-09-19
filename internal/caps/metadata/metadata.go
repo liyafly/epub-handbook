@@ -45,26 +45,15 @@ type Params struct {
 	// MetadataJSON 是 JSON 对象文本（键序保持 Python json.loads 的插入序），
 	// 值均为字符串；非法形状报 "metadata JSON must be an object of string fields"。
 	MetadataJSON string
-	// Output 是输出路径（仅进入 legacy 报告字段；本包不落盘）。
+	// Output 是输出路径（只进入 facts.output；本包不落盘）。
 	Output string
-	// LegacyReport 输出 Python OperationReport 形状的 JSON。
-	LegacyReport bool
 }
 
-// legacyReport 对齐 models.OperationReport（键序 = dataclass 字段序）。
-type legacyReport struct {
-	Operation        string   `json:"operation"`
-	Input            *string  `json:"input"`
-	Inputs           []string `json:"inputs"`
-	Output           *string  `json:"output"`
-	Outputs          []string `json:"outputs"`
-	OPF              string   `json:"opf"`
-	MergedItems      int      `json:"merged_items"`
-	RenamedResources int      `json:"renamed_resources"`
-	SegmentsCreated  int      `json:"segments_created"`
-	FieldsUpdated    int      `json:"fields_updated"`
-	CoverPath        string   `json:"cover_path"`
-	Warnings         []string `json:"warnings"`
+// operationReport 是本能力的包内统计累加器，最终展开为 Result.Facts。
+type operationReport struct {
+	Operation     string
+	OPF           string
+	FieldsUpdated int
 }
 
 // failedResult 复刻 Python harness 的失败语义：不产出报告 JSON，
@@ -284,7 +273,6 @@ func lookupField(fields [][2]string, key string) (string, bool) {
 
 // Run 执行 metadata.edit（SPEC §6.1 三段式）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
-	inputPath := b.InputPath()
 	names := b.OriginalNames()
 	read := b.Original
 	namesSet := make(map[string]bool, len(names))
@@ -318,14 +306,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	view := newChildView(pkg.opfPath, opfData, metaNode)
 
-	rep := legacyReport{
+	rep := operationReport{
 		Operation: "metadata-write",
-		Input:     strPtr(inputPath),
-		Inputs:    []string{},
-		Output:    strPtr(p.Output),
-		Outputs:   []string{},
 		OPF:       pkg.opfPath,
-		Warnings:  []string{},
 	}
 
 	var edits []editset.Edit
@@ -387,6 +370,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
 		Facts: map[string]any{
+			"operation":     rep.Operation,
 			"opf":           rep.OPF,
 			"output":        p.Output,
 			"fieldsUpdated": rep.FieldsUpdated,
@@ -395,13 +379,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			Step: "metadata-write", Status: "completed",
 			Message: fmt.Sprintf("fields_updated=%d", rep.FieldsUpdated),
 		}},
-	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
 	}
 	return res, nil
 }

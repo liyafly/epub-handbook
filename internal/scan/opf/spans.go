@@ -110,7 +110,8 @@ func (n *SpanNode) Walk() []*SpanNode {
 	return out
 }
 
-// IterText 返回子树的全部文本拼接（对齐 ET 的 "".join(elem.itertext())）。
+// IterText 返回子树的全部文本拼接（对齐 ET 的 "".join(elem.itertext())）：
+// 自身 Text、后代 Text 与后代 Tail；被调用元素自身的 Tail 不计入。
 func (n *SpanNode) IterText() string {
 	var b strings.Builder
 	var visit func(e *SpanNode)
@@ -118,8 +119,8 @@ func (n *SpanNode) IterText() string {
 		b.WriteString(e.Text)
 		for _, c := range e.Kids {
 			visit(c)
+			b.WriteString(c.Tail)
 		}
-		b.WriteString(e.Tail)
 	}
 	visit(n)
 	return b.String()

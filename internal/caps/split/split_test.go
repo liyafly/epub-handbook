@@ -3,16 +3,19 @@ package split
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
+	"path"
 	"path/filepath"
-	"runtime"
+	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // ---- fixture：逐字节复刻 scripts/test_epub_package_tool.py 的 write_book ----
@@ -100,39 +103,7 @@ func writeBookEntries(title, marker string, coverBytes []byte) []zipEntry {
 	}
 }
 
-// ---- Python oracle 与比较工具 ----
-
-func runPythonHarness(t *testing.T, args ...string) (int, string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", args[0])
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已删除）", args[0])
-	}
-	cmd := exec.Command("python3", append([]string{script}, args[1:]...)...)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d: %s", code, errb.String())
-	}
-	return code, out.String()
-}
-
+// readZipEntries 解压出全部 entry（mimetype 除外）；srcset_test.go 也在用。
 func readZipEntries(t *testing.T, path string) map[string][]byte {
 	t.Helper()
 	f, err := os.Open(path)
@@ -167,145 +138,54 @@ func readZipEntries(t *testing.T, path string) map[string][]byte {
 	return out
 }
 
-// pyCanonicalXML 用 Python ET 把 EPUB 内某 entry 规范化为 JSON。
-// split 的 OPF 在 Python 侧是整树重序列化、Go 侧是字节区间编辑
-// （metadata 与根属性保留源字节，与 Python 输出语义一致但字节不同，
-// 例如空白 tail、guide 之外的额外元素在 Go 侧保留）——因此 OPF 只比
-// 语义；nav/ncx/container 与资源两侧都是逐字节同源产物。
-func pyCanonicalXML(t *testing.T, epubPath, entry string) string {
+// assertOperationFacts 锁定 split 的正式 facts 键（旧 OperationReport 的全部
+// 信息：operation / opf / outputs / segmentsCreated，另有 outputDir）。
+func assertOperationFacts(t *testing.T, res report.Result, outputDir string, wantOutputs []string, wantSegments int) {
 	t.Helper()
-	script := `import sys, json, zipfile
-from xml.etree import ElementTree as ET
-with zipfile.ZipFile(sys.argv[1]) as zf:
-    data = zf.read(sys.argv[2])
-def canon(e):
-    text = e.text or ""
-    return {"tag": e.tag, "attrs": [[k, v] for k, v in e.attrib.items()],
-            "text": text if text.strip() else "", "kids": [canon(c) for c in e]}
-print(json.dumps(canon(ET.fromstring(data)), ensure_ascii=False))`
-	out, err := exec.Command("python3", "-c", script, epubPath, entry).Output()
-	if err != nil {
-		t.Fatalf("canonicalize %s@%s: %v", epubPath, entry, err)
+	want := map[string]any{
+		"operation":       "split",
+		"opf":             "OEBPS/content.opf",
+		"outputDir":       outputDir,
+		"segmentsCreated": wantSegments,
 	}
-	return string(out)
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
+	for k, v := range want {
+		if got := res.Facts[k]; got != v {
+			t.Errorf("facts[%q] = %#v, want %#v", k, got, v)
+		}
 	}
-	return s[:n] + "..."
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
+	outputs, _ := res.Facts["outputs"].([]string)
+	if len(outputs) != len(wantOutputs) {
+		t.Fatalf("facts[outputs] = %#v, want %#v", res.Facts["outputs"], wantOutputs)
+	}
+	for i := range wantOutputs {
+		if outputs[i] != wantOutputs[i] {
+			t.Errorf("facts[outputs][%d] = %q, want %q", i, outputs[i], wantOutputs[i])
+		}
+		if _, err := os.Stat(outputs[i]); err != nil {
+			t.Errorf("segment %s missing: %v", outputs[i], err)
 		}
 	}
 }
 
-func replaceAll(s, old, new string) string {
-	out := ""
-	for {
-		i := indexOf(s, old)
-		if i < 0 {
-			return out + s
-		}
-		out += s[:i] + new
-		s = s[i+len(old):]
-	}
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
-}
-
-func stringsHasSuffix(s, suf string) bool {
-	return len(s) >= len(suf) && s[len(s)-len(suf):] == suf
-}
-
-func compareEntries(t *testing.T, pyPath, goPath string, semantic map[string]bool) {
-	t.Helper()
-	py := readZipEntries(t, pyPath)
-	go_ := readZipEntries(t, goPath)
-	for name := range py {
-		if _, ok := go_[name]; !ok {
-			t.Errorf("Go 输出缺少 entry %s", name)
-		}
-	}
-	for name := range go_ {
-		if _, ok := py[name]; !ok {
-			t.Errorf("Go 输出多出 entry %s", name)
-		}
-	}
-	names := make([]string, 0, len(py))
-	for name := range py {
-		names = append(names, name)
-	}
-	sortStrings(names)
-	for _, name := range names {
-		if semantic[name] {
-			pyC, goC := pyCanonicalXML(t, pyPath, name), pyCanonicalXML(t, goPath, name)
-			if pyC != goC {
-				t.Errorf("entry %s 语义不一致：\n--- py ---\n%s\n--- go ---\n%s", name, clip(pyC, 1600), clip(goC, 1600))
-			}
-			continue
-		}
-		if !bytes.Equal(py[name], go_[name]) {
-			t.Errorf("entry %s 字节不一致：\n--- py ---\n%s\n--- go ---\n%s",
-				name, clip(string(py[name]), 1200), clip(string(go_[name]), 1200))
-		}
-	}
-}
-
-func TestParitySplitBuildsIndependentSegments(t *testing.T) {
+// TestSplitFacts 是不依赖 Python oracle 的正式 facts 断言。
+func TestSplitFacts(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	buildEpub(t, source, writeBookEntries("拆分书", "split", []byte("cover")))
-	pyOutDir := filepath.Join(dir, "py-split")
-	goOutDir := filepath.Join(dir, "go-split")
-
-	_, pyJSON := runPythonHarness(t, "epub_package_split_harness.py", source,
-		"--output-dir", pyOutDir, "--split-points", "0")
-
+	outDir := filepath.Join(dir, "split")
 	b, err := book.Open(source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{
-		SplitPoints:  []int{0},
-		OutputDir:    goOutDir,
-		LegacyReport: true,
-	})
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: outDir})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Status != report.StatusComplete {
-		t.Fatalf("status = %s", res.Status)
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
 	}
-
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatalf("Facts 缺少 legacyReport")
-	}
-	got := replaceAll(string(raw), goOutDir, "<OUT>")
-	want := replaceAll(pyJSON, pyOutDir, "<OUT>")
-	if got != want {
-		t.Errorf("legacy JSON 与 Python oracle 不一致:\n--- go ---\n%s\n--- python ---\n%s", clip(got, 1500), clip(want, 1500))
-	}
-
-	pySeg := filepath.Join(pyOutDir, "source_01.epub")
-	goSeg := filepath.Join(goOutDir, "source_01.epub")
-	compareEntries(t, pySeg, goSeg, map[string]bool{
-		"OEBPS/content.opf": true, // 整树重序列化 vs 字节区间编辑：语义一致
-	})
+	assertOperationFacts(t, res, outDir, []string{filepath.Join(outDir, "source_01.epub")}, 1)
 }
 
 func TestSplitRefusesEncryptionAndBadPoints(t *testing.T) {
@@ -394,6 +274,314 @@ func writeTwoChapterEntries(badSecond bool) []zipEntry {
 	}
 }
 
+// writeThreeChapterEntries 提供三章书 fixture，用来验证 split_points 语义
+// 在段边界不是简单"一点一段"时（一段吸收两章）依然按 targets 下标切分正确。
+func writeThreeChapterEntries() []zipEntry {
+	f := func(s string) []byte { return []byte(s) }
+	return []zipEntry{
+		{name: "META-INF/container.xml", content: f(`<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
+		{name: "OEBPS/content.opf", content: f(`<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:three</dc:identifier><dc:title>三章书</dc:title><dc:creator>作者</dc:creator><dc:language>zh-CN</dc:language><meta name="cover" content="cover-image"/></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="one" href="Text/one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="Text/two.xhtml" media-type="application/xhtml+xml"/><item id="three" href="Text/three.xhtml" media-type="application/xhtml+xml"/><item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg" properties="cover-image"/></manifest><spine><itemref idref="nav" linear="no"/><itemref idref="one"/><itemref idref="two"/><itemref idref="three"/></spine></package>`)},
+		{name: "OEBPS/nav.xhtml", content: f(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="Text/one.xhtml#one">第一章</a></li><li><a href="Text/two.xhtml#two">第二章</a></li><li><a href="Text/three.xhtml#three">第三章</a></li></ol></nav></body></html>`)},
+		{name: "OEBPS/Text/one.xhtml", content: f(`<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="one">第一章</h1><p>第一段正文。</p></body></html>`)},
+		{name: "OEBPS/Text/two.xhtml", content: f(`<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="two">第二章</h1><p>第二段正文。</p></body></html>`)},
+		{name: "OEBPS/Text/three.xhtml", content: f(`<html xmlns="http://www.w3.org/1999/xhtml"><body><h1 id="three">第三章</h1><p>第三段正文。</p></body></html>`)},
+		{name: "OEBPS/Images/cover.jpg", content: []byte("cover bytes")},
+		{name: "mimetype", content: f("wrong")},
+	}
+}
+
+var (
+	hrefAttrRe = regexp.MustCompile(`href="([^"]*)"`)
+	srcAttrRe  = regexp.MustCompile(`src="([^"]*)"`)
+)
+
+// assertLinksResolveInSegment 断言 docPath（nav.xhtml 或 toc.ncx）里全部
+// attr="..." 目标——包括锚点——都能在 seg 内部解析。这是"分段是独立可用的
+// EPUB"这条要求的直接体现：如果 nav / NCX 引用了没被选中、留在别的段里的
+// 文件，读者在这一段书里点目录会打不开。
+func assertLinksResolveInSegment(t *testing.T, seg *book.Book, docPath, attr string) {
+	t.Helper()
+	data, err := seg.Current(docPath)
+	if err != nil {
+		t.Fatalf("%s missing from segment: %v", docPath, err)
+	}
+	re := hrefAttrRe
+	if attr == "src" {
+		re = srcAttrRe
+	}
+	matches := re.FindAllStringSubmatch(string(data), -1)
+	if len(matches) == 0 {
+		t.Errorf("%s 没有任何 %s 目标，导航生成可能失败了", docPath, attr)
+	}
+	for _, m := range matches {
+		raw := m[1]
+		target, frag, _ := strings.Cut(raw, "#")
+		resolved := path.Join(path.Dir(docPath), target)
+		if !seg.Has(resolved) {
+			t.Errorf("%s: %s=%q 指向段外文件，跨段死链: %s", docPath, attr, raw, resolved)
+			continue
+		}
+		if frag == "" {
+			continue
+		}
+		targetData, err := seg.Current(resolved)
+		if err != nil {
+			t.Fatalf("%s: 读取 %s 失败: %v", docPath, resolved, err)
+		}
+		if !bytes.Contains(targetData, []byte(`id="`+frag+`"`)) {
+			t.Errorf("%s: %s=%q 的锚点 #%s 在 %s 里不存在", docPath, attr, raw, frag, resolved)
+		}
+	}
+}
+
+// TestSplitSegmentsAreIndependentEPUBs 是切分能力存在的核心承诺：每一段都
+// 是能独立打开的完整 EPUB（container→OPF→manifest/spine 内部自洽），被选中
+// 的正文逐字节保留，另一段的章节不会泄漏进来，且 nav / NCX 的全部目标都能
+// 在段内部解析——不留跨段死链（否则读者打开这一段书点目录会打不开）。
+func TestSplitSegmentsAreIndependentEPUBs(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeTwoChapterEntries(false))
+	outDir := filepath.Join(dir, "out")
+	srcBook, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srcBook.Close()
+	res, err := Run(t.Context(), srcBook, Params{SplitPoints: []int{0, 1}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("split status = %s findings=%+v", res.Status, res.Findings)
+	}
+
+	own := map[string]string{
+		filepath.Join(outDir, "source_01.epub"): "OEBPS/Text/one.xhtml",
+		filepath.Join(outDir, "source_02.epub"): "OEBPS/Text/two.xhtml",
+	}
+	other := map[string]string{
+		filepath.Join(outDir, "source_01.epub"): "OEBPS/Text/two.xhtml",
+		filepath.Join(outDir, "source_02.epub"): "OEBPS/Text/one.xhtml",
+	}
+	for outPath, chapterPath := range own {
+		func() {
+			seg, err := book.Open(outPath)
+			if err != nil {
+				t.Fatalf("segment %s does not open as EPUB: %v", outPath, err)
+			}
+			defer seg.Close()
+
+			containerData, err := seg.Current("META-INF/container.xml")
+			if err != nil {
+				t.Fatalf("%s missing container.xml: %v", outPath, err)
+			}
+			opfPath, err := opf.FindOPFPath(containerData)
+			if err != nil {
+				t.Fatalf("%s container.xml does not resolve OPF: %v", outPath, err)
+			}
+			opfData, err := seg.Current(opfPath)
+			if err != nil {
+				t.Fatalf("%s missing resolved OPF %s: %v", outPath, opfPath, err)
+			}
+			pkg, err := opf.Parse(opfPath, opfData)
+			if err != nil {
+				t.Fatalf("%s OPF does not parse: %v", outPath, err)
+			}
+
+			// manifest 自洽：每个非外链 item 的目标都必须真的在段内。
+			for _, item := range pkg.Manifest {
+				if item.ArchivePath == "" {
+					continue
+				}
+				if !seg.Has(item.ArchivePath) {
+					t.Errorf("%s: manifest item %s -> %s missing from segment", outPath, item.ID, item.ArchivePath)
+				}
+			}
+			// spine 自洽：每个 itemref 都能解析回一个 manifest item。
+			for _, sp := range pkg.Spine {
+				if _, ok := pkg.ItemByID(sp.IDRef); !ok {
+					t.Errorf("%s: spine idref %q has no manifest item", outPath, sp.IDRef)
+				}
+			}
+
+			// 被选中的正文逐字节保留：这是 INV-1 在 split 上的体现，一次
+			// 切分绝不允许悄悄改写被选中的章节内容。
+			srcXHTML, err := srcBook.Original(chapterPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			segXHTML, err := seg.Current(chapterPath)
+			if err != nil {
+				t.Fatalf("%s missing selected chapter %s: %v", outPath, chapterPath, err)
+			}
+			if !bytes.Equal(srcXHTML, segXHTML) {
+				t.Errorf("%s: selected chapter %s bytes changed", outPath, chapterPath)
+			}
+
+			// 段间隔离：另一段的章节不该出现在这一段里，否则不算真正独立。
+			if seg.Has(other[outPath]) {
+				t.Errorf("%s: leaked chapter from the other segment: %s", outPath, other[outPath])
+			}
+
+			navItem, ok := pkg.NavItem()
+			if !ok {
+				t.Fatalf("%s: manifest has no nav item", outPath)
+			}
+			assertLinksResolveInSegment(t, seg, navItem.ArchivePath, "href")
+			if ncxItem, ok := pkg.NCXItem(); ok {
+				assertLinksResolveInSegment(t, seg, ncxItem.ArchivePath, "src")
+			}
+		}()
+	}
+}
+
+// TestSplitPointsPartitionSpineContent 锁定 split_points 的边界语义：切分点
+// 是 targets 下标而不是"每点一段"——[0,2] 在三章书上应该产出"第一、二章
+// 一段 + 第三章一段"，而不是三段各一章。同时验证 segmentPlans / outputs /
+// segmentsCreated 这些 facts 与实际落盘产物完全一致。
+func TestSplitPointsPartitionSpineContent(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeThreeChapterEntries())
+	outDir := filepath.Join(dir, "out")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0, 2}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("split status = %s findings=%+v", res.Status, res.Findings)
+	}
+
+	if got := res.Facts["segmentsCreated"]; got != 2 {
+		t.Fatalf("segmentsCreated = %v, want 2", got)
+	}
+	outputs, _ := res.Facts["outputs"].([]string)
+	if len(outputs) != 2 {
+		t.Fatalf("facts[outputs] = %#v, want 2 entries", res.Facts["outputs"])
+	}
+	for _, out := range outputs {
+		if _, statErr := os.Stat(out); statErr != nil {
+			t.Errorf("facts 声明的产物不存在: %s (%v)", out, statErr)
+		}
+	}
+
+	plans, ok := res.Facts["segmentPlans"].([]map[string]any)
+	if !ok || len(plans) != 2 {
+		t.Fatalf("facts[segmentPlans] = %#v", res.Facts["segmentPlans"])
+	}
+	want := [][]string{
+		{"OEBPS/Text/one.xhtml", "OEBPS/Text/two.xhtml"},
+		{"OEBPS/Text/three.xhtml"},
+	}
+	for i, w := range want {
+		got, _ := plans[i]["selectedSpine"].([]string)
+		if !reflect.DeepEqual(got, w) {
+			t.Errorf("segment %d selectedSpine = %#v, want %#v", i+1, got, w)
+		}
+		if plans[i]["output"] != outputs[i] {
+			t.Errorf("segment %d facts.segmentPlans.output = %v, want %v", i+1, plans[i]["output"], outputs[i])
+		}
+	}
+
+	// 落盘产物必须真的按上面的边界切分：第一段吸收了两章，OPF spine 应
+	// 恰好是 nav + one + two（顺序不变）；第二段只有 nav + three。
+	seg1, err := book.Open(outputs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer seg1.Close()
+	opfData1, err := seg1.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg1, err := opf.Parse("OEBPS/content.opf", opfData1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkg1.Spine) != 3 {
+		t.Fatalf("segment 1 spine length = %d, want 3 (nav + two chapters)", len(pkg1.Spine))
+	}
+	var seg1IDRefs []string
+	for _, sp := range pkg1.Spine[1:] {
+		seg1IDRefs = append(seg1IDRefs, sp.IDRef)
+	}
+	if !reflect.DeepEqual(seg1IDRefs, []string{"one", "two"}) {
+		t.Errorf("segment 1 content spine idrefs = %v, want [one two]", seg1IDRefs)
+	}
+
+	seg2, err := book.Open(outputs[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer seg2.Close()
+	opfData2, err := seg2.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg2, err := opf.Parse("OEBPS/content.opf", opfData2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkg2.Spine) != 2 {
+		t.Fatalf("segment 2 spine length = %d, want 2 (nav + one chapter)", len(pkg2.Spine))
+	}
+	if pkg2.Spine[1].IDRef != "three" {
+		t.Errorf("segment 2 content spine idref = %q, want %q", pkg2.Spine[1].IDRef, "three")
+	}
+}
+
+// TestValidateSegmentRejectsCoverDrift 直接调用 validateSegment（分区红线的
+// 唯一入口），证明 validation.go 的 metadata/cover/drm 红线真的会开火，而
+// 不是形同虚设：把段投影里的封面字节篡改掉、OPF 不动，模拟"资源闭包或提交
+// 阶段悄悄换了封面却没人发现"的回归。断言必须拿到带 "cover:" 的明确失败。
+func TestValidateSegmentRejectsCoverDrift(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeTwoChapterEntries(false))
+
+	original, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer original.Close()
+	names := original.OriginalNames()
+	namesSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		namesSet[n] = true
+	}
+	pkg, err := readPackage(namesSet, original.Original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	segment, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer segment.Close()
+	tampered := []byte("tampered-cover-bytes")
+	if err := segment.Apply([]editset.Edit{
+		editset.Replace("OEBPS/Images/cover.jpg", 0, int64(len("cover bytes")), tampered),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = validateSegment(t.Context(), original, segment, pkg,
+		[]string{"OEBPS/Text/one.xhtml"}, []string{"one"}, "nav", "OEBPS/nav.xhtml", "OEBPS/toc.ncx")
+	if err == nil {
+		t.Fatal("封面被篡改的分段投影应被红线拒绝，实际静默通过了")
+	}
+	if !strings.Contains(err.Error(), "cover:") {
+		t.Errorf("拒绝原因应指向 cover 红线，实际: %v", err)
+	}
+}
+
 func TestSplitOutputDirectoryPreflightAndDryRun(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
@@ -466,6 +654,10 @@ func TestSplitOutputDirectoryPreflightAndDryRun(t *testing.T) {
 	}
 }
 
+// TestSplitValidationFailureLeavesNoArtifacts 用一段格式损坏的 XHTML（第二
+// 章标签未闭合）证明 validateSegment 内的结构校验（validateRetainedReferences
+// 的 XML 解析）真的会开火：拿到的必须是明确的 failed 结果而不是静默产出坏
+// 分段；失败时不许留下任何输出目录或部分产物。
 func TestSplitValidationFailureLeavesNoArtifacts(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")

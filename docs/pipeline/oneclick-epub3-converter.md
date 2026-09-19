@@ -138,7 +138,7 @@ epub run epub.structure.normalize \
 epub run epub.css.layering.optimize \
   --input work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
-  --json merge_scoped_local_css=true > work/book-a/reports/css-cleanup.json
+  --json > work/book-a/reports/css-cleanup.json
 ```
 
 清洗器会：

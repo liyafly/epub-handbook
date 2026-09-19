@@ -33,7 +33,7 @@ epub run epub.notes.popup.normalize --input <新书> --json
 epub redline --check all <书> <新书>
 ```
 
-可选 KEY=VALUE：`no_popup_notes=true`、`no_typography=true`——只在用户明确要求跳过弹注或基础排版时使用（默认两者都做）。需要旧报告形状明细（conversion report 逐项）时给 run 命令加 `legacy_report=true`。单元与回归验证由 `go test` 承担，不在本 skill 展开。
+可选 KEY=VALUE：`no_popup_notes=true`、`no_typography=true`——只在用户明确要求跳过弹注或基础排版时使用（默认两者都做）。conversion report 的全部明细都在 `--json` 信封的 `facts` 里（键见下文），无需额外参数。单元与回归验证由 `go test` 承担，不在本 skill 展开。
 
 ## 返回怎么读
 
@@ -47,7 +47,7 @@ epub redline --check all <书> <新书>
   - `warnings`：迁移期保留的模糊结构等警告。
   - `popupNotes` / `typography`：两个开关是否生效（回显）。
 - findings：`warn migrate.warning` 对应 `warnings` 逐条；run 内置红线门禁失败时出现 `error redline.<check>`（text/metadata/spine/anchors/cover/drm）。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（底层 conversion report，含 before/after SHA-256）。
+- 输入/输出的 SHA-256 与路径在信封顶层 `input` / `output` 段（`path`、`sha256`），不在 `facts` 内重复。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
 
 ## 依据返回怎么判断

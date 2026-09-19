@@ -8,11 +8,8 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
-	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -235,7 +232,8 @@ func runGo(t *testing.T, fixture, output string, p Params) (report.Result, error
 }
 
 func defaultParams(output string) Params {
-	return Params{PopupNotes: true, Typography: true, LegacyReport: true, Output: output}
+	_ = output // 输出路径由 pipeline 落盘；本包 Params 不再携带。
+	return Params{PopupNotes: true, Typography: true}
 }
 
 func openZip(t *testing.T, path string) *zip.ReadCloser {
@@ -268,20 +266,36 @@ func zipRead(t *testing.T, zr *zip.ReadCloser, name string) []byte {
 	return nil
 }
 
-func legacyReportOf(t *testing.T, res report.Result) []byte {
+// resultFacts 是统一信封 facts 的测试视图（camelCase 键与 buildResult 一致）。
+type resultFacts struct {
+	OPF                   string   `json:"opf"`
+	PackageVersionBefore  *string  `json:"packageVersionBefore"`
+	NavEntries            int      `json:"navEntries"`
+	XHTMLFilesUpdated     int      `json:"xhtmlFilesUpdated"`
+	StylesheetLinksAdded  int      `json:"stylesheetLinksAdded"`
+	PlainNotesConverted   int      `json:"plainNotesConverted"`
+	DuokanNotesNormalized int      `json:"duokanNotesNormalized"`
+	ManifestItemsAdded    []string `json:"manifestItemsAdded"`
+	ManifestItemsUpdated  int      `json:"manifestItemsUpdated"`
+	MetadataUpdates       []string `json:"metadataUpdates"`
+	TypographyRoles       []string `json:"typographyRoles"`
+	Warnings              []string `json:"warnings"`
+	PopupNotes            bool     `json:"popupNotes"`
+	Typography            bool     `json:"typography"`
+}
+
+// factsOf 经 JSON 往返读取 Result.Facts，同时保证 facts 可序列化。
+func factsOf(t *testing.T, res report.Result) resultFacts {
 	t.Helper()
-	raw, ok := res.Facts["legacyReport"]
-	if !ok {
-		t.Fatal("Result.Facts 缺少 legacyReport")
+	raw, err := json.Marshal(res.Facts)
+	if err != nil {
+		t.Fatalf("facts 不可序列化: %v", err)
 	}
-	switch v := raw.(type) {
-	case json.RawMessage:
-		return v
-	case []byte:
-		return v
+	var out resultFacts
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("facts 解码失败: %v\n%s", err, raw)
 	}
-	t.Fatalf("legacyReport 类型错误: %T", raw)
-	return nil
+	return out
 }
 
 // ---- 语义测试（镜像 scripts/test_epub3_oneclick_converter.py） ----
@@ -309,10 +323,7 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 || rep.StylesheetLinksAdded != 2 {
 		t.Fatalf("报告计数错误: %+v", rep)
 	}
@@ -429,10 +440,7 @@ func TestLockedModeCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	found := false
 	for _, u := range rep.MetadataUpdates {
 		if u == "added ibooks:specified-fonts (locked body font detected)" {
@@ -477,10 +485,7 @@ func TestDirectLockedModeCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	found := false
 	for _, u := range rep.MetadataUpdates {
 		if u == "added ibooks:specified-fonts (locked body font detected)" {
@@ -504,10 +509,7 @@ func TestParagraphFontIsNotLockedCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	for _, u := range rep.MetadataUpdates {
 		if strings.Contains(u, "added ibooks:specified-fonts") {
 			t.Fatalf("段落级字体规则不应视为全书锁定: %v", rep.MetadataUpdates)
@@ -538,10 +540,7 @@ func TestIbooksPrefixCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	for _, u := range rep.MetadataUpdates {
 		if u == "kept existing ibooks:specified-fonts" {
 			t.Fatalf("free-mode 书不应报 kept existing: %v", rep.MetadataUpdates)
@@ -580,10 +579,7 @@ func TestCustomImageNoterefCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.PlainNotesConverted != 1 {
 		t.Fatalf("plain_notes_converted 应为 1: %+v", rep)
 	}
@@ -638,10 +634,7 @@ func TestSigilLegacyNotesCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.PlainNotesConverted != 2 {
 		t.Fatalf("sigil 弹注应转换 2 条: %+v", rep)
 	}
@@ -695,10 +688,7 @@ func TestSigilPartialSectionCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var rep conversionReport
-	if err := json.Unmarshal(legacyReportOf(t, res), &rep); err != nil {
-		t.Fatal(err)
-	}
+	rep := factsOf(t, res)
 	if rep.PlainNotesConverted != 0 {
 		t.Fatalf("残余内容应阻止自动转换: %+v", rep)
 	}
@@ -782,146 +772,80 @@ func TestMissingPackageLanguageCase(t *testing.T) {
 // ---- parity（Python oracle 对照，见 parity_test.go） ----
 
 var _ = flate.BestSpeed
-var _ = exec.Command
-var _ = runtime.GOOS
-var _ = regexp.MustCompile
 
-// ---- parity（Python oracle：scripts/epub3_migration_apply_harness.py） ----
+// ---- 信封回归（原 Python oracle parity 的 Go 原生替代） ----
 
-func runPythonHarnessJSON(t *testing.T, args ...string) (int, string, string) {
-	t.Helper()
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", args[0])
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已删除）", args[0])
-	}
-	cmd := exec.Command("python3", append([]string{script}, args[1:]...)...)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	return code, out.String(), errb.String()
-}
-
-func compactJSON(t *testing.T, raw []byte) []byte {
-	t.Helper()
-	var buf bytes.Buffer
-	if err := json.Compact(&buf, raw); err != nil {
-		t.Fatalf("compactJSON: %v\n%s", err, raw)
-	}
-	return buf.Bytes()
-}
-
-func zipEntryMap(t *testing.T, path string) map[string][]byte {
-	t.Helper()
-	zr := openZip(t, path)
-	defer zr.Close()
-	out := map[string][]byte{}
-	for _, f := range zr.File {
-		if f.Name == "mimetype" {
-			continue
-		}
-		out[f.Name] = zipRead(t, zr, f.Name)
-	}
-	return out
-}
-
-// pyCanonicalXML 把 EPUB 内某 entry 经 Python ET 规范化为 JSON（OPF 语义比对用）。
-func pyCanonicalXML(t *testing.T, epubPath, entry string) string {
-	t.Helper()
-	script := `import sys, json, zipfile
-from xml.etree import ElementTree as ET
-with zipfile.ZipFile(sys.argv[1]) as zf:
-    data = zf.read(sys.argv[2])
-def canon(e):
-    text = e.text or ""
-    return {"tag": e.tag, "attrs": [[k, v] for k, v in e.attrib.items()],
-            "text": text if text.strip() else "", "kids": [canon(c) for c in e]}
-print(json.dumps(canon(ET.fromstring(data)), ensure_ascii=False))`
-	out, err := exec.Command("python3", "-c", script, epubPath, entry).Output()
-	if err != nil {
-		t.Fatalf("canonicalize %s@%s: %v", epubPath, entry, err)
-	}
-	return string(out)
-}
-
-func parityMigrateCase(t *testing.T, noTypography bool) {
+// TestConversionFactsAreFormal 锁定 facts 键集合与形状：conversion report 的
+// 全部字段都以 camelCase 出现在 Result.Facts，输入/输出 SHA-256 由 pipeline
+// 信封的 input / output 段承担，不在本包重复。
+func TestConversionFactsAreFormal(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
 	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{minifiedChapter: true}))
 
-	pyArgs := []string{"epub3_migration_apply_harness.py", fixture, "--output"}
-	pyOut := filepath.Join(dir, "py-converted.epub")
-	if noTypography {
-		pyArgs = append(pyArgs, pyOut, "--no-typography")
-	} else {
-		pyArgs = append(pyArgs, pyOut)
-	}
-	code, stdout, stderr := runPythonHarnessJSON(t, pyArgs...)
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d: %s", code, stderr)
-	}
-	var envelope map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
-		t.Fatalf("python 报告解析: %v\n%s", err, stdout)
-	}
-	pyConv := compactJSON(t, envelope["conversion"])
-
-	goOut := filepath.Join(dir, "go-converted.epub")
-	params := defaultParams(pyOut)
-	params.Typography = !noTypography
-	res, err := runGo(t, fixture, goOut, params)
+	res, err := runGo(t, fixture, output, defaultParams(output))
 	if err != nil {
-		t.Fatalf("go Run: %v", err)
+		t.Fatalf("Run: %v", err)
 	}
-	goConv := compactJSON(t, legacyReportOf(t, res))
-	if string(goConv) != string(pyConv) {
-		t.Errorf("conversion 报告不一致:\n--- python ---\n%s\n--- go ---\n%s", pyConv, goConv)
+	wantKeys := []string{
+		"opf", "packageVersionBefore", "navEntries", "xhtmlFilesUpdated", "stylesheetLinksAdded",
+		"plainNotesConverted", "duokanNotesNormalized", "manifestItemsAdded", "manifestItemsUpdated",
+		"metadataUpdates", "typographyRoles", "warnings", "popupNotes", "typography",
 	}
-
-	// entry 级比对：OPF 是 ET 整树重排（语义比对），其余逐字节。
-	pyEntries := zipEntryMap(t, pyOut)
-	goEntries := zipEntryMap(t, goOut)
-	for name := range pyEntries {
-		if _, ok := goEntries[name]; !ok {
-			t.Errorf("go 输出缺少 entry %s", name)
+	for _, k := range wantKeys {
+		if _, ok := res.Facts[k]; !ok {
+			t.Errorf("facts 缺少 %q", k)
 		}
 	}
-	for name := range goEntries {
-		if _, ok := pyEntries[name]; !ok {
-			t.Errorf("go 输出多出 entry %s", name)
+	if len(res.Facts) != len(wantKeys) {
+		t.Errorf("facts 键数 = %d, want %d: %v", len(res.Facts), len(wantKeys), res.Facts)
+	}
+	rep := factsOf(t, res)
+	if rep.OPF != "OEBPS/content.opf" || rep.PackageVersionBefore == nil || *rep.PackageVersionBefore != "2.0" {
+		t.Errorf("opf/packageVersionBefore 错误: %+v", rep)
+	}
+	if !rep.PopupNotes || !rep.Typography {
+		t.Errorf("开关回显错误: %+v", rep)
+	}
+	if rep.ManifestItemsAdded == nil || rep.MetadataUpdates == nil || rep.TypographyRoles == nil || rep.Warnings == nil {
+		t.Errorf("列表 facts 必须是数组而非 null: %+v", rep)
+	}
+	for _, w := range rep.Warnings {
+		found := false
+		for _, f := range res.Findings {
+			if f.ID == "migrate.warning" && f.Title == w {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("warning %q 未映射为 finding", w)
 		}
 	}
-	for name := range pyEntries {
-		if name == "OEBPS/content.opf" {
-			continue
-		}
-		if string(pyEntries[name]) != string(goEntries[name]) {
-			t.Errorf("entry %s 字节不一致:\n--- python ---\n%s\n--- go ---\n%s",
-				name, clipByte(string(pyEntries[name]), 800), clipByte(string(goEntries[name]), 800))
-		}
-	}
-	if pyCanonicalXML(t, pyOut, "OEBPS/content.opf") != pyCanonicalXML(t, goOut, "OEBPS/content.opf") {
-		t.Error("OPF 语义不一致")
+	if len(res.Events) != 1 || res.Events[0].Step != "convert" || res.Events[0].Status != "completed" {
+		t.Errorf("events 错误: %+v", res.Events)
 	}
 }
 
-func clipByte(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}
+// TestNoTypographyDisablesRoles 锁定 no_typography 分支：typographyRoles 为空
+// 数组、开关回显为 false，其余转换计数不受影响。
+func TestNoTypographyDisablesRoles(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted-no-typography.epub")
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{minifiedChapter: true}))
 
-func TestParityMigrateEpub3(t *testing.T)             { parityMigrateCase(t, false) }
-func TestParityMigrateEpub3NoTypography(t *testing.T) { parityMigrateCase(t, true) }
+	params := defaultParams(output)
+	params.Typography = false
+	res, err := runGo(t, fixture, output, params)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	rep := factsOf(t, res)
+	if rep.Typography || len(rep.TypographyRoles) != 0 {
+		t.Fatalf("no_typography 下不应有 typography roles: %+v", rep)
+	}
+	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 {
+		t.Fatalf("no_typography 不应影响弹注/nav 计数: %+v", rep)
+	}
+}

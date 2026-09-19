@@ -6,11 +6,19 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // resizeSVGCoverPages 复刻 core.resize_svg_cover_pages：把内联 SVG 封面
 // 包裹的 <image> 与 viewBox 对齐到替换栅格的尺寸。
-func resizeSVGCoverPages(data []byte, documentPath, coverPath string, width, height int) []byte {
+//
+// 与 refs.go 的引用重写同样是区域感知的：`<svg` / `</svg` / `<image` 只在
+// xhtml.ScanRegions 认定的真实标签区间上成立。裸 strings.Index 扫描虽然要求
+// 字面尖括号（转义正文 `&lt;svg&gt;` 命中不了），但注释、CDATA 与 <script>
+// 里未转义的示例 SVG 片段仍会被改写 —— 那是作者正文。
+// warnf 可以为 nil（老调用点与测试）；区域扫描截断时上报文件名与偏移。
+func resizeSVGCoverPages(data []byte, documentPath, coverPath string, width, height int, warnf func(string, ...any)) []byte {
 	if !markupExtensions[strings.ToLower(pathExt(documentPath))] {
 		return data
 	}
@@ -18,26 +26,38 @@ func resizeSVGCoverPages(data []byte, documentPath, coverPath string, width, hei
 		return data
 	}
 	text := string(data)
-	return []byte(rewriteSVGBlocks(text, documentPath, coverPath, width, height))
+	regions, stop := xhtml.ScanRegions(text)
+	if stop != xhtml.ScanComplete && warnf != nil {
+		warnf("%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); inline SVG cover pages after this offset left unresized", documentPath, stop)
+	}
+	// 真实标签的 start→end 表。既用来判定候选是否真的是标签，也直接给出
+	// 标签结束位置 —— 比原来找第一个 '>' 更准（属性值里的 '>' 不再截断标签）。
+	tags := make(map[int]int, len(regions))
+	for _, r := range regions {
+		if r.Kind == xhtml.RegionTag {
+			tags[r.Start] = r.End
+		}
+	}
+	return []byte(rewriteSVGBlocks(text, documentPath, coverPath, width, height, tags))
 }
 
 // rewriteSVGBlocks 实现 SVG_BLOCK_RE.sub(replace_svg)。
-func rewriteSVGBlocks(text, documentPath, coverPath string, width, height int) string {
+func rewriteSVGBlocks(text, documentPath, coverPath string, width, height int, tags map[int]int) string {
 	var out strings.Builder
 	pos := 0
 	for {
-		openStart, openEnd, ok := findSVGOpenTag(text, pos)
+		openStart, openEnd, ok := findSVGOpenTag(text, pos, tags)
 		if !ok {
 			break
 		}
-		closeStart, closeEnd, found := findSVGCloseTag(text, openEnd)
+		closeStart, closeEnd, found := findSVGCloseTag(text, openEnd, tags)
 		if !found {
 			// 整体匹配失败，从下一个字节继续找 <svg。
 			pos = openStart + 1
 			continue
 		}
 		body := text[openEnd:closeStart]
-		newBody, hasCoverImage := rewriteSVGImages(body, documentPath, coverPath, width, height)
+		newBody, hasCoverImage := rewriteSVGImages(body, documentPath, coverPath, width, height, tags, openEnd)
 		if !hasCoverImage {
 			out.WriteString(text[pos:closeEnd])
 			pos = closeEnd
@@ -54,8 +74,9 @@ func rewriteSVGBlocks(text, documentPath, coverPath string, width, height int) s
 	return out.String()
 }
 
-// findSVGOpenTag 实现 `<svg\b[^>]*>`（大小写不敏感）。
-func findSVGOpenTag(text string, from int) (int, int, bool) {
+// findSVGOpenTag 实现 `<svg\b[^>]*>`（大小写不敏感），且只接受落在真实
+// 标签区间上的候选（tags 为 nil 时退回纯字面扫描，供不关心区域的调用方）。
+func findSVGOpenTag(text string, from int, tags map[int]int) (int, int, bool) {
 	lower := strings.ToLower(text)
 	for i := from; i+4 <= len(text); {
 		j := strings.Index(lower[i:], "<svg")
@@ -68,6 +89,14 @@ func findSVGOpenTag(text string, from int) (int, int, bool) {
 			i++ // \b 不成立
 			continue
 		}
+		if tags != nil {
+			end, isTag := tags[i]
+			if !isTag {
+				i++ // 注释 / CDATA / script 里的字面 <svg，不是标记
+				continue
+			}
+			return i, end, true
+		}
 		end := strings.IndexByte(text[i:], '>')
 		if end < 0 {
 			return 0, 0, false
@@ -79,7 +108,7 @@ func findSVGOpenTag(text string, from int) (int, int, bool) {
 
 // findSVGCloseTag 实现 `</svg\s*>`（大小写不敏感）；正则的 .*? 允许
 // 跳过不成立的 "</svg" 候选继续向后找。
-func findSVGCloseTag(text string, from int) (int, int, bool) {
+func findSVGCloseTag(text string, from int, tags map[int]int) (int, int, bool) {
 	lower := strings.ToLower(text)
 	i := from
 	for i+5 <= len(text) {
@@ -88,6 +117,13 @@ func findSVGCloseTag(text string, from int) (int, int, bool) {
 			return 0, 0, false
 		}
 		i += j
+		if tags != nil {
+			if end, isTag := tags[i]; isTag {
+				return i, end, true
+			}
+			i++ // 非标记位置的字面 "</svg"
+			continue
+		}
 		k := i + 5
 		for k < len(text) && isASCIISpace(text[k]) {
 			k++
@@ -105,12 +141,12 @@ func isASCIISpace(b byte) bool {
 }
 
 // rewriteSVGImages 实现 SVG_IMAGE_RE.sub(replace_image)。
-func rewriteSVGImages(body, documentPath, coverPath string, width, height int) (string, bool) {
+func rewriteSVGImages(body, documentPath, coverPath string, width, height int, tags map[int]int, base int) (string, bool) {
 	var out strings.Builder
 	pos := 0
 	hasCoverImage := false
 	for {
-		start, end, ok := findImageTag(body, pos)
+		start, end, ok := findImageTag(body, pos, tags, base)
 		if !ok {
 			break
 		}
@@ -135,8 +171,10 @@ func rewriteSVGImages(body, documentPath, coverPath string, width, height int) (
 	return out.String(), hasCoverImage
 }
 
-// findImageTag 实现 `<image\b[^>]*>`（大小写不敏感）。
-func findImageTag(body string, from int) (int, int, bool) {
+// findImageTag 实现 `<image\b[^>]*>`（大小写不敏感）。body 是 <svg> 元素的
+// 内容，base 是它在整份文档里的起始偏移 —— tags 的键是文档绝对坐标，比对前
+// 必须加回 base。tags 为 nil 时退回纯字面扫描。
+func findImageTag(body string, from int, tags map[int]int, base int) (int, int, bool) {
 	lower := strings.ToLower(body)
 	for i := from; i+6 <= len(body); {
 		j := strings.Index(lower[i:], "<image")
@@ -148,6 +186,14 @@ func findImageTag(body string, from int) (int, int, bool) {
 		if after < len(body) && isWordRune(rune(body[after])) {
 			i++
 			continue
+		}
+		if tags != nil {
+			end, isTag := tags[base+i]
+			if !isTag {
+				i++ // 注释 / CDATA / script 里的字面 <image，不是标记
+				continue
+			}
+			return i, end - base, true
 		}
 		end := strings.IndexByte(body[i:], '>')
 		if end < 0 {

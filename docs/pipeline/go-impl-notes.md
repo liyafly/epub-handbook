@@ -146,15 +146,15 @@ register("epub.structure.normalize", func(ctx context.Context, b *book.Book, arg
 })
 ```
 
-## legacy-report 约定（P2 parity）
+## legacy-report 约定（P2 parity）—— 已拆除（2026-09-04）
 
-- 每个迁移的 capability 支持隐藏参数 `legacy_report=true`（经 Args），
-  把 Python oracle 的**原始 JSON 形状**放进 `Result.Facts["legacyReport"]`。
-  JSON 生成必须用 `report.MarshalLegacy`（键序 = Python dict 插入序 → 用
-  结构体字段序复刻；浮点数用 `report.PyFloat`）。
-- 时间戳/随机路径等不确定字段：保持 Python 语义（每次运行变化），
-  parity 比对时忽略；不要为了比对而伪造固定值。
-- 退出码语义必须与 Python 脚本一致（信封换了，0/非0 含义不变）。
-- Parity 测试模式参照 `internal/redline/parity_test.go`：构建 fixture →
-  同一输入跑 Python 脚本（exec）与 Go 实现 → 逐字节比对。
+迁移期每个 capability 曾支持隐藏参数 `legacy_report=true`，把 Python oracle 的原始
+JSON 形状放进 `Result.Facts["legacyReport"]` 供 parity P2 逐字节比对。Python 脚本删除后
+该脚手架已按 SPEC §5.2 的触发条件整体移除：
+
+- 不再有 `--legacy-report` flag、`legacy_report` Args 键、`Params.LegacyReport` 或
+  `facts.legacyReport`；曾只在 legacy 报告里出现的数据已提升为各能力的正式 `facts`
+  键（camelCase，见 `refinement-harnesses.md` 与各 SKILL.md）。
+- 测试改为直接断言 `Result.Facts` / `Findings` / 输出字节；不得再以 legacy 形状为金标准。
+- 仍然不变：退出码语义（信封换了，0/非 0 含义不变）。
 ```

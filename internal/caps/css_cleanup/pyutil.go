@@ -6,17 +6,7 @@ package csscleanup
 import (
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
-
-// decodeUTF8Replace 复刻 bytes.decode("utf-8", errors="replace")：
-// 非法子序列替换为 U+FFFD。
-func decodeUTF8Replace(data []byte) string {
-	if utf8.Valid(data) {
-		return string(data)
-	}
-	return strings.ToValidUTF8(string(data), "\uFFFD")
-}
 
 // pyDirname / pyBasename 复刻 posixpath.dirname / basename。
 func pyDirname(p string) string {
@@ -104,11 +94,6 @@ func pySplitExt(p string) (stem, ext string) {
 	return p, ""
 }
 
-func pathStem(p string) string {
-	stem, _ := pySplitExt(p)
-	return stem
-}
-
 // pyPathStem 复刻 pathlib.Path(p).stem：basename 的 stem
 // （Path("OEBPS/Styles/a.css").stem == "a"，与 posixpath.splitext 的
 // 全路径 stem 不同）。
@@ -159,38 +144,6 @@ func relHref(fromZipPath, toZipPath string) string {
 
 func isSpaceRune(r rune) bool { return unicode.IsSpace(r) }
 
-// pyStrip 复刻 str.strip()（无参：剥两侧 Unicode 空白）。
-func pyStrip(s string) string {
-	return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) })
-}
-
-// pyRStrip 复刻 str.rstrip()。
-func pyRStrip(s string) string {
-	return strings.TrimRightFunc(s, func(r rune) bool { return isSpaceRune(r) })
-}
-
-// normalizeSpace 复刻 re.sub(r"\s+", " ", value).strip()。
-func normalizeSpace(value string) string {
-	var b strings.Builder
-	started := false
-	pendingSpace := false
-	for _, r := range value {
-		if isSpaceRune(r) {
-			if started {
-				pendingSpace = true
-			}
-			continue
-		}
-		if pendingSpace {
-			b.WriteByte(' ')
-			pendingSpace = false
-		}
-		started = true
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
 // removeAllSpace 复刻 re.sub(r"\s+", "", value)。
 func removeAllSpace(value string) string {
 	var b strings.Builder
@@ -200,90 +153,5 @@ func removeAllSpace(value string) string {
 			b.WriteRune(r)
 		}
 	}
-	return b.String()
-}
-
-// ---- 正则语义助手（RE2 无反向引用/前瞻处手工实现） ----
-
-// isWordRune 对齐 Python \w（字母、数字、下划线，Unicode 感知）。
-func isWordRune(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
-}
-
-// prevIsWord 报告 text[i] 之前的字符是否属于 \w。
-func prevIsWord(text string, i int) bool {
-	if i <= 0 || i > len(text) {
-		return false
-	}
-	r, _ := utf8.DecodeLastRuneInString(text[:i])
-	return isWordRune(r)
-}
-
-// wordBoundaryAt 对齐 Python \b（位置 i 处的词边界）。
-func wordBoundaryAt(text string, i int) bool {
-	before := prevIsWord(text, i)
-	after := false
-	if i < len(text) {
-		r, _ := utf8.DecodeRuneInString(text[i:])
-		after = isWordRune(r)
-	}
-	return before != after
-}
-
-// utf8DecodeRune is the small compatibility helper used by scanners that
-// need the byte width alongside the decoded rune. Invalid input is handled by
-// the caller's conservative branch; it is never written back as replacement
-// text.
-func utf8DecodeRune(text string) (rune, int) {
-	return utf8.DecodeRuneInString(text)
-}
-
-// skipPySpace 跳过 Unicode 空白（含换行），对齐正则 \s* 的贪心消耗。
-func skipPySpace(text string, i int) int {
-	for i < len(text) {
-		r, size := utf8.DecodeRuneInString(text[i:])
-		if !isSpaceRune(r) {
-			break
-		}
-		i += size
-	}
-	return i
-}
-
-// indexFold 返回 s[from:] 中首个与 sub 大小写不敏感匹配的位置。
-func indexFold(s, sub string, from int) int {
-	n := len(sub)
-	if n == 0 {
-		return from
-	}
-	for i := from; i+n <= len(s); i++ {
-		if strings.EqualFold(s[i:i+n], sub) {
-			return i
-		}
-	}
-	return -1
-}
-
-// pyRepr 近似 Python 的 str repr（错误消息里的 {layer!r}）。
-func pyRepr(s string) string {
-	var b strings.Builder
-	b.WriteByte('\'')
-	for _, r := range s {
-		switch r {
-		case '\\':
-			b.WriteString(`\\`)
-		case '\'':
-			b.WriteString(`\'`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\r':
-			b.WriteString(`\r`)
-		case '\t':
-			b.WriteString(`\t`)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	b.WriteByte('\'')
 	return b.String()
 }

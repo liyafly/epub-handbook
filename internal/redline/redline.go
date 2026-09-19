@@ -2,9 +2,10 @@
 // cover / drm），是 contracts/capabilities/v1/*.json 里 redLines 声明的
 // 唯一执行点（INV-5）。
 //
-// 语义与退出码逐字对齐 scripts/validate_text_invariance.py（Python oracle）：
-//   - 0 成功；1 存在问题；2 DRM 或输入错误。
-//   - 消息措辞与 Python 输出逐字节一致，供 --legacy-report parity 使用。
+// 两个入口：Check 供 caps / pipeline 在内存中比对，CompareFiles 供
+// `epub redline` 的两文件比对。输出行与退出码是对外契约（pre-commit hook
+// 与 CI gate 都依赖它），沿用历史 CLI 的措辞：
+//   - 0 成功；1 存在问题；2 DRM 拒绝或输入错误。
 package redline
 
 import (

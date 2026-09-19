@@ -12,10 +12,10 @@ package cover
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -45,26 +45,18 @@ const canonicalMimetype = "application/epub+zip"
 type Params struct {
 	// Cover 是替换封面图片的文件路径（.jpg/.jpeg/.png/.svg/.webp/.gif）。
 	Cover string
-	// Output 是输出路径（仅进入 legacy 报告字段；本包不落盘）。
+	// Output 是输出路径（只进入 facts.output；本包不落盘）。
 	Output string
-	// LegacyReport 输出 Python OperationReport 形状的 JSON。
-	LegacyReport bool
 }
 
-// legacyReport 对齐 models.OperationReport（键序 = dataclass 字段序）。
-type legacyReport struct {
-	Operation        string   `json:"operation"`
-	Input            *string  `json:"input"`
-	Inputs           []string `json:"inputs"`
-	Output           *string  `json:"output"`
-	Outputs          []string `json:"outputs"`
-	OPF              string   `json:"opf"`
-	MergedItems      int      `json:"merged_items"`
-	RenamedResources int      `json:"renamed_resources"`
-	SegmentsCreated  int      `json:"segments_created"`
-	FieldsUpdated    int      `json:"fields_updated"`
-	CoverPath        string   `json:"cover_path"`
-	Warnings         []string `json:"warnings"`
+// operationReport 是本能力的包内统计累加器，最终展开为 Result.Facts。
+type operationReport struct {
+	Operation string
+	OPF       string
+	CoverPath string
+	// Warnings 收集引用重写时的非致命告警（如区域扫描截断），进入
+	// facts.warnings 与 findings（level=warn），与 merge 包同形状。
+	Warnings []string
 }
 
 // failedResult 复刻 Python harness 的失败语义：不产出报告 JSON，
@@ -131,7 +123,6 @@ func coverRasterDimensions(data []byte) (int, int, bool) {
 
 // Run 执行 cover.replace（SPEC §6.1 三段式）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
-	inputPath := b.InputPath()
 	names := b.OriginalNames()
 	read := b.Original
 	namesSet := make(map[string]bool, len(names))
@@ -180,14 +171,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	dimW, dimH, hasDims := coverRasterDimensions(coverData)
 
-	rep := legacyReport{
+	rep := operationReport{
 		Operation: "replace-cover",
-		Input:     strPtr(inputPath),
-		Inputs:    []string{},
-		Output:    strPtr(p.Output),
-		Outputs:   []string{},
 		OPF:       pkg.opfPath,
 		Warnings:  []string{},
+	}
+	// warnf 喂给 transformResource：区域扫描截断时上报文件名与字节偏移，
+	// 走 rep.Warnings → facts.warnings/findings 通道，不静默半改（对齐
+	// internal/caps/merge 与 internal/caps/structure_normalize 的做法）。
+	warnf := func(format string, a ...any) {
+		rep.Warnings = append(rep.Warnings, fmt.Sprintf(format, a...))
 	}
 	var edits []editset.Edit
 	var deletes []editset.Edit
@@ -289,9 +282,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if rerr != nil {
 				continue
 			}
-			transformed := transformResource(data, name, name, pathMap, namesSet)
+			transformed := transformResource(data, name, name, pathMap, namesSet, warnf)
 			if hasDims {
-				transformed = resizeSVGCoverPages(transformed, name, newArchivePath, dimW, dimH)
+				transformed = resizeSVGCoverPages(transformed, name, newArchivePath, dimW, dimH, warnf)
 			}
 			if !bytesEqual(transformed, data) {
 				edits = append(edits, editset.Replace(name, 0, int64(len(data)), transformed))
@@ -341,28 +334,58 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	// 3. 报告。
 	rep.CoverPath = newArchivePath
+	renames := renamesFrom(oldCoverPaths, newArchivePath)
+	var findings []report.Finding
+	for _, w := range rep.Warnings {
+		findings = append(findings, report.Finding{Level: "warn", ID: "cover.warning", Title: w})
+	}
 	res := report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
 		Facts: map[string]any{
+			"operation": rep.Operation,
 			"opf":       rep.OPF,
 			"output":    p.Output,
 			"coverPath": rep.CoverPath,
+			// mappings 与 epub.structure.normalize 同形状（{from,to} 数组），
+			// 让 `epub redline --path-map <本信封>` 识别旧封面被替换后的路径。
+			// 此前改名只走内部 Result.Renames，出不了信封，替换封面之后的
+			// 红线比对拿不到映射。
+			"mappings": mappingList(renames),
+			// warnings 对齐 merge 包同名 facts 键：区域扫描截断（未闭合的注释/
+			// CDATA/PI/声明/标签或 <style>）时在此上报文件名与字节偏移，不
+			// 静默半改。nonNilStrings 保证空告警仍是数组而不是 null。
+			"warnings": nonNilStrings(rep.Warnings),
 		},
+		Findings: findings,
 		Events: []report.Event{{
 			Step: "replace-cover", Status: "completed",
 			Message: fmt.Sprintf("cover_path=%s dims=%dx%d", rep.CoverPath, dimW, dimH),
 		}},
-		Renames: nilIfEmpty(renamesFrom(oldCoverPaths, newArchivePath)),
-	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
+		Renames: nilIfEmpty(renames),
 	}
 	return res, nil
+}
+
+// nonNilStrings 复制字符串切片，空切片仍是空切片（不退化成 nil/null）。
+func nonNilStrings(in []string) []string {
+	out := make([]string, 0, len(in))
+	return append(out, in...)
+}
+
+// mappingList 把 from→to 映射摊平成 {from,to} 数组，按 from 排序保证输出
+// 稳定；空映射输出空数组而不是 null（SKILL.md 声明的是数组形状）。
+func mappingList(renames map[string]string) []map[string]string {
+	froms := make([]string, 0, len(renames))
+	for from := range renames {
+		froms = append(froms, from)
+	}
+	sort.Strings(froms)
+	out := make([]map[string]string, 0, len(renames))
+	for _, from := range froms {
+		out = append(out, map[string]string{"from": from, "to": renames[from]})
+	}
+	return out
 }
 
 func renamesFrom(oldCoverPaths map[string]bool, newArchivePath string) map[string]string {
@@ -497,5 +520,3 @@ func nilIfEmpty(m map[string]string) map[string]string {
 	}
 	return m
 }
-
-func strPtr(s string) *string { return &s }

@@ -64,7 +64,7 @@ epub redline --check all "$BOOK" work/after/cleaned.epub
 
 它收口本页可以自动执行的部分：结构审计、EPUB3 转换、弹注校验（`epub run epub.notes.popup.normalize`）、metadata / DRM / anchors 红线校验、精排建议、文本结构角色分析和 findings。人工 diff review、文本角色 class 写入和阅读器实测仍必须继续执行。
 
-每个能力的 `--json` 统一信封报告单独落盘归档。写出型能力自带内置红线 gate：预期中的变更（如 metadata 编辑、合并新增分册文件）会以 error findings 记录并把退出码置 1，产物仍会写出供 review；结论以随后的显式 `epub redline` 与人工 diff review 为准。结构规范化的 dry-run/apply JSON 始终单独保留，因为前者需要 review，后者的 `mappings` 还要提取后传给 `epub redline --path-map`（见 §1.5）。
+每个能力的 `--json` 统一信封报告单独落盘归档。写出型能力自带内置红线 gate：预期中的变更（如 metadata 编辑、合并新增分册文件）会以 error findings 记录并把退出码置 1，产物仍会写出供 review；结论以随后的显式 `epub redline` 与人工 diff review 为准。结构规范化的 dry-run/apply JSON 始终单独保留，因为前者需要 review，后者的信封还要原样传给 `epub redline --path-map`（读取其 `mappings` facts，见 §1.5）。
 
 如果需要 §1.5 结构规范化，先跑上面的 `--dry-run`，人工确认报告后去掉 `--dry-run` 实跑。详细命令见 [oneclick-epub3-converter.md](oneclick-epub3-converter.md)。
 
@@ -134,14 +134,11 @@ epub run epub.structure.normalize \
   --json > work/step-0-normalize.json
 ```
 
-立刻把实际报告中的改名映射提取出来，作为路径映射传给红线 gate：
+保存的信封直接作为红线 gate 的路径映射（`--path-map` 会读取 `facts["epub.structure.normalize.mappings"]`，无需 jq 提取）：
 
 ```sh
-jq '{mappings: .facts["epub.structure.normalize.mappings"]}' \
-  work/step-0-normalize.json > work/step-0-mappings.json
-
 epub redline --check all \
-  --path-map work/step-0-mappings.json \
+  --path-map work/step-0-normalize.json \
   "$EPUB" \
   work/after/step-0-normalized.epub
 ```
@@ -288,7 +285,7 @@ EDITORIAL_BASE="$REDLINE_BASE"  # 必须与差异报告中的现版 artifact 身
 epub redline --check metadata,spine,cover,drm,anchors \
   "$EDITORIAL_BASE" \
   work/after/editorial-candidate.epub
-# 若 EDITORIAL_BASE 早于结构规范化，追加：--path-map work/step-0-mappings.json
+# 若 EDITORIAL_BASE 早于结构规范化，追加：--path-map work/step-0-normalize.json
 ```
 
 同时必须证明：

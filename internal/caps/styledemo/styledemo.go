@@ -7,15 +7,14 @@
 //   - 产物模式（b != nil）：先校验源树（Python main() 无条件先跑
 //     validate_source），再校验 --input 指向的构建产物 EPUB。
 //
-// 错误措辞、触发顺序与退出码语义逐字对齐 Python oracle：有错误 → 逐条
-// "ERROR: {msg}" 且退出码 1；通过 → stdout "epub-style-demo validation ok"。
-// legacy_report 时这些行放进 Facts["legacyReport"]["lines"]。
+// 错误措辞与触发顺序沿用原校验器：每条错误是一条 `error styledemo`
+// finding（title 即错误措辞），有错误时 status=failed（退出码 1）；
+// facts 给出 `errors` 计数与 `mode`。
 //
-// 与 Python 的已知分歧（均不在 parity 路径上）：
+// 与 Python 的已知分歧：
 //   - run_epubcheck：Go 侧不执行外部 epubcheck（INV-4 禁止 caps 起
 //     子进程；EPUBCheck 在 CI 作为独立 gate 运行）。artifact 模式以一条
-//     warn 级 finding 说明；Python 侧的 "WARN: epubcheck skipped: ..." 不会
-//     出现在 legacyReport 行里。
+//     warn 级 finding 说明。
 //   - XML 解析失败的 {exc} 文本来自 Go encoding/xml 而非 expat，措辞不同
 //     （demo fixture 良构，parity 用例不触发）。
 //   - 产物 zip 读取复用 internal/zipfs（层 2→6 方向合法）：artifact 校验
@@ -47,8 +46,6 @@ type Params struct {
 	// DemoDir 是 demo 源树根（templates/epub-style-demo 的绝对路径）。
 	// 源树模式必填；产物模式必填（Python 的 validate_source 无条件先跑）。
 	DemoDir string
-	// LegacyReport 输出与 Python stdout/stderr 行一致的 findings 列表。
-	LegacyReport bool
 }
 
 // Run 执行 demo fixture 校验（只读）。
@@ -94,16 +91,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	res.Facts = map[string]any{
 		"errors": len(errs),
 		"mode":   mode,
-	}
-	if p.LegacyReport {
-		lines := make([]string, 0, len(errs)+1)
-		for _, msg := range errs {
-			lines = append(lines, "ERROR: "+msg)
-		}
-		if len(lines) == 0 {
-			lines = append(lines, "epub-style-demo validation ok")
-		}
-		res.Facts["legacyReport"] = map[string]any{"lines": lines}
 	}
 	return res, nil
 }

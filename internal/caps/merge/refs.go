@@ -7,18 +7,21 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // rewriteURI 复刻 core.rewrite_uri（静默失败：解析失败或目标未知时原样返回）。
 func rewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	if uri == "" || strings.HasPrefix(uri, "#") || pyIsExternalURI(uri) {
+	if uri == "" || strings.HasPrefix(uri, "#") || pypath.IsExternalURI(uri) {
 		return uri
 	}
-	parts := pyURLSplit(uri)
-	if parts.path == "" {
+	parts := pypath.URLSplit(uri)
+	if parts.Path == "" {
 		return uri
 	}
-	oldTarget, err := resolveRelativePath(oldDocument, parts.path)
+	oldTarget, err := pypath.ResolveRelativePath(oldDocument, parts.Path)
 	if err != nil {
 		return uri
 	}
@@ -29,8 +32,8 @@ func rewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string,
 	if mapped, ok := pathMap[oldTarget]; ok {
 		target = mapped
 	}
-	newPath := relativeURI(newDocument, target)
-	return pyURLUnsplitPath(newPath, parts.query, parts.fragment)
+	newPath := pypath.RelativeURI(newDocument, target)
+	return pypath.URLUnsplitPath(newPath, parts.Query, parts.Fragment)
 }
 
 // splitSrcsetCandidates 逐行复刻 core.split_srcset_candidates。
@@ -89,7 +92,9 @@ func rewriteSrcset(text, oldDocument, newDocument string, pathMap map[string]str
 }
 
 // rewriteTextReferences 复刻 core.rewrite_text_references（srcset → URI 属性
-// → CSS url() → CSS @import，与 Python 的调用顺序一致）。
+// → CSS url() → CSS @import，与 Python 的调用顺序一致）。仅用于独立 .css
+// 文件：整份文件本来就是 CSS，全文匹配是正确语义，不区域化（与
+// rewriteMarkupReferences 分工见 transformResource）。
 func rewriteTextReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
 	text = rewriteSrcset(text, oldDocument, newDocument, pathMap, knownFiles)
 	text = subNameQuoteURI(text, uriAttrNames, func(prefix, quote, uri string) string {
@@ -103,10 +108,95 @@ func rewriteTextReferences(text, oldDocument, newDocument string, pathMap map[st
 	})
 }
 
+// ---- 区域感知的标记引用重写（xhtml/svg/ncx/… markupExtensions） ----
+//
+// 全文裸匹配（rewriteTextReferences 的四道正则）对 XHTML 生效时，会把字符
+// 数据里被实体转义写出的示例文本（`&lt;img src="…"/&gt;`）当成真标记一起
+// 改掉——那是正文损坏（redline text 红线的最高安全属性）。这里改用
+// internal/scan/xhtml.ScanRegions 先定位真实标记区域，再分流：属性/srcset/
+// 内联 style 只在标签内部改；url()/@import 只在 <style> 元素内容与
+// style="…" 属性值内改；<?xml-stylesheet …?> 只改 href 伪属性；字符数据、
+// 注释、CDATA、其它 PI、DOCTYPE、<script> 内容原样透传。做法与
+// internal/caps/structure_normalize 的 rewriteMarkupReferences 同源。
+
+// rewriteMarkupReferences 是 markupExtensions 文件（.html/.htm/.xhtml/.xml/
+// .ncx/.svg/.smil）的引用重写入口。扫描截断时通过 warn 上报文件名与字节
+// 偏移（截断点之后的引用保持不变，不静默半改）；warn 为 nil 时静默丢弃。
+func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) string {
+	regions, stop := xhtml.ScanRegions(text)
+	if stop != xhtml.ScanComplete && warn != nil {
+		warn("%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); references after this offset left unchanged", oldDocument, stop)
+	}
+	if len(regions) == 0 {
+		return text
+	}
+	var out strings.Builder
+	out.Grow(len(text))
+	last := 0
+	for _, r := range regions {
+		out.WriteString(text[last:r.Start])
+		segment := text[r.Start:r.End]
+		switch r.Kind {
+		case xhtml.RegionTag:
+			segment = rewriteTagReferences(segment, oldDocument, newDocument, pathMap, knownFiles)
+		case xhtml.RegionStyle:
+			segment = rewriteCSSOnly(segment, oldDocument, newDocument, pathMap, knownFiles)
+		case xhtml.RegionStylesheetPI:
+			segment = rewriteStylesheetPIReference(segment, oldDocument, newDocument, pathMap, knownFiles)
+		}
+		out.WriteString(segment)
+		last = r.End
+	}
+	out.WriteString(text[last:])
+	return out.String()
+}
+
+// rewriteTagReferences 在单个标签的字节内重写 srcset、URI 属性与内联
+// style 属性里的 url()/@import。
+func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
+	tag = rewriteSrcset(tag, oldDocument, newDocument, pathMap, knownFiles)
+	tag = subNameQuoteURI(tag, uriAttrNames, func(prefix, quote, uri string) string {
+		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
+	})
+	return rewriteInlineStyleReferences(tag, oldDocument, newDocument, pathMap, knownFiles)
+}
+
+// rewriteInlineStyleReferences 只在 style="…" 属性值内部做 CSS url()/@import
+// 重写。整段标签跑 CSS 重写会连 title=""、alt="" 这类读者可见文本一起改
+// （`<div title="url(a.png)">`），那是正文损坏；而内联 style 的 url() 是真
+// 标记，资源搬家后必须跟着改，不能整体放弃。
+func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
+	return subNameQuoteURI(tag, []string{"style"}, func(prefix, quote, value string) string {
+		return prefix + quote + rewriteCSSOnly(value, oldDocument, newDocument, pathMap, knownFiles) + quote
+	})
+}
+
+// rewriteStylesheetPIReference 只重写 <?xml-stylesheet …?> 的 href 伪属性。
+// PI 不是标签：type/media/title 伪属性与 CSS url() 语法都不参与重写。
+func rewriteStylesheetPIReference(pi, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
+	return subNameQuoteURI(pi, []string{"href"}, func(prefix, quote, uri string) string {
+		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
+	})
+}
+
+// rewriteCSSOnly 只做 CSS url()/@import 重写（不含 srcset / URI 属性），
+// 用于 <style> 元素内容与 style="…" 属性值——这两处都已经确定是 CSS 语义，
+// 不需要也不应该再跑属性名匹配。
+func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
+	text = subCSSURL(text, func(prefix, quote, uri, suffix string) string {
+		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote + suffix
+	})
+	return subCSSImport(text, func(prefix, quote, uri string) string {
+		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
+	})
+}
+
 // transformResource 复刻 core.transform_resource：仅 CSS / 标记类参与重写，
-// 非 UTF-8 字节原样返回。
-func transformResource(data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool) []byte {
-	ext := strings.ToLower(pathExt(oldPath))
+// 非 UTF-8 字节原样返回。独立 .css 文件整份就是 CSS，全文正则替换是正确
+// 语义；markupExtensions（XHTML/NCX/OPF 同族标记文件）改用区域感知重写，
+// 避免字符数据里的转义示例文本被当成标记误改（见上方注释）。
+func transformResource(data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) []byte {
+	ext := strings.ToLower(pypath.PathExt(oldPath))
 	if ext != ".css" && !markupExtensions[ext] {
 		return data
 	}
@@ -114,22 +204,10 @@ func transformResource(data []byte, oldPath, newPath string, pathMap map[string]
 		return data
 	}
 	text := string(data)
-	return []byte(rewriteTextReferences(text, oldPath, newPath, pathMap, knownFiles))
-}
-
-// collectRawURIs 抽取三种 URI 正则命中的 uri 值（split 的 BFS 用）。
-func collectRawURIs(text string) []string {
-	var out []string
-	for _, m := range findNameQuoteMatches(text, 0, uriAttrNames) {
-		out = append(out, m.uri)
+	if ext == ".css" {
+		return []byte(rewriteTextReferences(text, oldPath, newPath, pathMap, knownFiles))
 	}
-	for _, m := range findURLMatches(text, 0) {
-		out = append(out, m.uri)
-	}
-	for _, m := range findImportMatches(text, 0) {
-		out = append(out, m.uri)
-	}
-	return out
+	return []byte(rewriteMarkupReferences(text, oldPath, newPath, pathMap, knownFiles, warn))
 }
 
 // ---- 通用扫描器（对齐 Python re 语义） ----

@@ -1,100 +1,138 @@
 package fontcoverage
 
 import (
-	"bytes"
-	"encoding/json"
+	"archive/zip"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-// TestParityWithPythonOracle 对真书比对 Go 与 Python adapter 的完整报告。
-func TestParityWithPythonOracle(t *testing.T) {
-	if _, err := exec.LookPath("uv"); err != nil {
-		t.Skip("uv 不可用")
+// fakeDetectorJSON 是 detector 的最小合法报告（schema 1.0），带 kindle 档案的
+// risk 与一条 unresolved run，使 status 落到 warn。
+const fakeDetectorJSON = `{
+  "schema_version": "1.0",
+  "summary": {"by_profile_risk": {"kindle-pessimistic": {"ok": 3, "risk": 1, "fail": 0}}, "unresolved_runs": 1},
+  "char_inventory": [{"char": "𰻞", "codepoint": "U+30EDE", "locations": ["OEBPS/Text/c1.xhtml#p3"], "reason": "not in font"}],
+  "unresolved": [{"selector": "p.special", "reason": "font-family not declared"}],
+  "chain_health": {"serif": "ok", "sans": "degraded"},
+  "text_runs": [{"file": "OEBPS/Text/c1.xhtml", "runs": 12}]
+}`
+
+// installFakeUV 在 PATH 前插一个假的 uv：忽略参数，打印固定 JSON 到 stdout、
+// 一行诊断到 stderr，退出码 0。
+func installFakeUV(t *testing.T, stdout string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("假 uv 依赖 POSIX shell")
 	}
-	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	dir := t.TempDir()
+	script := "#!/bin/sh\nprintf '%s' \"$FAKE_DETECTOR_STDOUT\"\necho 'detector: fake run' >&2\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "uv"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FAKE_DETECTOR_STDOUT", stdout)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func minimalEpub(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "book.epub")
+	f, err := os.Create(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(repoRoot, "scripts", "epub_font_coverage_adapter.py")); err != nil {
-		t.Skip("Python oracle 已删除")
+	zw := zip.NewWriter(f)
+	entries := map[string]string{
+		"mimetype":               "application/epub+zip",
+		"META-INF/container.xml": `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+		"OEBPS/package.opf":      `<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>t</dc:title></metadata><manifest><item id="c1" href="Text/c1.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="c1"/></spine></package>`,
+		"OEBPS/Text/c1.xhtml":    `<html xmlns="http://www.w3.org/1999/xhtml"><body><p>正文</p></body></html>`,
 	}
-	matches, _ := filepath.Glob(filepath.Join(repoRoot, "references", "epubs", "*.epub"))
-	if len(matches) == 0 {
-		t.Skip("没有样本书")
+	for _, name := range []string{"mimetype", "META-INF/container.xml", "OEBPS/package.opf", "OEBPS/Text/c1.xhtml"} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(entries[name])); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
 	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
 
-	pyOut, err := exec.Command("python3",
-		filepath.Join(repoRoot, "scripts", "epub_font_coverage_adapter.py"),
-		matches[0]).Output()
-	if err != nil && !isExitError(err) {
-		t.Fatalf("python oracle 运行失败: %v", err)
-	}
-	var pyReport map[string]any
-	if err := json.Unmarshal(pyOut, &pyReport); err != nil {
-		t.Fatalf("oracle 输出非 JSON: %v", err)
-	}
-
-	b, err := book.Open(matches[0])
+// TestRunPromotesDetectorSectionsToFacts 锁定 detector 各段进入正式 facts 的
+// 键名与 status 判定。
+func TestRunPromotesDetectorSectionsToFacts(t *testing.T) {
+	installFakeUV(t, fakeDetectorJSON)
+	b, err := book.Open(minimalEpub(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{LegacyReport: true, Profile: "kindle-pessimistic"})
+	res, err := Run(t.Context(), b, Params{Profile: "kindle-pessimistic", ToolRoot: t.TempDir()})
 	if err != nil {
-		t.Fatalf("Go Run: %v", err)
+		t.Fatalf("Run: %v", err)
 	}
-	goReport, ok := res.Facts["legacyReport"]
-	if !ok {
-		t.Fatal("缺 legacyReport")
+	if res.Status != report.StatusComplete || res.Facts["status"] != "warn" || res.Facts["profile"] != "kindle-pessimistic" {
+		t.Fatalf("status=%s facts=%v, want complete/warn", res.Status, res.Facts)
 	}
-
-	if diff := diffJSON(t, goReport, pyReport); diff != "" {
-		t.Errorf("与 Python oracle 不一致:\n%s", diff)
+	if len(res.Findings) != 1 || res.Findings[0].ID != "fontcoverage.risk" || res.Findings[0].Level != "warn" {
+		t.Errorf("findings = %+v, want one warn fontcoverage.risk", res.Findings)
+	}
+	summary, _ := res.Facts["summary"].(map[string]any)
+	if summary["unresolved_runs"] != float64(1) {
+		t.Errorf("summary = %v", res.Facts["summary"])
+	}
+	inv, _ := res.Facts["charInventory"].([]any)
+	if len(inv) != 1 {
+		t.Fatalf("charInventory = %v", res.Facts["charInventory"])
+	}
+	if item, _ := inv[0].(map[string]any); item["codepoint"] != "U+30EDE" || item["reason"] != "not in font" {
+		t.Errorf("charInventory[0] = %v", inv[0])
+	}
+	if unresolved, _ := res.Facts["unresolved"].([]any); len(unresolved) != 1 {
+		t.Errorf("unresolved = %v", res.Facts["unresolved"])
+	}
+	chain, _ := res.Facts["chainHealth"].(map[string]any)
+	if chain["sans"] != "degraded" || chain["serif"] != "ok" {
+		t.Errorf("chainHealth = %v", res.Facts["chainHealth"])
+	}
+	if runs, _ := res.Facts["textRuns"].([]any); len(runs) != 1 {
+		t.Errorf("textRuns = %v", res.Facts["textRuns"])
+	}
+	if res.Facts["detectorExitCode"] != 0 || res.Facts["detectorStderr"] != "detector: fake run" {
+		t.Errorf("detectorExitCode=%v detectorStderr=%v", res.Facts["detectorExitCode"], res.Facts["detectorStderr"])
+	}
+	for _, oldKey := range []string{"char_inventory", "chain_health", "text_runs"} {
+		if _, ok := res.Facts[oldKey]; ok {
+			t.Errorf("facts 不应含 snake_case 段名 %s", oldKey)
+		}
 	}
 }
 
-func isExitError(err error) bool {
-	_, ok := err.(*exec.ExitError)
-	return ok
-}
-
-func diffJSON(t *testing.T, got, want any) string {
-	t.Helper()
-	gb := roundTrip(t, got)
-	wb := roundTrip(t, want)
-	if bytes.Equal(gb, wb) {
-		return ""
-	}
-	return "--- go ---\n" + clip(string(gb), 1200) + "\n--- python ---\n" + clip(string(wb), 1200)
-}
-
-func roundTrip(t *testing.T, v any) []byte {
-	t.Helper()
-	raw, err := json.Marshal(v)
+// TestRunFailsWhenDetectorReturnsNonJSON 锁定 adapter 失败路径的 finding。
+func TestRunFailsWhenDetectorReturnsNonJSON(t *testing.T) {
+	installFakeUV(t, "not json")
+	b, err := book.Open(minimalEpub(t))
 	if err != nil {
-		t.Fatalf("marshal: %v", err)
+		t.Fatal(err)
 	}
-	var any1 any
-	_ = json.Unmarshal(raw, &any1)
-	out, err := json.Marshal(any1)
-	if err != nil {
-		t.Fatalf("re-marshal: %v", err)
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{ToolRoot: t.TempDir()})
+	if err == nil {
+		t.Fatal("期望 adapter 错误")
 	}
-	return out
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
+	if res.Status != report.StatusFailed || len(res.Findings) != 1 || res.Findings[0].ID != "fontcoverage.adapter" {
+		t.Errorf("status=%s findings=%+v", res.Status, res.Findings)
 	}
-	return s[:n] + "..."
 }

@@ -1,20 +1,24 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-// TestParityRealBook 用仓库样本书（references/epubs）对 Python oracle 做
-// 真书 parity：legacy JSON 逐键一致、非 OPF entry 逐字节一致、OPF 语义
-// 一致（Go 字节区间编辑保留原格式，Python 是整树重序列化）。
-func TestParityRealBook(t *testing.T) {
+// TestRealBookMetadataWriteOnlyChangesMetadata 用仓库样本书（51MB 真实
+// EPUB，references/epubs/）验证 metadata.edit 在真书体量下仍然只改 OPF
+// 的 dc 字段：dc:title/author/publisher 必须真的变成新值，同时正文、
+// spine 顺序与锚点必须零发现（redline 门禁）。Python oracle 已删除，这里
+// 不再对拍 Python 输出，改成对真书本身的语义断言。样本书文件缺失时才
+// 跳过（CI 里它入 git；本地缺书是环境问题，不是能力缺陷，不许因为 oracle
+// 缺失而跳过）。
+func TestRealBookMetadataWriteOnlyChangesMetadata(t *testing.T) {
 	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
@@ -25,49 +29,47 @@ func TestParityRealBook(t *testing.T) {
 	}
 	source := matches[0]
 
-	dir := t.TempDir()
-	pyDir, goDir := filepath.Join(dir, "py"), filepath.Join(dir, "go")
-	os.MkdirAll(pyDir, 0o755)
-	os.MkdirAll(goDir, 0o755)
-	pyOut := filepath.Join(pyDir, "metadata.epub")
-	goOut := filepath.Join(goDir, "metadata.epub")
-	fieldsJSON := `{"title": "EPub指南（Go parity 校验）", "author": "parity 作者", "publisher": "parity 出版社"}`
-
-	_, pyJSON := runPythonHarness(t, "epub_metadata_edit_harness.py", source,
-		"--output", pyOut, "--metadata-json", fieldsJSON)
-
 	b, err := book.Open(source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{
-		MetadataJSON: fieldsJSON,
-		Output:       goOut,
-		LegacyReport: true,
-	})
+	fieldsJSON := `{"title": "EPub指南（Go 语义校验）", "author": "语义校验作者", "publisher": "语义校验出版社"}`
+	res, err := Run(context.Background(), b, Params{MetadataJSON: fieldsJSON})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Status != report.StatusComplete {
 		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
 	}
-	if err := b.WriteTo(goOut); err != nil {
-		t.Fatal(err)
+	updated, _ := res.Facts["fieldsUpdated"].(int)
+	if updated == 0 {
+		t.Fatalf("fieldsUpdated = %v，真书至少应有一个字段被改动", res.Facts["fieldsUpdated"])
 	}
 
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatalf("Facts 缺少 legacyReport")
+	opfPath, _ := res.Facts["opf"].(string)
+	opfData, err := b.Current(opfPath)
+	if err != nil {
+		t.Fatal(err)
 	}
-	norm := func(s string) string {
-		s = replaceAll(s, dir, "<TMP>")
-		s = replaceAll(s, "/go/", "/SIDE/")
-		return replaceAll(s, "/py/", "/SIDE/")
+	for _, want := range []string{
+		"EPub指南（Go 语义校验）",
+		"语义校验作者",
+		"语义校验出版社",
+	} {
+		if !bytes.Contains(opfData, []byte(want)) {
+			t.Errorf("真书 OPF 缺少写入的新值 %q", want)
+		}
 	}
-	if norm(string(raw)) != norm(pyJSON) {
-		t.Errorf("legacy JSON 与 Python oracle 不一致:\n--- go ---\n%s\n--- python ---\n%s",
-			clip(norm(string(raw)), 1500), clip(norm(pyJSON), 1500))
+
+	// 红线门禁：正文 / spine / 锚点必须零发现。CheckMetadata 会被这次写入
+	// 本身触发，不放进这一组，否则会掩盖真正的回归。
+	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
+		[]string{redline.CheckText, redline.CheckSpine, redline.CheckAnchors}, redline.Options{})
+	if err != nil {
+		t.Fatal(err)
 	}
-	compareEntries(t, pyOut, goOut, map[string]bool{"OEBPS/content.opf": true})
+	for _, f := range findings {
+		t.Errorf("redline %s: %s", f.Check, f.Message)
+	}
 }

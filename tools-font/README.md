@@ -1,6 +1,18 @@
 # 字体工具
 
-本目录是 EPUB Handbook 的字体相关独立工具。与 `scripts/`（Python）、`swift/`（Swift）按 capability 并存。
+本目录是 EPUB Handbook 的字体相关独立工具，**不打包进发行包**，也不属于 `internal/` 的层级图 ——
+它是被 `internal/extern` 以外部进程调起的独立 provider（架构定位见 `AGENTS.md` 的「架构分工」表）。
+
+## coverage-detector：安装与缺失时的行为
+
+`coverage-detector/` 是独立的 Python + FontTools 项目，用 `uv` 管理；
+**安装与命令行用法见 `coverage-detector/README.md`**（首次需在该目录执行一次 `uv sync`）。
+
+`epub run epub.font.coverage.analyze` 由 `internal/extern` 调起同一个 `uv run python -m src.cli`。
+**缺少 `uv` 时不会静默跳过**：能力以 `status: failed` 显式失败，findings 里给出
+`uv is required for tools-font/coverage-detector`；`uv` 存在但进程起不来（权限、工作目录缺失等）时
+报 `coverage detector could not be started: <原因>`，而不是伪装成"跑完且干净退出"。
+被 Ctrl-C 或 deadline 打断时透传取消语义（`status: cancelled`），不会被误判成工具故障。
 
 ## font-preview.html
 

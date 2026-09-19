@@ -48,7 +48,7 @@ description: 优化 EPUB 图片版式、figure 环绕、图注、栅格格式、
 epub run epub.image.layout.optimize --input <书> --json
 ```
 
-无额外 KEY=VALUE 参数；不需要 `--output`。需要旧报告形状的逐图明细（`findings` 数组：`file`、`image`、`selector`、`finding` 与 `warnings`）时加 `legacy_report=true`。
+无额外 KEY=VALUE 参数；不需要 `--output`。逐图明细（`file`、`image`、`selector`、`finding`、`candidates`）默认就在 `facts.imageFindings` 里，扫描警告在 `facts.warningList`。
 
 祖先为 `.noteref-icon` 或 `a[epub:type~=noteref]` 的图片是注释交互控件，能力已自动排除，不生成 figure/浮动/图注/alt 候选。修复动作按第四段由 AI 在新候选 EPUB 上执行，改后跑：
 
@@ -69,7 +69,8 @@ epub redline --check all <before.epub> <after.epub>
   - `chapter-head-image-candidate`：疑似章首图。
   - `fullpage-image-alite-candidate`：疑似整页海报图（转 `epub-alite-converter`）。
   - `detail` 是 `文件 · 图片`，`location` 是 selector。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（逐图明细数组）。
+- `facts.imageFindings`：逐图明细数组，每项含 `scene`、`finding`、`file`、`selector`、`image`、`candidates`（候选处理方案与风险说明）；与 `findings[]` 一一对应。
+- `facts.warningList`：扫描警告原文（spine 文件缺失、XML 解析失败等）；`facts.findings` / `facts.warnings` 是两者的计数。
 
 ## 依据返回怎么判断
 

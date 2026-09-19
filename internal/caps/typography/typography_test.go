@@ -7,10 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -137,7 +134,7 @@ func mustRun(t *testing.T, input, presetDir, preset, output string, dryRun bool)
 	}
 	defer b.Close()
 	res, err := Run(context.Background(), b, Params{
-		Preset: preset, PresetDir: presetDir, Output: output, DryRun: dryRun, LegacyReport: true,
+		Preset: preset, PresetDir: presetDir, Output: output, DryRun: dryRun,
 	})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
@@ -147,9 +144,15 @@ func mustRun(t *testing.T, input, presetDir, preset, output string, dryRun bool)
 			t.Fatalf("WriteTo: %v", err)
 		}
 	}
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatal("缺少 legacyReport")
+	return factsJSON(t, res.Facts)
+}
+
+// factsJSON 把 Result.Facts 经 JSON 往返，断言信封里实际序列化出的形状。
+func factsJSON(t *testing.T, facts map[string]any) map[string]any {
+	t.Helper()
+	raw, err := json.Marshal(facts)
+	if err != nil {
+		t.Fatalf("marshal facts: %v", err)
 	}
 	var out map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -172,14 +175,20 @@ func TestTypographyDryRun(t *testing.T) {
 	}
 
 	rep := mustRun(t, source, presets, "literary-cn", output, true)
-	if rep["dry_run"] != true {
-		t.Fatalf("dry_run 应为 true: %v", rep)
+	if rep["dryRun"] != true {
+		t.Fatalf("dryRun 应为 true: %v", rep)
 	}
-	if _, has := rep["written_output"]; has {
-		t.Fatal("dry-run 不应包含 written_output")
+	if _, has := rep["manifestItemsAdded"]; has {
+		t.Fatal("dry-run 不应包含 manifestItemsAdded")
 	}
-	if _, has := rep["manifest_items_added"]; has {
-		t.Fatal("dry-run 不应包含 manifest_items_added")
+	if _, has := rep["manifestItemsAddedHrefs"]; has {
+		t.Fatal("dry-run 不应包含 manifestItemsAddedHrefs")
+	}
+	if rep["preset"] != "literary-cn" || rep["stylesheets"] != float64(6) || rep["xhtmlLinks"] != float64(1) {
+		t.Fatalf("preset/stylesheets/xhtmlLinks 不符: %v", rep)
+	}
+	if files := rep["xhtmlLinkFiles"].([]any); len(files) != 1 || files[0] != "OEBPS/Text/chapter.xhtml" {
+		t.Fatalf("xhtmlLinkFiles 不符: %v", files)
 	}
 	coverage := rep["coverage"].(map[string]any)
 	ratio := coverage["ratio"].(float64)
@@ -190,11 +199,14 @@ func TestTypographyDryRun(t *testing.T) {
 		t.Fatalf("不应有 warning: %v", coverage)
 	}
 	actions := map[string]string{}
-	for _, item := range rep["stylesheets"].([]any) {
+	for _, item := range rep["stylesheetActions"].([]any) {
 		m := item.(map[string]any)
+		if m["source"] == "" {
+			t.Fatalf("stylesheetActions 缺少 source: %v", m)
+		}
 		actions[m["path"].(string)] = m["action"].(string)
 	}
-	if actions["OEBPS/Styles/base.css"] != "replace" || actions["OEBPS/Styles/fonts.css"] != "add" {
+	if len(actions) != 6 || actions["OEBPS/Styles/base.css"] != "replace" || actions["OEBPS/Styles/fonts.css"] != "add" {
 		t.Fatalf("actions 不符: %v", actions)
 	}
 	after, err := os.ReadFile(source)
@@ -231,12 +243,20 @@ func TestTypographyApply(t *testing.T) {
 
 	rep := mustRun(t, source, presets, "literary-cn", output, false)
 	layers := []string{"fonts.css", "base.css", "notes.css", "effects.css", "literary.css", "media.css"}
-	if rep["written_output"] == "" {
-		t.Fatalf("written_output 缺失: %v", rep)
+	if rep["dryRun"] != false {
+		t.Fatalf("dryRun 应为 false: %v", rep)
 	}
-	added := rep["manifest_items_added"].([]any)
+	if rep["manifestItemsAdded"] != float64(5) {
+		t.Fatalf("manifestItemsAdded 应为 5（base.css 已存在）: %v", rep["manifestItemsAdded"])
+	}
+	added := rep["manifestItemsAddedHrefs"].([]any)
 	if len(added) != 5 {
-		t.Fatalf("manifest_items_added 应为 5（base.css 已存在）: %v", added)
+		t.Fatalf("manifestItemsAddedHrefs 应为 5（base.css 已存在）: %v", added)
+	}
+	for _, href := range added {
+		if href == "Styles/base.css" {
+			t.Fatalf("base.css 已存在，不应出现在 manifestItemsAddedHrefs: %v", added)
+		}
 	}
 
 	files := readZipData(t, output)
@@ -316,142 +336,3 @@ func TestTypographyPresetLineLimits(t *testing.T) {
 		}
 	}
 }
-
-// ---- parity（同一 fixture 分别跑 Python oracle 与 Go 实现） ----
-
-func chdir(t *testing.T, dir string) func() {
-	t.Helper()
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	return func() { _ = os.Chdir(old) }
-}
-
-func pythonScriptPath(t *testing.T) string {
-	t.Helper()
-	script := filepath.Join(repoRootDir(t), "scripts", "epub_style_preset_tool.py")
-	if _, err := os.Stat(script); err != nil {
-		t.Skip("scripts/epub_style_preset_tool.py 不存在（oracle 已删除）")
-	}
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 不可用")
-	}
-	return script
-}
-
-func runPythonJSON(t *testing.T, dir, script string, args ...string) map[string]any {
-	t.Helper()
-	full := append([]string{script}, args...)
-	cmd := exec.Command("python3", full...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("python oracle 运行失败: %v\nstderr: %s", err, stderr.String())
-	}
-	var out map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
-		t.Fatalf("python oracle 输出不是 JSON: %v\nstdout: %s", err, stdout.String())
-	}
-	return out
-}
-
-// normalizePaths 把不确定的绝对路径字段归一（Python resolve 与 Go Abs
-// 在 macOS 符号链接目录上会得到不同字符串，parity 比对时置空）。
-func normalizePaths(rep map[string]any) {
-	for _, key := range []string{"input", "output", "written_output"} {
-		if _, ok := rep[key]; ok {
-			rep[key] = ""
-		}
-	}
-}
-
-func compareEpubEntries(t *testing.T, pyPath, goPath string) {
-	t.Helper()
-	pyFiles := readZipData(t, pyPath)
-	goFiles := readZipData(t, goPath)
-	if len(pyFiles) != len(goFiles) {
-		t.Fatalf("entry 数不一致: python=%d go=%d", len(pyFiles), len(goFiles))
-	}
-	for name, pData := range pyFiles {
-		gData, ok := goFiles[name]
-		if !ok {
-			t.Fatalf("Go 产物缺少 entry %s", name)
-		}
-		if name == "OEBPS/content.opf" {
-			continue // OPF：字节区间编辑 vs ET 重写，P3 预期差异
-		}
-		if !bytes.Equal(pData, gData) {
-			t.Fatalf("entry %s 内容不一致\npython=%q\ngo=%q", name, pData, gData)
-		}
-	}
-}
-
-func parityCaseTypography(t *testing.T, dryRun bool) {
-	t.Helper()
-	script := pythonScriptPath(t)
-	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
-	dir := t.TempDir()
-	buildFixtureEpub(t, filepath.Join(dir, "fixture.epub"), typographyFixture("font-st chapter-head note-box img-left"))
-
-	args := []string{"apply", "fixture.epub", "--preset", "literary-cn", "--output", "py-out.epub"}
-	if dryRun {
-		args = append(args, "--dry-run")
-	}
-	pyReport := runPythonJSON(t, dir, script, args...)
-	if !dryRun {
-		if err := os.Rename(filepath.Join(dir, "py-out.epub"), filepath.Join(dir, "py.epub")); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	restore := chdir(t, dir)
-	defer restore()
-	b, err := book.Open("fixture.epub")
-	if err != nil {
-		t.Fatalf("book.Open: %v", err)
-	}
-	res, err := Run(context.Background(), b, Params{
-		Preset: "literary-cn", PresetDir: presets, Output: "py-out.epub", DryRun: dryRun, LegacyReport: true,
-	})
-	if err != nil {
-		t.Fatalf("Go Run: %v", err)
-	}
-	if !dryRun {
-		if err := b.WriteTo("go-out.epub"); err != nil {
-			t.Fatalf("WriteTo: %v", err)
-		}
-	}
-	b.Close()
-	restore()
-
-	if !dryRun {
-		compareEpubEntries(t, filepath.Join(dir, "py.epub"), filepath.Join(dir, "go-out.epub"))
-	}
-
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatal("缺少 legacyReport")
-	}
-	var goReport map[string]any
-	if err := json.Unmarshal(raw, &goReport); err != nil {
-		t.Fatal(err)
-	}
-	normalizePaths(goReport)
-	normalizePaths(pyReport)
-	if !reflect.DeepEqual(goReport, pyReport) {
-		goJSON, _ := json.MarshalIndent(goReport, "", "  ")
-		pyJSON, _ := json.MarshalIndent(pyReport, "", "  ")
-		t.Fatalf("legacy 报告不一致:\n--- go ---\n%s\n--- python ---\n%s", goJSON, pyJSON)
-	}
-}
-
-func TestParityTypographyApply(t *testing.T)  { parityCaseTypography(t, false) }
-func TestParityTypographyDryRun(t *testing.T) { parityCaseTypography(t, true) }

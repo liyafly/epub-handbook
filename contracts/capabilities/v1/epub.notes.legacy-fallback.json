@@ -8,6 +8,6 @@
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "anchors", "metadata"],
   "permissions": {"requiresWriteAccess": true, "network": "none"},
-  "requires": ["epub.notes.popup.normalize"],
-  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+  "execution": {"input": "epub", "output": "single"},
+  "requires": ["epub.notes.popup.normalize"]
 }

@@ -32,23 +32,23 @@ description: 审核 EPUB package 结构、OPF metadata、manifest、spine、nav.
 epub run epub.package.nav.audit --input <书> --json
 ```
 
-无额外 KEY=VALUE 参数；只读能力，不需要 `--output`。需要旧报告形状明细（`recommended_skills`、`suggested_commands`、`findings_by_level`、`actionable_findings`）时加 `legacy_report=true`（迁移期脚手架）：
-
-```sh
-epub run epub.package.nav.audit --input <书> --json legacy_report=true
-```
+无额外 KEY=VALUE 参数；只读能力，不需要 `--output`。分级计数、推荐 skill 与可自动修复项均在 `facts` 里（见下）。
 
 修复后重跑同一命令复核，直到 error 清零。
 
 ## 返回怎么读
 
-- `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令（迁移期可能仍带旧执行面命令形态，仅供人参考，AI 一律按各 skill 的 `epub run` 形态执行）。
+- `status`：本能力只返回 `complete | failed`（有 error 级 finding 或 spine 为空即 `failed`）；`findings[].level`：`error | warn | info`；`nextCommands[]` 由 CLI 统一给出，本能力固定是一条 `epub run epub.layout.audit --input <书>`（后续该跑什么以下面 `recommendedSkills` 与 findings 为准）。
 - 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误（参数非法、文件不存在）。
 - facts 键前缀 `epub.package.nav.audit.`：
   - `summary`：`zip_entries`、`manifest_items`、`spine_items`、`media_counts`（xhtml/css/images/fonts/other）、`opf`，以及存在时的 `obfuscated_filenames`、`package_version`、`language`。
   - `input_kind`：`existing-epub`。
+  - `auditStatus`：`pass | warn | fail`（按 audit findings 的最高级别；spine 缺失或为空也直接判 `fail`）。
+  - `findingsByLevel`：`{error, warn, info}` 三级计数。
+  - `recommendedSkills`：按级别排序的 `$<skill>` 列表（`$epub-layout-auditor` 固定首位）。
+  - `toolAvailability`：外部工具探测结果。**当前只探测 `epubcheck` 一项**，形如 `{"epubcheck": false}`；图片工具（`magick` / `oxipng` 等）不探测，需自行确认安装。
+  - `actionableFindings`：结构化可执行发现，**始终是数组，无命中时为 `[]`**；元素为 `{kind, file, locator, params, lane, autoFixable, confidence, evidence}`。`kind` 取值 `missing-html-lang`、`obfuscated-class`、`empty-paragraph`、`missing-manifest-properties`；只有 `autoFixable: true` 的项可以直接改，`obfuscated-class` 是 `false`，必须人工/AI 判断映射目标。
 - findings：ID 形如 `audit.<序号>`，`title` 是检查结论，`location` 是相关资源路径，`detail` 是问题类别。典型类别：manifest href 缺失、spine idref 不可解析、nav 数量不为 1、缺 NCX/spine toc、封面声明不全、CSS url() 目标缺失、MathML/SVG properties 缺失、文件名混淆、EPUB2 版本、`META-INF/encryption.xml` 存在。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（preflight JSON：findings、findings_by_level、recommended_skills、suggested_commands、tool_availability 等）。
 
 ## 依据返回怎么判断
 
