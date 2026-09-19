@@ -5,16 +5,14 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 )
 
-// fixture XHTML 模板（Python 侧用 ET 解析，必须是良构 XML）。
+// fixture XHTML 模板（必须是良构 XML）。
 func popupXHTML(body string) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
@@ -140,107 +138,75 @@ func writePopupEpub(t *testing.T, path string, files map[string]string) {
 	}
 }
 
-// normPyLine 把 Python 临时目录前缀归一为 zip 路径形态。
-func normPyLine(line string) string {
-	if i := strings.Index(line, "/OEBPS"); i >= 0 {
-		return "ERROR: " + line[i+1:]
-	}
-	return line
-}
-
-func runPopupOracle(t *testing.T, epub string) (int, string, string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", "validate_popup_notes.py")
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/validate_popup_notes.py 不存在（oracle 已删除）")
-	}
-	cmd := exec.Command("python3", script, "--epub", epub)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	return code, out.String(), errb.String()
-}
-
-func runGoPopup(t *testing.T, epub string) (string, []string) {
+func runGoPopup(t *testing.T, epub string) (string, []string, map[string]any) {
 	t.Helper()
 	b, err := book.Open(epub)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, ok := res.Facts["legacyReport"].(map[string]any)
-	if !ok {
-		t.Fatalf("legacyReport 形状错误: %T", res.Facts["legacyReport"])
+	var titles []string
+	for _, f := range res.Findings {
+		if f.Level != "error" || f.ID != "popupnotes" {
+			t.Fatalf("finding 形状错误: %+v", f)
+		}
+		titles = append(titles, f.Title)
 	}
-	lines, ok := raw["lines"].([]string)
-	if !ok {
-		t.Fatalf("legacyReport.lines 形状错误: %T", raw["lines"])
-	}
-	return res.Status, lines
+	return res.Status, titles, res.Facts
 }
 
-func TestParityPopupNotesErrors(t *testing.T) {
+// TestPopupNotesErrors 锁定坏 fixture 的逐条错误措辞、顺序与 status=failed
+// （措辞与顺序沿用原校验器，title 以 zip 路径开头）。
+func TestPopupNotesErrors(t *testing.T) {
 	dir := t.TempDir()
 	epub := filepath.Join(dir, "broken.epub")
 	writePopupEpub(t, epub, brokenFixture())
 
-	code, _, stderr := runPopupOracle(t, epub)
-	if code != 1 {
-		t.Fatalf("python oracle 应退出 1，实际 %d\nstderr: %s", code, stderr)
-	}
-	var pyLines []string
-	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-		if line != "" {
-			pyLines = append(pyLines, normPyLine(line))
-		}
-	}
-
-	status, goLines := runGoPopup(t, epub)
+	status, titles, facts := runGoPopup(t, epub)
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
-	if strings.Join(goLines, "\n") != strings.Join(pyLines, "\n") {
-		t.Errorf("错误措辞不一致:\n--- python ---\n%s\n--- go ---\n%s",
-			strings.Join(pyLines, "\n"), strings.Join(goLines, "\n"))
+	want := []string{
+		"OEBPS/Text/a-bad-noteref.xhtml: duplicate id: dup",
+		"OEBPS/Text/a-bad-noteref.xhtml: noteref missing id",
+		"OEBPS/Text/a-bad-noteref.xhtml: noteref must have epub:type=noteref",
+		"OEBPS/Text/a-bad-noteref.xhtml: backlink target must be a noteref id: #nr-missing",
+		"OEBPS/Text/b-bad-aside.xhtml: footnote aside must have epub:type=footnote",
+		"OEBPS/Text/b-bad-aside.xhtml: footnote aside must contain exactly one ol.footnote-list",
+		"OEBPS/Text/b-bad-aside.xhtml: noteref target missing: #missing",
+		"OEBPS/Text/b-bad-aside.xhtml: every noteref target must be in ol.footnote-list",
+		"OEBPS/Text/b-bad-aside.xhtml: each footnote item should contain a backlink",
+		"OEBPS/Text/c-bad-backlink.xhtml: backlink must have role=doc-backlink",
+		"OEBPS/Text/c-bad-backlink.xhtml: backlink target must be a noteref id: #c1",
+		"OEBPS/content.opf: manifest must include noteref icon Icons/missing-icon.png",
+		"OEBPS: noteref icon missing on disk: Icons/missing-icon.png",
+	}
+	if strings.Join(titles, "\n") != strings.Join(want, "\n") {
+		t.Errorf("错误措辞不一致:\n--- want ---\n%s\n--- got ---\n%s",
+			strings.Join(want, "\n"), strings.Join(titles, "\n"))
+	}
+	if facts["violations"] != len(want) || facts["noterefs"] != 4 || facts["text_files"] != 4 {
+		t.Errorf("facts = %v", facts)
 	}
 }
 
-func TestParityPopupNotesOK(t *testing.T) {
+func TestPopupNotesOK(t *testing.T) {
 	dir := t.TempDir()
 	epub := filepath.Join(dir, "valid.epub")
 	writePopupEpub(t, epub, validFixture())
 
-	code, stdout, stderr := runPopupOracle(t, epub)
-	if code != 0 {
-		t.Fatalf("python oracle 应退出 0，实际 %d\nstderr: %s", code, stderr)
-	}
-	if strings.TrimSpace(stdout) != "popup note validation ok" {
-		t.Fatalf("python stdout: %q", stdout)
-	}
-	status, goLines := runGoPopup(t, epub)
+	status, titles, facts := runGoPopup(t, epub)
 	if status != "complete" {
 		t.Fatalf("go status 应为 complete，实际 %s", status)
 	}
-	if len(goLines) != 1 || goLines[0] != "popup note validation ok" {
-		t.Fatalf("go lines: %v", goLines)
+	if len(titles) != 0 {
+		t.Fatalf("不应有 error findings: %v", titles)
+	}
+	if facts["violations"] != 0 || facts["noterefs"] != 1 || facts["text_files"] != 1 {
+		t.Errorf("facts = %v", facts)
 	}
 }

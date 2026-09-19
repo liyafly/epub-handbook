@@ -19,14 +19,10 @@ package structurenormalize
 import (
 	"bytes"
 	"context"
-	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -34,6 +30,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // CapabilityID 是契约 id（contracts/capabilities/v1/epub.structure.normalize.json）。
@@ -84,49 +81,32 @@ type Params struct {
 	// 阶段 1（format）始终执行（Python 版会写临时文件），dry-run
 	// 只作用于阶段 2。
 	DryRun bool
-	// LegacyReport 为 true 时把 Python 形状的 JSON（RewriteReport /
-	// WorkflowReport）放进 Result.Facts["legacyReport"]（json.RawMessage，
-	// 由 report.MarshalLegacy 序列化），供 parity gate P2 使用。
-	LegacyReport bool
 	// Force 只是占位：输出文件冲突由 pipeline 层裁决，包内不处理。
 	Force bool
-	// Output 是输出路径（仅写入 legacy 报告字段；本包不落盘）。
-	// 为空时按 Python 的 default_output 推导（*_formatted/_deobfuscated/
-	// _normalized.epub）。
-	Output string
 }
 
-// ---- legacy 报告形状（dataclass 字段序即 JSON 键序） ----
+// ---- 阶段报告（内部累加器；经 buildResult 映射为信封 facts） ----
 
-type legacyMapping struct {
+// mapping 是一条改名映射；`facts.mappings` 与 `facts.stages[].mappings`
+// 保持 {from,to} 形状，`epub redline --path-map` 直接读取。
+type mapping struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
 
-// legacyRewriteReport 对齐 RewriteReport。
-type legacyRewriteReport struct {
-	Operation                       string          `json:"operation"`
-	Input                           string          `json:"input"`
-	Output                          *string         `json:"output"`
-	OPF                             string          `json:"opf"`
-	ManifestResources               int             `json:"manifest_resources"`
-	MovedResources                  int             `json:"moved_resources"`
-	RenamedResources                int             `json:"renamed_resources"`
-	RewrittenFiles                  int             `json:"rewritten_files"`
-	FontObfuscationResources        int             `json:"font_obfuscation_resources"`
-	RemovedStaleEncryptionResources int             `json:"removed_stale_encryption_resources"`
-	DryRun                          bool            `json:"dry_run"`
-	Mappings                        []legacyMapping `json:"mappings"`
-	Warnings                        []string        `json:"warnings"`
-}
-
-// legacyWorkflowReport 对齐 WorkflowReport。
-type legacyWorkflowReport struct {
-	Operation string                `json:"operation"`
-	Input     string                `json:"input"`
-	Output    string                `json:"output"`
-	DryRun    bool                  `json:"dry_run"`
-	Stages    []legacyRewriteReport `json:"stages"`
+// stageReport 是单个阶段（format / deobfuscate-filenames / inspect）的计数。
+type stageReport struct {
+	Operation                       string    `json:"operation"`
+	OPF                             string    `json:"opf"`
+	ManifestResources               int       `json:"manifest_resources"`
+	MovedResources                  int       `json:"moved_resources"`
+	RenamedResources                int       `json:"renamed_resources"`
+	RewrittenFiles                  int       `json:"rewritten_files"`
+	FontObfuscationResources        int       `json:"font_obfuscation_resources"`
+	RemovedStaleEncryptionResources int       `json:"removed_stale_encryption_resources"`
+	DryRun                          bool      `json:"dry_run"`
+	Mappings                        []mapping `json:"mappings"`
+	Warnings                        []string  `json:"warnings"`
 }
 
 // ---- 内部数据结构 ----
@@ -200,7 +180,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 // scanRewriteStage 复刻 analyze_epub（+ 非 dry-run 的 transform_files）：
 // 只读 b，产出报告与 []editset.Edit；不落盘。
-func scanRewriteStage(b *book.Book, op string, dryRun bool, outputForReport *string) (stageResult, error) {
+func scanRewriteStage(b *book.Book, op string, dryRun bool) (stageResult, error) {
 	names := b.Names()
 	files := make(map[string]bool, len(names))
 	for _, n := range names {
@@ -208,12 +188,10 @@ func scanRewriteStage(b *book.Book, op string, dryRun bool, outputForReport *str
 	}
 	current := func(name string) ([]byte, error) { return b.Current(name) }
 
-	rep := legacyRewriteReport{
+	rep := stageReport{
 		Operation: op,
-		Input:     b.InputPath(),
-		Output:    outputForReport,
 		DryRun:    dryRun,
-		Mappings:  []legacyMapping{},
+		Mappings:  []mapping{},
 		Warnings:  []string{},
 	}
 
@@ -257,7 +235,7 @@ func scanRewriteStage(b *book.Book, op string, dryRun bool, outputForReport *str
 }
 
 type stageResult struct {
-	rep      legacyRewriteReport
+	rep      stageReport
 	pathMap  map[string]string
 	creates  []editset.Edit
 	deletes  []editset.Edit
@@ -285,38 +263,28 @@ func applyStage(b *book.Book, st stageResult) error {
 }
 
 func runSingleStage(b *book.Book, p Params, op string) (report.Result, error) {
-	outputPath := p.Output
-	if outputPath == "" {
-		outputPath = defaultOutput(b.InputPath(), op)
-	}
-	st, err := scanRewriteStage(b, op, p.DryRun, strPtr(outputPath))
+	st, err := scanRewriteStage(b, op, p.DryRun)
 	if err != nil {
 		return report.Result{}, err
 	}
 	if err := applyStage(b, st); err != nil {
 		return report.Result{}, err
 	}
-	return buildResult(p, []legacyRewriteReport{st.rep}, renamesFromStages(st.rep), nil), nil
+	return buildResult(p, op, []stageReport{st.rep}, renamesFromStages(st.rep)), nil
 }
 
 // runNormalize 复刻 normalize_epub：两阶段，阶段 1 始终执行
 // （Python 版把 formatted 写进临时目录），dry-run 只作用于阶段 2。
 func runNormalize(b *book.Book, p Params) (report.Result, error) {
-	outputPath := p.Output
-	if outputPath == "" {
-		outputPath = defaultOutput(b.InputPath(), "normalize")
-	}
-
-	st1, err := scanRewriteStage(b, "format", false, nil)
+	st1, err := scanRewriteStage(b, "format", false)
 	if err != nil {
 		return report.Result{}, err
 	}
 	if err := applyStage(b, st1); err != nil {
 		return report.Result{}, err
 	}
-	st1.rep.Output = nil // Python：format_report.output = None
 
-	st2, err := scanRewriteStage(b, "deobfuscate-filenames", p.DryRun, strPtr(outputPath))
+	st2, err := scanRewriteStage(b, "deobfuscate-filenames", p.DryRun)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -325,79 +293,48 @@ func runNormalize(b *book.Book, p Params) (report.Result, error) {
 			return report.Result{}, err
 		}
 	}
-	st2.rep.Input = pyTempFormattedPath() // 不确定字段，保持 Python 语义
-
-	workflow := legacyWorkflowReport{
-		Operation: "normalize",
-		Input:     b.InputPath(),
-		Output:    outputPath,
-		DryRun:    p.DryRun,
-		Stages:    []legacyRewriteReport{st1.rep, st2.rep},
-	}
-	return buildResult(p, workflow.Stages, renamesFromStages(st1.rep, st2.rep), &workflow), nil
+	return buildResult(p, "normalize", []stageReport{st1.rep, st2.rep}, renamesFromStages(st1.rep, st2.rep)), nil
 }
 
 func runInspect(b *book.Book, p Params) (report.Result, error) {
-	st, err := scanRewriteStage(b, "inspect", false, nil)
+	st, err := scanRewriteStage(b, "inspect", false)
 	if err != nil {
 		return report.Result{}, err
 	}
-	return buildResult(p, []legacyRewriteReport{st.rep}, nil, nil), nil
+	return buildResult(p, "inspect", []stageReport{st.rep}, nil), nil
 }
 
-// buildResult 装配统一信封的 Result 段（含 legacy-report 脚手架）。
-func buildResult(p Params, stages []legacyRewriteReport, renames map[string]string, workflow *legacyWorkflowReport) report.Result {
+// buildResult 把阶段计数装配为统一信封的 Result 段。facts 键（camelCase）
+// 对所有 mode 稳定：operation / mode / dryRun / opf / manifestResources /
+// movedResources / renamedResources / rewrittenFiles /
+// fontObfuscationResources / removedStaleEncryptionResources / mappings /
+// warnings；多阶段（normalize）额外给出 stages[] 逐阶段明细。
+// 输入/输出路径由 pipeline 信封的 input / output 段承担。
+func buildResult(p Params, operation string, stages []stageReport, renames map[string]string) report.Result {
 	main := stages[len(stages)-1]
+	var allMappings []mapping
+	var allWarnings []string
+	for _, st := range stages {
+		allMappings = append(allMappings, st.Mappings...)
+		allWarnings = append(allWarnings, st.Warnings...)
+	}
 	facts := map[string]any{
-		"mode": string(p.Mode),
+		"operation":                       operation,
+		"mode":                            string(p.Mode),
+		"dryRun":                          p.DryRun,
+		"opf":                             main.OPF,
+		"manifestResources":               main.ManifestResources,
+		"movedResources":                  sumInt(stages, func(s stageReport) int { return s.MovedResources }),
+		"renamedResources":                sumInt(stages, func(s stageReport) int { return s.RenamedResources }),
+		"rewrittenFiles":                  sumInt(stages, func(s stageReport) int { return s.RewrittenFiles }),
+		"fontObfuscationResources":        sumInt(stages, func(s stageReport) int { return s.FontObfuscationResources }),
+		"removedStaleEncryptionResources": sumInt(stages, func(s stageReport) int { return s.RemovedStaleEncryptionResources }),
+		"mappings":                        nonNilMappings(allMappings),
+		"warnings":                        nonNilStrings(allWarnings),
 	}
-	if workflow == nil {
-		facts["opf"] = main.OPF
-		facts["manifestResources"] = main.ManifestResources
-		facts["movedResources"] = main.MovedResources
-		facts["renamedResources"] = main.RenamedResources
-		facts["rewrittenFiles"] = main.RewrittenFiles
-		facts["fontObfuscationResources"] = main.FontObfuscationResources
-		facts["removedStaleEncryptionResources"] = main.RemovedStaleEncryptionResources
-	} else {
-		type stageSummary struct {
-			Operation                       string          `json:"operation"`
-			OPF                             string          `json:"opf"`
-			ManifestResources               int             `json:"manifest_resources"`
-			MovedResources                  int             `json:"moved_resources"`
-			RenamedResources                int             `json:"renamed_resources"`
-			RewrittenFiles                  int             `json:"rewritten_files"`
-			FontObfuscationResources        int             `json:"font_obfuscation_resources"`
-			RemovedStaleEncryptionResources int             `json:"removed_stale_encryption_resources"`
-			DryRun                          bool            `json:"dry_run"`
-			Mappings                        []legacyMapping `json:"mappings"`
-			Warnings                        []string        `json:"warnings"`
-		}
-		summaries := make([]stageSummary, 0, len(stages))
-		var allMappings []legacyMapping
-		var allWarnings []string
-		for _, st := range stages {
-			summaries = append(summaries, stageSummary{
-				Operation: st.Operation, OPF: st.OPF,
-				ManifestResources: st.ManifestResources,
-				MovedResources:    st.MovedResources, RenamedResources: st.RenamedResources,
-				RewrittenFiles:                  st.RewrittenFiles,
-				FontObfuscationResources:        st.FontObfuscationResources,
-				RemovedStaleEncryptionResources: st.RemovedStaleEncryptionResources,
-				DryRun:                          st.DryRun,
-				Mappings:                        st.Mappings, Warnings: st.Warnings,
-			})
-			allMappings = append(allMappings, st.Mappings...)
-			allWarnings = append(allWarnings, st.Warnings...)
-		}
-		facts["stages"] = summaries
-		facts["movedResources"] = sumInt(stages, func(s legacyRewriteReport) int { return s.MovedResources })
-		facts["renamedResources"] = sumInt(stages, func(s legacyRewriteReport) int { return s.RenamedResources })
-		facts["rewrittenFiles"] = sumInt(stages, func(s legacyRewriteReport) int { return s.RewrittenFiles })
-		facts["mappings"] = nonNilMappings(allMappings)
-		facts["warnings"] = nonNilStrings(allWarnings)
+	if len(stages) > 1 {
+		facts["stages"] = stages
 	}
-	facts["dryRun"] = p.DryRun
 
 	var findings []report.Finding
 	for _, st := range stages {
@@ -416,19 +353,6 @@ func buildResult(p Params, stages []legacyRewriteReport, renames map[string]stri
 		})
 	}
 
-	if p.LegacyReport {
-		var v any = any(main)
-		if workflow != nil {
-			v = workflow
-		}
-		raw, err := report.MarshalLegacy(v)
-		if err != nil {
-			return report.Result{Capability: CapabilityID, Status: report.StatusFailed}
-		}
-		// 存 json.RawMessage，避免 []byte 被信封编码成 base64。
-		facts["legacyReport"] = json.RawMessage(bytesTrimNewline(raw))
-	}
-
 	return report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
@@ -439,7 +363,7 @@ func buildResult(p Params, stages []legacyRewriteReport, renames map[string]stri
 	}
 }
 
-func sumInt(stages []legacyRewriteReport, get func(legacyRewriteReport) int) int {
+func sumInt(stages []stageReport, get func(stageReport) int) int {
 	total := 0
 	for _, st := range stages {
 		total += get(st)
@@ -447,9 +371,9 @@ func sumInt(stages []legacyRewriteReport, get func(legacyRewriteReport) int) int
 	return total
 }
 
-func nonNilMappings(in []legacyMapping) []legacyMapping {
+func nonNilMappings(in []mapping) []mapping {
 	if in == nil {
-		return []legacyMapping{}
+		return []mapping{}
 	}
 	return in
 }
@@ -461,8 +385,6 @@ func nonNilStrings(in []string) []string {
 	return in
 }
 
-func strPtr(s string) *string { return &s }
-
 // sha256Hex12 复刻 hashlib.sha256(seed).hexdigest()[:12]。
 func sha256Hex12(seed string) string {
 	sum := sha256.Sum256([]byte(seed))
@@ -472,7 +394,7 @@ func sha256Hex12(seed string) string {
 // renamesFromStages 把各阶段 mapping 链式展开成 Result.Renames
 // （语义同 validate_text_invariance.add_path_mapping：先改既有映射中
 // 目标为 source 的键，再登记 source→target；两阶段链式后 from 即原始名）。
-func renamesFromStages(stages ...legacyRewriteReport) map[string]string {
+func renamesFromStages(stages ...stageReport) map[string]string {
 	renames := map[string]string{}
 	for _, st := range stages {
 		for _, m := range st.Mappings {
@@ -492,38 +414,6 @@ func addPathMapping(m map[string]string, source, target string) {
 		}
 	}
 	m[source] = target
-}
-
-// defaultOutput 复刻 default_output。
-func defaultOutput(inputPath, operation string) string {
-	suffix := map[string]string{
-		"format":                "_formatted.epub",
-		"deobfuscate-filenames": "_deobfuscated.epub",
-		"normalize":             "_normalized.epub",
-	}[operation]
-	name := pyBasename(filepath.ToSlash(inputPath))
-	stem := name
-	if i := strings.LastIndexByte(name, '.'); i > 0 {
-		stem = name[:i]
-	}
-	return filepath.Join(filepath.Dir(filepath.FromSlash(inputPath)), stem+suffix)
-}
-
-// pyTempFormattedPath 复刻 normalize 的 stage[1].input：
-// tempfile.TemporaryDirectory(prefix="epub-structure-tool-")/formatted.epub。
-// 这是每次运行都变化的路径（与 Python 同为不确定字段），仅保形状。
-func pyTempFormattedPath() string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789_"
-	raw := make([]byte, 8)
-	if _, err := cryptorand.Read(raw); err != nil {
-		for i := range raw {
-			raw[i] = 'a'
-		}
-	}
-	for i := range raw {
-		raw[i] = chars[int(raw[i])%len(chars)]
-	}
-	return filepath.Join(os.TempDir(), "epub-structure-tool-"+string(raw), "formatted.epub")
 }
 
 // ---- read_package ----
@@ -655,7 +545,7 @@ func inspectEncryption(names []string, files map[string]bool, current func(strin
 }
 
 // validateEncryption 逐行复刻 validate_encryption。
-func validateEncryption(records []encryptionRecord, resources []manifestResource, files map[string]bool, rep *legacyRewriteReport) error {
+func validateEncryption(records []encryptionRecord, resources []manifestResource, files map[string]bool, rep *stageReport) error {
 	if len(records) == 0 {
 		return nil
 	}
@@ -823,7 +713,7 @@ func allocatePath(preferred string, used map[string]bool) (string, error) {
 }
 
 // buildPathMap 逐行复刻 build_path_map。
-func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, op string, rep *legacyRewriteReport) (map[string]string, error) {
+func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, op string, rep *stageReport) (map[string]string, error) {
 	var order []string
 	sourceResources := map[string]manifestResource{}
 	for _, r := range resources {
@@ -874,7 +764,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 		if pyBasename(target) != pyBasename(source) {
 			rep.RenamedResources++
 		}
-		rep.Mappings = append(rep.Mappings, legacyMapping{From: source, To: target})
+		rep.Mappings = append(rep.Mappings, mapping{From: source, To: target})
 	}
 	return pathMap, nil
 }
@@ -887,7 +777,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 //   - 其余字节透传（不产生编辑，zipfs 原样搬运）；
 //   - 改名 = 新建 entry（携带重写后的完整内容）+ 删除旧 entry；
 //   - mimetype：Python 总是重写为规范内容并以 STORED 写出。
-func transformContent(b *book.Book, names []string, files map[string]bool, opfPath string, opfRoot *xmlElem, encPath string, pathMap map[string]string, rep *legacyRewriteReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
+func transformContent(b *book.Book, names []string, files map[string]bool, opfPath string, opfRoot *xmlElem, encPath string, pathMap map[string]string, rep *stageReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
 	rw := &refRewriter{pathMap: pathMap, files: files, warnings: &rep.Warnings}
 	transformed := map[string]bool{}
 	var creates, deletes, replaces []editset.Edit
@@ -1089,14 +979,72 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 
 // ---- 引用重写（正则语义的扫描器实现） ----
 
-// rewriteMarkupReferences 复刻 rewrite_markup_references 的三段流水：
-// srcset → URI 属性 → CSS url()/@import。
+// rewriteMarkupReferences 复刻 rewrite_markup_references 的三段流水
+// （srcset → URI 属性 → CSS url()/@import），但只作用于真实标记区域
+// （见 xhtml.ScanRegions）：属性重写与内联 style 的 url() 只发生在
+// 标签内部，CSS 重写只发生在 <style> 元素内容，xml-stylesheet 处理指令
+// 只改写 href 伪属性。字符数据里被实体转义的 `&lt;img src="…"/&gt;` 之类
+// 正文、注释、CDATA、其它 PI 与 <script> 内容逐字节保留。Python 版对全文
+// 做正则替换会改写作者正文，是已修复的缺陷。
+//
+// 扫描器遇到无法闭合的结构时会放弃文档剩余部分，此处必须转成告警：否则
+// 改名后尾部引用会静默断链，而 anchors 红线只校验 id 存活、不校验 href
+// 可解析，没有任何下游能兜住。
 func rewriteMarkupReferences(text, oldDocument, newDocument string, rw *refRewriter) string {
-	text = rewriteSrcsetURLs(text, oldDocument, newDocument, rw)
-	text = subNameQuoteURI(text, uriAttrNames, func(prefix, quote, uri string) string {
+	regions, stop := xhtml.ScanRegions(text)
+	if stop != xhtml.ScanComplete {
+		rw.warn("%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); references after this offset left unchanged", oldDocument, stop)
+	}
+	if len(regions) == 0 {
+		return text
+	}
+	var out strings.Builder
+	out.Grow(len(text))
+	last := 0
+	for _, r := range regions {
+		out.WriteString(text[last:r.Start])
+		segment := text[r.Start:r.End]
+		switch r.Kind {
+		case xhtml.RegionTag:
+			segment = rewriteTagReferences(segment, oldDocument, newDocument, rw)
+		case xhtml.RegionStyle:
+			segment = rewriteCSSReferences(segment, oldDocument, newDocument, rw)
+		case xhtml.RegionStylesheetPI:
+			segment = rewriteStylesheetPIReference(segment, oldDocument, newDocument, rw)
+		}
+		out.WriteString(segment)
+		last = r.End
+	}
+	out.WriteString(text[last:])
+	return out.String()
+}
+
+// rewriteTagReferences 在单个标签的字节内重写 srcset、URI 属性与内联
+// style 属性里的 url()/@import。
+func rewriteTagReferences(tag, oldDocument, newDocument string, rw *refRewriter) string {
+	tag = rewriteSrcsetURLs(tag, oldDocument, newDocument, rw)
+	tag = subNameQuoteURI(tag, uriAttrNames, func(prefix, quote, uri string) string {
 		return prefix + quote + rw.rewriteURI(uri, oldDocument, newDocument) + quote
 	})
-	return rewriteCSSReferences(text, oldDocument, newDocument, rw)
+	return rewriteInlineStyleReferences(tag, oldDocument, newDocument, rw)
+}
+
+// rewriteInlineStyleReferences 只在 style="…" 属性值内部做 CSS url()/@import
+// 重写。整段标签跑 CSS 重写会连 title=""、alt="" 这类读者可见文本一起改
+// （`<div title="url(a.png)">`），那是正文损坏；而内联 style 的 url() 是真
+// 标记，资源搬家后必须跟着改，不能整体放弃。
+func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, rw *refRewriter) string {
+	return subNameQuoteURI(tag, []string{"style"}, func(prefix, quote, value string) string {
+		return prefix + quote + rewriteCSSReferences(value, oldDocument, newDocument, rw) + quote
+	})
+}
+
+// rewriteStylesheetPIReference 只重写 <?xml-stylesheet …?> 的 href 伪属性。
+// PI 不是标签：type/media/title 伪属性与 CSS url() 语法都不参与重写。
+func rewriteStylesheetPIReference(pi, oldDocument, newDocument string, rw *refRewriter) string {
+	return subNameQuoteURI(pi, []string{"href"}, func(prefix, quote, uri string) string {
+		return prefix + quote + rw.rewriteURI(uri, oldDocument, newDocument) + quote
+	})
 }
 
 // rewriteCSSReferences 复刻 rewrite_css_references。
@@ -1395,9 +1343,4 @@ func findImportMatch(text string, from int) (uriMatch, bool) {
 		}
 	}
 	return uriMatch{}, false
-}
-
-// bytesTrimNewline 去掉尾部单个换行（MarshalLegacy 为对齐 Python print 加的）。
-func bytesTrimNewline(b []byte) []byte {
-	return bytes.TrimSuffix(b, []byte("\n"))
 }

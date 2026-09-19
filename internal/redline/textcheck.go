@@ -76,6 +76,16 @@ type textFrame struct {
 // ExtractTextBlocks 复刻 extract_text_blocks：
 // 文档序产出最内层块级元素的归一化文本（rt/rp/script/style 与 noteref/backlink
 // 锚点内的文本被剔除，但其尾部文本保留）。
+//
+// 「块的文本」是该块**全部后代**的文本，对齐 oracle 的
+// element_text_without_ignored：它按 node.text → 递归子元素 → node.tail 的顺序
+// 收集，只在 IGNORED_TEXT_TAGS 与 note-control 锚点处剪枝（并保留其 tail）。
+// 因此 <p><em>整段</em></p>、<p>前<em>中</em>后</p>、<li><a>章名</a></li> 的文本
+// 都必须进块。流式实现里这一步就是**子帧闭合时把它的缓冲原样并回父帧**：
+// 少了这一步，任何被 <em>/<a>/<span> 这类行内元素包裹的正文都不进哈希，
+// 正文不变 gate 会对这些文字的改写与删除完全失明（整段被行内元素包裹时该段
+// 甚至不产出块，可以被整段删掉而红线无感）。并回时必须是**未归一化**的原始
+// 字节：normalizeText 只在块产出时对拼好的整串做一次，与 oracle 一致。
 func ExtractTextBlocks(content []byte, label string) ([]string, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
@@ -125,6 +135,13 @@ func ExtractTextBlocks(content []byte, label string) ([]string, error) {
 				if text := normalizeText(fr.buf.String()); text != "" {
 					blocks = append(blocks, text)
 				}
+			}
+			// 并回父帧：子元素内部的文本属于祖先块。被剪枝的帧
+			// （collecting=false，即 rt/rp/script/style 与 note-control 锚点）
+			// 缓冲本就是空的，并回是无操作；它们之后的 tail 文本由 CharData
+			// 直接落进父帧，与 oracle 的 node.tail 处理一致。
+			if len(stack) > 0 && fr.buf.Len() > 0 && stack[len(stack)-1].collecting {
+				stack[len(stack)-1].buf.WriteString(fr.buf.String())
 			}
 		}
 	}

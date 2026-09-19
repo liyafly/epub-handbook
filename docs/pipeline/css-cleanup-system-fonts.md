@@ -16,7 +16,7 @@
 epub run epub.css.layering.optimize \
   --input work/book-a/intermediate/step-1-epub3.epub \
   --output work/book-a/after/final.epub \
-  --json merge_scoped_local_css=true > work/book-a/reports/css-cleanup.json
+  --json > work/book-a/reports/css-cleanup.json
 ```
 
 该能力只做可复用且可验证的变换：
@@ -24,10 +24,9 @@ epub run epub.css.layering.optimize \
 - 合并完全重复 CSS；
 - 将结构相同、少量属性不同的样式拆成公共层和 override；
 - 将旧式宋体、黑体、楷体声明替换为四段以内的系统优先字体链；
-- 同步 XHTML `<link>` 和 OPF CSS manifest；
-- 可选把引用页面集合互不重叠的局部 CSS 改写为 `body.css-local-*` 作用域，并归并到一个 `clean-scoped-local.css`。
+- 同步 XHTML `<link>` 和 OPF CSS manifest。
 
-`merge_scoped_local_css=true` 只处理可证明互不交叠、且不是多数页面共用层的局部样式。两个样式只要被同一个 XHTML 同时引用，就跳过这组并在报告中记录 warning，避免改变原有级联顺序。
+作用域归并（把互不交叠的局部 CSS 改写为 `body.css-local-*` 并合并到一个 `clean-scoped-local.css`）在 Go 实现里出于 lossless 安全**已停用**：`merge_scoped_local_css=true` 不做任何归并，只在报告里追加一条说明该请求被拒绝的 warning，`scopedLocalStylesheetsMerged` 与 `scopeClassesAdded` 恒为 `0`。需要按层拆写时人工处理。
 
 ## 验证
 

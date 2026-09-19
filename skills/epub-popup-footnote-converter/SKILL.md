@@ -80,8 +80,6 @@ epub run epub.notes.popup.normalize --input <产物> --json
 epub redline --check all <before.epub> <after.epub>
 ```
 
-需要旧报告形状明细（逐文件 ERROR 行等）时给上述 run 命令加 `legacy_report=true`。
-
 ## 返回怎么读
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。

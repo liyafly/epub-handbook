@@ -6,33 +6,33 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
-// findingsByLevel 固定三键三序。
+// findingsByLevel 是 facts["findingsByLevel"] 的形状（固定三键三序）。
 type findingsByLevel struct {
 	Error int `json:"error"`
 	Warn  int `json:"warn"`
 	Info  int `json:"info"`
 }
 
-// detectorFinding 对齐 actionable_findings 元素的键序。
+// detectorFinding 是 facts["actionableFindings"] 的元素形状。
 type detectorFinding struct {
 	Kind        string         `json:"kind"`
 	File        string         `json:"file,omitempty"`
 	Locator     map[string]any `json:"locator"`
 	Params      map[string]any `json:"params"`
 	Lane        string         `json:"lane"`
-	AutoFixable bool           `json:"auto_fixable"`
+	AutoFixable bool           `json:"autoFixable"`
 	Confidence  string         `json:"confidence"`
 	Evidence    string         `json:"evidence"`
 }
 
-// legacyReport 是 preflight harness 的 JSON 形状（键序 = Python dict 插入序）。
-func (ins *inspector) legacyReport(status string) legacyPreflight {
-	findings := append([]legacyFinding(nil), ins.findings...)
+// countFindingsByLevel 统计信封 findings 的三级数量（固定三键）。
+func countFindingsByLevel(findings []report.Finding) findingsByLevel {
 	levels := findingsByLevel{}
-	for _, f := range ins.findings {
+	for _, f := range findings {
 		switch f.Level {
 		case "error":
 			levels.Error++
@@ -42,91 +42,18 @@ func (ins *inspector) legacyReport(status string) legacyPreflight {
 			levels.Info++
 		}
 	}
-	// spine 特判：spine_items == 0 时追加一条 JSON-only error（不进 Report/markdown）。
-	if ins.summary.SpineItems == 0 && !ins.layoutAudit {
-		findings = append(findings, legacyFinding{Level: "error", Message: "OPF spine is missing or empty"})
-		levels.Error++
-		if status == "pass" || status == "warn" {
-			status = "fail"
+	return levels
+}
+
+// toolAvailability 返回本机外部工具探测结果（无探测记录时为空对象）。
+func (ins *inspector) toolAvailability() map[string]bool {
+	out := map[string]bool{}
+	if ins.tools != nil {
+		for k, v := range ins.tools.Values {
+			out[k] = v
 		}
 	}
-	var tools map[string]bool
-	if len(ins.tools.Keys) > 0 {
-		tools = ins.tools.Values
-	}
-	return legacyPreflight{
-		Input:              ins.b.InputPath(),
-		Mode:               ins.mode,
-		InputKind:          "existing-epub",
-		Summary:            ins.legacySummary(),
-		Findings:           findings,
-		FindingsByLevel:    levels,
-		RecommendedSkills:  ins.orderedSkills(),
-		SuggestedCommands:  ins.commands,
-		ToolAvailability:   tools,
-		ActionableFindings: ins.detectActionable(),
-		Harness:            "epub_preflight_harness",
-		PreflightStatus:    status,
-		NextGate:           "Fix all error findings before EPUB3 migration, skill cleanup, or diff review.",
-	}
-}
-
-// legacyLayoutAudit 是 AI harness（epub.layout.audit）的 JSON 形状：
-// 10 基键，无 preflight 包装。
-func (ins *inspector) legacyLayoutAudit(status string) legacyLayoutAuditReport {
-	base := ins.legacyReport(status)
-	return legacyLayoutAuditReport{
-		Input:              base.Input,
-		Mode:               base.Mode,
-		InputKind:          base.InputKind,
-		Summary:            base.Summary,
-		Findings:           base.Findings,
-		FindingsByLevel:    base.FindingsByLevel,
-		RecommendedSkills:  base.RecommendedSkills,
-		SuggestedCommands:  base.SuggestedCommands,
-		ToolAvailability:   base.ToolAvailability,
-		ActionableFindings: base.ActionableFindings,
-	}
-}
-
-type legacyLayoutAuditReport struct {
-	Input              string            `json:"input"`
-	Mode               string            `json:"mode"`
-	InputKind          string            `json:"input_kind"`
-	Summary            legacySummary     `json:"summary"`
-	Findings           []legacyFinding   `json:"findings"`
-	FindingsByLevel    findingsByLevel   `json:"findings_by_level"`
-	RecommendedSkills  []string          `json:"recommended_skills"`
-	SuggestedCommands  []string          `json:"suggested_commands"`
-	ToolAvailability   map[string]bool   `json:"tool_availability"`
-	ActionableFindings []detectorFinding `json:"actionable_findings"`
-}
-
-// legacySummary 保持 Python summary dict 的插入键序。
-func (ins *inspector) legacySummary() legacySummary {
-	s := legacySummary{
-		ZipEntries:    ins.summary.ZipEntries,
-		MediaCounts:   ins.summary.MediaCounts,
-		ManifestItems: ins.summary.ManifestItems,
-		SpineItems:    ins.summary.SpineItems,
-	}
-	if ins.summary.HasOPF {
-		s.OPF = ins.summary.OPF
-		s.HasOPFPtr = true
-	}
-	if ins.summary.ObfuscatedFilenames > 0 {
-		s.ObfuscatedFilenames = ins.summary.ObfuscatedFilenames
-		s.HasObfuscated = true
-	}
-	if ins.summary.PackageVersion != "" {
-		s.PackageVersion = ins.summary.PackageVersion
-		s.HasVersion = true
-	}
-	if ins.summary.Language != "" {
-		s.Language = ins.summary.Language
-		s.HasLanguage = true
-	}
-	return s
+	return out
 }
 
 // orderedSkills 对齐 apply_workflow_mode：去掉 source-intake，
@@ -172,7 +99,8 @@ func (ins *inspector) orderedSkills() []string {
 // empty-paragraph → missing-manifest-properties；每个 detector 内按
 // manifest 序遍历文档。
 func (ins *inspector) detectActionable() []detectorFinding {
-	var out []detectorFinding
+	// 空列表必须序列化为 []（facts 的形状是数组，消费方会做 | length）。
+	out := []detectorFinding{}
 	language := ""
 	if ins.pkg != nil {
 		if langs := ins.pkg.Metadata["language"]; len(langs) > 0 {
@@ -384,37 +312,4 @@ func parseXHTMLLoose(data []byte) (*xhtmlDoc, error) {
 		}
 	}
 	return doc, nil
-}
-
-// ---- legacy JSON 顶层形状 ----
-
-type legacySummary struct {
-	ZipEntries          int            `json:"zip_entries"`
-	OPF                 string         `json:"opf,omitempty"`
-	ManifestItems       int            `json:"manifest_items"`
-	SpineItems          int            `json:"spine_items"`
-	MediaCounts         map[string]int `json:"media_counts"`
-	ObfuscatedFilenames int            `json:"obfuscated_filenames,omitempty"`
-	PackageVersion      string         `json:"package_version,omitempty"`
-	Language            string         `json:"language,omitempty"`
-	HasOPFPtr           bool           `json:"-"`
-	HasObfuscated       bool           `json:"-"`
-	HasVersion          bool           `json:"-"`
-	HasLanguage         bool           `json:"-"`
-}
-
-type legacyPreflight struct {
-	Input              string            `json:"input"`
-	Mode               string            `json:"mode"`
-	InputKind          string            `json:"input_kind"`
-	Summary            legacySummary     `json:"summary"`
-	Findings           []legacyFinding   `json:"findings"`
-	FindingsByLevel    findingsByLevel   `json:"findings_by_level"`
-	RecommendedSkills  []string          `json:"recommended_skills"`
-	SuggestedCommands  []string          `json:"suggested_commands"`
-	ToolAvailability   map[string]bool   `json:"tool_availability"`
-	ActionableFindings []detectorFinding `json:"actionable_findings"`
-	Harness            string            `json:"harness"`
-	PreflightStatus    string            `json:"preflight_status"`
-	NextGate           string            `json:"next_gate"`
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-// featuresLegacy 对齐 _features(text)。
+// textFeaturesOf 对齐 _features(text)。
 //
 // 已知近似（任务要求的注明差异）：
 //   - Python char.isdigit() 的非 Nd 数字用 pyIsDigit 覆盖（上标/下标、
@@ -21,7 +21,7 @@ import (
 //   - unicodedata.category(c) 以 P 开头 ↔ unicode.IsPunct（类别 P），两者一致，
 //     仅 Unicode 表版本可能有极小差异。
 //   - latin 判定 isascii() and isalpha() 与 Go 完全一致（A-Za-z）。
-func featuresLegacy(text string) legacyFeatures {
+func textFeaturesOf(text string) textFeatures {
 	var cjk, latin, digits, punctuation, quotes, visible int
 	for _, r := range text {
 		cp := uint32(r)
@@ -42,7 +42,7 @@ func featuresLegacy(text string) legacyFeatures {
 			visible++
 		}
 	}
-	return legacyFeatures{
+	return textFeatures{
 		VisibleChars:     visible,
 		CJKCount:         cjk,
 		LatinCount:       latin,
@@ -132,7 +132,7 @@ func classSet(values []string) map[string]bool {
 }
 
 // roleOf 对齐 _role 的级联规则（:353-411），顺序即语义。
-func roleOf(block textBlock, f legacyFeatures) roleResult {
+func roleOf(block textBlock, f textFeatures) roleResult {
 	tag := block.tag
 	text := pyTrimSpace(block.text)
 	tags := make(map[string]bool, len(block.ancestorTags))
@@ -233,11 +233,11 @@ func allShortLines(lines []string) bool {
 }
 
 // publicize 对齐 _public_block：文本块 → 报告块（含 SHA-256 与排版建议）。
-func publicize(block textBlock, includeSnippets bool) legacyBlock {
-	feats := featuresLegacy(block.text)
+func publicize(block textBlock, includeSnippets bool) analyzedBlock {
+	feats := textFeaturesOf(block.text)
 	role := roleOf(block, feats)
 	sum := sha256.Sum256([]byte(block.text))
-	lb := legacyBlock{
+	lb := analyzedBlock{
 		Source:         block.source,
 		Locator:        block.locator,
 		Tag:            block.tag,

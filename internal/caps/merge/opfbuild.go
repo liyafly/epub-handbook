@@ -10,6 +10,8 @@ package merge
 import (
 	"strings"
 	"time"
+
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 )
 
 // buildContainer 复刻 package_io.build_container 的确切输出。
@@ -106,7 +108,7 @@ func buildOPF(title string, meta *metaExtract, items []manifestTuple, spine []sp
 }
 
 func hasToken(value, token string) bool {
-	for _, p := range splitProps(value) {
+	for _, p := range pypath.SplitProps(value) {
 		if p == token {
 			return true
 		}

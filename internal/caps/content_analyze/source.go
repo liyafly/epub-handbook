@@ -8,7 +8,7 @@ import (
 )
 
 // AnalyzeSource 对齐 analyze_source：按文件名后缀分派。
-func AnalyzeSource(source, content string, includeSnippets bool) ([]legacyBlock, error) {
+func AnalyzeSource(source, content string, includeSnippets bool) ([]analyzedBlock, error) {
 	var blocks []textBlock
 	switch suffix := sourceSuffix(source); suffix {
 	case ".xhtml", ".xml":
@@ -28,7 +28,7 @@ func AnalyzeSource(source, content string, includeSnippets bool) ([]legacyBlock,
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", suffix)
 	}
-	out := make([]legacyBlock, 0, len(blocks))
+	out := make([]analyzedBlock, 0, len(blocks))
 	for _, b := range blocks {
 		out = append(out, publicize(b, includeSnippets))
 	}

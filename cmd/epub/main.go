@@ -5,16 +5,27 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/liyafly/epub-handbook/internal/pipeline"
 )
 
 func main() {
 	os.Exit(run(os.Args[1:]))
+}
+
+// runCtx 建一个会响应 SIGINT/SIGTERM（Ctrl-C、`kill`）的 ctx，贯穿到
+// pipeline.Run。这是取消链路唯一的入口：cmd 层只负责建 ctx 和把
+// ExitCode 传回去（§3：cmd 保持薄），取消与失败的区分、退出码语义都在
+// pipeline 内部完成（见 internal/pipeline/run.go 里 cancelled 相关注释）。
+func runCtx() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
 
 func run(argv []string) int {
@@ -44,10 +55,11 @@ func usage(w *os.File) {
 
 用法:
   epub run <capability-id> [--input PATH] [--output PATH] [--dry-run] [--json]
-            [--legacy-report] [KEY=VALUE...]
+            [KEY=VALUE...]
   epub capabilities [--json]          列出全部能力及其实现状态
-  epub redline BEFORE AFTER [--check TEXT,...|all] [--allow-list GLOB]...
-            [--path-map REPORT.JSON] [--allow-font-obfuscation] [--verbose]
+  epub redline [--check TEXT,...|all] [--allow-list GLOB]...
+            [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose]
+            BEFORE AFTER
                                       两文件红线比对（对齐 validate_text_invariance）
   epub help
 
@@ -57,9 +69,9 @@ func usage(w *os.File) {
 
 // runCapability 处理 `epub run <id>`。
 func runCapability(argv []string) int {
+	jsonRequested := wantsJSON(argv)
 	if len(argv) == 0 || strings.HasPrefix(argv[0], "-") {
-		fmt.Fprintln(os.Stderr, "epub run: 缺少 capability-id")
-		return 3
+		return runUsageError("", jsonRequested, errors.New("缺少 capability-id"))
 	}
 	id := argv[0]
 	fs := flag.NewFlagSet("epub run", flag.ContinueOnError)
@@ -68,34 +80,40 @@ func runCapability(argv []string) int {
 	output := fs.String("output", "", "输出 EPUB")
 	dryRun := fs.Bool("dry-run", false, "只扫描并报告，不写输出")
 	jsonOut := fs.Bool("json", false, "以统一信封 JSON 输出")
-	legacy := fs.Bool("legacy-report", false, "迁移期脚手架：按 Python oracle 形状输出报告")
 	if err := fs.Parse(argv[1:]); err != nil {
-		return 3
+		return runUsageError(id, jsonRequested, err)
 	}
 	args := pipeline.Args{}
 	for _, kv := range fs.Args() {
 		k, v, ok := strings.Cut(kv, "=")
 		if !ok {
-			fmt.Fprintf(os.Stderr, "epub run: 参数必须是 KEY=VALUE 形式: %q\n", kv)
-			return 3
+			return runUsageError(id, *jsonOut, fmt.Errorf("参数必须是 KEY=VALUE 形式: %q", kv))
 		}
 		args[k] = v
 	}
-	outcome, err := pipeline.Run(context.Background(), pipeline.Options{
+	ctx, stop := runCtx()
+	defer stop()
+	outcome, err := pipeline.Run(ctx, pipeline.Options{
 		CapabilityID: id,
 		InputPath:    *input,
 		OutputPath:   *output,
 		DryRun:       *dryRun,
-		LegacyReport: *legacy,
 		Args:         args,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "epub:", err)
+		// 用法错误也给信封（SPEC §8.2 单一形状）：--json 的调用方不必为
+		// 退出码 3 另写一条「stdout 不是 JSON」的分支。
+		if *jsonOut {
+			if data, mErr := marshalEnvelope(outcome.Envelope); mErr == nil {
+				os.Stdout.Write(data)
+			}
+		}
 		return outcome.ExitCode
 	}
 	env := outcome.Envelope
-	if *jsonOut || *legacy {
-		data, err := marshalEnvelope(env, *legacy)
+	if *jsonOut {
+		data, err := marshalEnvelope(env)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "epub:", err)
 			return 1
@@ -114,6 +132,34 @@ func runCapability(argv []string) int {
 		}
 	}
 	return outcome.ExitCode
+}
+
+// wantsJSON recognizes the boolean flag before flag.Parse runs, including
+// parse-error paths where FlagSet may stop before reaching --json.
+func wantsJSON(argv []string) bool {
+	want := false
+	for _, arg := range argv {
+		switch arg {
+		case "-json", "--json", "-json=true", "--json=true":
+			want = true
+		case "-json=false", "--json=false":
+			want = false
+		}
+	}
+	return want
+}
+
+func runUsageError(capabilityID string, jsonOut bool, err error) int {
+	fmt.Fprintln(os.Stderr, "epub run:", err)
+	if jsonOut {
+		outcome := pipeline.UsageOutcome(capabilityID, err)
+		if data, marshalErr := marshalEnvelope(outcome.Envelope); marshalErr == nil {
+			_, _ = os.Stdout.Write(data)
+		} else {
+			fmt.Fprintln(os.Stderr, "epub:", marshalErr)
+		}
+	}
+	return pipeline.ExitUsage
 }
 
 // runCapabilities 处理 `epub capabilities`。
@@ -183,7 +229,7 @@ func runRedline(argv []string) int {
 		return nil
 	})
 	var pathMapFiles []string
-	fs.Func("path-map", "structure normalize 报告 JSON（entry 改名映射）", func(v string) error {
+	fs.Func("path-map", "structure normalize 的 --json 信封（或含 mappings 的报告 JSON），提供 entry 改名映射", func(v string) error {
 		pathMapFiles = append(pathMapFiles, v)
 		return nil
 	})
@@ -201,7 +247,7 @@ func runRedline(argv []string) int {
 	return code
 }
 
-func marshalEnvelope(env any, _ bool) ([]byte, error) {
+func marshalEnvelope(env any) ([]byte, error) {
 	data, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return nil, err

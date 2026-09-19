@@ -21,7 +21,7 @@
 | --- | --- |
 | `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 |
 | `epub-content-analyzer` | 识别文本结构角色并建议字体角色和可重排排版 |
-| `epub-source-intake` | 从 txt/md/PDF/OCR 等源材料建立 EPUB source |
+| `epub-source-intake` | 盘点 txt/md/html/PDF/图片等源材料（角色、SHA-256、风险），再建立 EPUB source |
 | `epub-structure-normalizer` | 用纯 Python 标准库先格式化资源目录，再按 OPF manifest id 做文件名反混淆 |
 | `epub3-migrator` | 把 EPUB2/legacy EPUB 规划并迁移为 EPUB3 |
 | `epub-css-layering-optimizer` | CSS 分层与内联样式迁移 |

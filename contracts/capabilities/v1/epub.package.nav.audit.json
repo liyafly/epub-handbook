@@ -8,6 +8,6 @@
   "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
   "redLines": ["metadata", "spine", "cover", "drm"],
   "permissions": {"requiresWriteAccess": false, "network": "none"},
-  "requires": [],
-  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+  "execution": {"input": "epub", "output": "none"},
+  "requires": []
 }

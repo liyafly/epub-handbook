@@ -23,7 +23,7 @@ description: 审核 EPUB、XHTML、CSS、OPF、nav 和模板改动的排版质�
 epub run epub.layout.audit --input <书> --json
 ```
 
-无额外 KEY=VALUE 参数；需要旧报告形状（`recommended_skills`、`suggested_commands`、`actionable_findings`、`findings_by_level`）时加 `legacy_report=true`。涉及 demo fixture / reader-matrix 的验证由 `epub-style-demo-maintainer` 处理，不在本 skill 展开。
+无额外 KEY=VALUE 参数；分级计数、推荐 skill 与可自动修复项均在 `facts` 里（见下）。涉及 demo fixture / reader-matrix 的验证由 `epub-style-demo-maintainer` 处理，不在本 skill 展开。
 
 审稿结论落地为修复时，按第四段分派到最窄的专项 skill；每次写型改动后对产物跑：
 
@@ -35,9 +35,8 @@ epub redline --check all <before.epub> <after.epub>
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令（迁移期可能仍带旧执行面命令形态，仅供人参考）。
 - 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
-- facts 键前缀 `epub.layout.audit.`：`summary`（`zip_entries`、`manifest_items`、`spine_items`、`media_counts`、`opf`，存在时还有 `obfuscated_filenames`、`package_version`、`language`）、`input_kind`。
+- facts 键前缀 `epub.layout.audit.`：`summary`（`zip_entries`、`manifest_items`、`spine_items`、`media_counts`、`opf`，存在时还有 `obfuscated_filenames`、`package_version`、`language`）、`input_kind`、`auditStatus`（`pass | warn | fail`）、`findingsByLevel`（`{error, warn, info}`）、`recommendedSkills`（排序后的 `$<skill>` 列表）、`toolAvailability`（只探测 `epubcheck` 一项，形如 `{"epubcheck": false}`）、`actionableFindings`（`{kind, file, locator, params, lane, autoFixable, confidence, evidence}` 数组）。
 - findings：ID 形如 `audit.<序号>`，`title` 是检查结论，`location` 是相关资源。覆盖 manifest/spine/nav/NCX 完整性、封面声明、CSS 引用、MathML/SVG properties、文件名混淆、EPUB2 版本、noteref 无同文件 aside、疑似扫描书等结构信号。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（旧 AI 审稿报告 JSON：findings、findings_by_level、recommended_skills、suggested_commands、actionable_findings 等）。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
 
 ## 依据返回怎么判断

@@ -10,13 +10,10 @@ const coverageThreshold = 0.3
 // coverageWarningText 对齐 coverage_report 的中文 warning 文案。
 const coverageWarningText = "该书尚未迁入本仓 class 体系，请先走 cleanup pipeline（oneclick 会注入 typography palette）"
 
-// typoLinkRe 对齐 LINK_RE（re.I | re.M）：整行匹配 <link …>，供
-// stylesheet link 的整行删除。
-var typoLinkRe = regexp.MustCompile(`(?im)(^[ \t]*)<link\b([^>]*)/?>[ \t]*(?:\r?\n)?`)
-
-// typoHeadEndRe 对齐 HEAD_END_RE（re.I | re.M，带缩进组）：
-// rewrite_stylesheet_links 的 </head> 前插入点。
-var typoHeadEndRe = regexp.MustCompile(`(?im)(^[ \t]*)</head\s*>`)
+// 注：曾经住在这里的 typoLinkRe / typoHeadEndRe（对齐 Python LINK_RE /
+// HEAD_END_RE）已改为 xhtml.ScanRegions 驱动的区域化实现（见
+// typography.go 的 rewriteStylesheetLinks），不再需要整文本正则 —— 那两条
+// 正则在注释/CDATA/<script> 里同形文字上也会命中，是已修复的缺陷。
 
 // idSanitizeRe 对齐 epub_lib.unique_id 的 re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
 var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)

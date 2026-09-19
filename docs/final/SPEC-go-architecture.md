@@ -7,8 +7,11 @@
 > parity gate；棘轮（§2 INV-10）归零；`scripts/`、`adapters/`、`swift/`、`gui/`、
 > `tools/parity/` 的迁移脚手架与 Python 环境文件已按 §7.5 顺序删除；仅保留零条目的
 > `tools/parity/legacy-refs.txt`，使 INV-10 在终态继续扫描而不是 bootstrap-skip。§5.2 的 `--legacy-report`
-> 与 §7 的迁移映射保留为历史依据；`epub_lint.py` 无对应契约，其职责由
+> 脚手架已于 2026-09-04 拆除（CLI flag、`legacy_report` 参数与 `facts.legacyReport` 均不再存在，
+> 其曾独占的数据已提升为正式 `facts` 键）；§5.2 与 §7 的迁移映射保留为历史依据；`epub_lint.py` 无对应契约，其职责由
 > `epub.package.nav.audit` + `epub redline` + CI EPUBCheck 承担（裁决见交接文档）。
+> **状态补注（2026-09-07）**：§7.1 C 类中的 `epub.source.intake` 已按仓库所有者决策以最小只读盘点
+> planner 落地 Go 实现（`internal/caps/sourceintake/`，不含 PDF 解析 / OCR / 图片转码）；CLI ready 17 / 22。
 
 ---
 
@@ -48,7 +51,7 @@ Go 代码的版本化风格与 API 选择另见 [`SPEC-go-modern-guidelines.md`]
 | 2 | `internal/caps/*` | 一个 capability 一个包。**彼此禁止 import** |
 | 3 | `internal/redline`、`internal/report`、`internal/extern` | 红线校验 / 报告构造 / 外部进程边界 |
 | 4 | `internal/scan/*` | xhtml / css / opf 扫描器，只产出 `[]Edit` |
-| 5 | `internal/book` | 内存中的 EPUB 模型 |
+| 5 | `internal/book` | 内存中的 EPUB 模型（**含子包**：`internal/book/*` 按前缀同属层 5） |
 | 6 | `internal/zipfs`、`internal/editset` | 容器读写（唯一磁盘边界） / 纯字节区间编辑 |
 
 ```
@@ -57,6 +60,14 @@ cmd/epub → pipeline → caps/* → {redline, report, extern} → scan/* → bo
 
 这张表是 `internal/archguard/deps_test.go` 里 `layer` 映射的**同一份事实**。
 两者必须逐字一致；改一处必须同步改另一处，且改动需要人类审阅（见 §5.1.1）。
+
+`layerOf` 用**最长前缀匹配**定层，因此新增子包（`internal/scan/<x>`、`internal/book/<x>`）
+自动落在父前缀那一层，**不需要也不应该**往上面这张表里加行 —— 加了就与 `layer`
+映射的键不再逐字一致。子包的职责登记在 §3 那张表里。
+
+**由此而来的陷阱**：子包与父包同层，而同层互相 import 一律禁止。
+`internal/book` 因此**不能** import `internal/book/pypath`（反之亦然）；
+需要共用时把它下沉到更大的层号，或由上层调用方传入。
 
 **新增包的流程**：先在本表定义它的层级 → 在 §3 定义它的职责边界 → 才允许写代码。
 顺序反了，`TestLayerDirection` 会以"未登记的包"失败。
@@ -174,7 +185,8 @@ AI 照着跑就炸，而且**失败得很晚、很难归因**。
 **为什么**：迁移期会很长，中途一定有人（包括 AI）图省事往文档里
 再写一条 `python3 scripts/...`。棘轮保证迁移单调收敛。
 
-当前基线：**124 处引用，分布在 41 个 markdown 文件**。
+当前基线：**零条目**（2026-08-29 归零）。`tools/parity/legacy-refs.txt` 保留为空基线文件，
+使守卫在终态继续以零容忍扫描，而不是因文件缺失而 bootstrap-skip。
 
 **守卫**：`archguard.TestNoLegacyExecutionSurface`
 
@@ -189,12 +201,13 @@ AI 照着跑就炸，而且**失败得很晚、很难归因**。
 | `internal/caps/<name>` | 单个 capability 的业务逻辑 | import 同层其它 `caps`、import `os/exec` | `pipeline` |
 | `internal/scan/xhtml` | 扫描 XHTML，产出 `[]Edit` | 构造 DOM 树、整文档序列化 | `caps` |
 | `internal/scan/css` | 扫描 CSS，产出 `[]Edit` | 同上 | `caps` |
-| `internal/scan/opf` | 解析 OPF / container / nav（**只读**结构信息） | 写回 OPF（改 OPF 也走 Edit） | `caps`, `redline` |
+| `internal/scan/opf` | 解析 OPF / container / nav（**只读**结构信息）；从 `[]TocEntry` **生成**新的 nav / NCX 文档文本（`BuildNav`/`BuildNCX`） | 写回 OPF（改 OPF 也走 Edit）；把**解析得来**的文档重序列化 | `caps`, `redline` |
 | `internal/editset` | 收集、排序、冲突检测、应用字节区间编辑 | 理解 XML/CSS 语义 | `caps`, `scan` |
 | `internal/redline` | 6 条红线校验器 + 注册表 | 修改 book | `pipeline`, `caps` |
 | `internal/report` | 构造并序列化 run-report | 业务判断 | 全部上层 |
 | `internal/extern` | 起 `magick`/`oxipng`/`java`/`pyftsubset`；工具缺失时降级 | 业务判断 | `caps` |
 | `internal/book` | 内存 EPUB 模型：entry 表 + 惰性内容 + 脏标记 | 碰磁盘 | 全部上层 |
+| `internal/book/pypath` | Python 侧 `urllib.parse` / `posixpath` / `xml.sax.saxutils` 的路径、URL、转义语义（纯函数，只依赖标准库） | 任何 EPUB 语义判断、任何 I/O | 全部上层（**不含** `internal/book` 自己：同层） |
 | `internal/zipfs` | `OpenRaw`/`Copy`/`CreateRaw`；唯一磁盘边界 | 理解 EPUB 语义 | `book` |
 | `internal/archguard` | 架构守卫测试 | **任何人不得修改**（见规则 0） | — |
 
@@ -237,6 +250,27 @@ internal/archguard/
   state_test.go        INV-7 无包级可变状态
   skill_test.go        INV-8 / INV-9 / INV-10（skill 层与迁移棘轮）
 ```
+
+**伴随守卫包 `internal/legacy_surface`**：仅含 `legacy_surface_test.go`
+（`TestProductionGoHasNoLegacyExecutionSurface`），用 `go/ast` 扫描生产 `.go` 文件的字符串字面量，
+禁止出现 `python3 scripts/*.py` / `scripts/*.sh` 等旧执行面。它是 INV-10 在 Go 代码侧的补充，
+位于 §1 层级图之外：纯测试包、没有生产 import，因此不出现在 `deps_test.go` 的 `layer` 映射中。
+改动它与改动 `internal/archguard/` 一样，只能在人类审阅下进行。
+
+**伴随守卫包 `internal/docguard`**：同为纯测试包、位于 §1 层级图之外，接替已删除的 Python
+meta-validator（`validate_skills_basic.py` / `validate_contracts.py` / `validate_ai_entrypoints.py`），
+守卫文档与契约层的机械规则：
+
+- `TestSkillFrontmatter` / `TestOpenAIYAMLShape` / `TestSkillIndexTables`：SKILL.md frontmatter 只含 `name`、`description`
+  且与目录名一致，正文恰为 §8.4 四段且顺序固定；`agents/openai.yaml` 是扁平字符串 `interface:` map 且
+  `default_prompt` 提及 `$<skill>`；`skills/README.md` 与 `docs/learn/04-skills.md` 的技能表与目录一一对应。
+- `TestFootnoteClassVocabulary`：`skills/*/SKILL.md` 与 `docs/how-to/*.md` 只使用 `SPEC-实现约束.md` §1 声明的弹注 class 词汇。
+- `TestContractsValid`：`contracts/capabilities/v1/*.json` 合 `capability-manifest.schema.json`（最小子集校验器），
+  文件名 = id、schema 引用存在、`requires` 指向真实 capability、`legacySkillSlugs` 指向真实 skill 目录。
+- `TestAIEntrypointsCanonical`：`AGENTS.md` 是唯一维护源，其余入口文档只跳转不复制规则。
+
+守卫红了应修文档或契约；改动 `internal/docguard/` 本身同样需要人类审阅。CI 在 archguard 之后以独立步骤运行
+`go test ./internal/legacy_surface/ ./internal/docguard/`。
 
 ### 5.1.1 守卫的真正牙齿
 
@@ -282,6 +316,9 @@ P2 有个绕不开的矛盾：Go 版**故意**换了输出信封（§7.3），�
 - 好处：P2 保持**逐字节**强度，不降级成"语义等价"这种模糊判据
 - 移除触发条件：对应 Python 脚本删除时，同步删掉该 capability 的 `--legacy-report`
 - 这是**唯一被批准的临时脚手架**。不要用同样理由再引入第二个
+- **状态（2026-09-04）：已拆除。** Python 脚本删除后，`--legacy-report` / `legacy_report=true` /
+  `facts.legacyReport` 全部移除；`epub redline --path-map` 直接读取 `--json` 信封中的
+  `*.mappings` facts，不再依赖 legacy 报告形状。
 | P3 | 输出 EPUB 逐 entry 的 `CRC32` | 允许差异，但每处差异必须在 `tools/parity/allow.md` 里有书面理由 |
 
 P3 允许差异是因为 Go 版会**更少**改动字节（透传），这是预期的改进而非回归。
@@ -360,28 +397,27 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 ### 7.1 迁移单元总览
 
-`contracts/capabilities/v1/` 共 **22 个** capability，按有无 Python 实现分三类：
+`contracts/capabilities/v1/` 共 **22 个** capability。迁移完成后的当前执行状态如下；
+旧 adapter catalog 覆盖的 3 条只是历史上 16 个迁移能力的子集，不再作为与 A/B
+并列、可相加的第三类：
 
 | 类别 | 数量 | 处理方式 |
 |---|---|---|
-| A. 有 Python 实现，需迁 Go | 16 | 逐个走 §6.1 模板 + §5.2 parity gate |
-| B. 纯 AI skill，无专属实现 | 6 | 不建 `caps/` 包，但**依赖的两个通用校验器必须变成 CLI 子命令** |
-| C. 能走统一 adapter 路由的 | 3 | 见下方警告 |
+| A. 已迁移并 ready 的 Go 能力 | 16 | 已完成 §6.1 模板与 §5.2 parity gate |
+| B. 新增的最小 source intake planner | 1 | `epub.source.intake`，只读盘点，不含 PDF/OCR/转码 |
+| C. 纯 AI / 人工 skill，无专属实现 | 5 | 不建 `caps/` 包；由 ready 的通用校验能力提供机械检查 |
 
-B 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.literary.structure.format`、
+C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.literary.structure.format`、
 `epub.notes.legacy-fallback`、`epub.typography.english.optimize`、
-`epub.vertical.ruby.optimize`、`epub.style.demo.maintain`。
+`epub.vertical.ruby.optimize`。
 
-> 这 6 个没有专属脚本，但**不等于没有执行需求**：它们依赖
-> `scripts/validate-epub-style-demo.sh`（被 12 处引用）和
-> `scripts/validate-popup-notes.sh`（9 处）。
-> 这两个 shell 校验器是全仓引用最密集的入口，**必须优先变成 Go 子命令**。
+> 这 5 个没有专属实现，但**不等于没有执行需求**：所需的通用机械校验已经由
+> `epub.style.demo.maintain` 与 `epub.notes.popup.normalize` 两个 ready Go 能力承接；
+> 具体判断仍按对应 SKILL.md 的人工/AI 流程执行。
 
-> ⚠️ **`adapters/python/provider-catalog.v1.json` 只登记了 3 条**，而
-> `public-entrypoints.v1.json` 覆盖 16 个 capability。也就是说现状里**只有 3 个 capability
-> 能真正通过统一 envelope 路径跑起来**，其余靠直接调脚本 CLI。
-> Go 版的 `pipeline` 必须让 **全部 16 个** 走同一条路由 —— 这是重写要修掉的现存缺陷，
-> 不要照搬这个分裂。
+> 历史背景：旧 `adapters/python/provider-catalog.v1.json` 只登记过 3 条，而
+> `public-entrypoints.v1.json` 覆盖 16 条；这是 Go 重写必须消除的路由分裂。
+> 当前 17 个 ready 能力已经统一走 Go pipeline 与 v2 envelope，旧 adapters 执行面已删除。
 
 ### 7.2 Python 模块 → Go 包映射
 
@@ -451,7 +487,7 @@ B 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 
 **代价与对策**：这样一来 parity gate 的 P2 就没法再逐字节比对了。
 对策见 §5.2 —— 迁移期加一个 `--legacy-report` 临时脚手架，让 P2 保持满强度，
-迁移结束时随 `scripts/` 一起删掉。
+迁移结束时随 `scripts/` 一起删掉。（状态：2026-09-04 已删除。）
 
 **仍然不许动的**：退出码语义。`epub_text_gate.py` 之外还有 pre-commit hook
 依赖退出码，信封换了但 0/非 0 的含义必须一致（细则见 §9.5）。
@@ -569,7 +605,8 @@ Go 重写完成后，仓库只剩**文档层 + Go 实现 + 明确不迁的 Pytho
   CLI 主动告诉 agent 下一步该跑什么，而不是让 agent 猜。
 
 信封的 JSON Schema 落在 `contracts/schemas/v2/envelope.schema.json`，
-由 INV-6 守卫。**v1 schema 保留不动**，供迁移期的 `--legacy-report` 使用。
+由 INV-6 守卫。**v1 schema 保留不动**（历史契约；`--legacy-report` 已于 2026-09-04 拆除，
+v1 不再有运行时消费者）。
 
 ### 8.3 命令面
 
@@ -652,6 +689,12 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 - `github.com/tdewolff/parse/v2` v2.8.16 — CSS Syntax Level 3 lexer/parser
   仅用于 CSS 语法诊断与 token/span adapter 的保守扫描；不用其序列化样式表。
   上游项目采用 MIT 许可。
+- `golang.org/x/sys` v0.36.0 — 仅 `internal/zipfs/rename_noreplace_{darwin,linux,windows}.go`
+  使用，在唯一磁盘写边界做原子"不覆盖"重命名：darwin 走 `unix.RenameatxNp` +
+  `RENAME_EXCL`，linux 走 `unix.Renameat2` + `RENAME_NOREPLACE`，windows 走
+  `windows.MoveFileEx`（不带 `MOVEFILE_REPLACE_EXISTING`）；三者均不回退到 `os.Rename`。
+  其他包不得 import。2026-09-01 登记。上游项目采用 BSD-3-Clause 许可
+  （已核对 `go.sum` 与模块 `LICENSE`）。
 - JSON Schema 校验库 — 仅 `archguard` 和 `report` 测试用，不进主二进制
 
 **注意**：Go 的 `regexp` 是 RE2，不支持 lookahead / lookbehind / 反向引用。

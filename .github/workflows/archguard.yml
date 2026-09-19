@@ -17,6 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 下面那步要 `git diff <base> HEAD`。默认的浅克隆里 base commit
+          # 根本不存在，diff 直接失败、grep 拿到空输入，于是"触碰守卫"的
+          # 警告永远不会触发 —— SPEC §5.1.1 的三件牙齿之一形同虚设。
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -29,9 +34,15 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           base="${{ github.event.pull_request.base.sha }}"
-          if git diff --name-only "$base" HEAD | grep -q '^internal/archguard/'; then
-            echo "::warning title=archguard 被改动::本 PR 触碰了 internal/archguard/。" \
-                 "守卫红了应该改代码，不是改守卫。请在 PR 描述里说明理由。"
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "::error title=无法比对 base::base commit $base 不在克隆里，守卫改动检测未执行。"
+            exit 1
+          fi
+          touched=$(git diff --name-only "$base" HEAD \
+            | grep -E '^internal/(archguard|legacy_surface|docguard)/' || true)
+          if [ -n "$touched" ]; then
+            echo "::warning title=守卫被改动::本 PR 触碰了守卫包（规则 0 / SPEC §5.1）：" \
+                 "$touched 守卫红了应该改代码，不是改守卫。请在 PR 描述里说明理由。"
           fi
 
       - name: go vet
@@ -39,3 +50,7 @@ jobs:
 
       - name: 架构守卫
         run: go test ./internal/archguard/ -v
+
+      - name: 伴随守卫（旧执行面 / 文档与契约层）
+        # SPEC §5.1：test-only companion guards outside the §1 layer graph.
+        run: go test ./internal/legacy_surface/ ./internal/docguard/ -v

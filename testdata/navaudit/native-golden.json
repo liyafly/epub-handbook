@@ -1,71 +1,94 @@
 {
   "status": "complete",
+  "auditStatus": "warn",
   "summary": {
-    "zip_entries": 10,
-    "opf": "OEBPS/content.opf",
+    "language": "zh-CN",
     "manifest_items": 7,
-    "spine_items": 1,
     "media_counts": {
-      "xhtml": 2,
       "css": 1,
-      "images": 2,
       "fonts": 1,
-      "other": 1
+      "images": 2,
+      "other": 1,
+      "xhtml": 2
     },
     "obfuscated_filenames": 1,
+    "opf": "OEBPS/content.opf",
     "package_version": "2.0",
-    "language": "zh-CN"
+    "spine_items": 1,
+    "zip_entries": 10
   },
   "findings": [
     {
-      "level": "warn",
+      "detail": "filename-obfuscation",
       "id": "audit.0",
-      "title": "Manifest filenames contain decoded special characters; run structure normalization before richer cleanup",
-      "detail": "filename-obfuscation"
+      "level": "warn",
+      "title": "Manifest filenames contain decoded special characters; run structure normalization before richer cleanup"
     },
     {
-      "level": "warn",
+      "detail": "epub3-migration",
       "id": "audit.1",
-      "title": "EPUB 2 package should be migrated to EPUB 3 before richer cleanup/features",
-      "detail": "epub3-migration"
+      "level": "warn",
+      "title": "EPUB 2 package should be migrated to EPUB 3 before richer cleanup/features"
     },
     {
-      "level": "warn",
-      "id": "audit.2",
-      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/main.css -\u003e ../Fonts/Missing.ttf"
+      "id": "audit.2",
+      "level": "warn",
+      "location": "Styles/main.css -> ../Fonts/Missing.ttf",
+      "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually"
     },
     {
-      "level": "warn",
       "id": "audit.3",
-      "title": "Convert this image to JPEG/PNG for EPUB delivery",
-      "location": "Images/legacy.gif"
+      "level": "warn",
+      "location": "Images/legacy.gif",
+      "title": "Convert this image to JPEG/PNG for EPUB delivery"
+    }
+  ],
+  "findingsByLevel": {
+    "error": 0,
+    "info": 0,
+    "warn": 4
+  },
+  "recommendedSkills": [
+    "$epub-layout-auditor",
+    "$epub-structure-normalizer",
+    "$epub3-migrator",
+    "$epub-package-nav-auditor",
+    "$epub-css-layering-optimizer",
+    "$epub-typography-optimizer",
+    "$epub-image-layout-optimizer",
+    "$epub-content-analyzer",
+    "$epub-font-coverage-analyzer"
+  ],
+  "toolAvailability": {
+    "epubcheck": false
+  },
+  "actionableFindings": [
+    {
+      "autoFixable": true,
+      "confidence": "high",
+      "evidence": "<html> root element missing lang/xml:lang",
+      "file": "OEBPS/nav.xhtml",
+      "kind": "missing-html-lang",
+      "lane": "tag",
+      "locator": {
+        "selector": "html"
+      },
+      "params": {
+        "value": "zh-CN"
+      }
     }
   ],
   "nextCommands": [
-    "epub run epub.package.nav.audit --input \u003cfixture.epub\u003e --json",
-    "epub run epub.layout.audit --input \u003cfixture.epub\u003e --json",
-    "epub run epub.notes.popup.normalize --input \u003cfixture.epub\u003e --dry-run --json",
-    "epub redline --check all \u003cbefore.epub\u003e \u003cafter.epub\u003e",
-    "epub run epub.structure.normalize --input \u003cfixture.epub\u003e --output work/after/step-0-normalized.epub --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input \u003cfixture.epub\u003e --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input \u003cfixture.epub\u003e --output work/after/step-1-epub3.epub --json",
-    "epub run epub.text.content.analyze --input \u003cfixture.epub\u003e --json",
-    "epub run epub.font.coverage.analyze --input \u003cfixture.epub\u003e --json",
-    "epub capabilities --json",
-    "# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."
-  ],
-  "suggestedCommands": [
-    "epub run epub.package.nav.audit --input \u003cfixture.epub\u003e --json",
-    "epub run epub.layout.audit --input \u003cfixture.epub\u003e --json",
-    "epub run epub.notes.popup.normalize --input \u003cfixture.epub\u003e --dry-run --json",
-    "epub redline --check all \u003cbefore.epub\u003e \u003cafter.epub\u003e",
-    "epub run epub.structure.normalize --input \u003cfixture.epub\u003e --output work/after/step-0-normalized.epub --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input \u003cfixture.epub\u003e --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input \u003cfixture.epub\u003e --output work/after/step-1-epub3.epub --json",
-    "epub run epub.text.content.analyze --input \u003cfixture.epub\u003e --json",
-    "epub run epub.font.coverage.analyze --input \u003cfixture.epub\u003e --json",
+    "epub run epub.package.nav.audit --input <fixture.epub> --json",
+    "epub run epub.layout.audit --input <fixture.epub> --json",
+    "epub run epub.notes.popup.normalize --input <fixture.epub> --dry-run --json",
+    "epub redline --check all <before.epub> <after.epub>",
+    "epub run epub.structure.normalize --input <fixture.epub> --output work/after/step-0-normalized.epub --dry-run --json",
+    "epub run epub.package.migrate.epub3 --input <fixture.epub> --dry-run --json",
+    "epub run epub.package.migrate.epub3 --input <fixture.epub> --output work/after/step-1-epub3.epub --json",
+    "epub run epub.text.content.analyze --input <fixture.epub> --json",
+    "epub run epub.font.coverage.analyze --input <fixture.epub> --json",
     "epub capabilities --json",
     "# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."
   ]

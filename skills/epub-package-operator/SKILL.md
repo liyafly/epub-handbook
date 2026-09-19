@@ -33,7 +33,7 @@ epub run epub.package.nav.audit --input <书> --json
 epub run epub.package.merge --input <第一本> --output <merged.epub> --json extra_inputs=<第二本>[,<第三本>...] [title=<新标题>]
 
 # 拆分（split_points 为 TOC 目标下标；output_dir 必须为空目录）
-epub run epub.package.split --input <书> --output <占位新书> --json output_dir=<空目录> split_points=0,8
+epub run epub.package.split --input <书> --json output_dir=<空目录> split_points=0,8
 
 # 修改元数据（metadata_json 为内联 JSON 文本）
 epub run epub.metadata.edit --input <书> --output <新书> --json metadata_json='{"title":"新书名"}'
@@ -42,7 +42,7 @@ epub run epub.metadata.edit --input <书> --output <新书> --json metadata_json
 epub run epub.cover.replace --input <书> --output <新书> --json cover=<cover.png>
 ```
 
-拆分的 `--output` 是 CLI 用法检查要求，实际段产物由 `output_dir` 承载。需要旧报告形状明细（OperationReport：inputs/outputs/segments_created/renamed_resources 等）时给 run 命令加 `legacy_report=true`。需要 DRM 或字体混淆口径的两文件比对时：
+拆分的 `--output` 是 CLI 用法检查要求，实际段产物由 `output_dir` 承载。操作明细（`operation`、`inputs`/`outputs`、`segmentsCreated`、`renamedResources` 等）直接在 `--json` 信封的 `facts` 里，见下文。需要 DRM 或字体混淆口径的两文件比对时：
 
 ```sh
 epub redline --check all <before.epub> <after.epub>
@@ -52,21 +52,20 @@ epub redline --check all <before.epub> <after.epub>
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。
 - 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required（dry-run review）；3 用法错误（缺 `--output`、输出与输入相同、KEY=VALUE 非法等）。
-- facts 键前缀为各能力 id（`epub.package.merge.` / `epub.package.split.` / `epub.metadata.edit.` / `epub.cover.replace.`）：
-  - merge：`inputs`（全部输入）、`output`、`opf`、`mergedItems`、`renamedResources`、`warnings`。
-  - split：`outputDir`、`outputs`（逐段产物路径）、`segmentsCreated`、`opf`。
+- facts 键前缀为各能力 id（`epub.package.merge.` / `epub.package.split.` / `epub.metadata.edit.` / `epub.cover.replace.`），每个能力都带 `operation`（`merge` / `split` / `metadata-write` / `replace-cover`）：
+  - merge：`inputs`（全部输入）、`output`、`opf`、`mergedItems`、`renamedResources`、`warnings`；资源改名映射在 `facts` 的 `epub.package.merge.mappings`（`{from,to}` 数组，未改名时是空数组），可直接作为 `epub redline --path-map` 的输入。
+  - split：`outputDir`、`outputs`（逐段产物路径）、`plannedOutputs`、`segmentsCreated`、`plannedSegments`、`segmentPlans`、`opf`、`dryRun`。
   - metadata：`output`、`opf`、`fieldsUpdated`。
-  - cover：`output`、`opf`、`coverPath`（包内新封面路径）。
+  - cover：`output`、`opf`、`coverPath`（包内新封面路径）；旧封面改名映射在 `facts` 的 `epub.cover.replace.mappings`（`{from,to}` 数组，未改名时是空数组），可直接作为 `epub redline --path-map` 的输入。
 - findings：
   - `error package.refused`：操作被拒绝（合并输入不足、split point 越界、输出目录非空、封面文件缺失、加密资源等），`title` 是原因，输出不落盘。
   - `warn merge.warning`：合并时的资源改名、metadata 冲突等提示。
   - run 内置红线失败时出现 `error redline.<check>`（text/metadata/spine/anchors/cover/drm）。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（旧 OperationReport 形状）。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
 
 ## 依据返回怎么判断
 
-- `status == complete` 且无 `error` → 核对 facts 与预期一致：merge 看 `inputs` 数量与 `renamedResources` 是否可接受；split 看 `segmentsCreated`、`outputs` 与段边界；metadata 看 `fieldsUpdated`；cover 看 `coverPath` 与尺寸。
+- `status == complete` 且无 `error` → 核对 facts 与预期一致：merge 看 `inputs` 数量与 `renamedResources` 是否可接受；split 看 `segmentsCreated`、`outputs` 与段边界；metadata 看 `fieldsUpdated`；cover 看 `coverPath`（封面尺寸不在 facts 里，只出现在 `events[]` 的 `replace-cover` 消息中）。
 - 合并或拆分改变了 package/spine → 人工确认报告中的输入、输出、段数和重命名资源，再用 Calibre Editor 或 VS Code 抽查 OPF/nav/NCX；需要时对产物重跑 `epub.package.nav.audit`。
 - `error package.refused` → 按 `title` 修正前提（补输入、换空输出目录、修正 split_points、确认封面文件存在），不删除或绕过保护；提示加密时停止。
 - `findings` 出现 `error redline.*` → 停止：输出保留供人工 diff review，先修源再重跑；不允许用宽泛 allow-list 掩盖。

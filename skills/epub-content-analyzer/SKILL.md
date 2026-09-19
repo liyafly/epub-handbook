@@ -33,7 +33,7 @@ epub run epub.text.content.analyze --input <书> --json
 - `include_snippets=true`：报告附正文片段（仅本地人工核对用）。
 - `source_name=<文件名>` + `source_content=<文本>`：分析非 EPUB 的裸片段；`--input` 仍需指向一个有效 EPUB 作为输入锚点。
 
-只读能力，不需要 `--output`。需要旧报告形状明细（逐块 `blocks` 数组：`evidence`、`confidence`、`candidate_roles`、`typography` 等）时加 `legacy_report=true`。
+只读能力，不需要 `--output`。逐块明细（`evidence`、`confidence`、`candidate_roles`、`typography` 等）默认就在 `facts.blockList` 里，无需额外参数。
 
 ## 返回怎么读
 
@@ -46,7 +46,8 @@ epub run epub.text.content.analyze --input <书> --json
   - `error content.analysis-failed`：输入没有可分析内容（无 spine 正文等），`detail` 汇总原因。
   - `warn content.source-error`：个别源文档解析失败，`location` 指明文件。
   - `warn content.review-required`：有块结构模糊，需要人工复核。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`：逐块 `primary_role`、`candidate_roles`、`confidence`、`review_required`、`evidence`、`typography`（含 `font_role` 建议）、可选 `snippet`。
+- `facts.blockList`：逐块明细数组，每项含 `source`、`locator`、`tag`、`primary_role`、`candidate_roles`、`confidence`、`review_required`、`evidence`、`typography`（含 `font_role` 建议）、可选 `snippet`（仅 `include_snippets=true`）。
+- `facts.sourceErrors`：逐文件解析错误（`source`、`message`）；`facts.fileErrors` 是其计数；`facts.analysisStatus` 是分析器口径（`pass` / `warn` / `fail`）。
 
 ## 依据返回怎么判断
 

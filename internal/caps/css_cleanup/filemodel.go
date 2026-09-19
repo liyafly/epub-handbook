@@ -4,8 +4,6 @@
 package csscleanup
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -229,9 +227,6 @@ func (m *fileModel) drop(name string) {
 	delete(m.whole, name)
 }
 
-// unionHas 复刻 unique_zip_path 的 `{**files, **generated}` 成员判断。
-func (m *fileModel) unionHas(name string) bool { return m.exists[name] }
-
 // edits 把内存模型折叠为 editset：删除型（entry 级）、替换型与
 // 新建型（Offset=0/Length=0）。OPF 的字节区间编辑由调用方追加。
 func (m *fileModel) edits(opfPath string, opfEdits []editset.Edit) ([]editset.Edit, error) {
@@ -309,10 +304,4 @@ func mapCurrentBoundary(pos int64, old []editset.Edit, currentLen int) (int64, b
 		return origPos + (pos - currentPos), true
 	}
 	return 0, false
-}
-
-// jsonRawMessage 把 MarshalLegacy 的输出作为 RawMessage 存入 Facts，
-// 避免 []byte 被信封编码成 base64。
-func jsonRawMessage(raw []byte) json.RawMessage {
-	return json.RawMessage(bytes.TrimSuffix(raw, []byte("\n")))
 }

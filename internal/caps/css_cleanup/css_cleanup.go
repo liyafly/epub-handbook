@@ -16,7 +16,6 @@
 package csscleanup
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -48,38 +47,31 @@ func cleanupErrf(format string, a ...any) error {
 
 // Params 是 capability 参数。
 type Params struct {
-	// Output 是输出路径（仅写入 legacy 报告字段；本包不落盘，INV-3）。
+	// Output 是 pipeline 注入的输出路径；本包不落盘（INV-3），输出信息由
+	// 信封的 output 段承载，此字段仅保留 CLI 兼容。
 	Output string
 	// MergeScopedLocalCSS 保留 CLI 兼容；当前因 lossless 约束安全禁用。
 	MergeScopedLocalCSS bool
-	// LegacyReport 为 true 时把 Python 形状的 JSON 报告放进
-	// Result.Facts["legacyReport"]（json.RawMessage），供 parity gate P2。
-	LegacyReport bool
 }
 
-// legacyCleanupReport 对齐 CleanupReport.as_dict（dataclass 字段序即 JSON 键序）。
-type legacyCleanupReport struct {
-	Harness                      string `json:"harness"`
-	Input                        string `json:"input"`
-	Output                       string `json:"output"`
-	OPF                          string `json:"opf"`
-	CSSFilesBefore               int    `json:"css_files_before"`
-	CSSFilesAfter                int    `json:"css_files_after"`
-	FactoredStylesheets          int    `json:"factored_stylesheets"`
-	DuplicateStylesheetsRemoved  int    `json:"duplicate_stylesheets_removed"`
-	OverridesCreated             int    `json:"overrides_created"`
-	FontDeclarationsRewritten    int    `json:"font_declarations_rewritten"`
-	XHTMLFilesUpdated            int    `json:"xhtml_files_updated"`
-	CSSManifestItemsRemoved      int    `json:"css_manifest_items_removed"`
-	CSSManifestItemsAdded        int    `json:"css_manifest_items_added"`
-	ScopedLocalStylesheetsMerged int    `json:"scoped_local_stylesheets_merged"`
-	ScopeClassesAdded            int    `json:"scope_classes_added"`
-	// 下列安全策略只进入统一 facts，不进入必须保持旧 Python 形状的
-	// legacyReport JSON。
-	SemanticFactoringDisabled bool     `json:"-"`
-	ScopedMergeDisabled       bool     `json:"-"`
-	DuplicateDeduplication    string   `json:"-"`
-	Warnings                  []string `json:"warnings"`
+// cleanupReport 是 Run 过程中的计数累加器，逐字段进入 Result.Facts。
+type cleanupReport struct {
+	OPF                          string
+	CSSFilesBefore               int
+	CSSFilesAfter                int
+	FactoredStylesheets          int
+	DuplicateStylesheetsRemoved  int
+	OverridesCreated             int
+	FontDeclarationsRewritten    int
+	XHTMLFilesUpdated            int
+	CSSManifestItemsRemoved      int
+	CSSManifestItemsAdded        int
+	ScopedLocalStylesheetsMerged int
+	ScopeClassesAdded            int
+	SemanticFactoringDisabled    bool
+	ScopedMergeDisabled          bool
+	DuplicateDeduplication       string
+	Warnings                     []string
 }
 
 const scopedMergeDisabledWarning = "MergeScopedLocalCSS requested but disabled for lossless safety; existing CSS entries, links, and body classes were left unchanged"
@@ -107,10 +99,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	opfDir := pyDirname(opfPath)
 
-	rep := legacyCleanupReport{
-		Harness:  "epub_css_cleanup",
-		Input:    b.InputPath(),
-		Output:   p.Output,
+	rep := cleanupReport{
 		OPF:      opfPath,
 		Warnings: []string{},
 	}
@@ -249,8 +238,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	return buildResult(p, rep, mapping), nil
 }
 
-// buildResult 装配统一信封的 Result 段（含 legacy-report 脚手架）。
-func buildResult(p Params, rep legacyCleanupReport, mapping map[string][]string) report.Result {
+// buildResult 装配统一信封的 Result 段。
+func buildResult(p Params, rep cleanupReport, mapping map[string][]string) report.Result {
 	facts := map[string]any{
 		"opf":                          rep.OPF,
 		"cssFilesBefore":               rep.CSSFilesBefore,
@@ -294,15 +283,6 @@ func buildResult(p Params, rep legacyCleanupReport, mapping map[string][]string)
 			renames = map[string]string{}
 		}
 		renames[from] = targets[0]
-	}
-
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{Capability: CapabilityID, Status: report.StatusFailed}
-		}
-		// 存 json.RawMessage，避免 []byte 被信封编码成 base64。
-		facts["legacyReport"] = jsonRawMessage(raw)
 	}
 
 	return report.Result{
@@ -870,19 +850,6 @@ func parseStylesheetSafe(value []byte) ([]cssRule, error) {
 	return rules, nil
 }
 
-// uniqueZipPath is retained for compatibility with the removed factoring
-// helpers. The active Run path never creates generated CSS entries.
-func uniqueZipPath(has func(string) bool, base string) string {
-	stem, ext := pySplitExt(base)
-	candidate := base
-	index := 2
-	for has(candidate) {
-		candidate = fmt.Sprintf("%s-%d%s", stem, index, ext)
-		index++
-	}
-	return candidate
-}
-
 // ---- XHTML link 重写（LINK_RE 的手工实现，含引号反向引用） ----
 
 type linkMatch struct {
@@ -1079,464 +1046,6 @@ func escapeXHTMLValue(value string, quote byte) string {
 	return strings.ReplaceAll(value, `"`, "&quot;")
 }
 
-// rewriteCSSLinks 复刻 rewrite_css_links。
-func rewriteCSSLinks(text, xhtmlPath string, mapping map[string][]string) (string, bool) {
-	changed := false
-	var b strings.Builder
-	last := 0
-	dir := pyDirname(xhtmlPath)
-	for pos := 0; ; {
-		m, ok := findLinkMatch(text, pos)
-		if !ok {
-			break
-		}
-		pos = m.end
-		cssPath := pyNormPath(pyJoinPath(dir, m.href))
-		targets, hit := mapping[cssPath]
-		if !hit {
-			continue
-		}
-		if !changed {
-			changed = true
-		}
-		b.WriteString(text[last:m.start])
-		b.WriteString(replacementLinks(text[m.start:m.end], xhtmlPath, targets))
-		last = m.end
-	}
-	if !changed {
-		return text, false
-	}
-	b.WriteString(text[last:])
-	return b.String(), true
-}
-
-// replacementLinks 复刻 replacement_links：每个目标生成一个 link，按
-// "\n" 连接。Python 侧的 indent 探测在「link 自身内部」搜索，恒得 ""
-// （group(0) 以 '<' 开头，字面量不可能在其内部再现），故直接以 "\n" 连接。
-func replacementLinks(link, xhtmlPath string, cssPaths []string) string {
-	links := make([]string, 0, len(cssPaths))
-	for _, cssPath := range cssPaths {
-		href := relHref(xhtmlPath, cssPath)
-		links = append(links, replaceFirstHref(link, href))
-	}
-	return strings.Join(links, "\n")
-}
-
-// replaceFirstHref 复刻 re.sub(r'href=(["\'])[^"\']+\1', f'href="{href}"', link, count=1)。
-func replaceFirstHref(link, newHref string) string {
-	for i := 0; ; {
-		p := indexFold(link, "href=", i)
-		if p < 0 {
-			return link
-		}
-		vp := p + len("href=")
-		if vp < len(link) {
-			q := link[vp]
-			if q == '"' || q == '\'' {
-				ve := strings.IndexByte(link[vp+1:], q)
-				// [^"']+ 至少一个字符。
-				if ve > 0 {
-					return link[:p] + `href="` + newHref + `"` + link[vp+1+ve+1:]
-				}
-			}
-		}
-		i = p + len("href=")
-	}
-}
-
-// linkedCSSPaths is retained only for compatibility with the old
-// read-only helper surface. Run never calls it: scoped-local CSS merging is
-// disabled until it can be implemented with a lossless token/span edit plan.
-func linkedCSSPaths(text, xhtmlPath string) []string {
-	var out []string
-	dir := pyDirname(xhtmlPath)
-	for pos := 0; ; {
-		m, ok := findLinkMatch(text, pos)
-		if !ok {
-			break
-		}
-		out = append(out, pyNormPath(pyJoinPath(dir, m.href)))
-		pos = m.end
-	}
-	return out
-}
-
-// ---- scoped-local 合并 ----
-
-// consolidateScopedLocalCSS 逐行复刻 consolidate_scoped_local_css。
-func consolidateScopedLocalCSS(m *fileModel, xhtmlPaths []string, opfDir string,
-	removed map[string]bool, generated map[string][]byte, rep *legacyCleanupReport) {
-
-	refs := map[string]map[string]bool{}
-	for _, xhtmlPath := range xhtmlPaths {
-		data, ok := m.get(xhtmlPath)
-		if !ok {
-			continue
-		}
-		for _, cssPath := range linkedCSSPaths(string(data), xhtmlPath) {
-			if refs[cssPath] == nil {
-				refs[cssPath] = map[string]bool{}
-			}
-			refs[cssPath][xhtmlPath] = true
-		}
-	}
-
-	candidates := map[string][]cssRule{}
-	for cssPath, pages := range refs {
-		name := pyBasename(cssPath)
-		if len(pages) == 0 || !m.has(cssPath) {
-			continue
-		}
-		if scopedExcludedNames[name] || strings.HasPrefix(name, "clean-shared-") || len(pages)*2 > len(xhtmlPaths) {
-			continue
-		}
-		data, _ := m.get(cssPath)
-		if rules, err := parseStylesheetSafe(data); err == nil {
-			candidates[cssPath] = rules
-		}
-	}
-
-	overlapping := map[string]bool{}
-	paths := sortedKeys(candidates)
-	for i, cssPath := range paths {
-		for _, other := range paths[i+1:] {
-			if setsIntersect(refs[cssPath], refs[other]) {
-				overlapping[cssPath] = true
-				overlapping[other] = true
-			}
-		}
-	}
-	if len(overlapping) > 0 {
-		rep.Warnings = append(rep.Warnings,
-			"skipped overlapping local stylesheets: "+strings.Join(sortedKeys(overlapping), ", "))
-	}
-
-	var mergePaths []string
-	for _, p := range paths {
-		if !overlapping[p] {
-			mergePaths = append(mergePaths, p)
-		}
-	}
-	if len(mergePaths) == 0 {
-		return
-	}
-
-	scopedPath := uniqueZipPath(m.unionHas, normJoin(opfDir, "Styles/clean-scoped-local.css"))
-	var chunks []string
-	scopeByPath := map[string]string{}
-	for index, cssPath := range mergePaths {
-		scopeClass := fmt.Sprintf("css-local-%02d", index+1)
-		scopeByPath[cssPath] = scopeClass
-		chunks = append(chunks, formatScopedRules(scopeClass, cssPath, candidates[cssPath])...)
-	}
-	scopedBytes := []byte(pyRStrip(strings.Join(chunks, "\n")) + "\n")
-	generated[scopedPath] = scopedBytes
-	m.set(scopedPath, scopedBytes)
-
-	mapping := map[string][]string{}
-	for _, cssPath := range mergePaths {
-		mapping[cssPath] = []string{scopedPath}
-	}
-	affectedPages := map[string]bool{}
-	for _, cssPath := range mergePaths {
-		for page := range refs[cssPath] {
-			affectedPages[page] = true
-		}
-	}
-	for _, xhtmlPath := range sortedKeys(affectedPages) {
-		data, _ := m.get(xhtmlPath)
-		for _, cssPath := range mergePaths {
-			if refs[cssPath][xhtmlPath] {
-				edits, added, err := addBodyClassEdits(xhtmlPath, data, scopeByPath[cssPath])
-				if err != nil {
-					rep.Warnings = append(rep.Warnings, "skipped body scope for "+xhtmlPath+": "+err.Error())
-					continue
-				}
-				if err := m.patch(xhtmlPath, edits); err != nil {
-					rep.Warnings = append(rep.Warnings, "skipped body scope for "+xhtmlPath+": "+err.Error())
-					continue
-				}
-				data, _ = m.get(xhtmlPath)
-				if added {
-					rep.ScopeClassesAdded++
-				}
-			}
-		}
-		edits, changed, err := rewriteCSSLinkEdits(xhtmlPath, data, mapping)
-		if err != nil {
-			rep.Warnings = append(rep.Warnings, "skipped scoped links for "+xhtmlPath+": "+err.Error())
-			continue
-		}
-		if changed {
-			if err := m.patch(xhtmlPath, edits); err != nil {
-				rep.Warnings = append(rep.Warnings, "skipped scoped links for "+xhtmlPath+": "+err.Error())
-			}
-		}
-	}
-
-	for _, cssPath := range mergePaths {
-		m.drop(cssPath)
-		delete(generated, cssPath)
-		removed[cssPath] = true
-	}
-	rep.ScopedLocalStylesheetsMerged += len(mergePaths)
-}
-
-// formatScopedRules 复刻 format_scoped_rules。
-func formatScopedRules(scopeClass, cssPath string, rules []cssRule) []string {
-	chunks := []string{"/* Scoped from " + cssPath + ". */"}
-	for _, rule := range rules {
-		chunks = append(chunks, scopedSelector(rule.selector, scopeClass)+" {")
-		for _, d := range rule.declarations {
-			chunks = append(chunks, "  "+d[0]+": "+d[1]+";")
-		}
-		chunks = append(chunks, "}", "")
-	}
-	return chunks
-}
-
-// scopedSelector 复刻 scoped_selector。
-func scopedSelector(selector, scopeClass string) string {
-	var scoped []string
-	for _, part := range selectorListParts(selector) {
-		part = pyStrip(part)
-		if bodyPrefixLen(part) > 0 {
-			// re.sub(r"^body", f"body.{scope}", part, count=1, flags=re.I)
-			scoped = append(scoped, "body."+scopeClass+part[bodyPrefixLen(part):])
-		} else {
-			scoped = append(scoped, "body."+scopeClass+" "+part)
-		}
-	}
-	return strings.Join(scoped, ",\n")
-}
-
-// selectorListParts splits only commas at the top level of a selector list.
-// Commas in :is(), attribute strings, comments, and escaped sequences remain
-// part of the selector. An unbalanced selector is kept opaque rather than
-// guessed into multiple selectors.
-func selectorListParts(selector string) []string {
-	data := []byte(selector)
-	var parts []string
-	start := 0
-	paren, bracket, brace := 0, 0, 0
-	for i := 0; i < len(data); {
-		if i+1 < len(data) && data[i] == '/' && data[i+1] == '*' {
-			next, err := skipHTMLCSSComment(data, i)
-			if err != nil {
-				return []string{selector}
-			}
-			i = next
-			continue
-		}
-		if data[i] == '\'' || data[i] == '"' {
-			next, err := skipHTMLCSSString(data, i)
-			if err != nil {
-				return []string{selector}
-			}
-			i = next
-			continue
-		}
-		if data[i] == '\\' {
-			if i+1 >= len(data) {
-				return []string{selector}
-			}
-			i += 2
-			continue
-		}
-		switch data[i] {
-		case '(':
-			paren++
-		case ')':
-			if paren == 0 {
-				return []string{selector}
-			}
-			paren--
-		case '[':
-			bracket++
-		case ']':
-			if bracket == 0 {
-				return []string{selector}
-			}
-			bracket--
-		case '{':
-			brace++
-		case '}':
-			if brace == 0 {
-				return []string{selector}
-			}
-			brace--
-		case ',':
-			if paren == 0 && bracket == 0 && brace == 0 {
-				parts = append(parts, selector[start:i])
-				start = i + 1
-			}
-		}
-		i++
-	}
-	if paren != 0 || bracket != 0 || brace != 0 {
-		return []string{selector}
-	}
-	return append(parts, selector[start:])
-}
-
-func skipHTMLCSSComment(data []byte, start int) (int, error) {
-	for i := start + 2; i+1 < len(data); i++ {
-		if data[i] == '*' && data[i+1] == '/' {
-			return i + 2, nil
-		}
-	}
-	return len(data), css.ErrUnterminated
-}
-
-func skipHTMLCSSString(data []byte, start int) (int, error) {
-	q := data[start]
-	for i := start + 1; i < len(data); i++ {
-		if data[i] == '\\' {
-			if i+1 >= len(data) {
-				return len(data), css.ErrUnterminated
-			}
-			i++
-			continue
-		}
-		if data[i] == q {
-			return i + 1, nil
-		}
-	}
-	return len(data), css.ErrUnterminated
-}
-
-// bodyPrefixLen 复刻 re.match(r"^body(?:\b|[.#:[ ])", part, re.I)：
-// part 以 "body"（大小写不敏感）开头且后随非 \w 字符（`.#:[ ` 均非 \w，
-// 故该字符类分支被 \b 覆盖）。命中返回 4，否则 0。
-func bodyPrefixLen(part string) int {
-	if len(part) < 4 || !strings.EqualFold(part[:4], "body") {
-		return 0
-	}
-	if len(part) == 4 {
-		return 4
-	}
-	r, _ := utf8DecodeRune(part[4:])
-	if isWordRune(r) {
-		return 0
-	}
-	return 4
-}
-
-// addBodyClass 复刻 add_body_class。
-type bodyTagSpan struct {
-	start, end           int
-	attrsStart, attrsEnd int
-}
-
-// addBodyClassEdits scans the opening body tag and changes only its class
-// value (or inserts a new class attribute). It never serializes the XHTML
-// document or replaces the tag as a whole.
-func addBodyClassEdits(path string, data []byte, className string) ([]editset.Edit, bool, error) {
-	if className == "" || !isHTMLClassName(className) {
-		return nil, false, fmt.Errorf("unsafe body class %q", className)
-	}
-	tag, ok := findBodyOpenTag(data)
-	if !ok {
-		return nil, false, nil
-	}
-	attrs := data[tag.attrsStart:tag.attrsEnd]
-	if classAttr, found := findClassAttrBytes(attrs, 0); found {
-		if contains(strings.Fields(classAttr.classes), className) {
-			return nil, false, nil
-		}
-		value := append([]byte(nil), attrs[classAttr.valueStart:classAttr.valueEnd]...)
-		if len(value) > 0 && !isHTMLSpace(value[len(value)-1]) {
-			value = append(value, ' ')
-		}
-		value = append(value, className...)
-		edits := []editset.Edit{editset.Replace(path,
-			int64(tag.attrsStart+classAttr.valueStart),
-			int64(classAttr.valueEnd-classAttr.valueStart), value)}
-		return edits, true, editset.Validate(edits)
-	}
-	edits := []editset.Edit{editset.Insert(path, int64(tag.end-1),
-		[]byte(` class="`+className+`"`))}
-	return edits, true, editset.Validate(edits)
-}
-
-// addBodyClass is the old test-facing string helper and delegates to the
-// byte-range implementation used by Run.
-func addBodyClass(text, className string) (string, bool) {
-	edits, added, err := addBodyClassEdits("<xhtml>", []byte(text), className)
-	if err != nil || !added {
-		return text, false
-	}
-	updated, err := editset.Apply("<xhtml>", []byte(text), edits)
-	if err != nil {
-		return text, false
-	}
-	return string(updated), true
-}
-
-func findBodyOpenTag(data []byte) (bodyTagSpan, bool) {
-	for i := 0; i < len(data); i++ {
-		if i+3 < len(data) && data[i] == '<' && data[i+1] == '!' &&
-			data[i+2] == '-' && data[i+3] == '-' {
-			end := indexBytes(data, []byte("-->"), i+4)
-			if end < 0 {
-				return bodyTagSpan{}, false
-			}
-			i = end + 2
-			continue
-		}
-		if i+5 >= len(data) || data[i] != '<' || data[i+1] == '/' ||
-			!equalFoldBytes(data[i+1:i+5], []byte("body")) {
-			continue
-		}
-		nameEnd := i + len("<body")
-		if nameEnd < len(data) && !isHTMLTagBoundary(data[nameEnd]) {
-			continue
-		}
-		quote := byte(0)
-		for j := nameEnd; j < len(data); j++ {
-			if quote != 0 {
-				if data[j] == '\\' && j+1 < len(data) {
-					j++
-					continue
-				}
-				if data[j] == quote {
-					quote = 0
-				}
-				continue
-			}
-			switch data[j] {
-			case '\'', '"':
-				quote = data[j]
-			case '>':
-				if j > nameEnd && data[j-1] == '/' {
-					return bodyTagSpan{}, false
-				}
-				return bodyTagSpan{start: i, end: j + 1,
-					attrsStart: nameEnd, attrsEnd: j}, true
-			}
-		}
-		return bodyTagSpan{}, false
-	}
-	return bodyTagSpan{}, false
-}
-
-func indexBytes(data, needle []byte, from int) int {
-	if from < 0 || from > len(data) {
-		return -1
-	}
-	if len(needle) == 0 {
-		return from
-	}
-	if at := bytes.Index(data[from:], needle); at >= 0 {
-		return from + at
-	}
-	return -1
-}
-
-func equalFoldBytes(a, b []byte) bool {
-	return bytes.EqualFold(a, b)
-}
-
 func isHTMLSpace(b byte) bool {
 	switch b {
 	case ' ', '\t', '\r', '\n', '\f':
@@ -1555,128 +1064,9 @@ func isHTMLAttrNameByte(b byte) bool {
 		b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
 
-func isHTMLClassName(name string) bool {
-	for i := 0; i < len(name); i++ {
-		b := name[i]
-		if !(b == '_' || b == '-' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9') {
-			return false
-		}
-	}
-	return true
-}
-
-func findClassAttrBytes(data []byte, from int) (classAttrMatch, bool) {
-	for i := from; i < len(data); {
-		for i < len(data) && isHTMLSpace(data[i]) {
-			i++
-		}
-		if i >= len(data) || data[i] == '/' {
-			return classAttrMatch{}, false
-		}
-		start := i
-		for i < len(data) && isHTMLAttrNameByte(data[i]) {
-			i++
-		}
-		if start == i {
-			i++
-			continue
-		}
-		name := data[start:i]
-		for i < len(data) && isHTMLSpace(data[i]) {
-			i++
-		}
-		if i >= len(data) || data[i] != '=' {
-			for i < len(data) && !isHTMLSpace(data[i]) {
-				i++
-			}
-			continue
-		}
-		i++
-		for i < len(data) && isHTMLSpace(data[i]) {
-			i++
-		}
-		if i >= len(data) {
-			return classAttrMatch{}, false
-		}
-		q := data[i]
-		if q != '\'' && q != '"' {
-			for i < len(data) && !isHTMLSpace(data[i]) {
-				i++
-			}
-			continue
-		}
-		valueStart := i + 1
-		i = valueStart
-		for i < len(data) {
-			if data[i] == '\\' && i+1 < len(data) {
-				i += 2
-				continue
-			}
-			if data[i] == q {
-				if bytes.EqualFold(name, []byte("class")) {
-					return classAttrMatch{start: start, end: i + 1,
-						valueStart: valueStart, valueEnd: i, quote: q,
-						classes: string(data[valueStart:i])}, true
-				}
-				i++
-				break
-			}
-			i++
-		}
-		if i >= len(data) {
-			return classAttrMatch{}, false
-		}
-	}
-	return classAttrMatch{}, false
-}
-
-type classAttrMatch struct {
-	start, end           int
-	valueStart, valueEnd int
-	quote                byte
-	classes              string
-}
-
-// findClassAttr 匹配 \bclass=(["'])([^"']*)(\1)（re.I，反向引用手工实现）。
-func findClassAttr(text string, from int) (classAttrMatch, bool) {
-	return findClassAttrBytes([]byte(text), from)
-}
-
-// classTokens 复刻 class_tokens（首个 class 属性的空白切分）。
-func classTokens(attrs string) []string {
-	m, ok := findClassAttr(attrs, 0)
-	if !ok {
-		return nil
-	}
-	return strings.Fields(m.classes)
-}
-
-// addClassToAttrs 复刻 add_class_to_attrs。
-func addClassToAttrs(attrs, className string) (string, bool) {
-	classes := classTokens(attrs)
-	if contains(classes, className) {
-		return attrs, false
-	}
-	classes = append(classes, className)
-	joined := strings.Join(classes, " ")
-	if m, ok := findClassAttr(attrs, 0); ok {
-		return attrs[:m.start] + `class="` + joined + `"` + attrs[m.end:], true
-	}
-	return attrs + ` class="` + className + `"`, true
-}
-
 func contains(list []string, want string) bool {
 	for _, v := range list {
 		if v == want {
-			return true
-		}
-	}
-	return false
-}
-
-func setsIntersect(a, b map[string]bool) bool {
-	for k := range a {
-		if b[k] {
 			return true
 		}
 	}
@@ -1696,7 +1086,7 @@ func sortedKeys[V any](m map[string]V) []string {
 
 // opfEditsFor 生成 manifest item 的删除与新增字节区间编辑。
 func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir string,
-	removed map[string]bool, generated map[string][]byte, rep *legacyCleanupReport) ([]editset.Edit, error) {
+	removed map[string]bool, generated map[string][]byte, rep *cleanupReport) ([]editset.Edit, error) {
 
 	var edits []editset.Edit
 	removedItems := map[*opf.SpanNode]bool{}

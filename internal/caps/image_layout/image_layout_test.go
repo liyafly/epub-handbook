@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -110,34 +109,29 @@ func advisorFixture(t *testing.T, pages []struct{ name, body, bodyClass string }
 	return path
 }
 
-// runAdvisor 打开并执行 Run。
-func runAdvisor(t *testing.T, path string, legacy bool) (report.Result, string) {
+// runAdvisor 打开并执行 Run，返回结果与 facts.imageFindings。
+func runAdvisor(t *testing.T, path string) (report.Result, []imageFinding) {
 	t.Helper()
 	b, err := book.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: legacy})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := ""
-	if legacy {
-		raw = string(res.Facts["legacyReport"].(json.RawMessage))
+	findings, ok := res.Facts["imageFindings"].([]imageFinding)
+	if !ok {
+		t.Fatalf("facts.imageFindings 类型 = %T", res.Facts["imageFindings"])
 	}
-	return res, raw
+	return res, findings
 }
 
 // findingsByKind 过滤指定 kind 的 finding（可按文件名后缀过滤）。
-func findingsByKind(t *testing.T, raw, kind, filename string) []legacyFinding {
-	t.Helper()
-	var rep legacyReport
-	if err := json.Unmarshal([]byte(raw), &rep); err != nil {
-		t.Fatalf("legacyReport 不是合法 JSON: %v", err)
-	}
-	var out []legacyFinding
-	for _, f := range rep.Findings {
+func findingsByKind(findings []imageFinding, kind, filename string) []imageFinding {
+	var out []imageFinding
+	for _, f := range findings {
 		if f.Finding == kind && (filename == "" || strings.HasSuffix(f.File, filename)) {
 			out = append(out, f)
 		}
@@ -145,8 +139,8 @@ func findingsByKind(t *testing.T, raw, kind, filename string) []legacyFinding {
 	return out
 }
 
-func hasKind(t *testing.T, raw, kind, filename string) bool {
-	return len(findingsByKind(t, raw, kind, filename)) > 0
+func hasKind(findings []imageFinding, kind, filename string) bool {
+	return len(findingsByKind(findings, kind, filename)) > 0
 }
 
 func TestLoneImageAndPosterExclusion(t *testing.T) {
@@ -155,14 +149,14 @@ func TestLoneImageAndPosterExclusion(t *testing.T) {
 		{"figure.xhtml", `<figure><img src="../Images/test.png" alt="test"/></figure><p>正文。</p>`, ""},
 		{"poster.xhtml", `<img src="../Images/test.png" alt=""/>`, "poster-bg"},
 	}, []string{"bare.xhtml", "figure.xhtml", "poster.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "lone-image-no-figure", "bare.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "lone-image-no-figure", "bare.xhtml") {
 		t.Error("bare.xhtml 应命中 lone-image-no-figure")
 	}
-	if hasKind(t, raw, "lone-image-no-figure", "figure.xhtml") {
+	if hasKind(findings, "lone-image-no-figure", "figure.xhtml") {
 		t.Error("figure.xhtml 不应命中")
 	}
-	if hasKind(t, raw, "lone-image-no-figure", "poster.xhtml") {
+	if hasKind(findings, "lone-image-no-figure", "poster.xhtml") {
 		t.Error("poster-bg 正文不应命中")
 	}
 }
@@ -173,11 +167,11 @@ func TestCaptionDetection(t *testing.T) {
 		{"short.xhtml", `<img src="../Images/test.png" alt="test"/><p>十二字以内图注</p>`, ""},
 		{"long.xhtml", `<img src="../Images/test.png" alt="test"/>` + long, ""},
 	}, []string{"short.xhtml", "long.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "caption-detached", "short.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "caption-detached", "short.xhtml") {
 		t.Error("short.xhtml 应命中 caption-detached")
 	}
-	if hasKind(t, raw, "caption-detached", "long.xhtml") {
+	if hasKind(findings, "caption-detached", "long.xhtml") {
 		t.Error("long.xhtml 不应命中")
 	}
 }
@@ -187,11 +181,11 @@ func TestFloatWidthRisk(t *testing.T) {
 		{"bad.xhtml", `<img src="../Images/test.png" alt="test" style="float:left;width:50%"/><p>正文。</p>`, ""},
 		{"good.xhtml", `<figure class="img-left" style="width:30%"><img src="../Images/test.png" alt="test" style="width:100%;height:auto"/></figure><p>正文。</p>`, ""},
 	}, []string{"bad.xhtml", "good.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "float-width-risk", "bad.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "float-width-risk", "bad.xhtml") {
 		t.Error("bad.xhtml 应命中 float-width-risk")
 	}
-	if hasKind(t, raw, "float-width-risk", "good.xhtml") {
+	if hasKind(findings, "float-width-risk", "good.xhtml") {
 		t.Error("good.xhtml 不应命中")
 	}
 }
@@ -201,11 +195,11 @@ func TestMissingAlt(t *testing.T) {
 		{"missing.xhtml", `<figure><img src="../Images/test.png"/></figure><p>正文。</p>`, ""},
 		{"present.xhtml", `<figure><img src="../Images/test.png" alt=""/></figure><p>正文。</p>`, ""},
 	}, []string{"missing.xhtml", "present.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "missing-alt", "missing.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "missing-alt", "missing.xhtml") {
 		t.Error("missing.xhtml 应命中 missing-alt")
 	}
-	if hasKind(t, raw, "missing-alt", "present.xhtml") {
+	if hasKind(findings, "missing-alt", "present.xhtml") {
 		t.Error("空 alt 不应命中")
 	}
 }
@@ -214,12 +208,8 @@ func TestNoterefIconExempt(t *testing.T) {
 	path := advisorFixture(t, []struct{ name, body, bodyClass string }{
 		{"notes.xhtml", `<p>正文<sup><a class="noteref-icon" href="#note"><img src="../Images/test.png" alt="注"/></a></sup>继续。</p>`, ""},
 	}, []string{"notes.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	var rep legacyReport
-	if err := json.Unmarshal([]byte(raw), &rep); err != nil {
-		t.Fatal(err)
-	}
-	for _, f := range rep.Findings {
+	_, findings := runAdvisor(t, path)
+	for _, f := range findings {
 		if strings.HasSuffix(f.File, "notes.xhtml") {
 			t.Errorf("noteref 图标不应产生任何 finding: %s", f.Finding)
 		}
@@ -232,14 +222,14 @@ func TestChapterHeadCandidate(t *testing.T) {
 		{"not-first.xhtml", `<h1>标题</h1><figure><img src="../Images/test.png" alt="later"/></figure><p>正文。</p>`, ""},
 		{"not-nav.xhtml", `<figure><img src="../Images/test.png" alt="hidden"/></figure><p>正文。</p>`, ""},
 	}, []string{"chapter.xhtml", "not-first.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "chapter-head-image-candidate", "chapter.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "chapter-head-image-candidate", "chapter.xhtml") {
 		t.Error("chapter.xhtml 应命中 chapter-head-image-candidate")
 	}
-	if hasKind(t, raw, "chapter-head-image-candidate", "not-first.xhtml") {
+	if hasKind(findings, "chapter-head-image-candidate", "not-first.xhtml") {
 		t.Error("图不在首元素不应命中")
 	}
-	if hasKind(t, raw, "chapter-head-image-candidate", "not-nav.xhtml") {
+	if hasKind(findings, "chapter-head-image-candidate", "not-nav.xhtml") {
 		t.Error("不在 nav toc 不应命中")
 	}
 }
@@ -249,11 +239,11 @@ func TestFullpageAliteCandidate(t *testing.T) {
 		{"fullpage.xhtml", `<figure><img src="../Images/test.png" alt="volume"/></figure>`, ""},
 		{"normal.xhtml", `<p>普通正文超过二十个字符，不能被识别成整页单图候选。</p><img src="../Images/test.png" alt="inline"/>`, ""},
 	}, []string{"fullpage.xhtml", "normal.xhtml"})
-	_, raw := runAdvisor(t, path, true)
-	if !hasKind(t, raw, "fullpage-image-alite-candidate", "fullpage.xhtml") {
+	_, findings := runAdvisor(t, path)
+	if !hasKind(findings, "fullpage-image-alite-candidate", "fullpage.xhtml") {
 		t.Error("fullpage.xhtml 应命中 fullpage-image-alite-candidate")
 	}
-	if hasKind(t, raw, "fullpage-image-alite-candidate", "normal.xhtml") {
+	if hasKind(findings, "fullpage-image-alite-candidate", "normal.xhtml") {
 		t.Error("normal.xhtml 不应命中")
 	}
 }
@@ -266,7 +256,7 @@ func TestRunIsReadOnlyAndComplete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, raw := runAdvisor(t, path, true)
+	res, findings := runAdvisor(t, path)
 	after, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -285,14 +275,13 @@ func TestRunIsReadOnlyAndComplete(t *testing.T) {
 			t.Errorf("finding level = %s, want warn", f.Level)
 		}
 	}
-	var rep legacyReport
-	if err := json.Unmarshal([]byte(raw), &rep); err != nil {
-		t.Fatal(err)
+	if res.Facts["reportVersion"] != "1" {
+		t.Errorf("reportVersion = %v", res.Facts["reportVersion"])
 	}
-	if rep.Version != "1" {
-		t.Errorf("version = %q", rep.Version)
+	if res.Facts["findings"] != len(findings) || len(res.Findings) != len(findings) {
+		t.Errorf("findings 计数不一致: facts=%v imageFindings=%d envelope=%d", res.Facts["findings"], len(findings), len(res.Findings))
 	}
-	for _, f := range rep.Findings {
+	for _, f := range findings {
 		if f.Scene != "image-layout" {
 			t.Errorf("scene = %q", f.Scene)
 		}

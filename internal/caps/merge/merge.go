@@ -10,19 +10,22 @@
 //   - b.Apply 是唯一写入口，落盘由 pipeline 的 b.WriteTo 负责（INV-3）；
 //   - encryption.xml 存在 → 拒绝（措辞与 Python 逐字对齐）。
 //
-// legacy-report 形状对齐 models.OperationReport 的 asdict()（键序 = dataclass
-// 字段序），经 Params.LegacyReport 放进 Result.Facts["legacyReport"]。
+// 报告以统一信封的 Result.Facts 表达（operation/opf/inputs/output/
+// mergedItems/renamedResources/warnings）。
 package merge
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // CapabilityID 是契约 id（contracts/capabilities/v1/epub.package.merge.json）。
@@ -55,31 +58,18 @@ type Params struct {
 	Inputs []string
 	// Title 是可选的合并标题（nil = 取第一卷 dc:title）。
 	Title *string
-	// Output 是输出路径（仅进入 legacy 报告字段；本包不落盘）。
+	// Output 是输出路径（只进入 facts.output；本包不落盘）。
 	Output string
-	// LegacyReport 输出 Python OperationReport 形状的 JSON。
-	LegacyReport bool
 }
 
-// legacyReport 对齐 models.OperationReport（键序 = dataclass 字段序）。
-type legacyReport struct {
-	Operation        string   `json:"operation"`
-	Input            *string  `json:"input"`
-	Inputs           []string `json:"inputs"`
-	Output           *string  `json:"output"`
-	Outputs          []string `json:"outputs"`
-	OPF              string   `json:"opf"`
-	MergedItems      int      `json:"merged_items"`
-	RenamedResources int      `json:"renamed_resources"`
-	SegmentsCreated  int      `json:"segments_created"`
-	FieldsUpdated    int      `json:"fields_updated"`
-	CoverPath        string   `json:"cover_path"`
-	Warnings         []string `json:"warnings"`
-}
-
-type tocGroup struct {
-	title   string
-	entries []tocEntry
+// operationReport 是本能力的包内统计累加器，最终展开为 Result.Facts。
+type operationReport struct {
+	Operation        string
+	Inputs           []string
+	OPF              string
+	MergedItems      int
+	RenamedResources int
+	Warnings         []string
 }
 
 // failedResult 复刻 Python harness 的失败语义：不产出报告 JSON，
@@ -92,6 +82,68 @@ func failedResult(msg string) (report.Result, error) {
 	}, nil
 }
 
+// spineTocEntries 复刻 core.spine_toc_entries。
+//
+// 留在本包（而不是 internal/scan/opf）：pkg 的类型 *pkgInfo 是本包私有的
+// 包投影（见 pkgio.go），scan/opf 是层 4、不能反向 import caps（层 2）。
+func spineTocEntries(pkg *pkgInfo) []opf.TocEntry {
+	var entries []opf.TocEntry
+	for _, sp := range pkg.spine {
+		item, ok := pkg.byID(sp.idref)
+		if !ok || pypath.HasNavProp(item.properties) {
+			continue
+		}
+		lower := strings.ToLower(item.archivePath)
+		if item.mediaType == "application/xhtml+xml" ||
+			strings.HasSuffix(lower, ".xhtml") || strings.HasSuffix(lower, ".html") {
+			entries = append(entries, opf.TocEntry{Title: pypath.Basename(item.href), Href: item.archivePath, Level: 1})
+		}
+	}
+	return entries
+}
+
+// parseToc 复刻 core.parse_toc：nav → ncx → spine 回退。理由同
+// spineTocEntries：pkg 是本包私有类型，纯 XML 解析部分已经在
+// internal/scan/opf.ParseTocNav / ParseTocNcx。
+func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkgInfo) ([]opf.TocEntry, error) {
+	for _, item := range pkg.manifest {
+		if !pypath.HasNavProp(item.properties) {
+			continue
+		}
+		if !names[item.archivePath] {
+			continue // parse_toc_nav 对缺失文件返回 []
+		}
+		data, err := read(item.archivePath)
+		if err != nil {
+			data = nil
+		}
+		entries, perr := opf.ParseTocNav(item.archivePath, data)
+		if perr != nil {
+			return nil, perr
+		}
+		if len(entries) > 0 {
+			return entries, nil
+		}
+	}
+	if pkg.tocID != "" {
+		if item, ok := pkg.byID(pkg.tocID); ok {
+			if names[item.archivePath] {
+				data, err := read(item.archivePath)
+				if err == nil {
+					entries, perr := opf.ParseTocNcx(item.archivePath, data)
+					if perr != nil {
+						return nil, perr
+					}
+					if len(entries) > 0 {
+						return entries, nil
+					}
+				}
+			}
+		}
+	}
+	return spineTocEntries(pkg), nil
+}
+
 // Run 执行 merge（SPEC §6.1 三段式：扫描 → 应用 → 报告）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	inputs := p.Inputs
@@ -102,13 +154,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return failedResult("merge requires at least two input EPUB files")
 	}
 
-	rep := legacyReport{
+	rep := operationReport{
 		Operation: "merge",
 		Inputs:    append([]string(nil), inputs...),
-		Output:    strPtr(p.Output),
-		Outputs:   []string{},
 		OPF:       fixedOPFPath,
 		Warnings:  []string{},
+	}
+	// warnf 喂给 transformResource：区域扫描截断时上报文件名与字节偏移，
+	// 走既有的 rep.Warnings → findings（level=warn）通道，不静默半改。
+	warnf := func(format string, a ...any) {
+		rep.Warnings = append(rep.Warnings, fmt.Sprintf(format, a...))
 	}
 
 	usedPaths := map[string]bool{
@@ -134,7 +189,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		renames     = map[string]string{}
 		mergedMeta  []manifestTuple
 		mergedSp    []spineTuple
-		groups      []tocGroup
+		groups      []opf.TocGroup
 		firstMeta   *metaExtract
 		mergedTitle = p.Title // Python：--title 给定时永不回退到卷标题
 	)
@@ -185,10 +240,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				rep.Warnings = append(rep.Warnings, fmt.Sprintf("%s: manifest href does not resolve: %s", inputPath, item.href))
 				continue
 			}
-			if hasNavProp(item.properties) || item.mediaType == "application/x-dtbncx+xml" {
+			if pypath.HasNavProp(item.properties) || item.mediaType == "application/x-dtbncx+xml" {
 				continue
 			}
-			finalPath, renamedFlag := allocateArchivePath(item.archivePath, usedPaths, prefix)
+			finalPath, renamedFlag := pypath.AllocateArchivePath(item.archivePath, usedPaths, prefix)
 			pathMap[item.archivePath] = finalPath
 			if renamedFlag {
 				rep.RenamedResources++
@@ -198,12 +253,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if usedIDs[item.itemID] {
 				baseID = fmt.Sprintf("vol%d_%s", vi+1, item.itemID)
 			}
-			newID := uniqueID(baseID, usedIDs)
+			newID := pypath.UniqueID(baseID, usedIDs)
 			idMap[item.itemID] = newID
-			props := removeProp(item.properties, "nav")
+			props := pypath.RemoveProp(item.properties, "nav")
 			mergedMeta = append(mergedMeta, manifestTuple{
 				itemID:    newID,
-				href:      relativeURI(fixedOPFPath, finalPath),
+				href:      pypath.RelativeURI(fixedOPFPath, finalPath),
 				mediaType: item.mediaType,
 				props:     props,
 			})
@@ -219,7 +274,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if err != nil {
 				return failedResult(err.Error())
 			}
-			transformed := transformResource(data, item.archivePath, finalPath, pathMap, namesSet)
+			transformed := transformResource(data, item.archivePath, finalPath, pathMap, namesSet, warnf)
 			expected[finalPath] = true
 			if vi == 0 {
 				switch {
@@ -237,7 +292,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 		for _, sp := range pkg.spine {
 			src, ok := pkg.byID(sp.idref)
-			if !ok || hasNavProp(src.properties) {
+			if !ok || pypath.HasNavProp(src.properties) {
 				continue
 			}
 			if newID, ok2 := idMap[src.itemID]; ok2 {
@@ -245,17 +300,17 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			}
 		}
 
-		entries := []tocEntry{}
+		entries := []opf.TocEntry{}
 		toc, err := parseToc(namesSet, read, pkg)
 		if err != nil {
 			return failedResult(err.Error())
 		}
 		for _, entry := range toc {
-			if entry.href == "" {
+			if entry.Href == "" {
 				entries = append(entries, entry)
 				continue
 			}
-			href := entry.href
+			href := entry.Href
 			fragment := ""
 			sep := false
 			if i := indexOfByte(href, '#'); i >= 0 {
@@ -266,7 +321,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				if sep {
 					target += "#" + fragment
 				}
-				entries = append(entries, tocEntry{title: entry.title, href: target, level: entry.level})
+				entries = append(entries, opf.TocEntry{Title: entry.Title, Href: target, Level: entry.Level})
 			}
 		}
 		if len(entries) == 0 {
@@ -276,11 +331,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 					continue
 				}
 				if final, ok2 := pathMap[src.archivePath]; ok2 {
-					entries = append(entries, tocEntry{title: pyBasename(src.href), href: final, level: 1})
+					entries = append(entries, opf.TocEntry{Title: pypath.Basename(src.href), Href: final, Level: 1})
 				}
 			}
 		}
-		groups = append(groups, tocGroup{title: pkg.title, entries: entries})
+		groups = append(groups, opf.TocGroup{Title: pkg.title, Entries: entries})
 	}
 
 	title := "Merged EPUB"
@@ -293,8 +348,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	for p := range expected {
 		identity[p] = p
 	}
-	navBytes := buildNav(title, groups, fixedNavPath, identity)
-	ncxBytes := buildNcx(title, groups, fixedNCXPath, identity)
+	navBytes := []byte(opf.BuildNav(title, groups, fixedNavPath, identity))
+	ncxBytes := []byte(opf.BuildNCX(title, groups, fixedNCXPath, identity))
 
 	// 删除：主卷里不在最终产物名集合中的 entry（旧 OPF / nav / ncx /
 	// 非签名内文件），对齐 Python 输出容器只含 manifest 资源的语义。
@@ -360,12 +415,21 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
 		Facts: map[string]any{
+			"operation":        rep.Operation,
 			"opf":              rep.OPF,
-			"inputs":           append([]string(nil), rep.Inputs...),
+			"inputs":           nonNilStrings(rep.Inputs),
 			"output":           p.Output,
 			"mergedItems":      rep.MergedItems,
 			"renamedResources": rep.RenamedResources,
-			"warnings":         append([]string(nil), rep.Warnings...),
+			// mappings 与 epub.structure.normalize 同形状（{from,to} 数组），
+			// 让 `epub redline --path-map <本信封>` 也能识别合并时的资源改名。
+			// 只有计数（renamedResources）时改名信息出不了信封，AGENTS.md
+			// 的「红线比对 + 人工 diff review」在合并后就没有映射可用。
+			"mappings": mappingList(renames),
+			// nonNilStrings 而不是 append([]string(nil), …)：后者在源切片为空时
+			// 返回 nil，JSON 里就是 null，而 SKILL.md 声明的是数组（`| length`
+			// 会炸）。无告警的合并是最常见路径。
+			"warnings": nonNilStrings(rep.Warnings),
 		},
 		Findings: findings,
 		Events: []report.Event{{
@@ -374,17 +438,29 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}},
 		Renames: nilIfEmpty(renames),
 	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
-	}
 	return res, nil
 }
 
-func strPtr(s string) *string { return &s }
+// nonNilStrings 复制字符串切片，空切片仍是空切片（不退化成 nil/null）。
+func nonNilStrings(in []string) []string {
+	out := make([]string, 0, len(in))
+	return append(out, in...)
+}
+
+// mappingList 把 from→to 映射摊平成 {from,to} 数组，按 from 排序保证输出
+// 稳定；空映射输出空数组而不是 null（SKILL.md 声明的是数组形状）。
+func mappingList(renames map[string]string) []map[string]string {
+	froms := make([]string, 0, len(renames))
+	for from := range renames {
+		froms = append(froms, from)
+	}
+	sort.Strings(froms)
+	out := make([]map[string]string, 0, len(renames))
+	for _, from := range froms {
+		out = append(out, map[string]string{"from": from, "to": renames[from]})
+	}
+	return out
+}
 
 func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {

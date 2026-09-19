@@ -85,9 +85,9 @@ func (a *reAny) match(m *reMatcher, pos int, cont func(int) bool) bool {
 
 // reClassItem 是字符类的一个成员。
 type reClassItem struct {
-	lo, hi rune     // 区间（lo==hi 表示单字符）
-	kind   int      // 0=区间 1=\d 2=\s 3=\w
-	negIn  bool     // \D \S \W（类内取反）
+	lo, hi rune // 区间（lo==hi 表示单字符）
+	kind   int  // 0=区间 1=\d 2=\s 3=\w
+	negIn  bool // \D \S \W（类内取反）
 }
 
 type reClass struct {
@@ -225,9 +225,9 @@ func (b *reBackref) match(m *reMatcher, pos int, cont func(int) bool) bool {
 }
 
 type reLook struct {
-	negated  bool
-	behind   bool
-	sub      reNode
+	negated bool
+	behind  bool
+	sub     reNode
 }
 
 func (l *reLook) match(m *reMatcher, pos int, cont func(int) bool) bool {

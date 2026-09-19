@@ -4,14 +4,12 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -65,6 +63,7 @@ func writeBookEntries(title, marker string) []zipEntry {
     <dc:publisher>Publisher ` + marker + `</dc:publisher>
     <dc:description>Description ` + marker + `</dc:description>
     <meta name="cover" content="cover-image"/>
+    <meta property="dcterms:modified">2020-01-01T00:00:00Z</meta>
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
@@ -100,245 +99,294 @@ func writeBookEntries(title, marker string) []zipEntry {
 	}
 }
 
-// ---- Python oracle 与比较工具 ----
-
-func runPythonHarness(t *testing.T, args ...string) (int, string) {
+// assertOperationFacts 锁定 metadata.edit 的正式 facts 键（旧 OperationReport
+// 的全部信息：operation / opf / output / fieldsUpdated）。
+func assertOperationFacts(t *testing.T, res report.Result, output string, wantFields int) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
+	want := map[string]any{
+		"operation":     "metadata-write",
+		"opf":           "OEBPS/content.opf",
+		"output":        output,
+		"fieldsUpdated": wantFields,
 	}
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", args[0])
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已删除）", args[0])
-	}
-	cmd := exec.Command("python3", append([]string{script}, args[1:]...)...)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d: %s", code, errb.String())
-	}
-	return code, out.String()
-}
-
-func readZipEntries(t *testing.T, path string) map[string][]byte {
-	t.Helper()
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	r, err := zip.NewReader(f, st.Size())
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := map[string][]byte{}
-	for _, zf := range r.File {
-		if zf.Name == "mimetype" {
-			continue
-		}
-		rc, err := zf.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		var buf bytes.Buffer
-		if _, err := buf.ReadFrom(rc); err != nil {
-			t.Fatal(err)
-		}
-		rc.Close()
-		out[zf.Name] = buf.Bytes()
-	}
-	return out
-}
-
-// pyCanonicalXML 用 Python ET 把 EPUB 内某 entry 规范化为 JSON。
-// metadata 的 OPF 在 Python 侧是整树重序列化、Go 侧是字节区间编辑
-// （保留原格式与原字节，语义一致）——因此 OPF 只比语义；
-// 其余 entry Python 也是原样复制、Go 是透传，字节必然一致。
-func pyCanonicalXML(t *testing.T, epubPath, entry string) string {
-	t.Helper()
-	script := `import sys, json, zipfile
-from xml.etree import ElementTree as ET
-with zipfile.ZipFile(sys.argv[1]) as zf:
-    data = zf.read(sys.argv[2])
-def canon(e):
-    text = e.text or ""
-    return {"tag": e.tag, "attrs": [[k, v] for k, v in e.attrib.items()],
-            "text": text if text.strip() else "", "kids": [canon(c) for c in e]}
-print(json.dumps(canon(ET.fromstring(data)), ensure_ascii=False))`
-	out, err := exec.Command("python3", "-c", script, epubPath, entry).Output()
-	if err != nil {
-		t.Fatalf("canonicalize %s@%s: %v", epubPath, entry, err)
-	}
-	return string(out)
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
+	for k, v := range want {
+		if got := res.Facts[k]; got != v {
+			t.Errorf("facts[%q] = %#v, want %#v", k, got, v)
 		}
 	}
 }
 
-func replaceAll(s, old, new string) string {
-	out := ""
-	for {
-		i := indexOf(s, old)
-		if i < 0 {
-			return out + s
-		}
-		out += s[:i] + new
-		s = s[i+len(old):]
-	}
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
-}
-
-func compareEntries(t *testing.T, pyPath, goPath string, semantic map[string]bool) {
-	t.Helper()
-	py := readZipEntries(t, pyPath)
-	go_ := readZipEntries(t, goPath)
-	for name := range py {
-		if _, ok := go_[name]; !ok {
-			t.Errorf("Go 输出缺少 entry %s", name)
-		}
-	}
-	for name := range go_ {
-		if _, ok := py[name]; !ok {
-			t.Errorf("Go 输出多出 entry %s", name)
-		}
-	}
-	names := make([]string, 0, len(py))
-	for name := range py {
-		names = append(names, name)
-	}
-	sortStrings(names)
-	for _, name := range names {
-		if semantic[name] {
-			pyC, goC := pyCanonicalXML(t, pyPath, name), pyCanonicalXML(t, goPath, name)
-			if pyC != goC {
-				t.Errorf("entry %s 语义不一致：\n--- py ---\n%s\n--- go ---\n%s", name, clip(pyC, 2000), clip(goC, 2000))
-			}
-			continue
-		}
-		if !bytes.Equal(py[name], go_[name]) {
-			t.Errorf("entry %s 字节不一致：\n--- py ---\n%s\n--- go ---\n%s",
-				name, clip(string(py[name]), 1200), clip(string(go_[name]), 1200))
-		}
-	}
-}
-
-func assertLegacyJSON(t *testing.T, res report.Result, pyJSON, tmpDir string) {
-	t.Helper()
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatalf("Facts 缺少 legacyReport")
-	}
-	norm := func(s string) string {
-		s = replaceAll(s, tmpDir, "<TMP>")
-		s = replaceAll(s, "/go/", "/SIDE/")
-		return replaceAll(s, "/py/", "/SIDE/")
-	}
-	got := norm(string(raw))
-	want := norm(pyJSON)
-	if got != want {
-		t.Errorf("legacy JSON 与 Python oracle 不一致:\n--- go ---\n%s\n--- python ---\n%s", clip(got, 1500), clip(want, 1500))
-	}
-}
-
-func TestParityMetadataWrite(t *testing.T) {
+// TestMetadataWriteFacts 是不依赖 Python oracle 的正式 facts 断言：七个键
+// 全部写入；title+subtitle 由 set_titles 合并计为一次更新，故 fieldsUpdated=6。
+func TestMetadataWriteFacts(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	buildEpub(t, source, writeBookEntries("原题", "meta"))
-	pyDir, goDir := filepath.Join(dir, "py"), filepath.Join(dir, "go")
-	os.MkdirAll(pyDir, 0o755)
-	os.MkdirAll(goDir, 0o755)
-	pyOut := filepath.Join(pyDir, "metadata.epub")
-	goOut := filepath.Join(goDir, "metadata.epub")
+	out := filepath.Join(dir, "metadata.epub")
 	fieldsJSON := `{"title": "新题", "subtitle": "副题", "author": "新作者", "language": "zh-CN", "publisher": "新出版社", "description": "新简介", "rights": "版权声明"}`
-
-	_, pyJSON := runPythonHarness(t, "epub_metadata_edit_harness.py", source,
-		"--output", pyOut, "--metadata-json", fieldsJSON)
-
 	b, err := book.Open(source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{
-		MetadataJSON: fieldsJSON,
-		Output:       goOut,
-		LegacyReport: true,
-	})
+	res, err := Run(context.Background(), b, Params{MetadataJSON: fieldsJSON, Output: out})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Status != report.StatusComplete {
-		t.Fatalf("status = %s", res.Status)
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
 	}
-	if err := b.WriteTo(goOut); err != nil {
+	assertOperationFacts(t, res, out, 6)
+}
+
+// TestMetadataWriteUpdatesFieldValues 按字段语义手写期望值（不是"跑一遍拿
+// 现在的输出当 golden"）：写入 dc:title / dc:creator / dc:language /
+// dc:identifier / dc:publisher / dc:description / dc:rights 后，OPF 里
+// 对应元素的值必须确实变成新值、旧值必须确实消失——防止任何一个字段被
+// 漏接、接错标签，或者"看起来变了但其实值没换"。
+func TestMetadataWriteUpdatesFieldValues(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	fieldsJSON := `{"title": "新题", "subtitle": "副题", "author": "新作者", "language": "en", ` +
+		`"identifier": "urn:uuid:updated-1234", "publisher": "新出版社", "description": "新简介", "rights": "版权声明"}`
+	res, err := Run(context.Background(), b, Params{MetadataJSON: fieldsJSON})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	// 8 = 标题+副标题(setTitles 记 2) + creator/language/publisher/description/
+	// identifier/rights 各 1（rights 原本不存在，追加计一次）。
+	if got := res.Facts["fieldsUpdated"]; got != 8 {
+		t.Fatalf("fieldsUpdated = %v, want 8", got)
+	}
+
+	opfData, err := b.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<dc:title id="main-title">新题</dc:title>`,
+		`<dc:title id="subtitle">副题</dc:title>`,
+		`<dc:creator>新作者</dc:creator>`,
+		`<dc:language>en</dc:language>`,
+		`<dc:identifier id="book-id">urn:uuid:updated-1234</dc:identifier>`,
+		`<dc:publisher>新出版社</dc:publisher>`,
+		`<dc:description>新简介</dc:description>`,
+		`<dc:rights>版权声明</dc:rights>`,
+	} {
+		if !bytes.Contains(opfData, []byte(want)) {
+			t.Errorf("OPF 缺少期望的字段值 %q\n完整 OPF:\n%s", want, opfData)
+		}
+	}
+	// 旧值必须真的被替换掉，不是新旧并存（例如误插而不是替换）。
+	for _, stale := range []string{">原题<", ">Author meta<", ">zh-CN<", ">urn:uuid:meta<", ">Publisher meta<", ">Description meta<"} {
+		if bytes.Contains(opfData, []byte(stale)) {
+			t.Errorf("OPF 仍残留旧值 %q，字段替换未生效", stale)
+		}
+	}
+}
+
+// TestMetadataWriteDoesNotTouchDctermsModified 锁定 metadata.go 文件头注释
+// 声明的行为：字段写入全部走字节区间编辑，从不重算或改写
+// dcterms:modified（这与 Python 版 ElementTree 整树重序列化的关键差异——
+// deepcopy 语义下这段字节从未被触碰）。如果未来有人"顺手"给写入加上自动
+// 打时间戳的逻辑，这条测试会先炸，而不是让下游误以为文件在写入后才修改过。
+func TestMetadataWriteDoesNotTouchDctermsModified(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{MetadataJSON: `{"title": "新题", "author": "新作者"}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	opfData, err := b.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const modifiedElem = `<meta property="dcterms:modified">2020-01-01T00:00:00Z</meta>`
+	if !bytes.Contains(opfData, []byte(modifiedElem)) {
+		t.Errorf("dcterms:modified 被改写，OPF 中缺少原始字节:\n%s", opfData)
+	}
+}
+
+// TestMetadataWritePreservesNonOPFBytes 锁定 INV-1 字节透传在 metadata.edit
+// 上的体现：字段写入只应该碰 OPF，以及需要规范化的 mimetype；其余 entry
+// （nav、正文、CSS、封面、甚至无关的 .DS_Store）必须与输入逐字节相同——
+// 否则一次"改书名"的操作就可能悄悄改坏排版或图片。同时锁定 mimetype 规范
+// 化：fixture 故意写了错误值，metadata.edit 应把它纠正为标准 MIME 值。
+func TestMetadataWritePreservesNonOPFBytes(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{MetadataJSON: `{"title": "新题"}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+
+	opfPath, _ := res.Facts["opf"].(string)
+	wantModified := map[string]bool{opfPath: true, "mimetype": true}
+	modified := b.ModifiedNames()
+	if len(modified) != len(wantModified) {
+		t.Fatalf("modified entries = %v, want exactly %v", modified, wantModified)
+	}
+	for _, name := range modified {
+		if !wantModified[name] {
+			t.Errorf("metadata.edit 意外改动了 %s", name)
+		}
+	}
+
+	for _, name := range b.OriginalNames() {
+		if name == opfPath || name == "mimetype" {
+			continue
+		}
+		orig, err := b.Original(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cur, err := b.Current(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(orig, cur) {
+			t.Errorf("entry %s 字节被改动，违反 INV-1", name)
+		}
+	}
+
+	mt, err := b.Current("mimetype")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(mt) != canonicalMimetype {
+		t.Errorf("mimetype = %q, want %q", mt, canonicalMimetype)
+	}
+}
+
+// TestMetadataWriteOnlyTouchesMetadataRedline 用红线做门禁：只改 metadata
+// 时，正文、spine 顺序与锚点必须纹丝不动。CheckMetadata 本来就会被这次写入
+// 触发（这正是本能力的作用），故意不放进这一组检查，否则会掩盖真正的回归。
+func TestMetadataWriteOnlyTouchesMetadataRedline(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	fieldsJSON := `{"title": "新题", "author": "新作者", "language": "en", "publisher": "新出版社", "description": "新简介"}`
+	res, err := Run(context.Background(), b, Params{MetadataJSON: fieldsJSON})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+
+	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
+		[]string{redline.CheckText, redline.CheckSpine, redline.CheckAnchors}, redline.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range findings {
+		t.Errorf("redline %s: %s", f.Check, f.Message)
+	}
+}
+
+// TestMetadataWriteChainedEditsPreservePriorFields 验证写入→落盘→重新打开
+// →再写入的链路：第二次只改 author 时，第一次追加的 subtitle / rights /
+// title-type meta 必须原样保留，且第二次不该再碰任何第一次已经写定的字节。
+// 这是 Python 版"整树重序列化"与 Go 版"字节区间编辑"两条路径最容易分叉的
+// 地方：Go 侧第二次解析的是自己第一次输出的、已经包含追加元素的 OPF。
+func TestMetadataWriteChainedEditsPreservePriorFields(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+
+	out1 := filepath.Join(dir, "pass1.epub")
+	b1, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b1.Close()
+	firstJSON := `{"title": "新题", "subtitle": "副题", "rights": "版权声明"}`
+	res1, err := Run(context.Background(), b1, Params{MetadataJSON: firstJSON, Output: out1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res1.Status != report.StatusComplete {
+		t.Fatalf("pass1 status = %s: %+v", res1.Status, res1.Findings)
+	}
+	if err := b1.WriteTo(out1); err != nil {
 		t.Fatal(err)
 	}
 
-	assertLegacyJSON(t, res, pyJSON, dir)
-	compareEntries(t, pyOut, goOut, map[string]bool{"OEBPS/content.opf": true})
-
-	// 第二跳：只改 author（Python 测试的 chained write 场景）。
-	secondJSON := `{"author": "再作者"}`
-	pyOut2 := filepath.Join(pyDir, "metadata2.epub")
-	goOut2 := filepath.Join(goDir, "metadata2.epub")
-	_, pyJSON2 := runPythonHarness(t, "epub_metadata_edit_harness.py", pyOut,
-		"--output", pyOut2, "--metadata-json", secondJSON)
-
-	b2, err := book.Open(goOut)
+	b2, err := book.Open(out1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b2.Close()
-	res2, err := Run(context.Background(), b2, Params{
-		MetadataJSON: secondJSON,
-		Output:       goOut2,
-		LegacyReport: true,
-	})
+	res2, err := Run(context.Background(), b2, Params{MetadataJSON: `{"author": "再作者"}`})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := b2.WriteTo(goOut2); err != nil {
+	if res2.Status != report.StatusComplete {
+		t.Fatalf("pass2 status = %s: %+v", res2.Status, res2.Findings)
+	}
+	if got := res2.Facts["fieldsUpdated"]; got != 1 {
+		t.Errorf("pass2 fieldsUpdated = %v, want 1（只改了 author）", got)
+	}
+
+	opfData, err := b2.Current("OEBPS/content.opf")
+	if err != nil {
 		t.Fatal(err)
 	}
-	assertLegacyJSON(t, res2, pyJSON2, dir)
-	compareEntries(t, pyOut2, goOut2, map[string]bool{"OEBPS/content.opf": true})
+	for _, want := range []string{
+		`<dc:title id="main-title">新题</dc:title>`,
+		`<dc:title id="subtitle">副题</dc:title>`,
+		`<dc:rights>版权声明</dc:rights>`,
+		`<dc:creator>再作者</dc:creator>`,
+	} {
+		if !bytes.Contains(opfData, []byte(want)) {
+			t.Errorf("链式写入后缺少 %q，第一次的字段被第二次覆盖或丢失", want)
+		}
+	}
+
+	// 第二次的输入（out1 的 mimetype）已经在第一次被规范化过，故第二次
+	// 只应该再碰 OPF；mimetype 不该被判定为"又变了一次"。
+	modified := b2.ModifiedNames()
+	wantModified := map[string]bool{"OEBPS/content.opf": true}
+	if len(modified) != len(wantModified) {
+		t.Fatalf("pass2 modified entries = %v, want exactly %v", modified, wantModified)
+	}
+	for _, name := range modified {
+		if !wantModified[name] {
+			t.Errorf("pass2 意外改动了 %s", name)
+		}
+	}
 }
 
 func TestMetadataBadJSONRefused(t *testing.T) {

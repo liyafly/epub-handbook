@@ -4,11 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -134,38 +132,7 @@ func pngDimsHeader() []byte {
 	}
 }
 
-// ---- Python oracle 与比较工具 ----
-
-func runPythonHarness(t *testing.T, args ...string) (int, string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, "scripts", args[0])
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("scripts/%s 不存在（oracle 已删除）", args[0])
-	}
-	cmd := exec.Command("python3", append([]string{script}, args[1:]...)...)
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	if code != 0 {
-		t.Fatalf("python oracle 退出码 %d: %s", code, errb.String())
-	}
-	return code, out.String()
-}
+// ---- 比较工具 ----
 
 func readZipEntries(t *testing.T, path string) map[string][]byte {
 	t.Helper()
@@ -201,166 +168,222 @@ func readZipEntries(t *testing.T, path string) map[string][]byte {
 	return out
 }
 
-// pyCanonicalXML 用 Python ET 把 EPUB 内某 entry 规范化为 JSON。
-// cover 的 OPF 在 Python 侧是整树重序列化、Go 侧是字节区间编辑
-// （保留原格式与 dcterms:modified 等原字节）——因此 OPF 只比语义；
-// XHTML/CSS 引用重写两侧使用同语义的正则扫描器，字节一致。
-func pyCanonicalXML(t *testing.T, epubPath, entry string) string {
+// assertOperationFacts 锁定 cover.replace 的正式 facts 键（旧 OperationReport 的
+// 全部信息：operation / opf / output / coverPath；改名进入 Result.Renames）。
+func assertOperationFacts(t *testing.T, res report.Result, wantOutput string) {
 	t.Helper()
-	script := `import sys, json, zipfile
-from xml.etree import ElementTree as ET
-with zipfile.ZipFile(sys.argv[1]) as zf:
-    data = zf.read(sys.argv[2])
-def canon(e):
-    text = e.text or ""
-    return {"tag": e.tag, "attrs": [[k, v] for k, v in e.attrib.items()],
-            "text": text if text.strip() else "", "kids": [canon(c) for c in e]}
-print(json.dumps(canon(ET.fromstring(data)), ensure_ascii=False))`
-	out, err := exec.Command("python3", "-c", script, epubPath, entry).Output()
-	if err != nil {
-		t.Fatalf("canonicalize %s@%s: %v", epubPath, entry, err)
+	want := map[string]any{
+		"operation": "replace-cover",
+		"opf":       "OEBPS/content.opf",
+		"output":    wantOutput,
 	}
-	return string(out)
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
+	for k, v := range want {
+		if got := res.Facts[k]; got != v {
+			t.Errorf("facts[%q] = %#v, want %#v", k, got, v)
 		}
+	}
+	coverPath, _ := res.Facts["coverPath"].(string)
+	if coverPath == "" || !strings.HasPrefix(coverPath, "OEBPS/") {
+		t.Errorf("facts[coverPath] = %#v, want an OEBPS/ archive path", res.Facts["coverPath"])
 	}
 }
 
-func replaceAll(s, old, new string) string {
-	out := ""
-	for {
-		i := indexOf(s, old)
-		if i < 0 {
-			return out + s
-		}
-		out += s[:i] + new
-		s = s[i+len(old):]
-	}
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
-}
-
-func compareEntries(t *testing.T, pyPath, goPath string, semantic map[string]bool) {
-	t.Helper()
-	py := readZipEntries(t, pyPath)
-	go_ := readZipEntries(t, goPath)
-	for name := range py {
-		if _, ok := go_[name]; !ok {
-			t.Errorf("Go 输出缺少 entry %s", name)
-		}
-	}
-	for name := range go_ {
-		if _, ok := py[name]; !ok {
-			t.Errorf("Go 输出多出 entry %s", name)
-		}
-	}
-	names := make([]string, 0, len(py))
-	for name := range py {
-		names = append(names, name)
-	}
-	sortStrings(names)
-	for _, name := range names {
-		if semantic[name] {
-			pyC, goC := pyCanonicalXML(t, pyPath, name), pyCanonicalXML(t, goPath, name)
-			if pyC != goC {
-				t.Errorf("entry %s 语义不一致：\n--- py ---\n%s\n--- go ---\n%s", name, clip(pyC, 2000), clip(goC, 2000))
-			}
-			continue
-		}
-		if !bytes.Equal(py[name], go_[name]) {
-			t.Errorf("entry %s 字节不一致：\n--- py ---\n%s\n--- go ---\n%s",
-				name, clip(string(py[name]), 1200), clip(string(go_[name]), 1200))
-		}
-	}
-}
-
-func runCoverParity(t *testing.T, source string, coverBytes []byte, coverName string) {
-	t.Helper()
-	dir := filepath.Dir(source)
-	pyDir, goDir := filepath.Join(dir, "py"), filepath.Join(dir, "go")
-	os.MkdirAll(pyDir, 0o755)
-	os.MkdirAll(goDir, 0o755)
-	pyCover := filepath.Join(pyDir, coverName)
-	goCover := filepath.Join(goDir, coverName)
-	if err := os.WriteFile(pyCover, coverBytes, 0o644); err != nil {
+// TestReplaceCoverFacts 是不依赖 Python oracle 的正式 facts 断言。
+func TestReplaceCoverFacts(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("封面书", "cover", []byte("old-cover")))
+	cover := filepath.Join(dir, "new-cover.png")
+	if err := os.WriteFile(cover, []byte("new-cover"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(goCover, coverBytes, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	pyOut := filepath.Join(pyDir, "cover.epub")
-	goOut := filepath.Join(goDir, "cover.epub")
-
-	_, pyJSON := runPythonHarness(t, "epub_cover_replace_harness.py", source,
-		"--output", pyOut, "--cover", pyCover)
-
+	out := filepath.Join(dir, "cover.epub")
 	b, err := book.Open(source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{
-		Cover:        goCover,
-		Output:       goOut,
-		LegacyReport: true,
-	})
+	res, err := Run(context.Background(), b, Params{Cover: cover, Output: out})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Status != report.StatusComplete {
-		t.Fatalf("status = %s", res.Status)
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
 	}
-	if err := b.WriteTo(goOut); err != nil {
+	assertOperationFacts(t, res, out)
+	if got := res.Facts["coverPath"]; got != "OEBPS/Images/cover.png" {
+		t.Errorf("facts[coverPath] = %#v", got)
+	}
+}
+
+// TestReplaceCoverRewritesOldReferences 原为 Python oracle 的 P2/P3 parity
+// 用例（oracle 已于 2026-08-29 删除，`epub_cover_replace_harness.py` 不复
+// 存在）。这里保留同一组 fixture，改为按封面替换的领域语义手写的
+// Go-native 断言：
+//
+//   - facts.coverPath 是新封面的归档路径；
+//   - 正文里对旧封面的引用（chapter.xhtml 的 <img src>、main.css 的
+//     url()）逐处改写到新路径，旧路径的字节不再出现；
+//   - 与封面无关的 entry（nav.xhtml、.DS_Store）逐字节不变——证明区域感知
+//     重写没有波及未命中的文件；
+//   - 旧封面文件从包内删除，新封面文件字节与输入一致；
+//   - Result.Renames 与 facts.mappings 一一对应（{old.jpg: new.png}）。
+func TestReplaceCoverRewritesOldReferences(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	fixture := writeBookEntries("封面书", "cover", []byte("old-cover"))
+	buildEpub(t, source, fixture)
+	cover := filepath.Join(dir, "new-cover.png")
+	if err := os.WriteFile(cover, []byte("new-cover"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "cover.epub")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{Cover: cover, Output: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	if err := b.WriteTo(out); err != nil {
 		t.Fatal(err)
 	}
 
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatalf("Facts 缺少 legacyReport")
+	assertOperationFacts(t, res, out)
+	if got := res.Facts["coverPath"]; got != "OEBPS/Images/cover.png" {
+		t.Fatalf("facts[coverPath] = %#v, want OEBPS/Images/cover.png", got)
 	}
-	norm := func(s string) string {
-		s = replaceAll(s, dir, "<TMP>")
-		s = replaceAll(s, "/go/", "/SIDE/")
-		return replaceAll(s, "/py/", "/SIDE/")
+
+	entries := readZipEntries(t, out)
+
+	chapter := string(entries["OEBPS/Text/chapter.xhtml"])
+	if !strings.Contains(chapter, `src="../Images/cover.png"`) {
+		t.Errorf("chapter.xhtml 的 img src 应重写到新封面: %s", chapter)
 	}
-	if norm(string(raw)) != norm(pyJSON) {
-		t.Errorf("legacy JSON 与 Python oracle 不一致:\n--- go ---\n%s\n--- python ---\n%s",
-			clip(norm(string(raw)), 1500), clip(norm(pyJSON), 1500))
+	if strings.Contains(chapter, "cover.jpg") {
+		t.Errorf("chapter.xhtml 不应再引用旧封面路径: %s", chapter)
 	}
-	compareEntries(t, pyOut, goOut, map[string]bool{"OEBPS/content.opf": true})
+	css := string(entries["OEBPS/Styles/main.css"])
+	if !strings.Contains(css, `url('../Images/cover.png')`) {
+		t.Errorf("main.css 的 url() 应重写到新封面: %s", css)
+	}
+	if strings.Contains(css, "cover.jpg") {
+		t.Errorf("main.css 不应再引用旧封面路径: %s", css)
+	}
+
+	// 与封面无关的 entry 必须逐字节不变：证明重写没有波及未命中的文件
+	// （.DS_Store 不在此列——book.Open 从一开始就排除 macOS 元数据文件，
+	// 与本次改动无关）。
+	for _, e := range fixture {
+		switch e.name {
+		case "OEBPS/nav.xhtml":
+			got, ok := entries[e.name]
+			if !ok {
+				t.Fatalf("entry %s 应保留在输出里", e.name)
+			}
+			if !bytes.Equal(got, e.content) {
+				t.Errorf("entry %s 应逐字节不变:\n got  = %s\n want = %s", e.name, got, e.content)
+			}
+		}
+	}
+
+	if _, ok := entries["OEBPS/Images/cover.jpg"]; ok {
+		t.Error("旧封面文件应被删除")
+	}
+	if got := string(entries["OEBPS/Images/cover.png"]); got != "new-cover" {
+		t.Errorf("新封面文件内容 = %q, want %q", got, "new-cover")
+	}
+
+	if len(res.Renames) != 1 || res.Renames["OEBPS/Images/cover.jpg"] != "OEBPS/Images/cover.png" {
+		t.Fatalf("Renames = %v, want {OEBPS/Images/cover.jpg: OEBPS/Images/cover.png}", res.Renames)
+	}
+	mappings, ok := res.Facts["mappings"].([]map[string]string)
+	if !ok || len(mappings) != 1 || mappings[0]["from"] != "OEBPS/Images/cover.jpg" || mappings[0]["to"] != "OEBPS/Images/cover.png" {
+		t.Errorf("facts[mappings] = %#v", res.Facts["mappings"])
+	}
 }
 
-func TestParityReplaceCover(t *testing.T) {
-	dir := t.TempDir()
-	source := filepath.Join(dir, "source.epub")
-	buildEpub(t, source, writeBookEntries("封面书", "cover", []byte("old-cover")))
-	runCoverParity(t, source, []byte("new-cover"), "new-cover.png")
-}
-
-func TestParityReplaceCoverResizesSVGPage(t *testing.T) {
+// TestReplaceCoverResizesSVGCoverPageAndRewritesReferences 原为 Python
+// oracle 的 SVG 封面页 parity 用例（同上，oracle 已删除）。断言 SVG 封面页
+// 的 viewBox/宽高改写数学：新封面（pngDimsHeader，1024x1536 像素）替换后，
+// 内联 SVG 的 viewBox 与 <image> 的 width/height 必须精确对齐到新封面的
+// 像素尺寸，而不是任意数值或旧尺寸的残留。
+func TestReplaceCoverResizesSVGCoverPageAndRewritesReferences(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	buildEpub(t, source, svgCoverFixture())
-	runCoverParity(t, source, pngDimsHeader(), "new-cover.png")
+	cover := filepath.Join(dir, "new-cover.png")
+	dims := pngDimsHeader()
+	if err := os.WriteFile(cover, dims, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "cover.epub")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{Cover: cover, Output: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	if err := b.WriteTo(out); err != nil {
+		t.Fatal(err)
+	}
+
+	assertOperationFacts(t, res, out)
+	if got := res.Facts["coverPath"]; got != "OEBPS/Images/cover.png" {
+		t.Fatalf("facts[coverPath] = %#v, want OEBPS/Images/cover.png", got)
+	}
+
+	entries := readZipEntries(t, out)
+
+	// pngDimsHeader 编码的像素尺寸是 1024x1536（IHDR 的 width=0x0400,
+	// height=0x0600）；SVG 封面页原尺寸是 1654x2362，替换后必须整体对齐
+	// 到新封面的像素尺寸，旧尺寸不得残留。
+	svgPage := string(entries["OEBPS/Text/cover.xhtml"])
+	for _, want := range []string{
+		`viewBox="0 0 1024 1536"`,
+		`<image width="1024" height="1536" href="../Images/cover.png"/>`,
+	} {
+		if !strings.Contains(svgPage, want) {
+			t.Errorf("cover.xhtml 缺少 %q:\n%s", want, svgPage)
+		}
+	}
+	for _, stale := range []string{"1654", "2362", "cover.jpg"} {
+		if strings.Contains(svgPage, stale) {
+			t.Errorf("cover.xhtml 残留旧尺寸/旧路径 %q:\n%s", stale, svgPage)
+		}
+	}
+
+	// 正文引用同样重写（与非 SVG 场景相同的 transformResource 路径）。
+	chapter := string(entries["OEBPS/Text/chapter.xhtml"])
+	if !strings.Contains(chapter, `src="../Images/cover.png"`) {
+		t.Errorf("chapter.xhtml 的 img src 应重写到新封面: %s", chapter)
+	}
+	css := string(entries["OEBPS/Styles/main.css"])
+	if !strings.Contains(css, `url('../Images/cover.png')`) {
+		t.Errorf("main.css 的 url() 应重写到新封面: %s", css)
+	}
+
+	if _, ok := entries["OEBPS/Images/cover.jpg"]; ok {
+		t.Error("旧封面文件应被删除")
+	}
+	if got := entries["OEBPS/Images/cover.png"]; !bytes.Equal(got, dims) {
+		t.Errorf("新封面文件内容与输入不一致")
+	}
+
+	if len(res.Renames) != 1 || res.Renames["OEBPS/Images/cover.jpg"] != "OEBPS/Images/cover.png" {
+		t.Fatalf("Renames = %v, want {OEBPS/Images/cover.jpg: OEBPS/Images/cover.png}", res.Renames)
+	}
 }
 
 func TestCoverMissingFileRefused(t *testing.T) {

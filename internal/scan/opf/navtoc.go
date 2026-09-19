@@ -1,18 +1,40 @@
 // navtoc.go 复刻 core.py 的 TOC 解析（parse_toc_nav / parse_toc_ncx /
-// spine_toc_entries / href_with_fragment）与 navigation.py 的 build_nav /
-// build_ncx 字符串模板（逐字节照抄）。
-package merge
+// href_with_fragment）与 navigation.py 的 build_nav / build_ncx 字符串模板
+// （逐字节照抄）。
+//
+// spine_toc_entries 与 parse_toc 里「按 pkgInfo 遍历 manifest/spine 取
+// TOC」的部分没有搬到这里：pkgInfo 是 internal/caps/merge、
+// internal/caps/split 各自私有的包投影类型（层 2），本包是层 4，只能
+// import 层号更大的包，不能反向依赖 caps。因此本文件只保留不依赖
+// pkgInfo 的通用部分——纯 XML 解析（ParseTocNav/ParseTocNcx）与纯字符串
+// 生成（BuildNav/BuildNCX）；pkgInfo 相关的调用方逻辑仍留在
+// internal/caps/merge/merge.go 与 internal/caps/split/split.go 里。
+//
+// BuildNav / BuildNCX 返回 string 而非 []byte：它们从结构化 TOC 条目生成
+// 一份新文档，输入侧没有原文档，不属于 INV-2 要防的「解析→重序列化
+// 往返」（对应 archguard.TestNoWholeDocSerializer 顶部注释里记录的这条
+// 判断）。
+package opf
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/liyafly/epub-handbook/internal/scan/opf"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 )
 
-type tocEntry struct {
-	title string
-	href  string
-	level int
+// TocEntry 是一条解析出的 TOC 条目（nav / ncx / spine 回退统一形状）。
+type TocEntry struct {
+	Title string
+	Href  string
+	Level int
+}
+
+// TocGroup 是 BuildNav / BuildNCX 的 (标题, 条目列表) 分组，对应
+// navigation.build_nav / build_ncx 里的 (group_title, entries)。
+type TocGroup struct {
+	Title   string
+	Entries []TocEntry
 }
 
 // hrefWithFragment 复刻 core.href_with_fragment。
@@ -29,7 +51,7 @@ func hrefWithFragment(baseFile, href string) (string, error) {
 		}
 		return "", nil
 	}
-	resolved, err := resolveRelativePath(baseFile, pyURLSplit(pathPart).path)
+	resolved, err := pypath.ResolveRelativePath(baseFile, pypath.URLSplit(pathPart).Path)
 	if err != nil {
 		return "", err
 	}
@@ -39,17 +61,17 @@ func hrefWithFragment(baseFile, href string) (string, error) {
 	return resolved, nil
 }
 
-// parseTocNav 复刻 core.parse_toc_nav。
-func parseTocNav(navPath string, data []byte) ([]tocEntry, error) {
+// ParseTocNav 复刻 core.parse_toc_nav。
+func ParseTocNav(navPath string, data []byte) ([]TocEntry, error) {
 	if data == nil {
 		return nil, nil
 	}
-	root, err := opf.ScanSpanTree(data)
+	root, err := ScanSpanTree(data)
 	if err != nil {
-		return nil, toolErrf("%s: XML parse failed: %v", navPath, err)
+		return nil, fmt.Errorf("%s: XML parse failed: %v", navPath, err)
 	}
-	var findToc func(e *opf.SpanNode) *opf.SpanNode
-	findToc = func(e *opf.SpanNode) *opf.SpanNode {
+	var findToc func(e *SpanNode) *SpanNode
+	findToc = func(e *SpanNode) *SpanNode {
 		if isTOCNav(e) {
 			return e
 		}
@@ -60,13 +82,13 @@ func parseTocNav(navPath string, data []byte) ([]tocEntry, error) {
 		}
 		return nil
 	}
-	var entries []tocEntry
+	var entries []TocEntry
 	toc := findToc(root)
 	if toc == nil {
 		return entries, nil
 	}
-	var walkList func(e *opf.SpanNode, level int)
-	walkList = func(e *opf.SpanNode, level int) {
+	var walkList func(e *SpanNode, level int)
+	walkList = func(e *SpanNode, level int) {
 		for _, child := range e.Kids {
 			if child.Name.Local != "li" {
 				continue
@@ -74,7 +96,7 @@ func parseTocNav(navPath string, data []byte) ([]tocEntry, error) {
 			for _, gc := range child.Kids {
 				switch gc.Name.Local {
 				case "a":
-					title := collapseSpace(gc.IterText())
+					title := pypath.CollapseSpace(gc.IterText())
 					href, _ := gc.AttrByLocal("", "href")
 					resolved := ""
 					if href != "" {
@@ -83,10 +105,10 @@ func parseTocNav(navPath string, data []byte) ([]tocEntry, error) {
 							return
 						}
 					}
-					entries = append(entries, tocEntry{title: title, href: resolved, level: level})
+					entries = append(entries, TocEntry{Title: title, Href: resolved, Level: level})
 				case "span":
-					title := collapseSpace(gc.IterText())
-					entries = append(entries, tocEntry{title: title, level: level})
+					title := pypath.CollapseSpace(gc.IterText())
+					entries = append(entries, TocEntry{Title: title, Level: level})
 				case "ol":
 					walkList(gc, level+1)
 				}
@@ -105,11 +127,11 @@ func parseTocNav(navPath string, data []byte) ([]tocEntry, error) {
 }
 
 // isTOCNav 复刻 is_toc_nav：local 名为 nav 且 epub:type 含 "toc"。
-func isTOCNav(e *opf.SpanNode) bool {
+func isTOCNav(e *SpanNode) bool {
 	if e.Name.Local != "nav" {
 		return false
 	}
-	epubType, _ := e.AttrByLocal(opf.OPSURI, "type")
+	epubType, _ := e.AttrByLocal(OPSURI, "type")
 	if epubType == "" {
 		epubType, _ = e.AttrByLocal("", "epub:type")
 	}
@@ -121,18 +143,18 @@ func isTOCNav(e *opf.SpanNode) bool {
 	return false
 }
 
-// parseTocNcx 复刻 core.parse_toc_ncx。
-func parseTocNcx(ncxPath string, data []byte) ([]tocEntry, error) {
+// ParseTocNcx 复刻 core.parse_toc_ncx。
+func ParseTocNcx(ncxPath string, data []byte) ([]TocEntry, error) {
 	if data == nil {
 		return nil, nil
 	}
-	root, err := opf.ScanSpanTree(data)
+	root, err := ScanSpanTree(data)
 	if err != nil {
-		return nil, toolErrf("%s: XML parse failed: %v", ncxPath, err)
+		return nil, fmt.Errorf("%s: XML parse failed: %v", ncxPath, err)
 	}
-	var entries []tocEntry
-	var walk func(e *opf.SpanNode, level int) error
-	walk = func(e *opf.SpanNode, level int) error {
+	var entries []TocEntry
+	var walk func(e *SpanNode, level int) error
+	walk = func(e *SpanNode, level int) error {
 		for _, child := range e.Kids {
 			if child.Name.Local != "navPoint" {
 				continue
@@ -142,7 +164,7 @@ func parseTocNcx(ncxPath string, data []byte) ([]tocEntry, error) {
 			for _, gc := range child.Kids {
 				switch gc.Name.Local {
 				case "navLabel":
-					title = collapseSpace(gc.IterText())
+					title = pypath.CollapseSpace(gc.IterText())
 				case "content":
 					src, _ := gc.AttrByLocal("", "src")
 					if src != "" {
@@ -154,7 +176,7 @@ func parseTocNcx(ncxPath string, data []byte) ([]tocEntry, error) {
 					}
 				}
 			}
-			entries = append(entries, tocEntry{title: title, href: href, level: level})
+			entries = append(entries, TocEntry{Title: title, Href: href, Level: level})
 			if err := walk(child, level+1); err != nil {
 				return err
 			}
@@ -171,79 +193,22 @@ func parseTocNcx(ncxPath string, data []byte) ([]tocEntry, error) {
 	return entries, nil
 }
 
-// spineTocEntries 复刻 core.spine_toc_entries。
-func spineTocEntries(pkg *pkgInfo) []tocEntry {
-	var entries []tocEntry
-	for _, sp := range pkg.spine {
-		item, ok := pkg.byID(sp.idref)
-		if !ok || hasNavProp(item.properties) {
-			continue
-		}
-		lower := strings.ToLower(item.archivePath)
-		if item.mediaType == "application/xhtml+xml" ||
-			strings.HasSuffix(lower, ".xhtml") || strings.HasSuffix(lower, ".html") {
-			entries = append(entries, tocEntry{title: pyBasename(item.href), href: item.archivePath, level: 1})
-		}
-	}
-	return entries
-}
-
-// parseToc 复刻 core.parse_toc：nav → ncx → spine 回退。
-func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkgInfo) ([]tocEntry, error) {
-	for _, item := range pkg.manifest {
-		if !hasNavProp(item.properties) {
-			continue
-		}
-		if !names[item.archivePath] {
-			continue // parse_toc_nav 对缺失文件返回 []
-		}
-		data, err := read(item.archivePath)
-		if err != nil {
-			data = nil
-		}
-		entries, perr := parseTocNav(item.archivePath, data)
-		if perr != nil {
-			return nil, perr
-		}
-		if len(entries) > 0 {
-			return entries, nil
-		}
-	}
-	if pkg.tocID != "" {
-		if item, ok := pkg.byID(pkg.tocID); ok {
-			if names[item.archivePath] {
-				data, err := read(item.archivePath)
-				if err == nil {
-					entries, perr := parseTocNcx(item.archivePath, data)
-					if perr != nil {
-						return nil, perr
-					}
-					if len(entries) > 0 {
-						return entries, nil
-					}
-				}
-			}
-		}
-	}
-	return spineTocEntries(pkg), nil
-}
-
-// buildNav 复刻 navigation.build_nav 的字符串模板（逐字节）。
-func buildNav(title string, groups []tocGroup, navPath string, pathMap map[string]string) []byte {
+// BuildNav 复刻 navigation.build_nav 的字符串模板（逐字节）。
+func BuildNav(title string, groups []TocGroup, navPath string, pathMap map[string]string) string {
 	lines := []string{
 		`<?xml version="1.0" encoding="UTF-8"?>`,
 		`<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">`,
 		"<head>",
-		"  <title>" + pyEscapeText(title) + "</title>",
+		"  <title>" + pypath.EscapeText(title) + "</title>",
 		"</head>",
 		"<body>",
 		`<nav epub:type="toc" id="toc">`,
-		"  <h1>" + pyEscapeText(title) + "</h1>",
+		"  <h1>" + pypath.EscapeText(title) + "</h1>",
 		"  <ol>",
 	}
-	appendEntry := func(entry tocEntry, indent string) {
-		if entry.href != "" {
-			href := entry.href
+	appendEntry := func(entry TocEntry, indent string) {
+		if entry.Href != "" {
+			href := entry.Href
 			fragment := ""
 			sep := false
 			if i := strings.IndexByte(href, '#'); i >= 0 {
@@ -253,41 +218,41 @@ func buildNav(title string, groups []tocGroup, navPath string, pathMap map[strin
 			if mapped, ok := pathMap[href]; ok {
 				target = mapped
 			}
-			rendered := relativeURI(navPath, target)
+			rendered := pypath.RelativeURI(navPath, target)
 			if sep {
 				rendered += "#" + fragment
 			}
-			fallback := pyBasename(target)
-			if entry.title != "" {
-				fallback = entry.title
+			fallback := pypath.Basename(target)
+			if entry.Title != "" {
+				fallback = entry.Title
 			}
-			lines = append(lines, indent+"<li><a href="+pyQuoteAttr(rendered)+">"+pyEscapeText(fallback)+"</a></li>")
+			lines = append(lines, indent+"<li><a href="+pypath.QuoteAttr(rendered)+">"+pypath.EscapeText(fallback)+"</a></li>")
 		} else {
-			lines = append(lines, indent+"<li><span>"+pyEscapeText(entry.title)+"</span></li>")
+			lines = append(lines, indent+"<li><span>"+pypath.EscapeText(entry.Title)+"</span></li>")
 		}
 	}
 	for _, group := range groups {
 		if len(groups) > 1 {
 			lines = append(lines, "    <li>")
-			lines = append(lines, "      <span>"+pyEscapeText(group.title)+"</span>")
+			lines = append(lines, "      <span>"+pypath.EscapeText(group.Title)+"</span>")
 			lines = append(lines, "      <ol>")
-			for _, entry := range group.entries {
+			for _, entry := range group.Entries {
 				appendEntry(entry, "        ")
 			}
 			lines = append(lines, "      </ol>")
 			lines = append(lines, "    </li>")
 		} else {
-			for _, entry := range group.entries {
+			for _, entry := range group.Entries {
 				appendEntry(entry, "    ")
 			}
 		}
 	}
 	lines = append(lines, "  </ol>", "</nav>", "</body>", "</html>")
-	return []byte(strings.Join(lines, "\n") + "\n")
+	return strings.Join(lines, "\n") + "\n"
 }
 
-// buildNcx 复刻 navigation.build_ncx 的字符串模板（逐字节）。
-func buildNcx(title string, groups []tocGroup, ncxPath string, pathMap map[string]string) []byte {
+// BuildNCX 复刻 navigation.build_ncx 的字符串模板（逐字节）。
+func BuildNCX(title string, groups []TocGroup, ncxPath string, pathMap map[string]string) string {
 	lines := []string{
 		`<?xml version="1.0" encoding="UTF-8"?>`,
 		`<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">`,
@@ -298,16 +263,16 @@ func buildNcx(title string, groups []tocGroup, ncxPath string, pathMap map[strin
 		`    <meta name="dtb:totalPageCount" content="0"/>`,
 		`    <meta name="dtb:maxPageNumber" content="0"/>`,
 		"  </head>",
-		"  <docTitle><text>" + pyEscapeText(title) + "</text></docTitle>",
+		"  <docTitle><text>" + pypath.EscapeText(title) + "</text></docTitle>",
 		"  <navMap>",
 	}
 	playOrder := 1
 	for _, group := range groups {
-		for _, entry := range group.entries {
-			if entry.href == "" {
+		for _, entry := range group.Entries {
+			if entry.Href == "" {
 				continue
 			}
-			href := entry.href
+			href := entry.Href
 			fragment := ""
 			sep := false
 			if i := strings.IndexByte(href, '#'); i >= 0 {
@@ -317,24 +282,24 @@ func buildNcx(title string, groups []tocGroup, ncxPath string, pathMap map[strin
 			if mapped, ok := pathMap[href]; ok {
 				target = mapped
 			}
-			rendered := relativeURI(ncxPath, target)
+			rendered := pypath.RelativeURI(ncxPath, target)
 			if sep {
 				rendered += "#" + fragment
 			}
-			fallback := pyBasename(target)
-			if entry.title != "" {
-				fallback = entry.title
+			fallback := pypath.Basename(target)
+			if entry.Title != "" {
+				fallback = entry.Title
 			}
 			lines = append(lines,
 				"    "+`<navPoint id="navPoint-`+itoa(playOrder)+`" playOrder="`+itoa(playOrder)+`">`,
-				"      <navLabel><text>"+pyEscapeText(fallback)+"</text></navLabel>",
-				"      <content src="+pyQuoteAttr(rendered)+"/>",
+				"      <navLabel><text>"+pypath.EscapeText(fallback)+"</text></navLabel>",
+				"      <content src="+pypath.QuoteAttr(rendered)+"/>",
 				"    </navPoint>")
 			playOrder++
 		}
 	}
 	lines = append(lines, "  </navMap>", "</ncx>")
-	return []byte(strings.Join(lines, "\n") + "\n")
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func itoa(v int) string {

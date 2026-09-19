@@ -63,40 +63,6 @@ func opfItemElement(id, href string) string {
 	return `<item id="` + escapeAttrib(id) + `" href="` + escapeAttrib(href) + `" media-type="text/css" />`
 }
 
-// uniqueID 复刻 epub_lib.unique_id：候选名净化 → 数字开头加 x- →
-// 与 idSeen 冲突时追加 -2/-3…（调用方需把新 id 写回 idSeen）。
-func uniqueID(idSeen map[string]bool, base string) string {
-	candidate := idSanitizeRe.ReplaceAllString(base, "-")
-	candidate = strings.Trim(candidate, "-")
-	if candidate == "" {
-		candidate = "item"
-	}
-	if candidate[0] >= '0' && candidate[0] <= '9' {
-		candidate = "x-" + candidate
-	}
-	index := 2
-	result := candidate
-	for idSeen[result] {
-		result = candidate + "-" + itoa(index)
-		index++
-	}
-	return result
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
-}
-
 // tailEnd 计算元素在原文中的字节终点（含 tail，到下一个 '<' 或 EOF），
 // 对齐 ET 删除元素时一并消失的 tail。
 func tailEnd(data []byte, n *opf.SpanNode) int {

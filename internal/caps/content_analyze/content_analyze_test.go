@@ -4,13 +4,13 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/report"
 )
 
 // wrapXHTML 组装带 lang 的最小 XHTML（对齐 Python 测试的 xhtml() 助手）。
@@ -28,7 +28,7 @@ func wrapXHTML(body, bodyClass, language string) string {
 	return b.String()
 }
 
-func roles(blocks []legacyBlock) []string {
+func roles(blocks []analyzedBlock) []string {
 	out := make([]string, 0, len(blocks))
 	for _, b := range blocks {
 		out = append(out, b.PrimaryRole)
@@ -99,7 +99,7 @@ func TestExplicitChineseRolesAndFontAdvice(t *testing.T) {
 			t.Errorf("缺少角色 %s；got %v", want, roles(blocks))
 		}
 	}
-	byRole := map[string]legacyBlock{}
+	byRole := map[string]analyzedBlock{}
 	for _, b := range blocks {
 		byRole[b.PrimaryRole] = b
 	}
@@ -311,16 +311,18 @@ func TestEpubUsesSpineContentAndStopsOnEncryption(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := string(res.Facts["legacyReport"].(json.RawMessage))
-	if !strings.Contains(raw, `"blocks": 2`) {
-		t.Errorf("legacyReport 缺少 blocks=2:\n%s", raw)
+	blocks := blockListOf(t, res)
+	if len(blocks) != 2 {
+		t.Errorf("blockList 长度 = %d, want 2", len(blocks))
 	}
-	if strings.Contains(raw, "目录标题") {
-		t.Error("nav.xhtml 不在 spine，其内容不得出现")
+	for _, bl := range blocks {
+		if bl.Source == "OEBPS/nav.xhtml" || strings.Contains(bl.Snippet, "目录标题") {
+			t.Error("nav.xhtml 不在 spine，其内容不得出现")
+		}
 	}
 	if res.Status != "complete" || res.Facts["blocks"] != 2 {
 		t.Errorf("status=%s blocks=%v", res.Status, res.Facts["blocks"])
@@ -349,15 +351,16 @@ func TestEpubRecordsBadXHTMLAndContinues(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := string(res.Facts["legacyReport"].(json.RawMessage))
-	for _, want := range []string{`"status": "warn"`, `"blocks": 1`, `"file_errors": 1`, `"source": "OEBPS/Text/c1.xhtml"`} {
-		if !strings.Contains(raw, want) {
-			t.Errorf("legacyReport 缺少 %s:\n%s", want, raw)
-		}
+	if res.Facts["analysisStatus"] != "warn" || res.Facts["blocks"] != 1 || res.Facts["fileErrors"] != 1 {
+		t.Errorf("facts = %v, want analysisStatus=warn blocks=1 fileErrors=1", res.Facts)
+	}
+	errs := sourceErrorsOf(t, res)
+	if len(errs) != 1 || errs[0].Source != "OEBPS/Text/c1.xhtml" || errs[0].Message == "" {
+		t.Errorf("sourceErrors = %+v, want one entry for OEBPS/Text/c1.xhtml", errs)
 	}
 	if res.Status != "complete" {
 		t.Errorf("warn 应映射为 complete，got %s", res.Status)
@@ -380,13 +383,12 @@ func TestFailWhenNoSpineDocumentAnalyzable(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := string(res.Facts["legacyReport"].(json.RawMessage))
-	if !strings.Contains(raw, `"status": "fail"`) {
-		t.Errorf("legacyReport 缺少 fail:\n%s", raw)
+	if res.Facts["analysisStatus"] != "fail" {
+		t.Errorf("analysisStatus = %v, want fail", res.Facts["analysisStatus"])
 	}
 	if res.Status != "failed" {
 		t.Errorf("fail 应映射为 failed，got %s", res.Status)
@@ -423,4 +425,24 @@ func contains(ss []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// blockListOf 取正式 facts 的逐块明细。
+func blockListOf(t *testing.T, res report.Result) []analyzedBlock {
+	t.Helper()
+	blocks, ok := res.Facts["blockList"].([]analyzedBlock)
+	if !ok {
+		t.Fatalf("facts.blockList 类型 = %T", res.Facts["blockList"])
+	}
+	return blocks
+}
+
+// sourceErrorsOf 取正式 facts 的逐文件解析错误。
+func sourceErrorsOf(t *testing.T, res report.Result) []sourceError {
+	t.Helper()
+	errs, ok := res.Facts["sourceErrors"].([]sourceError)
+	if !ok {
+		t.Fatalf("facts.sourceErrors 类型 = %T", res.Facts["sourceErrors"])
+	}
+	return errs
 }

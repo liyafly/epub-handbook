@@ -1,10 +1,9 @@
 // register.go 收纳 alite 的不可变表（INV-7 白名单）与共享小工具：
-// 样式层常量、报告 rawMessage、OPF/manifest 字节区间编辑。
+// 样式层常量、OPF/manifest 字节区间编辑。
 package alite
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -42,11 +41,12 @@ var tagRe = regexp.MustCompile(`(?s)<!--.*?-->|<[^>]+>`)
 // ulListRe 对齐 is_copyright_page 内联的 <ul class*=list> 搜索。
 var ulListRe = regexp.MustCompile(`(?i)<ul\b[^>]*\bclass=["'][^"']*\blist\b`)
 
-// cardRe 对齐 refine_copyright 内联的 copyright-card 搜索。
-var cardRe = regexp.MustCompile(`(?i)\bclass=["'][^"']*\bcopyright-card\b`)
-
-// headEndRe 对齐 epub_lib.HEAD_END_RE（re.I）。
-var headEndRe = regexp.MustCompile(`(?i)</head\s*>`)
+// 注：曾经住在这里的 cardRe（裸正则 `\bclass=["'][^"']*\bcopyright-card\b`，
+// 不要求前导 `<`）与 headEndRe（对整页文本生效的 `</head\s*>`）已改为
+// xhtml.ScanRegions 驱动的区域化实现（见 alite.go 的 hasClassToken /
+// ensureStylesheetLink）：前者会把正文里原样写出的 class="copyright-card"
+// 误判为「结构已存在」而漏做包裹，后者会把注释里同形的 `</head>` 当成
+// 插入点，两者都已修复。
 
 // stylesheetRstripped 对齐 stylesheet(...) 调用点的 rstrip() + "\n"。
 func stylesheetRstripped(posterImages []posterImageLine) string {
@@ -170,11 +170,6 @@ func stylesheet(posterImages []posterImageLine) string {
 type posterImageLine struct {
 	volume int
 	href   string
-}
-
-// rawMessage 去 MarshalLegacy 的尾换行并存为 json.RawMessage。
-func rawMessage(b []byte) json.RawMessage {
-	return json.RawMessage(bytes.TrimSuffix(b, []byte("\n")))
 }
 
 func bytesEqualString(b []byte, s string) bool {

@@ -43,12 +43,12 @@ type xaFrame struct {
 }
 
 // AnalyzeXHTML 对齐 analyze_xhtml：解析 XHTML 并产出公开报告块。
-func AnalyzeXHTML(source, content string, includeSnippets bool) ([]legacyBlock, error) {
+func AnalyzeXHTML(source, content string, includeSnippets bool) ([]analyzedBlock, error) {
 	blocks, err := extractXHTMLBlocks(source, content)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]legacyBlock, 0, len(blocks))
+	out := make([]analyzedBlock, 0, len(blocks))
 	for _, b := range blocks {
 		out = append(out, publicize(b, includeSnippets))
 	}

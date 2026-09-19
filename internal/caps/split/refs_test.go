@@ -63,15 +63,62 @@ func TestParseSrcsetCandidates(t *testing.T) {
 	}
 }
 
-func TestCollectRawURIsIncludesSrcsetCandidates(t *testing.T) {
-	text := `<source srcset="data:image/svg+xml,%3Csvg%3E 1x, ../Images/a.webp 2x" src="../Images/fallback.webp">`
-	got, err := collectRawURIsStrict(text)
+func TestCollectMarkupURIsIncludesSrcsetCandidates(t *testing.T) {
+	text := `<source srcset="data:image/svg+xml,%3Csvg%3E 1x, ../Images/a.webp 2x" src="../Images/fallback.webp"/>`
+	got, err := collectMarkupURIsStrict([]byte(text))
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"data:image/svg+xml,%3Csvg%3E", "../Images/a.webp", "../Images/fallback.webp"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("collectRawURIsStrict() = %#v, want %#v", got, want)
+		t.Fatalf("collectMarkupURIsStrict() = %#v, want %#v", got, want)
+	}
+}
+
+// TestCollectMarkupURIsIgnoresCharacterData 钉住资源闭合收集的区域感知。
+//
+// 回归来源是仓库自己的样书：它是一本讲 EPUB 的书，正文里的示例代码只转义
+// 了尖括号，于是 `src="../Audio/XinJing.mp3"` 以**字符数据**形式出现在 <p>
+// 里，而那个音频文件并不在书中。旧的裸文本扫描把它当成真引用，
+// epub.package.split 于是对一本能正常打开的书报
+// 「resource closure: referenced target missing from source」并硬拒。
+//
+// 负向控制：同一份文档里的真属性必须照常被收集到 —— 只忽略字符数据，
+// 不是整份放弃。
+func TestCollectMarkupURIsIgnoresCharacterData(t *testing.T) {
+	doc := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<style>.hero { background: url("../Images/real-style.webp"); }</style>
+</head>
+<body>
+  <img src="../Images/real-attr.webp" alt="真引用"/>
+  <p>替换：&lt;audio src="../Audio/ghost.mp3"/&gt;</p>
+  <p>查找：&lt;img src="../Images/Picture(\d+)\.jpg"/&gt;</p>
+  <!-- <img src="../Images/ghost-comment.webp"/> -->
+  <script><![CDATA[ var s = '<img src="../Images/ghost-cdata.webp"/>'; ]]></script>
+  <div style="background: url('../Images/real-inline.webp')">真内联样式</div>
+</body>
+</html>`)
+	got, err := collectMarkupURIsStrict(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"../Images/real-style.webp",
+		"../Images/real-attr.webp",
+		"../Images/real-inline.webp",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("collectMarkupURIsStrict() = %#v\nwant %#v", got, want)
+	}
+	for _, ghost := range []string{"../Audio/ghost.mp3", "../Images/ghost-comment.webp",
+		"../Images/ghost-cdata.webp"} {
+		for _, g := range got {
+			if g == ghost {
+				t.Errorf("字符数据/注释/CDATA 里的 %q 被当成了真引用", ghost)
+			}
+		}
 	}
 }
 

@@ -1,22 +1,97 @@
 {
   "schemaVersion": "2",
-  "capability": "epub.source.intake",
+  "capability": "epub.notes.legacy-fallback",
   "status": "failed",
   "input": {
-    "path": "references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub",
-    "sha256": "ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac"
+    "path": "<fixture>/mini.epub",
+    "sha256": "9b47e18492afd2caaa31e63b60cf1ef9f88d92280bde2a8deaee8b19241f5ed4"
+  },
+  "facts": {
+    "epub.notes.popup.normalize.findings": [],
+    "epub.notes.popup.normalize.noterefs": 0,
+    "epub.notes.popup.normalize.status": "complete",
+    "epub.notes.popup.normalize.text_files": 0,
+    "epub.notes.popup.normalize.violations": 0,
+    "epub.package.nav.audit.actionableFindings": [],
+    "epub.package.nav.audit.auditStatus": "warn",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "warn",
+        "id": "audit.0",
+        "title": "Kindle/legacy delivery should keep toc.ncx and spine toc=\"ncx\""
+      },
+      {
+        "level": "warn",
+        "id": "audit.1",
+        "title": "Cover should have properties=\"cover-image\" and legacy meta name=\"cover\""
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 2,
+      "info": 0
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-layout-auditor",
+      "$epub-kindle-compatibility-checker",
+      "$epub-package-nav-auditor",
+      "$epub-image-layout-optimizer",
+      "$epub-content-analyzer",
+      "$epub-typography-optimizer"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "zh-CN",
+      "manifest_items": 2,
+      "media_counts": {
+        "css": 0,
+        "fonts": 0,
+        "images": 0,
+        "other": 0,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 5
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    }
   },
   "findings": [
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.package.nav.audit reported 0 error / 2 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.package.nav.audit.findings\"]",
+      "location": "epub.package.nav.audit"
+    },
     {
       "level": "error",
       "id": "capability.not-implemented",
       "title": "Capability not implemented in Go",
-      "detail": "epub.source.intake has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`"
+      "detail": "epub.notes.legacy-fallback has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`"
     }
   ],
   "events": [
     {
-      "step": "epub.source.intake",
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 2 warn"
+    },
+    {
+      "step": "epub.notes.popup.normalize",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.notes.legacy-fallback",
       "status": "skipped",
       "message": "capability has no Go implementation"
     }

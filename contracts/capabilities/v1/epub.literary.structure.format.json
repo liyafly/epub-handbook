@@ -8,6 +8,6 @@
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "anchors"],
   "permissions": {"requiresWriteAccess": true, "network": "none"},
-  "requires": ["epub.layout.audit"],
-  "adapters": ["openai", "claude", "mcp", "cli", "gui"]
+  "execution": {"input": "epub", "output": "single"},
+  "requires": ["epub.layout.audit"]
 }

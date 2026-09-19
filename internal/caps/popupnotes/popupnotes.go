@@ -1,11 +1,8 @@
 // Package popupnotes 移植 epub.notes.popup.normalize 的执行面
 // （scripts/validate_popup_notes.py 的弹注校验规则），只读。
 //
-// 错误措辞、触发顺序与退出码语义逐字对齐 Python oracle：有错误 → 逐条
-// "ERROR: {msg}" 且退出码 1；通过 → stdout "popup note validation ok"。
-// Python 侧 --epub 模式把容器解到临时目录后只扫 OEBPS/Text/*.xhtml，
-// 错误消息里的路径前缀是临时目录；Go 侧直接用 zip 路径（OEBPS/Text/…），
-// parity 比对时按路径前缀归一。
+// 错误措辞与触发顺序沿用原校验器：每条违反项是一条 error finding，
+// title 以 zip 路径（OEBPS/Text/…）开头；有 error 时 status=failed（退出码 1）。
 package popupnotes
 
 import (
@@ -24,10 +21,7 @@ import (
 const CapabilityID = "epub.notes.popup.normalize"
 
 // Params 是本能力的参数。
-type Params struct {
-	// LegacyReport 输出与 Python stderr 行一致的 findings 列表。
-	LegacyReport bool
-}
+type Params struct{}
 
 type violation struct {
 	msg string
@@ -39,7 +33,7 @@ type iconRef struct {
 }
 
 // Run 执行弹注校验（只读）。
-func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []violation
 
@@ -203,16 +197,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		"noterefs":   noterefCount,
 		"violations": len(errs),
 		"text_files": len(textFiles),
-	}
-	if p.LegacyReport {
-		lines := make([]string, 0, len(errs))
-		for _, v := range errs {
-			lines = append(lines, "ERROR: "+v.msg)
-		}
-		if len(lines) == 0 {
-			lines = append(lines, "popup note validation ok")
-		}
-		res.Facts["legacyReport"] = map[string]any{"lines": lines}
 	}
 	return res, nil
 }

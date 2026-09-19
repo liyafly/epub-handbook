@@ -268,9 +268,16 @@ func (coverCheck) Check(before, after State, o Options) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	if MappedPath(o.PathMap, orEmpty(bCover)) != orEmpty(aCover) {
+	// 比较用的是**映射后**的 before 路径，消息也必须打印映射后的值。
+	// 打印未映射的 bCover 会让 finding 自相矛盾 ——「path changed: 'X' -> 'X'」
+	// （2026-09-07 实测：merge 两卷同源书时 path-map 把封面映射到
+	// vol2_cover.jpg，而 after 书的封面是 cover.jpg，旧消息两侧都印
+	// 'OEBPS/Images/cover.jpg'，读起来像守卫抽风）。无 path-map 时
+	// mappedBefore == bCover，措辞与此前逐字节相同。
+	mappedBefore := MappedPath(o.PathMap, orEmpty(bCover))
+	if mappedBefore != orEmpty(aCover) {
 		return []Finding{{CheckCover,
-			fmt.Sprintf("cover: cover-image path changed: %s -> %s", pythonReprValue(bCover), pythonReprValue(aCover)), false}}, nil
+			fmt.Sprintf("cover: cover-image path changed: %s -> %s", pythonReprValue(mappedBefore), pythonReprValue(aCover)), false}}, nil
 	}
 	if bCover == "" {
 		return nil, nil

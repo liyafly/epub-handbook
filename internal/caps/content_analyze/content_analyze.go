@@ -4,14 +4,12 @@
 // 它是只读 detector（契约 kind=detector、requiresWriteAccess=false）：
 // 不产生 edits、不调用 b.Apply，直接返回分析报告。
 //
-// legacy-report 形状与 Python `json.dumps(report, ensure_ascii=False, indent=2)`
-// 逐字节一致（键序 = Python dict 插入序，浮点经 report.PyFloat 保持
-// 1.0 → "1.0" 的 repr 语义），供 SPEC §5.2 的 P2 parity 使用。
+// 逐块明细以正式 facts 键 `blockList` / `sourceErrors` 输出（块内字段沿用
+// 原分析器的 snake_case 键名；比率经 report.PyFloat 保持 1.0 → "1.0"）。
 package contentanalyze
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -30,11 +28,9 @@ const encryptionPath = "META-INF/encryption.xml"
 
 // Params 是本 capability 的参数。
 type Params struct {
-	// IncludeSnippets 在 legacy 报告块里附带头 160 码点本地文本预览
-	// （Python --include-snippets；隐私默认关闭，报告不得直接入库）。
+	// IncludeSnippets 在 blockList 每块附带头 160 码点本地文本预览
+	// （include_snippets=true；隐私默认关闭，报告不得直接入库）。
 	IncludeSnippets bool
-	// LegacyReport 把 Python oracle 的原始 JSON 形状放进 Facts["legacyReport"]。
-	LegacyReport bool
 	// SourceName / SourceContent 非空时直接分析该文本源（非 EPUB），
 	// 按文件名后缀分派 xhtml / loose-html / markdown / plain。
 	// 输入是 EPUB 时保持两者为零值，只走 spine XHTML 路径。
@@ -42,15 +38,15 @@ type Params struct {
 	SourceContent string
 }
 
-// legacyError 对齐 report["errors"] 元素键序：source, message。
-type legacyError struct {
+// sourceError 对齐 report["errors"] 元素键序：source, message。
+type sourceError struct {
 	Source  string `json:"source"`
 	Message string `json:"message"`
 }
 
-// legacyFeatures 对齐 _features 的键序（:335-345）。
+// textFeatures 对齐 _features 的键序（:335-345）。
 // 比率字段必须是 PyFloat：Python round(x,4) 的结果 repr 出来 0 → "0.0"。
-type legacyFeatures struct {
+type textFeatures struct {
 	VisibleChars     int            `json:"visible_chars"`
 	CJKCount         int            `json:"cjk_count"`
 	LatinCount       int            `json:"latin_count"`
@@ -62,45 +58,45 @@ type legacyFeatures struct {
 	LatinRatio       report.PyFloat `json:"latin_ratio"`
 }
 
-// legacyBlock 对齐 _public_block 的键序（:438-457）。
+// analyzedBlock 对齐 _public_block 的键序（:438-457）。
 // language / previous_tag / next_tag 可为 null（指针）；snippet 仅 opt-in。
-type legacyBlock struct {
-	Source         string         `json:"source"`
-	Locator        string         `json:"locator"`
-	Tag            string         `json:"tag"`
-	Classes        []string       `json:"classes"`
-	Language       *string        `json:"language"`
-	PreviousTag    *string        `json:"previous_tag"`
-	NextTag        *string        `json:"next_tag"`
-	TextSHA256     string         `json:"text_sha256"`
-	Features       legacyFeatures `json:"features"`
-	PrimaryRole    string         `json:"primary_role"`
-	CandidateRoles []string       `json:"candidate_roles"`
-	Confidence     string         `json:"confidence"`
-	ReviewRequired bool           `json:"review_required"`
-	Evidence       []string       `json:"evidence"`
-	Typography     typographyRow  `json:"typography"`
-	Snippet        string         `json:"snippet,omitempty"`
+type analyzedBlock struct {
+	Source         string        `json:"source"`
+	Locator        string        `json:"locator"`
+	Tag            string        `json:"tag"`
+	Classes        []string      `json:"classes"`
+	Language       *string       `json:"language"`
+	PreviousTag    *string       `json:"previous_tag"`
+	NextTag        *string       `json:"next_tag"`
+	TextSHA256     string        `json:"text_sha256"`
+	Features       textFeatures  `json:"features"`
+	PrimaryRole    string        `json:"primary_role"`
+	CandidateRoles []string      `json:"candidate_roles"`
+	Confidence     string        `json:"confidence"`
+	ReviewRequired bool          `json:"review_required"`
+	Evidence       []string      `json:"evidence"`
+	Typography     typographyRow `json:"typography"`
+	Snippet        string        `json:"snippet,omitempty"`
 }
 
-// legacySummary 对齐 report["summary"] 键序；roles 是 Counter → sorted dict，
+// analysisSummary 对齐 report["summary"] 键序；roles 是 Counter → sorted dict，
 // Go map 的键序序列化即为字典序，与 Python sorted 一致。
-type legacySummary struct {
+type analysisSummary struct {
 	Blocks         int            `json:"blocks"`
 	ReviewRequired int            `json:"review_required"`
 	FileErrors     int            `json:"file_errors"`
 	Roles          map[string]int `json:"roles"`
 }
 
-// legacyReport 对齐 _report 的顶层键序（:489-502）。
-type legacyReport struct {
-	SchemaVersion string        `json:"schema_version"`
-	Capability    string        `json:"capability"`
-	Input         string        `json:"input"`
-	Status        string        `json:"status"`
-	Summary       legacySummary `json:"summary"`
-	Errors        []legacyError `json:"errors"`
-	Blocks        []legacyBlock `json:"blocks"`
+// analysisReport 对齐 _report 的顶层键序（:489-502）。
+type analysisReport struct {
+	SchemaVersion string          `json:"schema_version"`
+	Capability    string          `json:"capability"`
+	Input         string          `json:"input"`
+	Status        string          `json:"status"`
+	Summary       analysisSummary `json:"summary"`
+	Errors        []sourceError   `json:"errors"`
+	Blocks        []analyzedBlock `json:"blocks"`
 }
 
 // Run 执行本 capability。只读：扫描 → 报告（无 apply 段）。
@@ -127,11 +123,11 @@ func runEpub(b *book.Book, p Params) (report.Result, error) {
 	if err != nil {
 		return report.Result{}, err
 	}
-	var blocks []legacyBlock
+	var blocks []analyzedBlock
 	for _, doc := range docs {
 		pbs, err := AnalyzeXHTML(doc.name, doc.content, p.IncludeSnippets)
 		if err != nil {
-			fileErrs = append(fileErrs, legacyError{Source: doc.name, Message: err.Error()})
+			fileErrs = append(fileErrs, sourceError{Source: doc.name, Message: err.Error()})
 			continue
 		}
 		blocks = append(blocks, pbs...)
@@ -140,9 +136,15 @@ func runEpub(b *book.Book, p Params) (report.Result, error) {
 	return assemble(rep, p), nil
 }
 
-// assemble 把 legacy 报告映射进统一信封：
+// assemble 把分析报告映射进统一信封：
 // fail → StatusFailed；warn → complete + warn findings；pass → complete。
-func assemble(rep legacyReport, p Params) report.Result {
+//
+// facts：`blocks` / `review_required` / `roles` 是汇总；`fileErrors` 是解析
+// 失败的源文档数；`analysisStatus` 是分析器口径（pass | warn | fail）；
+// `blockList` 是逐块明细数组（locator、primary_role、candidate_roles、
+// confidence、review_required、evidence、typography 等）；`sourceErrors`
+// 是逐文件解析错误（source、message）。
+func assemble(rep analysisReport, p Params) report.Result {
 	res := report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,
@@ -150,6 +152,10 @@ func assemble(rep legacyReport, p Params) report.Result {
 			"blocks":          rep.Summary.Blocks,
 			"review_required": rep.Summary.ReviewRequired,
 			"roles":           rep.Summary.Roles,
+			"fileErrors":      rep.Summary.FileErrors,
+			"analysisStatus":  rep.Status,
+			"blockList":       rep.Blocks,
+			"sourceErrors":    rep.Errors,
 		},
 	}
 	switch rep.Status {
@@ -181,18 +187,10 @@ func assemble(rep legacyReport, p Params) report.Result {
 			})
 		}
 	}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			res.Status = report.StatusFailed
-			return res
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
-	}
 	return res
 }
 
-func errorMessages(errs []legacyError) []string {
+func errorMessages(errs []sourceError) []string {
 	out := make([]string, 0, len(errs))
 	for _, e := range errs {
 		out = append(out, e.Message)
@@ -201,7 +199,7 @@ func errorMessages(errs []legacyError) []string {
 }
 
 // buildReport 对齐 Python _report：状态判定与 summary 统计。
-func buildReport(input string, blocks []legacyBlock, fileErrs []legacyError) legacyReport {
+func buildReport(input string, blocks []analyzedBlock, fileErrs []sourceError) analysisReport {
 	roles := map[string]int{}
 	review := 0
 	for _, bl := range blocks {
@@ -218,17 +216,17 @@ func buildReport(input string, blocks []legacyBlock, fileErrs []legacyError) leg
 		status = "warn"
 	}
 	if blocks == nil {
-		blocks = []legacyBlock{}
+		blocks = []analyzedBlock{}
 	}
 	if fileErrs == nil {
-		fileErrs = []legacyError{}
+		fileErrs = []sourceError{}
 	}
-	return legacyReport{
+	return analysisReport{
 		SchemaVersion: "1.0",
 		Capability:    CapabilityID,
 		Input:         input,
 		Status:        status,
-		Summary: legacySummary{
+		Summary: analysisSummary{
 			Blocks:         len(blocks),
 			ReviewRequired: review,
 			FileErrors:     len(fileErrs),
@@ -260,7 +258,7 @@ type spineDoc struct {
 
 // spineDocuments 对齐 _epub_spine_documents：encryption 拒绝 → container/OPF
 // → manifest id → 归一化路径 → 严格 UTF-8 解码（失败记 error 继续）。
-func spineDocuments(b *book.Book) ([]spineDoc, []legacyError, error) {
+func spineDocuments(b *book.Book) ([]spineDoc, []sourceError, error) {
 	if b.Has(encryptionPath) {
 		return nil, nil, fmt.Errorf("encryption marker detected; content analysis stopped")
 	}
@@ -288,7 +286,7 @@ func spineDocuments(b *book.Book) ([]spineDoc, []legacyError, error) {
 		}
 	}
 	var docs []spineDoc
-	var errs []legacyError
+	var errs []sourceError
 	for _, ref := range pkg.Spine {
 		target, ok := byID[ref.IDRef]
 		if !ok || !b.Has(target) {
@@ -299,7 +297,7 @@ func spineDocuments(b *book.Book) ([]spineDoc, []legacyError, error) {
 			continue
 		}
 		if !utf8.Valid(data) {
-			errs = append(errs, legacyError{Source: target, Message: "text is not valid UTF-8"})
+			errs = append(errs, sourceError{Source: target, Message: "text is not valid UTF-8"})
 			continue
 		}
 		docs = append(docs, spineDoc{name: target, content: string(data)})

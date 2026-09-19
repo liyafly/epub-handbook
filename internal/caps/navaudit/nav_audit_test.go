@@ -4,18 +4,27 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
+
+// stubProbe 返回一个固定结果的 toolProbe：测试绝不能读开发机 PATH，
+// 否则 `brew install epubcheck` 会让 golden 无故变红。
+func stubProbe(available bool) toolProbe {
+	return func(string) bool { return available }
+}
 
 // TestNativeFixtureGolden 锁定 nav.audit 的 Go 原生报告和推荐命令。
 // 该测试不调用已删除的 Python oracle；golden 只包含稳定的报告字段，
 // 不把 t.TempDir() 生成的输入绝对路径写入仓库。
+// 外部工具探测被固定为「不可用」，使 golden 与本机 PATH 无关。
 func TestNativeFixtureGolden(t *testing.T) {
 	path := writeNativeFixture(t)
 	b, err := book.Open(path)
@@ -24,35 +33,32 @@ func TestNativeFixtureGolden(t *testing.T) {
 	}
 	defer b.Close()
 
-	res, err := Run(t.Context(), b, Params{LegacyReport: true})
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacyRaw, err := json.Marshal(res.Facts["legacyReport"])
-	if err != nil {
-		t.Fatalf("marshal legacy report: %v", err)
-	}
-	var legacy struct {
-		SuggestedCommands []string `json:"suggested_commands"`
-	}
-	if err := json.Unmarshal(legacyRaw, &legacy); err != nil {
-		t.Fatalf("decode legacy report: %v", err)
-	}
 	nextCommands := normalizeFixtureCommands(res.NextCommands, path)
-	suggestedCommands := normalizeFixtureCommands(legacy.SuggestedCommands, path)
 
 	got := struct {
-		Status            string           `json:"status"`
-		Summary           any              `json:"summary"`
-		Findings          []report.Finding `json:"findings"`
-		NextCommands      []string         `json:"nextCommands"`
-		SuggestedCommands []string         `json:"suggestedCommands"`
+		Status             string           `json:"status"`
+		AuditStatus        any              `json:"auditStatus"`
+		Summary            any              `json:"summary"`
+		Findings           []report.Finding `json:"findings"`
+		FindingsByLevel    any              `json:"findingsByLevel"`
+		RecommendedSkills  any              `json:"recommendedSkills"`
+		ToolAvailability   any              `json:"toolAvailability"`
+		ActionableFindings any              `json:"actionableFindings"`
+		NextCommands       []string         `json:"nextCommands"`
 	}{
-		Status:            res.Status,
-		Summary:           res.Facts["summary"],
-		Findings:          res.Findings,
-		NextCommands:      nextCommands,
-		SuggestedCommands: suggestedCommands,
+		Status:             res.Status,
+		AuditStatus:        res.Facts["auditStatus"],
+		Summary:            res.Facts["summary"],
+		Findings:           res.Findings,
+		FindingsByLevel:    res.Facts["findingsByLevel"],
+		RecommendedSkills:  res.Facts["recommendedSkills"],
+		ToolAvailability:   res.Facts["toolAvailability"],
+		ActionableFindings: res.Facts["actionableFindings"],
+		NextCommands:       nextCommands,
 	}
 
 	wantPath := filepath.Join("..", "..", "..", "testdata", "navaudit", "native-golden.json")
@@ -168,7 +174,7 @@ func TestNativeFixtureShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{})
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,5 +196,212 @@ func TestNativeFixtureShape(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Errorf("nextCommands 缺少 %q:\n%s", want, joined)
 		}
+	}
+}
+
+// TestEmptySpineIsErrorInPreflightOnly 锁定 spine 特判：preflight 族在 spine 为空时
+// 追加一条 error finding 并置 failed；layout-audit 族不做此特判。
+func TestEmptySpineIsErrorInPreflightOnly(t *testing.T) {
+	path := writeNativeFixture(t)
+	noSpine := filepath.Join(t.TempDir(), "no-spine.epub")
+	rewriteZipEntry(t, path, noSpine, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(`<spine toc="ncx"><itemref idref="chapter"/></spine>`), []byte(`<spine toc="ncx"></spine>`), 1)
+	})
+
+	for _, tc := range []struct {
+		name       string
+		params     Params
+		wantStatus string
+		wantSpine  bool
+	}{
+		{"preflight", Params{}, report.StatusFailed, true},
+		{"layout-audit", Params{Report: "layout-audit"}, report.StatusComplete, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, err := book.Open(noSpine)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			res, err := run(t.Context(), b, tc.params, stubProbe(false))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Status != tc.wantStatus {
+				t.Fatalf("status = %q, want %q", res.Status, tc.wantStatus)
+			}
+			found := false
+			for _, f := range res.Findings {
+				if f.Title == "OPF spine is missing or empty" && f.Level == "error" {
+					found = true
+				}
+			}
+			if found != tc.wantSpine {
+				t.Errorf("spine finding present = %v, want %v\n%+v", found, tc.wantSpine, res.Findings)
+			}
+			levels := res.Facts["findingsByLevel"].(findingsByLevel)
+			gotErrors := 0
+			for _, f := range res.Findings {
+				if f.Level == "error" {
+					gotErrors++
+				}
+			}
+			if levels.Error != gotErrors {
+				t.Errorf("findingsByLevel.error = %d, want %d", levels.Error, gotErrors)
+			}
+			if got := res.Facts["auditStatus"]; (got == "fail") != tc.wantSpine {
+				t.Errorf("auditStatus = %v", got)
+			}
+		})
+	}
+}
+
+// rewriteZipEntry 复制 zip 并用 fn 改写指定 entry。
+func rewriteZipEntry(t *testing.T, src, dst, entry string, fn func([]byte) []byte) {
+	t.Helper()
+	zr, err := zip.OpenReader(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Name == entry {
+			data = fn(data)
+		}
+		h := &zip.FileHeader{Name: f.Name, Method: f.Method}
+		fw, err := w.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestToolAvailabilityFollowsInjectedProbe 把 PATH 依赖从 golden 里隔离出来：
+// toolAvailability 与 epubcheck 相关的 nextCommands 只由注入的探测器决定。
+func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {
+	path := writeNativeFixture(t)
+	for _, tc := range []struct {
+		name      string
+		available bool
+		wantCmd   string
+		noCmd     string
+	}{
+		{"missing", false,
+			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable.",
+			"epubcheck " + shlexQuote(path)},
+		{"present", true,
+			"epubcheck " + shlexQuote(path),
+			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, err := book.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			res, err := run(t.Context(), b, Params{}, stubProbe(tc.available))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tools, ok := res.Facts["toolAvailability"].(map[string]bool)
+			if !ok {
+				t.Fatalf("toolAvailability 类型 = %T", res.Facts["toolAvailability"])
+			}
+			if tools["epubcheck"] != tc.available {
+				t.Errorf("toolAvailability[epubcheck] = %v, want %v", tools["epubcheck"], tc.available)
+			}
+			joined := strings.Join(res.NextCommands, "\n")
+			if !strings.Contains(joined, tc.wantCmd) {
+				t.Errorf("nextCommands 缺少 %q:\n%s", tc.wantCmd, joined)
+			}
+			if strings.Contains(joined, tc.noCmd) {
+				t.Errorf("nextCommands 不应含 %q:\n%s", tc.noCmd, joined)
+			}
+		})
+	}
+}
+
+// TestRunDefaultsToExternProbe 断言导出的 Run 走 extern.LookPath（INV-4），
+// 且探测结果与 extern 一致 —— 这条不依赖 PATH 上是否真有 epubcheck。
+func TestRunDefaultsToExternProbe(t *testing.T) {
+	path := writeNativeFixture(t)
+	b, err := book.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, ok := res.Facts["toolAvailability"].(map[string]bool)
+	if !ok {
+		t.Fatalf("toolAvailability 类型 = %T", res.Facts["toolAvailability"])
+	}
+	want, _ := extern.LookPath("epubcheck")
+	if tools["epubcheck"] != want {
+		t.Errorf("Run 的 epubcheck 探测 = %v，extern.LookPath = %v", tools["epubcheck"], want)
+	}
+}
+
+// TestActionableFindingsSerialisesAsArray 锁定 MEDIUM-2：零条可执行发现时
+// facts.actionableFindings 必须是 []，不能是 null（消费方会做 | length）。
+func TestActionableFindingsSerialisesAsArray(t *testing.T) {
+	path := writeNativeFixture(t)
+	clean := filepath.Join(t.TempDir(), "clean.epub")
+	// 给 nav.xhtml 补上 lang，使四个 detector 全部落空。
+	rewriteZipEntry(t, path, clean, "OEBPS/nav.xhtml", func(data []byte) []byte {
+		return bytes.Replace(data,
+			[]byte(`<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">`),
+			[]byte(`<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN">`), 1)
+	})
+	b, err := book.Open(clean)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := res.Facts["actionableFindings"].([]detectorFinding)
+	if !ok {
+		t.Fatalf("actionableFindings 类型 = %T", res.Facts["actionableFindings"])
+	}
+	if len(got) != 0 {
+		t.Fatalf("fixture 应产生 0 条可执行发现，实际 %d 条：%+v", len(got), got)
+	}
+	raw, err := json.Marshal(res.Facts["actionableFindings"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "[]" {
+		t.Errorf("actionableFindings 序列化 = %s, want []", raw)
+	}
+	// nextCommands 同理：空列表也必须是 []。
+	if raw, err := json.Marshal((&inspector{}).nextCommands()); err != nil {
+		t.Fatal(err)
+	} else if string(raw) != "[]" {
+		t.Errorf("空 nextCommands 序列化 = %s, want []", raw)
 	}
 }

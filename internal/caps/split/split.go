@@ -15,7 +15,6 @@ package split
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -23,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -54,24 +54,14 @@ type Params struct {
 	// DryRun 只规划和验证所有分段，不创建 output_dir 或其 sibling 临时目录。
 	// 最终 status 由 pipeline 按全局 dry-run 规则提升为 approval-required。
 	DryRun bool
-	// LegacyReport 输出 Python OperationReport 形状的 JSON。
-	LegacyReport bool
 }
 
-// legacyReport 对齐 models.OperationReport（键序 = dataclass 字段序）。
-type legacyReport struct {
-	Operation        string   `json:"operation"`
-	Input            *string  `json:"input"`
-	Inputs           []string `json:"inputs"`
-	Output           *string  `json:"output"`
-	Outputs          []string `json:"outputs"`
-	OPF              string   `json:"opf"`
-	MergedItems      int      `json:"merged_items"`
-	RenamedResources int      `json:"renamed_resources"`
-	SegmentsCreated  int      `json:"segments_created"`
-	FieldsUpdated    int      `json:"fields_updated"`
-	CoverPath        string   `json:"cover_path"`
-	Warnings         []string `json:"warnings"`
+// operationReport 是本能力的包内统计累加器，最终展开为 Result.Facts。
+type operationReport struct {
+	Operation       string
+	Outputs         []string
+	OPF             string
+	SegmentsCreated int
 }
 
 // manifestTuple 是重建 manifest 的条目。
@@ -82,12 +72,6 @@ type manifestTuple struct {
 	props     string
 }
 
-// tocGroup 是 build_nav / build_ncx 的 (group_title, entries) 分组。
-type tocGroup struct {
-	title   string
-	entries []tocEntry
-}
-
 // failedResult 复刻 Python harness 的失败语义：不产出报告 JSON，
 // Status=failed，错误措辞原样进入 findings。
 func failedResult(msg string) (report.Result, error) {
@@ -96,6 +80,68 @@ func failedResult(msg string) (report.Result, error) {
 		Status:     report.StatusFailed,
 		Findings:   []report.Finding{{Level: "error", ID: "package.refused", Title: msg}},
 	}, nil
+}
+
+// spineTocEntries 复刻 core.spine_toc_entries。
+//
+// 留在本包（而不是 internal/scan/opf）：pkg 的类型 *pkgInfo 是本包私有的
+// 包投影（见 pkgio.go），scan/opf 是层 4、不能反向 import caps（层 2）。
+func spineTocEntries(pkg *pkgInfo) []opf.TocEntry {
+	var entries []opf.TocEntry
+	for _, sp := range pkg.spine {
+		item, ok := pkg.byID(sp.idref)
+		if !ok || pypath.HasNavProp(item.properties) {
+			continue
+		}
+		lower := strings.ToLower(item.archivePath)
+		if item.mediaType == "application/xhtml+xml" ||
+			strings.HasSuffix(lower, ".xhtml") || strings.HasSuffix(lower, ".html") {
+			entries = append(entries, opf.TocEntry{Title: pypath.Basename(item.href), Href: item.archivePath, Level: 1})
+		}
+	}
+	return entries
+}
+
+// parseToc 复刻 core.parse_toc：nav → ncx → spine 回退。理由同
+// spineTocEntries：pkg 是本包私有类型，纯 XML 解析部分已经在
+// internal/scan/opf.ParseTocNav / ParseTocNcx。
+func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkgInfo) ([]opf.TocEntry, error) {
+	for _, item := range pkg.manifest {
+		if !pypath.HasNavProp(item.properties) {
+			continue
+		}
+		if !names[item.archivePath] {
+			continue // parse_toc_nav 对缺失文件返回 []
+		}
+		data, err := read(item.archivePath)
+		if err != nil {
+			data = nil
+		}
+		entries, perr := opf.ParseTocNav(item.archivePath, data)
+		if perr != nil {
+			return nil, perr
+		}
+		if len(entries) > 0 {
+			return entries, nil
+		}
+	}
+	if pkg.tocID != "" {
+		if item, ok := pkg.byID(pkg.tocID); ok {
+			if names[item.archivePath] {
+				data, err := read(item.archivePath)
+				if err == nil {
+					entries, perr := opf.ParseTocNcx(item.archivePath, data)
+					if perr != nil {
+						return nil, perr
+					}
+					if len(entries) > 0 {
+						return entries, nil
+					}
+				}
+			}
+		}
+	}
+	return spineTocEntries(pkg), nil
 }
 
 type segRange struct{ start, end int }
@@ -156,7 +202,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if err := ctx.Err(); err != nil {
 				return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 			}
-			targets = append(targets, tocEntry{title: pyBasename(archivePath), href: archivePath, level: 1})
+			targets = append(targets, opf.TocEntry{Title: pypath.Basename(archivePath), Href: archivePath, Level: 1})
 		}
 	}
 	if len(targets) == 0 || len(spinePaths) == 0 {
@@ -182,7 +228,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 		}
-		pathPart := t.href
+		pathPart := t.Href
 		if i2 := strings.IndexByte(pathPart, '#'); i2 >= 0 {
 			pathPart = pathPart[:i2]
 		}
@@ -266,12 +312,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 	}
 
-	rep := legacyReport{
+	rep := operationReport{
 		Operation: "split",
-		Input:     strPtr(inputPath),
-		Inputs:    []string{},
 		OPF:       pkg.opfPath,
-		Warnings:  []string{},
 	}
 	var events []report.Event
 	segments := make([]segmentProjection, 0, len(ranges))
@@ -281,7 +324,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 	}()
 
-	opfDir := pyDirname(pkg.opfPath)
+	opfDir := pypath.Dirname(pkg.opfPath)
 	navPath := joinPath(opfDir, "nav.xhtml")
 	ncxPath := joinPath(opfDir, "toc.ncx")
 	for segmentIndex, r := range ranges {
@@ -301,16 +344,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			}
 			return failedResult(fmt.Sprintf("%s: segment %d resource closure failed: %v", CapabilityID, segmentNumber, err))
 		}
-		var segmentToc []tocEntry
+		var segmentToc []opf.TocEntry
 		for _, entry := range targets {
 			if err := ctx.Err(); err != nil {
 				return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 			}
-			pathPart := entry.href
+			pathPart := entry.Href
 			if i := strings.IndexByte(pathPart, '#'); i >= 0 {
 				pathPart = pathPart[:i]
 			}
-			if entry.href == "" || selectedSet[pathPart] {
+			if entry.Href == "" || selectedSet[pathPart] {
 				segmentToc = append(segmentToc, entry)
 			}
 		}
@@ -329,14 +372,14 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			}
 			items = append(items, manifestTuple{
 				itemID:    item.itemID,
-				href:      relativeURI(pkg.opfPath, archivePath),
+				href:      pypath.RelativeURI(pkg.opfPath, archivePath),
 				mediaType: item.mediaType,
-				props:     removeProp(item.properties, "nav"),
+				props:     pypath.RemoveProp(item.properties, "nav"),
 			})
 			addedIDs[item.itemID] = true
 		}
-		navID := uniqueID("nav", addedIDs)
-		ncxID := uniqueID("ncx", addedIDs)
+		navID := pypath.UniqueID("nav", addedIDs)
+		ncxID := pypath.UniqueID("ncx", addedIDs)
 		var refs []spineRef
 		refs = append(refs, spineRef{idref: navID, linear: "no"})
 		var expectedSpine []string
@@ -351,10 +394,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 
 		title := pkg.title
-		newManifest := buildManifestElement(items, navID, relativeURI(pkg.opfPath, navPath), ncxID, relativeURI(pkg.opfPath, ncxPath))
+		newManifest := buildManifestElement(items, navID, pypath.RelativeURI(pkg.opfPath, navPath), ncxID, pypath.RelativeURI(pkg.opfPath, ncxPath))
 		newSpine := buildSpineElement(ncxID, refs)
-		navBytes := buildNav(title, []tocGroup{{title: title, entries: segmentToc}}, navPath, pathIdentity)
-		ncxBytes := buildNcx(title, []tocGroup{{title: title, entries: segmentToc}}, ncxPath, pathIdentity)
+		navBytes := []byte(opf.BuildNav(title, []opf.TocGroup{{Title: title, Entries: segmentToc}}, navPath, pathIdentity))
+		ncxBytes := []byte(opf.BuildNCX(title, []opf.TocGroup{{Title: title, Entries: segmentToc}}, ncxPath, pathIdentity))
 
 		segBook, err := book.Open(inputPath)
 		if err != nil {
@@ -497,6 +540,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		})
 	}
 	facts := map[string]any{
+		"operation":       rep.Operation,
 		"opf":             rep.OPF,
 		"outputDir":       p.OutputDir,
 		"outputs":         append([]string(nil), outputs...),
@@ -509,15 +553,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		"partitionFacts":  partitionFacts,
 		"dryRun":          p.DryRun,
 	}
-	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete, Facts: facts, Events: events}
-	if p.LegacyReport {
-		raw, err := report.MarshalLegacy(rep)
-		if err != nil {
-			return report.Result{}, err
-		}
-		res.Facts["legacyReport"] = json.RawMessage(raw)
-	}
-	return res, nil
+	return report.Result{Capability: CapabilityID, Status: report.StatusComplete, Facts: facts, Events: events}, nil
 }
 
 func safeOutputStem(inputPath string) (string, error) {
@@ -525,7 +561,7 @@ func safeOutputStem(inputPath string) (string, error) {
 	if !safeOutputBasename(base) || strings.ContainsRune(base, '\\') {
 		return "", fmt.Errorf("split: input filename is not a safe basename: %q", base)
 	}
-	stem, _ := pySplitExt(base)
+	stem, _ := pypath.SplitExt(base)
 	if !safeOutputBasename(stem) || stem == "" {
 		return "", fmt.Errorf("split: input filename has no safe output stem: %q", base)
 	}
@@ -595,5 +631,3 @@ func joinPath(a, b string) string {
 	}
 	return a + "/" + b
 }
-
-func strPtr(s string) *string { return &s }

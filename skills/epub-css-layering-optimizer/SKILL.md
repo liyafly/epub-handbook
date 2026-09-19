@@ -39,11 +39,11 @@ description: 重构和维护 EPUB CSS 分层。用于 CSS 规则重复、放错�
 # 先 dry-run 审查计划改动
 epub run epub.css.layering.optimize --input <书> --output <新书> --dry-run --json
 
-# 确认后实跑；需要作用域归并时显式开启
-epub run epub.css.layering.optimize --input <书> --output <新书> --json merge_scoped_local_css=true
+# 确认后实跑
+epub run epub.css.layering.optimize --input <书> --output <新书> --json
 ```
 
-写型能力：`--output` 必填且指向新文件。需要旧报告形状明细时加 `legacy_report=true`。
+写型能力：`--output` 必填且指向新文件。清理计数全部在 facts 里（见下）。
 
 改后校验（能力内置红线已覆盖 text/metadata/spine/anchors/cover；需要 DRM 或字体混淆口径时再跑两文件比对）：
 
@@ -60,17 +60,18 @@ epub redline --check all <before.epub> <after.epub>
   - `factoredStylesheets`、`duplicateStylesheetsRemoved`、`overridesCreated`：拆分、去重与 override 生成量。
   - `fontDeclarationsRewritten`、`xhtmlFilesUpdated`：字体声明改写量与 XHTML 更新数。
   - `cssManifestItemsRemoved` / `cssManifestItemsAdded`：OPF manifest 同步量。
-  - `scopedLocalStylesheetsMerged`、`scopeClassesAdded`：作用域归并量与新增的 `css-local-*` 类。
+  - `scopedLocalStylesheetsMerged`、`scopeClassesAdded`：恒为 `0`。作用域归并在 Go 实现里出于 lossless 安全被停用，`merge_scoped_local_css=true` 只会追加一条说明该请求被拒绝的 warning，不改 CSS entry、link 或 body class。需要按层拆写时人工处理。
+  - `opf`：处理的 OPF 路径。
+  - `semanticFactoringDisabled`、`scopedMergeDisabled`、`duplicateDeduplication`：lossless 安全策略回显。
   - `warnings`、`mergeScopedLocalCss`（开关回显）。
 - findings：`warn css_cleanup.warning`（跳过归并、保留的歧义等）；run 内置红线失败时出现 `error redline.<check>`。
-- `legacy_report=true` 时 `facts` 额外含 `legacyReport`（旧清理报告）。
 - `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
 
 ## 依据返回怎么判断
 
 - dry-run `status == approval-required`（退出码 2）→ review facts 中各项计数与 `warnings`，确认归并/删除范围合理后实跑。
 - `cssFilesAfter > cssFilesBefore` 且无 warning → 通常是拆分/override 生成，核对 manifest 增减是否与 XHTML 引用一致。
-- `scopedLocalStylesheetsMerged == 0` 且存在引用集合交叠 → 属预期保护，不强行合并；需要时人工按层拆写。
+- 传了 `merge_scoped_local_css=true` → 会收到一条 warning 说明归并已停用；`scopedLocalStylesheetsMerged` 保持 `0` 是预期结果，不是失败。需要按层拆写时人工处理。
 - `warn css_cleanup.warning` → 逐条复核跳过原因；不允许为凑整洁猜测级联优先级。
 - `findings` 出现 `error redline.*` → 停止：输出保留供人工 diff review，先修源再重跑；不允许用宽泛 allow-list 掩盖。
 - 手工归层判据（能力不覆盖的新增样式）：通用元素规则留 `base.css`；可复用组件类放进拥有该组件的层；`@font-face` 与字体工具类进 `fonts.css`；A-lite shell 不进普通正文 CSS。

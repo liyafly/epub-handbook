@@ -30,7 +30,7 @@ epub redline --check all <before.epub> <after.epub>          # 每次改书后
 
 - `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。
 - 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误（如缺 `--output`）。
-- 本能力特有：`findings` 出现 `warn alite.no-copyright` 表示未找到相邻版权页；`facts` 里需要 `legacy_report=true` 才有每页明细（`poster_pages_refined`、`copyright_pages_refined`、`stylesheets_added`、`poster_pages`、`copyright_pages`、`warnings`，迁移期脚手架），常规运行以 `status` / `findings` / `events` 为准。
+- 本能力特有：`findings` 出现 `warn alite.no-copyright` 表示未找到相邻版权页；facts 键前缀 `epub.alite.convert.`：`opf`、`posterPagesRefined`、`copyrightPagesRefined`、`stylesheetsAdded`（0 或 1）、`posterPages` / `copyrightPages`（改写页的 zip 路径列表）、`warnings`（与 findings 同文的警告列表）。
 
 ## 依据返回怎么判断
 

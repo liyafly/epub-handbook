@@ -66,19 +66,6 @@ func TestSanitizeCSSParseErrorProducesNoEdits(t *testing.T) {
 	}
 }
 
-func TestSelectorListPartsKeepsNestedCommas(t *testing.T) {
-	parts := selectorListParts(`.a, :is(.b,.c), [data-x=",,"], .d\,e`)
-	if len(parts) != 4 {
-		t.Fatalf("parts=%q, want four top-level selectors", parts)
-	}
-	if parts[1] != ` :is(.b,.c)` || parts[2] != ` [data-x=",,"]` || parts[3] != ` .d\,e` {
-		t.Fatalf("nested selector commas were split: %q", parts)
-	}
-	if got := scopedSelector(`.a, :is(.b,.c)`, "scope"); got != "body.scope .a,\nbody.scope :is(.b,.c)" {
-		t.Fatalf("scoped selector=%q", got)
-	}
-}
-
 func TestXHTMLLinkEditsTargetHrefSpan(t *testing.T) {
 	data := []byte("<!-- <link href=\"ignored.css\"> -->\r\n" +
 		"<link data-x=\"a>b\" href='../Styles/old.css' type=\"text/css\"/>\r\n")

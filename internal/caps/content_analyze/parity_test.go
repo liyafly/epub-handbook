@@ -1,111 +1,94 @@
-// parity_test.go 按 internal/redline/parity_test.go 的模式做 P2 parity：
-// 同一 fixture EPUB 分别跑 Python oracle 与 Go 实现，legacyReport 逐字节比对。
-// 路径字段是绝对路径，比对前替换为占位符。
+// parity_test.go 原为 Python oracle 的 P2 parity 用例（oracle 已于
+// 2026-08-29 删除）。这里保留同一组 fixture 场景，改为 Go-native 断言：
+// 逐块明细（facts.blockList）、汇总（facts.blocks / review_required /
+// fileErrors / analysisStatus）与信封 status 的映射。
 package contentanalyze
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-const analyzerScript = "scripts/epub_content_analyzer.py"
-
-// runPythonAnalyzer 跑 Python oracle，返回 (退出码, stdout)。
-func runPythonAnalyzer(t *testing.T, epubPath string) (int, string) {
-	t.Helper()
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	script := filepath.Join(repo, analyzerScript)
-	if _, err := os.Stat(script); err != nil {
-		t.Skip("scripts/epub_content_analyzer.py 不存在（oracle 已删除）")
-	}
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	cmd := exec.Command("python3", script, epubPath, "--format", "json")
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if runErr != nil {
-		t.Fatalf("运行 python oracle 失败: %v\n%s", runErr, errb.String())
-	}
-	return code, out.String()
-}
-
-// normalizePathField 把绝对路径（含符号链接解析后的形态）替换为占位符。
-func normalizePathField(s, path string) string {
-	s = strings.ReplaceAll(s, path, "<INPUT>")
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		s = strings.ReplaceAll(s, resolved, "<INPUT>")
-	}
-	if abs, err := filepath.Abs(path); err == nil {
-		s = strings.ReplaceAll(s, abs, "<INPUT>")
-	}
-	return s
-}
-
-// runGoAnalyzer 打开 fixture 并执行 Run，返回 (结果, legacy 原始字节)。
-func runGoAnalyzer(t *testing.T, epubPath string) (report.Result, []byte) {
+// runAnalyzer 打开 fixture 并执行 Run。
+func runAnalyzer(t *testing.T, epubPath string) report.Result {
 	t.Helper()
 	b, err := book.Open(epubPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(context.Background(), b, Params{LegacyReport: true})
+	res, err := Run(context.Background(), b, Params{})
 	if err != nil {
 		t.Fatalf("Go Run: %v", err)
 	}
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
-	if !ok {
-		t.Fatalf("Facts 缺少 legacyReport")
-	}
-	return res, raw
+	return res
 }
 
-func assertAnalyzerParity(t *testing.T, epubPath string) {
+// rolesByLocator 把 blockList 折成 locator → primary_role。
+func rolesByLocator(t *testing.T, res report.Result) map[string]analyzedBlock {
 	t.Helper()
-	wantCode, wantText := runPythonAnalyzer(t, epubPath)
-	res, raw := runGoAnalyzer(t, epubPath)
-	got := normalizePathField(string(raw), epubPath)
-	want := normalizePathField(wantText, epubPath)
-	if got != want {
-		t.Errorf("legacyReport 逐字节不一致:\n--- go ---\n%s\n--- python ---\n%s", got, want)
+	out := map[string]analyzedBlock{}
+	for _, bl := range blockListOf(t, res) {
+		out[bl.Locator] = bl
 	}
-	// 退出码语义：Python 1 ⇔ status fail ⇔ Go StatusFailed；其余 ⇔ complete。
-	if wantCode == 1 && res.Status != report.StatusFailed {
-		t.Errorf("python 退出码 1 但 Go status = %s", res.Status)
-	}
-	if wantCode == 0 && res.Status != "complete" {
-		t.Errorf("python 退出码 0 但 Go status = %s", res.Status)
-	}
+	return out
 }
 
-func TestParityAnalyzerHit(t *testing.T) {
-	// 命中场景：标题 / 正文 / 待复核短句混合 → warn。
+func TestAnalyzerHitMixedRoles(t *testing.T) {
+	// 命中场景：标题 / 正文 / 待复核短句混合 → warn（complete + warn finding）。
 	path := spineFixture(t, wrapXHTML(
 		"<h1>第一章 风雪夜归人</h1><p>这是普通正文段落，长度足以稳定识别为正文。</p><p>春风又绿江南岸</p>", "", "zh-CN"), "", false)
-	assertAnalyzerParity(t, path)
+	res := runAnalyzer(t, path)
+	if res.Status != report.StatusComplete || res.Facts["analysisStatus"] != "warn" {
+		t.Fatalf("status = %s analysisStatus = %v, want complete/warn", res.Status, res.Facts["analysisStatus"])
+	}
+	blocks := blockListOf(t, res)
+	if len(blocks) != 3 || res.Facts["blocks"] != 3 {
+		t.Fatalf("blocks = %d / %v, want 3", len(blocks), res.Facts["blocks"])
+	}
+	if blocks[0].Tag != "h1" || blocks[0].PrimaryRole != "heading" {
+		t.Errorf("block[0] = %s/%s, want h1/heading", blocks[0].Tag, blocks[0].PrimaryRole)
+	}
+	if blocks[1].PrimaryRole != "body" || blocks[1].ReviewRequired {
+		t.Errorf("block[1] = %s review=%t, want body/false", blocks[1].PrimaryRole, blocks[1].ReviewRequired)
+	}
+	if !blocks[2].ReviewRequired || len(blocks[2].CandidateRoles) == 0 || len(blocks[2].Evidence) == 0 {
+		t.Errorf("block[2] 应为待复核并带候选角色与证据: %+v", blocks[2])
+	}
+	for _, bl := range blocks {
+		if bl.Source != "OEBPS/Text/c1.xhtml" || bl.Locator == "" || bl.TextSHA256 == "" || bl.Confidence == "" {
+			t.Errorf("block 缺少 source/locator/text_sha256/confidence: %+v", bl)
+		}
+		if bl.Snippet != "" {
+			t.Errorf("未开启 include_snippets 不得输出 snippet: %q", bl.Snippet)
+		}
+		if bl.Typography.FontRole == "" {
+			t.Errorf("block %s 缺少 typography.font_role", bl.Locator)
+		}
+	}
+	if res.Facts["review_required"] != 1 {
+		t.Errorf("review_required = %v, want 1", res.Facts["review_required"])
+	}
+	roles, _ := res.Facts["roles"].(map[string]int)
+	if roles["heading"] != 1 || roles["body"] < 1 {
+		t.Errorf("roles = %v", roles)
+	}
+	var reviewFinding bool
+	for _, f := range res.Findings {
+		if f.ID == "content.review-required" && f.Level == "warn" {
+			reviewFinding = true
+		}
+	}
+	if !reviewFinding {
+		t.Errorf("缺少 warn content.review-required finding: %+v", res.Findings)
+	}
 }
 
-func TestParityAnalyzerCleanHit(t *testing.T) {
+func TestAnalyzerCleanHitExplicitRoles(t *testing.T) {
 	// 全部显式角色 → pass：覆盖 epub:type 祖先、blockquote、pre/code、hr。
 	path := spineFixture(t, wrapXHTML(
 		`<h1>书名</h1><p class="subtitle">副标题</p>`+
@@ -114,11 +97,38 @@ func TestParityAnalyzerCleanHit(t *testing.T) {
 			`<pre><code>print(&quot;ok&quot;)</code></pre>`+
 			`<hr/>`+
 			`<p>这是普通正文段落，长度足以稳定识别为正文。</p>`, "", "zh-CN"), "", false)
-	assertAnalyzerParity(t, path)
+	res := runAnalyzer(t, path)
+	if res.Status != report.StatusComplete || res.Facts["analysisStatus"] != "pass" {
+		t.Fatalf("status = %s analysisStatus = %v, want complete/pass", res.Status, res.Facts["analysisStatus"])
+	}
+	if res.Facts["review_required"] != 0 || res.Facts["fileErrors"] != 0 || len(res.Findings) != 0 {
+		t.Errorf("pass 场景不应有待复核/错误/findings: facts=%v findings=%+v", res.Facts, res.Findings)
+	}
+	blocks := blockListOf(t, res)
+	if len(blocks) == 0 {
+		t.Fatal("blockList 为空")
+	}
+	wantRoles := map[string]bool{"heading": false, "subtitle": false, "note": false, "quotation": false, "code": false, "scene-break": false, "body": false}
+	for _, bl := range blocks {
+		if bl.ReviewRequired {
+			t.Errorf("显式角色块不应待复核: %+v", bl)
+		}
+		if _, ok := wantRoles[bl.PrimaryRole]; ok {
+			wantRoles[bl.PrimaryRole] = true
+		}
+	}
+	for role, seen := range wantRoles {
+		if !seen {
+			t.Errorf("blockList 缺少角色 %s（实际 roles=%v）", role, res.Facts["roles"])
+		}
+	}
+	if len(sourceErrorsOf(t, res)) != 0 {
+		t.Errorf("sourceErrors 应为空")
+	}
 }
 
-func TestParityAnalyzerMissNoBlocks(t *testing.T) {
-	// 未命中场景：spine 文档没有块级标签 + 一份非法 UTF-8 文档 → fail（消息固定，可逐字节比对）。
+func TestAnalyzerMissNoBlocksFails(t *testing.T) {
+	// 未命中场景：spine 文档没有块级标签 + 一份非法 UTF-8 文档 → fail。
 	entries := []zipEntry{
 		{name: "mimetype", content: []byte("application/epub+zip")},
 		{name: "META-INF/container.xml", content: []byte(`<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
@@ -129,36 +139,34 @@ func TestParityAnalyzerMissNoBlocks(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "miss.epub")
 	writeFixtureEpub(t, path, entries)
-	assertAnalyzerParity(t, path)
+	res := runAnalyzer(t, path)
+	if res.Status != report.StatusFailed || res.Facts["analysisStatus"] != "fail" {
+		t.Fatalf("status = %s analysisStatus = %v, want failed/fail", res.Status, res.Facts["analysisStatus"])
+	}
+	if len(blockListOf(t, res)) != 0 || res.Facts["blocks"] != 0 {
+		t.Errorf("fail 场景 blockList 应为空: %v", res.Facts["blocks"])
+	}
+	errs := sourceErrorsOf(t, res)
+	if len(errs) != 1 || errs[0].Source != "OEBPS/Text/c2.xhtml" || errs[0].Message != "text is not valid UTF-8" {
+		t.Errorf("sourceErrors = %+v, want c2.xhtml 非法 UTF-8", errs)
+	}
+	if res.Facts["fileErrors"] != 1 {
+		t.Errorf("fileErrors = %v, want 1", res.Facts["fileErrors"])
+	}
+	var failFinding bool
+	for _, f := range res.Findings {
+		if f.ID == "content.analysis-failed" && f.Level == "error" && f.Detail == "text is not valid UTF-8" {
+			failFinding = true
+		}
+	}
+	if !failFinding {
+		t.Errorf("缺少 error content.analysis-failed finding: %+v", res.Findings)
+	}
 }
 
-func TestParityAnalyzerEncryptionRefused(t *testing.T) {
-	// encryption.xml 拒绝：Python 打印 ERROR 到 stderr 且退出 1；Go 返回同文错误。
+func TestAnalyzerEncryptionRefused(t *testing.T) {
+	// encryption.xml 拒绝：返回固定措辞的错误，不产出 Result。
 	path := spineFixture(t, wrapXHTML("<p>正文</p>", "", "zh-CN"), "", true)
-	repo, _ := filepath.Abs(filepath.Join("..", "..", ".."))
-	script := filepath.Join(repo, analyzerScript)
-	if _, err := os.Stat(script); err != nil {
-		t.Skip("oracle 已删除")
-	}
-	if runtime.GOOS == "windows" {
-		t.Skip("parity 用例需要 python3")
-	}
-	cmd := exec.Command("python3", script, path, "--format", "json")
-	cmd.Dir = repo
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	runErr := cmd.Run()
-	code := 0
-	if ee, ok := runErr.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	}
-	if code != 1 {
-		t.Fatalf("python 退出码 = %d（want 1）stderr=%s", code, errb.String())
-	}
-	if !strings.Contains(errb.String(), "ERROR: encryption marker detected; content analysis stopped") {
-		t.Errorf("python stderr = %q", errb.String())
-	}
 	b, err := book.Open(path)
 	if err != nil {
 		t.Fatal(err)

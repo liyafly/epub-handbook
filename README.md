@@ -70,8 +70,10 @@ go run ./cmd/epub redline --check all input.epub migrated.epub
 
 架构是面向 Windows、macOS、Linux 的 Go 单一 CLI（`cmd/epub` + `internal/`），
 架构规则由 `internal/archguard/` 的守卫测试强制；旧的 Python 脚本、Swift/GUI 实现和
-provider 适配层已按迁移计划删除。字体能力继续使用随发行包交付的独立 provider，
-用户不需要自行安装 Python 工具链。
+provider 适配层已按迁移计划删除。字体能力由 `tools-font/coverage-detector/` 下独立的
+Python + FontTools 项目提供，不打包进发行包：需要本机安装 `uv`（在该目录执行一次 `uv sync`），
+缺少 `uv` 时 `epub.font.coverage.analyze` 会以带明确提示的 failed 结果显式失败；
+其余 capability 只需要 Go 二进制。
 
 完整文档索引见 [docs/README.md](docs/README.md)。
 

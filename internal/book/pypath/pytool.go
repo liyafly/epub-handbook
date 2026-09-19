@@ -1,6 +1,14 @@
-// pytool.go 复刻 scripts/epub_lib.py 与 core.py 里的 URL / 路径 / 属性
-// 工具函数（urllib.parse、posixpath、saxutils 的精确语义）。
-package split
+// Package pypath 复刻 Python 侧 urllib.parse / posixpath / xml.sax.saxutils
+// 的路径、URL 与转义语义（源出 scripts/epub_lib.py 与 core.py）。
+//
+// 为什么放在 book 这一层（SPEC §1 第 5 层）：本包只依赖标准库，任何层都
+// 能合法 import 它。之所以选层 5 而不是更靠上的 caps（层 2）或 scan（层
+// 4），是因为 internal/scan/opf 的 nav/NCX 生成器（同为层 4）也要复用这
+// 里的 URL / 路径 / 转义工具——同层禁止互相 import，caps 之间也禁止互相
+// import，能被 caps 与 scan/opf 同时合法 import 的最近下层只剩 book（层
+// 5）：caps（2）→ book/pypath（5）合法，scan/opf（4）→ book/pypath（5）
+// 也合法。book 本身（层 5）不需要、也不会反过来 import 本包（同层禁止）。
+package pypath
 
 import (
 	"fmt"
@@ -12,21 +20,22 @@ import (
 const whatwgC0ControlOrSpace = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f" +
 	"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
 
-type urlParts struct {
-	scheme, netloc, path, query, fragment string
+// URLParts 是 urllib.parse.urlsplit 的分解结果。
+type URLParts struct {
+	Scheme, Netloc, Path, Query, Fragment string
 }
 
-// pyURLSplit 复刻 urllib.parse.urlsplit 的相关行为（含 Python 3.10+ 的
+// URLSplit 复刻 urllib.parse.urlsplit 的相关行为（含 Python 3.10+ 的
 // WHATWG 清洗：先去掉首尾 C0 控制符与空格，再全局删除 \t \r \n）。
-func pyURLSplit(raw string) urlParts {
-	var p urlParts
+func URLSplit(raw string) URLParts {
+	var p URLParts
 	raw = strings.Trim(raw, whatwgC0ControlOrSpace)
 	for _, b := range []string{"\t", "\r", "\n"} {
 		raw = strings.ReplaceAll(raw, b, "")
 	}
 	rest := raw
 	if i := strings.IndexByte(rest, '#'); i >= 0 {
-		p.fragment = rest[i+1:]
+		p.Fragment = rest[i+1:]
 		rest = rest[:i]
 	}
 	if i := strings.IndexByte(rest, ':'); i > 0 && isASCIILetter(rest[0]) {
@@ -39,7 +48,7 @@ func pyURLSplit(raw string) urlParts {
 			}
 		}
 		if valid {
-			p.scheme = strings.ToLower(rest[:i])
+			p.Scheme = strings.ToLower(rest[:i])
 			rest = rest[i+1:]
 		}
 	}
@@ -52,19 +61,19 @@ func pyURLSplit(raw string) urlParts {
 			}
 			j++
 		}
-		p.netloc = rest[2:j]
+		p.Netloc = rest[2:j]
 		rest = rest[j:]
 	}
 	if i := strings.IndexByte(rest, '?'); i >= 0 {
-		p.query = rest[i+1:]
+		p.Query = rest[i+1:]
 		rest = rest[:i]
 	}
-	p.path = rest
+	p.Path = rest
 	return p
 }
 
-// pyURLUnsplitPath 复刻 urlunsplit(("", "", path, query, fragment))。
-func pyURLUnsplitPath(pathPart, query, fragment string) string {
+// URLUnsplitPath 复刻 urlunsplit(("", "", path, query, fragment))。
+func URLUnsplitPath(pathPart, query, fragment string) string {
 	out := pathPart
 	if query != "" {
 		out += "?" + query
@@ -75,9 +84,9 @@ func pyURLUnsplitPath(pathPart, query, fragment string) string {
 	return out
 }
 
-// pyIsExternalURI 复刻 is_external_uri。
-func pyIsExternalURI(uri string) bool {
-	if p := pyURLSplit(uri); p.scheme != "" {
+// IsExternalURI 复刻 is_external_uri。
+func IsExternalURI(uri string) bool {
+	if p := URLSplit(uri); p.Scheme != "" {
 		return true
 	}
 	return strings.HasPrefix(uri, "/") || strings.HasPrefix(uri, "//")
@@ -141,22 +150,24 @@ func isASCIILetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-func pyDirname(p string) string {
+// Dirname 复刻 posixpath.dirname。
+func Dirname(p string) string {
 	if i := strings.LastIndexByte(p, '/'); i >= 0 {
 		return p[:i]
 	}
 	return ""
 }
 
-func pyBasename(p string) string {
+// Basename 复刻 posixpath.basename。
+func Basename(p string) string {
 	if i := strings.LastIndexByte(p, '/'); i >= 0 {
 		return p[i+1:]
 	}
 	return p
 }
 
-// pySplitExt 复刻 posixpath.splitext。
-func pySplitExt(p string) (stem, ext string) {
+// SplitExt 复刻 posixpath.splitext。
+func SplitExt(p string) (stem, ext string) {
 	sep := strings.LastIndexByte(p, '/')
 	dot := strings.LastIndexByte(p, '.')
 	if dot > sep {
@@ -169,9 +180,9 @@ func pySplitExt(p string) (stem, ext string) {
 	return p, ""
 }
 
-// pathExt 返回 pySplitExt 的扩展名部分。
-func pathExt(p string) string {
-	_, ext := pySplitExt(p)
+// PathExt 返回 SplitExt 的扩展名部分。
+func PathExt(p string) string {
+	_, ext := SplitExt(p)
 	return ext
 }
 
@@ -204,27 +215,27 @@ func splitSegments(p string) []string {
 	return out
 }
 
-// validateArchivePath 复刻 epub_lib.validate_archive_path。
-func validateArchivePath(name, label string) (string, error) {
+// ValidateArchivePath 复刻 epub_lib.validate_archive_path。
+func ValidateArchivePath(name, label string) (string, error) {
 	if name == "" || strings.HasPrefix(name, "/") {
-		return "", toolErrf("%s: invalid absolute or empty ZIP path: %q", label, name)
+		return "", fmt.Errorf("%s: invalid absolute or empty ZIP path: %q", label, name)
 	}
 	normalized := path.Clean(name)
 	if normalized == ".." || strings.HasPrefix(normalized, "../") {
-		return "", toolErrf("%s: ZIP path escapes archive root: %q", label, name)
+		return "", fmt.Errorf("%s: ZIP path escapes archive root: %q", label, name)
 	}
 	return normalized, nil
 }
 
-// resolveRelativePath 复刻 epub_lib.resolve_relative_path。
-func resolveRelativePath(baseFile, uriPath string) (string, error) {
+// ResolveRelativePath 复刻 epub_lib.resolve_relative_path。
+func ResolveRelativePath(baseFile, uriPath string) (string, error) {
 	decoded := pyUnquote(uriPath)
-	return validateArchivePath(path.Join(pyDirname(baseFile), decoded), "resource href")
+	return ValidateArchivePath(path.Join(Dirname(baseFile), decoded), "resource href")
 }
 
-// relativeURI 复刻 core.relative_uri。
-func relativeURI(fromArchivePath, toArchivePath string) string {
-	base := pyDirname(fromArchivePath)
+// RelativeURI 复刻 core.relative_uri。
+func RelativeURI(fromArchivePath, toArchivePath string) string {
+	base := Dirname(fromArchivePath)
 	rel := toArchivePath
 	if base != "" {
 		rel = pyRelPath(toArchivePath, base)
@@ -232,8 +243,8 @@ func relativeURI(fromArchivePath, toArchivePath string) string {
 	return pyQuote(rel)
 }
 
-// splitProps 复刻 epub_lib.split_props。
-func splitProps(value string) []string {
+// SplitProps 复刻 epub_lib.split_props。
+func SplitProps(value string) []string {
 	if value == "" {
 		return nil
 	}
@@ -246,9 +257,9 @@ func splitProps(value string) []string {
 	return out
 }
 
-// hasNavProp 对齐 "nav" in split_props(value)。
-func hasNavProp(props string) bool {
-	for _, p := range splitProps(props) {
+// HasNavProp 对齐 "nav" in split_props(value)。
+func HasNavProp(props string) bool {
+	for _, p := range SplitProps(props) {
 		if p == "nav" {
 			return true
 		}
@@ -269,18 +280,20 @@ func propText(values []string) string {
 	return strings.Join(out, " ")
 }
 
-// addProp / removeProp 复刻 core.add_prop / core.remove_prop。
+// addProp 复刻 core.add_prop（当前调用方均未使用，随 pytool.go 整体迁移
+// 保留：与 removeProp 同源，删掉会让 add/remove 这对语义失去对称性）。
 func addProp(value, prop string) string {
-	props := splitProps(value)
+	props := SplitProps(value)
 	if !containsStr(props, prop) {
 		props = append(props, prop)
 	}
 	return propText(props)
 }
 
-func removeProp(value, prop string) string {
+// RemoveProp 复刻 core.remove_prop。
+func RemoveProp(value, prop string) string {
 	var out []string
-	for _, item := range splitProps(value) {
+	for _, item := range SplitProps(value) {
 		if item != prop {
 			out = append(out, item)
 		}
@@ -297,9 +310,9 @@ func containsStr(list []string, v string) bool {
 	return false
 }
 
-// uniqueID 复刻 core.unique_id（used 集合由调用方持有并被修改）。
+// UniqueID 复刻 core.unique_id（used 集合由调用方持有并被修改）。
 // 注意 re.sub(r"[^A-Za-z0-9_.-]+", "-", base) 把连续非法字符压成一个 "-"。
-func uniqueID(base string, used map[string]bool) string {
+func UniqueID(base string, used map[string]bool) string {
 	var b strings.Builder
 	prevInvalid := false
 	for _, r := range base {
@@ -333,23 +346,23 @@ func uniqueID(base string, used map[string]bool) string {
 
 // prefixedArchivePath 复刻 core.prefixed_archive_path。
 func prefixedArchivePath(p, prefix string) string {
-	folder := pyDirname(p)
-	base := pyBasename(p)
+	folder := Dirname(p)
+	base := Basename(p)
 	if folder != "" {
 		return folder + "/" + prefix + base
 	}
 	return prefix + base
 }
 
-// allocateArchivePath 复刻 core.allocate_archive_path。
-func allocateArchivePath(preferred string, used map[string]bool, prefix string) (string, bool) {
+// AllocateArchivePath 复刻 core.allocate_archive_path。
+func AllocateArchivePath(preferred string, used map[string]bool, prefix string) (string, bool) {
 	candidate := preferred
 	renamed := false
 	if used[candidate] {
 		candidate = prefixedArchivePath(preferred, prefix)
 		renamed = true
 	}
-	stem, ext := pySplitExt(candidate)
+	stem, ext := SplitExt(candidate)
 	index := 2
 	for used[candidate] {
 		candidate = fmt.Sprintf("%s-%d%s", stem, index, ext)
@@ -360,18 +373,18 @@ func allocateArchivePath(preferred string, used map[string]bool, prefix string) 
 	return candidate, renamed
 }
 
-// pyEscapeText 复刻 xml.sax.saxutils.escape（& 优先，再 > 与 <）。
-func pyEscapeText(data string) string {
+// EscapeText 复刻 xml.sax.saxutils.escape（& 优先，再 > 与 <）。
+func EscapeText(data string) string {
 	data = strings.ReplaceAll(data, "&", "&amp;")
 	data = strings.ReplaceAll(data, ">", "&gt;")
 	data = strings.ReplaceAll(data, "<", "&lt;")
 	return data
 }
 
-// pyQuoteAttr 复刻 xml.sax.saxutils.quoteattr：值含 `"` 时改用单引号包裹，
+// QuoteAttr 复刻 xml.sax.saxutils.quoteattr：值含 `"` 时改用单引号包裹，
 // 两种引号并存时把 `"` 转义后仍用双引号包裹。
-func pyQuoteAttr(data string) string {
-	data = pyEscapeText(data)
+func QuoteAttr(data string) string {
+	data = EscapeText(data)
 	switch {
 	case strings.Contains(data, `"`):
 		if strings.Contains(data, "'") {
@@ -383,7 +396,7 @@ func pyQuoteAttr(data string) string {
 	}
 }
 
-// collapseSpace 复刻 " ".join(text.split())。
-func collapseSpace(s string) string {
+// CollapseSpace 复刻 " ".join(text.split())。
+func CollapseSpace(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }

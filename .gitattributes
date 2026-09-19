@@ -1,0 +1,12 @@
+# 仓库根 .gitattributes
+#
+# testdata/sourceintake/ 是 epub.source.intake 的字节级 fixture：
+# chapter01.txt 刻意带 UTF-8 BOM 与 CRLF，用来触发 utf8-bom / crlf 风险标签，
+# 其 SHA-256 写死在 testdata/envelope/source-intake-directory.report.json 里。
+# 只要有人的 core.autocrlf=input/true 并重新 add 或 normalize 这棵树，
+# 换行就会被改写、SHA 变化、crlf 风险悄悄消失。
+# `-text` 关掉行尾归一化，二进制 fixture 另外声明 binary（= -text -diff）。
+testdata/sourceintake/** -text
+testdata/sourceintake/**/*.png binary
+testdata/sourceintake/**/*.webp binary
+testdata/sourceintake/**/*.pdf binary

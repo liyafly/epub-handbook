@@ -7,42 +7,72 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // utf8Valid 对齐 bytes.decode("utf-8") 的严格性。
 func utf8Valid(data []byte) bool { return utf8.Valid(data) }
 
-// collectRawURIs 抽取引用中的 URI 值（BFS 用）。保留这个无 error 的
-// 兼容包装；实际资源收集使用 collectRawURIsStrict，不能静默丢弃坏的
-// srcset。
-func collectRawURIs(text string) []string {
-	out, _ := collectRawURIsStrict(text)
-	return out
-}
-
-// collectRawURIsStrict 抽取 URI 属性、srcset candidate、CSS url() 和
-// @import 命中的 URI 值。srcset 不是单一 URI，必须先按 HTML candidate
-// list 规则拆开再返回其每个 URL。
-func collectRawURIsStrict(text string) ([]string, error) {
+// collectMarkupURIsStrict 收集标记类文件（.xhtml/.html/.xml/.ncx/.svg/.smil）
+// 里的**真实**引用：URI 属性、srcset candidate、`style="…"` 与 `<style>` 元素
+// 内容里的 CSS url()/@import。
+//
+// 为什么不能沿用 collectRawURIsStrict 的裸文本扫描（2026-09-07 修）：
+// 那条路径把 `src="…"` 当作正则命中，不区分它出现在标签里还是出现在字符
+// 数据里。本仓库的回归样书本身就是一本讲 EPUB 的书，正文里大量出现只转义
+// 了尖括号的示例代码，例如
+//
+//	<p>替换：&lt;audio src="../Audio/XinJing.mp3"/&gt;</p>
+//
+// 这里的 `src="../Audio/XinJing.mp3"` 是**读者可见的正文**，不是引用；
+// 而 OEBPS/Audio/XinJing.mp3 并不存在于书里。裸扫描把它当成真引用，于是
+// 资源闭合检查判定「referenced target missing from source」，
+// epub.package.split 对一本能正常打开的书硬拒。
+//
+// 判据改为「解析出的属性」而不是「文本里长得像属性」：走 scan/opf 的只读
+// 区间树，只看 node.Attrs 与 <style> 元素内容 —— 与同包 validation.go 的
+// validateRetainedReferences 完全同源（那一侧一直是对的，本函数是把闭合
+// 收集这一侧对齐过去，消掉同包内两套判据的分叉）。
+func collectMarkupURIsStrict(data []byte) ([]string, error) {
+	root, err := opf.ScanSpanTree(data)
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-	for _, m := range findNameQuoteMatches(text, 0, uriAttrNames) {
-		if strings.EqualFold(m.name, "srcset") {
-			candidates, err := parseSrcsetCandidates(m.uri)
-			if err != nil {
-				return nil, err
+	for _, node := range root.Walk() {
+		for _, attr := range node.Attrs {
+			if attr.Name.Space == "" && attr.Name.Local == "style" {
+				uris, cerr := collectCSSURIsStrict(attr.Value)
+				if cerr != nil {
+					return nil, fmt.Errorf("style attribute: %w", cerr)
+				}
+				out = append(out, uris...)
+				continue
 			}
-			for _, candidate := range candidates {
-				out = append(out, candidate.url)
+			kind, ok := resourceAttributeKind(attr.Name.Space, attr.Name.Local)
+			if !ok {
+				continue
 			}
-			continue
+			if kind == "srcset" {
+				candidates, serr := parseSrcsetCandidates(attr.Value)
+				if serr != nil {
+					return nil, serr
+				}
+				for _, candidate := range candidates {
+					out = append(out, candidate.url)
+				}
+				continue
+			}
+			out = append(out, attr.Value)
 		}
-		out = append(out, m.uri)
-	}
-	for _, m := range findURLMatches(text, 0) {
-		out = append(out, m.uri)
-	}
-	for _, m := range findImportMatches(text, 0) {
-		out = append(out, m.uri)
+		if node.Name.Local == "style" {
+			uris, cerr := collectCSSURIsStrict(node.IterText())
+			if cerr != nil {
+				return nil, fmt.Errorf("style element: %w", cerr)
+			}
+			out = append(out, uris...)
+		}
 	}
 	return out, nil
 }
@@ -288,19 +318,12 @@ func validSrcsetDescriptor(value string) bool {
 	return true
 }
 
-type uriMatch struct {
-	start, end int
-	prefix     string
-	quote      byte
-	uri        string
-	suffix     string
-	name       string
-}
-
+// isWordRune 对齐 Python \w。
 func isWordRune(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
+// wordBoundary 对齐 Python \b。
 func wordBoundary(text string, i int) bool {
 	before := false
 	if i > 0 {
@@ -324,152 +347,4 @@ func skipPySpace(text string, i int) int {
 		i += size
 	}
 	return i
-}
-
-func findNameQuoteMatches(text string, from int, names []string) []uriMatch {
-	var out []uriMatch
-	i := from
-	for i < len(text) {
-		if wordBoundary(text, i) {
-			matched := false
-			for _, name := range names {
-				if i+len(name) > len(text) || !strings.EqualFold(text[i:i+len(name)], name) {
-					continue
-				}
-				j := skipPySpace(text, i+len(name))
-				if j >= len(text) || text[j] != '=' {
-					continue
-				}
-				j = skipPySpace(text, j+1)
-				if j >= len(text) || (text[j] != '"' && text[j] != '\'') {
-					continue
-				}
-				quote := text[j]
-				uriStart := j + 1
-				idx := strings.IndexByte(text[uriStart:], quote)
-				if idx < 0 {
-					continue
-				}
-				uriEnd := uriStart + idx
-				out = append(out, uriMatch{
-					start: i, end: uriEnd + 1,
-					prefix: text[i:j],
-					quote:  quote,
-					uri:    text[uriStart:uriEnd],
-					name:   name,
-				})
-				i = uriEnd + 1
-				matched = true
-				break
-			}
-			if matched {
-				continue
-			}
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		if size == 0 {
-			break
-		}
-		i += size
-	}
-	return out
-}
-
-func findURLMatches(text string, from int) []uriMatch {
-	var out []uriMatch
-	i := from
-	for i < len(text) {
-		if wordBoundary(text, i) && i+4 <= len(text) && strings.EqualFold(text[i:i+4], "url(") {
-			j := skipPySpace(text, i+4)
-			quote := byte(0)
-			quoteStart := -1
-			if j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote = text[j]
-				quoteStart = j
-				j++
-			}
-			uriStart := j
-			found := false
-			if quote != 0 {
-				p := j
-				for p < len(text) {
-					idx := strings.IndexByte(text[p:], quote)
-					if idx < 0 {
-						break
-					}
-					qPos := p + idx
-					k := skipPySpace(text, qPos+1)
-					if k < len(text) && text[k] == ')' {
-						out = append(out, uriMatch{
-							start: i, end: k + 1,
-							prefix: text[i:quoteStart],
-							quote:  quote,
-							uri:    text[uriStart:qPos],
-							suffix: text[qPos+1 : k+1],
-						})
-						i = k + 1
-						found = true
-						break
-					}
-					p = qPos + 1
-				}
-				if found {
-					continue
-				}
-				uriStart = quoteStart
-			}
-			idx := strings.IndexByte(text[uriStart:], ')')
-			if idx >= 0 {
-				closePos := uriStart + idx
-				wsStart := closePos
-				for wsStart > uriStart {
-					r, size := utf8.DecodeLastRuneInString(text[uriStart:wsStart])
-					if !unicode.IsSpace(r) {
-						break
-					}
-					wsStart -= size
-				}
-				out = append(out, uriMatch{
-					start: i, end: closePos + 1,
-					prefix: text[i:uriStart],
-					quote:  0,
-					uri:    text[uriStart:wsStart],
-					suffix: text[wsStart : closePos+1],
-				})
-				i = closePos + 1
-				continue
-			}
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		if size == 0 {
-			break
-		}
-		i += size
-	}
-	return out
-}
-
-func findImportMatches(text string, from int) []uriMatch {
-	var out []uriMatch
-	for i := from; i+7 <= len(text); i++ {
-		if strings.EqualFold(text[i:i+7], "@import") {
-			j := skipPySpace(text, i+7)
-			if j > i+7 && j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote := text[j]
-				uriStart := j + 1
-				idx := strings.IndexByte(text[uriStart:], quote)
-				if idx >= 0 {
-					uriEnd := uriStart + idx
-					out = append(out, uriMatch{
-						start: i, end: uriEnd + 1,
-						prefix: text[i:j],
-						quote:  quote,
-						uri:    text[uriStart:uriEnd],
-					})
-					i = uriEnd
-				}
-			}
-		}
-	}
-	return out
 }

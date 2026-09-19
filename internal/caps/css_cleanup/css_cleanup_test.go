@@ -3,7 +3,6 @@ package csscleanup
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -170,32 +169,70 @@ func readZipData(t *testing.T, path string) map[string][]byte {
 	return out
 }
 
-func mustRun(t *testing.T, input, output string, mergeScoped bool) legacyCleanupReport {
+func mustRun(t *testing.T, input, output string, mergeScoped bool) cleanupReport {
 	t.Helper()
 	b, err := book.Open(input)
 	if err != nil {
 		t.Fatalf("book.Open: %v", err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{Output: output, MergeScopedLocalCSS: mergeScoped, LegacyReport: true})
+	res, err := Run(t.Context(), b, Params{Output: output, MergeScopedLocalCSS: mergeScoped})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if err := b.WriteToContext(t.Context(), output); err != nil {
 		t.Fatalf("WriteTo: %v", err)
 	}
-	var rep legacyCleanupReport
-	raw, ok := res.Facts["legacyReport"].(json.RawMessage)
+	return reportFromFacts(t, res.Facts)
+}
+
+// reportFromFacts 从统一信封的 facts 还原 cleanupReport，缺键或类型不符即失败，
+// 以此锁定每个正式 facts 键都被实际发出。
+func reportFromFacts(t *testing.T, facts map[string]any) cleanupReport {
+	t.Helper()
+	intFact := func(key string) int {
+		v, ok := facts[key].(int)
+		if !ok {
+			t.Fatalf("facts[%q] 缺失或不是 int: %#v", key, facts[key])
+		}
+		return v
+	}
+	boolFact := func(key string) bool {
+		v, ok := facts[key].(bool)
+		if !ok {
+			t.Fatalf("facts[%q] 缺失或不是 bool: %#v", key, facts[key])
+		}
+		return v
+	}
+	strFact := func(key string) string {
+		v, ok := facts[key].(string)
+		if !ok {
+			t.Fatalf("facts[%q] 缺失或不是 string: %#v", key, facts[key])
+		}
+		return v
+	}
+	warnings, ok := facts["warnings"].([]string)
 	if !ok {
-		t.Fatal("缺少 legacyReport")
+		t.Fatalf("facts[\"warnings\"] 缺失或不是 []string: %#v", facts["warnings"])
 	}
-	if err := json.Unmarshal(raw, &rep); err != nil {
-		t.Fatal(err)
+	return cleanupReport{
+		OPF:                          strFact("opf"),
+		CSSFilesBefore:               intFact("cssFilesBefore"),
+		CSSFilesAfter:                intFact("cssFilesAfter"),
+		FactoredStylesheets:          intFact("factoredStylesheets"),
+		DuplicateStylesheetsRemoved:  intFact("duplicateStylesheetsRemoved"),
+		OverridesCreated:             intFact("overridesCreated"),
+		FontDeclarationsRewritten:    intFact("fontDeclarationsRewritten"),
+		XHTMLFilesUpdated:            intFact("xhtmlFilesUpdated"),
+		CSSManifestItemsRemoved:      intFact("cssManifestItemsRemoved"),
+		CSSManifestItemsAdded:        intFact("cssManifestItemsAdded"),
+		ScopedLocalStylesheetsMerged: intFact("scopedLocalStylesheetsMerged"),
+		ScopeClassesAdded:            intFact("scopeClassesAdded"),
+		SemanticFactoringDisabled:    boolFact("semanticFactoringDisabled"),
+		ScopedMergeDisabled:          boolFact("scopedMergeDisabled"),
+		DuplicateDeduplication:       strFact("duplicateDeduplication"),
+		Warnings:                     warnings,
 	}
-	rep.SemanticFactoringDisabled, _ = res.Facts["semanticFactoringDisabled"].(bool)
-	rep.ScopedMergeDisabled, _ = res.Facts["scopedMergeDisabled"].(bool)
-	rep.DuplicateDeduplication, _ = res.Facts["duplicateDeduplication"].(string)
-	return rep
 }
 
 // ---- 单测（镜像 scripts/test_epub_css_cleanup.py 的断言） ----
@@ -315,6 +352,85 @@ func TestCSSCleanupFixture(t *testing.T) {
 	}
 	if !bytes.Equal(firstBytes, secondBytes) {
 		t.Fatal("幂等性失败：第二次运行产物与输入不一致")
+	}
+}
+
+// TestMergeScopedLocalCSSOnlyWarns pins the sole observable effect of
+// MergeScopedLocalCSS now that the scoped-local-merge implementation has
+// been deleted as dead code: a warning when requested, and nothing else.
+// The fixture gives every chapter its own private, non-shared stylesheet
+// (style0002/0004/0006.css), i.e. exactly the shape the old scoped-merge
+// algorithm would have picked as a merge candidate, so "nothing merged"
+// here is provably the disabled-safety path and not an accident of the
+// fixture having no candidates.
+func TestMergeScopedLocalCSSOnlyWarns(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildFixtureEpub(t, source, cssCleanupFixtureFiles())
+
+	cases := []struct {
+		name  string
+		merge bool
+	}{
+		{"true", true},
+		{"false", false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "out.epub")
+			b, err := book.Open(source)
+			if err != nil {
+				t.Fatalf("book.Open: %v", err)
+			}
+			defer b.Close()
+			res, err := Run(t.Context(), b, Params{Output: output, MergeScopedLocalCSS: tc.merge})
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if err := b.WriteToContext(t.Context(), output); err != nil {
+				t.Fatalf("WriteTo: %v", err)
+			}
+
+			if got, ok := res.Facts["mergeScopedLocalCss"].(bool); !ok || got != tc.merge {
+				t.Fatalf("facts[mergeScopedLocalCss]=%#v, want echoed %v", res.Facts["mergeScopedLocalCss"], tc.merge)
+			}
+			warnings, ok := res.Facts["warnings"].([]string)
+			if !ok {
+				t.Fatalf("facts[warnings] missing or wrong type: %#v", res.Facts["warnings"])
+			}
+			hasDisabledWarning := slices.Contains(warnings, scopedMergeDisabledWarning)
+			if tc.merge && (!hasDisabledWarning || len(warnings) != 1) {
+				t.Fatalf("merge=true must produce exactly the disabled-merge warning: %v", warnings)
+			}
+			if !tc.merge && hasDisabledWarning {
+				t.Fatalf("merge=false must not produce the disabled-merge warning: %v", warnings)
+			}
+
+			if got := res.Facts["scopedLocalStylesheetsMerged"]; got != 0 {
+				t.Fatalf("scopedLocalStylesheetsMerged=%v, want 0", got)
+			}
+			if got := res.Facts["scopeClassesAdded"]; got != 0 {
+				t.Fatalf("scopeClassesAdded=%v, want 0", got)
+			}
+			if got, ok := res.Facts["scopedMergeDisabled"].(bool); !ok || !got {
+				t.Fatalf("scopedMergeDisabled=%#v, want true regardless of the input flag", res.Facts["scopedMergeDisabled"])
+			}
+
+			// No scoped-merge artifact must ever be produced, and every
+			// private per-chapter stylesheet/link/body must be untouched.
+			files := readZipData(t, output)
+			if _, ok := files["OEBPS/Styles/clean-scoped-local.css"]; ok {
+				t.Fatal("scoped-merge output file must never be generated")
+			}
+			chapter1 := string(files["OEBPS/Text/chapter1.xhtml"])
+			if strings.Contains(chapter1, "css-local-") || strings.Contains(chapter1, `class="`) {
+				t.Fatalf("body must not gain a scope class: %s", chapter1)
+			}
+			if !strings.Contains(chapter1, `href="../Styles/style0002.css"`) {
+				t.Fatalf("private stylesheet link must be left untouched: %s", chapter1)
+			}
+		})
 	}
 }
 

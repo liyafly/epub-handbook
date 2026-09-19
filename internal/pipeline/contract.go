@@ -25,7 +25,21 @@ type Contract struct {
 		RequiresWriteAccess bool   `json:"requiresWriteAccess"`
 		Network             string `json:"network"`
 	} `json:"permissions"`
-	Adapters []string `json:"adapters"`
+	// Execution 是执行形态：pipeline 据此决定怎么调这条能力。它此前只以
+	// register.go 里的四张 id 白名单存在，契约完全不提 —— 于是「contracts/
+	// 是机器契约唯一事实来源」对执行形态并不成立，而且有两条契约与执行面
+	// 直接矛盾（声明需写权限却永不写盘）。现在运行时读契约，注册方式与
+	// 契约的一致性由 TestRegistryMatchesContractExecution 对账。
+	Execution struct {
+		// Input: epub（必须是 EPUB 文件，会被 book.Open）
+		//      | epub-or-tree（可缺省或指向目录 = 源树模式）
+		//      | source-path（目录或任意普通文件，永不 book.Open）
+		Input string `json:"input"`
+		// Output: single（pipeline 写一次 --output）
+		//       | multi（能力自行写 output_dir 下的多个产物）
+		//       | none（只读，不写产物）
+		Output string `json:"output"`
+	} `json:"execution"`
 }
 
 // ErrUnknownCapability 表示契约目录里没有这个 id。

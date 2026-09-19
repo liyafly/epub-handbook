@@ -24,20 +24,29 @@ func repoRoot(t *testing.T) string {
 	return repo
 }
 
-// goLegacyLines 用源树模式跑 Go 实现并取 legacyReport 行。
-func goLegacyLines(t *testing.T, b *book.Book, demoDir string) (string, []string) {
+// goErrorLines 跑 Go 实现并把 error findings 渲染为 "ERROR: <title>" 行；
+// 无错误时返回单行 "epub-style-demo validation ok"（与 facts["errors"] 一致）。
+func goErrorLines(t *testing.T, b *book.Book, demoDir string) (string, []string) {
 	t.Helper()
-	res, err := Run(t.Context(), b, Params{DemoDir: demoDir, LegacyReport: true})
+	res, err := Run(t.Context(), b, Params{DemoDir: demoDir})
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, ok := res.Facts["legacyReport"].(map[string]any)
-	if !ok {
-		t.Fatalf("legacyReport 形状错误: %T", res.Facts["legacyReport"])
+	var lines []string
+	for _, f := range res.Findings {
+		if f.Level != "error" {
+			continue
+		}
+		if f.ID != "styledemo" {
+			t.Fatalf("error finding id = %q", f.ID)
+		}
+		lines = append(lines, "ERROR: "+f.Title)
 	}
-	lines, ok := raw["lines"].([]string)
-	if !ok {
-		t.Fatalf("legacyReport.lines 形状错误: %T", raw["lines"])
+	if got := res.Facts["errors"]; got != len(lines) {
+		t.Fatalf("facts[errors] = %v, findings 中 error 数 = %d", got, len(lines))
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "epub-style-demo validation ok")
 	}
 	return res.Status, lines
 }
@@ -78,7 +87,7 @@ func demoDirOf(repo string) string {
 
 func TestSourceTreeDefault(t *testing.T) {
 	repo := repoRoot(t)
-	status, goLines := goLegacyLines(t, nil, demoDirOf(repo))
+	status, goLines := goErrorLines(t, nil, demoDirOf(repo))
 	if status != "complete" {
 		t.Fatalf("go status 应为 complete，实际 %s", status)
 	}
@@ -100,7 +109,7 @@ func TestArtifactOK(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	status, goLines := goLegacyLines(t, b, demoDirOf(repo))
+	status, goLines := goErrorLines(t, b, demoDirOf(repo))
 	if status != "complete" {
 		t.Fatalf("go status 应为 complete，实际 %s\ngo lines: %v", status, goLines)
 	}
@@ -125,7 +134,7 @@ func TestArtifactChapterOpeningContractBroken(t *testing.T) {
 		t.Fatalf("book.Open(broken chapter opening) 失败: %v", err)
 	}
 	defer b.Close()
-	status, lines := goLegacyLines(t, b, demoDirOf(repo))
+	status, lines := goErrorLines(t, b, demoDirOf(repo))
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
@@ -175,7 +184,7 @@ func TestArtifactChapterOpeningNavigationContractBroken(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer b.Close()
-			status, lines := goLegacyLines(t, b, demoDirOf(repo))
+			status, lines := goErrorLines(t, b, demoDirOf(repo))
 			if status != "failed" {
 				t.Fatalf("go status 应为 failed，实际 %s", status)
 			}
@@ -200,7 +209,7 @@ func TestArtifactBroken(t *testing.T) {
 		t.Fatalf("book.Open(broken) 失败: %v", err)
 	}
 	defer b.Close()
-	status, goLines := goLegacyLines(t, b, demoDirOf(repo))
+	status, goLines := goErrorLines(t, b, demoDirOf(repo))
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
@@ -270,7 +279,7 @@ func TestArtifactNoMimetype(t *testing.T) {
 		t.Fatalf("book.Open(nomime) 失败: %v", err)
 	}
 	defer b.Close()
-	status, goLines := goLegacyLines(t, b, demoDirOf(repo))
+	status, goLines := goErrorLines(t, b, demoDirOf(repo))
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
@@ -374,7 +383,7 @@ func TestBrokenSourceTree(t *testing.T) {
 	copyTree(t, filepath.Join(repo, "templates", "epub-style-demo", "OEBPS"), filepath.Join(demoDir, "OEBPS"))
 	breakDemoTree(t, demoDir)
 
-	status, goLines := goLegacyLines(t, nil, demoDir)
+	status, goLines := goErrorLines(t, nil, demoDir)
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
@@ -394,7 +403,7 @@ func TestSourceChapterOpeningContractBroken(t *testing.T) {
 	poster = strings.Replace(poster, "margin: 25% 5% 0 0;", "margin: 20% 5% 0 0;", 1)
 	writeSmall(t, posterPath, poster)
 
-	status, lines := goLegacyLines(t, nil, demoDir)
+	status, lines := goErrorLines(t, nil, demoDir)
 	if status != "failed" {
 		t.Fatalf("go status 应为 failed，实际 %s", status)
 	}
@@ -437,7 +446,7 @@ func TestSourceChapterOpeningNavigationContractBroken(t *testing.T) {
 			path := filepath.Join(demoDir, tc.rel)
 			data := replaceBytesRequired(t, []byte(readSmall(t, path)), []byte(tc.old), []byte(tc.replacement))
 			writeSmall(t, path, string(data))
-			status, lines := goLegacyLines(t, nil, demoDir)
+			status, lines := goErrorLines(t, nil, demoDir)
 			if status != "failed" {
 				t.Fatalf("go status 应为 failed，实际 %s", status)
 			}
@@ -783,7 +792,7 @@ func TestRunRequiresDemoDir(t *testing.T) {
 
 func TestRunSourceTreeOK(t *testing.T) {
 	repo := repoRoot(t)
-	res, err := Run(t.Context(), nil, Params{DemoDir: demoDirOf(repo), LegacyReport: true})
+	res, err := Run(t.Context(), nil, Params{DemoDir: demoDirOf(repo)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -793,8 +802,7 @@ func TestRunSourceTreeOK(t *testing.T) {
 	if res.Facts["mode"] != "source-tree" {
 		t.Errorf("mode = %v", res.Facts["mode"])
 	}
-	lines := res.Facts["legacyReport"].(map[string]any)["lines"].([]string)
-	if len(lines) != 1 || lines[0] != "epub-style-demo validation ok" {
-		t.Errorf("lines = %v", lines)
+	if res.Facts["errors"] != 0 || len(res.Findings) != 0 {
+		t.Errorf("errors = %v, findings = %v", res.Facts["errors"], res.Findings)
 	}
 }

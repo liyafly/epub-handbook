@@ -7,7 +7,2758 @@
     "sha256": "ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac"
   },
   "facts": {
+    "epub.package.nav.audit.actionableFindings": [
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/cover.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter1-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter2-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter2-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter2-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter2-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-13.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-4-14.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter4-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-13.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-14.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-15.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-16.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-17.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-18.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-19.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-20.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-21.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-22.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-23.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-3-24.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-13.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-14.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-15.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-16.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-17.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-18.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-4-19.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter5-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-3-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-3-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-3-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-3-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter6-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-7-12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter3-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter10-11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter11.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter11-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter11-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter11-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Copyright.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Sponsor.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Acknowledgments.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Landmarks.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Foreword.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Learning-Path.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Colophon.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Book-notes.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter7-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter12-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-4.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-7.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-8.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-9.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-10.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter9-13.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Appendix6.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/Chapter8-5.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter2-2.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter2-2.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter3-4-4.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "empty-paragraph",
+        "file": "OEBPS/Text/Chapter5-3-1.xhtml",
+        "locator": {
+          "id": ""
+        },
+        "params": {
+          "rule": "empty-paragraph"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "Empty paragraph element (no visible text content)"
+      },
+      {
+        "kind": "missing-manifest-properties",
+        "file": "OEBPS/Text/Chapter5-3-9.xhtml",
+        "locator": {
+          "manifest_id": "Chapter5-3-9.xhtml"
+        },
+        "params": {
+          "properties": "svg"
+        },
+        "lane": "package",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "XHTML contains SVG but manifest item lacks properties=\"svg\""
+      },
+      {
+        "kind": "missing-manifest-properties",
+        "file": "OEBPS/Text/Chapter8-8.xhtml",
+        "locator": {
+          "manifest_id": "Chapter8-8.xhtml"
+        },
+        "params": {
+          "properties": "mathml"
+        },
+        "lane": "package",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "XHTML contains MathML but manifest item lacks properties=\"mathml\""
+      }
+    ],
+    "epub.package.nav.audit.auditStatus": "fail",
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 2,
+      "warn": 9,
+      "info": 0
+    },
     "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-layout-auditor",
+      "$epub-package-nav-auditor",
+      "$epub-kindle-compatibility-checker",
+      "$epub-css-layering-optimizer",
+      "$epub-typography-optimizer",
+      "$epub-image-layout-optimizer",
+      "$epub-legacy-footnote-fallback",
+      "$epub-vertical-ruby-optimizer",
+      "$epub-popup-footnote-converter",
+      "$epub-content-analyzer",
+      "$epub-font-coverage-analyzer"
+    ],
     "epub.package.nav.audit.summary": {
       "language": "zh-CN",
       "manifest_items": 813,
@@ -22,6 +2773,9 @@
       "package_version": "3.0",
       "spine_items": 178,
       "zip_entries": 817
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
     }
   },
   "findings": [
@@ -102,10 +2856,16 @@
   "events": [
     {
       "step": "epub.package.nav.audit",
-      "status": "completed"
+      "status": "failed"
     }
   ],
   "nextCommands": [
-    "epub run epub.layout.audit --input references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub"
+    "epub run epub.layout.audit --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
+    "epub run epub.notes.popup.normalize --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --dry-run --json",
+    "epub redline --check all \u003cbefore.epub\u003e \u003cafter.epub\u003e",
+    "epub run epub.text.content.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
+    "epub run epub.font.coverage.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
+    "epub capabilities --json",
+    "# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."
   ]
 }

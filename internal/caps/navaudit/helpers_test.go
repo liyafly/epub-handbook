@@ -38,7 +38,7 @@ func roundTrip(t *testing.T, v any) any {
 	return out
 }
 
-// normalizeJSON 把 map 键序归一（Go 侧 legacyReport 内含 map[string]bool 等），
+// normalizeJSON 把 map 键序归一（facts 内含 map[string]bool 等），
 // 便于比较语义内容而非键排列。
 func normalizeJSON(v any) any {
 	switch x := v.(type) {

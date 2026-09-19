@@ -24,8 +24,8 @@ epub capabilities [--json]                            # 列出全部能力及 Go
 
 1. 用 `epub capabilities --json` 确认能力清单与实现状态；契约位于 `contracts/capabilities/v1/`。
 2. 已有 EPUB 时，先用 `epub-layout-auditor` 做总审稿（配合 `epub run epub.layout.audit --input <书> --json`）：看 diff、识别页面类型、列出风险、分派专项 skill。
-3. 没有 EPUB、只有文本/PDF/HTML/扫描件时，用 `epub-source-intake` 做源材料接入（人工 + AI 流程），再进入排版链路。
-4. 结构脏或文件名混淆的书先走 `epub-structure-normalizer` 的双阶段流程（dry-run 人工 review → 实跑 → `epub redline --check all --path-map <normalize 报告>`）。
+3. 没有 EPUB、只有文本/PDF/HTML/扫描件时，先 `epub run epub.source.intake --input <目录> --json` 盘点，再按 `epub-source-intake` 的人工 + AI 流程抽取、结构化，最后进入排版链路。
+4. 结构脏或文件名混淆的书先走 `epub-structure-normalizer` 的双阶段流程（dry-run 人工 review → 实跑 → `epub redline --check all --path-map <normalize 信封.json>`）。
 5. 再按问题类型使用专项 skill：EPUB3 迁移、中文字体、英文排版、CSS 分层、图文、竖排、弹注、Kindle、OPF/nav、A-lite 等。
 6. 改书后跑该 skill「调什么」里列出的校验组合（弹注校验、demo 校验、红线）；构建 demo 用 `sh templates/epub-style-demo/build.sh`，产物在模板自己的 `dist/`。
 7. 阅读器实测后，把结果回写 `docs/final/reader-matrix.yaml`，再更新 SPEC、手册和速查表。
@@ -46,7 +46,7 @@ epub capabilities [--json]                            # 列出全部能力及 Go
 |---|---|---|
 | `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 | `epub.layout.audit` |
 | `epub-content-analyzer` | 只读识别正文、标题、对话、诗歌、引文、书信、文白等结构角色，并给出字体与排版建议 | `epub.text.content.analyze` |
-| `epub-source-intake` | 从文本、Markdown、HTML、PDF 或 OCR 结果建立 EPUB 制作入口（人工 + AI 流程） | `epub.source.intake` |
+| `epub-source-intake` | 对非 EPUB 源目录/文件做只读盘点（角色、SHA-256、编码/图片/PDF 风险）并给出 source bundle 与下游链计划；抽取与结构化仍是人工 + AI 流程 | `epub.source.intake` |
 | `epub-structure-normalizer` | 先格式化资源目录，再按 OPF manifest id 做文件名反混淆；dry-run 审查 + 红线 `--path-map` | `epub.structure.normalize` |
 | `epub3-migrator` | 旧 EPUB 先规划再迁移到 EPUB3，并执行正文红线和产物验证 | `epub.package.migrate.epub3` |
 | `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `epub.css.layering.optimize` |
@@ -64,7 +64,7 @@ epub capabilities [--json]                            # 列出全部能力及 Go
 | `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `epub.notes.legacy-fallback` |
 | `epub-style-demo-maintainer` | 维护 demo fixture、reader matrix、SPEC 和最终文档同步 | `epub.style.demo.maintain` |
 
-16 个能力已在 Go CLI 就绪。其余能力（5 个纯 AI/人工分析类 skill + `epub.source.intake`）设计上没有 Go 实现：`epub run` 它们会得到 `status: failed`、退出码 1 和 `error capability.not-implemented` finding，此时以对应 skill 描述的人工/分析流程为准，`epub capabilities` 可随时确认最新就绪状态。
+17 个能力已在 Go CLI 就绪（含只读 planner `epub.source.intake`，它接受目录或任意文件作为 `--input`，不解析 PDF/OCR）。其余 5 个纯 AI/人工分析类 skill 设计上没有 Go 实现：`epub run` 它们会得到 `status: failed`、退出码 1 和 `error capability.not-implemented` finding，此时以对应 skill 描述的人工/分析流程为准，`epub capabilities` 可随时确认最新就绪状态。
 
 ## 两类常见场景
 

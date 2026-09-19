@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.source.intake",
+  "status": "complete",
+  "input": {
+    "path": "testdata/sourceintake"
+  },
+  "facts": {
+    "epub.source.intake.blockers": [
+      "PDF 输入需外部抽取 + 抽样校对（本仓不解析 PDF / 不做 OCR）；扫描件须标记 OCR 风险并记录工具名与版本",
+      "1 个图片不是 EPUB 核心媒体类型或为 CMYK JPEG，需外部转码"
+    ],
+    "epub.source.intake.fileCount": 6,
+    "epub.source.intake.files": [
+      {
+        "path": "README.md",
+        "role": "text",
+        "size": 20,
+        "sha256": "9286a986096b088b5e9117d4cd679fc110cd2f4115468423a8e5f08e846b8bb3",
+        "risks": []
+      },
+      {
+        "path": "chapter01.txt",
+        "role": "text",
+        "size": 36,
+        "sha256": "5cf791061e2300f99e70250b8038dde8d97405bd8a94c91b4378b8eed3a9698d",
+        "risks": [
+          "utf8-bom",
+          "crlf"
+        ]
+      },
+      {
+        "path": "images/cover.png",
+        "role": "image",
+        "size": 70,
+        "sha256": "4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5",
+        "risks": []
+      },
+      {
+        "path": "images/figure.webp",
+        "role": "image",
+        "size": 16,
+        "sha256": "d078aaf6e6e2c491f58be25317c2e8f2b01d00a2f79d3731aed5edda3da14059",
+        "risks": [
+          "image-format-risk"
+        ]
+      },
+      {
+        "path": "notes/intro.html",
+        "role": "html",
+        "size": 40,
+        "sha256": "86f29ab66146eaaeea17bcb1e6e88835ef29bf1b5f37d00a33987463e9836b6e",
+        "risks": []
+      },
+      {
+        "path": "scan.pdf",
+        "role": "pdf",
+        "size": 15,
+        "sha256": "14bcd090baf31edba64e9cbd8cdfc15f943344aa72cb3675ad8e91bfcbce03ad",
+        "risks": [
+          "pdf-out-of-scope"
+        ]
+      }
+    ],
+    "epub.source.intake.inputKind": "directory",
+    "epub.source.intake.plan": {
+      "schemaVersion": "1",
+      "artifact": {
+        "uri": "<repo>/testdata/sourceintake",
+        "kind": "source-directory"
+      },
+      "steps": [
+        {
+          "id": "nav-audit",
+          "capability": "epub.package.nav.audit",
+          "kind": "inspect",
+          "dependsOn": [],
+          "requiresApproval": false
+        },
+        {
+          "id": "structure-normalize",
+          "capability": "epub.structure.normalize",
+          "kind": "transform",
+          "dependsOn": [
+            "nav-audit"
+          ],
+          "requiresApproval": true
+        },
+        {
+          "id": "migrate-epub3",
+          "capability": "epub.package.migrate.epub3",
+          "kind": "transform",
+          "dependsOn": [
+            "structure-normalize"
+          ],
+          "requiresApproval": true
+        },
+        {
+          "id": "layout-audit",
+          "capability": "epub.layout.audit",
+          "kind": "inspect",
+          "dependsOn": [
+            "migrate-epub3"
+          ],
+          "requiresApproval": false
+        }
+      ],
+      "blockers": [
+        "PDF 输入需外部抽取 + 抽样校对（本仓不解析 PDF / 不做 OCR）；扫描件须标记 OCR 风险并记录工具名与版本",
+        "1 个图片不是 EPUB 核心媒体类型或为 CMYK JPEG，需外部转码"
+      ]
+    },
+    "epub.source.intake.roleCounts": {
+      "html": 1,
+      "image": 2,
+      "pdf": 1,
+      "text": 2
+    },
+    "epub.source.intake.sourcePath": "<repo>/testdata/sourceintake",
+    "epub.source.intake.totalBytes": 197,
+    "epub.source.intake.workspacePlan": {
+      "01 源文件/": "全部入选源文件原样保留，记录 SHA-256，不原地修改",
+      "02 校对材料/": "异版 EPUB、参考文本、外部抽取/OCR 结果与抽样校对记录",
+      "03 制作工作区/": "唯一可编辑的 EPUB 解包树（epub/）与 .pipeline/ 中间产物",
+      "制作说明.md": "来源记录：文件角色、抽取工具名与版本、需人工确认的页码/脚注/表格/公式/图片"
+    }
+  },
+  "findings": [
+    {
+      "level": "warn",
+      "id": "intake.image-format-risk",
+      "title": "Image format is not an EPUB core media type",
+      "detail": "EPUB 核心图片类型仅 JPEG / PNG / GIF / SVG；WebP / TIFF / BMP / AVIF / HEIC 需外部转码后回到本项目验证",
+      "location": "images/figure.webp"
+    },
+    {
+      "level": "warn",
+      "id": "intake.pdf-out-of-scope",
+      "title": "PDF input is out of scope for this repository",
+      "detail": "本仓不解析 PDF、不做 OCR。请用外部工具（如 pdftotext / mutool / OCR 引擎）抽取，在来源记录中登记工具名与版本，把抽取文本视为不可信输入并抽样校对；扫描件必须标记 OCR 风险",
+      "location": "scan.pdf"
+    },
+    {
+      "level": "info",
+      "id": "intake.summary",
+      "title": "6 files, 197 bytes, roles: html=1 image=2 pdf=1 text=2",
+      "detail": "facts.files 列出每个文件的角色、SHA-256 与风险；facts.plan 是后续 EPUB 链的 execution-plan 建议"
+    }
+  ],
+  "events": [
+    {
+      "step": "epub.source.intake",
+      "status": "completed"
+    },
+    {
+      "step": "scan",
+      "status": "completed",
+      "message": "6 files inspected (read-only)"
+    }
+  ]
+}

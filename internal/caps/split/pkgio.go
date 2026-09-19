@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -76,9 +77,12 @@ func readPackage(names map[string]bool, read func(string) ([]byte, error)) (*pkg
 	if opfPath == "" {
 		return nil, toolErrf("container.xml has no rootfile full-path")
 	}
-	opfPath, err = validateArchivePath(opfPath, "container.xml rootfile")
+	opfPath, err = pypath.ValidateArchivePath(opfPath, "container.xml rootfile")
 	if err != nil {
-		return nil, err
+		// 重新包成 *toolError：pypath 是层 5，够不到本包的 ErrPackageTool
+		// 哨兵，而这条路径在下沉前是 toolErrf 产生的（errors.Is(err,
+		// ErrPackageTool) 为真）。文本不变，只把可判性接回来。
+		return nil, toolErrf("%v", err)
 	}
 	if !names[opfPath] {
 		return nil, toolErrf("container.xml rootfile does not resolve: %s", opfPath)
@@ -126,10 +130,10 @@ func readPackage(names map[string]bool, read func(string) ([]byte, error)) (*pkg
 		if itemID == "" || href == "" {
 			return nil, toolErrf("%s: manifest item missing id or href", opfPath)
 		}
-		if pyIsExternalURI(href) {
+		if pypath.IsExternalURI(href) {
 			continue
 		}
-		archivePath, err := resolveRelativePath(opfPath, pyURLSplit(href).path)
+		archivePath, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +163,7 @@ func contentSpinePaths(pkg *pkgInfo) []string {
 	var paths []string
 	for _, sp := range pkg.spine {
 		item, ok := pkg.byID(sp.idref)
-		if !ok || hasNavProp(item.properties) {
+		if !ok || pypath.HasNavProp(item.properties) {
 			continue
 		}
 		lower := strings.ToLower(item.archivePath)
@@ -229,7 +233,7 @@ func collectReferencedResourcesContext(ctx context.Context, names map[string]boo
 			continue
 		}
 		scanned[current] = true
-		ext := strings.ToLower(pathExt(current))
+		ext := strings.ToLower(pypath.PathExt(current))
 		if ext != ".css" && !markupExtensions[ext] {
 			continue
 		}
@@ -244,7 +248,9 @@ func collectReferencedResourcesContext(ctx context.Context, names map[string]boo
 		if ext == ".css" {
 			rawURIs, err = collectCSSURIsStrict(string(data))
 		} else {
-			rawURIs, err = collectRawURIsStrict(string(data))
+			// 区域感知：只认解析出的属性，不认字符数据里长得像属性的正文
+			// （见 refs.go 里 collectMarkupURIsStrict 的头注）。
+			rawURIs, err = collectMarkupURIsStrict(data)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("resource closure: parse references in %s: %w", current, err)
@@ -255,14 +261,14 @@ func collectReferencedResourcesContext(ctx context.Context, names map[string]boo
 					return nil, err
 				}
 			}
-			if raw == "" || strings.HasPrefix(raw, "#") || pyIsExternalURI(raw) {
+			if raw == "" || strings.HasPrefix(raw, "#") || pypath.IsExternalURI(raw) {
 				continue
 			}
-			parts := pyURLSplit(raw)
-			if parts.path == "" {
+			parts := pypath.URLSplit(raw)
+			if parts.Path == "" {
 				continue
 			}
-			target, terr := resolveRelativePath(current, parts.path)
+			target, terr := pypath.ResolveRelativePath(current, parts.Path)
 			if terr != nil {
 				return nil, fmt.Errorf("resource closure: resolve %q from %s: %w", raw, current, terr)
 			}
