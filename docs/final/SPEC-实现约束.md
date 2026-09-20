@@ -42,6 +42,7 @@
 - `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；新建锁定版的入口是 `fonts.css` 中直接的 `body { font-family:... }`。添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由模式（默认）不需要。只在局部角色使用嵌入字体不需要此 meta。既有 EPUB 的 `body-font-locked` class 可兼容保留，但不作为新模板入口。判定规则见 §8。
 - 标题字体可用系统链或书内嵌入字体 + 通用族回退；当 `h1` / `h2` 在全书各自只有一个字体角色时可直接绑定，否则使用角色类。
 - 字体策略必须与 `fontspec` 三态一致：`auto | forceAll | none`。
+- **既有 EPUB 拆分容错**：同一 `@font-face` 的同一 `src` 声明包含有效非空 `local()` 时，缺失字体 URL 可保留原声明并继续拆分，仅记信息事件，不记 warning；这不证明阅读器具备该系统字体。其他声明里的 local()、字符串/注释伪命中、缺失图片/导入 CSS 等不能获得豁免。新书模板仍不得制造悬空字体资源；此条只定义拆分是否阻断，不替代交付和阅读器验收。
 
 ## 4) 子集策略算法（执行层对齐）
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB 源材料接入"
-  short_description: "盘点文本/PDF/图片源材料并建立可校对的 EPUB source bundle。"
-  default_prompt: "使用 $epub-source-intake 先运行 epub run epub.source.intake 盘点这些文本、PDF 或图片源材料，再按人工+AI 流程建立可校对、可验证的 EPUB source bundle。"
+  short_description: "只读盘点源材料与 SHA，规划抽取校对流程，不直接生成 EPUB。"
+  default_prompt: "使用 $epub-source-intake 盘点这些源材料，说明读取缺口、抽取风险与 source bundle 的下一步。"

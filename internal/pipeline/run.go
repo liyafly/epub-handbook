@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -113,6 +114,10 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	contract := chain[len(chain)-1]
 	if contract.ID != opts.CapabilityID {
 		return usage("unknown capability: %s", opts.CapabilityID)
+	}
+	if err := validateArguments(root, chain, opts.Args); err != nil {
+		usageErr := &UsageError{Err: err}
+		return UsageOutcome(opts.CapabilityID, usageErr), usageErr
 	}
 	noBookCap := contract.Execution.Input == ExecInputEpubOrTree
 	// sourceInput 能力（planner，如 epub.source.intake）：--input 必填，可以是
@@ -492,7 +497,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// 退回 pipeline 的静态建议。未执行的能力（DRM 拦截 / 未实现 / 上游 runner
 	// 报错）在 up 里没有条目，直接走静态分支。
 	env.NextCommands = dropSelfReruns(dedupe(up[contract.ID].NextCommands), contract.ID)
-	if len(env.NextCommands) == 0 {
+	if len(env.NextCommands) == 0 && !(opts.DryRun && needsWrite && env.Status != report.StatusApprovalRequired) {
 		env.NextCommands = nextCommands(contract, opts, needsWrite)
 	}
 
@@ -523,21 +528,37 @@ func nextCommands(contract Contract, opts Options, needsWrite bool) []string {
 		if !needsWrite {
 			return nil
 		}
-		if contract.Execution.Output == ExecOutputMulti {
-			return []string{"epub run " + id + " --input <reviewed-input> output_dir=<out-dir>"}
+		command := "epub run " + id + " --input " + shellQuote(placeholder(opts.InputPath, "<reviewed-input>"))
+		if contract.Execution.Output != ExecOutputMulti {
+			command += " --output " + shellQuote(placeholder(opts.OutputPath, "<out.epub>"))
 		}
-		out = append(out, "epub run "+id+" --input <reviewed-input> --output <out.epub>")
-		return out
+		command += " --json"
+		args := maps.Clone(opts.Args)
+		if args == nil {
+			args = Args{}
+		}
+		if contract.Execution.Output == ExecOutputMulti && args["output_dir"] == "" {
+			args["output_dir"] = "<out-dir>"
+		}
+		for _, key := range slices.Sorted(maps.Keys(args)) {
+			if key == "input" || key == "output" || key == "dry_run" {
+				continue
+			}
+			command += " " + shellQuote(key+"="+args[key])
+		}
+		return []string{command}
 	}
 	switch id {
 	case "epub.package.nav.audit":
 		out = append(out,
-			"epub run epub.layout.audit --input "+placeholder(opts.OutputPath, opts.InputPath))
+			"epub run epub.layout.audit --input "+shellQuote(placeholder(opts.OutputPath, opts.InputPath)))
 	case "epub.structure.normalize":
 		out = append(out, "epub redline --check all --path-map <normalize-envelope.json> <before> <after>")
 	}
 	return out
 }
+
+func shellQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
 
 func placeholder(vals ...string) string {
 	for _, v := range vals {

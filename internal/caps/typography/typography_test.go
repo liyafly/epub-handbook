@@ -229,7 +229,7 @@ func TestTypographyDryRun(t *testing.T) {
 		t.Fatalf("随机 class 的 ratio 应 < 0.3: %v", randomCoverage)
 	}
 	warning, _ := randomCoverage["warning"].(string)
-	if !strings.Contains(warning, "先走 cleanup pipeline") {
+	if !strings.Contains(warning, "class 覆盖率") || strings.Contains(warning, "oneclick") {
 		t.Fatalf("应输出低覆盖率 warning: %q", warning)
 	}
 }

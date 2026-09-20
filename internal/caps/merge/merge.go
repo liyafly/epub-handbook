@@ -182,19 +182,23 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	var (
-		creates     []editset.Edit
-		replaces    []editset.Edit
-		deletes     []editset.Edit
-		inDeletes   = map[string]bool{}
-		renames     = map[string]string{}
-		mergedMeta  []manifestTuple
-		mergedSp    []spineTuple
-		groups      []opf.TocGroup
-		firstMeta   *metaExtract
-		mergedTitle = p.Title // Python：--title 给定时永不回退到卷标题
+		creates        []editset.Edit
+		replaces       []editset.Edit
+		deletes        []editset.Edit
+		inDeletes      = map[string]bool{}
+		renames        = map[string]string{}
+		sourceMappings []map[string]any
+		mergedMeta     []manifestTuple
+		mergedSp       []spineTuple
+		groups         []opf.TocGroup
+		firstMeta      *metaExtract
+		mergedTitle    = p.Title // Python：--title 给定时永不回退到卷标题
 	)
 
 	for vi, inputPath := range inputs {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		var names []string
 		var read func(string) ([]byte, error)
 		if vi == 0 {
@@ -236,6 +240,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		idMap := map[string]string{}
 
 		for _, item := range pkg.manifest {
+			if err := ctx.Err(); err != nil {
+				return report.Result{}, err
+			}
 			if !namesSet[item.archivePath] {
 				rep.Warnings = append(rep.Warnings, fmt.Sprintf("%s: manifest href does not resolve: %s", inputPath, item.href))
 				continue
@@ -247,7 +254,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			pathMap[item.archivePath] = finalPath
 			if renamedFlag {
 				rep.RenamedResources++
-				renames[item.archivePath] = finalPath
+				// Pipeline's before-state is only the first book. Later volumes
+				// must not redirect a first-volume resource with the same path.
+				if vi == 0 {
+					renames[item.archivePath] = finalPath
+				}
 			}
 			baseID := item.itemID
 			if usedIDs[item.itemID] {
@@ -265,7 +276,13 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			rep.MergedItems++
 		}
 
+		sourceMappings = append(sourceMappings, map[string]any{
+			"inputIndex": vi, "input": inputPath, "mappings": mappingList(pathMap),
+		})
 		for _, item := range pkg.manifest {
+			if err := ctx.Err(); err != nil {
+				return report.Result{}, err
+			}
 			finalPath, ok := pathMap[item.archivePath]
 			if !ok {
 				continue
@@ -421,11 +438,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			"output":           p.Output,
 			"mergedItems":      rep.MergedItems,
 			"renamedResources": rep.RenamedResources,
-			// mappings 与 epub.structure.normalize 同形状（{from,to} 数组），
-			// 让 `epub redline --path-map <本信封>` 也能识别合并时的资源改名。
-			// 只有计数（renamedResources）时改名信息出不了信封，AGENTS.md
-			// 的「红线比对 + 人工 diff review」在合并后就没有映射可用。
-			"mappings": mappingList(renames),
+			// Flat mappings refer only to --input (the redline before-state).
+			// Full provenance includes identities and is keyed by source input.
+			"mappings":       mappingList(renames),
+			"sourceMappings": sourceMappings,
 			// nonNilStrings 而不是 append([]string(nil), …)：后者在源切片为空时
 			// 返回 nil，JSON 里就是 null，而 SKILL.md 声明的是数组（`| length`
 			// 会炸）。无告警的合并是最常见路径。

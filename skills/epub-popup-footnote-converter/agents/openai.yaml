@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB Popup 弹注转换"
-  short_description: "转换标准 grouped popup notes。"
-  default_prompt: "使用 $epub-popup-footnote-converter 把这些 EPUB 注释转换为项目标准 popup footnote 结构。"
+  short_description: "校验同文件 grouped notes，按授权转换并保留图标、注释和回跳。"
+  default_prompt: "使用 $epub-popup-footnote-converter 检查并按授权规范注释，避免扩大到未授权的 package 迁移。"

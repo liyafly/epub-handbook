@@ -11,6 +11,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/redline"
+	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -21,6 +22,7 @@ import (
 type segmentValidation struct {
 	redline   map[string]any
 	partition map[string]any
+	events    []report.Event
 }
 
 func validateSegment(ctx context.Context, original, segment *book.Book, sourcePkg *pkgInfo, selected, expectedSpine []string, navID, navPath, ncxPath string) (segmentValidation, error) {
@@ -58,7 +60,8 @@ func validateSegment(ctx context.Context, original, segment *book.Book, sourcePk
 	if err := validateProjectedManifest(segment, projectedPkg); err != nil {
 		return segmentValidation{}, err
 	}
-	if err := validateRetainedReferences(ctx, segment, projectedPkg, sourcePkg.opfPath); err != nil {
+	events, err := validateRetainedReferences(ctx, segment, projectedPkg, sourcePkg.opfPath)
+	if err != nil {
 		return segmentValidation{}, err
 	}
 
@@ -116,6 +119,7 @@ func validateSegment(ctx context.Context, original, segment *book.Book, sourcePk
 		return segmentValidation{}, err
 	}
 	return segmentValidation{
+		events: events,
 		redline: map[string]any{
 			"drm":      "pass",
 			"metadata": "pass",
@@ -181,106 +185,59 @@ func validateProjectedManifest(segment *book.Book, projected *opf.Package) error
 // segment entry; content resources must also be represented by the projected
 // manifest. Package-control files are the narrow exception because OCF's
 // mimetype, container.xml, and the OPF itself are not manifest resources.
-func validateRetainedReferences(ctx context.Context, segment *book.Book, projected *opf.Package, opfPath string) error {
+func validateRetainedReferences(ctx context.Context, segment *book.Book, projected *opf.Package, opfPath string) ([]report.Event, error) {
 	manifestPaths := make(map[string]bool, len(projected.Manifest))
 	for _, item := range projected.Manifest {
 		if item.ArchivePath != "" {
 			manifestPaths[item.ArchivePath] = true
 		}
 	}
+	var events []report.Event
 	for _, documentPath := range segment.Names() {
 		if err := contextErr(ctx); err != nil {
-			return err
+			return nil, err
 		}
 		if documentPath == "mimetype" || documentPath == "META-INF/container.xml" || documentPath == "META-INF/encryption.xml" {
 			continue
 		}
 		ext := strings.ToLower(pypath.PathExt(documentPath))
-		if ext == ".css" {
-			data, err := segment.Current(documentPath)
-			if err != nil {
-				return fmt.Errorf("read retained CSS %s: %w", documentPath, err)
-			}
-			if !utf8.Valid(data) {
-				return fmt.Errorf("retained CSS %s is not valid UTF-8", documentPath)
-			}
-			rawURIs, err := collectCSSURIsStrict(string(data))
-			if err != nil {
-				return fmt.Errorf("parse retained CSS %s: %w", documentPath, err)
-			}
-			for _, raw := range rawURIs {
-				if err := validateRetainedReference(ctx, segment, documentPath, "CSS url", raw, manifestPaths, opfPath); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-		if !markupExtensions[ext] {
+		if ext != ".css" && !markupExtensions[ext] {
 			continue
 		}
 		data, err := segment.Current(documentPath)
 		if err != nil {
-			return fmt.Errorf("read retained XML %s: %w", documentPath, err)
+			return nil, fmt.Errorf("read retained resource %s: %w", documentPath, err)
 		}
 		if !utf8.Valid(data) {
-			return fmt.Errorf("retained XML %s is not valid UTF-8", documentPath)
+			return nil, fmt.Errorf("retained resource %s is not valid UTF-8", documentPath)
 		}
-		root, err := opf.ScanSpanTree(data)
+		var refs []resourceReference
+		if ext == ".css" {
+			refs, err = collectCSSReferences(string(data))
+		} else {
+			refs, err = collectMarkupReferences(data)
+		}
 		if err != nil {
-			return fmt.Errorf("parse retained XML %s: %w", documentPath, err)
+			return nil, fmt.Errorf("parse retained resource %s: %w", documentPath, err)
 		}
-		for _, node := range root.Walk() {
-			if err := contextErr(ctx); err != nil {
-				return err
-			}
-			for _, attr := range node.Attrs {
-				if attr.Name.Space == "" && attr.Name.Local == "style" {
-					if err := validateInlineCSSReferences(ctx, segment, documentPath, "style attribute", attr.Value, manifestPaths, opfPath); err != nil {
-						return err
-					}
-					continue
+		for _, ref := range refs {
+			if ref.localFontFallback && !pypath.IsExternalURI(ref.uri) {
+				parts := pypath.URLSplit(ref.uri)
+				target, err := pypath.ResolveRelativePath(documentPath, parts.Path)
+				if err != nil {
+					return nil, err
 				}
-				kind, ok := resourceAttributeKind(attr.Name.Space, attr.Name.Local)
-				if !ok {
+				if !segment.Has(target) {
+					events = append(events, report.Event{Step: "split.font-local-fallback", Status: "completed", Message: fmt.Sprintf("%s: missing %s; src declares local() fallback, declaration preserved; system font availability not verified", documentPath, target)})
 					continue
-				}
-				if kind == "srcset" {
-					candidates, err := parseSrcsetCandidates(attr.Value)
-					if err != nil {
-						return fmt.Errorf("parse srcset in %s: %w", documentPath, err)
-					}
-					for _, candidate := range candidates {
-						if err := validateRetainedReference(ctx, segment, documentPath, "srcset", candidate.url, manifestPaths, opfPath); err != nil {
-							return err
-						}
-					}
-					continue
-				}
-				if err := validateRetainedReference(ctx, segment, documentPath, kind, attr.Value, manifestPaths, opfPath); err != nil {
-					return err
 				}
 			}
-			if node.Name.Local == "style" {
-				if err := validateInlineCSSReferences(ctx, segment, documentPath, "style element", node.IterText(), manifestPaths, opfPath); err != nil {
-					return err
-				}
+			if err := validateRetainedReference(ctx, segment, documentPath, "resource", ref.uri, manifestPaths, opfPath); err != nil {
+				return nil, err
 			}
 		}
 	}
-	return nil
-}
-
-func validateInlineCSSReferences(ctx context.Context, segment *book.Book, documentPath, kind, text string, manifestPaths map[string]bool, opfPath string) error {
-	rawURIs, err := collectCSSURIsStrict(text)
-	if err != nil {
-		return fmt.Errorf("parse %s in %s: %w", kind, documentPath, err)
-	}
-	for _, raw := range rawURIs {
-		if err := validateRetainedReference(ctx, segment, documentPath, kind, raw, manifestPaths, opfPath); err != nil {
-			return err
-		}
-	}
-	return nil
+	return events, nil
 }
 
 func resourceAttributeKind(space, local string) (string, bool) {

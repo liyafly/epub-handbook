@@ -4,6 +4,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strconv"
@@ -174,7 +175,10 @@ func init() {
 		return popupnotes.Run(ctx, b, popupnotes.Params{})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return styledemo.Run(ctx, b, styledemo.Params{DemoDir: args.Get("demo_dir")})
+		if args.Get("query") != "" && !args.Bool("catalog") {
+			return report.Result{}, usageErrorf("query requires catalog=true")
+		}
+		return styledemo.Run(ctx, b, styledemo.Params{DemoDir: args.Get("demo_dir"), Catalog: args.Bool("catalog"), Query: args.Get("query")})
 	})
 	registerSourceInput("epub.source.intake", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		maxFiles := 0
@@ -214,15 +218,22 @@ func init() {
 		})
 	})
 	register("epub.typography.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+		var scope []string
+		if raw, ok := args["scope_paths"]; ok {
+			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
+				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
+			}
+		}
 		preset := args.Get("preset")
 		if preset == "" {
 			preset = "literary-cn"
 		}
 		return typographycap.Run(ctx, b, typographycap.Params{
-			Preset:    preset,
-			PresetDir: args.Get("preset_dir"),
-			Output:    args.Get("output"),
-			DryRun:    args.Bool("dry_run"),
+			Preset:     preset,
+			PresetDir:  args.Get("preset_dir"),
+			Output:     args.Get("output"),
+			DryRun:     args.Bool("dry_run"),
+			ScopePaths: scope,
 		})
 	})
 	register("epub.package.merge", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

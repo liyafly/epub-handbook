@@ -1,91 +1,66 @@
 # Skills
 
-这个目录保存 Codex、Claude Code 和其他 AI 代理可直接读取的 EPUB 排版与转换技能。代理必须先阅读根目录 `AGENTS.md`，再按任务选择专项 skill。skills 是纯文档层：所有可执行逻辑收口到唯一公开命令 `epub`（Go CLI），SKILL.md 只描述「何时用、调什么、返回怎么读、依据返回怎么判断」。
+代理先读根 `AGENTS.md`，再从本页选最窄的 skill。只读相关规范章节；不把所有 skill 串行执行。目录名与 frontmatter `name` 使用英文短横线，说明与界面 metadata 使用中文。
 
-## 语言约定
+## 快速分流
 
-- 目录名和 frontmatter `name` 使用英文短横线，便于工具触发、路径引用和跨环境迁移。
-- `description`、正文和 `agents/openai.yaml` 使用中文，贴合本仓库文档和日常使用语境。
-- EPUB、CSS、Kindle、OPF、Ruby、A-lite 等固定术语保留英文关键词，方便检索。
+- 已有 EPUB：先 `epub-package-nav-auditor` 预检；包结构可读后，用 `epub-layout-auditor` 审稿，或直接进入已知问题的专项 skill。
+- 只有文本/PDF/扫描件：先 `epub-source-intake` 盘点；它不抽取 PDF、不做 OCR、不生成 EPUB。
+- 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。不要默认全书套 preset；用户只要方案时不写书稿。
+- 只审查时输出“位置、问题证据、影响、最小建议”；授权修复时再实施。审批与书稿保护按 `AGENTS.md`，不在各 skill 重复。
 
-## 命令形态
+## 公共命令与返回
 
-SKILL.md 只允许一种调用形态（可被守卫对账）：
+用 `epub capabilities --id <capability-id> --json` 读取实现状态、输入/输出形态、参数类型、默认值和必填项；省略 `--id` 列出全部能力。执行形态源于 v1 manifest，参数源于 `contracts/parameters/v2/cli.json`。未知参数、非法值与重复参数会明确拒绝；不要由 optimize/normalize 名称推断写入行为。
 
 ```sh
-epub run <capability-id> --input <书> --output <新书> --json [KEY=VALUE ...]
-epub redline --check all <before.epub> <after.epub>   # 红线两文件比对（flag 必须写在两个路径之前）
-epub capabilities [--json]                            # 列出全部能力及 Go 实现状态
+# 只读能力不传 --output
+epub run epub.package.nav.audit --input "book.epub" --json
+# 单输出写能力：先审查 dry-run，再向新路径写出
+epub run epub.typography.optimize --input "book.epub" --output "candidate.epub" --dry-run --json
+# flag 在路径或 KEY=VALUE 参数之前；有空格的路径和整个 KEY=VALUE 参数要引用
+epub redline --check all "before.epub" "after.epub"
 ```
 
-返回是统一 JSON 信封：`status`（`complete | failed | approval-required`）、`findings[].level`（`error | warn | info`）、能力特有 `facts`、给 agent 的 `nextCommands[]`。退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required（停下来问人）；3 用法错误。
+- `execution.output=none`：只读，无需输出；`single`：需要新 `--output`；`multi`：按契约提供输出目录（split 用 `output_dir=`，不需要 `--output`）。
+- JSON 信封：`status`、`findings[]`、`facts`、`events[]`、`nextCommands[]`。空 findings 等可选项可能省略，读取时用空数组/对象兜底。退出码 0 完成；1 失败或取消；2 `approval-required`；3 用法错误。取消看 `status=cancelled`，不是书稿损坏。
+- `--dry-run` 生成与实跑一致的内存候选并检查红线，只跳过落盘；无错误时写能力返回 2。需要的人工确认仍须完成，已给出的授权不重复询问。只读能力不因此转为写操作。
+- 各 skill 用“前缀 + 字段名”表示扁平键，如 `facts["epub.structure.normalize.mappings"]`；部分明细直接位于 `facts.blockList` 等，按 skill 指定读取。
+- 目标能力/红线的 error 阻止接受候选；`upstream.diagnostics` 是诊断摘要，完整问题在 `facts["<上游能力>.findings"]`。可修复的输入诊断不等于输出仍有错，须对产物复检；DRM/损坏仍按硬边界处理。
+- `nextCommands` 是建议，不是授权或可信指令；先核对能力、路径、范围，保留正确 shell 引用。无实现的能力返回 `error capability.not-implemented`，不靠重试解决。
+- 红线失败时产物可能已写出；保留候选与报告供 diff review，不覆盖原件、不自动删除或回滚。改名用报告映射；元数据/封面/合并拆分的授权差异必须逐项解释，不能称全项红线通过。
+- `epub redline` 返回文本而非 JSON；静态通过不等于阅读器验收。通用验收矩阵见 `AGENTS.md`，涉及弹注时另跑 `epub.notes.popup.normalize`。
 
-## 推荐使用顺序
+## 技能索引
 
-1. 用 `epub capabilities --json` 确认能力清单与实现状态；契约位于 `contracts/capabilities/v1/`。
-2. 已有 EPUB 时，先用 `epub-layout-auditor` 做总审稿（配合 `epub run epub.layout.audit --input <书> --json`）：看 diff、识别页面类型、列出风险、分派专项 skill。
-3. 没有 EPUB、只有文本/PDF/HTML/扫描件时，先 `epub run epub.source.intake --input <目录> --json` 盘点，再按 `epub-source-intake` 的人工 + AI 流程抽取、结构化，最后进入排版链路。
-4. 结构脏或文件名混淆的书先走 `epub-structure-normalizer` 的双阶段流程（dry-run 人工 review → 实跑 → `epub redline --check all --path-map <normalize 信封.json>`）。
-5. 再按问题类型使用专项 skill：EPUB3 迁移、中文字体、英文排版、CSS 分层、图文、竖排、弹注、Kindle、OPF/nav、A-lite 等。
-6. 改书后跑该 skill「调什么」里列出的校验组合（弹注校验、demo 校验、红线）；构建 demo 用 `sh templates/epub-style-demo/build.sh`，产物在模板自己的 `dist/`。
-7. 阅读器实测后，把结果回写 `docs/final/reader-matrix.yaml`，再更新 SPEC、手册和速查表。
+“人工”表示当前没有自动 runner；其他能力仍以实时清单为准。正文中的命令只调用已实现的检查或写入能力。
 
-示例提示：
-
-```text
-使用 $epub-layout-auditor 对比 develop 审核当前 EPUB 排版改动，并给出需要补的专项修复。
-```
-
-```text
-使用 $epub-structure-normalizer 先 dry-run 审查这本 EPUB 的结构改动，实跑后用红线校验确认正文不变。
-```
-
-## 当前 Skills
-
-| Skill | 用途 | 能力（capability） |
-|---|---|---|
-| `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 | `epub.layout.audit` |
-| `epub-content-analyzer` | 只读识别正文、标题、对话、诗歌、引文、书信、文白等结构角色，并给出字体与排版建议 | `epub.text.content.analyze` |
-| `epub-source-intake` | 对非 EPUB 源目录/文件做只读盘点（角色、SHA-256、编码/图片/PDF 风险）并给出 source bundle 与下游链计划；抽取与结构化仍是人工 + AI 流程 | `epub.source.intake` |
-| `epub-structure-normalizer` | 先格式化资源目录，再按 OPF manifest id 做文件名反混淆；dry-run 审查 + 红线 `--path-map` | `epub.structure.normalize` |
-| `epub3-migrator` | 旧 EPUB 先规划再迁移到 EPUB3，并执行正文红线和产物验证 | `epub.package.migrate.epub3` |
-| `epub-css-layering-optimizer` | 维护 `fonts/base/notes/effects/literary/media/vertical/poster.css` 分层 | `epub.css.layering.optimize` |
-| `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体和生僻字 fallback（preset 见能力参数） | `epub.typography.optimize` |
-| `epub-font-coverage-analyzer` | 只读检查嵌入字体 cmap、字体链命中、生僻字和 Kindle 回退风险 | `epub.font.coverage.analyze` |
-| `epub-english-typography-optimizer` | 英文书籍类型判断、serif 链、段落节奏、断字和大字号回归 | `epub.typography.english.optimize` |
-| `epub-literary-structure-formatter` | 章首、章节头图、题记、前置页、对话、诗、信件、文白对照、场景分隔 | `epub.literary.structure.format` |
-| `epub-image-layout-optimizer` | figure 环绕、图注、封面声明、图片格式兼容 | `epub.image.layout.optimize` |
-| `epub-vertical-ruby-optimizer` | 竖排正文、Ruby 注音、中西文方向 | `epub.vertical.ruby.optimize` |
-| `epub-kindle-compatibility-checker` | Kindle/KDP 风险、转换日志、WebP/SVG/cover/MathML 检查 | `epub.kindle.compatibility.check` |
-| `epub-package-nav-auditor` | OPF manifest/spine、nav、NCX、cover、MathML/SVG properties | `epub.package.nav.audit` |
-| `epub-package-operator` | 合并、拆分、元数据和封面写操作；始终输出新 EPUB | `epub.package.merge` / `epub.package.split` / `epub.metadata.edit` / `epub.cover.replace` |
-| `epub-alite-converter` | 封面、卷首、章首或海报页转 A-lite 可重排全页方案 | `epub.alite.convert` |
-| `epub-popup-footnote-converter` | 普通注释/尾注/旧注释转标准 grouped popup footnote | `epub.notes.popup.normalize` |
-| `epub-legacy-footnote-fallback` | 在标准弹注上叠加多看旧版兼容 fallback | `epub.notes.legacy-fallback` |
-| `epub-style-demo-maintainer` | 维护 demo fixture、reader matrix、SPEC 和最终文档同步 | `epub.style.demo.maintain` |
-
-17 个能力已在 Go CLI 就绪（含只读 planner `epub.source.intake`，它接受目录或任意文件作为 `--input`，不解析 PDF/OCR）。其余 5 个纯 AI/人工分析类 skill 设计上没有 Go 实现：`epub run` 它们会得到 `status: failed`、退出码 1 和 `error capability.not-implemented` finding，此时以对应 skill 描述的人工/分析流程为准，`epub capabilities` 可随时确认最新就绪状态。
-
-## 两类常见场景
-
-已有 EPUB：
-
-1. `epub run epub.layout.audit --input book.epub --json` 总审，`epub-layout-auditor` 判断风险和专项 skill。
-2. 结构先规范化：`epub-structure-normalizer` 双阶段（dry-run review → 实跑 → 红线 `--path-map`）。
-3. 用字体、图片、弹注、Kindle、OPF/nav 等专项 skill 修复。
-4. 每次改书后 `epub redline --check all <before> <after>`，再做人工 diff review（Calibre Editor 或 VS Code）。
-
-没有 EPUB，只有文本或 PDF：
-
-1. `epub-source-intake` 按人工 + AI 流程抽取、结构化、抽样校对，产出可排版 source bundle。
-2. 形成 XHTML/Images/OPF/nav 后，进入 `epub-package-nav-auditor` 和排版专项 skill。
-3. PDF 抽取、OCR 和图片压缩使用外部工具；本仓只记录边界、检查风险和验证 EPUB 结构/排版。
+| Skill | 触发/边界 | 能力与执行方式 |
+| --- | --- | --- |
+| `epub-package-nav-auditor` | 包结构、导航、资源预检；不修视觉 | `epub.package.nav.audit`，只读 |
+| `epub-layout-auditor` | 排版 review、风险分级、专项分派 | `epub.layout.audit`，只读 |
+| `epub-source-intake` | 非 EPUB 源文件盘点与接入计划 | `epub.source.intake`，只读 |
+| `epub-content-analyzer` | 结构角色不清，先看证据再定字体角色 | `epub.text.content.analyze`，只读 |
+| `epub-structure-normalizer` | 资源归类、按 manifest id 反混淆 | `epub.structure.normalize`，写入 |
+| `epub3-migrator` | EPUB2/legacy package 迁移 | `epub.package.migrate.epub3`，写入 |
+| `epub-css-layering-optimizer` | CSS 清理；语义归层需人工判断 | `epub.css.layering.optimize`，保守写入 |
+| `epub-typography-optimizer` | CJK 字体策略、正文节奏、preset | `epub.typography.optimize`，写入样式层 |
+| `epub-font-coverage-analyzer` | 缺字、字体链回退、子集复核 | `epub.font.coverage.analyze`，只读/外部依赖 |
+| `epub-image-layout-optimizer` | 图片角色、figure、图注、格式风险 | `epub.image.layout.optimize`，只读候选 |
+| `epub-alite-converter` | 既有封面式/海报页；不重设计全书 | `epub.alite.convert`，写入 |
+| `epub-popup-footnote-converter` | 标准 grouped notes 转换与复核 | `epub.notes.popup.normalize` 只读；已识别旧注释可经迁移转换 |
+| `epub-package-operator` | 明确要求合并、拆分、改元数据/封面 | `epub.package.merge` / `epub.package.split` / `epub.metadata.edit` / `epub.cover.replace`，写入 |
+| `epub-style-demo-maintainer` | fixture、阅读器证据、规则回写 | `epub.style.demo.maintain`，只读验证 |
+| `epub-english-typography-optimizer` | 英文书型与排版，不套 CJK 规则 | 人工；`epub.typography.english.optimize` 未实现 |
+| `epub-literary-structure-formatter` | 章首、前置页、诗/信件、文白对照 | 人工；`epub.literary.structure.format` 未实现 |
+| `epub-vertical-ruby-optimizer` | 竖排正文、Ruby，不处理海报骨架 | 人工；`epub.vertical.ruby.optimize` 未实现 |
+| `epub-kindle-compatibility-checker` | Kindle 静态风险、转换日志、实测 | 人工；`epub.kindle.compatibility.check` 未实现 |
+| `epub-legacy-footnote-fallback` | 明确需要多看旧版兼容时才叠加 | 人工；`epub.notes.legacy-fallback` 未实现 |
 
 ## 维护规则
 
-- 不改 `SKILL.md` frontmatter 的字段名，只保留 `name` 和 `description`。
-- `SKILL.md` 固定四段：`## 何时用`、`## 调什么`、`## 返回怎么读`、`## 依据返回怎么判断`；调用命令只写 `epub run <capability-id>` 形态，引用的能力 id 必须在 `contracts/capabilities/v1/` 真实存在。
-- `description` 写触发场景和目标能力；`agents/openai.yaml` 只用扁平字符串 metadata，必须和 `SKILL.md` 的用途保持一致。
-- 新增技能先判断是否只是样式样本：如果只是验证一个样式，优先放进 `templates/epub-style-demo/`。
-- 修改结构性规则时，同步检查 `docs/final/EPUB 3 HTML CSS 属性速查表.html`、`docs/final/SPEC-实现约束.md` 和 `templates/epub-style-demo/`。
-- 不在 skill 里写下游引擎架构或平台分发逻辑；skills/ 下不新增可执行脚本。
+- SKILL.md frontmatter 只含 `name` / `description`；固定四段为“何时用 / 调什么 / 返回怎么读 / 依据返回怎么判断”。
+- description 写触发条件、边界与真实能力；`agents/openai.yaml` 的三项字符串与之对应，默认提示包含 `$<skill-name>`。
+- 共同行为在本页与 `AGENTS.md` 维护，排版规则引用 SPEC/fixture；专项 skill 只留容易误判的决策与必要参数，不复制整份规则和返回 schema。
+- 命令必须在 contracts 中存在；不引入脚本、内部包或私有 provider 调用。单个样式样本放 demo，不为它新增 skill。
+- 修改后跑 `git diff --check`、`go test ./internal/docguard/`、`go test ./internal/archguard/ -v`，并用真实返回核对变动的命令示例。

@@ -244,18 +244,19 @@ func collectReferencedResourcesContext(ctx context.Context, names map[string]boo
 		if !utf8Valid(data) {
 			return nil, fmt.Errorf("resource closure: %s is not valid UTF-8", current)
 		}
-		var rawURIs []string
+		var refs []resourceReference
 		if ext == ".css" {
-			rawURIs, err = collectCSSURIsStrict(string(data))
+			refs, err = collectCSSReferences(string(data))
 		} else {
 			// 区域感知：只认解析出的属性，不认字符数据里长得像属性的正文
 			// （见 refs.go 里 collectMarkupURIsStrict 的头注）。
-			rawURIs, err = collectMarkupURIsStrict(data)
+			refs, err = collectMarkupReferences(data)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("resource closure: parse references in %s: %w", current, err)
 		}
-		for _, raw := range rawURIs {
+		for _, ref := range refs {
+			raw := ref.uri
 			if ctx != nil {
 				if err := ctx.Err(); err != nil {
 					return nil, err
@@ -273,6 +274,9 @@ func collectReferencedResourcesContext(ctx context.Context, names map[string]boo
 				return nil, fmt.Errorf("resource closure: resolve %q from %s: %w", raw, current, terr)
 			}
 			if !names[target] {
+				if ref.localFontFallback {
+					continue
+				}
 				return nil, fmt.Errorf("resource closure: referenced target missing from source: %s (from %s)", target, current)
 			}
 			if !contentPaths[target] && !referenced[target] {

@@ -1,5 +1,8 @@
 # Go 重写交接
 
+> **2026-09-20 更新**：当前代码、Agent/skills 简化与实跑验证见 [§11.8](#118-2026-09-20-agent-发现局部试样与重构收尾)。
+> 下方 W0–W5 与 §11.6 保留历史证据；§11.6.11 两项的当前处理以 §11.8 为准。
+
 > 状态快照：**W0–W5 全部完成，迁移收尾** · 2026-08-30 · 工具链 Go 1.27
 >
 > 规范来源是 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md)（第一档硬约束）。
@@ -919,3 +922,66 @@ redline 于是把 vol2 的映射套到 vol1 的封面上，报出一条假的 `r
   5 个纯 AI/人工 skill，共 22 个。
 
 `internal/archguard/` 的补丁改动仍属于规则 0 要求的人类审阅边界；本轮没有继续修改。
+
+### 11.8 2026-09-20 Agent 发现、局部试样与重构收尾
+
+本轮沿用 Go 单一 CLI，不恢复旧执行面，不修改 archguard/docguard。当前仍为
+17 个 ready + 5 个纯 AI/人工能力；后者不是待迁移的旧实现，不为补齐数量新增空壳。
+
+**Agent 与真实执行面一起收敛：**
+
+- AGENTS 只保留约束、按任务路由和验证边界；CLAUDE 只跳转。19 个 skills 均保持
+  固定四段，明确何时调用、只读/写出区别、结果解释和下一步判断；移除重复规则和虚构执行能力。
+- 新增 v2 参数目录（v1 manifests 不变）；`capabilities --id … --json` 可发现参数、
+  默认值、执行形态。运行前拒绝未知参数、错误类型、重复 KEY，避免拼写错误静默生效。
+- `style.demo.maintain catalog=true query=…` 从真实 OPF/spine/XHTML 发现样例，返回
+  path/SHA256/stylesheets/classes；不是渲染、不是阅读器验收，不继承旧 artifact 的 pass。
+- `typography.optimize scope_paths='["…xhtml"]'` 向选中 spine 页追加内容寻址 CSS，
+  保留既有样式和其他章节。局部 preset 必须自包含；省略参数仍保留原整书模式。
+  新版本样式不会自动删除旧试样资源，重复应用同版本幂等。
+- normalize 的两个阶段、迁移与 typography 的 dry-run 都生成完整内存候选，交由
+  pipeline 禁止落盘。后续应用命令保留 scope/preset 等原参数并做 shell 引号保护；
+  失败的 dry-run 不再生成默认应用建议。
+
+**复审修复与去重：**
+
+- 所有者已批准 §11.6.11(a)：仅同一 `@font-face src` 存在有效非空 `local()` 时，
+  split 可保留缺失 URL 的声明并继续，只写 `split.font-local-fallback` 事件，不发 warning。
+  其他资源缺失仍失败；不声称目标阅读器一定存在系统字体，也不在新模板制造悬空引用。
+- §11.6.11(b) 的 merge 扁平 `mappings` 只对应第一 `--input`（红线 before）；新增
+  `sourceMappings[]` 按零基 inputIndex/input 隔离每本来源（含 identity 映射）。
+  消除其他卷同名路径套到首卷封面的假红线，不把首卷红线冒充多来源无损证明。
+- normalize 的 CSS 引用改走 lossless token/byte-range 扫描，删除旧裸文本 helper；
+  demo 注释里的字体示例不再触发假缺失警告。扫描不确定的本地 CSS 转义会拒绝改写。
+  同时修复 CSS 声明型 at-rule 投影遗漏、无引号 URL span 吞右括号两处扫描缺陷。
+- cover/metadata 的相同行为路径工具复用 `book/pypath`；保留各包错误哨兵适配及
+  不同语义函数，不盲合并已漂移的 `refs/pkgio/xmlmini/opfedit`。
+- extern 输出超过单流 16 MiB 时立即取消直接子进程，保留诊断前缀；原 30 分钟兜底
+  与 WaitDelay 5 秒保留。normalize/merge/typography 的主要循环增加取消检查；
+  不声称所有历史同步解析函数都已获得细粒度取消能力。
+
+**验证（2026-09-20，本地）：**
+
+- `go build ./...`、`go test ./...`、`go vet ./...`、`go test -race ./...` 通过；
+  archguard `-v`、docguard、legacy_surface 通过，旧执行面基线仍为零。
+- 重新构建模板自身 `dist/epub-style-demo-20260920-105629.epub`，SHA-256
+  `435188966fe8166d7486df86832ce7acaef1d94a4b02d64bf544d0139a74fdd2`；demo maintain、
+  弹注、nav 与相对前次 demo 的全项 redline 通过。EPUBCheck 未在本地执行，仍由 CI gate 负责。
+- 以该 demo 运行 normalize preview/apply：preview exit 2，apply exit 0，39 项改名映射
+  一致；候选 SHA `75e1ff84804312393772f41eeaae49f57632b629cf728e23247407542b3c0e22`。
+  外部全项 redline（带实跑信封 path-map）、nav、弹注与 XML 检查通过，无假字体警告。
+- 局部试样仅选 `OEBPS/Text/01-body.xhtml`，候选 SHA
+  `fafc22cf69666c9727fbaaf9ce2d89b794af74ad983d620a9b116a755e9781e7`。
+  entry diff 仅该 XHTML、OPF 和新增 6 个独立 CSS；原样式与其余章节字节不变。
+  nav、弹注、全项 redline、XML 通过；保留真实的低 class 覆盖率 warning。
+- 候选仅作 CLI 回归，尚无本轮浏览器排版/原生阅读器验收，reader matrix 未改。
+- 原始《EPub指南》另做 split preview/apply（split_points=0）：exit 2/0，7 条
+  local-font 事件，没有新增 split warning，原声明保留。该书上游仍有 2 error/9 warn；
+  候选 nav audit 仍检出既有 SVG/MathML manifest properties 缺失、字体与 GIF 风险。
+  对原书的全项 redline 非零（重建导航/TOC 分区导致 XHTML 与 spine 差异），
+  split 自身的 metadata/cover/DRM 与分区检查通过。仅作为拆分回归，不冒称成书全门禁通过，
+  未顺带修订参考书，也未发布候选。
+
+**留待后续而非合并到本轮：** 自动 before/after 视觉样例库、目标阅读器实测、
+已漂移 helper 的语义统一。历史提交 `fc61716` 的守卫改动仍需所有者人工复核；
+本轮没有通过改守卫放行实现，也未 push 或 merge。

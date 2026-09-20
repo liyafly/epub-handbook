@@ -241,6 +241,21 @@ func ParseDeclarations(data []byte) ([]Declaration, error) {
 	return parseDeclarations(data, 0, len(data))
 }
 
+// ScanReferences locates only real resource references in a stylesheet or
+// inline declaration list. Comments and ordinary string values are opaque;
+// source bytes are never serialized. Escapes remain raw in Value.
+func ScanReferences(data []byte) ([]Reference, error) {
+	if !utf8.Valid(data) {
+		return nil, &ParseError{Offset: firstInvalidUTF8(data), Err: ErrInvalidUTF8}
+	}
+	scanner := sourceScanner{data: data}
+	tokens, err := scanner.lex()
+	if err != nil {
+		return nil, err
+	}
+	return references(data, tokens), nil
+}
+
 func validateWithParser(data []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -540,6 +555,7 @@ func parseRuleList(data []byte, start, end int, nested bool) ([]Rule, []Declarat
 						return nil, nil, declErr
 					}
 					rule.Declarations = decls
+					rules = append(rules, rule)
 					allDecls = append(allDecls, decls...)
 				} else if isNestedRuleAtRule(atName) {
 					nestedRules, nestedDecls, nestedErr := parseRuleList(data, i+1, close, true)
@@ -806,13 +822,13 @@ func urlValueSpan(data []byte, span Span) (Span, byte, bool) {
 	}
 	valueStart := i
 	valueEnd := end - 1
-	for valueEnd >= valueStart && isCSSWhitespace(data[valueEnd]) {
+	for valueEnd > valueStart && isCSSWhitespace(data[valueEnd-1]) {
 		valueEnd--
 	}
 	if valueEnd < valueStart || data[end-1] != ')' {
 		return Span{}, 0, false
 	}
-	return Span{valueStart, valueEnd + 1}, 0, true
+	return Span{valueStart, valueEnd}, 0, true
 }
 
 func quotedValueSpan(data []byte, span Span) (Span, byte, bool) {

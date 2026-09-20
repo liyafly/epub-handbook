@@ -35,15 +35,27 @@ func utf8Valid(data []byte) bool { return utf8.Valid(data) }
 // validateRetainedReferences 完全同源（那一侧一直是对的，本函数是把闭合
 // 收集这一侧对齐过去，消掉同包内两套判据的分叉）。
 func collectMarkupURIsStrict(data []byte) ([]string, error) {
-	root, err := opf.ScanSpanTree(data)
+	refs, err := collectMarkupReferences(data)
 	if err != nil {
 		return nil, err
 	}
 	var out []string
+	for _, ref := range refs {
+		out = append(out, ref.uri)
+	}
+	return out, nil
+}
+
+func collectMarkupReferences(data []byte) ([]resourceReference, error) {
+	root, err := opf.ScanSpanTree(data)
+	if err != nil {
+		return nil, err
+	}
+	var out []resourceReference
 	for _, node := range root.Walk() {
 		for _, attr := range node.Attrs {
 			if attr.Name.Space == "" && attr.Name.Local == "style" {
-				uris, cerr := collectCSSURIsStrict(attr.Value)
+				uris, cerr := collectCSSReferences(attr.Value)
 				if cerr != nil {
 					return nil, fmt.Errorf("style attribute: %w", cerr)
 				}
@@ -60,14 +72,14 @@ func collectMarkupURIsStrict(data []byte) ([]string, error) {
 					return nil, serr
 				}
 				for _, candidate := range candidates {
-					out = append(out, candidate.url)
+					out = append(out, resourceReference{uri: candidate.url})
 				}
 				continue
 			}
-			out = append(out, attr.Value)
+			out = append(out, resourceReference{uri: attr.Value})
 		}
 		if node.Name.Local == "style" {
-			uris, cerr := collectCSSURIsStrict(node.IterText())
+			uris, cerr := collectCSSReferences(node.IterText())
 			if cerr != nil {
 				return nil, fmt.Errorf("style element: %w", cerr)
 			}

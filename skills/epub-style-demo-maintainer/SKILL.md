@@ -1,49 +1,36 @@
 ---
 name: epub-style-demo-maintainer
-description: 维护 epub-style-demo 兼容 fixture、reader matrix、最终规则和验证循环。用于 EPUB 阅读器行为变化、需要新增 demo 覆盖、或需要把实测发现沉淀为最终生产规则时。
+description: 发现和维护可复现 EPUB 版式示例、兼容 fixture 与阅读器证据闭环。maintain 可搜索真实场景或只读验证，不构建 EPUB、不自动更新 matrix。
 ---
 
-# EPUB Style Demo 维护
+# EPUB 版式 Demo 与证据
 
 ## 何时用
 
-- 修改 `templates/epub-style-demo/`、新增阅读器兼容场景，或把阅读器发现转成最终 EPUB 生产规则时。
-- 固定闭环（demo 先行，文档后补）：新增或更新能暴露阅读器行为的最小 fixture → 构建产物 → 用 CLI 能力校验 → 回写 `docs/final/reader-matrix.yaml`（需要人工复测或版本待确认时用 `warn`，不虚构 pass/fail）→ 只有 fixture 和 matrix 记录都存在后才更新 `docs/final/SPEC-实现约束.md`，然后同步最终手册和速查表 → 规则影响自动化行为时同步相关 `skills/*/SKILL.md`（不改 frontmatter 字段名）。
-- 权威弹注结构源是 `docs/final/SPEC-实现约束.md` §1；兼容规则不得单方面新增或改名同族 class。
+新增示例、修改 fixture 或验证阅读器行为时。先读 [README](../../templates/epub-style-demo/README.md)、[场景矩阵](../../templates/epub-style-demo/SCENE_MATRIX.md) 与 [reader matrix](../../docs/final/reader-matrix.yaml)，选相关场景，不复制全部规范到本 skill。
 
 ## 调什么
 
-```sh
-# 1) 构建 demo（产物在 templates/epub-style-demo/dist/）
-sh templates/epub-style-demo/build.sh
+按模板 README 的构建流程生成独立产物，再验证：
 
-# 2) 校验产物
-epub run epub.style.demo.maintain --input <dist 产物>.epub --json
-epub run epub.notes.popup.normalize --input <dist 产物>.epub --json
+```sh
+# 先找真实场景，再读取返回的 XHTML/CSS；省略 query 可列全目录
+epub run epub.style.demo.maintain --json catalog=true query=chapter
+epub run epub.style.demo.maintain --input "templates/epub-style-demo" --json
+epub run epub.style.demo.maintain --input "demo.epub" --json
+epub run epub.notes.popup.normalize --input "demo.epub" --json
+epub run epub.package.nav.audit --input "demo.epub" --json
 ```
 
-`epub.style.demo.maintain` 是双模式能力：`--input` 指向构建产物 EPUB 时校验产物，缺省或指向 demo 源树 `templates/epub-style-demo` 时校验源树；两种模式都不需要 `--output`。
-
-本机有 `xmllint` 时可对 `templates/epub-style-demo/OEBPS/package.opf`、`nav.xhtml`、`toc.ncx` 额外运行 `xmllint --noout ...`；没有时记录跳过理由。
+maintain 均只读，无 `--output`。catalog=true 从真实 spine 生成场景，query 匹配标题/路径/id/class；目录模式不运行验证器，不得把发现成功称为验证通过。改动基线比较与 XML 检查按根 AGENTS；构建步骤不由 maintain 代办。
 
 ## 返回怎么读
 
-- `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
-- `epub run epub.notes.popup.normalize` 的 facts：`noterefs`（noteref 数）、`text_files`（XHTML 文件数）、`violations`（结构违反数）；violations > 0 时 `findings` 出现 `error popupnotes`，`detail` 指明具体文件与问题。
-- `epub.style.demo.maintain` 的 facts：`epub.style.demo.maintain.mode`（`source-tree` 源树模式 / `artifact` 产物模式）与 `epub.style.demo.maintain.errors`（校验错误计数）。校验失败时 `status: failed`，`findings` 出现 `error styledemo` 条目；产物模式下缺 EPUBCheck 时另有 `warn styledemo.epubcheck-skipped`（结构校验已跑，EPUBCheck 留给 CI）。
+前缀 `epub.style.demo.maintain.`：验证看 mode=source-tree/artifact、errors；目录看 mode=catalog、scenes[] 的 path/SHA256/stylesheets/classes。previewStatus=not-rendered、readerStatus=not-verified 不继承旧实测结论。`error styledemo` 是结构违反；`styledemo.epubcheck-skipped` 说明未跑 EPUBCheck，CI 单独验收。公共语义见 [索引](../README.md)。
 
 ## 依据返回怎么判断
 
-- 返回 `error`（含 `popupnotes`、`redline.*`）→ 修 fixture 或产物后重跑；`status == approval-required` → 停下来问人。
-- 当前兼容规则（逐条对照 fixture 与 matrix，不得只靠手册推断）：
-  - 图片环绕主路径用 `figure.img-left` / `figure.img-right`；float 和百分比 `width` 挂在 `figure` 上，先在 `25%` 到 `35%` 调整，再结合目标阅读器、视口和字号实测。direct `img` float 不是主路径（部分阅读器会把图片渲染得过小）。
-  - 不固定图片高度，不把 `aspect-ratio` 当主路径；真实图片用 `height:auto` 保持宽高比，`figure` 需要自然高度承载图注；图文环绕测试需要足够长的周围正文，短段落只是阈值反例。
-  - 书内图片以 JPEG/PNG 为生产主路径；WebP 只作现代阅读器实验（demo WebP 在 Kindle conversion logs 触发 W14012/W14015）；SVG 可作增强测试，Kindle 目标构建在渲染不确定时需 JPEG/PNG 栅格 fallback。
-  - 波浪下划线必须拆开：先写 `text-decoration: underline;`，再写 `text-decoration-style: wavy;`；Kindle App fallback 为普通 underline。
-  - 含 MathML 的 XHTML manifest item 必须带 `properties="mathml"`；MathML 覆盖保持在 KDP Enhanced Typesetting 和 EPUB 3 支持标签范围内。
-  - 多看旧版 fallback 用 `ol.footnote-list.duokan-footnote-content`；单个 `li.footnote-item` 只加 `duokan-footnote-item`。
-  - 英文书籍规则按类型拆分：小说/散文走 `.english-fiction`；英文正文必须声明 `lang`，用短 serif 链，首段无缩进、后续段缩进，未验证断字不强制 justify；插图默认居中 `figure`；首字优先 `::first-letter`，旧式 span 首字和 float drop cap 只作增强并需大字号复测。
-  - 章节头图属于普通可重排章首结构，放 `literary.css`；头图只做装饰，标题必须是真实 `h1`；小章标保守宽度，满栏横幅用 `width:100%` 铺满正文内容栏并由源图比例控制高度。
-  - 便签/资料卡主路径用 border、background、padding 和 left-rule；box-shadow、inset、不规则圆角和 outline-offset 只作可丢失增强。
-  - 通用 demo 不用 `transform: rotate()` 旋转便签块——Kindle Previewer 3.104（2026-05-23 实测）会触发 KFX 增强排版内部错误；需要斜角感时用不对称边框、圆角和投影模拟。
-  - SVG 花边只作 demo 实验项（验证简单内联 SVG 边线可行性），不作推荐边框；长条投影框必须保留真实文本和边框兜底。
+- 示例先展示一个明确设计问题：页面角色、基线、目标变化、降级方式；保留足够真实文本与复杂内容，不能用短占位文假装证明分页/环绕。
+- “好看”候选复用现有字体角色/CSS 层，正文、章首、复杂页保持一致节奏；普通/大字号、窄屏及目标阅读器分别检查，不把浏览器截图当通用 EPUB 结论。
+- 最小 fixture → 构建 → 静态校验 → 实际阅读器/转换器验证 → matrix 记录 artifact/SHA、版本、现象与证据 → 有依据再更新 SPEC、手册、速查表、skills。
+- 原有场景覆盖不能为新示例删减；未实测写待验证，不自动置 pass。书级特例留书级记录，不把单本审美偏好升级成全仓硬规则。

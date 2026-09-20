@@ -1,66 +1,48 @@
 # AI Skills 怎么用
 
-`skills/` 里的每个目录都是一个可读契约：它说明某类 EPUB 问题该怎么判断、怎么修、修完怎么验证。AI 代理必须先阅读根目录 [AGENTS.md](../../AGENTS.md)，再选择专项 skill。即使不用 AI，也可以人工按里面的步骤操作。
+AI 先读 [AGENTS.md](../../AGENTS.md)，再从 [技能索引](../../skills/README.md) 选择最窄的 skill；这里是面向使用者的速查，不重复维护能力状态、参数或返回格式。
 
 ## 基本流程
 
-1. 先跑 layout 审计判断输入类型：
+1. 已有 EPUB 先做只读预检：
 
    ```sh
-   epub run epub.layout.audit --input path/to/book.epub --json
+   epub run epub.package.nav.audit --input "book.epub" --json
    ```
 
-2. 已有 EPUB 先用 `epub-layout-auditor` 做总审稿。
-3. 按 findings 分派到专项 skill；skill 只负责判断与验证说明，实际执行通过 `epub run <capability-id>` 调用 Go CLI。
-4. 每次改动后运行 `epub redline` 校验正文不变。
-5. 按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 或 VS Code 做人工 diff review。
+2. 不确定排版问题时用 layout 审稿，已知问题直接进入专项 skill；非 EPUB 源材料先盘点。
+3. 只要建议时不改书；需要“更好看的示例”时，先选择代表性正文/章首/复杂页，在独立候选做样例，不直接全书套模板。
+4. 授权修改后，保留原件，审查计划并写新候选，运行红线和专项验证，再做 [人工 diff review](../pipeline/epub-diff-review.md)。
+5. 静态检查通过与阅读器实际效果分开验收；浏览器预览或转换成功不等于 Kindle/Apple Books 已通过。
 
 ## 当前 skill 一览
 
-| Skill | 用途 |
+| Skill | 用途与边界 |
 | --- | --- |
-| `epub-layout-auditor` | 总入口：审稿、风险分级、分派专项修复 |
-| `epub-content-analyzer` | 识别文本结构角色并建议字体角色和可重排排版 |
-| `epub-source-intake` | 盘点 txt/md/html/PDF/图片等源材料（角色、SHA-256、风险），再建立 EPUB source |
-| `epub-structure-normalizer` | 用纯 Python 标准库先格式化资源目录，再按 OPF manifest id 做文件名反混淆 |
-| `epub3-migrator` | 把 EPUB2/legacy EPUB 规划并迁移为 EPUB3 |
-| `epub-css-layering-optimizer` | CSS 分层与内联样式迁移 |
-| `epub-typography-optimizer` | 中文正文节奏、字体链、嵌入字体策略 |
-| `epub-font-coverage-analyzer` | 检查缺字、嵌入字体覆盖和 Kindle 回退风险 |
-| `epub-english-typography-optimizer` | 英文小说排版 |
-| `epub-literary-structure-formatter` | 章首、题记、文白对照、文学结构 |
-| `epub-image-layout-optimizer` | 图片、图注、封面、图文环绕 |
-| `epub-vertical-ruby-optimizer` | 竖排正文与 Ruby |
-| `epub-kindle-compatibility-checker` | Kindle/KDP 转换风险 |
-| `epub-package-nav-auditor` | OPF manifest/spine、nav、NCX |
-| `epub-package-operator` | 合并、拆分 EPUB，或修改元数据和封面 |
-| `epub-alite-converter` | 普通 epub 转 A-lite 增强方案 |
-| `epub-popup-footnote-converter` | 标准 popup footnote |
-| `epub-legacy-footnote-fallback` | 多看旧版弹注 fallback |
-| `epub-style-demo-maintainer` | 本仓 demo fixture 维护 |
+| `epub-package-nav-auditor` | 只读预检 OPF、manifest/spine、nav/NCX、资源 |
+| `epub-layout-auditor` | 只读总审稿、候选比较与风险分派 |
+| `epub-source-intake` | 只读盘点源材料；抽取/OCR 另用外部工具 |
+| `epub-content-analyzer` | 只读分析文本角色与歧义 |
+| `epub-structure-normalizer` | Go CLI 双阶段目录归类与文件名反混淆 |
+| `epub3-migrator` | 审查后迁移旧 EPUB 的 package/nav 与已识别注释 |
+| `epub-css-layering-optimizer` | 保守 CSS 清理；语义归层需人工判断 |
+| `epub-typography-optimizer` | 中文字体策略与正文节奏，审查后应用 preset |
+| `epub-font-coverage-analyzer` | 只读检查缺字和回退，需外部字体 provider |
+| `epub-image-layout-optimizer` | 只读图片/图注/环绕候选，授权后人工修复 |
+| `epub-alite-converter` | 既有封面式页面转可重排 A-lite，不重新设计全书 |
+| `epub-popup-footnote-converter` | 标准 grouped notes；校验器本身不转换 |
+| `epub-package-operator` | 明确授权的合并、拆分、元数据或封面操作 |
+| `epub-style-demo-maintainer` | 制作样例、静态验证与实测证据闭环 |
+| `epub-english-typography-optimizer` | 人工英文排版，当前无自动 runner |
+| `epub-literary-structure-formatter` | 人工精排章首、诗信和文白结构 |
+| `epub-vertical-ruby-optimizer` | 人工竖排正文与 Ruby 优化 |
+| `epub-kindle-compatibility-checker` | 人工静态审核、转换日志与阅读器证据 |
+| `epub-legacy-footnote-fallback` | 有明确旧多看需求时人工叠加 fallback |
 
-## 我想做 X，用哪个 skill？
+“AI 会按 skill 操作”不等于“该 capability 已自动实现”。实时状态看 `epub capabilities --json`；输入输出与错误解释见 [公共命令与返回](../../skills/README.md#公共命令与返回)。
 
-| 我要做什么 | Skill |
-| --- | --- |
-| 拿到一本 epub 不知从哪下手，先看大局 | `epub-layout-auditor` |
-| 判断一段中文是正文、标题、对话、诗歌、题记还是其他角色 | `epub-content-analyzer` |
-| 我有 txt / md / PDF，需要先变成 epub source | `epub-source-intake` |
-| epub 内部目录散乱 / 文件名不可读，先格式化再反混淆 | `epub-structure-normalizer` |
-| 把 EPUB2 或 legacy EPUB 安全迁移到 EPUB3 | `epub3-migrator` |
-| 把弹注做规范 | `epub-popup-footnote-converter` |
-| 多看 / 旧版阅读器看不到弹注，加 fallback | `epub-legacy-footnote-fallback` |
-| 给生僻字加 Ruby 注音 / 整本竖排 | `epub-vertical-ruby-optimizer` |
-| 中英混排、字号 / 行距、首字下沉 | `epub-typography-optimizer` |
-| 生僻字、方块字、字体链回退失败 | `epub-font-coverage-analyzer` |
-| 英文小说专项排版 | `epub-english-typography-optimizer` |
-| 图片混排规范化 | `epub-image-layout-optimizer` |
-| CSS 臃肿 / 内联样式过多，做分层 | `epub-css-layering-optimizer` |
-| 弹注 / 文学结构 / 出处规范化 | `epub-literary-structure-formatter` |
-| Kindle 转换失败 / Enhanced Typesetting 问题 | `epub-kindle-compatibility-checker` |
-| 普通 epub 转 A-lite 增强版 | `epub-alite-converter` |
-| OPF / nav.xhtml / toc.ncx 检查与修复 | `epub-package-nav-auditor` |
-| 合并、拆分 EPUB，或修改元数据和封面 | `epub-package-operator` |
-| 维护本仓 demo fixture | `epub-style-demo-maintainer` |
+示例请求：
 
-不确定属于哪一类时，先调用 `epub-layout-auditor`。
+> 使用 $epub-layout-auditor 只读审核这本书，给出最小修改建议。
+>
+> 使用 $epub-literary-structure-formatter 为一个章首和一段连续正文制作候选样例，保留正文与既有字体，验证后再讨论全书推广。

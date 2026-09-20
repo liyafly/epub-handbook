@@ -521,6 +521,24 @@ func TestRunSuccessfulSingleOutputWritesOnce(t *testing.T) {
 
 func writeTestContract(t *testing.T, root, id string, requires []string, write bool, redLines []string) {
 	t.Helper()
+	parameterPath := filepath.Join(root, "contracts/parameters/v2/cli.json")
+	catalog := report.ParameterCatalog{SchemaVersion: "2", Capabilities: map[string]report.CapabilityDescription{}}
+	if raw, err := os.ReadFile(parameterPath); err == nil {
+		if err := json.Unmarshal(raw, &catalog); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog.Capabilities[id] = report.CapabilityDescription{Description: "test capability", Parameters: map[string]report.Parameter{}}
+	if err := os.MkdirAll(filepath.Dir(parameterPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	parameterJSON, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(parameterPath, parameterJSON, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	dir := filepath.Join(root, "contracts", "capabilities", "v1")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)

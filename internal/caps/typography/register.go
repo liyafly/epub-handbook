@@ -8,7 +8,7 @@ import "regexp"
 const coverageThreshold = 0.3
 
 // coverageWarningText 对齐 coverage_report 的中文 warning 文案。
-const coverageWarningText = "该书尚未迁入本仓 class 体系，请先走 cleanup pipeline（oneclick 会注入 typography palette）"
+const coverageWarningText = "样本与预设的 class 覆盖率较低；请审查未覆盖角色并验证局部试样，不要自动改写正文结构"
 
 // 注：曾经住在这里的 typoLinkRe / typoHeadEndRe（对齐 Python LINK_RE /
 // HEAD_END_RE）已改为 xhtml.ScanRegions 驱动的区域化实现（见

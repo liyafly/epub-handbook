@@ -1,72 +1,38 @@
 ---
 name: epub-package-operator
-description: 对 EPUB 执行单个明确的包操作：合并多本、按目录索引拆分、修改书名作者等元数据、替换封面。始终保留原文件并写出新 EPUB 与可审计 JSON 报告。
+description: 按明确授权合并或拆分 EPUB、修改元数据、替换封面，输出新产物与报告。只审计时不用；操作改变的红线须逐项解释，不捎带正文或字体改写。
 ---
 
 # EPUB 包操作
 
 ## 何时用
 
-- 需要合并两本或多本 EPUB、按 TOC 索引拆分一本书、修改书名/作者等元数据、或替换封面，且必须保留原文件并输出新 EPUB 与可审计报告时。只执行用户明确选择的一个写操作；只检查 OPF/nav/NCX 时改用 `epub-package-nav-auditor`，不要把包结构审计和写操作混成自动修复。
-- 操作语义：
-  - 合并：至少两个输入（`--input` 为主输入，其余经 `extra_inputs=`），产出单一新 EPUB；可用 `title=` 重设合并后标题。资源冲突时按序改名并在报告的 `renamedResources` 中可追溯。
-  - 拆分：切分点是当前书 TOC 目标（nav/NCX 条目；无目录时退化为 spine 顺序）的下标，`split_points` 取值范围 0 到目标数-1，越界会被拒绝；每段一个 `<stem>_<NN>.epub` 写入 `output_dir`，输出目录必须为空，非空会被拒绝。
-  - 元数据：`metadata_json` 是内联 JSON 对象文本（不是文件路径），只接受字符串字段：`title`、`subtitle`、`author`、`language`、`publisher`、`description`、`identifier`、`rights`。
-  - 封面：`cover=` 指向本地图片（.jpg/.jpeg/.png/.svg/.webp/.gif），同步 OPF cover metadata、`cover-image` properties 和本地引用；封面文件不存在时拒绝。
-- 边界与保护：
-  - 始终写出新文件：`--output` 不能与 `--input` 相同（CLI 拒绝），也不要指向已存在的产物。
-  - 不在包操作中重写正文、改字体、转换图片或绕过 DRM；真实加密资源、损坏 ZIP 或无效 OPF 时停止（先跑预检）。
-  - 不把多个包操作叠成一次调用；需要多个操作时逐个执行并各自校验。
+用户明确选择包操作时；多个操作分开执行并分别验证。每个输入先预检。损坏/加密按根 AGENTS 停止，不能靠删除资源绕过保护。
 
 ## 调什么
 
-先对输入做预检（只读）：
+下列为互斥示例，先加 `--dry-run` 审查，再执行所选操作：
 
 ```sh
-epub run epub.package.nav.audit --input <书> --json
+epub run epub.package.merge --input "first.epub" --output "merged.epub" --json "extra_inputs=second.epub,third.epub"
+epub run epub.package.split --input "book.epub" --json "output_dir=split-candidates" split_points=0,8
+epub run epub.metadata.edit --input "book.epub" --output "candidate.epub" --json metadata_json='{"title":"新书名"}'
+epub run epub.cover.replace --input "book.epub" --output "candidate.epub" --json "cover=cover.png"
 ```
 
-再执行用户选择的单个操作（写型能力，`--output` 必填且指向新文件）：
-
-```sh
-# 合并（extra_inputs 逗号分隔第二本及以后）
-epub run epub.package.merge --input <第一本> --output <merged.epub> --json extra_inputs=<第二本>[,<第三本>...] [title=<新标题>]
-
-# 拆分（split_points 为 TOC 目标下标；output_dir 必须为空目录）
-epub run epub.package.split --input <书> --json output_dir=<空目录> split_points=0,8
-
-# 修改元数据（metadata_json 为内联 JSON 文本）
-epub run epub.metadata.edit --input <书> --output <新书> --json metadata_json='{"title":"新书名"}'
-
-# 替换封面
-epub run epub.cover.replace --input <书> --output <新书> --json cover=<cover.png>
-```
-
-拆分的 `--output` 是 CLI 用法检查要求，实际段产物由 `output_dir` 承载。操作明细（`operation`、`inputs`/`outputs`、`segmentsCreated`、`renamedResources` 等）直接在 `--json` 信封的 `facts` 里，见下文。需要 DRM 或字体混淆口径的两文件比对时：
-
-```sh
-epub redline --check all <before.epub> <after.epub>
-```
+merge 至少两本，extra_inputs 逗号分隔，可选 title。split **不需 --output**，output_dir 必须是尚不存在的目录（dry-run 也需指定但不创建）；切分点是 TOC 目标下标（无目录退化为 spine），不是页码；先核对实际目录与范围。
+metadata_json 是内联对象、不是文件路径，字段仅 title/subtitle/author/language/publisher/description/identifier/rights，值为字符串。cover 接受本地图片，Kindle 优先 JPEG/PNG，文件扩展名可接受不等于阅读器支持。
 
 ## 返回怎么读
 
-- `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。
-- 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required（dry-run review）；3 用法错误（缺 `--output`、输出与输入相同、KEY=VALUE 非法等）。
-- facts 键前缀为各能力 id（`epub.package.merge.` / `epub.package.split.` / `epub.metadata.edit.` / `epub.cover.replace.`），每个能力都带 `operation`（`merge` / `split` / `metadata-write` / `replace-cover`）：
-  - merge：`inputs`（全部输入）、`output`、`opf`、`mergedItems`、`renamedResources`、`warnings`；资源改名映射在 `facts` 的 `epub.package.merge.mappings`（`{from,to}` 数组，未改名时是空数组），可直接作为 `epub redline --path-map` 的输入。
-  - split：`outputDir`、`outputs`（逐段产物路径）、`plannedOutputs`、`segmentsCreated`、`plannedSegments`、`segmentPlans`、`opf`、`dryRun`。
-  - metadata：`output`、`opf`、`fieldsUpdated`。
-  - cover：`output`、`opf`、`coverPath`（包内新封面路径）；旧封面改名映射在 `facts` 的 `epub.cover.replace.mappings`（`{from,to}` 数组，未改名时是空数组），可直接作为 `epub redline --path-map` 的输入。
-- findings：
-  - `error package.refused`：操作被拒绝（合并输入不足、split point 越界、输出目录非空、封面文件缺失、加密资源等），`title` 是原因，输出不落盘。
-  - `warn merge.warning`：合并时的资源改名、metadata 冲突等提示。
-  - run 内置红线失败时出现 `error redline.<check>`（text/metadata/spine/anchors/cover/drm）。
-- `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过，其余行列出违反项与退出码。
+各能力 id 为 facts 前缀：merge 看 inputs/mergedItems/renamedResources/warnings/mappings/sourceMappings；split 看 segmentPlans/plannedOutputs/outputs/segmentsCreated；metadata 看 fieldsUpdated；cover 看 coverPath/mappings。
+`package.refused` 按原因修前提，不清空用户目录来绕过保护。完整公共语义见 [索引](../README.md)。
 
 ## 依据返回怎么判断
 
-- `status == complete` 且无 `error` → 核对 facts 与预期一致：merge 看 `inputs` 数量与 `renamedResources` 是否可接受；split 看 `segmentsCreated`、`outputs` 与段边界；metadata 看 `fieldsUpdated`；cover 看 `coverPath`（封面尺寸不在 facts 里，只出现在 `events[]` 的 `replace-cover` 消息中）。
-- 合并或拆分改变了 package/spine → 人工确认报告中的输入、输出、段数和重命名资源，再用 Calibre Editor 或 VS Code 抽查 OPF/nav/NCX；需要时对产物重跑 `epub.package.nav.audit`。
-- `error package.refused` → 按 `title` 修正前提（补输入、换空输出目录、修正 split_points、确认封面文件存在），不删除或绕过保护；提示加密时停止。
-- `findings` 出现 `error redline.*` → 停止：输出保留供人工 diff review，先修源再重跑；不允许用宽泛 allow-list 掩盖。
-- `status == approval-required` → 停下来问人；每个操作完成后在书级 `制作说明.md` 记录输入/输出 SHA 与理由。
+- 对每个新产物跑 package audit，检查 OPF/nav/NCX、封面、正文顺序和段边界；SHA、理由与差异记入书级制作说明。
+- 全项 redline 仍运行，但元数据/封面/合并拆分有授权变化，按项解释，不能用普通排版的“全部不变”作验收口径。
+- merge 的 `mappings` 仅对应首个 --input，可直接供两文件红线使用；`sourceMappings[]` 以 inputIndex/input 区分每卷的完整映射（含未改名项）。逐输入核对内容、资源与顺序，不声称一次两文件红线覆盖所有输入。
+- split 对同一 `@font-face src` 内有有效非空 `local()` 的缺失字体 URL 保留声明并继续，只记录 `split.font-local-fallback` 事件，不产生 warning；系统字体是否可用仍须实测。无此回退的字体、图片/导入 CSS 等断链仍拒绝。
+- split 必须核对所有分段合起来的内容、边界与导航；原书与某一段必然有范围差异，不能当一般正文不变比较。检查新增导航 spine 项是否为预期非正文项。
+- 换封面只接受已授权的封面/引用变化，metadata 只接受指定字段变化；其他正文、字体、图片仍受保护。门禁失败保留候选，不自动发布。

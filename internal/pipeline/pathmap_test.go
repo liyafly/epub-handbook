@@ -1,13 +1,51 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/report"
 )
+
+func TestNormalizePreviewMatchesAppliedCandidate(t *testing.T) {
+	for _, mode := range []string{"format", "deobfuscate", "normalize"} {
+		t.Run(mode, func(t *testing.T) {
+			before := buildSampleEpub(t)
+			original, err := os.ReadFile(before)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after := filepath.Join(t.TempDir(), "candidate.epub")
+			opts := Options{CapabilityID: "epub.structure.normalize", InputPath: before, OutputPath: after, DryRun: true, Args: Args{"mode": mode}}
+			preview, err := Run(t.Context(), opts)
+			if err != nil || preview.ExitCode != ExitApproval {
+				t.Fatalf("preview exit=%d err=%v findings=%v", preview.ExitCode, err, preview.Envelope.Findings)
+			}
+			if _, err := os.Stat(after); !os.IsNotExist(err) {
+				t.Fatalf("preview wrote output: %v", err)
+			}
+			opts.DryRun = false
+			applied, err := Run(t.Context(), opts)
+			if err != nil || applied.ExitCode != ExitOK {
+				t.Fatalf("apply exit=%d err=%v findings=%v", applied.ExitCode, err, applied.Envelope.Findings)
+			}
+			for _, key := range []string{"mappings", "rewrittenFiles", "movedResources", "renamedResources"} {
+				key = "epub.structure.normalize." + key
+				if !reflect.DeepEqual(preview.Envelope.Facts[key], applied.Envelope.Facts[key]) {
+					t.Fatalf("preview/apply differ for %s", key)
+				}
+			}
+			current, err := os.ReadFile(before)
+			if err != nil || !bytes.Equal(original, current) {
+				t.Fatal("source archive changed")
+			}
+		})
+	}
+}
 
 // TestNormalizeEnvelopeFeedsRedlinePathMap 锁定 AGENTS.md 步骤 4–6 的工作流：
 // `epub run epub.structure.normalize --json` 的信封原样保存后，直接作为

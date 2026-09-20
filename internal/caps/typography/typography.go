@@ -9,7 +9,7 @@
 //   - spine 页面 stylesheet link 整行重写（LINK_RE 多行删除 + </head>
 //     前插入新链接）；
 //   - OPF 字节区间编辑（INV-2：不整文档重序列化）；
-//   - dry-run 只出报告不应用。
+//   - dry-run 同样生成内存候选，由 pipeline 跳过落盘。
 //
 // 报告键序对齐 Python dict：version, preset, input, coverage, stylesheets,
 // xhtml_links, layers, notes, output, dry_run[, manifest_items_added,
@@ -63,7 +63,9 @@ type Params struct {
 	PresetDir string
 	// Output 是输出路径（报告字段 + 前置校验；本包不落盘，INV-3）。
 	Output string
-	// DryRun 为 true 时只出报告，不应用、不写输出。
+	// ScopePaths 非 nil 时仅向这些 spine XHTML 追加隔离样式，不替换共享 CSS。
+	ScopePaths []string
+	// DryRun 标记内存预览，不写输出。
 	DryRun bool
 }
 
@@ -323,6 +325,9 @@ func sortedSet(set map[string]bool) []string {
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	presetDir := p.PresetDir
 	if presetDir == "" {
 		presetDir = DefaultPresetsDir
@@ -353,6 +358,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	xhtmlPaths, err := spineXHTMLPaths(opfRoot, opfPath)
 	if err != nil {
 		return report.Result{}, err
+	}
+	if p.ScopePaths != nil {
+		xhtmlPaths, err = selectScope(xhtmlPaths, p.ScopePaths)
+		if err != nil {
+			return report.Result{}, err
+		}
 	}
 	raw := func(name string) ([]byte, bool) {
 		data, err := b.Current(name)
@@ -398,16 +409,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		findings = append(findings, report.Finding{Level: "warn", ID: "typography.low-coverage", Title: *reportBase.Coverage.Warning})
 	}
 
-	if p.DryRun {
-		return report.Result{
-			Capability: CapabilityID,
-			Status:     report.StatusComplete,
-			Facts:      facts,
-			Findings:   nonNilFindings(findings),
-			Events:     []report.Event{{Step: "style-preset-apply", Status: "completed", Message: "dry-run: " + p.Preset}},
-		}, nil
-	}
-
 	// 2. 应用（唯一写点）。
 	stylesDir := pyJoinPath(opfDir, "Styles")
 	cssPaths := make([]string, 0, len(config.Layers))
@@ -417,10 +418,21 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	var edits []editset.Edit
 	for i, layer := range config.Layers {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		data, err := os.ReadFile(filepath.Join(filepath.FromSlash(presetDir), p.Preset, "Styles", layer))
 		if err != nil {
 			return report.Result{}, presetErrf("preset stylesheet is missing: %s",
 				filepath.Join(filepath.FromSlash(presetDir), p.Preset, "Styles", layer))
+		}
+		if p.ScopePaths != nil {
+			if err := validateScopedCSS(data); err != nil {
+				return report.Result{}, presetErrf("%s: %v", layer, err)
+			}
+			cssPaths[i] = scopedStylesheetPath(stylesDir, layer, data)
+			actions[i].Path = cssPaths[i]
+			actions[i].Action = "add"
 		}
 		cssPath := cssPaths[i]
 		if b.Has(cssPath) {
@@ -429,7 +441,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				return report.Result{}, presetErrf("%v", err)
 			}
 			if !bytes.Equal(data, cur) {
+				if p.ScopePaths != nil {
+					return report.Result{}, presetErrf("isolated stylesheet collision: %s", cssPath)
+				}
 				edits = append(edits, editset.Replace(cssPath, 0, int64(len(cur)), data))
+			} else if p.ScopePaths != nil {
+				actions[i].Action = "keep"
 			}
 		} else {
 			edits = append(edits, editset.Replace(cssPath, 0, 0, data))
@@ -444,6 +461,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	// spine 页面 stylesheet link 整行重写。
 	for _, path := range xhtmlPaths {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		data, err := b.Current(path)
 		if err != nil {
 			return report.Result{}, presetErrf("%v", err)
@@ -452,7 +472,13 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if !ok {
 			return report.Result{}, presetErrf("'utf-8' codec can't decode text resource: %s", path)
 		}
-		updated, warnings, err := rewriteStylesheetLinks(text, path, cssPaths)
+		var updated string
+		var warnings []string
+		if p.ScopePaths != nil {
+			updated, err = appendStylesheetLinks(text, path, cssPaths)
+		} else {
+			updated, warnings, err = rewriteStylesheetLinks(text, path, cssPaths)
+		}
 		if err != nil {
 			return report.Result{}, err
 		}
@@ -474,13 +500,22 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	if err := b.Apply(edits); err != nil {
 		return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 	}
 
 	// 3. 报告（不落盘）。
-	facts["manifestItemsAdded"] = len(added)
-	facts["manifestItemsAddedHrefs"] = added
+	if !p.DryRun {
+		facts["manifestItemsAdded"] = len(added)
+		facts["manifestItemsAddedHrefs"] = added
+	}
+	if p.ScopePaths != nil {
+		facts["applicationMode"] = "scoped-additive"
+		facts["scopePaths"] = xhtmlPaths
+	}
 	return report.Result{
 		Capability: CapabilityID,
 		Status:     report.StatusComplete,

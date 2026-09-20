@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB 竖排 Ruby 优化"
-  short_description: "阅读器安全的竖排与 Ruby 注音版式。"
-  default_prompt: "使用 $epub-vertical-ruby-optimizer 修复这个 EPUB 的竖排文字和 Ruby 版式，保持可重排。"
+  short_description: "人工修复竖排与 Ruby，保留注音和前缀并验证字号与混排行为。"
+  default_prompt: "使用 $epub-vertical-ruby-optimizer 修复指定竖排或 Ruby 问题，保持真实文本并列明阅读器待验项。"
