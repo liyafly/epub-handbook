@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
@@ -30,7 +31,7 @@ func selectScope(spine, requested []string) ([]string, error) {
 }
 
 func scopedStylesheetPath(dir, layer string, data []byte) string {
-	return pyJoinPath(dir, fmt.Sprintf("epub-preset-%x-%s", sha256.Sum256(data), layer))
+	return pypath.Join(dir, fmt.Sprintf("epub-preset-%x-%s", sha256.Sum256(data), layer))
 }
 
 // Local mode only accepts self-contained layers. Copying CSS with relative
@@ -72,9 +73,9 @@ func appendStylesheetLinks(text, document string, paths []string) (string, error
 	}
 	var insert strings.Builder
 	for _, cssPath := range paths {
-		href := relHref(document, cssPath)
+		href := pypath.RelativePath(document, cssPath)
 		if !seen[href] {
-			insert.WriteString(`<link rel="stylesheet" type="text/css" href="` + escapeAttrib(href) + `"/>` + "\n")
+			insert.WriteString(`<link rel="stylesheet" type="text/css" href="` + pypath.EscapeAttribute(href) + `"/>` + "\n")
 		}
 	}
 	return text[:head.Close.Start] + insert.String() + text[head.Close.Start:], nil

@@ -9,6 +9,7 @@
 package contentanalyze
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -44,10 +45,10 @@ type looseCollector struct {
 }
 
 // extractLooseHTMLBlocks 对齐 _extract_html_blocks。
-func extractLooseHTMLBlocks(source, content string) ([]textBlock, error) {
+func extractLooseHTMLBlocks(ctx context.Context, source, content string) ([]textBlock, error) {
 	c := &looseCollector{source: source, counts: map[string]int{}}
-	if err := feedLoose(c, content); err != nil {
-		return nil, fmt.Errorf("%s: HTML parse failed: %v", source, err)
+	if err := feedLoose(ctx, c, content); err != nil {
+		return nil, fmt.Errorf("%s: HTML parse failed: %w", source, err)
 	}
 	return withNeighbors(c.blocks), nil
 }
@@ -169,7 +170,7 @@ func (c *looseCollector) data(s string) {
 // feedLoose 是 HTML 容错分词器，产出 startTag / endTag / data 事件。
 // dataDecode 跟踪缓冲数据是否需要实体解码：普通文本需要（convert_charrefs），
 // <script>/<style> 的 CDATA 内容不需要。
-func feedLoose(c *looseCollector, s string) error {
+func feedLoose(ctx context.Context, c *looseCollector, s string) error {
 	i := 0
 	var data strings.Builder
 	dataDecode := true
@@ -193,6 +194,9 @@ func feedLoose(c *looseCollector, s string) error {
 	}
 	cdata := "" // 非空时处于 <script>/<style> 原文模式
 	for i < len(s) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if cdata != "" {
 			flush()
 			end := indexCloseTag(s[i:], cdata)

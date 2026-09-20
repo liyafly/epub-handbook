@@ -92,7 +92,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 // run 是 Run 的可注入内核：lookPath 固定外部工具探测结果，
 // 供 golden 测试摆脱开发机 PATH（`brew install epubcheck` 不应让测试变红）。
-func run(_ context.Context, b *book.Book, p Params, lookPath toolProbe) (report.Result, error) {
+func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	if lookPath == nil {
 		lookPath = externToolProbe
 	}
@@ -105,7 +108,10 @@ func run(_ context.Context, b *book.Book, p Params, lookPath toolProbe) (report.
 		tools:       &orderedTools{Values: map[string]bool{}},
 		lookPath:    lookPath,
 	}
-	ins.inspect()
+	ins.inspect(ctx)
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 
 	res := report.Result{
 		Capability: "epub.package.nav.audit",
@@ -148,8 +154,11 @@ func run(_ context.Context, b *book.Book, p Params, lookPath toolProbe) (report.
 	res.Facts["findingsByLevel"] = countFindingsByLevel(res.Findings)
 	res.Facts["recommendedSkills"] = ins.orderedSkills()
 	res.Facts["toolAvailability"] = ins.toolAvailability()
-	res.Facts["actionableFindings"] = ins.detectActionable()
+	res.Facts["actionableFindings"] = ins.detectActionable(ctx)
 	res.NextCommands = ins.nextCommands()
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	return res, nil
 }
 
@@ -233,7 +242,7 @@ func slicesContains(list []string, v string) bool {
 }
 
 // inspect 是 inspect_path(path, "cleanup") 对 EPUB 输入的主流程。
-func (ins *inspector) inspect() {
+func (ins *inspector) inspect(ctx context.Context) {
 	q := shlexQuote(ins.b.InputPath())
 	// 旧 preflight / AI / refinement 入口已合并为 Go capability。保留原有
 	// 推荐顺序，但让报告中的每一项都能由当前 `epub` CLI 直接执行。
@@ -264,7 +273,7 @@ func (ins *inspector) inspect() {
 	if ins.pkg != nil {
 		ins.summary.HasOPF = true
 		ins.summary.OPF = ins.opfPath
-		ins.inspectOPF()
+		ins.inspectOPF(ctx)
 	}
 	if len(ins.findings) == 0 {
 		ins.addFinding("info", "No immediate structural issue detected by harness", "", "")
@@ -282,10 +291,13 @@ func (ins *inspector) inspect() {
 	ins.applyWorkflowMode()
 }
 
-func (ins *inspector) inspectOPF() {
+func (ins *inspector) inspectOPF(ctx context.Context) {
 	pkg := ins.pkg
 	q := shlexQuote(ins.b.InputPath())
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		media := item.MediaType
 		hrefLower := strings.ToLower(item.Href)
 		switch {
@@ -307,6 +319,9 @@ func (ins *inspector) inspectOPF() {
 	// 文件名混淆。
 	obfuscated := 0
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if item.Href == "" {
 			continue
 		}
@@ -353,6 +368,9 @@ func (ins *inspector) inspectOPF() {
 	// nav 恰好一个。
 	navCount := 0
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if opf.HasNavProps(item.Properties) {
 			navCount++
 		}
@@ -379,6 +397,9 @@ func (ins *inspector) inspectOPF() {
 	_, hasCoverProp := pkg.CoverItem()
 	hasCoverMeta := false
 	for _, m := range pkg.Metas {
+		if ctx.Err() != nil {
+			return
+		}
 		if m.Name == "cover" && m.Content != "" {
 			hasCoverMeta = true
 			break
@@ -392,6 +413,9 @@ func (ins *inspector) inspectOPF() {
 
 	// manifest href 解析。
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if item.Href == "" {
 			ins.addFinding("error", "Manifest item missing href", item.ID, "")
 			ins.addSkill("epub-package-nav-auditor", "error")
@@ -408,6 +432,9 @@ func (ins *inspector) inspectOPF() {
 
 	// spine idref。
 	for _, ref := range pkg.Spine {
+		if ctx.Err() != nil {
+			return
+		}
 		if ref.IDRef == "" {
 			ins.addFinding("error", "Spine idref missing from manifest", "<missing>", "")
 			ins.addSkill("epub-package-nav-auditor", "error")
@@ -419,16 +446,19 @@ func (ins *inspector) inspectOPF() {
 		}
 	}
 
-	ins.checkCSSURLs(pkg)
-	ins.checkImages(pkg)
-	ins.checkXHTML(pkg)
+	ins.checkCSSURLs(ctx, pkg)
+	ins.checkImages(ctx, pkg)
+	ins.checkXHTML(ctx, pkg)
 	ins.ocrHeuristic(pkg)
 	ins.mediaDrivenSkills(pkg, q)
 }
 
-func (ins *inspector) checkCSSURLs(pkg *opf.Package) {
+func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package) {
 	fontExts := map[string]bool{".otf": true, ".ttf": true, ".woff": true, ".woff2": true}
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if item.MediaType != "text/css" || item.ArchivePath == "" {
 			continue
 		}
@@ -442,6 +472,9 @@ func (ins *inspector) checkCSSURLs(pkg *opf.Package) {
 		text := string(raw)
 		text = stripCSSComments(text)
 		for _, target := range extractCSSURLs(text) {
+			if ctx.Err() != nil {
+				return
+			}
 			if isExternalURL(target) {
 				continue
 			}
@@ -484,8 +517,11 @@ func (ins *inspector) checkCSSURLs(pkg *opf.Package) {
 	}
 }
 
-func (ins *inspector) checkImages(pkg *opf.Package) {
+func (ins *inspector) checkImages(ctx context.Context, pkg *opf.Package) {
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if item.ArchivePath == "" || !hasEntry(ins.b, item.ArchivePath) {
 			continue
 		}
@@ -506,9 +542,12 @@ func (ins *inspector) checkImages(pkg *opf.Package) {
 	}
 }
 
-func (ins *inspector) checkXHTML(pkg *opf.Package) {
+func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 	textChars, imageRefs := 0, 0
 	for _, item := range pkg.Manifest {
+		if ctx.Err() != nil {
+			return
+		}
 		if item.MediaType != "application/xhtml+xml" || item.ArchivePath == "" || !hasEntry(ins.b, item.ArchivePath) {
 			continue
 		}
@@ -519,6 +558,9 @@ func (ins *inspector) checkXHTML(pkg *opf.Package) {
 		text := string(raw)
 		stripped := tagStripRe.ReplaceAllString(text, "")
 		for _, r := range stripped {
+			if ctx.Err() != nil {
+				return
+			}
 			if !isPySpaceRune(r) {
 				textChars++
 			}

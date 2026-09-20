@@ -3,6 +3,7 @@
 package contentanalyze
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -43,20 +44,23 @@ type xaFrame struct {
 }
 
 // AnalyzeXHTML 对齐 analyze_xhtml：解析 XHTML 并产出公开报告块。
-func AnalyzeXHTML(source, content string, includeSnippets bool) ([]analyzedBlock, error) {
-	blocks, err := extractXHTMLBlocks(source, content)
+func AnalyzeXHTML(ctx context.Context, source, content string, includeSnippets bool) ([]analyzedBlock, error) {
+	blocks, err := extractXHTMLBlocks(ctx, source, content)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]analyzedBlock, 0, len(blocks))
 	for _, b := range blocks {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		out = append(out, publicize(b, includeSnippets))
 	}
 	return out, nil
 }
 
 // extractXHTMLBlocks 复刻 _extract_xhtml_blocks。
-func extractXHTMLBlocks(source, content string) ([]textBlock, error) {
+func extractXHTMLBlocks(ctx context.Context, source, content string) ([]textBlock, error) {
 	d := xml.NewDecoder(strings.NewReader(content))
 	d.Strict = true // ElementTree 同为严格 XML：未定义实体/错配标签均报错
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
@@ -89,6 +93,9 @@ func extractXHTMLBlocks(source, content string) ([]textBlock, error) {
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		tok, err := d.Token()
 		if err == io.EOF {
 			break

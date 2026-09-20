@@ -101,36 +101,57 @@ type analysisReport struct {
 
 // Run 执行本 capability。只读：扫描 → 报告（无 apply 段）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
-	if p.SourceName != "" {
-		return runSource(p)
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
 	}
-	return runEpub(b, p)
+	if p.SourceName != "" {
+		return runSource(ctx, p)
+	}
+	return runEpub(ctx, b, p)
 }
 
 // runSource 走 analyze_source 分派（markdown / plain / loose-html / xhtml）。
-func runSource(p Params) (report.Result, error) {
-	blocks, err := AnalyzeSource(p.SourceName, p.SourceContent, p.IncludeSnippets)
+func runSource(ctx context.Context, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	blocks, err := AnalyzeSource(ctx, p.SourceName, p.SourceContent, p.IncludeSnippets)
 	if err != nil {
 		return report.Result{}, err
 	}
 	rep := buildReport(p.SourceName, blocks, nil)
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	return assemble(rep, p), nil
 }
 
 // runEpub 走 EPUB spine XHTML 路径（含 encryption.xml 拒绝）。
-func runEpub(b *book.Book, p Params) (report.Result, error) {
-	docs, fileErrs, err := spineDocuments(b)
+func runEpub(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	docs, fileErrs, err := spineDocuments(ctx, b)
 	if err != nil {
 		return report.Result{}, err
 	}
 	var blocks []analyzedBlock
 	for _, doc := range docs {
-		pbs, err := AnalyzeXHTML(doc.name, doc.content, p.IncludeSnippets)
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
+		pbs, err := AnalyzeXHTML(ctx, doc.name, doc.content, p.IncludeSnippets)
+		if ctx.Err() != nil {
+			return report.Result{}, ctx.Err()
+		}
 		if err != nil {
 			fileErrs = append(fileErrs, sourceError{Source: doc.name, Message: err.Error()})
 			continue
 		}
 		blocks = append(blocks, pbs...)
+	}
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
 	}
 	rep := buildReport(resolvedInputPath(b), blocks, fileErrs)
 	return assemble(rep, p), nil
@@ -258,7 +279,7 @@ type spineDoc struct {
 
 // spineDocuments 对齐 _epub_spine_documents：encryption 拒绝 → container/OPF
 // → manifest id → 归一化路径 → 严格 UTF-8 解码（失败记 error 继续）。
-func spineDocuments(b *book.Book) ([]spineDoc, []sourceError, error) {
+func spineDocuments(ctx context.Context, b *book.Book) ([]spineDoc, []sourceError, error) {
 	if b.Has(encryptionPath) {
 		return nil, nil, fmt.Errorf("encryption marker detected; content analysis stopped")
 	}
@@ -281,6 +302,9 @@ func spineDocuments(b *book.Book) ([]spineDoc, []sourceError, error) {
 	opfDir := dirName(opfPath)
 	byID := map[string]string{}
 	for _, item := range pkg.Manifest {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		if item.ID != "" && item.Href != "" {
 			byID[item.ID] = normJoin(opfDir, item.Href)
 		}
@@ -288,6 +312,9 @@ func spineDocuments(b *book.Book) ([]spineDoc, []sourceError, error) {
 	var docs []spineDoc
 	var errs []sourceError
 	for _, ref := range pkg.Spine {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		target, ok := byID[ref.IDRef]
 		if !ok || !b.Has(target) {
 			continue

@@ -4,6 +4,7 @@ package imagelayout
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"io"
 	"strings"
@@ -58,7 +59,7 @@ func visibleText(n *ixNode) string {
 }
 
 // parseXMLTree 流式解码 XML 为只读节点树（严格模式，语义对齐 ElementTree）。
-func parseXMLTree(data []byte) (*ixNode, error) {
+func parseXMLTree(ctx context.Context, data []byte) (*ixNode, error) {
 	d := xml.NewDecoder(bytes.NewReader(data))
 	d.Strict = true
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
@@ -83,6 +84,9 @@ func parseXMLTree(data []byte) (*ixNode, error) {
 		}
 	}
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		tok, err := d.Token()
 		if err == io.EOF {
 			break

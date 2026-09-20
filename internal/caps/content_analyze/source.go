@@ -3,43 +3,51 @@
 package contentanalyze
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
 
 // AnalyzeSource 对齐 analyze_source：按文件名后缀分派。
-func AnalyzeSource(source, content string, includeSnippets bool) ([]analyzedBlock, error) {
+func AnalyzeSource(ctx context.Context, source, content string, includeSnippets bool) ([]analyzedBlock, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var blocks []textBlock
+	var err error
 	switch suffix := sourceSuffix(source); suffix {
 	case ".xhtml", ".xml":
-		var err error
-		if blocks, err = extractXHTMLBlocks(source, content); err != nil {
-			return nil, err
-		}
+		blocks, err = extractXHTMLBlocks(ctx, source, content)
 	case ".html", ".htm":
-		var err error
-		if blocks, err = extractLooseHTMLBlocks(source, content); err != nil {
-			return nil, err
-		}
+		blocks, err = extractLooseHTMLBlocks(ctx, source, content)
 	case ".md", ".markdown":
-		blocks = markdownBlocks(source, content)
+		blocks, err = markdownBlocks(ctx, source, content)
 	case ".txt", "":
-		blocks = plainBlocks(source, content)
+		blocks, err = plainBlocks(ctx, source, content)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", suffix)
 	}
+	if err != nil {
+		return nil, err
+	}
 	out := make([]analyzedBlock, 0, len(blocks))
 	for _, b := range blocks {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		out = append(out, publicize(b, includeSnippets))
 	}
 	return out, nil
 }
 
 // plainBlocks 对齐 _plain_blocks：空行分段。
-func plainBlocks(source, content string) []textBlock {
+func plainBlocks(ctx context.Context, source, content string) ([]textBlock, error) {
 	var blocks []textBlock
 	index := 0
 	for _, part := range plainSplitRe.Split(content, -1) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		text := pyTrimSpace(part)
 		if text == "" {
 			continue
@@ -55,11 +63,11 @@ func plainBlocks(source, content string) []textBlock {
 			text:         text,
 		})
 	}
-	return withNeighbors(blocks)
+	return withNeighbors(blocks), nil
 }
 
 // markdownBlocks 对齐 _markdown_blocks：标题 / 引用 / 列表 / 围栏代码 / 段落。
-func markdownBlocks(source, content string) []textBlock {
+func markdownBlocks(ctx context.Context, source, content string) ([]textBlock, error) {
 	var blocks []textBlock
 	var paragraph []string
 	inCode := false
@@ -92,6 +100,9 @@ func markdownBlocks(source, content string) []textBlock {
 	lines := pySplitLines(content)
 	lines = append(lines, "")
 	for _, line := range lines {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if strings.HasPrefix(pyTrimSpace(line), "```") {
 			flush()
 			if inCode {
@@ -126,7 +137,7 @@ func markdownBlocks(source, content string) []textBlock {
 		}
 		paragraph = append(paragraph, pyTrimSpace(line))
 	}
-	return withNeighbors(blocks)
+	return withNeighbors(blocks), nil
 }
 
 // stripListMarker 对齐 re.sub(r"^\s*(?:[-+*]|\d+[.)])\s+", "", line)：

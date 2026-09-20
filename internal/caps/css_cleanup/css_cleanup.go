@@ -24,6 +24,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
@@ -81,6 +82,9 @@ const scopedMergeDisabledWarning = "MergeScopedLocalCSS requested but disabled f
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	names := b.Names()
 	m := newFileModel(b, names)
 
@@ -97,7 +101,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err != nil {
 		return report.Result{}, cleanupErrf("%s: XML parse failed: %v", opfPath, err)
 	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 
 	rep := cleanupReport{
 		OPF:      opfPath,
@@ -106,18 +110,24 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	// CSS manifest 条目（norm_join(opf_dir, href) → item）。
 	cssItems := map[string]*opf.SpanNode{}
-	for _, item := range opfManifestItems(opfRoot) {
-		mediaType, _ := nodeAttr(item, "media-type")
-		href, hasHref := nodeAttr(item, "href")
+	for _, item := range opf.ManifestNodes(opfRoot) {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
+		mediaType, _ := item.AttrByLocal("", "media-type")
+		href, hasHref := item.AttrByLocal("", "href")
 		if mediaType != "text/css" || !hasHref || href == "" {
 			continue
 		}
-		cssItems[normJoin(opfDir, href)] = item
+		cssItems[pypath.NormJoin(opfDir, href)] = item
 	}
 	rep.CSSFilesBefore = len(cssItems)
 
 	cssPaths := sortedKeys(cssItems)
 	for _, cssPath := range cssPaths {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		if !m.has(cssPath) {
 			rep.Warnings = append(rep.Warnings, "CSS manifest item does not resolve: "+cssPath)
 			continue
@@ -184,15 +194,24 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	// 既有 CSS entry 的清理已由 m.patch 保持原始坐标；这里只处理
 	// entry 删除和新生成的完整 entry。
 	for _, cssPath := range sortedKeys(removed) {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		m.drop(cssPath)
 	}
 	for _, path := range sortedKeys(generated) {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		m.set(path, generated[path])
 	}
 
 	// XHTML link 重写。
 	xhtmlPaths := xhtmlZipPaths(opfRoot, opfDir)
 	for _, xhtmlPath := range xhtmlPaths {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		data, ok := m.get(xhtmlPath)
 		if !ok {
 			continue
@@ -216,6 +235,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	// css_files_after：最终 files 里以 .css 结尾（大小写不敏感）的数量。
 	for name := range m.exists {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
 		if strings.HasSuffix(strings.ToLower(name), ".css") {
 			rep.CSSFilesAfter++
 		}
@@ -228,6 +250,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	edits, err := m.edits(opfPath, opfEdits)
 	if err != nil {
+		return report.Result{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
 	if err := b.Apply(edits); err != nil {
@@ -1001,7 +1026,7 @@ func rewriteCSSLinkEdits(xhtmlPath string, data []byte, mapping map[string][]str
 		return nil, false, fmt.Errorf("XHTML is not valid UTF-8: %w", css.ErrInvalidUTF8)
 	}
 	text := string(data)
-	dir := pyDirname(xhtmlPath)
+	dir := pypath.Dirname(xhtmlPath)
 	var edits []editset.Edit
 	changed := false
 	for pos := 0; ; {
@@ -1010,13 +1035,13 @@ func rewriteCSSLinkEdits(xhtmlPath string, data []byte, mapping map[string][]str
 			break
 		}
 		pos = m.end
-		cssPath := pyNormPath(pyJoinPath(dir, m.href))
+		cssPath := pypath.NormPath(pypath.Join(dir, m.href))
 		targets, hit := mapping[cssPath]
 		if !hit || len(targets) == 0 {
 			continue
 		}
 		changed = true
-		firstHref := relHref(xhtmlPath, targets[0])
+		firstHref := pypath.RelativePath(xhtmlPath, targets[0])
 		edits = append(edits, editset.Replace(xhtmlPath, int64(m.valueStart), int64(m.valueEnd-m.valueStart), []byte(escapeXHTMLValue(firstHref, m.quote))))
 		if len(targets) == 1 {
 			continue
@@ -1025,7 +1050,7 @@ func rewriteCSSLinkEdits(xhtmlPath string, data []byte, mapping map[string][]str
 			clone := append([]byte(nil), data[m.start:m.end]...)
 			localStart := m.valueStart - m.start
 			localEnd := m.valueEnd - m.start
-			href := []byte(escapeXHTMLValue(relHref(xhtmlPath, target), m.quote))
+			href := []byte(escapeXHTMLValue(pypath.RelativePath(xhtmlPath, target), m.quote))
 			clone = append(append(append([]byte(nil), clone[:localStart]...), href...), clone[localEnd:]...)
 			repl := append([]byte{'\n'}, clone...)
 			edits = append(edits, editset.Insert(xhtmlPath, int64(m.end), repl))
@@ -1090,14 +1115,14 @@ func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir s
 
 	var edits []editset.Edit
 	removedItems := map[*opf.SpanNode]bool{}
-	for _, item := range opfManifestItems(opfRoot) {
-		mediaType, _ := nodeAttr(item, "media-type")
-		href, hasHref := nodeAttr(item, "href")
+	for _, item := range opf.ManifestNodes(opfRoot) {
+		mediaType, _ := item.AttrByLocal("", "media-type")
+		href, hasHref := item.AttrByLocal("", "href")
 		if mediaType != "text/css" || !hasHref || href == "" {
 			continue
 		}
-		if removed[normJoin(opfDir, href)] {
-			edits = append(edits, removeElementEdit(opfPath, opfData, item))
+		if removed[pypath.NormJoin(opfDir, href)] {
+			edits = append(edits, opf.RemoveElementEdit(opfPath, opfData, item))
 			removedItems[item] = true
 			rep.CSSManifestItemsRemoved++
 		}
@@ -1106,21 +1131,21 @@ func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir s
 	if len(generated) == 0 {
 		return edits, nil
 	}
-	manifestNode := firstOPFChild(opfRoot, "manifest")
+	manifestNode := opfRoot.ChildByLocal(opf.OPFURI, "manifest")
 	if manifestNode == nil {
 		return nil, cleanupErrf("OPF missing manifest")
 	}
 	// Python 在移除之后读取当前 root 的 href/id 集合。
 	hrefSeen := map[string]bool{}
 	idSeen := map[string]bool{}
-	for _, item := range opfManifestItems(opfRoot) {
+	for _, item := range opf.ManifestNodes(opfRoot) {
 		if removedItems[item] {
 			continue
 		}
-		if h, ok := nodeAttr(item, "href"); ok {
+		if h, ok := item.AttrByLocal("", "href"); ok {
 			hrefSeen[h] = true
 		}
-		if id, ok := nodeAttr(item, "id"); ok {
+		if id, ok := item.AttrByLocal("", "id"); ok {
 			idSeen[id] = true
 		}
 	}
@@ -1128,7 +1153,7 @@ func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir s
 	for _, cssPath := range sortedKeys(generated) {
 		href := cssPath
 		if opfDir != "" {
-			href = pyRelPath(cssPath, opfDir)
+			href = pypath.RelPath(cssPath, opfDir)
 		}
 		if hrefSeen[href] {
 			continue
@@ -1136,7 +1161,7 @@ func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir s
 		hrefSeen[href] = true
 		itemID := cssManifestItemID(href, idSeen)
 		idSeen[itemID] = true
-		insert.WriteString(opfItemElement(itemID, href))
+		insert.WriteString(opf.BuildCSSItem(itemID, href))
 		rep.CSSManifestItemsAdded++
 	}
 	if insert.Len() > 0 {
@@ -1147,7 +1172,7 @@ func opfEditsFor(opfPath string, opfData []byte, opfRoot *opf.SpanNode, opfDir s
 
 // cssManifestItemID 复刻 add_css_manifest_item 的 id 生成。
 func cssManifestItemID(href string, idSeen map[string]bool) string {
-	itemID := strings.Trim(idSanitizeRe.ReplaceAllString("css-"+pyPathStem(href), "-"), "-")
+	itemID := strings.Trim(idSanitizeRe.ReplaceAllString("css-"+pypath.BaseStem(href), "-"), "-")
 	base := itemID
 	index := 2
 	for idSeen[itemID] {
@@ -1160,13 +1185,13 @@ func cssManifestItemID(href string, idSeen map[string]bool) string {
 // xhtmlZipPaths 复刻 xhtml_zip_paths（manifest 文档序，允许重复）。
 func xhtmlZipPaths(opfRoot *opf.SpanNode, opfDir string) []string {
 	var out []string
-	for _, item := range opfManifestItems(opfRoot) {
-		mediaType, _ := nodeAttr(item, "media-type")
-		href, hasHref := nodeAttr(item, "href")
+	for _, item := range opf.ManifestNodes(opfRoot) {
+		mediaType, _ := item.AttrByLocal("", "media-type")
+		href, hasHref := item.AttrByLocal("", "href")
 		if mediaType != "application/xhtml+xml" || !hasHref || href == "" {
 			continue
 		}
-		out = append(out, normJoin(opfDir, href))
+		out = append(out, pypath.NormJoin(opfDir, href))
 	}
 	return out
 }

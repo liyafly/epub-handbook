@@ -39,7 +39,7 @@ func roles(blocks []analyzedBlock) []string {
 func join(ss []string) string { return strings.Join(ss, ",") }
 
 func TestStructureWinsOverMisleadingText(t *testing.T) {
-	blocks, err := AnalyzeXHTML("Text/ch01.xhtml",
+	blocks, err := AnalyzeXHTML(t.Context(), "Text/ch01.xhtml",
 		wrapXHTML("<h1>正文一样长也仍是标题</h1><figcaption>第一章</figcaption><p>这是普通正文段落，长度足以稳定识别为正文。</p>", "", "zh-CN"), false)
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestStructureWinsOverMisleadingText(t *testing.T) {
 }
 
 func TestTitlePageAndSubtitleOverrideHeading(t *testing.T) {
-	blocks, err := AnalyzeXHTML("Text/title.xhtml",
+	blocks, err := AnalyzeXHTML(t.Context(), "Text/title.xhtml",
 		wrapXHTML(`<section class="title-page" epub:type="titlepage"><h1>书名</h1><h2 class="subtitle">副标题</h2></section>`, "", "zh-CN"), false)
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestExplicitChineseRolesAndFontAdvice(t *testing.T) {
 		`<p class="classical-text">学而时习之，不亦说乎。</p>` +
 		`<p class="modern-text">学习并经常温习，是令人愉快的。</p>` +
 		`<hr class="scene-break"/>`
-	blocks, err := AnalyzeXHTML("Text/roles.xhtml", wrapXHTML(body, "", "zh-CN"), false)
+	blocks, err := AnalyzeXHTML(t.Context(), "Text/roles.xhtml", wrapXHTML(body, "", "zh-CN"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestExplicitChineseRolesAndFontAdvice(t *testing.T) {
 }
 
 func TestDialogueAndAmbiguousShortChinese(t *testing.T) {
-	blocks, err := AnalyzeXHTML("Text/ambiguous.xhtml",
+	blocks, err := AnalyzeXHTML(t.Context(), "Text/ambiguous.xhtml",
 		wrapXHTML(`<p>“你明天还来吗？”她问。</p><p>春风又绿江南岸</p>`, "", "zh-CN"), false)
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestDialogueAndAmbiguousShortChinese(t *testing.T) {
 }
 
 func TestFeaturesMixedChineseLatinPunctuation(t *testing.T) {
-	blocks, _ := AnalyzeXHTML("Text/mixed.xhtml",
+	blocks, _ := AnalyzeXHTML(t.Context(), "Text/mixed.xhtml",
 		wrapXHTML("<p>EPUB 3.3 与中文混排：Hello，世界！2026。</p>", "", "zh-CN"), false)
 	f := blocks[0].Features
 	if f.CJKCount != 7 || f.LatinCount != 9 || f.DigitCount != 6 || f.PunctuationCount != 5 {
@@ -144,7 +144,7 @@ func TestFeaturesMixedChineseLatinPunctuation(t *testing.T) {
 }
 
 func TestUnpunctuatedClassicalNotForcedToBody(t *testing.T) {
-	blocks, _ := AnalyzeXHTML("Text/classical.xhtml",
+	blocks, _ := AnalyzeXHTML(t.Context(), "Text/classical.xhtml",
 		wrapXHTML("<p>天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往秋收冬藏</p>", "", "zh-CN"), false)
 	if blocks[0].PrimaryRole != "unknown" || !blocks[0].ReviewRequired {
 		t.Errorf("role = %s", blocks[0].PrimaryRole)
@@ -155,7 +155,7 @@ func TestUnpunctuatedClassicalNotForcedToBody(t *testing.T) {
 }
 
 func TestDashDialogueAndBrSeparatedVerse(t *testing.T) {
-	blocks, _ := AnalyzeXHTML("Text/heuristics.xhtml",
+	blocks, _ := AnalyzeXHTML(t.Context(), "Text/heuristics.xhtml",
 		wrapXHTML("<p>——你终于来了？</p><p>床前明月光<br/>疑是地上霜<br/>举头望明月</p>", "", "zh-CN"), false)
 	if blocks[0].PrimaryRole != "dialogue" {
 		t.Errorf("block0 = %s", blocks[0].PrimaryRole)
@@ -169,7 +169,7 @@ func TestDashDialogueAndBrSeparatedVerse(t *testing.T) {
 }
 
 func TestLooseHTMLAndLanguage(t *testing.T) {
-	blocks, err := AnalyzeSource("chapter.html",
+	blocks, err := AnalyzeSource(t.Context(), "chapter.html",
 		`<html lang="zh-Hant"><body><h1>第一章<p>這是一段沒有閉合標籤的繁體中文正文內容。`, false)
 	if err != nil {
 		t.Fatal(err)
@@ -185,14 +185,14 @@ func TestLooseHTMLAndLanguage(t *testing.T) {
 }
 
 func TestMarkdownAndPlainTextInputs(t *testing.T) {
-	markdown, err := AnalyzeSource("chapter.md", "# 第一章\n\n> 引用内容\n\n这是普通正文段落，长度足以稳定识别。", false)
+	markdown, err := AnalyzeSource(t.Context(), "chapter.md", "# 第一章\n\n> 引用内容\n\n这是普通正文段落，长度足以稳定识别。", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got, want := join(roles(markdown[:2])), "heading,quotation"; got != want {
 		t.Fatalf("markdown roles = %s, want %s", got, want)
 	}
-	plain, err := AnalyzeSource("chapter.txt", "第一段普通正文，长度足以识别。\n\n第二段普通正文，继续叙述内容。", false)
+	plain, err := AnalyzeSource(t.Context(), "chapter.txt", "第一段普通正文，长度足以识别。\n\n第二段普通正文，继续叙述内容。", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestMarkdownAndPlainTextInputs(t *testing.T) {
 }
 
 func TestMarkdownListAndCodeRoles(t *testing.T) {
-	blocks, err := AnalyzeSource("notes.md", "- 第一项\n\n```python\nprint('ok')\n```\n", false)
+	blocks, err := AnalyzeSource(t.Context(), "notes.md", "- 第一项\n\n```python\nprint('ok')\n```\n", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestMarkdownListAndCodeRoles(t *testing.T) {
 
 func TestDefaultReportPrivateSnippetsOptIn(t *testing.T) {
 	source := "这是完整私有正文，默认报告不得直接保存这一段文本。"
-	private, err := AnalyzeSource("private.txt", source, false)
+	private, err := AnalyzeSource(t.Context(), "private.txt", source, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestDefaultReportPrivateSnippetsOptIn(t *testing.T) {
 	if private[0].TextSHA256 == "" {
 		t.Error("缺少 text_sha256")
 	}
-	local, err := AnalyzeSource("private.txt", source, true)
+	local, err := AnalyzeSource(t.Context(), "private.txt", source, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,11 +238,11 @@ func TestDefaultReportPrivateSnippetsOptIn(t *testing.T) {
 }
 
 func TestUnsupportedSourceType(t *testing.T) {
-	_, err := AnalyzeSource("data.rst", "内容", false)
+	_, err := AnalyzeSource(t.Context(), "data.rst", "内容", false)
 	if err == nil || err.Error() != "unsupported source type: .rst" {
 		t.Fatalf("err = %v", err)
 	}
-	_, err = AnalyzeSource("noext", "内容", false)
+	_, err = AnalyzeSource(t.Context(), "noext", "内容", false)
 	if err != nil {
 		t.Fatalf("无后缀应按 plain 处理: %v", err)
 	}

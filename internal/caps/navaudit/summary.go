@@ -1,6 +1,7 @@
 package navaudit
 
 import (
+	"context"
 	"encoding/xml"
 	"io"
 	"sort"
@@ -98,7 +99,7 @@ func (ins *inspector) orderedSkills() []string {
 // 顺序对齐 DETECTORS 注册序：missing-html-lang → obfuscated-class →
 // empty-paragraph → missing-manifest-properties；每个 detector 内按
 // manifest 序遍历文档。
-func (ins *inspector) detectActionable() []detectorFinding {
+func (ins *inspector) detectActionable(ctx context.Context) []detectorFinding {
 	// 空列表必须序列化为 []（facts 的形状是数组，消费方会做 | length）。
 	out := []detectorFinding{}
 	language := ""
@@ -111,12 +112,18 @@ func (ins *inspector) detectActionable() []detectorFinding {
 	var names []string
 	if ins.pkg != nil {
 		for _, it := range ins.pkg.Manifest {
+			if ctx.Err() != nil {
+				return nil
+			}
 			if it.ArchivePath != "" && (it.MediaType == "application/xhtml+xml" || isXHTMLName(it.ArchivePath)) {
 				names = append(names, it.ArchivePath)
 			}
 		}
 	} else {
 		for _, name := range ins.b.Names() {
+			if ctx.Err() != nil {
+				return nil
+			}
 			if isXHTMLName(name) {
 				names = append(names, name)
 			}
@@ -128,11 +135,14 @@ func (ins *inspector) detectActionable() []detectorFinding {
 	}
 	docs := make([]parsedDoc, 0, len(names))
 	for _, name := range names {
+		if ctx.Err() != nil {
+			return nil
+		}
 		raw, err := ins.b.Current(name)
 		if err != nil {
 			continue
 		}
-		doc, perr := parseXHTMLLoose(raw)
+		doc, perr := parseXHTMLLoose(ctx, raw)
 		if perr != nil || doc == nil {
 			continue // 对齐 Python：解析失败仅告警跳过
 		}
@@ -141,6 +151,9 @@ func (ins *inspector) detectActionable() []detectorFinding {
 
 	// 1. missing-html-lang（每文档一条）。
 	for _, pd := range docs {
+		if ctx.Err() != nil {
+			return nil
+		}
 		if pd.doc.rootAttrs["lang"] == "" && pd.doc.rootAttrs["xml:lang"] == "" {
 			value := language
 			if value == "" {
@@ -157,6 +170,9 @@ func (ins *inspector) detectActionable() []detectorFinding {
 	}
 	// 2. obfuscated-class：每文档最多 1 条（首个命中）。
 	for _, pd := range docs {
+		if ctx.Err() != nil {
+			return nil
+		}
 		for _, el := range pd.doc.elements {
 			if el.class == "" {
 				continue
@@ -177,6 +193,9 @@ func (ins *inspector) detectActionable() []detectorFinding {
 	}
 	// 3. empty-paragraph：每个命中元素一条。
 	for _, pd := range docs {
+		if ctx.Err() != nil {
+			return nil
+		}
 		for _, el := range pd.doc.elements {
 			if el.local != "p" {
 				continue
@@ -196,21 +215,22 @@ func (ins *inspector) detectActionable() []detectorFinding {
 	if ins.pkg != nil {
 		byPath := map[string]opf.ManifestItem{}
 		for _, it := range ins.pkg.Manifest {
+			if ctx.Err() != nil {
+				return nil
+			}
 			if it.ArchivePath != "" {
 				byPath[it.ArchivePath] = it
 			}
 		}
 		for _, pd := range docs {
+			if ctx.Err() != nil {
+				return nil
+			}
 			item, ok := byPath[pd.name]
 			if !ok {
 				continue
 			}
 			text := pd.doc.rawText
-			if text == "" {
-				if raw, err := ins.b.Current(pd.name); err == nil {
-					text = string(raw)
-				}
-			}
 			if strings.Contains(text, "<math") || strings.Contains(text, mathmlURI) {
 				if !propsContain(ins.pkg, item.Properties, "mathml") {
 					out = append(out, detectorFinding{
@@ -259,16 +279,18 @@ type xhtmlElement struct {
 
 // parseXHTMLLoose 流式解析（宽容：实体不致命）。
 // 每个元素在闭合时入列，text 已累积完子树全文（itertext 语义）。
-func parseXHTMLLoose(data []byte) (*xhtmlDoc, error) {
-	doc0 := &xhtmlDoc{rootAttrs: map[string]string{}, rawText: string(data)}
-	_ = doc0
-	d := xml.NewDecoder(strings.NewReader(string(data)))
+func parseXHTMLLoose(ctx context.Context, data []byte) (*xhtmlDoc, error) {
+	text := string(data)
+	d := xml.NewDecoder(strings.NewReader(text))
 	d.Strict = false
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) { return input, nil }
-	doc := &xhtmlDoc{rootAttrs: map[string]string{}}
+	doc := &xhtmlDoc{rootAttrs: map[string]string{}, rawText: text}
 	first := true
 	var open []*xhtmlElement
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		tok, err := d.Token()
 		if err == io.EOF {
 			break
@@ -303,11 +325,9 @@ func parseXHTMLLoose(data []byte) (*xhtmlDoc, error) {
 		case xml.EndElement:
 			if len(open) > 0 {
 				top := open[len(open)-1]
-				// 只保留自身直接名匹配的出栈（宽容模式下的安全网）。
-				if top.local == t.Name.Local || true {
-					open = open[:len(open)-1]
-					doc.elements = append(doc.elements, *top)
-				}
+				// The non-strict decoder supplies balanced end tokens.
+				open = open[:len(open)-1]
+				doc.elements = append(doc.elements, *top)
 			}
 		}
 	}
