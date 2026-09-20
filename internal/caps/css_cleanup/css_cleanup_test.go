@@ -554,12 +554,12 @@ func manifestCSSHrefs(t *testing.T, opfData []byte) []string {
 		t.Fatal(err)
 	}
 	var out []string
-	for _, item := range opfManifestItems(root) {
-		mt, _ := nodeAttr(item, "media-type")
+	for _, item := range opf.ManifestNodes(root) {
+		mt, _ := item.AttrByLocal("", "media-type")
 		if mt != "text/css" {
 			continue
 		}
-		href, _ := nodeAttr(item, "href")
+		href, _ := item.AttrByLocal("", "href")
 		out = append(out, href)
 	}
 	return out

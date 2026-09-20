@@ -47,7 +47,7 @@ type advisorReport struct {
 
 // Run 执行本 capability。只读：扫描 → 报告（无 apply 段）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
-	rep, err := analyzeEpub(b)
+	rep, err := analyzeEpub(ctx, b)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -71,6 +71,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			Detail:   f.File + " · " + f.Image,
 			Location: f.Selector,
 		})
+	}
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
 	}
 	return res, nil
 }
@@ -96,7 +99,10 @@ func findingTitle(kind string) string {
 }
 
 // analyzeEpub 对齐 analyze_epub 主体。
-func analyzeEpub(b *book.Book) (advisorReport, error) {
+func analyzeEpub(ctx context.Context, b *book.Book) (advisorReport, error) {
+	if err := ctx.Err(); err != nil {
+		return advisorReport{}, err
+	}
 	container, err := b.Current(opf.ContainerPath)
 	if err != nil {
 		return advisorReport{}, fmt.Errorf("missing META-INF/container.xml")
@@ -117,18 +123,27 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 
 	items := map[string]opf.ManifestItem{}
 	for _, it := range pkg.Manifest {
+		if err := ctx.Err(); err != nil {
+			return advisorReport{}, err
+		}
 		items[it.ID] = it
 	}
-	chapterPaths, coverPaths, err := navPaths(b, pkg)
+	chapterPaths, coverPaths, err := navPaths(ctx, b, pkg)
 	if err != nil {
 		return advisorReport{}, err
 	}
-	cssRules := cssClassDeclarations(b)
+	cssRules, err := cssClassDeclarations(ctx, b)
+	if err != nil {
+		return advisorReport{}, err
+	}
 
 	results := []imageFinding{}
 	warnings := []string{}
 
 	for _, ref := range pkg.Spine {
+		if err := ctx.Err(); err != nil {
+			return advisorReport{}, err
+		}
 		item, ok := items[ref.IDRef]
 		if !ok || item.Href == "" {
 			continue
@@ -146,7 +161,10 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 			warnings = append(warnings, "spine XHTML missing: "+xhtmlPath)
 			continue
 		}
-		root, err := parseXMLTree(data)
+		root, err := parseXMLTree(ctx, data)
+		if ctx.Err() != nil {
+			return advisorReport{}, ctx.Err()
+		}
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("%s: XML parse failed: %v", xhtmlPath, err))
 			continue
@@ -159,6 +177,9 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 
 		var images []*ixNode
 		for _, elem := range body.subtree() {
+			if err := ctx.Err(); err != nil {
+				return advisorReport{}, err
+			}
 			if elem.tag == "img" && !isNoterefIcon(elem) {
 				images = append(images, elem)
 			}
@@ -168,6 +189,9 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 		fixedLayout := hasAnyProp(ref.Properties) || hasAnyProp(item.Properties)
 		alitePage := false
 		for _, cls := range bodyClasses {
+			if err := ctx.Err(); err != nil {
+				return advisorReport{}, err
+			}
 			if aliteBodyClasses[cls] {
 				alitePage = true
 			}
@@ -181,6 +205,9 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 		firstImages := map[*ixNode]bool{}
 		if firstChild != nil && (firstChild.tag == "img" || firstChild.tag == "figure") {
 			for _, elem := range firstChild.subtree() {
+				if err := ctx.Err(); err != nil {
+					return advisorReport{}, err
+				}
 				if elem.tag == "img" {
 					firstImages[elem] = true
 				}
@@ -191,6 +218,9 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 			len(images) == 1 && runeLen(visibleText(body)) <= 20
 
 		for _, imageElem := range images {
+			if err := ctx.Err(); err != nil {
+				return advisorReport{}, err
+			}
 			parent := imageElem.parent
 			imageSrc := attrValue(imageElem, "src")
 			var imagePath string
@@ -235,6 +265,9 @@ func analyzeEpub(b *book.Book) (advisorReport, error) {
 			if figureElem != nil {
 				floated := figureStyle["float"] == "left" || figureStyle["float"] == "right"
 				for _, cls := range splitPyFields(attrValue(figureElem, "class")) {
+					if err := ctx.Err(); err != nil {
+						return advisorReport{}, err
+					}
 					if figureFloatClasses[cls] {
 						floated = true
 					}
@@ -383,9 +416,12 @@ func declarations(value string) map[string]string {
 
 // cssClassDeclarations 对齐 css_class_declarations：仅单类选择器规则。
 // 文件迭代顺序 = 容器序（Python files dict 的插入序）。
-func cssClassDeclarations(b *book.Book) map[[2]string]map[string]string {
+func cssClassDeclarations(ctx context.Context, b *book.Book) (map[[2]string]map[string]string, error) {
 	rules := map[[2]string]map[string]string{}
 	for _, path := range b.OriginalNames() {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !strings.HasSuffix(strings.ToLower(path), ".css") {
 			continue
 		}
@@ -395,8 +431,14 @@ func cssClassDeclarations(b *book.Book) map[[2]string]map[string]string {
 		}
 		css := cssCommentRe.ReplaceAllString(toPythonIgnoredUTF8(data), "")
 		for _, m := range cssRuleRe.FindAllStringSubmatch(css, -1) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			props := declarations(m[2])
 			for _, sel := range strings.Split(m[1], ",") {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				sel = strings.TrimSpace(sel)
 				if strings.ContainsAny(sel, " >+~") {
 					continue
@@ -414,12 +456,15 @@ func cssClassDeclarations(b *book.Book) map[[2]string]map[string]string {
 					rules[key] = map[string]string{}
 				}
 				for k, v := range props {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
 					rules[key][k] = v
 				}
 			}
 		}
 	}
-	return rules
+	return rules, nil
 }
 
 // toPythonIgnoredUTF8 复刻 bytes.decode("utf-8", errors="ignore")：丢弃非法字节。
@@ -474,7 +519,7 @@ func percentage(value string) *float64 {
 }
 
 // navPaths 对齐 nav_paths：nav 项 → toc 链接为章节，landmarks cover 链接为封面。
-func navPaths(b *book.Book, pkg *opf.Package) (map[string]bool, map[string]bool, error) {
+func navPaths(ctx context.Context, b *book.Book, pkg *opf.Package) (map[string]bool, map[string]bool, error) {
 	chapters := map[string]bool{}
 	covers := map[string]bool{}
 	navItem, ok := pkg.NavItem()
@@ -489,7 +534,7 @@ func navPaths(b *book.Book, pkg *opf.Package) (map[string]bool, map[string]bool,
 	if err != nil {
 		return chapters, covers, nil
 	}
-	root, err := parseXMLTree(data)
+	root, err := parseXMLTree(ctx, data)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -498,12 +543,18 @@ func navPaths(b *book.Book, pkg *opf.Package) (map[string]bool, map[string]bool,
 
 	var walk func(n *ixNode)
 	walk = func(n *ixNode) {
+		if ctx.Err() != nil {
+			return
+		}
 		if n.tag == "nav" {
 			types := map[string]bool{}
 			for _, tok := range strings.Fields(attrValue(n, epubTypeKey)) {
 				types[tok] = true
 			}
 			for _, link := range n.subtree() {
+				if ctx.Err() != nil {
+					return
+				}
 				if link.tag != "a" {
 					continue
 				}
@@ -530,6 +581,9 @@ func navPaths(b *book.Book, pkg *opf.Package) (map[string]bool, map[string]bool,
 	}
 	if root != nil {
 		walk(root)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
 	}
 	return chapters, covers, nil
 }

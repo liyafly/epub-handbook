@@ -463,9 +463,11 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 
 > **架构红利：`--dry-run` 对每个 capability 都近乎免费。**
 > §6.1 强制的三段式（扫描 → 应用 → 报告）天然支持它 ——
-> 跑扫描阶段、跳过 `b.Apply(edits)`、把 `edits` 摘要进报告即可。
-> 因此 `--dry-run` 是**全局 flag，不是某个 capability 的特性**，
-> 由 `pipeline` 统一实现，`caps` 不需要各自处理。
+> 扫描与 `b.Apply(edits)` 都在内存中完成，后续阶段和红线检查同一份候选；
+> 不能跳过内存应用，否则多阶段改名、迁移与局部样式的预览会失真。
+> `--dry-run` 是**全局 flag，不是某个 capability 的特性**：`pipeline`
+> 统一禁止最终落盘，报告保留完整变更摘要与计划路径；多产物 capability
+> 同样不得在 dry-run 创建目录或写出产物。预览失败不生成默认应用建议。
 
 ### 7.3 报告格式：从「逐字节保持」改为「统一信封」
 

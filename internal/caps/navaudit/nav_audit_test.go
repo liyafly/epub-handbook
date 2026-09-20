@@ -3,7 +3,9 @@ package navaudit
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +16,25 @@ import (
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
+
+func TestLooseScanRetainsSourceAndHonorsCancellation(t *testing.T) {
+	data := []byte(`<html lang="zh-CN"><body><p>one <b>two</b></p><svg xmlns="http://www.w3.org/2000/svg"/></body></html>`)
+	doc, err := parseXHTMLLoose(t.Context(), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.rawText != string(data) || doc.rootAttrs["lang"] != "zh-CN" {
+		t.Fatalf("source projection was lost: %+v", doc)
+	}
+	if doc.elements[1].local != "p" || doc.elements[1].text != "one two" {
+		t.Fatalf("nested visible text changed: %+v", doc.elements)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if doc, err := parseXHTMLLoose(ctx, data); doc != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled parse: doc=%v err=%v", doc, err)
+	}
+}
 
 // stubProbe 返回一个固定结果的 toolProbe：测试绝不能读开发机 PATH，
 // 否则 `brew install epubcheck` 会让 golden 无故变红。

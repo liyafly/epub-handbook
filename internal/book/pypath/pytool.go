@@ -186,8 +186,9 @@ func PathExt(p string) string {
 	return ext
 }
 
-// pyRelPath 复刻 posixpath.relpath 的段级计算。
-func pyRelPath(target, base string) string {
+// RelPath preserves the segment-level relative calculation of normalized paths.
+// It does not URI-decode or quote the result.
+func RelPath(target, base string) string {
 	startList := splitSegments(base)
 	pathList := splitSegments(target)
 	i := 0
@@ -195,7 +196,7 @@ func pyRelPath(target, base string) string {
 		i++
 	}
 	rel := make([]string, 0, len(startList)-i+len(pathList)-i)
-	for k := 0; k < len(startList)-i; k++ {
+	for range len(startList) - i {
 		rel = append(rel, "..")
 	}
 	rel = append(rel, pathList[i:]...)
@@ -235,12 +236,7 @@ func ResolveRelativePath(baseFile, uriPath string) (string, error) {
 
 // RelativeURI 复刻 core.relative_uri。
 func RelativeURI(fromArchivePath, toArchivePath string) string {
-	base := Dirname(fromArchivePath)
-	rel := toArchivePath
-	if base != "" {
-		rel = pyRelPath(toArchivePath, base)
-	}
-	return pyQuote(rel)
+	return pyQuote(RelativePath(fromArchivePath, toArchivePath))
 }
 
 // SplitProps 复刻 epub_lib.split_props。

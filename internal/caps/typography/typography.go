@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
@@ -135,7 +136,7 @@ func loadPreset(name, presetDir string) (presetConfig, string, error) {
 	layers := []string{}
 	for _, l := range layersAny {
 		layer, ok := l.(string)
-		if !ok || pyBasename(layer) != layer || !strings.HasSuffix(layer, ".css") {
+		if !ok || pypath.Basename(layer) != layer || !strings.HasSuffix(layer, ".css") {
 			return presetConfig{}, "", presetErrf("invalid stylesheet layer in preset %s: %s", name, pyRepr(layer))
 		}
 		cssPath := filepath.Join(dir, "Styles", layer)
@@ -353,7 +354,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err != nil {
 		return report.Result{}, presetErrf("%s: XML parse failed: %v", opfPath, err)
 	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 
 	xhtmlPaths, err := spineXHTMLPaths(opfRoot, opfPath)
 	if err != nil {
@@ -410,10 +411,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	// 2. 应用（唯一写点）。
-	stylesDir := pyJoinPath(opfDir, "Styles")
+	stylesDir := pypath.Join(opfDir, "Styles")
 	cssPaths := make([]string, 0, len(config.Layers))
 	for _, layer := range config.Layers {
-		cssPaths = append(cssPaths, pyJoinPath(stylesDir, layer))
+		cssPaths = append(cssPaths, pypath.Join(stylesDir, layer))
 	}
 
 	var edits []editset.Edit
@@ -559,7 +560,7 @@ func pyAbs(p string) string {
 
 // spineXHTMLPaths 复刻 spine_xhtml_paths（media-type ∈ {xhtml, html}）。
 func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
-	manifestNode := firstOPFChild(opfRoot, "manifest")
+	manifestNode := opfRoot.ChildByLocal(opf.OPFURI, "manifest")
 	if manifestNode == nil {
 		return nil, presetErrf("OPF missing manifest")
 	}
@@ -568,10 +569,10 @@ func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
 		if it.Name.Space != opf.OPFURI || it.Name.Local != "item" {
 			continue
 		}
-		id, _ := nodeAttr(it, "id")
+		id, _ := it.AttrByLocal("", "id")
 		items[id] = it
 	}
-	spineNode := firstOPFChild(opfRoot, "spine")
+	spineNode := opfRoot.ChildByLocal(opf.OPFURI, "spine")
 	if spineNode == nil {
 		return nil, presetErrf("OPF missing spine")
 	}
@@ -580,33 +581,33 @@ func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
 		if ref.Name.Space != opf.OPFURI || ref.Name.Local != "itemref" {
 			continue
 		}
-		idref, _ := nodeAttr(ref, "idref")
+		idref, _ := ref.AttrByLocal("", "idref")
 		item := items[idref]
 		if item == nil {
 			continue
 		}
-		mediaType, _ := nodeAttr(item, "media-type")
+		mediaType, _ := item.AttrByLocal("", "media-type")
 		if mediaType != "application/xhtml+xml" && mediaType != "text/html" {
 			continue
 		}
-		href, ok := nodeAttr(item, "href")
+		href, ok := item.AttrByLocal("", "href")
 		if !ok || href == "" {
 			continue
 		}
-		paths = append(paths, normJoin(pyDirname(opfPath), href))
+		paths = append(paths, pypath.NormJoin(pypath.Dirname(opfPath), href))
 	}
 	return paths, nil
 }
 
 // stylesheetActions 复刻 stylesheet_actions。
 func stylesheetActions(exists func(string) bool, opfPath, presetDir string, layers []string) []stylesheetAction {
-	stylesDir := pyJoinPath(pyDirname(opfPath), "Styles")
+	stylesDir := pypath.Join(pypath.Dirname(opfPath), "Styles")
 	// presetDir = <repo>/templates/style-presets/<name>；Python 的
 	// relative_to(ROOT) 需要 repoRoot = presetDir 上三层。
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(filepath.FromSlash(presetDir))))
 	actions := make([]stylesheetAction, 0, len(layers))
 	for _, layer := range layers {
-		path := pyJoinPath(stylesDir, layer)
+		path := pypath.Join(stylesDir, layer)
 		source := filepath.Join(filepath.FromSlash(presetDir), "Styles", layer)
 		rel, err := filepath.Rel(repoRoot, source)
 		if err != nil {
@@ -625,21 +626,21 @@ func stylesheetActions(exists func(string) bool, opfPath, presetDir string, laye
 // 已存在的条目把 media-type 收敛为 text/css（字节区间编辑），
 // 缺失的以 unique_id style-{stem} 追加到 manifest 尾部。
 func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.SpanNode, cssPaths []string) ([]string, []editset.Edit, error) {
-	manifestNode := firstOPFChild(opfRoot, "manifest")
+	manifestNode := opfRoot.ChildByLocal(opf.OPFURI, "manifest")
 	if manifestNode == nil {
 		return nil, nil, presetErrf("OPF missing manifest")
 	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 	existing := map[string]*opf.SpanNode{}
 	idSeen := map[string]bool{}
 	for _, it := range manifestNode.Kids {
 		if it.Name.Space != opf.OPFURI || it.Name.Local != "item" {
 			continue
 		}
-		if href, ok := nodeAttr(it, "href"); ok && href != "" {
-			existing[normJoin(opfDir, href)] = it
+		if href, ok := it.AttrByLocal("", "href"); ok && href != "" {
+			existing[pypath.NormJoin(opfDir, href)] = it
 		}
-		if id, ok := nodeAttr(it, "id"); ok {
+		if id, ok := it.AttrByLocal("", "id"); ok {
 			idSeen[id] = true
 		}
 	}
@@ -647,16 +648,16 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 	var edits []editset.Edit
 	var insert strings.Builder
 	for _, cssPath := range cssPaths {
-		href := relHref(opfPath, cssPath)
+		href := pypath.RelativePath(opfPath, cssPath)
 		item := existing[cssPath]
 		if item == nil {
-			id := uniqueID(idSeen, "style-"+pyPathStem(cssPath))
+			id := uniqueID(idSeen, "style-"+pypath.BaseStem(cssPath))
 			idSeen[id] = true
-			insert.WriteString(opfItemElement(id, href))
+			insert.WriteString(opf.BuildCSSItem(id, href))
 			added = append(added, href)
 			continue
 		}
-		if mediaType, _ := nodeAttr(item, "media-type"); mediaType != "text/css" {
+		if mediaType, _ := item.AttrByLocal("", "media-type"); mediaType != "text/css" {
 			edits = append(edits, setMediaTypeEdit(opfPath, opfData, item))
 		}
 	}
@@ -784,7 +785,7 @@ func rewriteStylesheetLinks(text, xhtmlPath string, cssPaths []string) (string, 
 	out.WriteString(text[last:headStart])
 	indent := headIndent + "  "
 	for _, cssPath := range cssPaths {
-		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + relHref(xhtmlPath, cssPath) + `"/>` + "\n")
+		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + pypath.RelativePath(xhtmlPath, cssPath) + `"/>` + "\n")
 	}
 	last = headStart
 	for ; di < len(deletes); di++ {

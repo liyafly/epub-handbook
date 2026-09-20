@@ -1,7 +1,8 @@
 # Go 重写交接
 
-> **2026-09-20 更新**：当前代码、Agent/skills 简化与实跑验证见 [§11.8](#118-2026-09-20-agent-发现局部试样与重构收尾)。
-> 下方 W0–W5 与 §11.6 保留历史证据；§11.6.11 两项的当前处理以 §11.8 为准。
+> **2026-09-20 更新**：当前内部重构、网页裁决与验证见 [§11.9](#119-2026-09-20-网页裁决后的内部重构)。
+> Agent/skills 与局部试样见 §11.8；下方 W0–W5 与 §11.6 保留历史证据，
+> §11.6.11 两项以 §11.8 为准，历史守卫复核状态以 §11.9 为准。
 
 > 状态快照：**W0–W5 全部完成，迁移收尾** · 2026-08-30 · 工具链 Go 1.27
 >
@@ -985,3 +986,57 @@ redline 于是把 vol2 的映射套到 vol1 的封面上，报出一条假的 `r
 **留待后续而非合并到本轮：** 自动 before/after 视觉样例库、目标阅读器实测、
 已漂移 helper 的语义统一。历史提交 `fc61716` 的守卫改动仍需所有者人工复核；
 本轮没有通过改守卫放行实现，也未 push 或 merge。
+
+### 11.9 2026-09-20 网页裁决后的内部重构
+
+**所有者已提交的决定：** 本地问题页 `testMode=false` 答案保存于
+`work/agent-cli-review-20260920/answers.json`，时间为 `2026-09-20T07:41:54.231Z`。
+先做内部重构；后续目标阅读器为 Apple Books、Readest、Kindle Previewer，
+样例方向保留几个可定制预设及灵活组合。该答案不等于阅读器实测证据。
+所有者已人工接受历史提交 `fc61716` 的守卫改动，关闭 §11.8 中该待复核项；
+这不授权继续修改 `internal/archguard/`，本轮未改守卫。
+
+**实现与审查修正：**
+
+- CSS 清理与 typography 的相同 POSIX 路径函数移到 `book/pypath`，OPF manifest
+  遍历、单节点删除 edit 与新增 CSS item 片段移到 `scan/opf`。调用方直接使用公共
+  内部 helper，移除重复文件与空转发层；CSS/OPF 源文件仍为字节区间编辑。
+- 明确区分 raw relative path / percent-quoted URI、固定双引号属性转义 / 自动选引号、
+  `NormJoin` 的仅去 fragment / `ResolveRelativePath` 的 URI 解码，防止去重抹平语义。
+  typography 的 ID 分配不改变传入集合，保留它与 `pypath.UniqueID` 的副作用差别。
+- nav/layout audit、content analysis、image layout 的 context 不再在入口被丢弃；
+  传入资源遍历和 XML token 扫描。源文件 HTML/Markdown/plain-text 分段也检查取消。
+  CSS 清理在资源循环及提交 editset 前检查；取消不转为书稿错误，不返回部分成功报告。
+- 导航检测复用扫描时的原文，删除无效临时对象与重复取数；删除恒真条件及其误导注释。
+  架构 SPEC §7.2 改为实测的完整内存 dry-run，明确只禁止磁盘写出，不能跳过内存应用。
+- 新测试覆盖路径/转义边界、OPF namespace/顺序/相邻字节，以及真实注册 runner 的
+  确定性中途取消；不依赖 sleep 或抢跑时序，不通过修改 golden/守卫掩盖行为差异。
+
+**验证与非回归证据：**
+
+- `go build ./...`、`go test ./...`、`go vet ./...`、`go test -race ./...`、
+  archguard `-v`、docguard、legacy_surface、工作区与暂存区 diff 检查通过。
+- 与 `dc5cbcb` 构建的 CLI 对照：demo 与原始《EPub指南》各运行 nav、layout、content、
+  image、CSS dry-run、typography dry-run，共 12 组，stdout/stderr 和退出码逐字节一致；
+  preview 无输出文件。参考书已有的审计失败保留，不冒称修复。
+- CSS 清理、局部 preset、整书 preset 的实际输出也与旧 CLI 逐字节相同；SHA-256 分别为
+  `0d5ab5028b5cb3f389050066393a9ba180e1fda1815a9c4e7b73053904ad807a`、
+  `fafc22cf69666c9727fbaaf9ce2d89b794af74ad983d620a9b116a755e9781e7`、
+  `17ea5410f3cd356c81f0eaccce0a712b5d0d2e6bf7a8cd29bf3f73bdd8e85b4c`。
+- 模板重新构建为 `templates/epub-style-demo/dist/epub-style-demo-20260920-161248.epub`，
+  SHA 仍为 `435188966fe8166d7486df86832ce7acaef1d94a4b02d64bf544d0139a74fdd2`。
+  demo、CSS 清理候选、局部候选的 nav / popup / maintain / 全项 redline / XML 通过；
+  maintain 的 EPUBCheck-skipped warning 保留，本地不代替 CI EPUBCheck。
+- **整书 preset 仅证明非回归，不能当可发布样例**：nav / popup / 全项 redline / XML
+  通过，但 maintain 有两个 error：替换后的 `fonts.css` 无正文锁定链，且与原 OPF
+  `ibooks:specified-fonts=true` 不一致。这是原整书模式已有问题，本轮内部去重未改变它，
+  没有修改 demo validator 或字体元数据来放行。结果未发布。
+- 本地对照脚本、信封与候选在忽略目录 `work/agent-cli-review-20260920/evidence/refactor/`；
+  复现脚本为该任务目录内 `compare-refactor.mjs` / `verify-refactor-artifacts.mjs`。
+  后者如实以非零退出保留整书 preset 的专项校验失败。
+
+**后续边界：** 优先修整书 preset 的自由/锁定模式保护，再制作可定制的 before/after
+视觉样例。`refs/pkgio/xmlmini` 等已漂移实现仍须逐项证明等价，不能机械替换；
+未覆盖的同步解析/其他 capability 仍有细粒度取消工作，不声称全仓完成。
+Apple Books、Readest、Kindle Previewer 本轮均未实测，reader matrix 不变。
+上述内部重构可独立审阅/合入；没有新增依赖、书稿改动、外部发布、push 或 merge。
