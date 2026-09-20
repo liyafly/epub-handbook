@@ -56,7 +56,7 @@ func usage(w *os.File) {
 用法:
   epub run <capability-id> [--input PATH] [--output PATH] [--dry-run] [--json]
             [KEY=VALUE...]
-  epub capabilities [--json]          列出全部能力及其实现状态
+  epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub redline [--check TEXT,...|all] [--allow-list GLOB]...
             [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose]
             BEFORE AFTER
@@ -78,7 +78,7 @@ func runCapability(argv []string) int {
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", "", "输入 EPUB")
 	output := fs.String("output", "", "输出 EPUB")
-	dryRun := fs.Bool("dry-run", false, "只扫描并报告，不写输出")
+	dryRun := fs.Bool("dry-run", false, "生成内存候选并检查，不写输出")
 	jsonOut := fs.Bool("json", false, "以统一信封 JSON 输出")
 	if err := fs.Parse(argv[1:]); err != nil {
 		return runUsageError(id, jsonRequested, err)
@@ -88,6 +88,9 @@ func runCapability(argv []string) int {
 		k, v, ok := strings.Cut(kv, "=")
 		if !ok {
 			return runUsageError(id, *jsonOut, fmt.Errorf("参数必须是 KEY=VALUE 形式: %q", kv))
+		}
+		if _, exists := args[k]; exists {
+			return runUsageError(id, *jsonOut, fmt.Errorf("重复参数: %s", k))
 		}
 		args[k] = v
 	}
@@ -166,7 +169,12 @@ func runUsageError(capabilityID string, jsonOut bool, err error) int {
 func runCapabilities(argv []string) int {
 	fs := flag.NewFlagSet("epub capabilities", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "输出 JSON")
+	id := fs.String("id", "", "只显示指定能力及其参数")
 	if err := fs.Parse(argv); err != nil {
+		return 3
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "epub capabilities: unexpected positional arguments")
 		return 3
 	}
 	root, err := pipeline.FindRepoRoot()
@@ -174,30 +182,13 @@ func runCapabilities(argv []string) int {
 		fmt.Fprintln(os.Stderr, "epub:", err)
 		return 3
 	}
-	contracts, err := pipeline.AllContracts(root)
+	contracts, err := pipeline.DescribeCapabilities(root, *id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "epub:", err)
 		return 1
 	}
 	if *jsonOut {
-		type capInfo struct {
-			ID          string   `json:"id"`
-			Kind        string   `json:"kind"`
-			Implemented bool     `json:"implemented"`
-			RedLines    []string `json:"redLines,omitempty"`
-			Requires    []string `json:"requires,omitempty"`
-		}
-		out := make([]capInfo, 0, len(contracts))
-		for _, c := range contracts {
-			out = append(out, capInfo{
-				ID:          c.ID,
-				Kind:        c.Kind,
-				Implemented: pipeline.Implemented(c.ID),
-				RedLines:    c.RedLines,
-				Requires:    c.Requires,
-			})
-		}
-		data, err := json.MarshalIndent(out, "", "  ")
+		data, err := json.MarshalIndent(contracts, "", "  ")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "epub:", err)
 			return 1
@@ -208,7 +199,7 @@ func runCapabilities(argv []string) int {
 	fmt.Printf("%-42s %-10s %s\n", "CAPABILITY", "KIND", "GO")
 	for _, c := range contracts {
 		status := "pending"
-		if pipeline.Implemented(c.ID) {
+		if c.Implemented {
 			status = "ready"
 		}
 		fmt.Printf("%-42s %-10s %s\n", c.ID, c.Kind, status)

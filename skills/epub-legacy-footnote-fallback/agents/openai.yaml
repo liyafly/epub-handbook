@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB 旧版弹注 Fallback"
-  short_description: "在标准弹注上叠加多看旧版兼容 fallback。"
-  default_prompt: "使用 $epub-legacy-footnote-fallback 在这个标准 EPUB 弹注结构上叠加多看旧版兼容 fallback，并保持 SPEC §1 结构不变。"
+  short_description: "仅按明确兼容需求为标准弹注叠加多看 hooks，不复制注释容器。"
+  default_prompt: "使用 $epub-legacy-footnote-fallback 为已明确的旧多看目标叠加兼容层，并验证标准结构与注释不变。"

@@ -124,14 +124,19 @@ type scanResult struct {
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	scan, err := scanPhase(b, p)
 	if err != nil {
 		return report.Result{}, err
 	}
-	if !p.DryRun {
-		if err := b.Apply(scan.edits); err != nil {
-			return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
-		}
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	// Preview the same candidate as apply; pipeline owns the disk-write gate.
+	if err := b.Apply(scan.edits); err != nil {
+		return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 	}
 	return buildResult(p, scan.rep), nil
 }

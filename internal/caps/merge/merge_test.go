@@ -175,7 +175,7 @@ func assertOperationFacts(t *testing.T, res report.Result, inputs []string, outp
 }
 
 // TestMergeFacts 是不依赖 Python oracle 的正式 facts 断言：两卷同名资源
-// 触发改名，改名数与 Result.Renames 一致。
+// 触发改名；计数跨卷，红线 Renames 仅针对首卷。
 func TestMergeFacts(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "first.epub")
@@ -204,8 +204,8 @@ func TestMergeFacts(t *testing.T) {
 	if merged == 0 || renamed == 0 {
 		t.Fatalf("mergedItems=%d renamedResources=%d, want both > 0", merged, renamed)
 	}
-	if len(res.Renames) != renamed {
-		t.Errorf("len(Renames) = %d, want renamedResources %d", len(res.Renames), renamed)
+	if len(res.Renames) != 0 {
+		t.Errorf("first-volume Renames must be empty, got %v", res.Renames)
 	}
 	assertOperationFacts(t, res, []string{first, second}, out, merged, renamed)
 }
@@ -305,19 +305,24 @@ func TestMergeRewritesConflictingResourceReferences(t *testing.T) {
 		t.Errorf("vol2_cover.jpg 内容应是 vol2 的原封面字节: %q", vol2Cover)
 	}
 
-	// Renames 精确等于这三条改名（TestMergeExposesRenamesAsPathMapFact 已
-	// 覆盖 Renames 与 facts.mappings 的通用一致性，这里锁定具体值）。
+	// Source-scoped mappings retain volume 2's renames without redirecting
+	// volume 1's identical archive paths in the redline before-state.
 	wantRenames := map[string]string{
 		"OEBPS/Text/chapter.xhtml": "OEBPS/Text/vol2_chapter.xhtml",
 		"OEBPS/Styles/main.css":    "OEBPS/Styles/vol2_main.css",
 		"OEBPS/Images/cover.jpg":   "OEBPS/Images/vol2_cover.jpg",
 	}
-	if len(res.Renames) != len(wantRenames) {
-		t.Fatalf("Renames = %v, want %v", res.Renames, wantRenames)
+	sources := res.Facts["sourceMappings"].([]map[string]any)
+	if len(sources) != 2 || sources[1]["inputIndex"] != 1 || sources[1]["input"] != second {
+		t.Fatalf("source mappings: %v", sources)
 	}
-	for from, to := range wantRenames {
-		if res.Renames[from] != to {
-			t.Errorf("Renames[%q] = %q, want %q", from, res.Renames[from], to)
+	gotMappings := sources[1]["mappings"].([]map[string]string)
+	if len(gotMappings) != len(wantRenames) {
+		t.Fatalf("mappings=%v", gotMappings)
+	}
+	for _, m := range gotMappings {
+		if wantRenames[m["from"]] != m["to"] {
+			t.Errorf("unexpected mapping %v", m)
 		}
 	}
 

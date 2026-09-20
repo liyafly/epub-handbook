@@ -46,10 +46,18 @@ type Params struct {
 	// DemoDir 是 demo 源树根（templates/epub-style-demo 的绝对路径）。
 	// 源树模式必填；产物模式必填（Python 的 validate_source 无条件先跑）。
 	DemoDir string
+	Catalog bool
+	Query   string
 }
 
 // Run 执行 demo fixture 校验（只读）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	if p.Catalog {
+		return describeScenes(ctx, b, p)
+	}
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []string
 	mode := "source-tree"

@@ -492,6 +492,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			return failedResult(fmt.Sprintf("%s: segment %d validation failed: %v", CapabilityID, segmentNumber, err))
 		}
 		segments[segmentIndex].valid = valid
+		for _, event := range valid.events {
+			event.Message = fmt.Sprintf("segment=%d %s", segmentNumber, event.Message)
+			events = append(events, event)
+		}
 		events = append(events, report.Event{
 			Step: "split", Status: "completed",
 			Message: fmt.Sprintf("segment=%d selected=%d resources=%d validated", segmentNumber, len(selected), len(resources)),

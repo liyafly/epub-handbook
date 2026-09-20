@@ -43,9 +43,11 @@ type cappedBuffer struct {
 	buf      bytes.Buffer
 	limit    int
 	received int64
+	onLimit  context.CancelFunc
 }
 
 func (w *cappedBuffer) Write(p []byte) (int, error) {
+	wasExceeded := w.Exceeded()
 	if remaining := w.limit - w.buf.Len(); remaining > 0 {
 		keep := len(p)
 		if keep > remaining {
@@ -54,6 +56,9 @@ func (w *cappedBuffer) Write(p []byte) (int, error) {
 		_, _ = w.buf.Write(p[:keep])
 	}
 	w.received += int64(len(p))
+	if !wasExceeded && w.Exceeded() && w.onLimit != nil {
+		w.onLimit()
+	}
 	return len(p), nil
 }
 
@@ -118,11 +123,13 @@ func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	if err := Require(argv[0]); err != nil {
 		return CmdResult{}, err
 	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	processCtx, cancelProcess := context.WithCancel(ctx)
+	defer cancelProcess()
+	cmd := exec.CommandContext(processCtx, argv[0], argv[1:]...)
 	cmd.Dir = dir
 	cmd.WaitDelay = waitDelay
-	out := cappedBuffer{limit: streamOutputLimit}
-	errBuf := cappedBuffer{limit: streamOutputLimit}
+	out := cappedBuffer{limit: streamOutputLimit, onLimit: cancelProcess}
+	errBuf := cappedBuffer{limit: streamOutputLimit, onLimit: cancelProcess}
 	cmd.Stdout = &out
 	cmd.Stderr = &errBuf
 	err := cmd.Run()

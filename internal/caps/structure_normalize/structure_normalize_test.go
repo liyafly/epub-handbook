@@ -320,7 +320,7 @@ func TestFormatMatchesPythonAssertions(t *testing.T) {
 	}
 }
 
-func TestFormatDryRunOnlyPlans(t *testing.T) {
+func TestFormatDryRunProjectsWithoutWriting(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "source.epub")
 	buildFixture(t, fixture, "")
@@ -331,7 +331,7 @@ func TestFormatDryRunOnlyPlans(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	rep := factsOf(t, res)
-	if !rep.DryRun || rep.RewrittenFiles != 0 || rep.MovedResources != 7 {
+	if !rep.DryRun || rep.RewrittenFiles == 0 || rep.MovedResources != 7 {
 		t.Fatalf("dry-run 报告错误: %+v", rep)
 	}
 	if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
@@ -464,23 +464,22 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	}
 }
 
-func TestNormalizeDryRunKeepsStage1(t *testing.T) {
+func TestNormalizeDryRunProjectsBothStages(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "workflow.epub")
 	buildFixture(t, fixture, "")
 	output := filepath.Join(dir, "out.epub")
 
-	// 与 Python 一致：normalize 的 dry-run 只作用于阶段 2，
-	// 阶段 1 仍完整执行（报告 dry_run=false / rewritten=4）。
+	// Both stages are projected in memory; only the final disk write is skipped.
 	res, err := runGo(t, fixture, output, ModeNormalize, true)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	wf := factsOf(t, res)
-	if wf.DryRun != true || wf.Stages[0].DryRun != false || wf.Stages[1].DryRun != true {
+	if !wf.DryRun || !wf.Stages[0].DryRun || !wf.Stages[1].DryRun {
 		t.Fatalf("dry_run 传播错误: %+v", wf)
 	}
-	if wf.Stages[0].RewrittenFiles == 0 || wf.Stages[1].RewrittenFiles != 0 {
+	if wf.Stages[0].RewrittenFiles == 0 || wf.Stages[1].RewrittenFiles == 0 {
 		t.Fatalf("阶段 rewritten 计数错误: %+v", wf.Stages)
 	}
 	if _, serr := os.Stat(output); !errors.Is(serr, os.ErrNotExist) {

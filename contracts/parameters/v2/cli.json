@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "2",
+  "commonParameters": {
+    "allow_font_obfuscation": {
+      "type": "boolean",
+      "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+      "default": "false"
+    }
+  },
+  "capabilities": {
+    "epub.package.nav.audit": {
+      "description": "只读审计导航、包结构和兼容性风险。",
+      "parameters": {}
+    },
+    "epub.layout.audit": {
+      "description": "只读布局审计，不修改样式。",
+      "parameters": {}
+    },
+    "epub.text.content.analyze": {
+      "description": "只读正文分析；可选对照源文本。",
+      "parameters": {
+        "include_snippets": {
+          "type": "boolean",
+          "description": "在报告中包含正文片段。",
+          "default": "false"
+        },
+        "source_name": {
+          "type": "string",
+          "description": "源文本名称。"
+        },
+        "source_content": {
+          "type": "string",
+          "description": "作为对照的源文本内容，不是文件路径。"
+        }
+      }
+    },
+    "epub.image.layout.optimize": {
+      "description": "只读图片布局诊断，不移动图片。",
+      "parameters": {}
+    },
+    "epub.font.coverage.analyze": {
+      "description": "经独立字体 provider 分析覆盖；provider 缺失时说明不可验证。",
+      "parameters": {
+        "profile": {
+          "type": "string",
+          "description": "字体风险配置，由 provider 校验。",
+          "default": "kindle-pessimistic"
+        }
+      }
+    },
+    "epub.notes.popup.normalize": {
+      "description": "只读弹注验证；实际转换由 EPUB3 迁移能力完成。",
+      "parameters": {}
+    },
+    "epub.style.demo.maintain": {
+      "description": "只读验证 demo 或发现真实样例；catalog=true 返回可搜索场景，不构建、不做阅读器验收。",
+      "parameters": {
+        "demo_dir": {
+          "type": "string",
+          "description": "demo 源树目录；默认仓库模板（产物验证也会检查源树）。"
+        },
+        "catalog": {
+          "type": "boolean",
+          "description": "从真实 spine/XHTML 生成场景目录；仅发现，不运行验证器。",
+          "default": "false"
+        },
+        "query": {
+          "type": "string",
+          "description": "catalog=true 时按标题、路径、manifest id 或 class 过滤。"
+        }
+      }
+    },
+    "epub.source.intake": {
+      "description": "只读源材料盘点和 source bundle 规划。",
+      "parameters": {
+        "max_files": {
+          "type": "integer",
+          "description": "最多扫描文件数。",
+          "default": "5000",
+          "minimum": 1
+        }
+      }
+    },
+    "epub.package.migrate.epub3": {
+      "description": "生成 EPUB3 候选；保留正文红线并报告迁移差异。",
+      "parameters": {
+        "no_popup_notes": {
+          "type": "boolean",
+          "description": "禁用弹注转换。",
+          "default": "false"
+        },
+        "no_typography": {
+          "type": "boolean",
+          "description": "禁用迁移中的排版角色处理。",
+          "default": "false"
+        }
+      }
+    },
+    "epub.css.layering.optimize": {
+      "description": "按字节区间清理 CSS；不支持自动 dedup/factor/prune/selector 全面重写。",
+      "parameters": {
+        "merge_scoped_local_css": {
+          "type": "boolean",
+          "description": "保留的兼容参数；当前合并动作禁用，true 会报告跳过，不修改 scoped CSS。",
+          "default": "false"
+        }
+      }
+    },
+    "epub.typography.optimize": {
+      "description": "应用样式预设；scope_paths 限定章节且追加独立 CSS，省略则整书替换预设层。",
+      "parameters": {
+        "preset": {
+          "type": "string",
+          "description": "预设目录名。",
+          "default": "literary-cn"
+        },
+        "preset_dir": {
+          "type": "string",
+          "description": "预设根目录。",
+          "default": "templates/style-presets"
+        },
+        "scope_paths": {
+          "type": "json-string-array",
+          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；仅追加自包含 CSS，保留原链接与共享样式。"
+        }
+      }
+    },
+    "epub.package.merge": {
+      "description": "合并多个输入；正文/书脊差异需逐项审查。",
+      "parameters": {
+        "extra_inputs": {
+          "type": "string",
+          "description": "其他输入 EPUB 路径，逗号分隔。",
+          "required": true
+        },
+        "title": {
+          "type": "string",
+          "description": "显式替换合并标题；省略保留首卷标题。"
+        }
+      }
+    },
+    "epub.package.split": {
+      "description": "按目录节点分区并验证各段，再原子提交输出目录。",
+      "parameters": {
+        "split_points": {
+          "type": "integer-list",
+          "description": "逗号分隔的零基目录节点索引。",
+          "required": true,
+          "minimum": 0
+        },
+        "output_dir": {
+          "type": "string",
+          "description": "不得已存在的输出目录；dry-run 也必须指定。",
+          "required": true
+        }
+      }
+    },
+    "epub.metadata.edit": {
+      "description": "按 JSON 对象文本编辑已授权的元数据。",
+      "parameters": {
+        "metadata_json": {
+          "type": "string",
+          "description": "元数据修改 JSON 对象文本（不是文件路径）。",
+          "required": true
+        }
+      }
+    },
+    "epub.cover.replace": {
+      "description": "替换封面资源；不修改正文。",
+      "parameters": {
+        "cover": {
+          "type": "string",
+          "description": "替换封面图片文件路径。",
+          "required": true
+        }
+      }
+    },
+    "epub.structure.normalize": {
+      "description": "检查或规范化目录与文件名；dry-run 生成完整内存候选和映射。",
+      "parameters": {
+        "mode": {
+          "type": "string",
+          "description": "规范化模式。",
+          "default": "normalize",
+          "enum": [
+            "inspect",
+            "format",
+            "deobfuscate",
+            "normalize"
+          ]
+        }
+      }
+    },
+    "epub.alite.convert": {
+      "description": "生成 A-lite 候选，保留原件和红线证据。",
+      "parameters": {
+        "expect_volumes": {
+          "type": "integer",
+          "description": "预期卷数。",
+          "minimum": 1
+        }
+      }
+    },
+    "epub.kindle.compatibility.check": {
+      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "parameters": {}
+    },
+    "epub.literary.structure.format": {
+      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "parameters": {}
+    },
+    "epub.notes.legacy-fallback": {
+      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "parameters": {}
+    },
+    "epub.typography.english.optimize": {
+      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "parameters": {}
+    },
+    "epub.vertical.ruby.optimize": {
+      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "parameters": {}
+    }
+  }
+}

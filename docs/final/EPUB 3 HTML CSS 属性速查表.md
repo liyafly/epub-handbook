@@ -227,6 +227,7 @@
 | 属性 / 规则 | 推荐值 / 用法 | 状态 | 备注 |
 |---|---|---|---|
 | `@font-face` | 定义书内字体 | 推荐 | 正文、标题、生僻字可分开 |
+| `src: local(...), url(...)` 的存量缺失 URL | 拆分容错 | 条件可用 | 仅同一 src 含有效非空 local() 时保留并记信息日志；不代表系统字体存在，不用于制造新模板悬空资源，见 SPEC §3 |
 | `@namespace epub` | `"http://www.idpf.org/2007/ops"` | 条件必需 | CSS 使用 `[epub\|type]` 时声明；紧跟可选 `@charset` / `@import`，早于 `@font-face` 和普通规则 |
 | `font-family` | 显式系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | C1-body 嵌入字体全覆盖；局部字体覆盖明确承担字符，其余验证 fallback |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |

@@ -1,4 +1,4 @@
 interface:
   display_name: "EPUB 英文排版优化"
-  short_description: "英文书籍类型判断、serif 链、段落节奏与断字。"
-  default_prompt: "使用 $epub-english-typography-optimizer 为这本英文 EPUB 制定并落地可重排、可验证的排版优化方案。"
+  short_description: "按英文书型人工精排段落、字体与断字，不套 CJK 或声称自动实现。"
+  default_prompt: "使用 $epub-english-typography-optimizer 根据英文书型先做代表性排版样例，再按授权实施并验证。"

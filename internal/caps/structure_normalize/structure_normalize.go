@@ -5,11 +5,11 @@
 //   - format：目录归类（Text/Styles/Images/Fonts/Audio/Video/Misc，
 //     ncx 留在 OPF 同级）并重写全部本地引用；
 //   - deobfuscate：按 manifest id 生成可读文件名（deobfuscated_basename 规则）；
-//   - normalize：两阶段 = 先 format 再 deobfuscate（与 Python 一致，
-//     dry-run 只作用于最后一个阶段，阶段 1 始终执行）。
+//   - normalize：两阶段 = 先 format 再 deobfuscate。
+//     dry-run 同样生成完整内存候选供红线检查，只有 pipeline 决定是否落盘。
 //
 // 字节保真策略（parity 基准是 Python oracle 的最终输出字节）：
-// XHTML/CSS 用与 Python 完全相同的正则语义做字符串级重写后按原编码回编；
+// XHTML 按真实标记区域重写；CSS 用 lossless token spans/editset 后按原编码回编；
 // OPF / encryption.xml 在 Python 侧是 ElementTree 整体重写，这里用
 // xmlmini.go 逐条复刻 ET 的解析与序列化规则，保证最终字节一致。
 // 所有写入一律以 []editset.Edit 交给 book.Apply（SPEC §6.1 三段式），
@@ -30,6 +30,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
@@ -77,9 +78,7 @@ func (m Mode) pythonOperation() (string, bool) {
 type Params struct {
 	// Mode：inspect | format | deobfuscate | normalize。
 	Mode Mode
-	// DryRun 只做扫描不应用。normalize 与 Python 语义一致：
-	// 阶段 1（format）始终执行（Python 版会写临时文件），dry-run
-	// 只作用于阶段 2。
+	// DryRun 标记预览；仍应用到内存 Book，使映射与红线候选一致。
 	DryRun bool
 	// Force 只是占位：输出文件冲突由 pipeline 层裁决，包内不处理。
 	Force bool
@@ -126,6 +125,7 @@ type encryptionRecord struct {
 
 // refRewriter 复刻 rewrite_uri 的判定、重写与告警。
 type refRewriter struct {
+	err      error
 	pathMap  map[string]string
 	files    map[string]bool
 	warnings *[]string
@@ -165,22 +165,25 @@ func (rw *refRewriter) rewriteURI(uri, oldDocument, newDocument string) string {
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	op, ok := p.Mode.pythonOperation()
 	if !ok {
 		return report.Result{}, fmt.Errorf("%w: unsupported mode %q", ErrStructureTool, string(p.Mode))
 	}
 	if p.Mode == ModeInspect {
-		return runInspect(b, p)
+		return runInspect(ctx, b, p)
 	}
 	if p.Mode == ModeNormalize {
-		return runNormalize(b, p)
+		return runNormalize(ctx, b, p)
 	}
-	return runSingleStage(b, p, op)
+	return runSingleStage(ctx, b, p, op)
 }
 
 // scanRewriteStage 复刻 analyze_epub（+ 非 dry-run 的 transform_files）：
 // 只读 b，产出报告与 []editset.Edit；不落盘。
-func scanRewriteStage(b *book.Book, op string, dryRun bool) (stageResult, error) {
+func scanRewriteStage(ctx context.Context, b *book.Book, op string, dryRun bool) (stageResult, error) {
 	names := b.Names()
 	files := make(map[string]bool, len(names))
 	for _, n := range names {
@@ -221,13 +224,8 @@ func scanRewriteStage(b *book.Book, op string, dryRun bool) (stageResult, error)
 	if err != nil {
 		return stageResult{}, err
 	}
-	if dryRun {
-		// Python 的 dry-run 在 transform_files 之前返回：只有 plan，无 rewritten。
-		return stageResult{rep: rep, pathMap: pathMap}, nil
-	}
-
 	// transform_files → editset.Edit。
-	creates, deletes, replaces, err := transformContent(b, names, files, opfPath, opfRoot, encPath, pathMap, &rep)
+	creates, deletes, replaces, err := transformContent(ctx, b, names, files, opfPath, opfRoot, encPath, pathMap, &rep)
 	if err != nil {
 		return stageResult{}, err
 	}
@@ -262,8 +260,8 @@ func applyStage(b *book.Book, st stageResult) error {
 	return nil
 }
 
-func runSingleStage(b *book.Book, p Params, op string) (report.Result, error) {
-	st, err := scanRewriteStage(b, op, p.DryRun)
+func runSingleStage(ctx context.Context, b *book.Book, p Params, op string) (report.Result, error) {
+	st, err := scanRewriteStage(ctx, b, op, p.DryRun)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -273,10 +271,9 @@ func runSingleStage(b *book.Book, p Params, op string) (report.Result, error) {
 	return buildResult(p, op, []stageReport{st.rep}, renamesFromStages(st.rep)), nil
 }
 
-// runNormalize 复刻 normalize_epub：两阶段，阶段 1 始终执行
-// （Python 版把 formatted 写进临时目录），dry-run 只作用于阶段 2。
-func runNormalize(b *book.Book, p Params) (report.Result, error) {
-	st1, err := scanRewriteStage(b, "format", false)
+// runNormalize 的两阶段始终在内存中完成，预览不产生部分执行状态。
+func runNormalize(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	st1, err := scanRewriteStage(ctx, b, "format", p.DryRun)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -284,20 +281,18 @@ func runNormalize(b *book.Book, p Params) (report.Result, error) {
 		return report.Result{}, err
 	}
 
-	st2, err := scanRewriteStage(b, "deobfuscate-filenames", p.DryRun)
+	st2, err := scanRewriteStage(ctx, b, "deobfuscate-filenames", p.DryRun)
 	if err != nil {
 		return report.Result{}, err
 	}
-	if !p.DryRun {
-		if err := applyStage(b, st2); err != nil {
-			return report.Result{}, err
-		}
+	if err := applyStage(b, st2); err != nil {
+		return report.Result{}, err
 	}
 	return buildResult(p, "normalize", []stageReport{st1.rep, st2.rep}, renamesFromStages(st1.rep, st2.rep)), nil
 }
 
-func runInspect(b *book.Book, p Params) (report.Result, error) {
-	st, err := scanRewriteStage(b, "inspect", false)
+func runInspect(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	st, err := scanRewriteStage(ctx, b, "inspect", false)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -777,7 +772,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 //   - 其余字节透传（不产生编辑，zipfs 原样搬运）；
 //   - 改名 = 新建 entry（携带重写后的完整内容）+ 删除旧 entry；
 //   - mimetype：Python 总是重写为规范内容并以 STORED 写出。
-func transformContent(b *book.Book, names []string, files map[string]bool, opfPath string, opfRoot *xmlElem, encPath string, pathMap map[string]string, rep *stageReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
+func transformContent(ctx context.Context, b *book.Book, names []string, files map[string]bool, opfPath string, opfRoot *xmlElem, encPath string, pathMap map[string]string, rep *stageReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
 	rw := &refRewriter{pathMap: pathMap, files: files, warnings: &rep.Warnings}
 	transformed := map[string]bool{}
 	var creates, deletes, replaces []editset.Edit
@@ -796,6 +791,9 @@ func transformContent(b *book.Book, names []string, files map[string]bool, opfPa
 	}
 
 	for _, oldPath := range names {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, nil, err
+		}
 		if oldPath == "mimetype" {
 			continue
 		}
@@ -843,6 +841,9 @@ func transformContent(b *book.Book, names []string, files map[string]bool, opfPa
 					return nil, nil, nil, err
 				}
 			}
+		}
+		if rw.err != nil {
+			return nil, nil, nil, rw.err
 		}
 		if !bytes.Equal(updated, currentBytes) {
 			rep.RewrittenFiles++
@@ -1047,14 +1048,34 @@ func rewriteStylesheetPIReference(pi, oldDocument, newDocument string, rw *refRe
 	})
 }
 
-// rewriteCSSReferences 复刻 rewrite_css_references。
+// rewriteCSSReferences uses lossless token spans, excluding comments and
+// non-resource strings. An uncertain local escape refuses the candidate.
 func rewriteCSSReferences(text, oldDocument, newDocument string, rw *refRewriter) string {
-	text = subCSSURL(text, func(prefix, quote, uri, suffix string) string {
-		return prefix + quote + rw.rewriteURI(uri, oldDocument, newDocument) + quote + suffix
-	})
-	return subCSSImport(text, func(prefix, quote, uri string) string {
-		return prefix + quote + rw.rewriteURI(uri, oldDocument, newDocument) + quote
-	})
+	refs, err := css.ScanReferences([]byte(text))
+	if err != nil {
+		rw.err = toolErrf("%s: CSS reference scan: %v", oldDocument, err)
+		return text
+	}
+	var edits []editset.Edit
+	for _, ref := range refs {
+		if ref.DataURL || pyIsExternalURI(ref.Value) {
+			continue
+		}
+		if strings.Contains(ref.Value, `\`) {
+			rw.err = toolErrf("%s: escaped local CSS URL requires explicit repair: %s", oldDocument, ref.Value)
+			return text
+		}
+		updated := rw.rewriteURI(ref.Value, oldDocument, newDocument)
+		if updated != ref.Value {
+			edits = append(edits, editset.Replace(oldDocument, int64(ref.ValueSpan.Start), int64(ref.ValueSpan.Len()), []byte(updated)))
+		}
+	}
+	updated, err := editset.Apply(oldDocument, []byte(text), edits)
+	if err != nil {
+		rw.err = err
+		return text
+	}
+	return string(updated)
 }
 
 // rewriteSrcsetURLs 复刻 rewrite_srcset_urls。
@@ -1129,7 +1150,6 @@ type uriMatch struct {
 	prefix     string // prefix 组（到引号前）
 	quote      byte   // 0 表示无引号
 	uri        string
-	suffix     string // 仅 CSS url() 使用（\s*\)）
 }
 
 // isWordRune 对齐 Python \w（字母、数字、下划线，Unicode 感知）。
@@ -1215,132 +1235,6 @@ func findNameQuoteMatch(text string, from int, names []string) (uriMatch, bool) 
 			break
 		}
 		i += size
-	}
-	return uriMatch{}, false
-}
-
-// subCSSURL 复刻 `\burl\(\s*(["']?)(.*?)\1\s*\)` 的 re.sub 语义
-// （含引号分支失败后回退为无引号的回溯行为）。
-func subCSSURL(text string, repl func(prefix, quote, uri, suffix string) string) string {
-	var out strings.Builder
-	last := 0
-	for {
-		m, ok := findURLMatch(text, last)
-		if !ok {
-			break
-		}
-		out.WriteString(text[last:m.start])
-		q := ""
-		if m.quote != 0 {
-			q = string(m.quote)
-		}
-		out.WriteString(repl(m.prefix, q, m.uri, m.suffix))
-		last = m.end
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-func findURLMatch(text string, from int) (uriMatch, bool) {
-	for i := from; i < len(text); {
-		if wordBoundary(text, i) && i+4 <= len(text) && strings.EqualFold(text[i:i+4], "url(") {
-			j := skipPySpace(text, i+4)
-			quote := byte(0)
-			quoteStart := -1
-			if j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote = text[j]
-				quoteStart = j
-				j++
-			}
-			uriStart := j
-			if quote != 0 {
-				p := j
-				for p < len(text) {
-					idx := strings.IndexByte(text[p:], quote)
-					if idx < 0 {
-						break
-					}
-					qPos := p + idx
-					k := skipPySpace(text, qPos+1)
-					if k < len(text) && text[k] == ')' {
-						return uriMatch{
-							start: i, end: k + 1,
-							prefix: text[i:quoteStart],
-							quote:  quote,
-							uri:    text[uriStart:qPos],
-							suffix: text[qPos+1 : k+1],
-						}, true
-					}
-					p = qPos + 1
-				}
-				// 回溯：引号组视为空，uri 从引号字符处开始。
-				uriStart = quoteStart
-			}
-			idx := strings.IndexByte(text[uriStart:], ')')
-			if idx >= 0 {
-				closePos := uriStart + idx
-				wsStart := closePos
-				for wsStart > uriStart {
-					r, size := utf8.DecodeLastRuneInString(text[uriStart:wsStart])
-					if !unicode.IsSpace(r) {
-						break
-					}
-					wsStart -= size
-				}
-				return uriMatch{
-					start: i, end: closePos + 1,
-					prefix: text[i:uriStart],
-					quote:  0,
-					uri:    text[uriStart:wsStart],
-					suffix: text[wsStart : closePos+1],
-				}, true
-			}
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		if size == 0 {
-			break
-		}
-		i += size
-	}
-	return uriMatch{}, false
-}
-
-// subCSSImport 复刻 `@import\s+(["'])(.*?)\1` 的 re.sub 语义。
-func subCSSImport(text string, repl func(prefix, quote, uri string) string) string {
-	var out strings.Builder
-	last := 0
-	for {
-		m, ok := findImportMatch(text, last)
-		if !ok {
-			break
-		}
-		out.WriteString(text[last:m.start])
-		out.WriteString(repl(m.prefix, string(m.quote), m.uri))
-		last = m.end
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-func findImportMatch(text string, from int) (uriMatch, bool) {
-	for i := from; i+7 <= len(text); i++ {
-		if strings.EqualFold(text[i:i+7], "@import") {
-			j := skipPySpace(text, i+7)
-			if j > i+7 && j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote := text[j]
-				uriStart := j + 1
-				idx := strings.IndexByte(text[uriStart:], quote)
-				if idx >= 0 {
-					uriEnd := uriStart + idx
-					return uriMatch{
-						start: i, end: uriEnd + 1,
-						prefix: text[i:j],
-						quote:  quote,
-						uri:    text[uriStart:uriEnd],
-					}, true
-				}
-			}
-		}
 	}
 	return uriMatch{}, false
 }

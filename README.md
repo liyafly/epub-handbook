@@ -5,7 +5,8 @@
 如果你只是想做一本书、修一本现成 EPUB，或排查一个具体问题，从下面三条路里选一条即可。
 
 CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o epub ./cmd/epub` 后直接使用）。
-`epub capabilities --json` 列出全部能力；所有命令返回统一 JSON 信封，退出码 0/1/2/3
+`epub capabilities --json` 列出全部能力；加 `--id <capability-id>` 可只看该能力的参数、默认值和执行形态。
+`epub run ... --json` 返回统一 JSON 信封（capabilities 返回数组，redline 返回文本），退出码 0/1/2/3
 （0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
 
 ## 我想……
@@ -22,10 +23,10 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 
 ```sh
 cp -r templates/book-starter ~/my-book
-cd ~/my-book
 # 改 OEBPS/package.opf 和 OEBPS/Text/01-chapter.xhtml
-sh build.sh
-go run ./cmd/epub run epub.package.nav.audit --input dist/*.epub --json
+(cd ~/my-book && sh build.sh)
+# 保持在本仓根目录运行 CLI；输入应选定单个构建产物
+go run ./cmd/epub run epub.package.nav.audit --input ~/my-book/dist/*.epub --json
 ```
 
 详细步骤、手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
@@ -56,6 +57,17 @@ go run ./cmd/epub redline --check all input.epub migrated.epub
 ## AI / 专业维护者入口
 
 先读 [AGENTS.md](AGENTS.md)。它是 AI 协作约束的唯一维护源，也是专业层的总路由。
+
+想找版式示例，先搜索真实 demo；想试改已有 EPUB，先做局部候选：
+
+```sh
+go run ./cmd/epub run epub.style.demo.maintain --json catalog=true query=chapter
+go run ./cmd/epub capabilities --id epub.typography.optimize --json
+go run ./cmd/epub run epub.typography.optimize --input before.epub --output sample.epub --dry-run --json 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
+```
+
+`scope_paths` 应替换成实际 spine XHTML 路径。局部模式追加独立 CSS，保留原样式与其他章节；
+不传此参数仍是整书预设应用。发现示例、预览候选和真实阅读器视觉验收是三个不同阶段。
 
 | 能力 | 位置 |
 | --- | --- |

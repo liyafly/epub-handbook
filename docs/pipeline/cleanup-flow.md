@@ -118,14 +118,14 @@ unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
 如果 EPUB 内部目录散乱，或 manifest href 使用不可读文件名，先运行只读检查与组合 dry-run：
 
 ```sh
-epub run epub.structure.normalize --input "$EPUB" --json mode=inspect
+epub run epub.structure.normalize --input "$EPUB" --output work/after/inspect.epub --dry-run --json mode=inspect
 epub run epub.structure.normalize \
   --input "$EPUB" \
   --output work/after/step-0-normalized.epub \
   --dry-run --json > work/step-0-normalize.dry-run.json
 ```
 
-`mode=normalize` 固定先执行 `format`，再执行 `deobfuscate-filenames`。确认两个阶段的 `mappings` 和 `warnings` 后去掉 `--dry-run`，写出新 EPUB 并保存实际报告：
+`mode=normalize` 固定先执行 `format`，再执行 `deobfuscate-filenames`。inspect 也需要输出参数，只有加 dry-run 才不落盘。dry-run 在内存完成两个阶段后执行红线，映射和候选保持一致；红线失败不可忽略。确认两个阶段的 `mappings`、`warnings` 与红线结果后去掉 `--dry-run`，写出新 EPUB 并保存实际报告：
 
 ```sh
 epub run epub.structure.normalize \
@@ -143,7 +143,7 @@ epub redline --check all \
   work/after/step-0-normalized.epub
 ```
 
-该能力不提供 DRM 解密。若加密声明目标在 ZIP 中不存在，报告会记录并移除 stale 引用；如果 `mode=inspect` 已确认只有 EPUB 标准字体混淆，在红线命令额外添加 `--allow-font-obfuscation`。若写出了 step-0 产物，后续 EPUB3 迁移基线使用该产物。
+该能力不提供 DRM 解密。若加密声明目标在 ZIP 中不存在，报告会记录并移除 stale 引用。仅在确认标准字体混淆且有明确授权时，运行参数加 `allow_font_obfuscation=true`，红线加 `--allow-font-obfuscation`；inspect 不能绕过 DRM 预检。写出后以产物和路径映射重新验证，后续迁移基线使用该产物。
 
 结构规范化后再次运行结构审计（`epub run epub.package.nav.audit`）。如果 CSS 仍引用 ZIP 中不存在的 `.ttf`、`.otf`、`.woff` 或 `.woff2`，审计会记录 `missing-css-font-fallback` 警告：不要猜测该别名对应哪个嵌入字体，也不要自动删掉声明，保留 `local()` fallback 并人工复核。图片、样式等非字体资源断链仍是阻断错误。
 

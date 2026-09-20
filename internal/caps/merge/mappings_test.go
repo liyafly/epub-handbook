@@ -39,8 +39,11 @@ func TestMergeExposesRenamesAsPathMapFact(t *testing.T) {
 	if res.Status != report.StatusComplete {
 		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
 	}
-	if len(res.Renames) == 0 {
-		t.Fatal("fixture 应当产生资源改名，Renames 为空说明用例失效")
+	if len(res.Renames) != 0 {
+		t.Fatal("later-volume conflicts must not redirect first-volume resources")
+	}
+	if res.Facts["renamedResources"].(int) == 0 {
+		t.Fatal("fixture must rename later-volume resources")
 	}
 
 	// facts.mappings 必须与 Renames 一一对应。
@@ -75,5 +78,9 @@ func TestMergeExposesRenamesAsPathMapFact(t *testing.T) {
 		if pathMap[from] != to {
 			t.Errorf("path map 缺少 %q -> %q（得到 %q）", from, to, pathMap[from])
 		}
+	}
+	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), []string{redline.CheckCover}, redline.Options{PathMap: pathMap})
+	if err != nil || len(findings) != 0 {
+		t.Fatalf("first-volume cover redirected: %v %v", findings, err)
 	}
 }

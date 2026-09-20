@@ -242,6 +242,7 @@ h1, h2, h3, h4, h5, h6 {
 - 正文锁定版：在自由版内容基线上增加正文角色字体、直接 `body` 规则和对应 OPF 字体 item；按默认规则同步添加 `ibooks:specified-fonts=true`。
 - 两版允许差异只限 `fonts.css`、字体文件、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明。每个 rendition 的唯一 `dcterms:modified` 可按各自实际打包时间不同；比较时只忽略其值，不忽略缺失、多份或格式错误。同一批成对构建优先共享一次取值的 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH`，减少无意义 diff。XHTML、核心 `dc:*` metadata、spine、注释、图片和其他资源应保持一致。
 - 为以后锁定字体准备的 CSS 模板放在工作目录，不打包进正文自由版；交付包不得保留指向缺失字体的 `@font-face`、CSS URL 或 OPF item。
+- 存量包的拆分容错不等于新模板推荐：同一 `@font-face src` 有有效非空 `local()` 时，CLI 可保留缺失字体 URL，仅记录信息事件并继续；不推断系统字体可用，不豁免其他断链。交付前仍按具体阅读器检查，边界见 SPEC §3。
 - 子集化后保持 `st` / `kt` / `fs` 等角色 alias 与包内路径稳定，只替换字体文件字节，并重新跑字体覆盖、preflight、EPUB lint 和两版正文一致性检查。
 
 既有书若按用户明确要求在正文自由版保留 `ibooks:specified-fonts=true`，这属于书级历史例外：在本地报告记录原因，并在书级 `制作说明.md` 显式记录豁免条目，不把该做法写回新书模板。

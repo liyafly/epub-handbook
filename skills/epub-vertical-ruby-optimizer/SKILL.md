@@ -1,38 +1,32 @@
 ---
 name: epub-vertical-ruby-optimizer
-description: 优化 EPUB 竖排、Ruby 注音、中西文混排方向和非海报竖排正文页。用于竖排文字横倒、裁切、Ruby 间距异常、或页面需要阅读器安全 vertical-rl CSS 但不能变成固定版式时。
+description: 人工修复 EPUB 竖排正文、Ruby 注音与中西文方向，保持可重排及前缀 fallback。用于横倒、裁切或注音异常；不处理 A-lite 海报骨架，当前无自动 runner。
 ---
 
-# EPUB 竖排与 Ruby 优化
+# EPUB 竖排与 Ruby
 
 ## 何时用
 
-- 竖排正文页和 Ruby 行为优化；全页海报/A-lite 叠加文本用 `epub-alite-converter`。
-- 固定目标：竖排正文页保持可重排——`body.page-vrl` 标记页面；`.vrl-section` 承载竖排 writing context；`writing-mode: vertical-rl` 带 EPUB/WebKit 前缀 fallback；`text-orientation` 明确处理混排文字方向；Ruby 保留语义化 `ruby`、`rt`、`rp`；不使用 absolute positioning、viewport sizing 或 fixed-layout package metadata。
-- 禁止事项：不把竖排正文转成图片；普通竖排正文页不用 fixed layout；不删除 EPUB/WebKit writing-mode 前缀 fallback；不混用 poster shell 类和 `body.page-vrl`；mixed orientation 更可读时不强制所有 Latin 字母直立；除非明确制作 fallback，不把 `rt` 文本复制成额外可见正文。
+先区分横排内联 Ruby、整页竖排正文与海报叠字；海报走 A-lite。对照 [竖排 fixture](../../templates/epub-style-demo/OEBPS/Text/14-vertical-body.xhtml) 与 [Ruby fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)，兼容判断查 reader matrix。
 
 ## 调什么
 
-本 skill 是 AI 分析与手工精排类 skill：读目标 XHTML 和已加载 CSS 层，判断页面类型（横排正文中的 inline Ruby、整页竖排正文、海报式 A-lite 叠加）后落地 CSS。改书后必须跑校验组合：
+`epub.vertical.ruby.optimize` 当前未实现；按授权人工调整后：
 
 ```sh
-epub run epub.notes.popup.normalize --input <产物> --json    # 涉及弹注时
-epub run epub.style.demo.maintain --input <demo 产物> --json # 涉及 demo 模板时
-epub redline --check all <before.epub> <after.epub>          # 每次改书后
+epub run epub.layout.audit --input "candidate.epub" --json
+epub redline --check all "before.epub" "candidate.epub"
 ```
+
+若涉及弹注另跑 popup validator；公共返回和 demo 验证见 [索引](../README.md)。
 
 ## 返回怎么读
 
-- `status`：`complete | failed | approval-required`；`findings[].level`：`error | warn | info`；`nextCommands[]` 给出建议的下一步命令。
-- 退出码：0 成功；1 失败或存在 error 级 finding；2 approval-required；3 用法错误。
-- `epub run epub.notes.popup.normalize` 的 facts：`noterefs`、`text_files`、`violations`；violations 对应 `error popupnotes` findings。
-- `epub redline` 输出是逐行文本（不是统一信封）：`All requested red-line checks passed.` 表示通过。
+静态扫描/红线不验证排版引擎的实际文字方向或 Ruby 行高；必须分别报告源码结构、内容边界与目标阅读器结果。
 
 ## 依据返回怎么判断
 
-- CSS 模式：`body.page-vrl` 与 `.vrl-section` 都用三套 `writing-mode: vertical-rl`（标准 + `-webkit-` + `-epub-`）前缀；`.vrl-section` 另加 `text-orientation: mixed` 三套前缀。
-- Ruby 保持语义（`<ruby>漢<rt>かん</rt><rp>（</rp><rt>かん</rt><rp>）</rp></ruby>`）；源文件已有有效 `rt` 时保留注音文本，不额外复制 fallback 可见文字。
-- 分层归位：inline Ruby 默认样式与 `.has-ruby` 行距兜底放 `base.css`；竖排正文页用 `body.page-vrl` 和 `vertical.css` 中的 `.vrl-section`；只有新增 XHTML fixture 或移动页面文件时才更新 OPF/nav（交给 `epub-package-nav-auditor`）。
-- `text-combine-upright` 只用于短数字或标记，并在确认阅读器支持后使用。
-- `findings` 出现 `error`（含 `popupnotes`、`redline.*`）→ 回滚或修复后重跑；`status == approval-required` → 停下来问人。
-- fixture 参考：`Text/02-ruby-note.xhtml`（inline Ruby + notes）、`Text/10-text-effects.xhtml`（Ruby + 文字效果）、`Text/14-vertical-body.xhtml`（非海报竖排正文）、`Text/03-vertical-alite.xhtml`（A-lite 对照，用 `epub-alite-converter`）；新规则先落 demo，实测后回写 `docs/final/reader-matrix.yaml`。
+- 整页正文用 body.page-vrl 与 .vrl-section，vertical-rl 带标准/WebKit/EPUB 前缀；text-orientation: mixed，不强制所有 Latin 直立。样式归 vertical.css，不能混用 poster shell。
+- Ruby 保留一份注音：`<ruby>漢<rp>（</rp><rt>かん</rt><rp>）</rp></ruby>`。已有有效 rt 不重复复制；inline Ruby 和 .has-ruby 行距兜底归 base.css。
+- text-combine-upright 只用于短数字/标记并经目标阅读器验证；不用图片、固定页高或 absolute positioning 替代真实文字。
+- 对照普通/大字号、混排和分页检查裁切；新规则用最小 fixture 实测后写入 matrix，不把未测效果标为 pass。

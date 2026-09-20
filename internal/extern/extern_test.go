@@ -4,12 +4,54 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestRunStopsProviderOnOutputLimit(t *testing.T) {
+	for _, stream := range []string{"stdout", "stderr"} {
+		t.Run(stream, func(t *testing.T) {
+			t.Setenv("EPUB_TEST_FLOOD_STREAM", stream)
+			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+			defer cancel()
+			res, err := Run(ctx, t.TempDir(), []string{os.Args[0], "-test.run=^TestOutputLimitHelper$"})
+			if !errors.Is(err, ErrOutputLimit) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				t.Fatalf("output limit error=%v", err)
+			}
+			if ctx.Err() != nil {
+				t.Fatal("provider used the entire deadline")
+			}
+			data := res.Stdout
+			if stream == "stderr" {
+				data = res.Stderr
+			}
+			if len(data) != streamOutputLimit {
+				t.Fatalf("captured %d bytes", len(data))
+			}
+		})
+	}
+}
+
+func TestOutputLimitHelper(t *testing.T) {
+	stream := os.Getenv("EPUB_TEST_FLOOD_STREAM")
+	if stream == "" {
+		return
+	}
+	out := os.Stdout
+	if stream == "stderr" {
+		out = os.Stderr
+	}
+	data := make([]byte, 32<<10)
+	for {
+		if _, err := out.Write(data); err != nil {
+			os.Exit(0)
+		}
+	}
+}
 
 // presentTool 返回测试宿主机上必然存在的外部工具名。
 func presentTool() string {
