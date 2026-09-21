@@ -19,11 +19,11 @@ epub run epub.typography.optimize --input "before.epub" --output "sample.epub" -
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-preset 为 `literary-cn`（默认）、`academic-cn`、`classical-annotated-cn`；仅自定义库才用 `preset_dir=`。省略 scope_paths 是整书替换预设层；提供非空 JSON 路径数组则只向所选章节追加内容寻址的独立 CSS，保留原链接与共享样式。不支持携带 url()/@import 的局部 preset，不能借此安装资源或自动改正文结构。字体资源/链变化后另跑 `epub run epub.font.coverage.analyze --input "candidate.epub" --json`。
+preset 为 `literary-cn`（默认）、`academic-cn`、`classical-annotated-cn`；仅自定义库才用 `preset_dir=`。省略 scope_paths 是整书替换预设层，但逐字节保留已有 `Styles/fonts.css` 及 OPF 字体元数据；正文链须已位于该字体层且与元数据一致，模式冲突或无法安全识别的导入、动态、内联正文链会拒绝处理。提供非空 JSON 路径数组则只向所选章节追加内容寻址的独立 CSS，保留原链接与共享样式。不支持携带 url()/@import 的局部 preset，不能借此安装资源或自动改正文结构。字体资源/链变化后另跑 `epub run epub.font.coverage.analyze --input "candidate.epub" --json`。
 
 ## 返回怎么读
 
-前缀 `epub.typography.optimize.`：`preset/layers/notes`、`coverage`、`stylesheetActions[]`（add/replace/keep）、`xhtmlLinkFiles`、`manifestItemsAddedHrefs`。局部模式另有 `applicationMode=scoped-additive` 与 `scopePaths`。
+前缀 `epub.typography.optimize.`：`preset/layers/notes`、`coverage`、`stylesheetActions[]`（add/replace/keep）、`xhtmlLinkFiles`、`manifestItemsAddedHrefs`。整书模式另有 `fontMode=free|locked` 与 `fontModeAction=preserve`，保留字体层的 action 为 `keep`。局部模式另有 `applicationMode=scoped-additive` 与 `scopePaths`。
 **coverage 是 preset 类覆盖率，不是字形覆盖率。** `typography.low-coverage` 表示结构与 preset 不匹配。公共返回见 [索引](../README.md)。
 
 ## 依据返回怎么判断

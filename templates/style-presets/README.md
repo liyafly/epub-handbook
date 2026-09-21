@@ -23,6 +23,15 @@ epub run epub.typography.optimize \
 
 确认 dry-run 报告后去掉 `--dry-run` 实跑；自定义预设根目录用 `preset_dir=<路径>` 传入。
 
+整书应用保留已有 `Styles/fonts.css` 原始字节和 OPF 字体元数据，保持原书自由／锁定
+模式；没有该层的自由版才安装预设字体层。正文链与元数据冲突、正文链散落在其他
+样式层，或存在需要人工判断的导入／动态／内联正文链时会拒绝处理。报告中的
+`fontMode`、`fontModeAction=preserve` 和字体层 `action=keep` 可用于核对。
+这不会验证全部 CSS 级联或字体覆盖，也不代替局部样例与阅读器验收。
+
+自定义预设限 1–32 个不重复层：JSON 至多 1 MiB，单层 CSS 至多 4 MiB，
+CSS 合计至多 16 MiB；所有输入必须是普通文件。
+
 预设遵守 `docs/final/SPEC-实现约束.md` §7 的 CSS 分层和加载顺序。新增预设时：
 
 1. 建立 `<name>/preset.json`、`README.md` 和 `Styles/`。

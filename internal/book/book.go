@@ -22,25 +22,41 @@ var (
 	ErrDuplicateEntry = errors.New("book: duplicate entry")
 	// ErrInvalidPath 表示 entry 路径会逃逸容器根或为空。
 	ErrInvalidPath = errors.New("book: invalid archive path")
+	// ErrMemoryLimit bounds retained original and edited entry bytes per book.
+	ErrMemoryLimit = errors.New("book: retained content limit exceeded")
 )
+
+// MaxRetainedBytes limits the sum of cached originals and edited content per book.
+const MaxRetainedBytes int64 = 512 << 20
 
 // Open 打开磁盘上的 EPUB 并建立 entry 表。
 // 目录项与 macOS 元数据文件（.DS_Store）从一开始就被排除，
 // 与 scripts/epub_lib.py read_epub_files 的行为一致。
 func Open(path string) (*Book, error) {
-	arch, err := zipfs.Open(path)
+	return OpenContext(nil, path)
+}
+
+// OpenContext checks cancellation while opening the archive. The context is
+// never retained by Book; cancellable reads take it explicitly.
+func OpenContext(ctx context.Context, path string) (*Book, error) {
+	arch, err := zipfs.OpenContext(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 	b := &Book{
-		arch:      arch,
-		byName:    make(map[string]*zipfs.Entry),
-		cur:       make(map[string][]byte),
-		deleted:   make(map[string]bool),
-		origCache: make(map[string][]byte),
+		arch:             arch,
+		byName:           make(map[string]*zipfs.Entry),
+		cur:              make(map[string][]byte),
+		deleted:          make(map[string]bool),
+		origCache:        make(map[string][]byte),
+		maxRetainedBytes: MaxRetainedBytes,
 	}
 	seen := make(map[string]bool, len(arch.Names()))
 	for _, name := range arch.Names() {
+		if ctx != nil && ctx.Err() != nil {
+			arch.Close()
+			return nil, ctx.Err()
+		}
 		if err := ValidatePath(name); err != nil {
 			arch.Close()
 			return nil, fmt.Errorf("book: %s: %w", name, err)
@@ -62,13 +78,16 @@ func Open(path string) (*Book, error) {
 
 // Book 是一个打开的 EPUB：输入容器 + 待应用的修改集。
 type Book struct {
-	arch      *zipfs.Archive
-	order     []string
-	byName    map[string]*zipfs.Entry
-	cur       map[string][]byte
-	added     []string
-	deleted   map[string]bool
-	origCache map[string][]byte
+	arch             *zipfs.Archive
+	order            []string
+	byName           map[string]*zipfs.Entry
+	cur              map[string][]byte
+	added            []string
+	deleted          map[string]bool
+	origCache        map[string][]byte
+	retainedBytes    int64
+	maxRetainedBytes int64
+	readErr          error
 }
 
 // Close 释放底层容器句柄。
@@ -76,6 +95,18 @@ func (b *Book) Close() error { return b.arch.Close() }
 
 // InputPath 返回输入文件路径。
 func (b *Book) InputPath() string { return b.arch.Path() }
+
+// ReadError returns the first error encountered while reading an archived entry
+// or retaining its original bytes. Missing entries and pre-canceled reads are
+// ordinary request errors and do not poison the book.
+func (b *Book) ReadError() error { return b.readErr }
+
+func (b *Book) rememberReadError(err error) error {
+	if err != nil && b.readErr == nil {
+		b.readErr = err
+	}
+	return err
+}
 
 // OriginalNames 返回输入容器中的 entry 名（保持物理顺序，不含目录与 .DS_Store）。
 func (b *Book) OriginalNames() []string {
@@ -132,6 +163,13 @@ func (b *Book) ModifiedNames() []string {
 
 // Original 返回 entry 在输入容器中的原始字节（惰性读取并缓存）。
 func (b *Book) Original(name string) ([]byte, error) {
+	return b.OriginalContext(nil, name)
+}
+
+func (b *Book) OriginalContext(ctx context.Context, name string) ([]byte, error) {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if data, ok := b.origCache[name]; ok {
 		return data, nil
 	}
@@ -139,20 +177,41 @@ func (b *Book) Original(name string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrMissingEntry, name)
 	}
-	data, err := b.arch.Read(e.Name())
+	if e.Size() > b.maxRetainedBytes-b.retainedBytes {
+		return nil, b.rememberReadError(fmt.Errorf("%w: %s", ErrMemoryLimit, name))
+	}
+	data, err := b.arch.ReadContext(ctx, e.Name())
 	if err != nil {
-		return nil, err
+		return nil, b.rememberReadError(err)
 	}
 	b.origCache[name] = data
+	b.retainedBytes += int64(len(data))
 	return data, nil
 }
 
 // Current 返回 entry 的当前字节：有未应用的修改返回修改后内容，否则返回原始内容。
 func (b *Book) Current(name string) ([]byte, error) {
+	return b.CurrentContext(nil, name)
+}
+
+func (b *Book) CurrentContext(ctx context.Context, name string) ([]byte, error) {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if data, ok := b.cur[name]; ok {
 		return data, nil
 	}
-	return b.Original(name)
+	return b.OriginalContext(ctx, name)
+}
+
+// ReadFileContext delegates bounded auxiliary-input reads to the I/O boundary.
+func ReadFileContext(ctx context.Context, path string, maxBytes int64) ([]byte, error) {
+	return zipfs.ReadFileContext(ctx, path, maxBytes)
+}
+
+// FileSHA256Context delegates cancellable file hashing to the I/O boundary.
+func FileSHA256Context(ctx context.Context, path string) (string, error) {
+	return zipfs.FileSHA256Context(ctx, path)
 }
 
 // Apply 应用一批编辑，是本包唯一的写入口。
@@ -195,8 +254,12 @@ func (b *Book) Apply(edits []editset.Edit) error {
 			if strings.HasSuffix(path, "/") {
 				return fmt.Errorf("book: %s: entry name must not end with '/'", path)
 			}
+			if err := b.checkContentBudget(path, int64(len(group[0].Replacement))); err != nil {
+				return err
+			}
 			delete(b.deleted, path) // 删除后按原名重建：恢复可见性，位置回到原序。
 			b.cur[path] = slices.Clone(group[0].Replacement)
+			b.retainedBytes += int64(len(group[0].Replacement))
 			if _, isOriginal := b.byName[path]; !isOriginal && !slices.Contains(b.added, path) {
 				b.added = append(b.added, path)
 			}
@@ -206,11 +269,32 @@ func (b *Book) Apply(edits []editset.Edit) error {
 		if err != nil {
 			return err
 		}
+		size := int64(len(content))
+		for _, edit := range group {
+			if edit.Offset < 0 || edit.Length < 0 || edit.Offset > int64(len(content)) || edit.Length > int64(len(content))-edit.Offset {
+				return fmt.Errorf("book: %s: invalid edit range", path)
+			}
+			size += int64(len(edit.Replacement)) - edit.Length
+			if size > zipfs.DefaultLimits().MaxEntryBytes {
+				return fmt.Errorf("%w: %s: edited entry too large", ErrMemoryLimit, path)
+			}
+		}
+		if err := b.checkContentBudget(path, size); err != nil {
+			return err
+		}
 		updated, err := editset.Apply(path, content, group)
 		if err != nil {
 			return err
 		}
+		b.retainedBytes += int64(len(updated) - len(b.cur[path]))
 		b.cur[path] = updated
+	}
+	return nil
+}
+
+func (b *Book) checkContentBudget(path string, size int64) error {
+	if size < 0 || size > zipfs.DefaultLimits().MaxEntryBytes || size-int64(len(b.cur[path])) > b.maxRetainedBytes-b.retainedBytes {
+		return fmt.Errorf("%w: %s", ErrMemoryLimit, path)
 	}
 	return nil
 }
@@ -220,6 +304,7 @@ func (b *Book) deleteEntry(path string) error {
 		return fmt.Errorf("%w: %s", ErrMissingEntry, path)
 	}
 	b.deleted[path] = true
+	b.retainedBytes -= int64(len(b.cur[path]))
 	delete(b.cur, path)
 	if i := slices.Index(b.added, path); i >= 0 {
 		b.added = slices.Delete(b.added, i, i+1)
@@ -230,11 +315,17 @@ func (b *Book) deleteEntry(path string) error {
 // WriteTo 把当前状态落盘为一个新的 EPUB。这是整本书唯一的落盘点。
 // 未修改的 entry 由 zipfs 原样透传（INV-1）。
 func (b *Book) WriteTo(path string) error {
+	if err := b.ReadError(); err != nil {
+		return err
+	}
 	return b.arch.WriteTo(path, b.plans())
 }
 
 // WriteToContext 是 WriteTo 的可取消版本。
 func (b *Book) WriteToContext(ctx context.Context, path string) error {
+	if err := b.ReadError(); err != nil {
+		return err
+	}
 	return b.arch.WriteToContext(ctx, path, b.plans())
 }
 
@@ -301,6 +392,9 @@ func CommitGroup(ctx context.Context, outputDir string, outputs []GroupOutput) e
 		}
 		if output.Book == nil {
 			return fmt.Errorf("book: nil group output %q", output.Name)
+		}
+		if err := output.Book.ReadError(); err != nil {
+			return err
 		}
 		plans = append(plans, zipfs.DirectoryPlan{Name: output.Name, Plans: output.Book.plans()})
 	}

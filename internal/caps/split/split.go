@@ -399,7 +399,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		navBytes := []byte(opf.BuildNav(title, []opf.TocGroup{{Title: title, Entries: segmentToc}}, navPath, pathIdentity))
 		ncxBytes := []byte(opf.BuildNCX(title, []opf.TocGroup{{Title: title, Entries: segmentToc}}, ncxPath, pathIdentity))
 
-		segBook, err := book.Open(inputPath)
+		segBook, err := book.OpenContext(ctx, inputPath)
 		if err != nil {
 			return failedResult(err.Error())
 		}

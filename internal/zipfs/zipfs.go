@@ -7,7 +7,10 @@ package zipfs
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -39,7 +42,35 @@ var (
 	ErrInvalidOutputPath = errors.New("zipfs: invalid output path")
 	// ErrInvalidOutputName 表示目录事务中的产物名不是安全 basename。
 	ErrInvalidOutputName = errors.New("zipfs: invalid output name")
+	// ErrLimitExceeded indicates that an input exceeds a configured byte,
+	// entry-count, or path-length limit.
+	ErrLimitExceeded = errors.New("zipfs: input limit exceeded")
+	// ErrNotRegularFile indicates that an input path does not name a regular file.
+	ErrNotRegularFile = errors.New("zipfs: input is not a regular file")
+	// ErrInvalidLimits indicates that one or more input limits are not positive.
+	ErrInvalidLimits = errors.New("zipfs: limits must be positive")
 )
+
+// Limits bounds archive input, entry metadata, and the bytes materialized by
+// Read. Every field must be positive.
+type Limits struct {
+	MaxArchiveBytes int64
+	MaxEntries      int
+	MaxEntryBytes   int64
+	MaxTotalBytes   int64
+	MaxPathBytes    int
+}
+
+// DefaultLimits returns the standard bounds for untrusted EPUB archives.
+func DefaultLimits() Limits {
+	return Limits{
+		MaxArchiveBytes: 512 << 20,
+		MaxEntries:      100_000,
+		MaxEntryBytes:   256 << 20,
+		MaxTotalBytes:   1 << 30,
+		MaxPathBytes:    4096,
+	}
+}
 
 // fixedTime 与 Python oracle（scripts/epub_lib.py FIXED_ZIP_TIME）给重写
 // entry 打的固定时间戳一致，保证 parity 产物可比较。
@@ -67,37 +98,109 @@ type Archive struct {
 	f      *os.File
 	order  []string
 	byName map[string]*Entry
+	limits Limits
 }
 
-// Open 打开一个磁盘上的 zip 容器（通常是 EPUB）。调用方负责 Close。
+// Open opens a disk ZIP archive using DefaultLimits. The caller must Close it.
 func Open(path string) (*Archive, error) {
-	f, err := os.Open(path)
-	if err != nil {
+	return OpenWithLimits(nil, path, DefaultLimits())
+}
+
+// OpenContext opens a disk ZIP archive with DefaultLimits and honors ctx.
+func OpenContext(ctx context.Context, path string) (*Archive, error) {
+	return OpenWithLimits(ctx, path, DefaultLimits())
+}
+
+// OpenWithLimits opens a disk ZIP archive using the supplied positive limits.
+// It checks file type, archive size, and entry counts before archive/zip
+// materializes central-directory entries or this package allocates its lookup map.
+func OpenWithLimits(ctx context.Context, path string, limits Limits) (*Archive, error) {
+	if err := validateLimits(limits); err != nil {
 		return nil, err
 	}
-	stat, err := f.Stat()
-	if err != nil {
-		f.Close()
+	if err := contextErr(ctx); err != nil {
 		return nil, err
+	}
+	f, stat, err := openRegularFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("zipfs: open %q: %w", path, err)
+	}
+	closeOnError := true
+	defer func() {
+		if closeOnError {
+			_ = f.Close()
+		}
+	}()
+	if stat.Size() > limits.MaxArchiveBytes {
+		return nil, fmt.Errorf("zipfs: archive %q is %d bytes: %w", path, stat.Size(), ErrLimitExceeded)
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	if err := preflightEntryCount(f, stat.Size(), limits, ctx); err != nil {
+		return nil, fmt.Errorf("zipfs: preflight %q: %w", path, err)
 	}
 	r, err := zip.NewReader(f, stat.Size())
 	if err != nil {
-		f.Close()
 		return nil, fmt.Errorf("zipfs: %s: not a zip container: %w", path, err)
+	}
+	if err := validateArchiveEntries(r.File, limits); err != nil {
+		return nil, fmt.Errorf("zipfs: validate %q: %w", path, err)
 	}
 	a := &Archive{
 		path:   path,
 		f:      f,
 		order:  make([]string, 0, len(r.File)),
 		byName: make(map[string]*Entry, len(r.File)),
+		limits: limits,
 	}
-	for _, zf := range r.File {
+	for i, zf := range r.File {
+		if i&255 == 0 {
+			if err := contextErr(ctx); err != nil {
+				return nil, err
+			}
+		}
 		name := zf.Name
 		a.order = append(a.order, name)
 		// 与 Python zipfile.NameToInfo 一致：重名时后者覆盖。
 		a.byName[name] = &Entry{name: name, zf: zf}
 	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	closeOnError = false
 	return a, nil
+}
+
+func validateLimits(limits Limits) error {
+	if limits.MaxArchiveBytes <= 0 || limits.MaxEntries <= 0 || limits.MaxEntryBytes <= 0 ||
+		limits.MaxTotalBytes <= 0 || limits.MaxPathBytes <= 0 {
+		return ErrInvalidLimits
+	}
+	return nil
+}
+
+func validateArchiveEntries(files []*zip.File, limits Limits) error {
+	if len(files) > limits.MaxEntries {
+		return fmt.Errorf("%d entries exceeds %d: %w", len(files), limits.MaxEntries, ErrLimitExceeded)
+	}
+	maxEntryBytes := uint64(limits.MaxEntryBytes)
+	maxTotalBytes := uint64(limits.MaxTotalBytes)
+	var total uint64
+	for _, zf := range files {
+		if len(zf.Name) > limits.MaxPathBytes {
+			return fmt.Errorf("entry path is %d bytes, exceeds %d: %w", len(zf.Name), limits.MaxPathBytes, ErrLimitExceeded)
+		}
+		size := zf.UncompressedSize64
+		if size > maxEntryBytes {
+			return fmt.Errorf("entry %q is %d bytes, exceeds %d: %w", zf.Name, size, limits.MaxEntryBytes, ErrLimitExceeded)
+		}
+		if size > maxTotalBytes-total {
+			return fmt.Errorf("entry %q exceeds archive total of %d bytes: %w", zf.Name, limits.MaxTotalBytes, ErrLimitExceeded)
+		}
+		total += size
+	}
+	return nil
 }
 
 func (a *Archive) Path() string { return a.path }
@@ -115,8 +218,18 @@ func (a *Archive) Lookup(name string) (*Entry, bool) {
 	return e, ok
 }
 
-// Read 解压并返回 entry 的完整内容。
+// Read decompresses an entry using this archive's configured entry limit.
 func (a *Archive) Read(name string) ([]byte, error) {
+	return a.ReadContext(nil, name)
+}
+
+// ReadContext decompresses an entry with a streaming byte limit and context
+// checks. The limit is enforced against bytes actually produced by the
+// decompressor, independently of the entry's declared uncompressed size.
+func (a *Archive) ReadContext(ctx context.Context, name string) ([]byte, error) {
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
 	e, ok := a.byName[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrMissing, name)
@@ -126,11 +239,116 @@ func (a *Archive) Read(name string) ([]byte, error) {
 		return nil, fmt.Errorf("zipfs: open %q: %w", name, err)
 	}
 	defer rc.Close()
-	data, err := io.ReadAll(rc)
+	data, err := readBoundedContext(ctx, rc, a.limits.MaxEntryBytes)
 	if err != nil {
 		return nil, fmt.Errorf("zipfs: read %q: %w", name, err)
 	}
 	return data, nil
+}
+
+// ReadFileContext reads a bounded auxiliary file. Only regular files are
+// accepted; the descriptor size is checked before reading, and the byte stream
+// is checked again while it is consumed.
+func ReadFileContext(ctx context.Context, path string, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, ErrInvalidLimits
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	f, stat, err := openRegularFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("zipfs: open auxiliary file %q: %w", path, err)
+	}
+	defer f.Close()
+	if stat.Size() > maxBytes {
+		return nil, fmt.Errorf("zipfs: auxiliary file %q is %d bytes, exceeds %d: %w", path, stat.Size(), maxBytes, ErrLimitExceeded)
+	}
+	data, err := readBoundedContext(ctx, f, maxBytes)
+	if err != nil {
+		return nil, fmt.Errorf("zipfs: read auxiliary file %q: %w", path, err)
+	}
+	return data, nil
+}
+
+// FileSHA256Context hashes a regular file without materializing its contents.
+func FileSHA256Context(ctx context.Context, path string) (string, error) {
+	if err := contextErr(ctx); err != nil {
+		return "", err
+	}
+	f, stat, err := openRegularFile(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	limit := DefaultLimits().MaxArchiveBytes
+	if stat.Size() > limit {
+		return "", ErrLimitExceeded
+	}
+	h := sha256.New()
+	if err := copyBoundedContext(ctx, h, f, limit); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func readBoundedContext(ctx context.Context, r io.Reader, maxBytes int64) ([]byte, error) {
+	var out bytes.Buffer
+	if err := copyBoundedContext(ctx, &out, r, maxBytes); err != nil {
+		return nil, err
+	}
+	if out.Len() == 0 {
+		return []byte{}, nil // nil is reserved for deletion in editset/Plan.
+	}
+	return out.Bytes(), nil
+}
+
+func copyBoundedContext(ctx context.Context, out io.Writer, r io.Reader, maxBytes int64) error {
+	if maxBytes <= 0 {
+		return ErrInvalidLimits
+	}
+	var chunk [32 * 1024]byte
+	var total int64
+	emptyReads := 0
+	for {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
+		want := len(chunk)
+		remaining := maxBytes - total
+		if remaining < int64(want) {
+			want = int(remaining) + 1 // Probe beyond exact-fit without overflowing maxBytes.
+		}
+		n, err := r.Read(chunk[:want])
+		if ctxErr := contextErr(ctx); ctxErr != nil {
+			return ctxErr
+		}
+		if n > 0 {
+			emptyReads = 0
+			if int64(n) > remaining {
+				return ErrLimitExceeded
+			}
+			written, writeErr := out.Write(chunk[:n])
+			if writeErr != nil {
+				return writeErr
+			}
+			if written != n {
+				return io.ErrShortWrite
+			}
+			total += int64(n)
+		} else if err == nil {
+			emptyReads++
+			if emptyReads >= 100 {
+				return io.ErrNoProgress
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return contextErr(ctx)
+			}
+			return err
+		}
+	}
 }
 
 // Plan 描述一个 entry 在输出容器中的处置：
@@ -215,7 +433,11 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 		}
 	}()
 
-	w := zip.NewWriter(tmp)
+	var output io.Writer = tmp
+	if ctx != nil {
+		output = contextWriter{ctx: ctx, writer: tmp}
+	}
+	w := zip.NewWriter(output)
 	for i := range plans {
 		if err := contextErr(ctx); err != nil {
 			return err
@@ -416,4 +638,20 @@ func contextErr(ctx context.Context) error {
 		return nil
 	}
 	return ctx.Err()
+}
+
+type contextWriter struct {
+	ctx    context.Context
+	writer io.Writer
+}
+
+func (w contextWriter) Write(p []byte) (int, error) {
+	if err := contextErr(w.ctx); err != nil {
+		return 0, err
+	}
+	n, err := w.writer.Write(p)
+	if ctxErr := contextErr(w.ctx); ctxErr != nil {
+		return n, ctxErr
+	}
+	return n, err
 }

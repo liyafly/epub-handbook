@@ -5,8 +5,8 @@
 // cover_raster_dimensions 的 PNG/JPEG 尺寸解析、resize_svg_cover_pages
 // 的 SVG 封面页尺寸对齐、manifest properties 更新、meta name="cover"
 // 重挂。字节策略：OPF 以 scan/opf 区间树做字节区间编辑（原格式与
-// dcterms:modified 保留）；XHTML/CSS 引用重写用与 Python 相同的正则
-// 语义扫描器（RE2 无反向引用，手工实现）；未变化 entry 原样透传。
+// dcterms:modified 保留）；XHTML 按标记区域重写引用，CSS 使用 token
+// 扫描与字节区间编辑；未变化 entry 原样透传。
 package cover
 
 import (
@@ -123,26 +123,39 @@ func coverRasterDimensions(data []byte) (int, int, bool) {
 
 // Run 执行 cover.replace（SPEC §6.1 三段式）。
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	refused := func(err error) (report.Result, error) {
+		if ctx.Err() != nil {
+			return report.Result{}, ctx.Err()
+		}
+		return failedResult(err.Error())
+	}
 	names := b.OriginalNames()
-	read := b.Original
+	read := func(name string) ([]byte, error) { return b.OriginalContext(ctx, name) }
 	namesSet := make(map[string]bool, len(names))
 	for _, n := range names {
 		namesSet[n] = true
 	}
 
 	if err := ensureNoEncryption(names, "replace-cover"); err != nil {
-		return failedResult(err.Error())
+		return refused(err)
 	}
-	if _, err := os.Stat(p.Cover); err != nil {
-		return failedResult(fmt.Sprintf("cover image not found: %s", p.Cover))
+	coverData, err := book.ReadFileContext(ctx, p.Cover, 64<<20)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return failedResult("cover image not found: " + p.Cover)
+		}
+		return report.Result{}, fmt.Errorf("cover input: %w", err)
 	}
 	pkg, _, manifestNode, metaNode, err := readPackage(namesSet, read)
 	if err != nil {
-		return failedResult(err.Error())
+		return refused(err)
 	}
 	opfData, err := read(pkg.opfPath)
 	if err != nil {
-		return failedResult(err.Error())
+		return refused(err)
 	}
 	if metaNode == nil {
 		return failedResult("OPF missing metadata")
@@ -163,11 +176,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	newRelHref := "Images/cover" + ext
 	newArchivePath, err := validateArchivePath(pathJoin(opfDir, newRelHref), "cover output")
 	if err != nil {
-		return failedResult(err.Error())
-	}
-	coverData, err := os.ReadFile(p.Cover)
-	if err != nil {
-		return failedResult(err.Error())
+		return refused(err)
 	}
 	dimW, dimH, hasDims := coverRasterDimensions(coverData)
 
@@ -275,14 +284,20 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			pathMap[oldPath] = newArchivePath
 		}
 		for _, name := range names {
+			if err := ctx.Err(); err != nil {
+				return report.Result{}, err
+			}
 			if name == pkg.opfPath || name == newArchivePath {
 				continue
 			}
 			data, rerr := read(name)
 			if rerr != nil {
-				continue
+				return report.Result{}, rerr
 			}
-			transformed := transformResource(data, name, name, pathMap, namesSet, warnf)
+			transformed, transformErr := transformResource(data, name, name, pathMap, namesSet, warnf)
+			if transformErr != nil {
+				return failedResult(transformErr.Error())
+			}
 			if hasDims {
 				transformed = resizeSVGCoverPages(transformed, name, newArchivePath, dimW, dimH, warnf)
 			}
@@ -320,6 +335,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		edits = append(edits, editset.Replace("mimetype", 0, 0, []byte(canonicalMimetype)))
 	}
 
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
 	// 2. 应用（唯一写点）：先删后建，避免同名路径的删除与内容编辑冲突。
 	if len(deletes) > 0 {
 		if err := b.Apply(deletes); err != nil {

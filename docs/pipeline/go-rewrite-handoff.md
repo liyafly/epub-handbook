@@ -1040,3 +1040,61 @@ redline 于是把 vol2 的映射套到 vol1 的封面上，报出一条假的 `r
 未覆盖的同步解析/其他 capability 仍有细粒度取消工作，不声称全仓完成。
 Apple Books、Readest、Kindle Previewer 本轮均未实测，reader matrix 不变。
 上述内部重构可独立审阅/合入；没有新增依赖、书稿改动、外部发布、push 或 merge。
+
+### 11.10 2026-09-20–21 合入前的三项修复
+
+本轮按所有者授权完成审查中的前三项：CSS 引用误改、整书 preset 字体模式保护、
+ZIP/辅助输入限额与取消。没有修改架构守卫、依赖或书稿原件。
+
+**实现：**
+
+- cover / merge 使用共享 CSS token 引用扫描与 byte-range edits，仅重写真实
+  `url()` / `@import` 的值，保留注释、content 字符串及选择器字符串。无法安全解释的
+  本地转义 URI、未闭合 CSS、含实体转义的内嵌 CSS 明确拒绝，不返回部分改写。
+  nav audit 同步识别真实 URL，避免把正确保留的生成文本误报为缺失资源。
+- 整书 typography 保留既有 `Styles/fonts.css` 的原始字节与 OPF 字体元数据，报告
+  `fontMode=free|locked`、`fontModeAction=preserve`、字体层 `action=keep`。
+  正文链与元数据冲突、正文链位于其他 CSS 层或涉及导入／动态／内联等无法安全判定的
+  模式时拒绝处理；不自动生成新字体链或更改元数据来通过检查。局部追加模式保持原行为。
+  这项保护只覆盖受支持的字体层模式，不是完整 CSS 级联或字体覆盖验证器。
+- zipfs 默认限制压缩输入 512 MiB、100,000 条目、单条目 256 MiB、声明解压总量
+  1 GiB、路径 4096 字节；解压流再次检查实际读取量。每本 book 缓存原文及修改内容
+  合计上限 512 MiB；这是内容预算，不是进程峰值内存承诺。普通 ZIP 与 ZIP64 的目录
+  声明及实际条目数会在标准库展开目录前检查，避免超限归档先分配大量条目对象。
+- 封面输入限 64 MiB，路径映射 JSON 限 16 MiB；preset JSON 限 1 MiB，单 CSS
+  限 4 MiB、合计 16 MiB、1–32 个不重复层。普通文件检查集中到 I/O 层，Unix 使用
+  非阻塞打开后检查文件描述符，FIFO 不会等待读端／写端。文件哈希、解压、辅助文件读取
+  和 ZIP 写出传递取消；失败读取不返回部分内容，成功空内容保持非 nil，避免误作删除。
+- book 记住首次真实读取／预算失败，pipeline 在 stage 与 redline 后复核；即使旧能力
+  忽略错误，也不能返回部分成功或写出候选。单文件及多产物事务同样在落盘前拒绝。
+
+**产物与回归：**
+
+- `go build ./...`、`go test ./...`、`go vet ./...`、`go test -race ./...`、
+  archguard `-v`、docguard、legacy_surface 及工作区／暂存区 diff 检查通过。
+  Windows amd64 与 Linux amd64 交叉构建通过；平台运行验证在 macOS 完成。
+  回归覆盖 FIFO、限额、伪造 ZIP 大小、确定性中途取消、空内容、读取错误被吞及单／多产物
+  不落盘。CLI 实跑的超大 EPUB、超大封面、目录封面、FIFO 封面均 exit 1 且没有输出文件。
+- demo 重建为 `templates/epub-style-demo/dist/epub-style-demo-20260920-230159.epub`，
+  SHA `435188966fe8166d7486df86832ce7acaef1d94a4b02d64bf544d0139a74fdd2`。
+- 修复后的整书 preset SHA
+  `d06d5231c4510729a7e47dd4d2d804eddf8f86a42cac6d498dc87808ff95649f`。
+  原先的两个 maintain 字体错误消失，原字体层字节不变；保留低 class 覆盖率 warning。
+- 局部 preset 与 CSS 清理候选 SHA 仍分别是
+  `fafc22cf69666c9727fbaaf9ce2d89b794af74ad983d620a9b116a755e9781e7`、
+  `0d5ab5028b5cb3f389050066393a9ba180e1fda1815a9c4e7b73053904ad807a`。
+- cover 复现样例中 `content: "url(../Images/old-cover.png)"` 保持原字节，真实封面引用
+  正常改名；候选 SHA `f00aeb7334d19cdbc669b25654de6ca6486a47263d731f01f17942af13ad451b`。
+- demo、整书 preset、局部 preset、CSS 清理和 cover 五个产物的 nav / popup / maintain /
+  全项 redline / XML 检查均通过；cover redline 带实跑信封 path-map。
+  maintain 的 `styledemo.epubcheck-skipped` warning 如实保留，EPUBCheck 仍只由 CI 执行。
+- 以 `e840756` CLI 对照 demo 与原始《EPub指南》的 11 组未改行为调用：退出码、stdout、
+  stderr 完全一致，dry-run 无文件；参考书原有审计失败保留。整书字体保护属本轮预期行为变化，
+  不列为旧行为等价样本。
+- 本地复现脚本为 `work/agent-cli-review-20260920/verify-priority-fixes.py`，
+  报告与候选在同目录 `evidence/priority-fixes/`，均被 Git 忽略。
+
+**合入边界：** 主分支仍为 `8f769f0`，当前分支的提交图谱领先 21、落后 0，
+`merge-tree` 无冲突；本轮工作区修改尚未提交。没有该分支的 PR 或 CI 运行记录，
+最终提交 SHA 的 PR 检查（含 CI EPUBCheck）仍须通过后再合入。原生阅读器验收未进行，
+reader matrix 不变；这一项不冒充已通过，也不把代码修复的可合入结论当作书籍发布验收。

@@ -203,15 +203,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		var read func(string) ([]byte, error)
 		if vi == 0 {
 			names = b.OriginalNames()
-			read = b.Original
+			read = func(path string) ([]byte, error) { return b.OriginalContext(ctx, path) }
 		} else {
-			vb, err := book.Open(inputPath)
+			vb, err := book.OpenContext(ctx, inputPath)
 			if err != nil {
 				return failedResult(err.Error())
 			}
 			defer vb.Close()
 			names = vb.OriginalNames()
-			read = vb.Original
+			read = func(path string) ([]byte, error) { return vb.OriginalContext(ctx, path) }
 		}
 		namesSet := make(map[string]bool, len(names))
 		for _, n := range names {
@@ -291,7 +291,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if err != nil {
 				return failedResult(err.Error())
 			}
-			transformed := transformResource(data, item.archivePath, finalPath, pathMap, namesSet, warnf)
+			transformed, transformErr := transformResource(data, item.archivePath, finalPath, pathMap, namesSet, warnf)
+			if transformErr != nil {
+				return failedResult(transformErr.Error())
+			}
 			expected[finalPath] = true
 			if vi == 0 {
 				switch {
@@ -391,7 +394,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		case inDeletes[path]:
 			creates = append(creates, editset.Replace(path, 0, 0, content))
 		case b.Has(path):
-			cur, err := b.Current(path)
+			cur, err := b.CurrentContext(ctx, path)
 			if err != nil {
 				return failedResult(err.Error())
 			}
@@ -400,7 +403,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			creates = append(creates, editset.Replace(path, 0, 0, content))
 		}
 	}
-	if cur, err := b.Current("mimetype"); err == nil {
+	if cur, err := b.CurrentContext(ctx, "mimetype"); err == nil {
 		if string(cur) != canonicalMimetype {
 			replaces = append(replaces, editset.Replace("mimetype", 0, int64(len(cur)), []byte(canonicalMimetype)))
 		}

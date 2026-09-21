@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 
@@ -71,5 +73,24 @@ func TestSourceAnalysisCancellationRemainsAnError(t *testing.T) {
 				t.Fatalf("cancel classified as book finding: %+v %v", res, err)
 			}
 		})
+	}
+}
+
+func TestCoverStopsDuringAuxiliaryReadWithoutPartialResult(t *testing.T) {
+	b, err := book.Open(buildEpubWithOPF(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	cover := filepath.Join(t.TempDir(), "cover.png")
+	if err := os.WriteFile(cover, []byte("cover content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, err := registry["epub.cover.replace"](cancelAtCheckpoint(t, 4), b, Args{"cover": cover}, nil)
+	if !errors.Is(err, context.Canceled) || res.Status != "" || len(res.Facts) != 0 || len(res.Findings) != 0 {
+		t.Fatalf("canceled cover read returned a partial result: %+v, %v", res, err)
+	}
+	if len(b.ModifiedNames()) != 0 {
+		t.Fatalf("canceled cover read changed entries: %v", b.ModifiedNames())
 	}
 }
