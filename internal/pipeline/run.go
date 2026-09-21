@@ -2,11 +2,8 @@ package pipeline
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -164,18 +161,29 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		// （envelope.schema.json 的 input.sha256 可选）。
 		inputRef := &report.Artifact{Path: opts.InputPath}
 		if !inputIsDir {
-			if sum, err := fileSHA256(opts.InputPath); err == nil {
+			if sum, err := book.FileSHA256Context(ctx, opts.InputPath); err == nil {
 				inputRef.SHA256 = sum
 			}
 		}
 		env.Input = inputRef
 	}
 
+	cancelInput := func(err error) (Outcome, error) {
+		env.Status = report.StatusCancelled
+		env.Findings = append(env.Findings, report.Finding{Level: "error", ID: "run.cancelled", Title: "Run cancelled before completion", Detail: err.Error()})
+		return Outcome{Envelope: env, ExitCode: ExitFailed}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return cancelInput(err)
+	}
 	var b *book.Book
 	if opts.InputPath != "" && !inputIsDir && !sourceInputCap {
 		var err error
-		b, err = book.Open(opts.InputPath)
+		b, err = book.OpenContext(ctx, opts.InputPath)
 		if err != nil {
+			if ctx.Err() != nil {
+				return cancelInput(ctx.Err())
+			}
 			env.Status = report.StatusFailed
 			env.Findings = append(env.Findings, report.Finding{
 				Level: "error", ID: "input.invalid-epub",
@@ -295,7 +303,19 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 				})
 				break
 			}
-			result, err := runner(ctx, b, runArgs, up)
+			var result report.Result
+			var err error
+			if b != nil {
+				err = b.ReadError()
+			}
+			if err == nil {
+				result, err = runner(ctx, b, runArgs, up)
+			}
+			if err == nil && b != nil {
+				// Older capabilities may ignore individual read errors. A failed
+				// input read must never become a partial successful report/output.
+				err = b.ReadError()
+			}
 			if err != nil {
 				var usageErr *UsageError
 				if errors.As(err, &usageErr) {
@@ -398,6 +418,14 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			AllowList:            []string{"*/nav.xhtml", "*/toc.ncx"},
 			AllowFontObfuscation: runArgs.Bool("allow_font_obfuscation"),
 		})
+		if readErr := b.ReadError(); readErr != nil {
+			// Expected content differences retain a candidate for review; an
+			// unreadable input cannot safely produce that candidate.
+			failed = true
+			if err == nil {
+				err = readErr
+			}
+		}
 		if err != nil {
 			redlineFailed = true
 			env.Status = report.StatusFailed
@@ -463,7 +491,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			}
 		} else {
 			outRef := &report.Artifact{Path: opts.OutputPath}
-			if sum, err := fileSHA256(opts.OutputPath); err == nil {
+			if sum, err := book.FileSHA256Context(ctx, opts.OutputPath); err == nil {
 				outRef.SHA256 = sum
 			}
 			env.Output = outRef
@@ -582,7 +610,7 @@ func RedlineCompare(before, after, check string, allowList []string, allowFontOb
 func RedlineCompareWith(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (int, error) {
 	pathMap := map[string]string{}
 	for _, p := range pathMapFiles {
-		raw, err := os.ReadFile(p)
+		raw, err := book.ReadFileContext(nil, p, 16<<20)
 		if err != nil {
 			return ExitUsage, fmt.Errorf("读取 --path-map 失败: %w", err)
 		}
@@ -611,19 +639,6 @@ func RedlineCompareWith(before, after, check string, allowList []string, pathMap
 		fmt.Fprint(os.Stderr, text)
 	}
 	return rep.Code, nil
-}
-
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // dropSelfReruns 去掉「再跑一遍刚跑完的能力」这类建议。能力自己的命令表

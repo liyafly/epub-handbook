@@ -1,14 +1,15 @@
-// refs.go 复刻 core.py 的引用重写正则族（URI_ATTRIBUTE_RE / SRCSET_RE /
-// CSS_URL_RE / CSS_IMPORT_RE）。Go RE2 不支持反向引用，这里按 Python re
-// 的匹配/回溯语义手工实现，输出与 re.sub 逐字节一致。
+// Reference rewriting preserves markup regions and uses lossless CSS token spans.
 package merge
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
+	"github.com/liyafly/epub-handbook/internal/editset"
+	"github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
@@ -91,26 +92,9 @@ func rewriteSrcset(text, oldDocument, newDocument string, pathMap map[string]str
 	})
 }
 
-// rewriteTextReferences 复刻 core.rewrite_text_references（srcset → URI 属性
-// → CSS url() → CSS @import，与 Python 的调用顺序一致）。仅用于独立 .css
-// 文件：整份文件本来就是 CSS，全文匹配是正确语义，不区域化（与
-// rewriteMarkupReferences 分工见 transformResource）。
-func rewriteTextReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	text = rewriteSrcset(text, oldDocument, newDocument, pathMap, knownFiles)
-	text = subNameQuoteURI(text, uriAttrNames, func(prefix, quote, uri string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
-	})
-	text = subCSSURL(text, func(prefix, quote, uri, suffix string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote + suffix
-	})
-	return subCSSImport(text, func(prefix, quote, uri string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
-	})
-}
-
 // ---- 区域感知的标记引用重写（xhtml/svg/ncx/… markupExtensions） ----
 //
-// 全文裸匹配（rewriteTextReferences 的四道正则）对 XHTML 生效时，会把字符
+// 全文裸匹配对 XHTML 生效时，会把字符
 // 数据里被实体转义写出的示例文本（`&lt;img src="…"/&gt;`）当成真标记一起
 // 改掉——那是正文损坏（redline text 红线的最高安全属性）。这里改用
 // internal/scan/xhtml.ScanRegions 先定位真实标记区域，再分流：属性/srcset/
@@ -122,13 +106,13 @@ func rewriteTextReferences(text, oldDocument, newDocument string, pathMap map[st
 // rewriteMarkupReferences 是 markupExtensions 文件（.html/.htm/.xhtml/.xml/
 // .ncx/.svg/.smil）的引用重写入口。扫描截断时通过 warn 上报文件名与字节
 // 偏移（截断点之后的引用保持不变，不静默半改）；warn 为 nil 时静默丢弃。
-func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) string {
+func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	regions, stop := xhtml.ScanRegions(text)
 	if stop != xhtml.ScanComplete && warn != nil {
 		warn("%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); references after this offset left unchanged", oldDocument, stop)
 	}
 	if len(regions) == 0 {
-		return text
+		return text, nil
 	}
 	var out strings.Builder
 	out.Grow(len(text))
@@ -136,24 +120,31 @@ func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[
 	for _, r := range regions {
 		out.WriteString(text[last:r.Start])
 		segment := text[r.Start:r.End]
+		var err error
 		switch r.Kind {
 		case xhtml.RegionTag:
-			segment = rewriteTagReferences(segment, oldDocument, newDocument, pathMap, knownFiles)
+			segment, err = rewriteTagReferences(segment, oldDocument, newDocument, pathMap, knownFiles)
 		case xhtml.RegionStyle:
-			segment = rewriteCSSOnly(segment, oldDocument, newDocument, pathMap, knownFiles)
+			if strings.Contains(segment, "&") {
+				return "", fmt.Errorf("%s: character references in embedded CSS require explicit review", oldDocument)
+			}
+			segment, err = rewriteCSSOnly(segment, oldDocument, newDocument, pathMap, knownFiles)
 		case xhtml.RegionStylesheetPI:
 			segment = rewriteStylesheetPIReference(segment, oldDocument, newDocument, pathMap, knownFiles)
+		}
+		if err != nil {
+			return "", err
 		}
 		out.WriteString(segment)
 		last = r.End
 	}
 	out.WriteString(text[last:])
-	return out.String()
+	return out.String(), nil
 }
 
 // rewriteTagReferences 在单个标签的字节内重写 srcset、URI 属性与内联
 // style 属性里的 url()/@import。
-func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
+func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
 	tag = rewriteSrcset(tag, oldDocument, newDocument, pathMap, knownFiles)
 	tag = subNameQuoteURI(tag, uriAttrNames, func(prefix, quote, uri string) string {
 		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
@@ -165,10 +156,24 @@ func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[stri
 // 重写。整段标签跑 CSS 重写会连 title=""、alt="" 这类读者可见文本一起改
 // （`<div title="url(a.png)">`），那是正文损坏；而内联 style 的 url() 是真
 // 标记，资源搬家后必须跟着改，不能整体放弃。
-func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	return subNameQuoteURI(tag, []string{"style"}, func(prefix, quote, value string) string {
-		return prefix + quote + rewriteCSSOnly(value, oldDocument, newDocument, pathMap, knownFiles) + quote
+func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
+	var scanErr error
+	updated := subNameQuoteURI(tag, []string{"style"}, func(prefix, quote, value string) string {
+		if strings.Contains(value, "&") {
+			scanErr = fmt.Errorf("%s: character references in inline CSS require explicit review", oldDocument)
+			return prefix + quote + value + quote
+		}
+		result, err := rewriteCSSOnly(value, oldDocument, newDocument, pathMap, knownFiles)
+		if err != nil {
+			scanErr = err
+			return prefix + quote + value + quote
+		}
+		return prefix + quote + result + quote
 	})
+	if scanErr != nil {
+		return "", scanErr
+	}
+	return updated, nil
 }
 
 // rewriteStylesheetPIReference 只重写 <?xml-stylesheet …?> 的 href 伪属性。
@@ -182,32 +187,39 @@ func rewriteStylesheetPIReference(pi, oldDocument, newDocument string, pathMap m
 // rewriteCSSOnly 只做 CSS url()/@import 重写（不含 srcset / URI 属性），
 // 用于 <style> 元素内容与 style="…" 属性值——这两处都已经确定是 CSS 语义，
 // 不需要也不应该再跑属性名匹配。
-func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	text = subCSSURL(text, func(prefix, quote, uri, suffix string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote + suffix
+func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
+	edits, err := css.ReferenceEdits(oldDocument, []byte(text), func(uri string) string {
+		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
 	})
-	return subCSSImport(text, func(prefix, quote, uri string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
-	})
+	if err != nil {
+		return "", toolErrf("%s: CSS reference scan: %v", oldDocument, err)
+	}
+	updated, err := editset.Apply(oldDocument, []byte(text), edits)
+	return string(updated), err
 }
 
 // transformResource 复刻 core.transform_resource：仅 CSS / 标记类参与重写，
-// 非 UTF-8 字节原样返回。独立 .css 文件整份就是 CSS，全文正则替换是正确
-// 语义；markupExtensions（XHTML/NCX/OPF 同族标记文件）改用区域感知重写，
+// 非 UTF-8 字节原样返回。独立 .css 文件按 CSS token/span 扫描；markupExtensions（XHTML/NCX/OPF 同族标记文件）改用区域感知重写，
 // 避免字符数据里的转义示例文本被当成标记误改（见上方注释）。
-func transformResource(data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) []byte {
+func transformResource(data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) ([]byte, error) {
 	ext := strings.ToLower(pypath.PathExt(oldPath))
 	if ext != ".css" && !markupExtensions[ext] {
-		return data
+		return data, nil
 	}
 	if !utf8.Valid(data) {
-		return data
+		return nil, toolErrf("%s: reference resource is not UTF-8", oldPath)
 	}
-	text := string(data)
+	var updated string
+	var err error
 	if ext == ".css" {
-		return []byte(rewriteTextReferences(text, oldPath, newPath, pathMap, knownFiles))
+		updated, err = rewriteCSSOnly(string(data), oldPath, newPath, pathMap, knownFiles)
+	} else {
+		updated, err = rewriteMarkupReferences(string(data), oldPath, newPath, pathMap, knownFiles, warn)
 	}
-	return []byte(rewriteMarkupReferences(text, oldPath, newPath, pathMap, knownFiles, warn))
+	if err != nil {
+		return nil, err
+	}
+	return []byte(updated), nil
 }
 
 // ---- 通用扫描器（对齐 Python re 语义） ----
@@ -217,7 +229,6 @@ type uriMatch struct {
 	prefix     string
 	quote      byte // 0 表示无引号
 	uri        string
-	suffix     string
 }
 
 // isWordRune 对齐 Python \w。
@@ -314,131 +325,3 @@ func findNameQuoteMatches(text string, from int, names []string) []uriMatch {
 
 // subCSSURL 复刻 `\burl\(\s*(["']?)(.*?)\1\s*\)` 的 re.sub（含引号分支
 // 失败后回退为无引号的回溯行为）。
-func subCSSURL(text string, repl func(prefix, quote, uri, suffix string) string) string {
-	var out strings.Builder
-	last := 0
-	for _, m := range findURLMatches(text, last) {
-		out.WriteString(text[last:m.start])
-		q := ""
-		if m.quote != 0 {
-			q = string(m.quote)
-		}
-		out.WriteString(repl(m.prefix, q, m.uri, m.suffix))
-		last = m.end
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-func findURLMatches(text string, from int) []uriMatch {
-	var out []uriMatch
-	i := from
-	for i < len(text) {
-		if wordBoundary(text, i) && i+4 <= len(text) && strings.EqualFold(text[i:i+4], "url(") {
-			j := skipPySpace(text, i+4)
-			quote := byte(0)
-			quoteStart := -1
-			if j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote = text[j]
-				quoteStart = j
-				j++
-			}
-			uriStart := j
-			found := false
-			if quote != 0 {
-				p := j
-				for p < len(text) {
-					idx := strings.IndexByte(text[p:], quote)
-					if idx < 0 {
-						break
-					}
-					qPos := p + idx
-					k := skipPySpace(text, qPos+1)
-					if k < len(text) && text[k] == ')' {
-						out = append(out, uriMatch{
-							start: i, end: k + 1,
-							prefix: text[i:quoteStart],
-							quote:  quote,
-							uri:    text[uriStart:qPos],
-							suffix: text[qPos+1 : k+1],
-						})
-						i = k + 1
-						found = true
-						break
-					}
-					p = qPos + 1
-				}
-				if found {
-					continue
-				}
-				// 回溯：引号组视为空，uri 从引号字符处开始。
-				uriStart = quoteStart
-			}
-			idx := strings.IndexByte(text[uriStart:], ')')
-			if idx >= 0 {
-				closePos := uriStart + idx
-				wsStart := closePos
-				for wsStart > uriStart {
-					r, size := utf8.DecodeLastRuneInString(text[uriStart:wsStart])
-					if !unicode.IsSpace(r) {
-						break
-					}
-					wsStart -= size
-				}
-				out = append(out, uriMatch{
-					start: i, end: closePos + 1,
-					prefix: text[i:uriStart],
-					quote:  0,
-					uri:    text[uriStart:wsStart],
-					suffix: text[wsStart : closePos+1],
-				})
-				i = closePos + 1
-				continue
-			}
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		if size == 0 {
-			break
-		}
-		i += size
-	}
-	return out
-}
-
-// subCSSImport 复刻 `@import\s+(["'])(.*?)\1` 的 re.sub。
-func subCSSImport(text string, repl func(prefix, quote, uri string) string) string {
-	var out strings.Builder
-	last := 0
-	for _, m := range findImportMatches(text, last) {
-		out.WriteString(text[last:m.start])
-		out.WriteString(repl(m.prefix, string(m.quote), m.uri))
-		last = m.end
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-func findImportMatches(text string, from int) []uriMatch {
-	var out []uriMatch
-	for i := from; i+7 <= len(text); i++ {
-		if strings.EqualFold(text[i:i+7], "@import") {
-			j := skipPySpace(text, i+7)
-			if j > i+7 && j < len(text) && (text[j] == '"' || text[j] == '\'') {
-				quote := text[j]
-				uriStart := j + 1
-				idx := strings.IndexByte(text[uriStart:], quote)
-				if idx >= 0 {
-					uriEnd := uriStart + idx
-					out = append(out, uriMatch{
-						start: i, end: uriEnd + 1,
-						prefix: text[i:j],
-						quote:  quote,
-						uri:    text[uriStart:uriEnd],
-					})
-					i = uriEnd
-				}
-			}
-		}
-	}
-	return out
-}

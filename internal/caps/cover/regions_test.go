@@ -28,7 +28,7 @@ func TestTransformResourceRegionAwareRewritesRealMarkup(t *testing.T) {
 		`<img src="../Images/old.png"/>` +
 		`<div style="background: url('../Images/old.png');">styled</div>` +
 		`</body></html>`
-	got := string(transformResource([]byte(text), doc, doc, pathMap, knownFiles, nil))
+	got := string(mustTransformResource(t, []byte(text), doc, doc, pathMap, knownFiles, nil))
 
 	for _, want := range []string{
 		`url('../Images/new.png')`,                      // <style> 元素内容
@@ -49,7 +49,7 @@ func TestTransformResourceKeepsEscapedProseVerbatim(t *testing.T) {
 	pathMap, knownFiles := regionsFixturePathMap()
 	const doc = "OEBPS/Text/chapter.xhtml"
 	const prose = `<p>写作 &lt;img src="../Images/old.png"/&gt; 即可。</p>`
-	got := string(transformResource([]byte(prose), doc, doc, pathMap, knownFiles, nil))
+	got := string(mustTransformResource(t, []byte(prose), doc, doc, pathMap, knownFiles, nil))
 	if got != prose {
 		t.Errorf("转义正文被改写:\n got  = %q\n want = %q", got, prose)
 	}
@@ -61,7 +61,7 @@ func TestTransformResourceKeepsCommentsCDATAAndScriptVerbatim(t *testing.T) {
 	text := `<!-- <img src="../Images/old.png"/> -->` +
 		`<![CDATA[<img src="../Images/old.png"/>]]>` +
 		`<script>var s = "../Images/old.png";</script>`
-	got := string(transformResource([]byte(text), doc, doc, pathMap, knownFiles, nil))
+	got := string(mustTransformResource(t, []byte(text), doc, doc, pathMap, knownFiles, nil))
 	if got != text {
 		t.Errorf("注释/CDATA/<script> 内容被改写:\n got  = %q\n want = %q", got, text)
 	}
@@ -71,7 +71,7 @@ func TestTransformResourceDoesNotTreatTitleAltAsCSS(t *testing.T) {
 	pathMap, knownFiles := regionsFixturePathMap()
 	const doc = "OEBPS/Text/chapter.xhtml"
 	text := `<img src="../Images/old.png" title="url(../Images/old.png)" alt="url(../Images/old.png)"/>`
-	got := string(transformResource([]byte(text), doc, doc, pathMap, knownFiles, nil))
+	got := string(mustTransformResource(t, []byte(text), doc, doc, pathMap, knownFiles, nil))
 	if !strings.Contains(got, `src="../Images/new.png"`) {
 		t.Errorf("src 应被改写: %s", got)
 	}
@@ -84,7 +84,7 @@ func TestTransformResourceStandaloneCSSStillRewritesWholeFile(t *testing.T) {
 	pathMap, knownFiles := regionsFixturePathMap()
 	const doc = "OEBPS/Styles/main.css"
 	text := "@import \"../Images/old.png\";\nbody { background: url(../Images/old.png); }\n"
-	got := string(transformResource([]byte(text), doc, doc, pathMap, knownFiles, nil))
+	got := string(mustTransformResource(t, []byte(text), doc, doc, pathMap, knownFiles, nil))
 	if strings.Contains(got, "old.png") {
 		t.Errorf("独立 .css 文件应整份替换: %s", got)
 	}
@@ -106,7 +106,7 @@ func TestTransformResourceReportsScanTruncation(t *testing.T) {
 	text := head + tail
 	var warnings []string
 	warn := func(format string, a ...any) { warnings = append(warnings, fmt.Sprintf(format, a...)) }
-	got := string(transformResource([]byte(text), doc, doc, pathMap, knownFiles, warn))
+	got := string(mustTransformResource(t, []byte(text), doc, doc, pathMap, knownFiles, warn))
 
 	if !strings.HasPrefix(got, `<img src="../Images/new.png"/>`) {
 		t.Errorf("截断前的真实标签应正常改写: %s", got)
@@ -121,4 +121,13 @@ func TestTransformResourceReportsScanTruncation(t *testing.T) {
 	if !strings.Contains(warnings[0], doc) || !strings.Contains(warnings[0], fmt.Sprintf("byte offset %d", wantOffset)) {
 		t.Errorf("告警应带文件名与字节偏移: %q (want offset %d)", warnings[0], wantOffset)
 	}
+}
+
+func mustTransformResource(t *testing.T, data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool, warn func(string, ...any)) []byte {
+	t.Helper()
+	got, err := transformResource(data, oldPath, newPath, pathMap, knownFiles, warn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
 }

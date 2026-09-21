@@ -426,3 +426,80 @@ func TestActionableFindingsSerialisesAsArray(t *testing.T) {
 		t.Errorf("空 nextCommands 序列化 = %s, want []", raw)
 	}
 }
+
+func TestCSSURLAuditScansOnlyURLFunctions(t *testing.T) {
+	path := writeNativeFixture(t)
+	cssOnlyText := filepath.Join(t.TempDir(), "css-text.epub")
+	rewriteZipEntry(t, path, cssOnlyText, "OEBPS/Styles/main.css", func([]byte) []byte {
+		return []byte(`[data-icon="url(../Images/old-cover.png)"]::before {
+  content: "url(../Images/old-cover.png)";
+} /* url(../Images/old-cover.png) */
+`)
+	})
+
+	b, err := book.Open(cssOnlyText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range res.Findings {
+		if finding.Title == "CSS url() target missing" && strings.Contains(finding.Location, "old-cover.png") {
+			t.Fatalf("URL-like CSS text produced a missing-resource error: %+v", finding)
+		}
+	}
+}
+
+func TestCSSURLAuditStillReportsMissingURLFunctionTarget(t *testing.T) {
+	path := writeNativeFixture(t)
+	missingURL := filepath.Join(t.TempDir(), "missing-url.epub")
+	rewriteZipEntry(t, path, missingURL, "OEBPS/Styles/main.css", func([]byte) []byte {
+		return []byte(`a { background-image: url("../Images/old-cover.png"); }
+`)
+	})
+
+	b, err := book.Open(missingURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range res.Findings {
+		if finding.Level == "error" && finding.Title == "CSS url() target missing" &&
+			finding.Location == "Styles/main.css -> ../Images/old-cover.png" {
+			return
+		}
+	}
+	t.Fatalf("missing url() target did not produce an error finding: %+v", res.Findings)
+}
+
+func TestCSSURLAuditReportsReferenceScannerFailures(t *testing.T) {
+	path := writeNativeFixture(t)
+	malformedCSS := filepath.Join(t.TempDir(), "malformed-css.epub")
+	rewriteZipEntry(t, path, malformedCSS, "OEBPS/Styles/main.css", func([]byte) []byte {
+		return []byte{0xff}
+	})
+
+	b, err := book.Open(malformedCSS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range res.Findings {
+		if finding.Level == "error" && strings.HasPrefix(finding.Title, "CSS reference scan failed:") &&
+			finding.Location == "Styles/main.css" && finding.Detail == "css-reference-scan" {
+			return
+		}
+	}
+	t.Fatalf("scanner failure did not produce a specific error finding: %+v", res.Findings)
+}

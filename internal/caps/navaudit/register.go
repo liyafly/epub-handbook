@@ -14,9 +14,6 @@ var svgRe = regexp.MustCompile(`(?i)<(?:svg|svg:svg)\b`)
 var noterefRe = regexp.MustCompile(`epub:type=["']noteref["']`)
 var footnoteRe = regexp.MustCompile(`epub:type=["']footnote["']`)
 
-// CSS url() 提取（对齐 epub_ai/core.py:59-66，忽略注释后的文本）。
-var cssURLRe = regexp.MustCompile(`url\(\s*["']?([^"')]+)["']?\s*\)`)
-
 // actionable detectors 用。
 var calibreClassRe = regexp.MustCompile(`\bcalibre\d*\b`)
 

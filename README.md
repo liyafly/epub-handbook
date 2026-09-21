@@ -67,7 +67,8 @@ go run ./cmd/epub run epub.typography.optimize --input before.epub --output samp
 ```
 
 `scope_paths` 应替换成实际 spine XHTML 路径。局部模式追加独立 CSS，保留原样式与其他章节；
-不传此参数仍是整书预设应用。发现示例、预览候选和真实阅读器视觉验收是三个不同阶段。
+不传此参数是整书预设应用，保留已有字体层及自由／锁定模式；模式冲突会拒绝处理，
+详见[预设说明](templates/style-presets/README.md)。发现示例、预览候选和真实阅读器视觉验收是三个不同阶段。
 
 | 能力 | 位置 |
 | --- | --- |
@@ -86,6 +87,12 @@ provider 适配层已按迁移计划删除。字体能力由 `tools-font/coverag
 Python + FontTools 项目提供，不打包进发行包：需要本机安装 `uv`（在该目录执行一次 `uv sync`），
 缺少 `uv` 时 `epub.font.coverage.analyze` 会以带明确提示的 failed 结果显式失败；
 其余 capability 只需要 Go 二进制。
+
+EPUB 输入默认限制为：压缩文件 512 MiB、100,000 个 ZIP 条目、单条目解压后
+256 MiB、声明解压总量 1 GiB、条目路径 4096 字节。实际解压流也检查单条目限额；
+每个打开的 book 缓存原文与修改内容合计最多 512 MiB（不是整个进程的峰值内存承诺）。
+替换封面限 64 MiB，redline 路径映射 JSON 限 16 MiB；这些输入须是普通文件。
+超限会明确报错，CLI 暂无放宽限额参数。
 
 完整文档索引见 [docs/README.md](docs/README.md)。
 

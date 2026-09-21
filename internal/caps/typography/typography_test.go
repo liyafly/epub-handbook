@@ -297,10 +297,10 @@ func TestTypographyApply(t *testing.T) {
 
 func TestTypographyLoadPresetErrors(t *testing.T) {
 	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
-	if _, _, err := loadPreset("not-a-preset", presets); err == nil || !strings.Contains(err.Error(), "not-a-preset") {
+	if _, _, err := loadPreset(t.Context(), "not-a-preset", presets); err == nil || !strings.Contains(err.Error(), "not-a-preset") {
 		t.Fatalf("unknown preset 报错不符: %v", err)
 	}
-	if _, _, err := loadPreset("literary-cn", filepath.Join(presets, "nope")); err == nil ||
+	if _, _, err := loadPreset(t.Context(), "literary-cn", filepath.Join(presets, "nope")); err == nil ||
 		!strings.Contains(err.Error(), "unknown preset") {
 		t.Fatalf("缺失 preset.json 应报 unknown preset: %v", err)
 	}
@@ -310,11 +310,11 @@ func TestTypographyLoadPresetErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	os.WriteFile(filepath.Join(bad, "preset.json"), []byte(`{"name": "bad", "version": "2", "layers": ["a.css"]}`), 0o644)
-	if _, _, err := loadPreset("bad", dir); err == nil || !strings.Contains(err.Error(), "invalid preset metadata") {
+	if _, _, err := loadPreset(t.Context(), "bad", dir); err == nil || !strings.Contains(err.Error(), "invalid preset metadata") {
 		t.Fatalf("version 不符应报 invalid preset metadata: %v", err)
 	}
 	os.WriteFile(filepath.Join(bad, "preset.json"), []byte(`{"name": "bad", "version": "1", "layers": ["../evil.css"]}`), 0o644)
-	if _, _, err := loadPreset("bad", dir); err == nil || !strings.Contains(err.Error(), "invalid stylesheet layer") {
+	if _, _, err := loadPreset(t.Context(), "bad", dir); err == nil || !strings.Contains(err.Error(), "invalid stylesheet layer") {
 		t.Fatalf("路径穿越层应报错: %v", err)
 	}
 }

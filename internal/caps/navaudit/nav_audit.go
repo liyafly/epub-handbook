@@ -14,6 +14,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
+	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -469,12 +470,20 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package) {
 		if err != nil {
 			continue
 		}
-		text := string(raw)
-		text = stripCSSComments(text)
-		for _, target := range extractCSSURLs(text) {
+		references, err := cssscan.ScanReferences(raw)
+		if err != nil {
+			ins.addFinding("error", "CSS reference scan failed: "+err.Error(), item.Href, "css-reference-scan")
+			ins.addSkill("epub-package-nav-auditor", "error")
+			continue
+		}
+		for _, ref := range references {
 			if ctx.Err() != nil {
 				return
 			}
+			if !isCSSURLFunction(ref) {
+				continue
+			}
+			target := ref.Value
 			if isExternalURL(target) {
 				continue
 			}
@@ -781,30 +790,13 @@ func manifestItemByArchivePath(pkg *opf.Package, path string) (opf.ManifestItem,
 	return opf.ManifestItem{}, false
 }
 
-func stripCSSComments(text string) string {
-	var b strings.Builder
-	for {
-		i := strings.Index(text, "/*")
-		if i < 0 {
-			b.WriteString(text)
-			break
-		}
-		b.WriteString(text[:i])
-		j := strings.Index(text[i+2:], "*/")
-		if j < 0 {
-			break
-		}
-		text = text[i+2+j+2:]
+func isCSSURLFunction(ref cssscan.Reference) bool {
+	if ref.Kind == cssscan.ReferenceURL {
+		return true
 	}
-	return b.String()
-}
-
-func extractCSSURLs(text string) []string {
-	var out []string
-	for _, m := range cssURLRe.FindAllStringSubmatch(text, -1) {
-		out = append(out, m[1])
-	}
-	return out
+	// Preserve the legacy url() check for @import url(...), but do not add new
+	// checks for quoted @import values that the old extractor did not inspect.
+	return ref.Kind == cssscan.ReferenceImport && ref.ValueSpan.Start-ref.Span.Start > 1
 }
 
 // shlexQuote 复刻 Python shlex.quote：不含危险字符时原样返回，

@@ -102,6 +102,7 @@ type presetReport struct {
 // ---- preset 读取 ----
 
 type presetConfig struct {
+	CSS    map[string][]byte
 	Name   string
 	Layers []string
 	Notes  string
@@ -110,19 +111,19 @@ type presetConfig struct {
 // loadPreset 逐行复刻 load_preset（含 ≤500 行硬校验）。返回 (config,
 // preset 自身目录)——与 Python 的 (config, preset_dir) 二元组对应。
 // presetDir 是 preset 根目录（PRESETS_ROOT），具体 preset 在其 name 子目录。
-func loadPreset(name, presetDir string) (presetConfig, string, error) {
+func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, string, error) {
 	dir := filepath.Join(filepath.FromSlash(presetDir), name)
 	configPath := filepath.Join(dir, "preset.json")
 	if !isRegularFile(configPath) {
 		return presetConfig{}, "", presetErrf("unknown preset: %s", name)
 	}
-	raw, err := os.ReadFile(configPath)
+	raw, err := book.ReadFileContext(ctx, configPath, 1<<20)
 	if err != nil {
-		return presetConfig{}, "", presetErrf("invalid preset metadata: %s: %v", configPath, err)
+		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", configPath, err)
 	}
 	var cfg map[string]any
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return presetConfig{}, "", presetErrf("invalid preset metadata: %s: %v", configPath, err)
+		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", configPath, err)
 	}
 	cfgName, _ := cfg["name"].(string)
 	cfgVersion, _ := cfg["version"].(string)
@@ -130,38 +131,51 @@ func loadPreset(name, presetDir string) (presetConfig, string, error) {
 		return presetConfig{}, "", presetErrf("invalid preset metadata: %s", configPath)
 	}
 	layersAny, ok := cfg["layers"].([]any)
-	if !ok || len(layersAny) == 0 {
-		return presetConfig{}, "", presetErrf("preset has no layers: %s", name)
+	if !ok || len(layersAny) == 0 || len(layersAny) > 32 {
+		return presetConfig{}, "", presetErrf("preset must have 1 to 32 layers: %s", name)
 	}
+	var presetBytes int
 	layers := []string{}
+	layerData := map[string][]byte{}
 	for _, l := range layersAny {
 		layer, ok := l.(string)
 		if !ok || pypath.Basename(layer) != layer || !strings.HasSuffix(layer, ".css") {
 			return presetConfig{}, "", presetErrf("invalid stylesheet layer in preset %s: %s", name, pyRepr(layer))
 		}
 		cssPath := filepath.Join(dir, "Styles", layer)
-		data, err := os.ReadFile(cssPath)
+		data, err := book.ReadFileContext(ctx, cssPath, 4<<20)
 		if err != nil {
-			return presetConfig{}, "", presetErrf("preset stylesheet is missing: %s", cssPath)
+			return presetConfig{}, "", fmt.Errorf("preset stylesheet %s: %w", cssPath, err)
+		}
+		presetBytes += len(data)
+		if presetBytes > 16<<20 {
+			return presetConfig{}, "", presetErrf("preset stylesheet total exceeds 16 MiB: %s", name)
 		}
 		if pyLineCount(string(data)) > 500 {
 			return presetConfig{}, "", presetErrf("preset stylesheet exceeds the 500-line hard limit: %s", cssPath)
 		}
+		if _, duplicate := layerData[layer]; duplicate {
+			return presetConfig{}, "", presetErrf("duplicate stylesheet layer: %s", layer)
+		}
+		layerData[layer] = data
 		layers = append(layers, layer)
 	}
 	notes, _ := cfg["notes"].(string)
-	return presetConfig{Name: cfgName, Layers: layers, Notes: notes}, dir, nil
+	return presetConfig{Name: cfgName, Layers: layers, Notes: notes, CSS: layerData}, dir, nil
 }
 
 // ---- coverage ----
 
 // usedClasses 复刻 used_classes（CLASS_ATTR_RE 的反向引用手工实现）。
-func usedClasses(raw func(string) ([]byte, bool), paths []string) (map[string]bool, error) {
+func usedClasses(ctx context.Context, raw func(string) ([]byte, error), paths []string) (map[string]bool, error) {
 	classes := map[string]bool{}
 	for _, path := range paths {
-		data, ok := raw(path)
-		if !ok {
-			return nil, presetErrf("spine item is missing from EPUB: %s", path)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		data, err := raw(path)
+		if err != nil {
+			return nil, err
 		}
 		text := decodeUTF8Replace(data)
 		for _, value := range scanClassAttrValues(text) {
@@ -227,17 +241,12 @@ func scanClassAttrValues(text string) []string {
 
 // presetClasses 复刻 preset_classes：注释剥离后按 CSS_CLASS_RE 收集
 // `(?<![\w-])\.([A-Za-z_][\w-]*)`（负向后顾手工实现）。
-func presetClasses(presetDir, presetName string, layers []string) (map[string]bool, error) {
+func presetClasses(layers map[string][]byte) map[string]bool {
 	classes := map[string]bool{}
-	dir := filepath.Join(filepath.FromSlash(presetDir), presetName)
-	for _, layer := range layers {
-		data, err := os.ReadFile(filepath.Join(dir, "Styles", layer))
-		if err != nil {
-			return nil, presetErrf("preset stylesheet is missing: %s", filepath.Join(dir, "Styles", layer))
-		}
+	for _, data := range layers {
 		scanCSSClasses(css.StripComments(string(data)), classes)
 	}
-	return classes, nil
+	return classes
 }
 
 func scanCSSClasses(text string, out map[string]bool) {
@@ -333,7 +342,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if presetDir == "" {
 		presetDir = DefaultPresetsDir
 	}
-	config, _, err := loadPreset(p.Preset, presetDir)
+	config, _, err := loadPreset(ctx, p.Preset, presetDir)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -346,7 +355,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err != nil {
 		return report.Result{}, err
 	}
-	opfData, err := b.Current(opfPath)
+	opfData, err := b.CurrentContext(ctx, opfPath)
 	if err != nil {
 		return report.Result{}, presetErrf("%v", err)
 	}
@@ -366,21 +375,27 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			return report.Result{}, err
 		}
 	}
-	raw := func(name string) ([]byte, bool) {
-		data, err := b.Current(name)
+	stylesDir := pypath.Join(opfDir, "Styles")
+	cssPaths := make([]string, 0, len(config.Layers))
+	layerData := make(map[string][]byte, len(config.Layers))
+	for _, layer := range config.Layers {
+		path := pypath.Join(stylesDir, layer)
+		cssPaths = append(cssPaths, path)
+		layerData[path] = config.CSS[layer]
+	}
+	fontMode := ""
+	if p.ScopePaths == nil {
+		fontMode, err = preserveFontMode(ctx, b, opfRoot, xhtmlPaths, pypath.Join(stylesDir, "fonts.css"), layerData)
 		if err != nil {
-			return nil, false
+			return report.Result{}, err
 		}
-		return data, true
 	}
-	used, err := usedClasses(raw, xhtmlPaths)
+	raw := func(name string) ([]byte, error) { return b.CurrentContext(ctx, name) }
+	used, err := usedClasses(ctx, raw, xhtmlPaths)
 	if err != nil {
 		return report.Result{}, err
 	}
-	styled, err := presetClasses(presetDir, p.Preset, config.Layers)
-	if err != nil {
-		return report.Result{}, err
-	}
+	styled := presetClasses(layerData)
 	exists := func(name string) bool { return b.Has(name) }
 	actions := stylesheetActions(exists, opfPath, filepath.Join(presetDir, p.Preset), config.Layers)
 
@@ -411,21 +426,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	// 2. 应用（唯一写点）。
-	stylesDir := pypath.Join(opfDir, "Styles")
-	cssPaths := make([]string, 0, len(config.Layers))
-	for _, layer := range config.Layers {
-		cssPaths = append(cssPaths, pypath.Join(stylesDir, layer))
-	}
-
 	var edits []editset.Edit
 	for i, layer := range config.Layers {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, err
 		}
-		data, err := os.ReadFile(filepath.Join(filepath.FromSlash(presetDir), p.Preset, "Styles", layer))
-		if err != nil {
-			return report.Result{}, presetErrf("preset stylesheet is missing: %s",
-				filepath.Join(filepath.FromSlash(presetDir), p.Preset, "Styles", layer))
+		data := layerData[cssPaths[i]]
+		if p.ScopePaths == nil && layer == "fonts.css" && b.Has(cssPaths[i]) {
+			actions[i].Action = "keep"
+			actions[i].Source = cssPaths[i]
 		}
 		if p.ScopePaths != nil {
 			if err := validateScopedCSS(data); err != nil {
@@ -437,7 +446,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		cssPath := cssPaths[i]
 		if b.Has(cssPath) {
-			cur, err := b.Current(cssPath)
+			cur, err := b.CurrentContext(ctx, cssPath)
 			if err != nil {
 				return report.Result{}, presetErrf("%v", err)
 			}
@@ -465,7 +474,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, err
 		}
-		data, err := b.Current(path)
+		data, err := b.CurrentContext(ctx, path)
 		if err != nil {
 			return report.Result{}, presetErrf("%v", err)
 		}
@@ -512,6 +521,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if !p.DryRun {
 		facts["manifestItemsAdded"] = len(added)
 		facts["manifestItemsAddedHrefs"] = added
+	}
+	if fontMode != "" {
+		facts["fontMode"] = fontMode
+		facts["fontModeAction"] = "preserve"
 	}
 	if p.ScopePaths != nil {
 		facts["applicationMode"] = "scoped-additive"
