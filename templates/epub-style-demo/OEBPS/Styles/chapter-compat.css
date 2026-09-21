@@ -46,7 +46,6 @@ html.chapter-compat-document body > .chapter-compat-section {
   width: 5.8em;
   margin: 1.1em 7.5% 0 auto;
   border-collapse: collapse;
-  direction: ltr;
 }
 
 .chapter-compat-title-cell,

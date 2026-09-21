@@ -142,7 +142,6 @@ body.poster-bg-chapter-opening {
   writing-mode: horizontal-tb;
   -webkit-writing-mode: horizontal-tb;
   -epub-writing-mode: horizontal-tb;
-  direction: ltr;
   overflow: hidden;
   page-break-before: always;
   page-break-after: always;
