@@ -45,6 +45,37 @@ func TestReferenceEditsOnlyChangesReferenceValues(t *testing.T) {
 	}
 }
 
+func TestScanReferencesImageSetStrings(t *testing.T) {
+	input := []byte(`a { background: image-set("a.png" 1x, /* candidate */ 'b.png' 2x); content: "image-set(\"ghost.png\")"; }`)
+	references, err := ScanReferences(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(references) != 2 {
+		t.Fatalf("references = %+v, want only the two image-set candidates", references)
+	}
+	wantValues := []string{"a.png", "b.png"}
+	for i, ref := range references {
+		if ref.Value != wantValues[i] || string(input[ref.ValueSpan.Start:ref.ValueSpan.End]) != wantValues[i] {
+			t.Fatalf("reference %d = %+v, want %q with matching source span", i, ref, wantValues[i])
+		}
+	}
+	edits, err := ReferenceEdits("styles/main.css", input, func(value string) string {
+		return "images/" + value
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := editset.Apply("styles/main.css", input, edits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []byte(`a { background: image-set("images/a.png" 1x, /* candidate */ 'images/b.png' 2x); content: "image-set(\"ghost.png\")"; }`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("image-set edits changed unrelated CSS\n got: %s\nwant: %s", got, want)
+	}
+}
+
 func TestReferenceEditsAcceptsInlineDeclarationList(t *testing.T) {
 	const path = "inline"
 	input := []byte("background: url(bg.png); src: url('font.woff2')")

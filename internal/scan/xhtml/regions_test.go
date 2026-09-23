@@ -37,6 +37,12 @@ func TestScanRegions(t *testing.T) {
 			ScanComplete,
 		},
 		{
+			"prefixed style and script elements",
+			`<svg:style>.x{fill:url(x)}</svg:style><h:script>var x=1;</h:script><br/>`,
+			[]string{`tag:<svg:style>`, `style:.x{fill:url(x)}`, `tag:</svg:style>`, `tag:<h:script>`, `tag:</h:script>`, `tag:<br/>`},
+			ScanComplete,
+		},
+		{
 			// 含 href 的普通 PI 不产出区域；xml-stylesheet PI 产出专用区域。
 			"pi with href vs xml-stylesheet pi",
 			`<?other href="a.css"?><?xml-stylesheet href="a.css"?><?xml-stylesheet-alt href="a.css"?>`,

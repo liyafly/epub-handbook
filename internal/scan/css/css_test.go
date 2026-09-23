@@ -3,6 +3,7 @@ package css
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -131,6 +132,19 @@ func TestParseRejectsMalformedInput(t *testing.T) {
 	var parseErr *ParseError
 	if _, err := Parse([]byte{'a', '{', 0xff}); !errors.As(err, &parseErr) || !errors.Is(err, ErrInvalidUTF8) {
 		t.Fatalf("invalid UTF-8 error=%v, want ParseError wrapping ErrInvalidUTF8", err)
+	}
+}
+
+func TestScanReferencesStrictURLFunctionName(t *testing.T) {
+	refs, err := ScanReferences([]byte(`a { background: url (image.png); }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 0 {
+		t.Fatalf("url (image.png) references = %+v, want none", refs)
+	}
+	if _, err := ScanReferences([]byte(`a { background: u\72l(image.png); }`)); err == nil || !strings.Contains(err.Error(), "escaped function name") {
+		t.Fatalf("escaped URL function error = %v, want explicit escaped function name error", err)
 	}
 }
 

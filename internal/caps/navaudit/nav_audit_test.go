@@ -479,6 +479,37 @@ func TestCSSURLAuditStillReportsMissingURLFunctionTarget(t *testing.T) {
 	t.Fatalf("missing url() target did not produce an error finding: %+v", res.Findings)
 }
 
+func TestCSSURLAuditIgnoresQueryAndDowngradesEscapes(t *testing.T) {
+	path := writeNativeFixture(t)
+	input := filepath.Join(t.TempDir(), "query-and-escape.epub")
+	rewriteZipEntry(t, path, input, "OEBPS/Styles/main.css", func([]byte) []byte {
+		return []byte(`a { background: url("../Images/cover.png?edition=2#cover"); }
+b { background: url("../Images/missing\\20 cover.png"); }
+`)
+	})
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundEscapedWarning := false
+	for _, finding := range res.Findings {
+		if finding.Level == "error" && finding.Title == "CSS url() target missing" {
+			t.Fatalf("query or escaped URL produced a missing-target error: %+v", finding)
+		}
+		if finding.Level == "warn" && finding.Title == "CSS url() uses escapes; target not verified" && finding.Detail == "css-reference-escaped" {
+			foundEscapedWarning = true
+		}
+	}
+	if !foundEscapedWarning {
+		t.Fatalf("escaped URL warning missing: %+v", res.Findings)
+	}
+}
+
 func TestCSSURLAuditReportsReferenceScannerFailures(t *testing.T) {
 	path := writeNativeFixture(t)
 	malformedCSS := filepath.Join(t.TempDir(), "malformed-css.epub")

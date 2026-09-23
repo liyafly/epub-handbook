@@ -8,6 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -94,131 +95,20 @@ func collectMarkupReferences(data []byte) ([]resourceReference, error) {
 // comment/string/function and CSS escapes inside a URL: retaining uncertain
 // input is safer than silently dropping a local resource from a segment.
 func collectCSSURIsStrict(text string) ([]string, error) {
+	references, err := cssscan.ScanReferences([]byte(text))
+	if err != nil {
+		return nil, fmt.Errorf("invalid CSS: %w", err)
+	}
 	var out []string
-	for i := 0; i < len(text); {
-		if strings.HasPrefix(text[i:], "/*") {
-			end := strings.Index(text[i+2:], "*/")
-			if end < 0 {
-				return nil, fmt.Errorf("invalid CSS: unterminated comment at byte %d", i)
-			}
-			i += end + 4
-			continue
+	for _, ref := range references {
+		if strings.ContainsRune(ref.Value, '\\') {
+			return nil, fmt.Errorf("invalid CSS: escaped URL at byte %d", ref.ValueSpan.Start)
 		}
-		if text[i] == '\'' || text[i] == '"' {
-			next, err := skipCSSString(text, i)
-			if err != nil {
-				return nil, err
-			}
-			i = next
-			continue
+		if ref.Value != "" {
+			out = append(out, ref.Value)
 		}
-		if i+4 <= len(text) && strings.EqualFold(text[i:i+4], "url(") && wordBoundary(text, i) {
-			uri, next, err := parseCSSURL(text, i)
-			if err != nil {
-				return nil, err
-			}
-			if uri != "" {
-				out = append(out, uri)
-			}
-			i = next
-			continue
-		}
-		if i+7 <= len(text) && text[i] == '@' && strings.EqualFold(text[i:i+7], "@import") {
-			j := i + 7
-			if j < len(text) {
-				r, _ := utf8.DecodeRuneInString(text[j:])
-				if isWordRune(r) {
-					i++
-					continue
-				}
-			}
-			j = skipPySpace(text, j)
-			if j < len(text) && (text[j] == '\'' || text[j] == '"') {
-				uri, next, err := parseCSSQuotedURL(text, j)
-				if err != nil {
-					return nil, err
-				}
-				if uri != "" {
-					out = append(out, uri)
-				}
-				i = next
-				continue
-			}
-		}
-		i++
 	}
 	return out, nil
-}
-
-func skipCSSString(text string, start int) (int, error) {
-	quote := text[start]
-	for i := start + 1; i < len(text); i++ {
-		switch text[i] {
-		case '\\':
-			if i+1 >= len(text) {
-				return 0, fmt.Errorf("invalid CSS: unterminated escape at byte %d", i)
-			}
-			i++
-		case quote:
-			return i + 1, nil
-		case '\n', '\r':
-			return 0, fmt.Errorf("invalid CSS: newline in string at byte %d", i)
-		}
-	}
-	return 0, fmt.Errorf("invalid CSS: unterminated string at byte %d", start)
-}
-
-func parseCSSQuotedURL(text string, start int) (string, int, error) {
-	quote := text[start]
-	uriStart := start + 1
-	for i := uriStart; i < len(text); i++ {
-		switch text[i] {
-		case '\\':
-			return "", 0, fmt.Errorf("invalid CSS: escaped URL at byte %d", i)
-		case quote:
-			return text[uriStart:i], i + 1, nil
-		case '\n', '\r':
-			return "", 0, fmt.Errorf("invalid CSS: newline in URL at byte %d", i)
-		}
-	}
-	return "", 0, fmt.Errorf("invalid CSS: unterminated URL at byte %d", start)
-}
-
-func parseCSSURL(text string, start int) (string, int, error) {
-	i := skipPySpace(text, start+4)
-	if i >= len(text) {
-		return "", 0, fmt.Errorf("invalid CSS: unterminated url() at byte %d", start)
-	}
-	if text[i] == '\'' || text[i] == '"' {
-		uri, next, err := parseCSSQuotedURL(text, i)
-		if err != nil {
-			return "", 0, err
-		}
-		next = skipPySpace(text, next)
-		if next >= len(text) || text[next] != ')' {
-			return "", 0, fmt.Errorf("invalid CSS: quoted url() missing closing ')' at byte %d", start)
-		}
-		return uri, next + 1, nil
-	}
-	uriStart := i
-	for i < len(text) && text[i] != ')' {
-		r, size := utf8.DecodeRuneInString(text[i:])
-		if r == utf8.RuneError && size == 1 {
-			return "", 0, fmt.Errorf("invalid CSS: invalid UTF-8 at byte %d", i)
-		}
-		if r == '\\' || r == '\'' || r == '"' || r == '\n' || r == '\r' {
-			return "", 0, fmt.Errorf("invalid CSS: escaped or quoted URL at byte %d", i)
-		}
-		i += size
-	}
-	if i >= len(text) {
-		return "", 0, fmt.Errorf("invalid CSS: unterminated url() at byte %d", start)
-	}
-	uri := strings.TrimSpace(text[uriStart:i])
-	if len(strings.Fields(uri)) > 1 {
-		return "", 0, fmt.Errorf("invalid CSS: whitespace inside unquoted URL at byte %d", uriStart)
-	}
-	return uri, i + 1, nil
 }
 
 // srcsetCandidate 是一个已拆分的 HTML srcset candidate。descriptor 仅用于
@@ -328,26 +218,6 @@ func validSrcsetDescriptor(value string) bool {
 		return false
 	}
 	return true
-}
-
-// isWordRune 对齐 Python \w。
-func isWordRune(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
-}
-
-// wordBoundary 对齐 Python \b。
-func wordBoundary(text string, i int) bool {
-	before := false
-	if i > 0 {
-		r, _ := utf8.DecodeLastRuneInString(text[:i])
-		before = isWordRune(r)
-	}
-	after := false
-	if i < len(text) {
-		r, _ := utf8.DecodeRuneInString(text[i:])
-		after = isWordRune(r)
-	}
-	return before != after
 }
 
 func skipPySpace(text string, i int) int {

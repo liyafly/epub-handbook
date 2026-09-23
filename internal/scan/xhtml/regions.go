@@ -101,9 +101,13 @@ func ScanRegions(text string) ([]Region, int) {
 				continue
 			}
 			name := regionTagName(text[lt+1 : end])
+			localName := name
+			if colon := strings.LastIndexByte(localName, ':'); colon >= 0 {
+				localName = localName[colon+1:]
+			}
 			switch {
-			case strings.EqualFold(name, "style"):
-				close := indexFoldCloseTag(text, i, "</style")
+			case strings.EqualFold(localName, "style"):
+				close := indexFoldCloseTag(text, i, "</"+name)
 				if close < 0 {
 					return regions, i
 				}
@@ -111,8 +115,8 @@ func ScanRegions(text string) ([]Region, int) {
 					regions = append(regions, Region{Kind: RegionStyle, Span: Span{Start: i, End: close}})
 				}
 				i = close
-			case strings.EqualFold(name, "script"):
-				close := indexFoldCloseTag(text, i, "</script")
+			case strings.EqualFold(localName, "script"):
+				close := indexFoldCloseTag(text, i, "</"+name)
 				if close < 0 {
 					return regions, i
 				}

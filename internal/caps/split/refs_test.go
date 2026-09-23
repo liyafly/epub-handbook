@@ -133,3 +133,20 @@ func TestCollectCSSURIsStrict(t *testing.T) {
 		t.Fatalf("collectCSSURIsStrict() = %#v, want %#v", got, want)
 	}
 }
+
+func TestCollectCSSURIsStrictImageSetAndEscapedFunction(t *testing.T) {
+	got, err := collectCSSURIsStrict(`a{background:image-set("a.webp" 1x, "b.webp" 2x);content:"image-set(\"ghost.webp\")"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a.webp", "b.webp"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("collectCSSURIsStrict() = %#v, want %#v", got, want)
+	}
+	if _, err := collectCSSURIsStrict(`a{background:u\72l(image.webp)}`); err == nil {
+		t.Fatal("escaped URL function was silently skipped")
+	}
+	if got, err := collectCSSURIsStrict(`a{background:url (image.webp)}`); err != nil || len(got) != 0 {
+		t.Fatalf("whitespace-separated url() = %#v, %v; want no reference", got, err)
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
@@ -487,9 +488,11 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package) {
 			if isExternalURL(target) {
 				continue
 			}
-			clean := target
-			if i := strings.IndexByte(clean, '#'); i >= 0 {
-				clean = clean[:i]
+			parts := pypath.URLSplit(target)
+			clean := parts.Path
+			if strings.ContainsRune(clean, '\\') {
+				ins.addFinding("warn", "CSS url() uses escapes; target not verified", item.Href+" -> "+target, "css-reference-escaped")
+				continue
 			}
 			clean = unquotePct(clean)
 			if clean == "" {

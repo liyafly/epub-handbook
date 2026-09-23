@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -441,6 +442,9 @@ func (s sourceScanner) lex() ([]Token, error) {
 		if isNameStart(data, i) {
 			end := consumeName(data, i)
 			if end > i {
+				if bytes.IndexByte(data[start:end], '\\') >= 0 && end < len(data) && data[end] == '(' {
+					return nil, parseErrAt(start, errors.New("escaped function name"))
+				}
 				if urlEnd, ok, err := consumeURL(data, start, end); ok {
 					if err != nil {
 						return nil, parseErrAt(start, err)
@@ -779,6 +783,57 @@ func references(data []byte, tokens []Token) []Reference {
 			break
 		}
 	}
+	out = append(out, imageSetReferences(data, tokens)...)
+	sort.Slice(out, func(i, j int) bool { return out[i].Span.Start < out[j].Span.Start })
+	return out
+}
+
+// imageSetReferences treats a direct string candidate in image-set() as a URL.
+// Strings nested inside type(), url(), or other functions are not candidates.
+func imageSetReferences(data []byte, tokens []Token) []Reference {
+	var out []Reference
+	for i, token := range tokens {
+		if token.Kind != TokenIdent || !strings.EqualFold(string(token.Data), "image-set") && !strings.EqualFold(string(token.Data), "-webkit-image-set") {
+			continue
+		}
+		open := i + 1
+		if open >= len(tokens) || tokens[open].Kind != TokenLeftParenthesis || token.Span.End != tokens[open].Span.Start {
+			continue
+		}
+		depth := 1
+		wantCandidate := true
+		for j := open + 1; j < len(tokens) && depth > 0; j++ {
+			candidate := tokens[j]
+			switch candidate.Kind {
+			case TokenLeftParenthesis:
+				depth++
+				if depth == 2 {
+					wantCandidate = false
+				}
+			case TokenRightParenthesis:
+				depth--
+			case TokenComma:
+				if depth == 1 {
+					wantCandidate = true
+				}
+			case TokenWhitespace, TokenComment:
+				continue
+			default:
+				if depth == 1 && wantCandidate {
+					wantCandidate = false
+					if candidate.Kind != TokenString {
+						continue
+					}
+					span, quote, ok := quotedValueSpan(data, candidate.Span)
+					if !ok {
+						continue
+					}
+					value := string(data[span.Start:span.End])
+					out = append(out, Reference{Kind: ReferenceURL, Span: candidate.Span, ValueSpan: span, Value: value, Quote: quote, DataURL: strings.HasPrefix(strings.ToLower(value), "data:")})
+				}
+			}
+		}
+	}
 	return out
 }
 
@@ -934,9 +989,6 @@ func consumeURL(data []byte, start, nameEnd int) (int, bool, error) {
 		return start, false, nil
 	}
 	i := nameEnd
-	for i < len(data) && isCSSWhitespace(data[i]) {
-		i++
-	}
 	if i >= len(data) || data[i] != '(' {
 		return start, false, nil
 	}
