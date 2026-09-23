@@ -49,10 +49,6 @@ var audioExtensions = map[string]bool{".m4a": true, ".mp3": true, ".ogg": true}
 
 var videoExtensions = map[string]bool{".m4v": true, ".mp4": true, ".webm": true}
 
-// uriAttrNames 是 URI_ATTRIBUTE_RE 的名字交替表，按 Python 正则的
-// 尝试顺序排列（href|src|poster|data|xlink:href|textref）。
-var uriAttrNames = []string{"href", "src", "poster", "data", "xlink:href", "textref"}
-
 // xmlEncodingRe 复刻 XML_ENCODING_RE：从字节前缀里提取声明的编码名。
 var xmlEncodingRe = regexp.MustCompile(`(?i)encoding\s*=\s*["']([A-Za-z0-9._-]+)["']`)
 

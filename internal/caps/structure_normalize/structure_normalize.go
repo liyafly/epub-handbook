@@ -24,8 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
@@ -990,80 +988,29 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 // 改名后尾部引用会静默断链，而 anchors 红线只校验 id 存活、不校验 href
 // 可解析，没有任何下游能兜住。
 func rewriteMarkupReferences(text, oldDocument, newDocument string, rw *refRewriter) string {
-	regions, stop := xhtml.ScanRegions(text)
-	if stop != xhtml.ScanComplete {
-		rw.warn("%s: markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); references after this offset left unchanged", oldDocument, stop)
+	rewriteURIValue := func(uri string) string {
+		return rw.rewriteURI(uri, oldDocument, newDocument)
 	}
-	if len(regions) == 0 {
+	rewriteCSSValue := func(raw, document string, quote byte, _ func(string) string) (string, error) {
+		var updated string
+		if strings.Contains(raw, "&") {
+			updated = rewriteCSSReferencesWithEntityMap(raw, oldDocument, newDocument, quote, rw)
+		} else {
+			updated = rewriteCSSReferences(raw, oldDocument, newDocument, rw)
+		}
+		if rw.err != nil {
+			return "", rw.err
+		}
+		return updated, nil
+	}
+	updated, err := xhtml.RewriteMarkup(text, oldDocument, rewriteURIValue, rewriteCSSValue, attrEscapeFor, rw.warn)
+	if err != nil {
+		if rw.err == nil {
+			rw.err = toolErrf("%v", err)
+		}
 		return text
 	}
-	var out strings.Builder
-	out.Grow(len(text))
-	last := 0
-	for _, r := range regions {
-		out.WriteString(text[last:r.Start])
-		segment := text[r.Start:r.End]
-		switch r.Kind {
-		case xhtml.RegionTag:
-			segment = rewriteTagReferences(segment, oldDocument, newDocument, rw)
-		case xhtml.RegionStyle:
-			if strings.Contains(segment, "&") {
-				segment = rewriteCSSReferencesWithEntityMap(segment, oldDocument, newDocument, 0, rw)
-			} else {
-				segment = rewriteCSSReferences(segment, oldDocument, newDocument, rw)
-			}
-		case xhtml.RegionStylesheetPI:
-			segment = rewriteStylesheetPIReference(segment, oldDocument, newDocument, rw)
-		}
-		out.WriteString(segment)
-		last = r.End
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-// rewriteTagReferences 在单个标签的字节内重写 srcset、URI 属性与内联
-// style 属性里的 url()/@import。
-func rewriteTagReferences(tag, oldDocument, newDocument string, rw *refRewriter) string {
-	tag = rewriteSrcsetURLs(tag, oldDocument, newDocument, rw)
-	tag = rewriteQuotedTagAttrs(tag, uriAttrNames, func(_ string, quote byte, raw string) string {
-		uri := raw
-		if strings.Contains(raw, "&") {
-			decoded, _, err := xhtml.DecodeAttrWithMap(raw)
-			if err != nil {
-				rw.err = toolErrf("%s: URI attribute entity decode: %v", oldDocument, err)
-				return raw
-			}
-			uri = decoded
-		}
-		updated := rw.rewriteURI(uri, oldDocument, newDocument)
-		if updated == uri {
-			return raw
-		}
-		return attrEscapeFor(quote, updated)
-	})
-	return rewriteInlineStyleReferences(tag, oldDocument, newDocument, rw)
-}
-
-// rewriteInlineStyleReferences 只在 style="…" 属性值内部做 CSS url()/@import
-// 重写。整段标签跑 CSS 重写会连 title=""、alt="" 这类读者可见文本一起改
-// （`<div title="url(a.png)">`），那是正文损坏；而内联 style 的 url() 是真
-// 标记，资源搬家后必须跟着改，不能整体放弃。
-func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, rw *refRewriter) string {
-	return rewriteQuotedTagAttrs(tag, []string{"style"}, func(_ string, quote byte, value string) string {
-		if strings.Contains(value, "&") {
-			return rewriteCSSReferencesWithEntityMap(value, oldDocument, newDocument, quote, rw)
-		}
-		return rewriteCSSReferences(value, oldDocument, newDocument, rw)
-	})
-}
-
-// rewriteStylesheetPIReference 只重写 <?xml-stylesheet …?> 的 href 伪属性。
-// PI 不是标签：type/media/title 伪属性与 CSS url() 语法都不参与重写。
-func rewriteStylesheetPIReference(pi, oldDocument, newDocument string, rw *refRewriter) string {
-	return subNameQuoteURI(pi, []string{"href"}, func(prefix, quote, uri string) string {
-		return prefix + quote + rw.rewriteURI(uri, oldDocument, newDocument) + quote
-	})
+	return updated
 }
 
 // rewriteCSSReferences uses lossless token spans, excluding comments and
@@ -1142,207 +1089,4 @@ func attrEscapeFor(quote byte, value string) string {
 		return singleQuoteAttrEscaper.Replace(value)
 	}
 	return attribEscaper.Replace(value)
-}
-
-// rewriteSrcsetURLs 复刻 rewrite_srcset_urls。
-func rewriteSrcsetURLs(text, oldDocument, newDocument string, rw *refRewriter) string {
-	return rewriteQuotedTagAttrs(text, []string{"srcset"}, func(_ string, _ byte, uri string) string {
-		var candidates []string
-		for _, candidate := range splitSrcsetCandidates(uri) {
-			parts := splitPyWhitespace(strings.TrimSpace(candidate))
-			if len(parts) == 0 {
-				continue
-			}
-			url := rw.rewriteURI(parts[0], oldDocument, newDocument)
-			descriptor := strings.Join(parts[1:], " ")
-			candidates = append(candidates, strings.TrimSpace(url+" "+descriptor))
-		}
-		return strings.Join(candidates, ", ")
-	})
-}
-
-func rewriteQuotedTagAttrs(tag string, names []string, rewrite func(name string, quote byte, value string) string) string {
-	_, _, closing := xhtml.TagParts(tag)
-	if closing {
-		return tag
-	}
-	attrs, ok := xhtml.TagAttrs(tag)
-	if !ok {
-		return tag
-	}
-	var out strings.Builder
-	last := 0
-	changed := false
-	for _, attr := range attrs {
-		if attr.Quote == 0 || !hasAttrName(names, attr.Name) {
-			continue
-		}
-		value := tag[attr.ValueSpan.Start:attr.ValueSpan.End]
-		updated := rewrite(attr.Name, attr.Quote, value)
-		if updated == value {
-			continue
-		}
-		out.WriteString(tag[last:attr.ValueSpan.Start])
-		out.WriteString(updated)
-		last = attr.ValueSpan.End
-		changed = true
-	}
-	if !changed {
-		return tag
-	}
-	out.WriteString(tag[last:])
-	return out.String()
-}
-
-func hasAttrName(names []string, candidate string) bool {
-	for _, name := range names {
-		if strings.EqualFold(candidate, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// splitSrcsetCandidates 逐行复刻 split_srcset_candidates。
-func splitSrcsetCandidates(value string) []string {
-	var candidates []string
-	start := 0
-	inURL := true
-	for index, char := range value {
-		if unicode.IsSpace(char) && strings.TrimSpace(value[start:index]) != "" {
-			inURL = false
-		} else if char == ',' {
-			seg := strings.TrimSpace(value[start:index])
-			currentURL := ""
-			if seg != "" {
-				if parts := splitPyWhitespace(seg); len(parts) > 0 {
-					currentURL = parts[0]
-				}
-			}
-			if inURL && strings.HasPrefix(strings.ToLower(currentURL), "data:") {
-				continue
-			}
-			candidates = append(candidates, value[start:index])
-			start = index + 1
-			inURL = true
-		}
-	}
-	candidates = append(candidates, value[start:])
-	return candidates
-}
-
-// splitPyWhitespace 复刻 str.split()（按 Unicode 空白切分、去空段）。
-func splitPyWhitespace(s string) []string {
-	var out []string
-	start := -1
-	for i, r := range s {
-		if unicode.IsSpace(r) {
-			if start >= 0 {
-				out = append(out, s[start:i])
-				start = -1
-			}
-		} else if start < 0 {
-			start = i
-		}
-	}
-	if start >= 0 {
-		out = append(out, s[start:])
-	}
-	return out
-}
-
-// ---- 正则扫描器（Python re 语义的手工实现；RE2 无反向引用） ----
-
-type uriMatch struct {
-	start, end int    // 完整匹配的字节区间
-	prefix     string // prefix 组（到引号前）
-	quote      byte   // 0 表示无引号
-	uri        string
-}
-
-// isWordRune 对齐 Python \w（字母、数字、下划线，Unicode 感知）。
-func isWordRune(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
-}
-
-// wordBoundary 对齐 Python \b。
-func wordBoundary(text string, i int) bool {
-	before := false
-	if i > 0 {
-		r, _ := utf8.DecodeLastRuneInString(text[:i])
-		before = isWordRune(r)
-	}
-	after := false
-	if i < len(text) {
-		r, _ := utf8.DecodeRuneInString(text[i:])
-		after = isWordRune(r)
-	}
-	return before != after
-}
-
-func skipPySpace(text string, i int) int {
-	for i < len(text) {
-		r, size := utf8.DecodeRuneInString(text[i:])
-		if !unicode.IsSpace(r) {
-			break
-		}
-		i += size
-	}
-	return i
-}
-
-// subNameQuoteURI 复刻 `\b(?:name|…)\s*=\s*(["'])(.*?)\1` 的 re.sub 语义。
-func subNameQuoteURI(text string, names []string, repl func(prefix, quote, uri string) string) string {
-	var out strings.Builder
-	last := 0
-	for {
-		m, ok := findNameQuoteMatch(text, last, names)
-		if !ok {
-			break
-		}
-		out.WriteString(text[last:m.start])
-		out.WriteString(repl(m.prefix, string(m.quote), m.uri))
-		last = m.end
-	}
-	out.WriteString(text[last:])
-	return out.String()
-}
-
-func findNameQuoteMatch(text string, from int, names []string) (uriMatch, bool) {
-	for i := from; i < len(text); {
-		if wordBoundary(text, i) {
-			for _, name := range names {
-				if i+len(name) > len(text) || !strings.EqualFold(text[i:i+len(name)], name) {
-					continue
-				}
-				j := skipPySpace(text, i+len(name))
-				if j >= len(text) || text[j] != '=' {
-					continue
-				}
-				j = skipPySpace(text, j+1)
-				if j >= len(text) || (text[j] != '"' && text[j] != '\'') {
-					continue
-				}
-				quote := text[j]
-				uriStart := j + 1
-				idx := strings.IndexByte(text[uriStart:], quote)
-				if idx < 0 {
-					continue
-				}
-				uriEnd := uriStart + idx
-				return uriMatch{
-					start: i, end: uriEnd + 1,
-					prefix: text[i:j],
-					quote:  quote,
-					uri:    text[uriStart:uriEnd],
-				}, true
-			}
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		if size == 0 {
-			break
-		}
-		i += size
-	}
-	return uriMatch{}, false
 }
