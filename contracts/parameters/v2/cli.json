@@ -116,7 +116,7 @@
         },
         "preset_dir": {
           "type": "string",
-          "description": "预设根目录。",
+          "description": "预设根目录；默认相对仓库根目录，显式相对路径相对当前目录。",
           "default": "templates/style-presets"
         },
         "scope_paths": {

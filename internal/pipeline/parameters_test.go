@@ -59,7 +59,7 @@ func TestPreviewNextCommandPreservesScopeAndQuotes(t *testing.T) {
 	c := Contract{ID: "epub.typography.optimize"}
 	c.Execution.Output = ExecOutputSingle
 	opts := Options{DryRun: true, InputPath: "books/O'Brien $(ignored).epub", OutputPath: "my candidate.epub", Args: Args{"preset": "academic-cn", "scope_paths": `["OPS/Text/a.xhtml"]`}}
-	got := nextCommands(c, opts, true)
+	got := nextCommands(c, opts, opts.Args, true)
 	want := `epub run epub.typography.optimize --input 'books/O'"'"'Brien $(ignored).epub' --output 'my candidate.epub' --json 'preset=academic-cn' 'scope_paths=["OPS/Text/a.xhtml"]'`
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("next command loses or expands scope: %q", got)

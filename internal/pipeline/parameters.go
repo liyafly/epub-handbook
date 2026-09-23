@@ -78,9 +78,11 @@ func validateArguments(root string, chain []Contract, args Args) error {
 		maps.Copy(parameters, desc.Parameters)
 	}
 	for _, key := range slices.Sorted(maps.Keys(args)) {
-		// These legacy keys cannot override global flags (Run overwrites them).
+		// Input/output/transaction mode are owned by global CLI flags. Reject
+		// legacy KEY=VALUE attempts instead of silently ignoring them.
 		if key == "input" || key == "output" || key == "dry_run" {
-			continue
+			flagName := map[string]string{"input": "input", "output": "output", "dry_run": "dry-run"}[key]
+			return fmt.Errorf("%s is controlled by the --%s flag; pass the flag instead of %s=", key, flagName, key)
 		}
 		spec, ok := parameters[key]
 		if !ok {

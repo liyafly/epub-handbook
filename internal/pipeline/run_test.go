@@ -1,7 +1,10 @@
 package pipeline
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,6 +20,55 @@ import (
 func buildSampleEpub(t *testing.T) string {
 	t.Helper()
 	return buildEpubWithOPF(t)
+}
+
+func buildTypographySampleEpub(t *testing.T) string {
+	t.Helper()
+	data := epubFixtureBytes(t)
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	zw := zip.NewWriter(&out)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(rc)
+		closeErr := rc.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if f.Name == "OEBPS/nav.xhtml" {
+			content = bytes.Replace(content, []byte(`lang="zh-CN"><body>`), []byte("lang=\"zh-CN\">\n<head>\n<title>nav</title>\n</head>\n<body>"), 1)
+			if !bytes.Contains(content, []byte("</head>")) {
+				t.Fatal("test fixture nav.xhtml needs a head section for typography")
+			}
+		} else if strings.HasSuffix(f.Name, ".xhtml") {
+			content = bytes.Replace(content, []byte("</head>"), []byte("\n</head>\n"), 1)
+		}
+		h := f.FileHeader
+		w, err := zw.CreateHeader(&h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "typography.epub")
+	if err := os.WriteFile(path, out.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func TestRunNavAuditEndToEnd(t *testing.T) {
@@ -48,6 +100,32 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	}
 	if env.Status == report.StatusComplete && outcome.ExitCode != ExitOK {
 		t.Errorf("complete 状态退出码 = %d", outcome.ExitCode)
+	}
+}
+
+func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := buildTypographySampleEpub(t)
+	output := filepath.Join(t.TempDir(), "candidate.epub")
+	t.Chdir(filepath.Join(root, "internal"))
+
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.optimize",
+		InputPath:    input,
+		OutputPath:   output,
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if outcome.Envelope.Status != report.StatusApprovalRequired || outcome.ExitCode != ExitApproval {
+		t.Fatalf("status=%q exit=%d, want approval-required/2; findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if len(outcome.Envelope.NextCommands) != 1 || strings.Contains(outcome.Envelope.NextCommands[0], "preset_dir=") {
+		t.Fatalf("nextCommands = %q, want a command without injected preset_dir", outcome.Envelope.NextCommands)
 	}
 }
 
@@ -232,7 +310,7 @@ func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
 func TestNormalizeNextCommandUsesFlagFirstOrder(t *testing.T) {
 	c := Contract{ID: "epub.structure.normalize"}
 	c.Execution.Output = ExecOutputSingle
-	got := nextCommands(c, Options{}, true)
+	got := nextCommands(c, Options{}, nil, true)
 	want := "epub redline --check all --path-map <normalize-envelope.json> <before> <after>"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("nextCommands = %q, want [%q]", got, want)

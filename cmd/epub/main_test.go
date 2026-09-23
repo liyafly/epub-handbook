@@ -16,6 +16,8 @@ func TestRunCapabilityUsageErrorsHonorJSON(t *testing.T) {
 	}{
 		{name: "missing capability", argv: []string{"--json"}, want: "缺少 capability-id"},
 		{name: "malformed key value", argv: []string{"epub.package.nav.audit", "--json", "malformed"}, want: "KEY=VALUE"},
+		{name: "json after key value", argv: []string{"epub.package.nav.audit", "mode=x", "--json"}, want: "before KEY=VALUE"},
+		{name: "numeric json boolean", argv: []string{"--json=1"}, want: "缺少 capability-id"},
 		{name: "flag parse error", argv: []string{"epub.package.nav.audit", "--json", "--unknown"}, want: "flag provided"},
 		{name: "duplicate parameter", argv: []string{"epub.typography.optimize", "--json", "preset=one", "preset=two"}, want: "重复参数"},
 	}

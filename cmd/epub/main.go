@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -83,14 +84,18 @@ func runCapability(argv []string) int {
 	if err := fs.Parse(argv[1:]); err != nil {
 		return runUsageError(id, jsonRequested, err)
 	}
+	wantJSON := jsonRequested || *jsonOut
 	args := pipeline.Args{}
 	for _, kv := range fs.Args() {
+		if strings.HasPrefix(kv, "-") {
+			return runUsageError(id, wantJSON, fmt.Errorf("flag %q must appear before KEY=VALUE arguments", kv))
+		}
 		k, v, ok := strings.Cut(kv, "=")
 		if !ok {
-			return runUsageError(id, *jsonOut, fmt.Errorf("参数必须是 KEY=VALUE 形式: %q", kv))
+			return runUsageError(id, wantJSON, fmt.Errorf("参数必须是 KEY=VALUE 形式: %q", kv))
 		}
 		if _, exists := args[k]; exists {
-			return runUsageError(id, *jsonOut, fmt.Errorf("重复参数: %s", k))
+			return runUsageError(id, wantJSON, fmt.Errorf("重复参数: %s", k))
 		}
 		args[k] = v
 	}
@@ -147,6 +152,15 @@ func wantsJSON(argv []string) bool {
 			want = true
 		case "-json=false", "--json=false":
 			want = false
+		default:
+			for _, prefix := range []string{"-json=", "--json="} {
+				if value, ok := strings.CutPrefix(arg, prefix); ok {
+					if parsed, err := strconv.ParseBool(value); err == nil {
+						want = parsed
+					}
+					break
+				}
+			}
 		}
 	}
 	return want

@@ -97,7 +97,6 @@ func TestRunExecutesFullChainAndExposesUpstream(t *testing.T) {
 
 	outcome, err := Run(t.Context(), Options{
 		RepoRoot: root, CapabilityID: "test.run.a", InputPath: buildSampleEpub(t),
-		Args: Args{"input": "forged.epub", "output": "forged.epub", "dry_run": "true"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -125,35 +124,33 @@ func TestRunExecutesFullChainAndExposesUpstream(t *testing.T) {
 	t.Error("missing final stage event")
 }
 
-func TestRunReservedArgsAreOverriddenByGlobalOptions(t *testing.T) {
+func TestRunRejectsReservedArgs(t *testing.T) {
 	root := t.TempDir()
 	writeTestContract(t, root, "test.args", nil, false, nil)
-	var got Args
-	installTestRunner(t, "test.args", func(_ context.Context, _ *book.Book, args Args, _ Upstream) (report.Result, error) {
-		got = make(Args, len(args))
-		for k, v := range args {
-			got[k] = v
-		}
+	called := false
+	installTestRunner(t, "test.args", func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		called = true
 		return report.Result{Capability: "test.args", Status: report.StatusComplete}, nil
 	})
 
 	input := buildSampleEpub(t)
-	outcome, err := Run(t.Context(), Options{
-		RepoRoot: root, CapabilityID: "test.args", InputPath: input,
-		OutputPath: "actual-out.epub", DryRun: false,
-		Args: Args{"input": "forged-in", "output": "forged-out", "dry_run": "true"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if outcome.ExitCode != ExitOK {
-		t.Fatalf("exit = %d", outcome.ExitCode)
-	}
-	want := map[string]string{"input": input, "output": "actual-out.epub", "dry_run": "false"}
-	for k, v := range want {
-		if got[k] != v {
-			t.Errorf("args[%q] = %q, want %q", k, got[k], v)
-		}
+	for _, key := range []string{"input", "output", "dry_run"} {
+		t.Run(key, func(t *testing.T) {
+			outcome, err := Run(t.Context(), Options{
+				RepoRoot: root, CapabilityID: "test.args", InputPath: input,
+				OutputPath: filepath.Join(t.TempDir(), "actual-out.epub"),
+				Args:       Args{key: "forged"},
+			})
+			if err == nil || outcome.ExitCode != ExitUsage {
+				t.Fatalf("outcome=%#v err=%v, want usage error", outcome, err)
+			}
+			if !strings.Contains(err.Error(), "flag") {
+				t.Errorf("error = %q, want mention of global flag", err)
+			}
+			if called {
+				t.Fatal("runner was called for a reserved KEY=VALUE argument")
+			}
+		})
 	}
 }
 

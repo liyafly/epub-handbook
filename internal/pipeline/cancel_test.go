@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -158,5 +159,70 @@ func TestRunCancellationObservedAfterRunner(t *testing.T) {
 	}
 	if outcome.ExitCode != ExitFailed || !hasFindingID(outcome.Envelope.Findings, "run.cancelled") {
 		t.Fatalf("outcome = %#v, want cancelled/exit 1/run.cancelled", outcome)
+	}
+}
+
+type flipCtx struct {
+	context.Context
+	mu     sync.Mutex
+	armed  bool
+	passed bool
+}
+
+func (c *flipCtx) arm() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.armed = true
+}
+
+func (c *flipCtx) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.armed {
+		return nil
+	}
+	if !c.passed {
+		c.passed = true
+		return nil
+	}
+	return context.Canceled
+}
+
+func TestRunCancellationObservedAfterRedline(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		write bool
+	}{
+		{name: "write dry-run", write: true},
+		{name: "read-only", write: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			id := "test.cancel.after-redline"
+			writeTestContract(t, root, id, nil, tc.write, []string{"metadata", "text"})
+			ctx := &flipCtx{Context: context.Background()}
+			installTestRunner(t, id, func(_ context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
+				ctx.arm()
+				return report.Result{Capability: id, Status: report.StatusComplete}, nil
+			})
+
+			out := filepath.Join(t.TempDir(), "out.epub")
+			outcome, err := Run(ctx, Options{
+				RepoRoot: root, CapabilityID: id,
+				InputPath: buildSampleEpub(t), OutputPath: out, DryRun: tc.write,
+			})
+			if err != nil {
+				t.Fatalf("Run returned Go error: %v", err)
+			}
+			if outcome.Envelope.Status != report.StatusCancelled || outcome.ExitCode != ExitFailed {
+				t.Fatalf("status=%q exit=%d, want cancelled/1", outcome.Envelope.Status, outcome.ExitCode)
+			}
+			if !hasFindingID(outcome.Envelope.Findings, "run.cancelled") {
+				t.Fatalf("findings lack run.cancelled: %+v", outcome.Envelope.Findings)
+			}
+			if _, statErr := os.Stat(out); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("output exists or stat failed unexpectedly: %v", statErr)
+			}
+		})
 	}
 }

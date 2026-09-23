@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	typographycap "github.com/liyafly/epub-handbook/internal/caps/typography"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
@@ -198,6 +199,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// 全局 flag 经 Args 透传给 capability：--output / --input / --dry-run。
 	// 先复制兼容性的 KEY=VALUE，再由正式全局 flag 最终覆盖保留键，避免
 	// 用户参数伪造 pipeline 的输入、输出或事务模式。
+	userArgs := maps.Clone(opts.Args)
 	runArgs := make(Args, len(opts.Args)+3)
 	for k, v := range opts.Args {
 		runArgs[k] = v
@@ -225,6 +227,11 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		} else if runArgs["demo_dir"] == "" {
 			runArgs["demo_dir"] = filepath.Join(root, "templates", "epub-style-demo")
 		}
+	}
+	if runArgs["preset_dir"] == "" && slices.ContainsFunc(chain, func(c Contract) bool {
+		return c.ID == typographycap.CapabilityID
+	}) {
+		runArgs["preset_dir"] = filepath.Join(root, typographycap.DefaultPresetsDir)
 	}
 	opts.Args = runArgs
 
@@ -452,6 +459,15 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		events = append(events, report.Event{Step: "redline", Status: "completed",
 			Message: "validated by multi-output capability before group commit"})
 	}
+	if !cancelled {
+		if cErr := ctx.Err(); cErr != nil {
+			cancelled, failed = true, true
+			env.Status = report.StatusCancelled
+			events = append(events, report.Event{Step: "redline", Status: "failed", Message: "run cancelled: " + cErr.Error()})
+			findings = append(findings, report.Finding{Level: "error", ID: "run.cancelled", Title: "Run cancelled before completion",
+				Detail: "the run's context was cancelled during validation; no output was written"})
+		}
+	}
 
 	// 输出落盘（INV-3 单次写）：单输出链在全部 stage 通过后只写一次。
 	// dry-run、DRM/runner/未实现/目标 stage 失败不写；红线失败仍写（见上）；
@@ -526,7 +542,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// 报错）在 up 里没有条目，直接走静态分支。
 	env.NextCommands = dropSelfReruns(dedupe(up[contract.ID].NextCommands), contract.ID)
 	if len(env.NextCommands) == 0 && !(opts.DryRun && needsWrite && env.Status != report.StatusApprovalRequired) {
-		env.NextCommands = nextCommands(contract, opts, needsWrite)
+		env.NextCommands = nextCommands(contract, opts, userArgs, needsWrite)
 	}
 
 	exit := ExitOK
@@ -549,7 +565,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 //
 // needsWrite 为假时链上没有待批准的写出（只读 planner / noBook / readOnly
 // 能力），dry-run 与正常运行等价：不得建议一个该能力根本不接受的 --output。
-func nextCommands(contract Contract, opts Options, needsWrite bool) []string {
+func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite bool) []string {
 	id := contract.ID
 	var out []string
 	if opts.DryRun {
@@ -561,7 +577,7 @@ func nextCommands(contract Contract, opts Options, needsWrite bool) []string {
 			command += " --output " + shellQuote(placeholder(opts.OutputPath, "<out.epub>"))
 		}
 		command += " --json"
-		args := maps.Clone(opts.Args)
+		args := maps.Clone(userArgs)
 		if args == nil {
 			args = Args{}
 		}
