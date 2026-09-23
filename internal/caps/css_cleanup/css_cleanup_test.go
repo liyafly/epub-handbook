@@ -626,6 +626,15 @@ func manifestCSSHrefs(t *testing.T, opfData []byte) []string {
 	return out
 }
 
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 // TestSanitizeCSSUnits 覆盖安全的三个子变换与只读 shape 诊断。
 func TestSanitizeCSSUnits(t *testing.T) {
 	got, rewrites := sanitizeCSS("————————————————标题————————————————\nh1 {\n  font-family: \"SimHei\";\n}\n")

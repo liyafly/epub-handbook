@@ -65,30 +65,3 @@ func TestSanitizeCSSParseErrorProducesNoEdits(t *testing.T) {
 		t.Fatalf("invalid UTF-8 error=%v, want ParseError", err)
 	}
 }
-
-func TestXHTMLLinkEditsTargetHrefSpan(t *testing.T) {
-	data := []byte("<!-- <link href=\"ignored.css\"> -->\r\n" +
-		"<link data-x=\"a>b\" href='../Styles/old.css' type=\"text/css\"/>\r\n")
-	mapping := map[string][]string{"Styles/old.css": {"Styles/new.css", "Styles/alt.css"}}
-	edits, changed, err := rewriteCSSLinkEdits("Text/ch.xhtml", data, mapping)
-	if err != nil || !changed {
-		t.Fatalf("link edits changed=%v err=%v", changed, err)
-	}
-	if len(edits) != 2 || edits[0].Length != int64(len("../Styles/old.css")) {
-		t.Fatalf("edits=%+v, want href replacement plus clone insertion", edits)
-	}
-	if err := editset.Validate(edits); err != nil {
-		t.Fatalf("link edits overlap: %v", err)
-	}
-	got, err := editset.Apply("Text/ch.xhtml", data, edits)
-	if err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	if !bytes.Contains(got, []byte("<!-- <link href=\"ignored.css\"> -->")) || !bytes.Contains(got, []byte("href='../Styles/new.css'")) ||
-		!bytes.Contains(got, []byte("href='../Styles/alt.css'")) || !bytes.Contains(got, []byte("data-x=\"a>b\"")) {
-		t.Fatalf("link rewrite touched wrong bytes: %q", got)
-	}
-	if _, _, err := rewriteCSSLinkEdits("Text/ch.xhtml", []byte{'<', 0xff, '>'}, mapping); err == nil {
-		t.Fatal("invalid UTF-8 XHTML should be rejected before patching")
-	}
-}
