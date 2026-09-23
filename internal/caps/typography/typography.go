@@ -377,6 +377,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 	}
 	stylesDir := pypath.Join(opfDir, "Styles")
+	pages := newTypographyPageCache(ctx, b)
 	cssPaths := make([]string, 0, len(config.Layers))
 	layerData := make(map[string][]byte, len(config.Layers))
 	for _, layer := range config.Layers {
@@ -386,12 +387,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	fontMode := ""
 	if p.ScopePaths == nil {
-		fontMode, err = preserveFontMode(ctx, b, opfRoot, xhtmlPaths, pypath.Join(stylesDir, "fonts.css"), layerData)
+		fontMode, err = preserveFontMode(ctx, b, pages, opfRoot, xhtmlPaths, pypath.Join(stylesDir, "fonts.css"), layerData)
 		if err != nil {
 			return report.Result{}, err
 		}
 	}
-	raw := func(name string) ([]byte, error) { return b.CurrentContext(ctx, name) }
+	raw := pages.data
 	used, err := usedClasses(ctx, raw, xhtmlPaths)
 	if err != nil {
 		return report.Result{}, err
@@ -438,10 +439,14 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			actions[i].Source = cssPaths[i]
 		}
 		if p.ScopePaths != nil {
-			if err := validateScopedCSS(data); err != nil {
+			sheet, err := css.Parse(data)
+			if err != nil {
 				return report.Result{}, presetErrf("%s: %v", layer, err)
 			}
-			d, l, err := bodyBindings(data, nil)
+			if err := validateScopedCSSSheet(sheet); err != nil {
+				return report.Result{}, presetErrf("%s: %v", layer, err)
+			}
+			d, l, err := bodyBindingsSheet(sheet, nil)
 			if err != nil || d || l {
 				return report.Result{}, presetErrf("%s: scoped preset must not bind the body font (book-level mode, SPEC §8)", layer)
 			}
@@ -479,7 +484,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, err
 		}
-		data, err := b.CurrentContext(ctx, path)
+		data, err := pages.data(path)
 		if err != nil {
 			return report.Result{}, presetErrf("%v", err)
 		}
@@ -490,9 +495,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		var updated string
 		var warnings []string
 		if p.ScopePaths != nil {
-			updated, err = appendStylesheetLinks(text, path, cssPaths)
+			root, parseErr := pages.tree(path)
+			if parseErr != nil {
+				err = presetErrf("%s: %v", path, parseErr)
+			} else {
+				updated, err = appendStylesheetLinksTree(text, path, cssPaths, root)
+			}
 		} else {
-			updated, warnings, err = rewriteStylesheetLinks(text, path, cssPaths)
+			regions, stop := pages.markupRegions(path, text)
+			updated, warnings, err = rewriteStylesheetLinksRegions(text, path, cssPaths, regions, stop)
 		}
 		if err != nil {
 			return report.Result{}, err
@@ -745,6 +756,10 @@ func isStylesheetLinkAttrs(attrs string) bool {
 // `<link>`/`</head>` 不再改写，调用方必须转成 finding，不能静默半改。
 func rewriteStylesheetLinks(text, xhtmlPath string, cssPaths []string) (string, []string, error) {
 	regions, stop := xhtml.ScanRegions(text)
+	return rewriteStylesheetLinksRegions(text, xhtmlPath, cssPaths, regions, stop)
+}
+
+func rewriteStylesheetLinksRegions(text, xhtmlPath string, cssPaths []string, regions []xhtml.Region, stop int) (string, []string, error) {
 	var warnings []string
 	if stop != xhtml.ScanComplete {
 		warnings = append(warnings, fmt.Sprintf(

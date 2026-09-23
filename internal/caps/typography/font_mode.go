@@ -19,7 +19,7 @@ import (
 // faces, roles and relative URLs. They never infer a new font chain or change
 // ibooks metadata to make a candidate pass. Noncanonical body bindings require
 // an explicit font repair before replacing the book's stylesheet links.
-func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, paths []string, fontsPath string, layers map[string][]byte) (string, error) {
+func preserveFontMode(ctx context.Context, b *book.Book, pages *typographyPageCache, root *opf.SpanNode, paths []string, fontsPath string, layers map[string][]byte) (string, error) {
 	meta := root.ChildByLocal(opf.OPFURI, "metadata")
 	var fontModeValues []string
 	metaCount := 0
@@ -80,11 +80,10 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		data, err := b.CurrentContext(ctx, path)
-		if err != nil {
+		if _, err := pages.data(path); err != nil {
 			return "", err
 		}
-		doc, err := opf.ScanXHTMLSpanTree(data)
+		doc, err := pages.tree(path)
 		if err != nil {
 			return "", presetErrf("%s: font-mode markup scan: %v", path, err)
 		}
@@ -198,6 +197,10 @@ func bodyBindings(data []byte, bookClasses map[string]bool) (direct, legacy bool
 	if err != nil {
 		return false, false, err
 	}
+	return bodyBindingsSheet(sheet, bookClasses)
+}
+
+func bodyBindingsSheet(sheet *css.Stylesheet, bookClasses map[string]bool) (direct, legacy bool, err error) {
 	for _, ref := range sheet.References {
 		if ref.Kind == css.ReferenceImport {
 			return false, false, fmt.Errorf("imported font cascade requires explicit review")

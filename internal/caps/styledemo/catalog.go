@@ -69,6 +69,7 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 	}
 	scenes := []report.StyleScene{}
 	findings := []report.Finding{}
+	stylesheetErrors := map[string]error{}
 	query = strings.ToLower(strings.TrimSpace(query))
 	for _, ref := range pkg.Spine {
 		if err := ctx.Err(); err != nil {
@@ -123,10 +124,15 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 			if err != nil {
 				return nil, nil, err
 			}
-			if _, err := read(cssPath); err != nil {
+			cssErr, checked := stylesheetErrors[cssPath]
+			if !checked {
+				_, cssErr = read(cssPath)
+				stylesheetErrors[cssPath] = cssErr
+			}
+			if cssErr != nil {
 				findings = append(findings, report.Finding{
 					Level: "warn", ID: "styledemo.catalog-missing-stylesheet", Title: cssPath,
-					Detail: err.Error(), Location: name,
+					Detail: cssErr.Error(), Location: name,
 				})
 				continue
 			}

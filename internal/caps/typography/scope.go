@@ -42,6 +42,10 @@ func validateScopedCSS(data []byte) error {
 	if err != nil {
 		return err
 	}
+	return validateScopedCSSSheet(sheet)
+}
+
+func validateScopedCSSSheet(sheet *css.Stylesheet) error {
 	if len(sheet.References) != 0 {
 		return fmt.Errorf("scoped preset must be self-contained (no url() or @import)")
 	}
@@ -55,6 +59,10 @@ func appendStylesheetLinks(text, document string, paths []string) (string, error
 	if err != nil {
 		return "", presetErrf("%s: %v", document, err)
 	}
+	return appendStylesheetLinksTree(text, document, paths, root)
+}
+
+func appendStylesheetLinksTree(text, document string, paths []string, root *opf.SpanNode) (string, error) {
 	head := root.ChildByAnyNS("head")
 	if head == nil || head.SelfClose {
 		return "", presetErrf("XHTML has no explicit head closing tag: %s", document)
