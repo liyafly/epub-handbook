@@ -8,7 +8,7 @@
 
 | 任务 | 开始前读取 |
 | --- | --- |
-| Go 实现、CLI、SKILL.md 改写、删除旧实现 | 完整读 [Go 架构 SPEC](docs/final/SPEC-go-architecture.md)；按 [Go 编程指南](docs/final/SPEC-go-modern-guidelines.md) §2 检测 `go.mod` 并读取适用规则；读 `docs/pipeline/go-rewrite-handoff.md` 的当前状态与相关待决策项 |
+| Go 实现、CLI、SKILL.md 改写、删除旧实现 | 完整读 [Go 架构 SPEC](docs/final/SPEC-go-architecture.md)；按 [Go 编程指南](docs/final/SPEC-go-modern-guidelines.md) §2 检测 `go.mod` 并读取适用规则；读 [Go 重写交接](docs/pipeline/go-rewrite-handoff.md) 的「当前状态」与「待决策 / 开放项」 |
 | 已有 EPUB 清洗 | `docs/final/SPEC-实现约束.md` §10、`docs/pipeline/cleanup-flow.md`、`docs/pipeline/refinement-harnesses.md` |
 | 源材料接入 | `skills/epub-source-intake/SKILL.md`，先建立可审计 source bundle |
 | 阅读器兼容性 | `templates/epub-style-demo/README.md`、`SCENE_MATRIX.md`（同目录）、`docs/final/reader-matrix.yaml` |

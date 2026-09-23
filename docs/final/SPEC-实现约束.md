@@ -186,6 +186,7 @@
 | `poster.css` | A-lite 海报 | `body.fullpage` / `body.poster-bg` / `.fullframe` / `.poster-title` / `.poster-subtitle` / `.vcol` | 正文段落规则 |
 
 附加规则：
+- EPUB 样式表不得包含 `direction` 或 `unicode-bidi`；XHTML 内容需要基准方向时使用 HTML `dir` 属性。EPUB 3.3 §6.3.1.2 禁止这两个 CSS 属性，EPUBCheck 对禁用属性发出 CSS-001。
 - 加载顺序：`fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。
 - 海报页 XHTML link `fonts.css + poster.css`（如需正文排版再加 `base.css`）。
 - 正文页 XHTML 至少 link `fonts.css + base.css`，其他层按场景选用。

@@ -107,7 +107,7 @@ unzip -p "$EPUB" META-INF/encryption.xml 2>/dev/null
 
 产物结构检查由 `epub run epub.package.nav.audit` 与 `epub redline`（正文不变）组合覆盖；EPUBCheck 只在 GitHub Actions 作为 CI gate 运行。
 
-默认结构检查要求 `ibooks:specified-fonts=true` 与直接 `body` 正文字体锁定成对出现；既有书的 `body-font-locked` class 仅作为兼容输入识别。只有既有书因历史兼容或用户明确要求保留自由正文 meta、且书级报告已经写明理由时，才在书级报告中记录该豁免；豁免不是新书模板入口。
+`epub.style.demo.maintain`（demo/模板）要求 `ibooks:specified-fonts=true` 与直接 `body` 正文字体锁定成对出现；既有书的 `body-font-locked` class 仅作为兼容输入识别。只有既有书因历史兼容或用户明确要求保留自由正文 meta、且书级报告已经写明理由时，才在书级报告中记录该豁免；豁免不是新书模板入口。
 
 发现 `META-INF/encryption.xml` 时默认停止。若声明目标在 ZIP 中不存在，结构工具可移除该 stale 引用；若已确认只有 EPUB 标准字体混淆，可用下一节的 `mode=inspect` 显式验证。正文、样式、图片或未知算法加密且目标真实存在时仍立即停止。
 
@@ -375,7 +375,7 @@ cp work/after/step-K-*.epub work/after/cleaned.epub
 
 结论：
 
-- 红线 0 + 必须 review 项 0 + 本地 lint 清零 -> 自动通过。
+- 红线 0 + 必须 review 项 0 + nav audit 错误清零 -> 自动通过。
 - 红线 0 + 有必须 review 项 -> 人工 review。
 - 红线 > 0 -> 重做。
 

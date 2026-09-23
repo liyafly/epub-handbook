@@ -21,6 +21,8 @@ readers:
     name: Readest
   - id: duokan
     name: 多看阅读
+  - id: koreader
+    name: KOReader
 
 cases:
   - id: 00-cover-metadata
@@ -514,7 +516,8 @@ untested_cases:
     note: "普通中文正文基线；尚未实测。"
   - case: 02-ruby-standard-footnote
     fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
-    note: "Ruby 注音 + 标准弹注；尚未实测。"
+    readers: [koreader]
+    note: "Ruby 注音 + 标准弹注；KOReader 是目标阅读器，当前没有该阅读器的实测结果，待验证。"
   - case: 03-alite-poster
     fixture: templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml
     note: "竖排 + A-lite；尚未实测。"

@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- **引用安全与 EPUB 输入限额**（`390e27f`）：XHTML / CSS / SVG 引用改写限定在真实语法区域；ZIP 元数据、归档条目数、单条与总解压量及辅助输入加入上限与取消检查。
+- **移除 EPUBCheck 拒绝的 CSS 方向规则**（`62c5b37`）：从 demo 的 `chapter-compat.css` 和 `poster.css` 删除 `direction: ltr`。
+
 - **快速合入复审收口（2026-09-19）**：多输出 `split` 正确归类为写出型，dry-run
   返回 `approval-required`，实跑缺 `output_dir` 返回 usage / exit 3；pipeline 在 runner
   返回后复查 context，避免最终只读 stage 在取消后误报完成；`epub run --json` 的缺 ID、
@@ -97,6 +100,8 @@
 
 ### Changed
 
+- **共享字节编辑 helper 并传播扫描取消**（`77235e9`）：公共路径与 OPF edit helpers 供能力复用；将 context 传入目录遍历、XML token 扫描和 CSS 清理阶段。
+
 - **删除契约的 `adapters` 字段**（22 份契约 + schema 的 `required`/`properties` + docguard 校验 +
   `pipeline.Contract.Adapters`）。该字段枚举 `openai` / `claude` / `mcp` / `cli`，把「哪家 harness
   能调这条能力」写进了机器契约；而 CLI 侧**从不读它**（`Contract.Adapters` 声明后零消费）。
@@ -162,6 +167,8 @@
   此前**零消费者**。
 
 ### Added
+
+- **Agent 安全预览与场景发现**（`4ae7e43`）：demo catalog 支持 `catalog=true` / `query=` 场景查询；typography 增加 `scope_paths` 局部试样。
 
 - **`epub.source.intake` Go 实现（最小盘点 planner）**：`epub run epub.source.intake --input <目录或文件> --json`
   对非 EPUB 源材料做只读盘点——按扩展名分角色（text/html/image/pdf/epub/font/css/audio/video/

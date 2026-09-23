@@ -157,4 +157,3 @@ JSON 形状放进 `Result.Facts["legacyReport"]` 供 parity P2 逐字节比对�
   键（camelCase，见 `refinement-harnesses.md` 与各 SKILL.md）。
 - 测试改为直接断言 `Result.Facts` / `Findings` / 输出字节；不得再以 legacy 形状为金标准。
 - 仍然不变：退出码语义（信封换了，0/非 0 含义不变）。
-```

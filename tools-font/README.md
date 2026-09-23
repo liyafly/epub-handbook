@@ -1,7 +1,7 @@
 # 字体工具
 
 本目录是 EPUB Handbook 的字体相关独立工具，**不打包进发行包**，也不属于 `internal/` 的层级图 ——
-它是被 `internal/extern` 以外部进程调起的独立 provider（架构定位见 `AGENTS.md` 的「架构分工」表）。
+它是被 `internal/extern` 以外部进程调起的独立 provider（架构定位见 `AGENTS.md` 的「架构硬约束」）。
 
 ## coverage-detector：安装与缺失时的行为
 

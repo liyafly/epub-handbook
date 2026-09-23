@@ -2,6 +2,7 @@
 
 > 本文件是 Go 重写的**第一档硬约束**（等同 `docs/final/` 其它 SPEC）。
 > 与旧对话、平台提示词、`archive/` 冲突时，以本文件为准。
+> 当前接手状态与开放项见[Go 重写交接](../pipeline/go-rewrite-handoff.md)；迁移期决策和复审证据分别归档于 [`archive/meta/2026-08-30-go-rewrite-decisions.md`](../../archive/meta/2026-08-30-go-rewrite-decisions.md) 与 [`archive/meta/2026-09-go-rewrite-review-log.md`](../../archive/meta/2026-09-go-rewrite-review-log.md)。
 >
 > **迁移状态（2026-08-29）**：W0–W5 全部完成。16 个 A 类 capability 已在 Go 侧注册并通过
 > parity gate；棘轮（§2 INV-10）归零；`scripts/`、`adapters/`、`swift/`、`gui/`、
@@ -9,8 +10,8 @@
 > `tools/parity/legacy-refs.txt`，使 INV-10 在终态继续扫描而不是 bootstrap-skip。§5.2 的 `--legacy-report`
 > 脚手架已于 2026-09-04 拆除（CLI flag、`legacy_report` 参数与 `facts.legacyReport` 均不再存在，
 > 其曾独占的数据已提升为正式 `facts` 键）；§5.2 与 §7 的迁移映射保留为历史依据；`epub_lint.py` 无对应契约，其职责由
-> `epub.package.nav.audit` + `epub redline` + CI EPUBCheck 承担（裁决见交接文档）。
-> **状态补注（2026-09-07）**：§7.1 C 类中的 `epub.source.intake` 已按仓库所有者决策以最小只读盘点
+> `epub.package.nav.audit` + `epub redline` + CI EPUBCheck 承担（见当前交接文档）。
+> **状态补注（2026-09-07）**：§7.1 B 类中的 `epub.source.intake` 已按仓库所有者决策以最小只读盘点
 > planner 落地 Go 实现（`internal/caps/sourceintake/`，不含 PDF 解析 / OCR / 图片转码）；CLI ready 17 / 22。
 
 ---
@@ -311,7 +312,7 @@ P2 有个绕不开的矛盾：Go 版**故意**换了输出信封（§7.3），�
 
 **对策 —— `--legacy-report` 脚手架**：迁移期内，每个 Go capability 额外支持一个
 隐藏 flag，按旧脚本的原始形状输出报告。parity harness 只用这个 flag，
-正式输出走 §9.2 的新信封。
+正式输出走 §8.2 的新信封。
 
 - 好处：P2 保持**逐字节**强度，不降级成"语义等价"这种模糊判据
 - 移除触发条件：对应 Python 脚本删除时，同步删掉该 capability 的 `--legacy-report`
@@ -478,7 +479,7 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 既然二者全部重写，这个理由就不成立了 —— 那两个「陷阱」不是要保护的契约，
 是要清掉的历史包袱。
 
-**现行结论：Go 版统一到 §9.2 的单一信封。**
+**现行结论：Go 版统一到 §8.2 的单一信封。**
 
 被统一掉的两个畸形格式：
 
@@ -492,7 +493,7 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 迁移结束时随 `scripts/` 一起删掉。（状态：2026-09-04 已删除。）
 
 **仍然不许动的**：退出码语义。`epub_text_gate.py` 之外还有 pre-commit hook
-依赖退出码，信封换了但 0/非 0 的含义必须一致（细则见 §9.5）。
+依赖退出码，信封换了但 0/非 0 的含义必须一致（细则见 §8.5）。
 
 ### 7.4 迁移波次
 
@@ -502,7 +503,7 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 | W1 | `redline` 六条 + `report` | INV-5 闭包成立；陷阱 2 的纯文本格式逐字节一致 |
 | W2 | `scan/{xhtml,css,opf}` + 3 个只读 capability（audit / lint / content_analyze） | parity P1+P2 全绿 |
 | W3 | 写入型 capability（structure_normalize / css_cleanup / migrate_epub3 / 4 个 package 操作） | parity 三级全绿 |
-| W4 | `pipeline` 编排 + `cmd/epub` + §9.2 信封 | 端到端 parity 全绿 |
+| W4 | `pipeline` 编排 + `cmd/epub` + §8.2 信封 | 端到端 parity 全绿 |
 | W5 | 重写 19 个 SKILL.md + 41 个文档；两个 shell 校验器变子命令 | 棘轮归零（`legacy-refs.txt` 清空）；**此时才允许删 `scripts/`** |
 
 W0 是唯一必须由高能力模型完成的波次（架构地基 + 守卫）。W1–W3 每个 capability 都被
@@ -586,7 +587,7 @@ Go 重写完成后，仓库只剩**文档层 + Go 实现 + 明确不迁的 Pytho
 {
   "schemaVersion": "2",
   "capability": "epub.structure.normalize",
-  "status": "complete | failed | approval-required",
+  "status": "complete | failed | approval-required | cancelled",
   "input":  {"path": "...", "sha256": "..."},
   "output": {"path": "...", "sha256": "..."},
   "facts":    {},
@@ -652,7 +653,7 @@ status == approval-required → 停下来问人
 | 码 | 含义 |
 |:--:|---|
 | 0 | 成功，无 error 级 finding |
-| 1 | 失败，或存在 error 级 finding |
+| 1 | 失败、存在 error 级 finding，或取消（status=cancelled） |
 | 2 | `approval-required` —— 需要人工批准才能继续 |
 | 3 | 用法错误（参数非法、文件不存在） |
 

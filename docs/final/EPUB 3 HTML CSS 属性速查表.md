@@ -238,6 +238,7 @@
 | `text-indent (中文)` | `2em` | 推荐 | 中文正文 |
 | `text-indent (英文)` | `1.2em`–`1.5em` | 推荐 | 英文小说后续段落；首段用 `0` |
 | `text-align` | `left` / `center` / `right` / `justify` | 推荐 | 中文正文常用 `justify`；英文未验证断字时优先 `left` |
+| `direction` / `unicode-bidi` | EPUB CSS 中禁用 | 禁用 | EPUB 3.3 不允许这两个样式表属性；XHTML 内容方向用 HTML `dir` 属性 |
 | `text-justify` | `inter-ideograph` | 可用 | 部分阅读器忽略 |
 | `letter-spacing` | `0.04em` 等 | 可用 | 标题、竖排题签 |
 | `word-break` | `break-all` | 条件可用 | 中文长串可用，正文谨慎 |

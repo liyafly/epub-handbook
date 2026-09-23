@@ -4,7 +4,7 @@
 
 ## A
 
-- **A-lite**：本仓自定义的「轻量增强 EPUB」配置组合。详见 [SPEC §3](../final/SPEC-实现约束.md)。
+- **A-lite**：本仓自定义的「轻量增强 EPUB」配置组合。详见 [SPEC §2](../final/SPEC-实现约束.md)。
 - **AZW3**：Amazon 私有 EPUB 衍生格式，KF8 时代的容器。
 
 ## C

@@ -10,23 +10,23 @@
 
 | Skill | 清洗 | 新书 | 用在哪一步 | 类型 |
 | --- | --- | --- | --- | --- |
-| `epub-layout-auditor` | yes | yes | 清洗 §2 分派；新书 review 前 | 审稿 |
+| `epub-layout-auditor` | yes | yes | 清洗 §3 精排建议 / §6 分派；新书 review 前 | 审稿 |
 | `epub-content-analyzer` | yes | yes | 清洗 §3 文本角色建议；新书结构复核 | 只读分析 |
 | `epub-source-intake` | no | yes | 新书：txt/md/PDF/OCR -> source | 接入 |
 | `epub-structure-normalizer` | maybe | no | 清洗 §1.5：先格式化，再文件名反混淆 | 结构清洗 |
 | `epub3-migrator` | yes | no | preflight 后建立 EPUB3 基线 | 迁移 |
-| `epub-css-layering-optimizer` | yes | yes | 清洗 §4 黄线；新书 finalize | 清洗 / 制作 |
-| `epub-popup-footnote-converter` | yes | yes | 清洗 §4 黄线；新书弹注 | 清洗 / 制作 |
-| `epub-legacy-footnote-fallback` | yes | yes | 清洗 §4；新书做多看兼容 | 清洗 / 制作 |
-| `epub-typography-optimizer` | yes | yes | 清洗 §4；新书排版细化 | 清洗 / 制作 |
+| `epub-css-layering-optimizer` | yes | yes | 清洗 §6 分派（黄线）；新书 finalize | 清洗 / 制作 |
+| `epub-popup-footnote-converter` | yes | yes | 清洗 §6 分派（黄线）；新书弹注 | 清洗 / 制作 |
+| `epub-legacy-footnote-fallback` | yes | yes | 清洗 §6 分派；新书做多看兼容 | 清洗 / 制作 |
+| `epub-typography-optimizer` | yes | yes | 清洗 §6 分派；新书排版细化 | 清洗 / 制作 |
 | `epub-font-coverage-analyzer` | yes | yes | 字体策略前后检查 cmap、缺字与回退 | 只读分析 |
-| `epub-english-typography-optimizer` | yes | yes | 清洗 §4（双语 epub）；新书英文体 | 清洗 / 制作 |
-| `epub-image-layout-optimizer` | yes | yes | 清洗 §4；新书图文 | 清洗 / 制作 |
-| `epub-vertical-ruby-optimizer` | yes | yes | 清洗 §4（古籍 / 日文）；新书竖排 | 清洗 / 制作 |
-| `epub-literary-structure-formatter` | yes | yes | 清洗 §4；新书文白 / 章首 | 清洗 / 制作 |
-| `epub-kindle-compatibility-checker` | yes | yes | 清洗 §4；新书 Kindle 专项 | 清洗 / 制作 |
+| `epub-english-typography-optimizer` | yes | yes | 清洗 §6 分派（双语 epub）；新书英文体 | 清洗 / 制作 |
+| `epub-image-layout-optimizer` | yes | yes | 清洗 §6 分派；新书图文 | 清洗 / 制作 |
+| `epub-vertical-ruby-optimizer` | yes | yes | 清洗 §6 分派（古籍 / 日文）；新书竖排 | 清洗 / 制作 |
+| `epub-literary-structure-formatter` | yes | yes | 清洗 §6 分派；新书文白 / 章首 | 清洗 / 制作 |
+| `epub-kindle-compatibility-checker` | yes | yes | 清洗 §6 分派；新书 Kindle 专项 | 清洗 / 制作 |
 | `epub-alite-converter` | maybe | yes | 清洗按场景；新书 A-lite | 制作 |
-| `epub-package-nav-auditor` | yes | yes | 清洗 §4；新书 OPF/nav 校验 | 清洗 / 制作 |
+| `epub-package-nav-auditor` | yes | yes | 清洗 §1 健康检查 / §6 复核；新书 OPF/nav 校验 | 清洗 / 制作 |
 | `epub-package-operator` | maybe | yes | 明确选择合并、拆分、元数据或封面操作时 | 写入操作 |
 | `epub-style-demo-maintainer` | no | no | 本仓 fixture 维护 | 仓库内部 |
 

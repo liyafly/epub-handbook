@@ -83,7 +83,7 @@ epub run epub.layout.audit \
 
 - EPUB3 `package version="3.0"`。
 - `dcterms:modified`。
-- `ibooks:specified-fonts`（检测到直接 `body` 字体规则或既有 `body-font-locked` 页时添加；若输入已存在但未检测到锁定则保留并提示人工复核，默认 lint 会报 L-F05，只有书级历史例外才显式豁免，见 `docs/final/SPEC-实现约束.md` §8）。
+- `ibooks:specified-fonts`（检测到直接 `body` 字体规则或既有 `body-font-locked` 页时添加；若输入已存在但未检测到锁定则保留，迁移报告 `metadataUpdates` 会记为 `kept existing` 并提示人工复核。CLI 没有独立 lint；豁免理由写入书级 `制作说明.md`，见 `docs/final/SPEC-实现约束.md` §8）。
 - 新建 `nav.xhtml`，保留 `toc.ncx` 和 `spine toc="ncx"`。
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。

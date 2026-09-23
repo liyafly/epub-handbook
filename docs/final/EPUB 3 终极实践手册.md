@@ -809,6 +809,8 @@ body.poster-bg-contain {
 
 ## 六点五、CSS 文件分层
 
+EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要指定方向时使用 HTML `dir` 属性。EPUB 3.3 的 CSS 要求禁止这两个属性，EPUBCheck 会以 CSS-001 报告禁用属性。
+
 - `fonts.css`：仅放 `@font-face`、只含字体声明的稳定角色选择器，以及系统字体/局部角色 helper。
 - `base.css`：正文基础元素（`@page`、`html/body`、标题、段落、列表、表格、代码、普通 `figure/img`、inline 语义、Ruby 默认、`.has-ruby` 行距兜底）。
 - `notes.css`：标准 popup footnote、多看 fallback 和注释图标。
