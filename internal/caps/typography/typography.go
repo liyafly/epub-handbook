@@ -440,6 +440,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if err := validateScopedCSS(data); err != nil {
 				return report.Result{}, presetErrf("%s: %v", layer, err)
 			}
+			d, l, err := bodyBindings(data, nil)
+			if err != nil || d || l {
+				return report.Result{}, presetErrf("%s: scoped preset must not bind the body font (book-level mode, SPEC §8)", layer)
+			}
 			cssPaths[i] = scopedStylesheetPath(stylesDir, layer, data)
 			actions[i].Path = cssPaths[i]
 			actions[i].Action = "add"
@@ -607,7 +611,11 @@ func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
 		if !ok || href == "" {
 			continue
 		}
-		paths = append(paths, pypath.NormJoin(pypath.Dirname(opfPath), href))
+		path, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path)
+		if err != nil {
+			return nil, presetErrf("spine href %q: %v", href, err)
+		}
+		paths = append(paths, path)
 	}
 	return paths, nil
 }
@@ -643,7 +651,6 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 	if manifestNode == nil {
 		return nil, nil, presetErrf("OPF missing manifest")
 	}
-	opfDir := pypath.Dirname(opfPath)
 	existing := map[string]*opf.SpanNode{}
 	idSeen := map[string]bool{}
 	for _, it := range manifestNode.Kids {
@@ -651,7 +658,9 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 			continue
 		}
 		if href, ok := it.AttrByLocal("", "href"); ok && href != "" {
-			existing[pypath.NormJoin(opfDir, href)] = it
+			if resolved, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path); err == nil {
+				existing[resolved] = it
+			}
 		}
 		if id, ok := it.AttrByLocal("", "id"); ok {
 			idSeen[id] = true
@@ -661,7 +670,7 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 	var edits []editset.Edit
 	var insert strings.Builder
 	for _, cssPath := range cssPaths {
-		href := pypath.RelativePath(opfPath, cssPath)
+		href := pypath.RelativeURI(opfPath, cssPath)
 		item := existing[cssPath]
 		if item == nil {
 			id := uniqueID(idSeen, "style-"+pypath.BaseStem(cssPath))
@@ -798,7 +807,7 @@ func rewriteStylesheetLinks(text, xhtmlPath string, cssPaths []string) (string, 
 	out.WriteString(text[last:headStart])
 	indent := headIndent + "  "
 	for _, cssPath := range cssPaths {
-		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + pypath.RelativePath(xhtmlPath, cssPath) + `"/>` + "\n")
+		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + pypath.RelativeURI(xhtmlPath, cssPath) + `"/>` + "\n")
 	}
 	last = headStart
 	for ; di < len(deletes); di++ {

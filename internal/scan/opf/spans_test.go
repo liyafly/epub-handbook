@@ -298,3 +298,21 @@ func TestScanSpanTreeUTF8BOMAndDeclaredEncoding(t *testing.T) {
 		t.Errorf("latin1 text = %q", root.Text)
 	}
 }
+
+func TestScanXHTMLSpanTreeResolvesHTMLEntities(t *testing.T) {
+	data := []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body>正文&nbsp;保持 &mdash;内容</body></html>`)
+	root, err := ScanXHTMLSpanTree(data)
+	if err != nil {
+		t.Fatalf("ScanXHTMLSpanTree: %v", err)
+	}
+	body := root.ChildByAnyNS("body")
+	if body == nil || body.IterText() != "正文\u00a0保持 \u2014内容" {
+		t.Fatalf("decoded body text = %q", body.IterText())
+	}
+	if got := spanText(data, body.TextSpan); got != `正文&nbsp;保持 &mdash;内容` {
+		t.Fatalf("body source span = %q; entity source bytes were not preserved", got)
+	}
+	if _, err := ScanXHTMLSpanTree([]byte(`<html><body>&bogus;</body></html>`)); err == nil {
+		t.Fatal("unsupported named entity was accepted")
+	}
+}

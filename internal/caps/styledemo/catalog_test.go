@@ -74,3 +74,25 @@ func TestCatalogRejectsSourceTreeEscapeAndCancellation(t *testing.T) {
 		t.Fatalf("cancellation=%v", err)
 	}
 }
+
+func TestCatalogAcceptsHTMLNamedEntities(t *testing.T) {
+	files := map[string][]byte{
+		"META-INF/container.xml":   []byte(`<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>`),
+		"OEBPS/book.opf":           []byte(`<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata/><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="style" href="Styles/base.css" media-type="text/css"/></manifest><spine><itemref idref="chapter"/></spine></package>`),
+		"OEBPS/Text/chapter.xhtml": []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title><link rel="stylesheet" href="../Styles/base.css"/></head><body>正文&nbsp;保持</body></html>`),
+		"OEBPS/Styles/base.css":    []byte(`body { color: black; }`),
+	}
+	result, err := scanScenes(t.Context(), func(name string) ([]byte, error) {
+		data, ok := files[name]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return data, nil
+	}, "")
+	if err != nil {
+		t.Fatalf("scanScenes: %v", err)
+	}
+	if len(result) != 1 || result[0].Title != "Chapter" || len(result[0].Stylesheets) != 1 {
+		t.Fatalf("catalog result = %+v", result)
+	}
+}

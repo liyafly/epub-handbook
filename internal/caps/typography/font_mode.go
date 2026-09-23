@@ -6,6 +6,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
@@ -34,6 +36,75 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 		return "", presetErrf("ambiguous ibooks:specified-fonts metadata; repair font mode before applying a whole-book preset")
 	}
 
+	// Read the spine first so selector classification can distinguish book-wide
+	// body classes from page-role classes before inspecting any stylesheet.
+	bookClassPages := map[string]int{}
+	type pageStyles struct {
+		path   string
+		styles [][]byte
+	}
+	pageCSS := make([]pageStyles, 0, len(paths))
+	legacyPages := 0
+	for _, path := range paths {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		data, err := b.CurrentContext(ctx, path)
+		if err != nil {
+			return "", err
+		}
+		doc, err := opf.ScanXHTMLSpanTree(data)
+		if err != nil {
+			return "", presetErrf("%s: font-mode markup scan: %v", path, err)
+		}
+		pageClasses := map[string]bool{}
+		var styles [][]byte
+		for _, node := range doc.Walk() {
+			if node.Name.Local == "style" {
+				styles = append(styles, []byte(node.IterText()))
+			}
+			if node.Name.Local == "body" || (node == doc && node.Name.Local == "html") {
+				class, _ := node.AttrByLocal("", "class")
+				for _, name := range strings.Fields(class) {
+					pageClasses[name] = true
+				}
+				style, _ := node.AttrByLocal("", "style")
+				if style != "" {
+					selector := "body"
+					if node.Name.Local == "html" {
+						selector = "html"
+					}
+					styles = append(styles, []byte(selector+" {"+style+"}"))
+				}
+			}
+		}
+		for class := range pageClasses {
+			bookClassPages[class]++
+		}
+		pageCSS = append(pageCSS, pageStyles{path: path, styles: styles})
+		body := doc.ChildByAnyNS("body")
+		if body != nil {
+			classes, _ := body.AttrByLocal("", "class")
+			if slices.Contains(strings.Fields(classes), "body-font-locked") {
+				legacyPages++
+			}
+		}
+	}
+	bookClasses := map[string]bool{}
+	for class, count := range bookClassPages {
+		if len(paths) > 0 && count == len(paths) {
+			bookClasses[class] = true
+		}
+	}
+	for _, page := range pageCSS {
+		for _, data := range page.styles {
+			d, l, err := bodyBindings(data, bookClasses)
+			if err != nil || d || l {
+				return "", presetErrf("%s: embedded body font cascade requires explicit review", page.path)
+			}
+		}
+	}
+
 	var direct, legacy bool
 	for _, path := range b.Names() {
 		if err := ctx.Err(); err != nil {
@@ -46,7 +117,7 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 		if err != nil {
 			return "", err
 		}
-		d, l, err := bodyBindings(data)
+		d, l, err := bodyBindings(data, bookClasses)
 		if err != nil {
 			return "", presetErrf("%s: cannot preserve font mode: %v", path, err)
 		}
@@ -61,43 +132,6 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 			layers[path] = data
 		}
 	}
-
-	legacyPages := 0
-	for _, path := range paths {
-		if err := ctx.Err(); err != nil {
-			return "", err
-		}
-		data, err := b.CurrentContext(ctx, path)
-		if err != nil {
-			return "", err
-		}
-		doc, err := opf.ScanSpanTree(data)
-		if err != nil {
-			return "", presetErrf("%s: font-mode markup scan: %v", path, err)
-		}
-		for _, node := range doc.Walk() {
-			if node.Name.Local == "style" {
-				d, l, err := bodyBindings([]byte(node.IterText()))
-				if err != nil || d || l {
-					return "", presetErrf("%s: embedded body font cascade requires explicit review", path)
-				}
-			}
-			if node.Name.Local == "body" || node.Name.Local == "html" {
-				style, _ := node.AttrByLocal("", "style")
-				d, l, err := bodyBindings([]byte("body {" + style + "}"))
-				if err != nil || d || l {
-					return "", presetErrf("%s: inline body font cascade requires explicit review", path)
-				}
-			}
-		}
-		body := doc.ChildByAnyNS("body")
-		if body != nil {
-			classes, _ := body.AttrByLocal("", "class")
-			if slices.Contains(strings.Fields(classes), "body-font-locked") {
-				legacyPages++
-			}
-		}
-	}
 	if !direct && legacyPages > 0 && (!legacy || legacyPages != len(paths)) {
 		return "", presetErrf("mixed or unresolved body-font-locked mode; repair font mode before applying a whole-book preset")
 	}
@@ -110,7 +144,7 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 		if path == fontsPath && b.Has(fontsPath) {
 			continue // Exact original bytes, already checked above.
 		}
-		d, l, err := bodyBindings(data)
+		d, l, err := bodyBindings(data, bookClasses)
 		if err != nil {
 			return "", presetErrf("%s: cannot preserve font mode: %v", path, err)
 		}
@@ -128,7 +162,7 @@ func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, pat
 // invent bindings. Bare paragraph/root/universal font rules and imports are
 // deliberately refused: their effective cascade is not a font-mode decision
 // this preset installer can safely make.
-func bodyBindings(data []byte) (direct, legacy bool, err error) {
+func bodyBindings(data []byte, bookClasses map[string]bool) (direct, legacy bool, err error) {
 	sheet, err := css.Parse(data)
 	if err != nil {
 		return false, false, err
@@ -147,24 +181,106 @@ func bodyBindings(data []byte) (direct, legacy bool, err error) {
 				continue
 			}
 			for selector := range strings.SplitSeq(css.StripComments(rule.Selector), ",") {
-				switch strings.TrimSpace(strings.ToLower(selector)) {
-				case "body":
+				switch classifySelector(selector, bookClasses) {
+				case "direct":
 					if err := checkStableBinding(sheet, rule, decl); err != nil {
 						return false, false, err
 					}
 					direct = true
-				case ".body-font-locked", "body.body-font-locked":
+				case "legacy":
 					if err := checkStableBinding(sheet, rule, decl); err != nil {
 						return false, false, err
 					}
 					legacy = true
-				case "p", "html", ":root", "*":
-					return false, false, fmt.Errorf("font binding on %q requires explicit review", selector)
+				case "review":
+					return false, false, fmt.Errorf("font binding on %q requires explicit review", strings.ToLower(strings.TrimSpace(css.StripComments(selector))))
 				}
 			}
 		}
 	}
 	return direct, legacy, nil
+}
+
+// classifySelector identifies selectors that can carry a book-wide body font
+// binding. Page-role selectors remain available when their classes do not occur
+// on every spine page.
+func classifySelector(selector string, bookClasses map[string]bool) string {
+	s := strings.ToLower(strings.TrimSpace(css.StripComments(selector)))
+	switch s {
+	case "body":
+		return "direct"
+	case ".body-font-locked", "body.body-font-locked":
+		return "legacy"
+	case "p", "html", ":root", "*":
+		return "review"
+	}
+	parts := strings.Fields(strings.NewReplacer(">", " ", "+", " ", "~", " ").Replace(s))
+	if len(parts) == 0 {
+		return ""
+	}
+	subject := parts[len(parts)-1]
+	qualifier := strings.IndexAny(subject, ".#:[")
+	typeName := subject
+	if qualifier >= 0 {
+		typeName = subject[:qualifier]
+	}
+	classes := selectorClasses(subject)
+	qualified := qualifier >= 0
+	if (typeName == "p" || typeName == "*") && !qualified {
+		ancestorsOK := true
+		for _, ancestor := range parts[:len(parts)-1] {
+			ancestorType := ancestor
+			if i := strings.IndexAny(ancestor, ".#:["); i >= 0 {
+				ancestorType = ancestor[:i]
+			}
+			if ancestorType != "body" && ancestorType != "html" && ancestor != ":root" {
+				ancestorsOK = false
+				break
+			}
+		}
+		if ancestorsOK && len(parts) > 1 {
+			return "review"
+		}
+	}
+	allBookClasses := func() bool {
+		for _, class := range classes {
+			if !bookClasses[class] {
+				return false
+			}
+		}
+		return true
+	}
+	if (typeName == "body" || typeName == "html" || strings.HasPrefix(subject, ":root")) && allBookClasses() {
+		return "review"
+	}
+	if typeName == "" && len(classes) > 0 && !strings.ContainsAny(subject, "#:[") && allBookClasses() {
+		return "review"
+	}
+	return ""
+}
+
+func selectorClasses(s string) []string {
+	var classes []string
+	for i := 0; i < len(s); {
+		if s[i] != '.' {
+			i++
+			continue
+		}
+		start := i + 1
+		j := start
+		for j < len(s) {
+			r, size := utf8.DecodeRuneInString(s[j:])
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
+				break
+			}
+			j += size
+		}
+		if j > start {
+			classes = append(classes, s[start:j])
+		}
+		i = j
+	}
+	return classes
 }
 
 func checkStableBinding(sheet *css.Stylesheet, rule css.Rule, decl css.Declaration) error {

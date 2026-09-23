@@ -259,12 +259,24 @@ func (n *SpanNode) AttrIndex(spaceURI, local string) int {
 // ET.fromstring：注释 / PI / DOCTYPE 丢弃、实体解码、EOL 归一；
 // 声明的非 UTF-8 编码先转换为 UTF-8。
 func ScanSpanTree(data []byte) (*SpanNode, error) {
+	return scanSpanTree(data, nil)
+}
+
+// ScanXHTMLSpanTree additionally accepts the named character references from
+// the HTML entity set used by common EPUB2 XHTML documents. Source spans still
+// refer to the original bytes, so callers can safely edit the original source.
+func ScanXHTMLSpanTree(data []byte) (*SpanNode, error) {
+	return scanSpanTree(data, xml.HTMLEntity)
+}
+
+func scanSpanTree(data []byte, entity map[string]string) (*SpanNode, error) {
 	src, err := xmlSourceToUTF8(data)
 	if err != nil {
 		return nil, err
 	}
 	d := xml.NewDecoder(strings.NewReader(src))
 	d.Strict = true
+	d.Entity = entity
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		return input, nil // 已按声明编码转换为 UTF-8
 	}

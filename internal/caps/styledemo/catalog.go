@@ -88,7 +88,7 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 		if err != nil {
 			return nil, err
 		}
-		doc, err := opf.ScanSpanTree(data)
+		doc, err := opf.ScanXHTMLSpanTree(data)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}

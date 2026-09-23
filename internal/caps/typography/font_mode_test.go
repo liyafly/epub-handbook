@@ -79,7 +79,7 @@ func TestWholeBookPresetPreservesLockedFontsLayerAndMetadata(t *testing.T) {
 body { font-family: "Book Serif", "Fallback Serif", serif; }
 .font-quote { font-family: "Quote Serif", serif; }
 `)
-	buildFixtureEpub(t, input, fontModeFixture("font-quote chapter-head", string(fonts), &locked))
+	buildFixtureEpub(t, input, fontModeFixture("chapter-head", string(fonts), &locked))
 
 	b, err := runFontModePreset(t, input, output, presets, "literary-cn", false)
 	if err != nil {
@@ -112,7 +112,7 @@ func TestWholeBookPresetKeepsFreeRoleFontsWithoutLockingBody(t *testing.T) {
 .font-st, .st { font-family: "Book Serif", serif; }
 .font-quote { font-family: "Quote Serif", serif; }
 `)
-	buildFixtureEpub(t, input, fontModeFixture("font-st chapter-head", string(fonts), nil))
+	buildFixtureEpub(t, input, fontModeFixture("chapter-head", string(fonts), nil))
 
 	_, files := applyFontModePreset(t, input, presets, "literary-cn")
 	if !bytes.Equal(files[fontModeCSSPath], fonts) {
@@ -123,7 +123,7 @@ func TestWholeBookPresetKeepsFreeRoleFontsWithoutLockingBody(t *testing.T) {
 		t.Fatalf("free-mode output gained ibooks font-lock metadata:\n%s", opf)
 	}
 	for _, path := range []string{fontModeCSSPath, "OEBPS/Styles/base.css"} {
-		direct, legacy, err := bodyBindings(files[path])
+		direct, legacy, err := bodyBindings(files[path], nil)
 		if err != nil {
 			t.Fatalf("bodyBindings(%s): %v", path, err)
 		}
@@ -143,7 +143,7 @@ func TestWholeBookPresetPreservesLegacyLockedBodyMode(t *testing.T) {
 .body-font-locked { font-family: "Legacy Serif", serif; }
 .font-st { font-family: "Role Serif", serif; }
 `)
-	buildFixtureEpub(t, input, fontModeFixture("body-font-locked font-st", string(fonts), &locked))
+	buildFixtureEpub(t, input, fontModeFixture("body-font-locked", string(fonts), &locked))
 
 	b, err := runFontModePreset(t, input, output, presets, "literary-cn", false)
 	if err != nil {
@@ -159,7 +159,7 @@ func TestWholeBookPresetPreservesLegacyLockedBodyMode(t *testing.T) {
 	if !strings.Contains(string(files[fontModeOPFPath]), `<meta property="ibooks:specified-fonts">true</meta>`) {
 		t.Fatalf("legacy locked mode lost its OPF meta:\n%s", files[fontModeOPFPath])
 	}
-	if !strings.Contains(string(files[fontModeTextPath]), `body class="body-font-locked font-st"`) {
+	if !strings.Contains(string(files[fontModeTextPath]), `body class="body-font-locked"`) {
 		t.Fatalf("legacy body-font-locked class was not retained:\n%s", files[fontModeTextPath])
 	}
 }
@@ -172,7 +172,7 @@ func TestWholeBookPresetRejectsFontMetadataBodyModeMismatchWithoutEdits(t *testi
 	fonts := `body { font-family: "Book Serif", serif; }
 .font-st { font-family: "Book Serif", serif; }
 `
-	buildFixtureEpub(t, input, fontModeFixture("font-st", fonts, nil))
+	buildFixtureEpub(t, input, fontModeFixture("", fonts, nil))
 
 	b, err := runFontModePreset(t, input, output, presets, "literary-cn", true)
 	if err == nil {
@@ -189,7 +189,7 @@ func TestWholeBookPresetRejectsBodyFontOutsideFontsLayerWithoutEdits(t *testing.
 	input := filepath.Join(dir, "mislayered.epub")
 	output := filepath.Join(dir, "dry-run.epub")
 	locked := true
-	files := fontModeFixture("font-st", `.font-st { font-family: "Book Serif", serif; }`, &locked)
+	files := fontModeFixture("", `.font-st { font-family: "Book Serif", serif; }`, &locked)
 	files["OEBPS/Styles/base.css"] += `body { font-family: "Book Serif", serif; }` + "\n"
 	buildFixtureEpub(t, input, files)
 
@@ -233,7 +233,7 @@ func TestWholeBookPresetRejectsCustomBodyFontInBaseLayerWithoutEdits(t *testing.
 	input := filepath.Join(dir, "free.epub")
 	output := filepath.Join(dir, "dry-run.epub")
 	fonts := `.font-st { font-family: "Book Serif", serif; }` + "\n"
-	buildFixtureEpub(t, input, fontModeFixture("font-st", fonts, nil))
+	buildFixtureEpub(t, input, fontModeFixture("", fonts, nil))
 	b, err := runFontModePreset(t, input, output, presetRoot, presetName, true)
 	if err == nil {
 		t.Fatal("Run accepted a custom base.css body font binding")
@@ -264,6 +264,94 @@ func TestWholeBookPresetRefusesUnsupportedFontCascade(t *testing.T) {
 			b, err := runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
 			if err == nil || len(b.ModifiedNames()) != 0 {
 				t.Fatalf("unsupported font cascade changed book: %v, %v", b.ModifiedNames(), err)
+			}
+		})
+	}
+}
+
+func twoChapterFontModeFixture(classes, fontsCSS string) map[string]string {
+	files := fontModeFixture(classes, fontsCSS, nil)
+	opf := files[fontModeOPFPath]
+	opf = strings.Replace(opf,
+		`    <item id="old-base"`,
+		`    <item id="chapter2" href="Text/chapter2.xhtml" media-type="application/xhtml+xml"/>`+"\n"+`    <item id="old-base"`, 1)
+	opf = strings.Replace(opf, `<spine><itemref idref="chapter"/></spine>`,
+		`<spine><itemref idref="chapter"/><itemref idref="chapter2"/></spine>`, 1)
+	files[fontModeOPFPath] = opf
+	files["OEBPS/Text/chapter2.xhtml"] = files[fontModeTextPath]
+	return files
+}
+
+func TestWholeBookPresetRefusesNoncanonicalBodyChains(t *testing.T) {
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	for _, tc := range []struct {
+		name, classes, selector string
+	}{
+		{"book-class", "calibre", ".calibre"},
+		{"html-body", "", "html body"},
+		{"body-class", "chapter", "body.chapter"},
+		{"body-paragraph", "", "body p"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := twoChapterFontModeFixture(tc.classes, `.font-st { font-family: serif; }`)
+			files["OEBPS/Styles/base.css"] = tc.selector + ` { font-family: "Book Serif", serif; }` + "\n"
+			input := filepath.Join(t.TempDir(), "input.epub")
+			buildFixtureEpub(t, input, files)
+			b, err := runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
+			if err == nil {
+				t.Fatal("Run accepted a noncanonical whole-book body font binding")
+			}
+			if names := b.ModifiedNames(); len(names) != 0 {
+				t.Fatalf("Run modified entries before rejecting binding: %v", names)
+			}
+		})
+	}
+}
+
+func TestWholeBookPresetAllowsPageRoleBodyClass(t *testing.T) {
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	files := twoChapterFontModeFixture("preface", `body.preface { font-family: serif; }`)
+	files["OEBPS/Text/chapter2.xhtml"] = strings.Replace(files["OEBPS/Text/chapter2.xhtml"], `class="preface"`, `class="chapter"`, 1)
+	input := filepath.Join(t.TempDir(), "input.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
+	if err != nil {
+		t.Fatalf("Run rejected a page-role body class: %v", err)
+	}
+	if len(b.ModifiedNames()) == 0 {
+		t.Fatal("Run made no preset edits")
+	}
+}
+
+func TestPresetAcceptsHTMLNamedEntities(t *testing.T) {
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	for _, scoped := range []bool{false, true} {
+		name := "whole-book"
+		if scoped {
+			name = "scoped"
+		}
+		t.Run(name, func(t *testing.T) {
+			files := fontModeFixture("", `.font-st { font-family: serif; }`, nil)
+			files[fontModeTextPath] = strings.Replace(files[fontModeTextPath], "正文保持不变。", "正文&nbsp;保持不变。", 1)
+			input := filepath.Join(t.TempDir(), "input.epub")
+			buildFixtureEpub(t, input, files)
+			var b *book.Book
+			var err error
+			if scoped {
+				b, err = book.Open(input)
+				if err == nil {
+					t.Cleanup(func() { _ = b.Close() })
+					_, err = Run(t.Context(), b, Params{Preset: "literary-cn", PresetDir: presets, DryRun: true, ScopePaths: []string{fontModeTextPath}})
+				}
+			} else {
+				b, err = runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
+			}
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			got, err := b.Current(fontModeTextPath)
+			if err != nil || !bytes.Contains(got, []byte("&nbsp;")) {
+				t.Fatalf("named entity bytes changed or disappeared: %q (%v)", got, err)
 			}
 		})
 	}

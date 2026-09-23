@@ -51,7 +51,7 @@ func validateScopedCSS(data []byte) error {
 // Append by XML source span: preserve all original links, comments, inline
 // styles and body bytes, including minified pages. Reapplying is idempotent.
 func appendStylesheetLinks(text, document string, paths []string) (string, error) {
-	root, err := opf.ScanSpanTree([]byte(text))
+	root, err := opf.ScanXHTMLSpanTree([]byte(text))
 	if err != nil {
 		return "", presetErrf("%s: %v", document, err)
 	}
@@ -73,7 +73,7 @@ func appendStylesheetLinks(text, document string, paths []string) (string, error
 	}
 	var insert strings.Builder
 	for _, cssPath := range paths {
-		href := pypath.RelativePath(document, cssPath)
+		href := pypath.RelativeURI(document, cssPath)
 		if !seen[href] {
 			insert.WriteString(`<link rel="stylesheet" type="text/css" href="` + pypath.EscapeAttribute(href) + `"/>` + "\n")
 		}

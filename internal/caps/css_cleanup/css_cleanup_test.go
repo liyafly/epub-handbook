@@ -532,6 +532,7 @@ func TestCleanupDoesNotRewriteFontFaceDescriptor(t *testing.T) {
   font-family: "SimHei";
   src: url("../Fonts/book.woff2");
 }
+
 body { font-family: "SimHei"; }
 `
 	files["OEBPS/Styles/style0004.css"] = `p { color: black; }` + "\n"
@@ -544,6 +545,38 @@ body { font-family: "SimHei"; }
 	}
 	if !strings.Contains(got, `body { font-family: `+heiChain+`; }`) {
 		t.Fatalf("qualified style rule was not rewritten: %s", got)
+	}
+}
+
+func TestCleanupResolvesPercentEncodedCSSHref(t *testing.T) {
+	files := cssCleanupFixtureFiles()
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], `href="Styles/style0002.css"`, `href="Styles/style%200002.css"`, 1)
+	files["OEBPS/Text/chapter1.xhtml"] = strings.Replace(files["OEBPS/Text/chapter1.xhtml"], `../Styles/style0002.css`, `../Styles/style%200002.css`, 1)
+	files["OEBPS/Styles/style 0002.css"] = files["OEBPS/Styles/style0002.css"]
+	delete(files, "OEBPS/Styles/style0002.css")
+	input := filepath.Join(t.TempDir(), "encoded-css.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	warnings, ok := result.Facts["warnings"].([]string)
+	if !ok {
+		t.Fatalf("warnings fact type = %T", result.Facts["warnings"])
+	}
+	for _, warning := range warnings {
+		if strings.Contains(warning, "CSS manifest item does not resolve") {
+			t.Fatalf("encoded CSS href was not resolved: %v", warnings)
+		}
+	}
+	updated, err := b.Current("OEBPS/Styles/style 0002.css")
+	if err != nil || !strings.Contains(string(updated), `font-family: "Heiti SC"`) {
+		t.Fatalf("encoded CSS entry was not processed: %q (%v)", updated, err)
 	}
 }
 

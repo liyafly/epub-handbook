@@ -91,6 +91,84 @@ func TestScopedInputValidation(t *testing.T) {
 	}
 }
 
+func TestPresetHandlesPercentEncodedSpineHref(t *testing.T) {
+	const raw = "OEBPS/Text/chapter one.xhtml"
+	const encoded = "OEBPS/Text/chapter%20one.xhtml"
+	files := typographyFixture("")
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], "Text/chapter.xhtml", "Text/chapter%20one.xhtml", 1)
+	files[raw] = files["OEBPS/Text/chapter.xhtml"]
+	delete(files, "OEBPS/Text/chapter.xhtml")
+	input := filepath.Join(t.TempDir(), "encoded.epub")
+	buildFixtureEpub(t, input, files)
+	presets := filepath.Join(repoRootDir(t), "templates/style-presets")
+
+	for _, tc := range []struct {
+		name  string
+		scope []string
+		want  bool
+	}{
+		{name: "whole-book", want: true},
+		{name: "scope-raw-path", scope: []string{raw}, want: true},
+		{name: "scope-uri-spelling", scope: []string{encoded}, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, err := book.Open(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			_, err = Run(t.Context(), b, Params{Preset: "literary-cn", PresetDir: presets, DryRun: true, ScopePaths: tc.scope})
+			if (err == nil) != tc.want {
+				t.Fatalf("Run error = %v, want success=%v", err, tc.want)
+			}
+			if !tc.want {
+				if len(b.ModifiedNames()) != 0 {
+					t.Fatalf("rejected scope modified entries: %v", b.ModifiedNames())
+				}
+				return
+			}
+			chapter, err := b.Current(raw)
+			wantLink := []byte("epub-preset-")
+			if tc.name == "whole-book" {
+				wantLink = []byte(`href="../Styles/literary.css"`)
+			}
+			if err != nil || !bytes.Contains(chapter, wantLink) {
+				t.Fatalf("preset link missing from decoded spine path: %q (%v)", chapter, err)
+			}
+		})
+	}
+}
+
+func TestScopedPresetRejectsBodyFontLock(t *testing.T) {
+	presetRoot := t.TempDir()
+	name := "scoped-body-lock"
+	stylesDir := filepath.Join(presetRoot, name, "Styles")
+	if err := os.MkdirAll(stylesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	metadata := `{"name":"scoped-body-lock","version":"1","layers":["fonts.css"],"notes":"test"}`
+	if err := os.WriteFile(filepath.Join(presetRoot, name, "preset.json"), []byte(metadata), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stylesDir, "fonts.css"), []byte(`body{font-family:"Locked Serif",serif}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(t.TempDir(), "input.epub")
+	buildFixtureEpub(t, input, typographyFixture(""))
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	_, err = Run(t.Context(), b, Params{Preset: name, PresetDir: presetRoot, DryRun: true, ScopePaths: []string{"OEBPS/Text/chapter.xhtml"}})
+	if err == nil {
+		t.Fatal("scoped preset accepted a book-level body font binding")
+	}
+	if names := b.ModifiedNames(); len(names) != 0 {
+		t.Fatalf("rejected scoped preset modified entries: %v", names)
+	}
+}
+
 func TestScopedCollisionDoesNotApplyPartialEdits(t *testing.T) {
 	presets := filepath.Join(repoRootDir(t), "templates/style-presets")
 	data, err := os.ReadFile(filepath.Join(presets, "literary-cn/Styles/base.css"))

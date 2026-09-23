@@ -60,6 +60,12 @@ func typographyFixture(classes string) map[string]string {
 	}
 }
 
+func typographyRoleFontFixture() map[string]string {
+	files := typographyFixture("chapter-head note-box img-left")
+	files["OEBPS/Text/chapter.xhtml"] = strings.Replace(files["OEBPS/Text/chapter.xhtml"], "<section>", `<section class="font-st">`, 1)
+	return files
+}
+
 func buildFixtureEpub(t *testing.T, path string, files map[string]string) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -168,7 +174,7 @@ func TestTypographyDryRun(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "palette.epub")
 	output := filepath.Join(dir, "output.epub")
-	buildFixtureEpub(t, source, typographyFixture("font-st chapter-head note-box img-left"))
+	buildFixtureEpub(t, source, typographyRoleFontFixture())
 	before, err := os.ReadFile(source)
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +245,7 @@ func TestTypographyApply(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.epub")
 	output := filepath.Join(dir, "output.epub")
-	buildFixtureEpub(t, source, typographyFixture("font-st chapter-head note-box img-left"))
+	buildFixtureEpub(t, source, typographyRoleFontFixture())
 
 	rep := mustRun(t, source, presets, "literary-cn", output, false)
 	layers := []string{"fonts.css", "base.css", "notes.css", "effects.css", "literary.css", "media.css"}

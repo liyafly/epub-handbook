@@ -119,7 +119,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if mediaType != "text/css" || !hasHref || href == "" {
 			continue
 		}
-		cssItems[pypath.NormJoin(opfDir, href)] = item
+		cssPath, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path)
+		if err != nil {
+			rep.Warnings = append(rep.Warnings, "CSS manifest item does not resolve: "+href+": "+err.Error())
+			continue
+		}
+		cssItems[cssPath] = item
 	}
 	rep.CSSFilesBefore = len(cssItems)
 
