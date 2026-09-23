@@ -201,6 +201,26 @@ func TestFileSHA256ContextHashesRegularFile(t *testing.T) {
 	}
 }
 
+func TestArchiveSHA256MatchesFileSHA256(t *testing.T) {
+	path := writeTempZip(t, buildInputZip(t))
+	want, err := FileSHA256Context(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	got, err := a.SHA256Context(t.Context())
+	if err != nil {
+		t.Fatalf("Archive.SHA256Context: %v", err)
+	}
+	if got != want {
+		t.Fatalf("Archive.SHA256Context() = %q, want %q", got, want)
+	}
+}
+
 func TestFileSHA256ContextPreCanceledReturnsNoHash(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source.epub")
 	if err := os.WriteFile(path, []byte("content"), 0o600); err != nil {

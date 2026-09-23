@@ -115,7 +115,7 @@ func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkg
 		}
 		data, err := read(item.archivePath)
 		if err != nil {
-			data = nil
+			return nil, fmt.Errorf("split: read navigation %s: %w", item.archivePath, err)
 		}
 		entries, perr := opf.ParseTocNav(item.archivePath, data)
 		if perr != nil {
@@ -129,14 +129,15 @@ func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkg
 		if item, ok := pkg.byID(pkg.tocID); ok {
 			if names[item.archivePath] {
 				data, err := read(item.archivePath)
-				if err == nil {
-					entries, perr := opf.ParseTocNcx(item.archivePath, data)
-					if perr != nil {
-						return nil, perr
-					}
-					if len(entries) > 0 {
-						return entries, nil
-					}
+				if err != nil {
+					return nil, fmt.Errorf("split: read NCX %s: %w", item.archivePath, err)
+				}
+				entries, perr := opf.ParseTocNcx(item.archivePath, data)
+				if perr != nil {
+					return nil, perr
+				}
+				if len(entries) > 0 {
+					return entries, nil
 				}
 			}
 		}
@@ -526,6 +527,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	slices.Sort(modifiedEntries)
 	rep.Outputs = append([]string(nil), outputs...)
+	if err := b.ReadError(); err != nil {
+		return failedResult(fmt.Sprintf("%s: source read failed: %v", CapabilityID, err))
+	}
 	if !p.DryRun {
 		if err := book.CommitGroup(ctx, p.OutputDir, group); err != nil {
 			return failedResult(fmt.Sprintf("%s: commit group: %v", CapabilityID, err))

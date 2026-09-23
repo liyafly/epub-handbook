@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -131,6 +132,29 @@ func TestApplyModifyCreateDelete(t *testing.T) {
 	want := []string{"mimetype", "META-INF/container.xml", "OEBPS/content.opf", "OEBPS/Text/c1.xhtml", "OEBPS/Styles/main.css", "OEBPS/Images/cover.png", "OEBPS/Text/nav.xhtml"}
 	if got := b.Names(); !slices.Equal(got, want) {
 		t.Fatalf("Names = %v", got)
+	}
+}
+
+func TestApplyRejectsDeleteAfterContentEdit(t *testing.T) {
+	b, _ := openSample(t)
+	const name = "OEBPS/Text/c1.xhtml"
+	original, err := b.Current(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edits := []editset.Edit{
+		editset.Replace(name, 0, 5, []byte("<main")),
+		editset.Delete(name),
+	}
+	if err := b.Apply(edits); err == nil || !strings.Contains(err.Error(), "mixing entry deletion with content edits") {
+		t.Fatalf("Apply error = %v, want mixed deletion/content rejection", err)
+	}
+	if b.IsModified(name) {
+		t.Fatal("rejected edit group modified the book")
+	}
+	current, err := b.Current(name)
+	if err != nil || !bytes.Equal(current, original) {
+		t.Fatalf("rejected edit group changed content: %q (%v)", current, err)
 	}
 }
 

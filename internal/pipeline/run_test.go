@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"os"
 	"path/filepath"
@@ -90,6 +92,15 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	}
 	if env.Input == nil || env.Input.SHA256 == "" {
 		t.Error("input artifact 应含 sha256")
+	} else {
+		data, err := os.ReadFile(epub)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := sha256.Sum256(data)
+		if env.Input.SHA256 != hex.EncodeToString(want[:]) {
+			t.Errorf("input SHA-256 = %q, want hash of the opened EPUB %q", env.Input.SHA256, hex.EncodeToString(want[:]))
+		}
 	}
 	if env.Status != report.StatusComplete && env.Status != report.StatusFailed {
 		t.Errorf("status = %q", env.Status)

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 )
 
 var (
+	// ErrNotRegularFile identifies auxiliary paths that are not regular files.
+	ErrNotRegularFile = zipfs.ErrNotRegularFile
 	// ErrMissingEntry 表示请求的 entry 不存在（或已被删除）。
 	ErrMissingEntry = errors.New("book: no such entry")
 	// ErrDuplicateEntry 表示容器里出现了重复的 entry 名。
@@ -214,6 +217,21 @@ func FileSHA256Context(ctx context.Context, path string) (string, error) {
 	return zipfs.FileSHA256Context(ctx, path)
 }
 
+// FileSHA256ContextLimit exposes bounded hashing for derived output files.
+func FileSHA256ContextLimit(ctx context.Context, path string, maxBytes int64) (string, error) {
+	return zipfs.FileSHA256ContextLimit(ctx, path, maxBytes)
+}
+
+// InputSHA256Context hashes the same open archive descriptor used by Book.
+func (b *Book) InputSHA256Context(ctx context.Context) (string, error) {
+	return b.arch.SHA256Context(ctx)
+}
+
+// OpenRegularFile delegates race-resistant regular-file opening to zipfs.
+func OpenRegularFile(path string) (*os.File, os.FileInfo, error) {
+	return zipfs.OpenRegular(path)
+}
+
 // Apply 应用一批编辑，是本包唯一的写入口。
 //
 // 语义：
@@ -232,6 +250,17 @@ func (b *Book) Apply(edits []editset.Edit) error {
 	}
 	for _, path := range order {
 		group := groups[path]
+		hasDelete, hasContent := false, false
+		for _, e := range group {
+			if e.Replacement == nil {
+				hasDelete = true
+			} else {
+				hasContent = true
+			}
+		}
+		if hasDelete && hasContent {
+			return fmt.Errorf("book: %s: mixing entry deletion with content edits", path)
+		}
 		if group[0].Replacement == nil {
 			// 删除型：同 path 不允许混入内容编辑。
 			for _, e := range group {
@@ -275,9 +304,6 @@ func (b *Book) Apply(edits []editset.Edit) error {
 				return fmt.Errorf("book: %s: invalid edit range", path)
 			}
 			size += int64(len(edit.Replacement)) - edit.Length
-			if size > zipfs.DefaultLimits().MaxEntryBytes {
-				return fmt.Errorf("%w: %s: edited entry too large", ErrMemoryLimit, path)
-			}
 		}
 		if err := b.checkContentBudget(path, size); err != nil {
 			return err

@@ -1,7 +1,10 @@
 package split
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
+	"hash/crc32"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,6 +78,67 @@ func TestSplitFailsWhenSrcsetTargetIsMissing(t *testing.T) {
 	}
 	if _, statErr := os.Stat(outDir); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("failed split left output directory: %v", statErr)
+	}
+}
+
+func TestSplitDoesNotCommitWhenSourceReadFails(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	outDir := filepath.Join(dir, "segments")
+	entries := buildSrcsetEntries(true, true)
+	for i := range entries {
+		if entries[i].name == "OEBPS/nav.xhtml" {
+			entries[i].content = bytes.Replace(entries[i].content, []byte("Text/chapter.xhtml#start"), []byte("toc.xhtml#start"), 1)
+		}
+	}
+	buildCorruptEntryEpub(t, source, entries, "OEBPS/nav.xhtml")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(t.Context(), b, Params{SplitPoints: []int{0}, OutputDir: outDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status == report.StatusComplete {
+		t.Fatalf("split completed after unreadable source entry: %+v", res)
+	}
+	if _, statErr := os.Stat(outDir); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("failed split committed output directory: %v", statErr)
+	}
+}
+
+func buildCorruptEntryEpub(t *testing.T, path string, entries []zipEntry, corruptName string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, e := range entries {
+		if e.name == corruptName {
+			h := &zip.FileHeader{Name: e.name, Method: zip.Store, CRC32: crc32.ChecksumIEEE(e.content) ^ 1, CompressedSize64: uint64(len(e.content)), UncompressedSize64: uint64(len(e.content))}
+			fw, err := w.CreateRaw(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fw.Write(e.content); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		h := &zip.FileHeader{Name: e.name, Method: zip.Deflate}
+		fw, err := w.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(e.content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -96,9 +96,16 @@ func (e *Entry) Modified() time.Time   { return e.zf.Modified }
 type Archive struct {
 	path   string
 	f      *os.File
+	size   int64
 	order  []string
 	byName map[string]*Entry
 	limits Limits
+}
+
+// OpenRegular opens path only when it is a regular file. On Unix it uses
+// O_NONBLOCK before fstat so a path replaced with a FIFO cannot hang callers.
+func OpenRegular(path string) (*os.File, os.FileInfo, error) {
+	return openRegularFile(path)
 }
 
 // Open opens a disk ZIP archive using DefaultLimits. The caller must Close it.
@@ -150,6 +157,7 @@ func OpenWithLimits(ctx context.Context, path string, limits Limits) (*Archive, 
 	a := &Archive{
 		path:   path,
 		f:      f,
+		size:   stat.Size(),
 		order:  make([]string, 0, len(r.File)),
 		byName: make(map[string]*Entry, len(r.File)),
 		limits: limits,
@@ -273,6 +281,14 @@ func ReadFileContext(ctx context.Context, path string, maxBytes int64) ([]byte, 
 
 // FileSHA256Context hashes a regular file without materializing its contents.
 func FileSHA256Context(ctx context.Context, path string) (string, error) {
+	return FileSHA256ContextLimit(ctx, path, DefaultLimits().MaxArchiveBytes)
+}
+
+// FileSHA256ContextLimit hashes a regular file with an explicit maximum size.
+func FileSHA256ContextLimit(ctx context.Context, path string, maxBytes int64) (string, error) {
+	if maxBytes <= 0 {
+		return "", ErrInvalidLimits
+	}
 	if err := contextErr(ctx); err != nil {
 		return "", err
 	}
@@ -281,12 +297,24 @@ func FileSHA256Context(ctx context.Context, path string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	limit := DefaultLimits().MaxArchiveBytes
-	if stat.Size() > limit {
-		return "", ErrLimitExceeded
+	if stat.Size() > maxBytes {
+		return "", fmt.Errorf("zipfs: auxiliary file %q is %d bytes, exceeds %d: %w", path, stat.Size(), maxBytes, ErrLimitExceeded)
 	}
 	h := sha256.New()
-	if err := copyBoundedContext(ctx, h, f, limit); err != nil {
+	if err := copyBoundedContext(ctx, h, f, maxBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// SHA256Context hashes the archive bytes through the already-open descriptor.
+func (a *Archive) SHA256Context(ctx context.Context) (string, error) {
+	if err := contextErr(ctx); err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	reader := io.NewSectionReader(a.f, 0, a.size)
+	if err := copyBoundedContext(ctx, h, reader, a.limits.MaxArchiveBytes); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
@@ -432,6 +460,9 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 			os.Remove(tmpPath)
 		}
 	}()
+	if err := tmp.Chmod(0o644); err != nil {
+		return fmt.Errorf("zipfs: set output permissions: %w", err)
+	}
 
 	var output io.Writer = tmp
 	if ctx != nil {
@@ -471,6 +502,9 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 	}
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("zipfs: close writer: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		return fmt.Errorf("zipfs: sync output: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("zipfs: close output: %w", err)
@@ -522,6 +556,9 @@ func (a *Archive) WriteDirectory(ctx context.Context, outputDir string, outputs 
 			_ = os.RemoveAll(stage)
 		}
 	}()
+	if err := os.Chmod(stage, 0o755); err != nil {
+		return fmt.Errorf("zipfs: set staging directory permissions: %w", err)
+	}
 
 	for _, output := range outputs {
 		if err := contextErr(ctx); err != nil {

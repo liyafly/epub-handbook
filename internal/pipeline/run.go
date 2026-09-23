@@ -161,11 +161,6 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		// 信封 input：文件带 sha256；目录（sourceInput）只记 path
 		// （envelope.schema.json 的 input.sha256 可选）。
 		inputRef := &report.Artifact{Path: opts.InputPath}
-		if !inputIsDir {
-			if sum, err := book.FileSHA256Context(ctx, opts.InputPath); err == nil {
-				inputRef.SHA256 = sum
-			}
-		}
 		env.Input = inputRef
 	}
 
@@ -182,6 +177,11 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		var err error
 		b, err = book.OpenContext(ctx, opts.InputPath)
 		if err != nil {
+			if env.Input != nil {
+				if sum, hashErr := book.FileSHA256Context(ctx, opts.InputPath); hashErr == nil {
+					env.Input.SHA256 = sum
+				}
+			}
 			if ctx.Err() != nil {
 				return cancelInput(ctx.Err())
 			}
@@ -194,6 +194,15 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			return Outcome{Envelope: env, ExitCode: ExitFailed}, nil
 		}
 		defer b.Close()
+	}
+	if env.Input != nil && !inputIsDir {
+		if b != nil {
+			if sum, err := b.InputSHA256Context(ctx); err == nil {
+				env.Input.SHA256 = sum
+			}
+		} else if sum, err := book.FileSHA256Context(ctx, opts.InputPath); err == nil {
+			env.Input.SHA256 = sum
+		}
 	}
 
 	// 全局 flag 经 Args 透传给 capability：--output / --input / --dry-run。
@@ -507,8 +516,12 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			}
 		} else {
 			outRef := &report.Artifact{Path: opts.OutputPath}
-			if sum, err := book.FileSHA256Context(ctx, opts.OutputPath); err == nil {
+			if sum, err := book.FileSHA256ContextLimit(ctx, opts.OutputPath, 4<<30); err == nil {
 				outRef.SHA256 = sum
+			} else {
+				findings = append(findings, report.Finding{
+					Level: "warn", ID: "output.sha256-unavailable", Title: "Output SHA-256 unavailable", Detail: err.Error(), Location: opts.OutputPath,
+				})
 			}
 			env.Output = outRef
 			msg := opts.OutputPath

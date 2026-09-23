@@ -285,15 +285,14 @@ func inspectFile(ctx context.Context, abs, rel string) (FileEntry, error) {
 	ext := strings.ToLower(filepath.Ext(rel))
 	entry := FileEntry{Path: rel, Role: classify(rel), Risks: []string{}}
 
-	f, err := os.Open(abs)
+	f, st, err := book.OpenRegularFile(abs)
 	if err != nil {
+		if errors.Is(err, book.ErrNotRegularFile) {
+			return entry, fmt.Errorf("%w: %s", ErrNotRegularFile, abs)
+		}
 		return entry, err
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return entry, err
-	}
 	entry.Size = st.Size()
 
 	h := sha256.New()
