@@ -278,6 +278,17 @@ func openState(path string) (*zipfs.Archive, error) {
 	if err != nil {
 		return nil, inputErr("not a valid zip/EPUB: %s", path)
 	}
+	seen := make(map[string]bool, len(a.Names()))
+	for _, name := range a.Names() {
+		if strings.HasSuffix(name, "/") {
+			continue
+		}
+		if seen[name] {
+			a.Close()
+			return nil, inputErr("duplicate archive entry %q: %s", name, path)
+		}
+		seen[name] = true
+	}
 	return a, nil
 }
 

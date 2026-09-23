@@ -186,6 +186,25 @@ func TestRedlineIdenticalPasses(t *testing.T) {
 	}
 }
 
+func TestCompareFilesRejectsDuplicateEntryNames(t *testing.T) {
+	entries := baseEntries()
+	var after []zipEntry
+	for _, entry := range entries {
+		if entry.name == "OEBPS/Text/c1.xhtml" {
+			tampered := entry
+			tampered.content = bytes.Replace(entry.content, []byte("</h1>"), []byte("INJECTED</h1>"), 1)
+			after = append(after, tampered)
+		}
+		after = append(after, entry)
+	}
+	beforePath, afterPath := pair(t, entries, after)
+	rep, text := compare(t, beforePath, afterPath, "all", Options{})
+	wantCode(t, rep, text, 2)
+	if !strings.Contains(text, "duplicate archive entry") {
+		t.Fatalf("duplicate-entry input error missing from report: %s", text)
+	}
+}
+
 func TestRedlineTextChangeDetected(t *testing.T) {
 	before, after := pair(t, baseEntries(), editEntry(t, "OEBPS/Text/c1.xhtml", func(b []byte) []byte {
 		return bytes.Replace(b, []byte("第一段落"), []byte("第一段落!"), 1)

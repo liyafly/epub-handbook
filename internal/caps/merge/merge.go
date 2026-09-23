@@ -115,7 +115,7 @@ func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkg
 		}
 		data, err := read(item.archivePath)
 		if err != nil {
-			data = nil
+			return nil, err
 		}
 		entries, perr := opf.ParseTocNav(item.archivePath, data)
 		if perr != nil {
@@ -129,14 +129,15 @@ func parseToc(names map[string]bool, read func(string) ([]byte, error), pkg *pkg
 		if item, ok := pkg.byID(pkg.tocID); ok {
 			if names[item.archivePath] {
 				data, err := read(item.archivePath)
-				if err == nil {
-					entries, perr := opf.ParseTocNcx(item.archivePath, data)
-					if perr != nil {
-						return nil, perr
-					}
-					if len(entries) > 0 {
-						return entries, nil
-					}
+				if err != nil {
+					return nil, err
+				}
+				entries, perr := opf.ParseTocNcx(item.archivePath, data)
+				if perr != nil {
+					return nil, perr
+				}
+				if len(entries) > 0 {
+					return entries, nil
 				}
 			}
 		}
@@ -201,6 +202,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		var names []string
 		var read func(string) ([]byte, error)
+		var volBook *book.Book
 		if vi == 0 {
 			names = b.OriginalNames()
 			read = func(path string) ([]byte, error) { return b.OriginalContext(ctx, path) }
@@ -210,6 +212,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				return failedResult(err.Error())
 			}
 			defer vb.Close()
+			volBook = vb
 			names = vb.OriginalNames()
 			read = func(path string) ([]byte, error) { return vb.OriginalContext(ctx, path) }
 		}
@@ -353,6 +356,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 				if final, ok2 := pathMap[src.archivePath]; ok2 {
 					entries = append(entries, opf.TocEntry{Title: pypath.Basename(src.href), Href: final, Level: 1})
 				}
+			}
+		}
+		if volBook != nil {
+			if err := volBook.ReadError(); err != nil {
+				return report.Result{}, fmt.Errorf("merge: volume %d (%s): %w", vi+1, inputPath, err)
 			}
 		}
 		groups = append(groups, opf.TocGroup{Title: pkg.title, Entries: entries})

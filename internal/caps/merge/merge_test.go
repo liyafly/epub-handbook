@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
+	"hash/crc32"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,6 +30,44 @@ func buildEpub(t *testing.T, path string, entries []zipEntry) {
 	for _, e := range entries {
 		h := &zip.FileHeader{Name: e.name}
 		h.Method = zip.Deflate
+		fw, err := w.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(e.content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func buildEpubWithCorruptEntry(t *testing.T, path string, entries []zipEntry, corruptName string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, e := range entries {
+		if e.name == corruptName {
+			fw, err := w.CreateRaw(&zip.FileHeader{
+				Name:               e.name,
+				Method:             zip.Store,
+				CRC32:              crc32.ChecksumIEEE(e.content) ^ 1,
+				CompressedSize64:   uint64(len(e.content)),
+				UncompressedSize64: uint64(len(e.content)),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fw.Write(e.content); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		h := &zip.FileHeader{Name: e.name, Method: zip.Deflate}
 		fw, err := w.CreateHeader(h)
 		if err != nil {
 			t.Fatal(err)
@@ -387,6 +427,30 @@ func TestMergeRefusesEncryptedAndShortInput(t *testing.T) {
 	}
 	if res2.Status != report.StatusFailed || res2.Findings[0].Title != "merge requires at least two input EPUB files" {
 		t.Errorf("单卷输入应拒绝: %+v", res2.Findings)
+	}
+}
+
+func TestMergeFailsWhenSecondaryVolumeEntryUnreadable(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.epub")
+	second := filepath.Join(dir, "second.epub")
+	buildEpub(t, first, writeBookEntries("第一册", "first", []byte("cover-a")))
+	buildEpubWithCorruptEntry(t, second, writeBookEntries("第二册", "second", []byte("cover-b")), "OEBPS/nav.xhtml")
+
+	b, err := book.OpenContext(t.Context(), first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	res, err := Run(t.Context(), b, Params{
+		Inputs: []string{first, second}, Output: filepath.Join(dir, "merged.epub"),
+	})
+	if err != nil && !errors.Is(err, zip.ErrChecksum) {
+		t.Fatalf("Run error = %v, want zip checksum error or failed result", err)
+	}
+	if err == nil && res.Status == report.StatusComplete {
+		t.Fatalf("merge completed despite unreadable secondary volume entry: %+v", res)
 	}
 }
 

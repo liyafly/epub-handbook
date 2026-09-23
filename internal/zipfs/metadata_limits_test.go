@@ -52,6 +52,105 @@ func TestPreflightScansActualCentralDirectoryCount(t *testing.T) {
 	}
 }
 
+func TestPreflightMatchesStdlibDirectoryParsing(t *testing.T) {
+	limits := DefaultLimits()
+	limits.MaxEntries = 10
+	const entries = 65_541
+	cdSize := uint32(entries * 47)
+	cases := []struct {
+		name string
+		data []byte
+	}{
+		{
+			name: "different disk counts",
+			data: centralOnlyZip(entries, 0, func(size uint32) []byte { return eocd(1, 5, size, 0) }),
+		},
+		{
+			name: "underreported directory size",
+			data: centralOnlyZip(entries, 0, func(size uint32) []byte { return eocd(5, 5, 47*5, 0) }),
+		},
+		{
+			name: "zero directory size",
+			data: centralOnlyZip(entries, 0, func(size uint32) []byte { return eocd(5, 5, 0, 0) }),
+		},
+		{
+			name: "EOCD outside legacy search window",
+			data: centralOnlyZip(entries, 65_600, func(size uint32) []byte { return eocd(5, 5, size, 0) }),
+		},
+		{
+			name: "ZIP64 disk number differs",
+			data: centralOnlyZip(entries, 0, func(size uint32) []byte { return zip64Tail(5, 5, 1, size) }),
+		},
+		{
+			name: "ZIP64 per-disk entry count differs",
+			data: centralOnlyZip(entries, 0, func(size uint32) []byte { return zip64Tail(0, 5, 0, size) }),
+		},
+		{
+			name: "ZIP64 sentinel without locator",
+			data: centralOnlyZip(131_071, 0, func(size uint32) []byte { return eocd(0xffff, 0xffff, size, 0) }),
+		},
+	}
+	if got := len(cases[0].data) - int(cdSize); got != eocdFixedSize {
+		t.Fatalf("fixture tail size = %d, want %d", got, eocdFixedSize)
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := preflightEntryCount(bytes.NewReader(tc.data), int64(len(tc.data)), limits, t.Context())
+			if !errors.Is(err, ErrLimitExceeded) {
+				t.Fatalf("preflight error = %v, want ErrLimitExceeded", err)
+			}
+		})
+	}
+
+	valid := metadataZip(t, limits.MaxEntries)
+	if err := preflightEntryCount(bytes.NewReader(valid), int64(len(valid)), limits, t.Context()); err != nil {
+		t.Fatalf("entry count at limit error = %v, want nil", err)
+	}
+}
+
+func centralOnlyZip(entries, trailing int, tail func(cdSize uint32) []byte) []byte {
+	central := make([]byte, entries*47)
+	for i := range entries {
+		record := central[i*47 : (i+1)*47]
+		binary.LittleEndian.PutUint32(record[0:4], centralHeaderSig)
+		binary.LittleEndian.PutUint16(record[28:30], 1)
+		record[46] = 'a'
+	}
+	data := append(central, tail(uint32(len(central)))...)
+	return append(data, make([]byte, trailing)...)
+}
+
+func eocd(diskEntries, totalEntries uint16, cdSize, cdOffset uint32) []byte {
+	data := make([]byte, eocdFixedSize)
+	binary.LittleEndian.PutUint32(data[0:4], eocdSignature)
+	binary.LittleEndian.PutUint16(data[8:10], diskEntries)
+	binary.LittleEndian.PutUint16(data[10:12], totalEntries)
+	binary.LittleEndian.PutUint32(data[12:16], cdSize)
+	binary.LittleEndian.PutUint32(data[16:20], cdOffset)
+	return data
+}
+
+func zip64Tail(diskEntries, totalEntries uint64, diskNumber uint32, cdSize uint32) []byte {
+	data := make([]byte, zip64EOCDMinimum+zip64LocatorSize+eocdFixedSize)
+	binary.LittleEndian.PutUint32(data[0:4], zip64EOCDSignature)
+	binary.LittleEndian.PutUint64(data[4:12], zip64EOCDMinimum-12)
+	binary.LittleEndian.PutUint32(data[16:20], diskNumber)
+	binary.LittleEndian.PutUint64(data[24:32], diskEntries)
+	binary.LittleEndian.PutUint64(data[32:40], totalEntries)
+	binary.LittleEndian.PutUint64(data[40:48], uint64(cdSize))
+	locator := data[zip64EOCDMinimum : zip64EOCDMinimum+zip64LocatorSize]
+	binary.LittleEndian.PutUint32(locator[0:4], zip64LocatorSig)
+	binary.LittleEndian.PutUint64(locator[8:16], uint64(cdSize))
+	binary.LittleEndian.PutUint32(locator[16:20], 1)
+	classic := data[zip64EOCDMinimum+zip64LocatorSize:]
+	binary.LittleEndian.PutUint32(classic[0:4], eocdSignature)
+	binary.LittleEndian.PutUint16(classic[8:10], 0xffff)
+	binary.LittleEndian.PutUint16(classic[10:12], 0xffff)
+	binary.LittleEndian.PutUint32(classic[12:16], 0xffffffff)
+	binary.LittleEndian.PutUint32(classic[16:20], 0xffffffff)
+	return data
+}
+
 func TestPreflightEntryCountCanceledAndMalformedInputs(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
