@@ -109,7 +109,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		// 丢掉这个 error 会让下面的 parseOrdered 拿着零值 CmdResult 走失败分支，
 		// 报出 "exit code 0" —— 暗示工具跑完了且干净退出，恰好把真正的原因
 		// （工具没装 / 起不来）藏起来。extern.ErrToolMissing 也在这里。
-		return adapterFailure(&res, fmt.Sprintf("coverage detector could not be started: %v", runErr))
+		return adapterFailure(&res, fmt.Sprintf("coverage detector failed: %v", runErr))
 	}
 	det, perr := parseOrdered(run.Stdout)
 	if perr != nil {

@@ -19,6 +19,9 @@ var ErrToolMissing = errors.New("extern: tool missing")
 // ErrOutputLimit 表示外部 provider 的 stdout 或 stderr 超过捕获上限。
 var ErrOutputLimit = errors.New("extern: output limit exceeded")
 
+// ErrTimeout 表示 provider 超过 extern 自己的运行时限。
+var ErrTimeout = errors.New("extern: provider timed out")
+
 // waitDelay 是 ctx 取消/超时后，Wait 等待子进程 I/O 管道关闭的上限
 // （exec.Cmd.WaitDelay 语义）。
 //
@@ -107,14 +110,20 @@ type CmdResult struct {
 // 也是唯一能真正终止一个失控子进程（例如 epub.font.coverage.analyze 起的
 // `uv run` Python 字体工具）的地方。
 func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
+	return run(ctx, dir, argv, maxRunDuration)
+}
+
+func run(ctx context.Context, dir string, argv []string, maxDuration time.Duration) (CmdResult, error) {
 	if ctx == nil {
 		// 防御性兜底，与 internal/zipfs 的 contextErr 同一约定：nil ctx 降级为
 		// 「不取消」而不是 panic。exec.CommandContext 本身对 nil ctx 会 panic。
 		ctx = context.Background()
 	}
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+	parent := ctx
+	runCtx := ctx
+	if _, hasDeadline := runCtx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, maxRunDuration)
+		runCtx, cancel = context.WithTimeout(runCtx, maxDuration)
 		defer cancel()
 	}
 	if len(argv) == 0 {
@@ -123,11 +132,12 @@ func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	if err := Require(argv[0]); err != nil {
 		return CmdResult{}, err
 	}
-	processCtx, cancelProcess := context.WithCancel(ctx)
+	processCtx, cancelProcess := context.WithCancel(runCtx)
 	defer cancelProcess()
 	cmd := exec.CommandContext(processCtx, argv[0], argv[1:]...)
 	cmd.Dir = dir
 	cmd.WaitDelay = waitDelay
+	configureProcessGroup(cmd)
 	out := cappedBuffer{limit: streamOutputLimit, onLimit: cancelProcess}
 	errBuf := cappedBuffer{limit: streamOutputLimit, onLimit: cancelProcess}
 	cmd.Stdout = &out
@@ -136,6 +146,9 @@ func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	res := CmdResult{Stdout: out.Bytes(), Stderr: errBuf.Bytes()}
 	if exit, ok := err.(*exec.ExitError); ok {
 		res.ExitCode = exit.ExitCode()
+	}
+	if parent.Err() == nil && runCtx.Err() != nil {
+		return res, fmt.Errorf("%w after %s: %v", ErrTimeout, maxDuration, err)
 	}
 
 	// exec.CommandContext 取消/超时时只是把子进程 Kill 掉；Wait 把结果包成
@@ -146,7 +159,7 @@ func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	// 只会误判成 capability.run-failed。所以先检查 ctx 是否已经出错，并把
 	// 它显式联结进返回的 error，让上层 errors.Is(err, context.Canceled) /
 	// errors.Is(err, context.DeadlineExceeded) 能穿透到这里。
-	if cerr := ctx.Err(); cerr != nil && !errors.Is(err, cerr) {
+	if cerr := runCtx.Err(); cerr != nil && !errors.Is(err, cerr) {
 		if err != nil {
 			return res, fmt.Errorf("extern: %w: %w", cerr, err)
 		}

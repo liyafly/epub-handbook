@@ -1,10 +1,12 @@
 package extern
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -33,6 +35,49 @@ func TestRunStopsProviderOnOutputLimit(t *testing.T) {
 				t.Fatalf("captured %d bytes", len(data))
 			}
 		})
+	}
+}
+
+func TestRunInternalTimeoutIsNotCancellation(t *testing.T) {
+	requireSh(t)
+	res, err := run(context.Background(), t.TempDir(), []string{"sleep", "5"}, 100*time.Millisecond)
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("run internal timeout error = %v, want ErrTimeout", err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		t.Fatalf("internal timeout must not look like caller cancellation: %v", err)
+	}
+	if res.ExitCode == 0 {
+		t.Fatalf("timed out process exit code = %d", res.ExitCode)
+	}
+}
+
+func TestOutputLimitKillsProcessGroup(t *testing.T) {
+	requireSh(t)
+	if _, err := exec.LookPath("pgrep"); err != nil {
+		t.Skip("pgrep is unavailable")
+	}
+	const childPattern = "^sleep 37[.]123$"
+	t.Cleanup(func() {
+		if pkill, err := exec.LookPath("pkill"); err == nil {
+			_ = exec.Command(pkill, "-f", childPattern).Run()
+		}
+	})
+	start := time.Now()
+	res, err := Run(t.Context(), t.TempDir(), []string{"sh", "-c", "sleep 37.123 & head -c 20000000 /dev/zero"})
+	elapsed := time.Since(start)
+	if !errors.Is(err, ErrOutputLimit) {
+		t.Fatalf("Run output-limit error = %v, want ErrOutputLimit", err)
+	}
+	if elapsed >= 2*time.Second {
+		t.Fatalf("process-group cancellation took %v, want under 2s", elapsed)
+	}
+	if len(res.Stdout) != streamOutputLimit {
+		t.Fatalf("captured stdout = %d bytes, want %d", len(res.Stdout), streamOutputLimit)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if out, err := exec.Command("pgrep", "-f", childPattern).CombinedOutput(); err == nil && len(bytes.TrimSpace(out)) > 0 {
+		t.Fatalf("sleep child remains after process-group kill: %s", out)
 	}
 }
 
