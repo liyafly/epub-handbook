@@ -178,7 +178,7 @@ func TestReadFileContextBoundsRegularFiles(t *testing.T) {
 }
 
 func TestBoundedEmptyReadIsContentNotDeletion(t *testing.T) {
-	data, err := readBoundedContext(t.Context(), strings.NewReader(""), 1)
+	data, err := readBoundedContext(t.Context(), strings.NewReader(""), 1, 0)
 	if err != nil || data == nil || len(data) != 0 {
 		t.Fatalf("empty content must remain non-nil: %#v, %v", data, err)
 	}
@@ -276,7 +276,7 @@ func (r *cancelOnRead) Read(p []byte) (int, error) {
 
 func TestReadBoundedContextStopsOnDeterministicMidstreamCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
-	_, err := readBoundedContext(ctx, &cancelOnRead{cancel: cancel}, 1024)
+	_, err := readBoundedContext(ctx, &cancelOnRead{cancel: cancel}, 1024, 11)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("readBoundedContext error = %v, want context.Canceled", err)
 	}

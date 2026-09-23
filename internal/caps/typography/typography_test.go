@@ -348,6 +348,25 @@ func TestLoadPresetRejectsUnsafeLayerNames(t *testing.T) {
 	}
 }
 
+func TestLoadPresetRejectsDuplicateLayerBeforeSecondRead(t *testing.T) {
+	dir := t.TempDir()
+	presetDir := filepath.Join(dir, "bad")
+	stylesDir := filepath.Join(presetDir, "Styles")
+	if err := os.MkdirAll(stylesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	metadata := []byte(`{"name":"bad","version":"1","layers":["a.css","a.css"]}`)
+	if err := os.WriteFile(filepath.Join(presetDir, "preset.json"), metadata, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stylesDir, "a.css"), []byte("body { color: black; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadPreset(t.Context(), "bad", dir); !errors.Is(err, ErrPreset) || !strings.Contains(err.Error(), "duplicate stylesheet layer") {
+		t.Fatalf("duplicate layer error = %v", err)
+	}
+}
+
 func TestTypographyPresetLineLimits(t *testing.T) {
 	// 镜像 test_preset_css_line_limits（仓库资产 ≤400 行）。
 	glob := filepath.Join(repoRootDir(t), "templates", "style-presets", "*", "Styles", "*.css")

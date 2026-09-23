@@ -142,6 +142,9 @@ func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, stri
 		if !ok || !layerNameRe.MatchString(layer) {
 			return presetConfig{}, "", presetErrf("invalid stylesheet layer in preset %s: %s", name, pyRepr(layer))
 		}
+		if _, duplicate := layerData[layer]; duplicate {
+			return presetConfig{}, "", presetErrf("duplicate stylesheet layer: %s", layer)
+		}
 		cssPath := filepath.Join(dir, "Styles", layer)
 		data, err := book.ReadFileContext(ctx, cssPath, 4<<20)
 		if err != nil {
@@ -153,9 +156,6 @@ func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, stri
 		}
 		if pyLineCount(string(data)) > 500 {
 			return presetConfig{}, "", presetErrf("preset stylesheet exceeds the 500-line hard limit: %s", cssPath)
-		}
-		if _, duplicate := layerData[layer]; duplicate {
-			return presetConfig{}, "", presetErrf("duplicate stylesheet layer: %s", layer)
 		}
 		layerData[layer] = data
 		layers = append(layers, layer)

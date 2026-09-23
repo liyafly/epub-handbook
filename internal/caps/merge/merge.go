@@ -197,173 +197,179 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	)
 
 	for vi, inputPath := range inputs {
-		if err := ctx.Err(); err != nil {
-			return report.Result{}, err
-		}
-		var names []string
-		var read func(string) ([]byte, error)
-		var volBook *book.Book
-		if vi == 0 {
-			names = b.OriginalNames()
-			read = func(path string) ([]byte, error) { return b.OriginalContext(ctx, path) }
-		} else {
-			vb, err := book.OpenContext(ctx, inputPath)
-			if err != nil {
-				return failedResult(err.Error())
-			}
-			defer vb.Close()
-			volBook = vb
-			names = vb.OriginalNames()
-			read = func(path string) ([]byte, error) { return vb.OriginalContext(ctx, path) }
-		}
-		namesSet := make(map[string]bool, len(names))
-		for _, n := range names {
-			namesSet[n] = true
-		}
-
-		if err := ensureNoEncryption(names, "merge"); err != nil {
-			return failedResult(err.Error())
-		}
-		pkg, err := readPackage(namesSet, read)
-		if err != nil {
-			return failedResult(err.Error())
-		}
-		if firstMeta == nil {
-			if pkg.meta == nil {
-				return failedResult("OPF missing metadata")
-			}
-			firstMeta = pkg.meta
-		}
-		if mergedTitle == nil {
-			t := pkg.title
-			mergedTitle = &t
-		}
-		prefix := fmt.Sprintf("vol%d_", vi+1)
-		pathMap := map[string]string{}
-		idMap := map[string]string{}
-
-		for _, item := range pkg.manifest {
+		iterationResult, iterationErr := func() (report.Result, error) {
 			if err := ctx.Err(); err != nil {
 				return report.Result{}, err
 			}
-			if !namesSet[item.archivePath] {
-				rep.Warnings = append(rep.Warnings, fmt.Sprintf("%s: manifest href does not resolve: %s", inputPath, item.href))
-				continue
-			}
-			if pypath.HasNavProp(item.properties) || item.mediaType == "application/x-dtbncx+xml" {
-				continue
-			}
-			finalPath, renamedFlag := pypath.AllocateArchivePath(item.archivePath, usedPaths, prefix)
-			pathMap[item.archivePath] = finalPath
-			if renamedFlag {
-				rep.RenamedResources++
-				// Pipeline's before-state is only the first book. Later volumes
-				// must not redirect a first-volume resource with the same path.
-				if vi == 0 {
-					renames[item.archivePath] = finalPath
-				}
-			}
-			baseID := item.itemID
-			if usedIDs[item.itemID] {
-				baseID = fmt.Sprintf("vol%d_%s", vi+1, item.itemID)
-			}
-			newID := pypath.UniqueID(baseID, usedIDs)
-			idMap[item.itemID] = newID
-			props := pypath.RemoveProp(item.properties, "nav")
-			mergedMeta = append(mergedMeta, manifestTuple{
-				itemID:    newID,
-				href:      pypath.RelativeURI(fixedOPFPath, finalPath),
-				mediaType: item.mediaType,
-				props:     props,
-			})
-			rep.MergedItems++
-		}
-
-		sourceMappings = append(sourceMappings, map[string]any{
-			"inputIndex": vi, "input": inputPath, "mappings": mappingList(pathMap),
-		})
-		for _, item := range pkg.manifest {
-			if err := ctx.Err(); err != nil {
-				return report.Result{}, err
-			}
-			finalPath, ok := pathMap[item.archivePath]
-			if !ok {
-				continue
-			}
-			data, err := read(item.archivePath)
-			if err != nil {
-				return failedResult(err.Error())
-			}
-			transformed, transformErr := transformResource(data, item.archivePath, finalPath, pathMap, namesSet, warnf)
-			if transformErr != nil {
-				return failedResult(transformErr.Error())
-			}
-			expected[finalPath] = true
+			var names []string
+			var read func(string) ([]byte, error)
+			var volBook *book.Book
 			if vi == 0 {
-				switch {
-				case finalPath != item.archivePath:
-					creates = append(creates, editset.Replace(finalPath, 0, 0, transformed))
-					deletes = append(deletes, editset.Delete(item.archivePath))
-					inDeletes[item.archivePath] = true
-				case !bytesEqual(transformed, data):
-					replaces = append(replaces, editset.Replace(item.archivePath, 0, int64(len(data)), transformed))
+				names = b.OriginalNames()
+				read = func(path string) ([]byte, error) { return b.OriginalContext(ctx, path) }
+			} else {
+				vb, err := book.OpenContext(ctx, inputPath)
+				if err != nil {
+					return failedResult(err.Error())
 				}
-				continue
+				defer vb.Close()
+				volBook = vb
+				names = vb.OriginalNames()
+				read = func(path string) ([]byte, error) { return vb.OriginalContext(ctx, path) }
 			}
-			creates = append(creates, editset.Replace(finalPath, 0, 0, transformed))
-		}
+			namesSet := make(map[string]bool, len(names))
+			for _, n := range names {
+				namesSet[n] = true
+			}
 
-		for _, sp := range pkg.spine {
-			src, ok := pkg.byID(sp.idref)
-			if !ok || pypath.HasNavProp(src.properties) {
-				continue
+			if err := ensureNoEncryption(names, "merge"); err != nil {
+				return failedResult(err.Error())
 			}
-			if newID, ok2 := idMap[src.itemID]; ok2 {
-				mergedSp = append(mergedSp, spineTuple{idref: newID, linear: sp.linear, properties: sp.properties})
+			pkg, err := readPackage(namesSet, read)
+			if err != nil {
+				return failedResult(err.Error())
 			}
-		}
-
-		entries := []opf.TocEntry{}
-		toc, err := parseToc(namesSet, read, pkg)
-		if err != nil {
-			return failedResult(err.Error())
-		}
-		for _, entry := range toc {
-			if entry.Href == "" {
-				entries = append(entries, entry)
-				continue
-			}
-			href := entry.Href
-			fragment := ""
-			sep := false
-			if i := indexOfByte(href, '#'); i >= 0 {
-				href, fragment, sep = href[:i], href[i+1:], true
-			}
-			if final, ok := pathMap[href]; ok {
-				target := final
-				if sep {
-					target += "#" + fragment
+			if firstMeta == nil {
+				if pkg.meta == nil {
+					return failedResult("OPF missing metadata")
 				}
-				entries = append(entries, opf.TocEntry{Title: entry.Title, Href: target, Level: entry.Level})
+				firstMeta = pkg.meta
 			}
-		}
-		if len(entries) == 0 {
-			for _, sp := range pkg.spine {
-				src, ok := pkg.byID(sp.idref)
+			if mergedTitle == nil {
+				t := pkg.title
+				mergedTitle = &t
+			}
+			prefix := fmt.Sprintf("vol%d_", vi+1)
+			pathMap := map[string]string{}
+			idMap := map[string]string{}
+
+			for _, item := range pkg.manifest {
+				if err := ctx.Err(); err != nil {
+					return report.Result{}, err
+				}
+				if !namesSet[item.archivePath] {
+					rep.Warnings = append(rep.Warnings, fmt.Sprintf("%s: manifest href does not resolve: %s", inputPath, item.href))
+					continue
+				}
+				if pypath.HasNavProp(item.properties) || item.mediaType == "application/x-dtbncx+xml" {
+					continue
+				}
+				finalPath, renamedFlag := pypath.AllocateArchivePath(item.archivePath, usedPaths, prefix)
+				pathMap[item.archivePath] = finalPath
+				if renamedFlag {
+					rep.RenamedResources++
+					// Pipeline's before-state is only the first book. Later volumes
+					// must not redirect a first-volume resource with the same path.
+					if vi == 0 {
+						renames[item.archivePath] = finalPath
+					}
+				}
+				baseID := item.itemID
+				if usedIDs[item.itemID] {
+					baseID = fmt.Sprintf("vol%d_%s", vi+1, item.itemID)
+				}
+				newID := pypath.UniqueID(baseID, usedIDs)
+				idMap[item.itemID] = newID
+				props := pypath.RemoveProp(item.properties, "nav")
+				mergedMeta = append(mergedMeta, manifestTuple{
+					itemID:    newID,
+					href:      pypath.RelativeURI(fixedOPFPath, finalPath),
+					mediaType: item.mediaType,
+					props:     props,
+				})
+				rep.MergedItems++
+			}
+
+			sourceMappings = append(sourceMappings, map[string]any{
+				"inputIndex": vi, "input": inputPath, "mappings": mappingList(pathMap),
+			})
+			for _, item := range pkg.manifest {
+				if err := ctx.Err(); err != nil {
+					return report.Result{}, err
+				}
+				finalPath, ok := pathMap[item.archivePath]
 				if !ok {
 					continue
 				}
-				if final, ok2 := pathMap[src.archivePath]; ok2 {
-					entries = append(entries, opf.TocEntry{Title: pypath.Basename(src.href), Href: final, Level: 1})
+				data, err := read(item.archivePath)
+				if err != nil {
+					return failedResult(err.Error())
+				}
+				transformed, transformErr := transformResource(data, item.archivePath, finalPath, pathMap, namesSet, warnf)
+				if transformErr != nil {
+					return failedResult(transformErr.Error())
+				}
+				expected[finalPath] = true
+				if vi == 0 {
+					switch {
+					case finalPath != item.archivePath:
+						creates = append(creates, editset.Replace(finalPath, 0, 0, transformed))
+						deletes = append(deletes, editset.Delete(item.archivePath))
+						inDeletes[item.archivePath] = true
+					case !bytesEqual(transformed, data):
+						replaces = append(replaces, editset.Replace(item.archivePath, 0, int64(len(data)), transformed))
+					}
+					continue
+				}
+				creates = append(creates, editset.Replace(finalPath, 0, 0, transformed))
+			}
+
+			for _, sp := range pkg.spine {
+				src, ok := pkg.byID(sp.idref)
+				if !ok || pypath.HasNavProp(src.properties) {
+					continue
+				}
+				if newID, ok2 := idMap[src.itemID]; ok2 {
+					mergedSp = append(mergedSp, spineTuple{idref: newID, linear: sp.linear, properties: sp.properties})
 				}
 			}
-		}
-		if volBook != nil {
-			if err := volBook.ReadError(); err != nil {
-				return report.Result{}, fmt.Errorf("merge: volume %d (%s): %w", vi+1, inputPath, err)
+
+			entries := []opf.TocEntry{}
+			toc, err := parseToc(namesSet, read, pkg)
+			if err != nil {
+				return failedResult(err.Error())
 			}
+			for _, entry := range toc {
+				if entry.Href == "" {
+					entries = append(entries, entry)
+					continue
+				}
+				href := entry.Href
+				fragment := ""
+				sep := false
+				if i := indexOfByte(href, '#'); i >= 0 {
+					href, fragment, sep = href[:i], href[i+1:], true
+				}
+				if final, ok := pathMap[href]; ok {
+					target := final
+					if sep {
+						target += "#" + fragment
+					}
+					entries = append(entries, opf.TocEntry{Title: entry.Title, Href: target, Level: entry.Level})
+				}
+			}
+			if len(entries) == 0 {
+				for _, sp := range pkg.spine {
+					src, ok := pkg.byID(sp.idref)
+					if !ok {
+						continue
+					}
+					if final, ok2 := pathMap[src.archivePath]; ok2 {
+						entries = append(entries, opf.TocEntry{Title: pypath.Basename(src.href), Href: final, Level: 1})
+					}
+				}
+			}
+			if volBook != nil {
+				if err := volBook.ReadError(); err != nil {
+					return report.Result{}, fmt.Errorf("merge: volume %d (%s): %w", vi+1, inputPath, err)
+				}
+			}
+			groups = append(groups, opf.TocGroup{Title: pkg.title, Entries: entries})
+			return report.Result{}, nil
+		}()
+		if iterationErr != nil || iterationResult.Capability != "" {
+			return iterationResult, iterationErr
 		}
-		groups = append(groups, opf.TocGroup{Title: pkg.title, Entries: entries})
 	}
 
 	title := "Merged EPUB"

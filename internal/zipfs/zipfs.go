@@ -247,7 +247,11 @@ func (a *Archive) ReadContext(ctx context.Context, name string) ([]byte, error) 
 		return nil, fmt.Errorf("zipfs: open %q: %w", name, err)
 	}
 	defer rc.Close()
-	data, err := readBoundedContext(ctx, rc, a.limits.MaxEntryBytes)
+	hint := int64(a.limits.MaxEntryBytes)
+	if e.zf.UncompressedSize64 < uint64(hint) {
+		hint = int64(e.zf.UncompressedSize64)
+	}
+	data, err := readBoundedContext(ctx, rc, a.limits.MaxEntryBytes, hint)
 	if err != nil {
 		return nil, fmt.Errorf("zipfs: read %q: %w", name, err)
 	}
@@ -272,7 +276,7 @@ func ReadFileContext(ctx context.Context, path string, maxBytes int64) ([]byte, 
 	if stat.Size() > maxBytes {
 		return nil, fmt.Errorf("zipfs: auxiliary file %q is %d bytes, exceeds %d: %w", path, stat.Size(), maxBytes, ErrLimitExceeded)
 	}
-	data, err := readBoundedContext(ctx, f, maxBytes)
+	data, err := readBoundedContext(ctx, f, maxBytes, stat.Size())
 	if err != nil {
 		return nil, fmt.Errorf("zipfs: read auxiliary file %q: %w", path, err)
 	}
@@ -320,8 +324,21 @@ func (a *Archive) SHA256Context(ctx context.Context) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func readBoundedContext(ctx context.Context, r io.Reader, maxBytes int64) ([]byte, error) {
+func readBoundedContext(ctx context.Context, r io.Reader, maxBytes, hint int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, ErrInvalidLimits
+	}
 	var out bytes.Buffer
+	if hint > maxBytes {
+		hint = maxBytes
+	}
+	maxInt := int64(int(^uint(0) >> 1))
+	if hint > maxInt {
+		hint = maxInt
+	}
+	if hint > 0 {
+		out.Grow(int(hint))
+	}
 	if err := copyBoundedContext(ctx, &out, r, maxBytes); err != nil {
 		return nil, err
 	}
