@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "target": "OEBPS/Fonts/st-all.ttf",
+      "variation": {"mode": "keep"}
+    },
+    {
+      "target": "OEBPS/Fonts/st-all-semibold.ttf",
+      "variation": {"mode": "limit", "axes": {"wght": [400, 700]}}
+    }
+  ]
+}
