@@ -82,6 +82,21 @@ func TestResizeSVGCoverPagesSkipsNonMarkup(t *testing.T) {
 	}
 }
 
+func TestResizeSVGCoverAfterNonLengthPreservingLowercase(t *testing.T) {
+	const (
+		doc       = "OEBPS/Text/cover.xhtml"
+		coverPath = "OEBPS/Images/new-cover.png"
+	)
+	for _, prefix := range []string{"<p>K</p>", "<p>İİ</p>"} {
+		input := prefix + `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><image xlink:href="../Images/new-cover.png"/></svg>`
+		got := string(resizeSVGCoverPages([]byte(input), doc, coverPath, 100, 200, nil))
+		if !strings.Contains(got, `viewBox="0 0 100 200"`) ||
+			!strings.Contains(got, `width="100" height="200"`) {
+			t.Errorf("SVG after prefix %q was not resized: %s", prefix, got)
+		}
+	}
+}
+
 // TestResizeSVGCoverPagesWarnsOnTruncatedScan 断言扫描截断不静默半改：
 // 截断点之后的 SVG 保持原样，并给出带文件名与字节偏移的告警。
 func TestResizeSVGCoverPagesWarnsOnTruncatedScan(t *testing.T) {

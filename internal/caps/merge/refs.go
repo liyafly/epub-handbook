@@ -33,6 +33,9 @@ func rewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string,
 	if mapped, ok := pathMap[oldTarget]; ok {
 		target = mapped
 	}
+	if resolved, err := pypath.ResolveRelativePath(newDocument, parts.Path); err == nil && resolved == target {
+		return uri
+	}
 	newPath := pypath.RelativeURI(newDocument, target)
 	return pypath.URLUnsplitPath(newPath, parts.Query, parts.Fragment)
 }
@@ -77,7 +80,7 @@ func splitPyWhitespace(s string) []string {
 
 // rewriteSrcset 复刻 core.rewrite_srcset。
 func rewriteSrcset(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	return subNameQuoteURI(text, []string{"srcset"}, func(prefix, quote, uri string) string {
+	return rewriteQuotedTagAttrs(text, []string{"srcset"}, func(_ string, _ byte, uri string) string {
 		var candidates []string
 		for _, candidate := range splitSrcsetCandidates(uri) {
 			parts := splitPyWhitespace(strings.TrimSpace(candidate))
@@ -88,7 +91,7 @@ func rewriteSrcset(text, oldDocument, newDocument string, pathMap map[string]str
 			descriptor := strings.Join(parts[1:], " ")
 			candidates = append(candidates, strings.TrimSpace(url+" "+descriptor))
 		}
-		return prefix + quote + strings.Join(candidates, ", ") + quote
+		return strings.Join(candidates, ", ")
 	})
 }
 
@@ -126,9 +129,12 @@ func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[
 			segment, err = rewriteTagReferences(segment, oldDocument, newDocument, pathMap, knownFiles)
 		case xhtml.RegionStyle:
 			if strings.Contains(segment, "&") {
-				return "", fmt.Errorf("%s: character references in embedded CSS require explicit review", oldDocument)
+				segment, err = rewriteCSSWithEntityMap(segment, oldDocument, 0, func(uri string) string {
+					return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+				})
+			} else {
+				segment, err = rewriteCSSOnly(segment, oldDocument, newDocument, pathMap, knownFiles)
 			}
-			segment, err = rewriteCSSOnly(segment, oldDocument, newDocument, pathMap, knownFiles)
 		case xhtml.RegionStylesheetPI:
 			segment = rewriteStylesheetPIReference(segment, oldDocument, newDocument, pathMap, knownFiles)
 		}
@@ -146,9 +152,26 @@ func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[
 // style 属性里的 url()/@import。
 func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
 	tag = rewriteSrcset(tag, oldDocument, newDocument, pathMap, knownFiles)
-	tag = subNameQuoteURI(tag, uriAttrNames, func(prefix, quote, uri string) string {
-		return prefix + quote + rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles) + quote
+	var attrErr error
+	tag = rewriteQuotedTagAttrs(tag, uriAttrNames, func(_ string, quote byte, raw string) string {
+		uri := raw
+		if strings.Contains(raw, "&") {
+			decoded, _, err := xhtml.DecodeAttrWithMap(raw)
+			if err != nil {
+				attrErr = fmt.Errorf("%s: URI attribute entity decode: %w", oldDocument, err)
+				return raw
+			}
+			uri = decoded
+		}
+		updated := rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+		if updated == uri {
+			return raw
+		}
+		return attrEscapeFor(quote, updated)
 	})
+	if attrErr != nil {
+		return "", attrErr
+	}
 	return rewriteInlineStyleReferences(tag, oldDocument, newDocument, pathMap, knownFiles)
 }
 
@@ -158,22 +181,110 @@ func rewriteTagReferences(tag, oldDocument, newDocument string, pathMap map[stri
 // 标记，资源搬家后必须跟着改，不能整体放弃。
 func rewriteInlineStyleReferences(tag, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
 	var scanErr error
-	updated := subNameQuoteURI(tag, []string{"style"}, func(prefix, quote, value string) string {
+	updated := rewriteQuotedTagAttrs(tag, []string{"style"}, func(_ string, quote byte, value string) string {
+		var result string
+		var err error
 		if strings.Contains(value, "&") {
-			scanErr = fmt.Errorf("%s: character references in inline CSS require explicit review", oldDocument)
-			return prefix + quote + value + quote
+			result, err = rewriteCSSWithEntityMap(value, oldDocument, quote, func(uri string) string {
+				return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+			})
+		} else {
+			result, err = rewriteCSSOnly(value, oldDocument, newDocument, pathMap, knownFiles)
 		}
-		result, err := rewriteCSSOnly(value, oldDocument, newDocument, pathMap, knownFiles)
 		if err != nil {
 			scanErr = err
-			return prefix + quote + value + quote
+			return value
 		}
-		return prefix + quote + result + quote
+		return result
 	})
 	if scanErr != nil {
 		return "", scanErr
 	}
 	return updated, nil
+}
+
+func rewriteCSSWithEntityMap(raw, path string, quote byte, rewrite func(string) string) (string, error) {
+	decoded, rawOff, err := xhtml.DecodeAttrWithMap(raw)
+	if err != nil {
+		return "", fmt.Errorf("%s: CSS entity decode: %w", path, err)
+	}
+	edits, err := css.ReferenceEdits(path, []byte(decoded), rewrite)
+	if err != nil {
+		return "", toolErrf("%s: CSS reference scan: %v", path, err)
+	}
+	if len(edits) == 0 {
+		return raw, nil
+	}
+	mapped := make([]editset.Edit, 0, len(edits))
+	for _, edit := range edits {
+		start := int(edit.Offset)
+		end := start + int(edit.Length)
+		if start < 0 || end < start || end >= len(rawOff) {
+			return "", fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
+		}
+		replacement := string(edit.Replacement)
+		if quote == 0 {
+			replacement = pypath.EscapeText(replacement)
+		} else {
+			replacement = attrEscapeFor(quote, replacement)
+		}
+		rawStart, rawEnd := rawOff[start], rawOff[end]
+		mapped = append(mapped, editset.Replace(path, int64(rawStart), int64(rawEnd-rawStart), []byte(replacement)))
+	}
+	updated, err := editset.Apply(path, []byte(raw), mapped)
+	if err != nil {
+		return "", err
+	}
+	return string(updated), nil
+}
+
+func attrEscapeFor(quote byte, value string) string {
+	if quote == '\'' {
+		return singleQuoteEscaper.Replace(value)
+	}
+	return attribEscape(value)
+}
+
+func rewriteQuotedTagAttrs(tag string, names []string, rewrite func(name string, quote byte, value string) string) string {
+	_, _, closing := xhtml.TagParts(tag)
+	if closing {
+		return tag
+	}
+	attrs, ok := xhtml.TagAttrs(tag)
+	if !ok {
+		return tag
+	}
+	var out strings.Builder
+	last := 0
+	changed := false
+	for _, attr := range attrs {
+		if attr.Quote == 0 || !hasAttrName(names, attr.Name) {
+			continue
+		}
+		value := tag[attr.ValueSpan.Start:attr.ValueSpan.End]
+		updated := rewrite(attr.Name, attr.Quote, value)
+		if updated == value {
+			continue
+		}
+		out.WriteString(tag[last:attr.ValueSpan.Start])
+		out.WriteString(updated)
+		last = attr.ValueSpan.End
+		changed = true
+	}
+	if !changed {
+		return tag
+	}
+	out.WriteString(tag[last:])
+	return out.String()
+}
+
+func hasAttrName(names []string, candidate string) bool {
+	for _, name := range names {
+		if strings.EqualFold(candidate, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // rewriteStylesheetPIReference 只重写 <?xml-stylesheet …?> 的 href 伪属性。

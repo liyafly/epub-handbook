@@ -112,3 +112,42 @@ func TestScanRegions(t *testing.T) {
 		})
 	}
 }
+
+func TestTagAttrs(t *testing.T) {
+	type expectedAttr struct {
+		name, value string
+		quote       byte
+	}
+	cases := []struct {
+		name  string
+		tag   string
+		attrs []expectedAttr
+	}{
+		{"mixed quotes and whitespace", `<img alt='A' src = "../Images/x.png"/>`, []expectedAttr{{"alt", "A", '\''}, {"src", "../Images/x.png", '"'}}},
+		{"unquoted", `<img src=plain alt=label>`, []expectedAttr{{"src", "plain", 0}, {"alt", "label", 0}}},
+		{"self-closing", `<img src="a.png" />`, []expectedAttr{{"src", "a.png", '"'}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			attrs, ok := TagAttrs(tc.tag)
+			if !ok || len(attrs) != len(tc.attrs) {
+				t.Fatalf("TagAttrs(%q) = %+v, %t", tc.tag, attrs, ok)
+			}
+			for i, want := range tc.attrs {
+				got := attrs[i]
+				value := tc.tag[got.ValueSpan.Start:got.ValueSpan.End]
+				if got.Name != want.name || got.Quote != want.quote || value != want.value {
+					t.Errorf("attr[%d] = %+v value=%q, want %q/%q", i, got, value, want.name, want.value)
+				}
+				if gotName := tc.tag[got.NameSpan.Start:got.NameSpan.End]; gotName != want.name {
+					t.Errorf("name span = %q, want %q", gotName, want.name)
+				}
+			}
+		})
+	}
+	for _, tag := range []string{`<img src="missing>`, `<img = "value">`, `<img src=>`, `<img src="x"bad="y">`, `<img / junk>`} {
+		if _, ok := TagAttrs(tag); ok {
+			t.Errorf("TagAttrs(%q) accepted malformed input", tag)
+		}
+	}
+}

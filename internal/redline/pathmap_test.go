@@ -8,6 +8,81 @@ import (
 	"testing"
 )
 
+func TestComposePathMaps(t *testing.T) {
+	cases := []struct {
+		name   string
+		first  map[string]string
+		second map[string]string
+		want   map[string]string
+	}{
+		{"cross-stage chain", map[string]string{"a": "b"}, map[string]string{"b": "c"}, map[string]string{"a": "c"}},
+		{"same-stage swap", nil, map[string]string{"x": "y", "y": "x"}, map[string]string{"x": "y", "y": "x"}},
+		{"same-stage chain", nil, map[string]string{"x": "y", "y": "z"}, map[string]string{"x": "y", "y": "z"}},
+		{"identity", map[string]string{"x": "x"}, nil, map[string]string{"x": "x"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ComposePathMaps(tc.first, tc.second); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("ComposePathMaps(%v, %v) = %v, want %v", tc.first, tc.second, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadPathMapUsesStagesAndSimultaneousLists(t *testing.T) {
+	envelope := `{"schemaVersion":"2","facts":{
+	  "epub.structure.normalize.stages":[
+	    {"mappings":[{"from":"a","to":"T/a"}]},
+	    {"mappings":[{"from":"T/a","to":"T/c"}]}
+	  ],
+	  "epub.structure.normalize.mappings":[{"from":"a","to":"T/a"},{"from":"T/a","to":"T/c"}]
+	}}`
+	got, err := LoadPathMap([]byte(envelope))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]string{"a": "T/c"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("staged path map = %v, want %v", got, want)
+	}
+
+	got, err = LoadPathMap([]byte(`{"mappings":[{"from":"x","to":"y"},{"from":"y","to":"z"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]string{"x": "y", "y": "z"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("simultaneous path map = %v, want %v", got, want)
+	}
+
+	for _, src := range []string{
+		`{"mappings":null}`,
+		`{"schemaVersion":"2","facts":{"mappings":null}}`,
+	} {
+		got, err := LoadPathMap([]byte(src))
+		if err != nil || len(got) != 0 {
+			t.Errorf("LoadPathMap(%s) = %v, %v; want empty map, nil", src, got, err)
+		}
+	}
+}
+
+func TestStagePathMapRejectsConflicts(t *testing.T) {
+	for name, list := range map[string][]any{
+		"conflicting source": {
+			map[string]any{"from": "x", "to": "a"},
+			map[string]any{"from": "x", "to": "b"},
+		},
+		"duplicate target": {
+			map[string]any{"from": "x", "to": "a"},
+			map[string]any{"from": "y", "to": "a"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := StagePathMap(list); err == nil || !isErrInput(err) {
+				t.Fatalf("StagePathMap error = %v, want input error", err)
+			}
+		})
+	}
+}
+
 // TestLoadPathMapAcceptsEnvelope 锁定 --path-map 直接吃 `epub run
 // epub.structure.normalize --json` 信封：facts 中 `*.mappings` 数组即映射源。
 func TestLoadPathMapAcceptsEnvelope(t *testing.T) {
@@ -17,7 +92,10 @@ func TestLoadPathMapAcceptsEnvelope(t *testing.T) {
 	  "status": "complete",
 	  "facts": {
 	    "epub.structure.normalize.dryRun": false,
-	    "epub.structure.normalize.stages": [{"operation": "format", "mappings": [{"from": "x", "to": "y"}]}],
+	    "epub.structure.normalize.stages": [
+	      {"operation": "format", "mappings": [{"from": "OEBPS/a.xhtml", "to": "OEBPS/Text/a.xhtml"}]},
+	      {"operation": "deobfuscate-filenames", "mappings": [{"from": "OEBPS/Text/a.xhtml", "to": "OEBPS/Text/chapter1.xhtml"}]}
+	    ],
 	    "epub.structure.normalize.mappings": [
 	      {"from": "OEBPS/a.xhtml", "to": "OEBPS/Text/a.xhtml"},
 	      {"from": "OEBPS/Text/a.xhtml", "to": "OEBPS/Text/chapter1.xhtml"}
@@ -29,11 +107,8 @@ func TestLoadPathMapAcceptsEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 链式传递：a.xhtml 最终指向 chapter1.xhtml；stages 内嵌的 mappings 不重复读取。
-	want := map[string]string{
-		"OEBPS/a.xhtml":      "OEBPS/Text/chapter1.xhtml",
-		"OEBPS/Text/a.xhtml": "OEBPS/Text/chapter1.xhtml",
-	}
+	// stages 是权威分阶段来源；同一阶段的 mappings 不作链式展开。
+	want := map[string]string{"OEBPS/a.xhtml": "OEBPS/Text/chapter1.xhtml"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("path map = %v, want %v", got, want)
 	}
@@ -52,11 +127,7 @@ func TestLoadPathMapEnvelopeMultipleMappingKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{
-		"orig.xhtml": "final.xhtml",
-		"mid.xhtml":  "final.xhtml",
-		"other.css":  "Styles/other.css",
-	}
+	want := map[string]string{"orig.xhtml": "final.xhtml", "other.css": "Styles/other.css"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("path map = %v, want %v", got, want)
 	}
@@ -64,18 +135,20 @@ func TestLoadPathMapEnvelopeMultipleMappingKeys(t *testing.T) {
 
 // TestLoadPathMapLegacyShapesStillWork 保证 stages / 单对象两种旧形状不变。
 func TestLoadPathMapLegacyShapesStillWork(t *testing.T) {
-	cases := map[string]string{
-		"stages": `{"stages":[{"mappings":[{"from":"a","to":"b"}]},{"mappings":[{"from":"b","to":"c"}]}]}`,
-		"single": `{"mappings":[{"from":"a","to":"b"},{"from":"b","to":"c"}]}`,
+	cases := map[string]struct {
+		src  string
+		want map[string]string
+	}{
+		"stages": {`{"stages":[{"mappings":[{"from":"a","to":"b"}]},{"mappings":[{"from":"b","to":"c"}]}]}`, map[string]string{"a": "c"}},
+		"single": {`{"mappings":[{"from":"a","to":"b"},{"from":"b","to":"c"}]}`, map[string]string{"a": "b", "b": "c"}},
 	}
-	want := map[string]string{"a": "c", "b": "c"}
-	for name, src := range cases {
-		got, err := LoadPathMap([]byte(src))
+	for name, tc := range cases {
+		got, err := LoadPathMap([]byte(tc.src))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("%s: path map = %v, want %v", name, got, want)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("%s: path map = %v, want %v", name, got, tc.want)
 		}
 	}
 }
@@ -148,7 +221,6 @@ func TestLoadPathMapRejectsEnvelopesWithoutMappings(t *testing.T) {
 		"facts-no-mappings-key":  `{"schemaVersion":"2","facts":{"epub.structure.normalize.dryRun":true}}`,
 		"mappings-object":        `{"schemaVersion":"2","facts":{"epub.structure.normalize.mappings":{"OEBPS/a.xhtml":"OEBPS/b.xhtml"}}}`,
 		"mappings-string":        `{"schemaVersion":"2","facts":{"epub.structure.normalize.mappings":"OEBPS/a.xhtml"}}`,
-		"mappings-null":          `{"schemaVersion":"2","facts":{"epub.structure.normalize.mappings":null}}`,
 		"toplevel-array":         `[{"mappings":[{"from":"a","to":"b"}]}]`,
 		"empty-object":           `{}`,
 		"legacy-no-mappings":     `{"stages":[{"operation":"format","moved_resources":0}]}`,

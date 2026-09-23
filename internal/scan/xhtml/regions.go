@@ -251,6 +251,97 @@ func TagParts(tag string) (name, attrs string, closing bool) {
 	return name, inner[len(name):], closing
 }
 
+// TagAttrs parses attributes from one complete tag. It preserves the source
+// bytes through spans and returns ok=false when the tag's attribute syntax is
+// malformed. Name and spans refer to the original tag bytes; ValueSpan excludes
+// any surrounding quotes. Closing tags have no attributes.
+func TagAttrs(tag string) ([]Attr, bool) {
+	if len(tag) < 3 || tag[0] != '<' || tag[len(tag)-1] != '>' {
+		return nil, false
+	}
+	name, _, closing := TagParts(tag)
+	if name == "" {
+		return nil, false
+	}
+	if closing {
+		return nil, true
+	}
+	end := len(tag) - 1
+	i := 1 + len(name)
+	var attrs []Attr
+	for i < end {
+		for i < end && isTagSpace(tag[i]) {
+			i++
+		}
+		if i >= end {
+			return attrs, true
+		}
+		if tag[i] == '/' {
+			if i == end-1 {
+				return attrs, true
+			}
+			return nil, false
+		}
+		nameStart := i
+		for i < end && !isTagSpace(tag[i]) && tag[i] != '=' && tag[i] != '/' && tag[i] != '>' {
+			i++
+		}
+		if i == nameStart {
+			return nil, false
+		}
+		nameEnd := i
+		for i < end && isTagSpace(tag[i]) {
+			i++
+		}
+		name := tag[nameStart:nameEnd]
+		attr := Attr{Name: name, Raw: name, NameSpan: Span{Start: nameStart, End: nameEnd}}
+		if i >= end || tag[i] != '=' {
+			attrs = append(attrs, attr)
+			continue
+		}
+		i++
+		for i < end && isTagSpace(tag[i]) {
+			i++
+		}
+		if i >= end {
+			return nil, false
+		}
+		if tag[i] == '"' || tag[i] == '\'' {
+			attr.Quote = tag[i]
+			valueStart := i + 1
+			valueEnd := strings.IndexByte(tag[valueStart:end], attr.Quote)
+			if valueEnd < 0 {
+				return nil, false
+			}
+			valueEnd += valueStart
+			attr.ValueSpan = Span{Start: valueStart, End: valueEnd}
+			attr.Value = tag[valueStart:valueEnd]
+			i = valueEnd + 1
+			if i < end && !isTagSpace(tag[i]) {
+				if tag[i] != '/' || i != end-1 {
+					return nil, false
+				}
+			}
+		} else {
+			valueStart := i
+			for i < end && !isTagSpace(tag[i]) {
+				i++
+			}
+			if i == valueStart {
+				return nil, false
+			}
+			attr.ValueSpan = Span{Start: valueStart, End: i}
+			attr.Value = tag[valueStart:i]
+		}
+		attrs = append(attrs, attr)
+	}
+	return attrs, true
+}
+
+func isTagSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
 // regionTagName 取标签内容（不含 '<' 与 '>'）开头的名字。
 func regionTagName(inner string) string {
 	for j := 0; j < len(inner); j++ {

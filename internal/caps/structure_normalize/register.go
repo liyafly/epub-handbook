@@ -68,6 +68,14 @@ var attribEscaper = strings.NewReplacer(
 	"\t", "&#09;",
 )
 
+var singleQuoteAttrEscaper = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"'", "&#39;",
+	`"`, "&quot;",
+)
+
 // cdataEscaper 复刻 ElementTree._escape_cdata：文本与 tail 只转义 & < >。
 var cdataEscaper = strings.NewReplacer(
 	"&", "&amp;",

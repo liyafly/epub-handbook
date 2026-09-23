@@ -112,15 +112,25 @@ func TestTransformResourceRejectsUnsafeOrUnclosedCSSWithoutOutput(t *testing.T) 
 	}
 }
 
-func TestTransformResourceRejectsEntityEncodedCSSStrings(t *testing.T) {
+func TestTransformResourceRewritesEntityEncodedCSSStrings(t *testing.T) {
 	pathMap, knownFiles := regionsFixturePathMap()
-	for _, input := range []string{
-		`<p style="content:&quot;url(../Images/old.png)&quot;;background:url(../Images/old.png)"/>`,
-		`<html><head><style>p{content:&quot;url(../Images/old.png)&quot;;}</style></head></html>`,
-	} {
-		data, err := transformResource([]byte(input), "OEBPS/Text/chapter.xhtml", "OEBPS/Text/chapter.xhtml", pathMap, knownFiles, nil)
-		if err == nil || data != nil {
-			t.Fatalf("encoded CSS must fail without partial rewrite: %q, %v", data, err)
+	cases := []struct{ input, want string }{
+		{
+			`<p style="content:&quot;url(../Images/old.png)&quot;;background:url(../Images/old.png)"/>`,
+			`<p style="content:&quot;url(../Images/old.png)&quot;;background:url(../Images/new.png)"/>`,
+		},
+		{
+			`<html><head><style>p{content:&quot;url(../Images/old.png)&quot;;}</style></head></html>`,
+			`<html><head><style>p{content:&quot;url(../Images/old.png)&quot;;}</style></head></html>`,
+		},
+	}
+	for _, tc := range cases {
+		data, err := transformResource([]byte(tc.input), "OEBPS/Text/chapter.xhtml", "OEBPS/Text/chapter.xhtml", pathMap, knownFiles, nil)
+		if err != nil {
+			t.Fatalf("entity-encoded CSS rewrite failed: %v", err)
+		}
+		if got := string(data); got != tc.want {
+			t.Errorf("entity-encoded CSS = %q, want %q", got, tc.want)
 		}
 	}
 }

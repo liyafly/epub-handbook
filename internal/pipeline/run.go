@@ -634,9 +634,7 @@ func RedlineCompareWith(before, after, check string, allowList []string, pathMap
 		if err != nil {
 			return ExitUsage, err
 		}
-		for from, to := range m {
-			redline.AddPathMapping(pathMap, from, to)
-		}
+		pathMap = redline.ComposePathMaps(pathMap, m)
 	}
 	rep, err := redline.CompareFiles(before, after, check, redline.Options{
 		AllowList:            allowList,
@@ -713,29 +711,9 @@ func chainRedLines(chain []Contract) []string {
 }
 
 func mergeRenames(dst, src map[string]string) {
-	keys := make([]string, 0, len(src))
-	for from := range src {
-		keys = append(keys, from)
-	}
-	slices.Sort(keys)
-	for _, from := range keys {
-		redline.AddPathMapping(dst, from, src[from])
-	}
-	// A capability may report more than one rename in a single map. Resolve
-	// those links before the next stage so redline sees the final path even
-	// when the source map's insertion order is unavailable.
-	for from := range dst {
-		seen := map[string]bool{from: true}
-		for {
-			to := dst[from]
-			next, ok := dst[to]
-			if !ok || seen[to] {
-				break
-			}
-			dst[from] = next
-			seen[to] = true
-		}
-	}
+	composed := redline.ComposePathMaps(dst, src)
+	clear(dst)
+	maps.Copy(dst, composed)
 }
 
 func appendRedlineFindings(dst []report.Finding, src []redline.Finding) []report.Finding {

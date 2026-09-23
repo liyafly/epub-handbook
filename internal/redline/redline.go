@@ -69,15 +69,56 @@ func MappedPath(m map[string]string, name string) string {
 	return name
 }
 
-// AddPathMapping 复刻 add_path_mapping 的链式传递：
-// 先把既有映射中目标为 source 的键改指 target，再登记 source→target。
-func AddPathMapping(m map[string]string, source, target string) {
-	for k, v := range m {
-		if v == source {
-			m[k] = target
+// ComposePathMaps composes two rename stages: first runs, then second.
+// Entries in each input map are simultaneous; only names carried forward from
+// the first stage are followed through the second.
+func ComposePathMaps(first, second map[string]string) map[string]string {
+	out := make(map[string]string, len(first)+len(second))
+	image := make(map[string]bool, len(first))
+	for _, mid := range first {
+		image[mid] = true
+	}
+	for from, mid := range first {
+		if to, ok := second[mid]; ok {
+			out[from] = to
+		} else {
+			out[from] = mid
 		}
 	}
-	m[source] = target
+	for from, to := range second {
+		if _, exists := first[from]; exists || image[from] {
+			continue
+		}
+		out[from] = to
+	}
+	return out
+}
+
+// StagePathMap parses one simultaneous rename stage. Null/absent mappings are
+// an empty stage; conflicting sources or destination collisions are rejected.
+func StagePathMap(list []any) (map[string]string, error) {
+	out := make(map[string]string, len(list))
+	targets := make(map[string]string, len(list))
+	for _, raw := range list {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			return nil, inputErr("each mapping must contain string from/to paths")
+		}
+		from, okFrom := item["from"].(string)
+		to, okTo := item["to"].(string)
+		if !okFrom || !okTo {
+			return nil, inputErr("each mapping must contain string from/to paths")
+		}
+		if prior, exists := out[from]; exists && prior != to {
+			return nil, inputErr("mapping source %q has conflicting targets %q and %q", from, prior, to)
+		}
+		if prior, exists := targets[to]; exists && prior != from {
+			return nil, inputErr("mapping sources %q and %q have the same target %q", prior, from, to)
+		}
+		out[from] = to
+		targets[to] = from
+	}
+	return out, nil
 }
 
 // skipped 复刻 skipped()：任一 fnmatch 模式命中即豁免。

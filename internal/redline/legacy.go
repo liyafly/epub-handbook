@@ -181,8 +181,8 @@ const pathMapShapes = `expected a v2 envelope with facts "*.mappings", ` +
 //   - `{"stages":[{"mappings":[...]}]}`：多阶段报告；
 //   - `{"mappings":[...]}`：单阶段报告。
 //
-// 每个 mapping 是 `{"from": ..., "to": ...}`，按出现顺序链式传递
-// （AddPathMapping），信封的多个 facts 键按键名排序后依次处理。
+// 每个 mapping 数组是一组同时改名；各阶段按顺序组合，信封的多个 facts 键
+// 按键名排序后依次处理。
 //
 // 认不出任何 mappings 数组时返回 ErrInput（退出码 3），**不返回空映射**：
 // 用户显式传了 --path-map，静默给出零条映射只会让改名后的正文被误判成
@@ -198,7 +198,40 @@ func LoadPathMap(data []byte) (map[string]string, error) {
 	if !ok {
 		return nil, inputErr("--path-map JSON must be a JSON object; %s", pathMapShapes)
 	}
-	var lists [][]any
+	foundMappings := false
+	composeStage := func(raw any, present bool, label string) error {
+		if !present {
+			return nil
+		}
+		var list []any
+		if raw != nil {
+			var ok bool
+			list, ok = raw.([]any)
+			if !ok {
+				return inputErr("--path-map %s must be an array of {from,to} mappings or null", label)
+			}
+		}
+		stage, err := StagePathMap(list)
+		if err != nil {
+			return err
+		}
+		pathMap = ComposePathMaps(pathMap, stage)
+		foundMappings = true
+		return nil
+	}
+	composeStages := func(rawStages []any, label string) error {
+		for i, rawStage := range rawStages {
+			stage, ok := rawStage.(map[string]any)
+			if !ok {
+				return inputErr("--path-map %s stage %d must be an object", label, i)
+			}
+			mappings, present := stage["mappings"]
+			if err := composeStage(mappings, present, fmt.Sprintf("%s stage %d mappings", label, i)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if facts, isEnvelope := envelopeFacts(obj); isEnvelope {
 		keys := make([]string, 0, len(facts))
 		for k := range facts {
@@ -208,51 +241,35 @@ func LoadPathMap(data []byte) (map[string]string, error) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			list, ok := facts[k].([]any)
-			if !ok {
-				return nil, inputErr("--path-map envelope facts[%q] must be an array of {from,to} mappings", k)
+			prefix := strings.TrimSuffix(k, "mappings")
+			if stages, ok := facts[prefix+"stages"].([]any); ok {
+				if len(stages) == 0 {
+					foundMappings = true
+				}
+				if err := composeStages(stages, fmt.Sprintf("envelope facts[%q]", prefix+"stages")); err != nil {
+					return nil, err
+				}
+				continue
 			}
-			lists = append(lists, list)
+			if err := composeStage(facts[k], true, fmt.Sprintf("envelope facts[%q]", k)); err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		sources := []any{obj}
 		if stages, ok := obj["stages"].([]any); ok {
-			sources = stages
-		}
-		for _, src := range sources {
-			stage, ok := src.(map[string]any)
-			if !ok {
-				continue
+			if err := composeStages(stages, "stages"); err != nil {
+				return nil, err
 			}
-			raw, present := stage["mappings"]
-			if !present {
-				continue
+		} else if mappings, present := obj["mappings"]; present {
+			if err := composeStage(mappings, true, `"mappings"`); err != nil {
+				return nil, err
 			}
-			list, ok := raw.([]any)
-			if !ok {
-				return nil, inputErr("--path-map \"mappings\" must be an array of {from,to} mappings")
-			}
-			lists = append(lists, list)
 		}
 	}
-	if len(lists) == 0 {
+	if !foundMappings {
 		return nil, inputErr("--path-map JSON contains no mappings array; %s "+
 			"(a failed epub.structure.normalize run emits no mappings — rerun it and pass the successful envelope)",
 			pathMapShapes)
-	}
-	for _, list := range lists {
-		for _, m := range list {
-			item, ok := m.(map[string]any)
-			if !ok {
-				return nil, inputErr("each mapping must contain string from/to paths")
-			}
-			from, okF := item["from"].(string)
-			to, okT := item["to"].(string)
-			if !okF || !okT {
-				return nil, inputErr("each mapping must contain string from/to paths")
-			}
-			AddPathMapping(pathMap, from, to)
-		}
 	}
 	return pathMap, nil
 }

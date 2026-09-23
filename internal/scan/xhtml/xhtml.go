@@ -13,10 +13,12 @@ type Span struct {
 	End   int
 }
 
-// Attr 是开标签里的一个属性，区间是文档绝对坐标。
+// Attr 是开标签里的一个属性。FindOpenTag 返回的区间是文档绝对坐标；
+// TagAttrs 返回的区间是传入标签内的相对坐标。Name/Raw 均保留原文名。
 type Attr struct {
-	Name      string // local 名（去命名空间前缀）
+	Name      string // 原文名（含命名空间前缀）
 	Raw       string // 原文名（含前缀）
+	NameSpan  Span
 	Value     string
 	ValueSpan Span // 值内容（不含引号）
 	Quote     byte // 0 表示无引号/无值
@@ -39,7 +41,7 @@ func (t Tag) Attr(name string) (Attr, bool) {
 		}
 	}
 	for _, a := range t.Attrs {
-		if strings.EqualFold(a.Name, name) {
+		if strings.EqualFold(localOf(a.Raw), name) {
 			return a, true
 		}
 	}
@@ -191,14 +193,14 @@ func parseTagInner(content string, lo, hi int) (name string, attrs []Attr, selfC
 		}
 		if eq >= bodyEnd || content[eq] != '=' {
 			// 无值属性。
-			attrs = append(attrs, Attr{Name: localOf(attrName), Raw: attrName})
+			attrs = append(attrs, Attr{Name: attrName, Raw: attrName})
 			continue
 		}
 		vs := eq + 1
 		for vs < bodyEnd && isSpaceByte(content[vs]) {
 			vs++
 		}
-		attr := Attr{Name: localOf(attrName), Raw: attrName}
+		attr := Attr{Name: attrName, Raw: attrName}
 		if vs < bodyEnd && (content[vs] == '"' || content[vs] == '\'') {
 			q := content[vs]
 			end := strings.IndexByte(content[vs+1:bodyEnd], q)

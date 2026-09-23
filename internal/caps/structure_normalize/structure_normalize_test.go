@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -132,6 +133,38 @@ func buildFixture(t *testing.T, path, encrypted string) {
 			t.Fatal(err)
 		}
 		if _, err := fw.Write([]byte(e.content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func buildChainedIDFixture(t *testing.T, path string) {
+	t.Helper()
+	entries := []fixtureEntry{
+		{"mimetype", "application/epub+zip"},
+		{"META-INF/container.xml", `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`},
+		{"OPS/package.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:test:chained</dc:identifier><dc:title>Chained IDs</dc:title><dc:language>en</dc:language></metadata><manifest><item id="y" href="Text/x.xhtml" media-type="application/xhtml+xml"/><item id="z" href="Text/y.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="y"/><itemref idref="z"/></spine></package>`},
+		{"OPS/Text/x.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>X</title></head><body><p>Text from X.</p></body></html>`},
+		{"OPS/Text/y.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Y</title></head><body><p>Text from Y.</p></body></html>`},
+	}
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, entry := range entries {
+		method := uint16(zip.Deflate)
+		if entry.name == "mimetype" {
+			method = zip.Store
+		}
+		fw, err := w.CreateHeader(&zip.FileHeader{Name: entry.name, Method: method})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write([]byte(entry.content)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -430,10 +463,8 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	if wf.Stages[0].Operation != "format" || wf.Stages[1].Operation != "deobfuscate-filenames" {
 		t.Fatalf("阶段顺序错误: %s, %s", wf.Stages[0].Operation, wf.Stages[1].Operation)
 	}
-	// 两阶段改名链式展开（语义同 add_path_mapping：先改既有映射中
-	// value==source 的键再登记；中间名作为键保留，与 Python 一致）。
+	// Result.Renames 把 format 与 deobfuscate 两阶段组合成原路径到最终路径。
 	wantRenames := map[string]string{
-		// 阶段 1 登记的原始名（阶段 2 把 value 链到最终名）。
 		"OPS/legacy/book.ncx":       "OPS/toc.ncx",
 		"OPS/legacy/nav.xhtml":      "OPS/Text/nav.xhtml",
 		"OPS/legacy/?mix.xhtml":     "OPS/Text/chapter-one.xhtml",
@@ -441,15 +472,9 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 		"OPS/legacy/theme.css":      "OPS/Styles/main-css.css",
 		"OPS/assets/*cover.JPG":     "OPS/Images/cover-image.jpg",
 		"OPS/assets/font.ttf":       "OPS/Fonts/font-main.ttf",
-		// 阶段 1 的中间名作为阶段 2 的 source 保留在映射里。
-		"OPS/Images/*cover.JPG": "OPS/Images/cover-image.jpg",
-		"OPS/Fonts/font.ttf":    "OPS/Fonts/font-main.ttf",
-		"OPS/Styles/theme.css":  "OPS/Styles/main-css.css",
-		"OPS/Text/?mix.xhtml":   "OPS/Text/chapter-one.xhtml",
-		"OPS/book.ncx":          "OPS/toc.ncx",
 	}
 	if !reflect.DeepEqual(res.Renames, wantRenames) {
-		t.Fatalf("Renames 链式展开错误: %v", res.Renames)
+		t.Fatalf("Renames 阶段组合错误: %v", res.Renames)
 	}
 
 	zr := openZip(t, output)
@@ -461,6 +486,52 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	chapter := string(zipRead(t, zr, "OPS/Text/chapter-one.xhtml"))
 	if !strings.Contains(chapter, "正文保留。") || !strings.Contains(chapter, `src="../Images/cover-image.jpg"`) {
 		t.Errorf("normalize 后 chapter 内容错误: %q", chapter)
+	}
+}
+
+func TestDeobfuscateChainedIDsPassRedline(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "chained-ids.epub")
+	buildChainedIDFixture(t, fixture)
+	output := filepath.Join(dir, "deobfuscated.epub")
+	before, err := book.Open(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer before.Close()
+
+	res, err := runGo(t, fixture, output, ModeDeobfuscate, false)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	wantRenames := map[string]string{
+		"OPS/Text/x.xhtml": "OPS/Text/y.xhtml",
+		"OPS/Text/y.xhtml": "OPS/Text/z.xhtml",
+	}
+	if !reflect.DeepEqual(res.Renames, wantRenames) {
+		t.Fatalf("Renames = %v, want simultaneous stage map %v", res.Renames, wantRenames)
+	}
+	raw, err := json.Marshal(map[string]any{"schemaVersion": "2", "facts": res.Facts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pathMap, err := redline.LoadPathMap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := book.Open(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer after.Close()
+	findings, err := redline.Check(redline.OriginalState(before), redline.CurrentState(after), []string{redline.CheckText}, redline.Options{PathMap: pathMap})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if !finding.Verbose {
+			t.Fatalf("text redline reported a content change: %+v", finding)
+		}
 	}
 }
 

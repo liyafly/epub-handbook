@@ -121,6 +121,95 @@ func TestMarkupRewriteLeavesEscapedProseUntouched(t *testing.T) {
 	}
 }
 
+func TestRewriteMarkupIgnoresAttributeLookalikesInsideValues(t *testing.T) {
+	warnings := []string{}
+	rw := &refRewriter{
+		pathMap:  map[string]string{"old/Images/old.png": "new/Images/new.png"},
+		files:    map[string]bool{"old/Images/old.png": true},
+		warnings: &warnings,
+	}
+	const input = `<img alt='src="../Images/old.png"' title='style="background:url(../Images/old.png)"' data-src="../Images/old.png" src="../Images/old.png"/>`
+	const want = `<img alt='src="../Images/old.png"' title='style="background:url(../Images/old.png)"' data-src="../Images/old.png" src="../Images/new.png"/>`
+	got := rewriteMarkupReferences(input, "old/Text/chapter.xhtml", "new/Text/chapter.xhtml", rw)
+	if got != want {
+		t.Fatalf("attribute lookalike rewrite = %q, want %q", got, want)
+	}
+	if len(warnings) != 0 || rw.err != nil {
+		t.Fatalf("rewrite should be clean: warnings=%v err=%v", warnings, rw.err)
+	}
+}
+
+func TestRewriteURIKeepsSpellingWhenTargetUnchanged(t *testing.T) {
+	rw, warnings := proseRewriter(t)
+	rw.files["old/Images/插图.jpg"] = true
+	rw.files["old/Text/ch2.xhtml"] = true
+	rw.files["old/Fonts/My Font.ttf"] = true
+	rw.files["old/Images/old.png"] = true
+	rw.pathMap["old/Images/old.png"] = "new/Images/new.png"
+	const oldDoc = "old/Text/doc.xhtml"
+	for _, uri := range []string{"../Images/插图.jpg", "./ch2.xhtml#n1", "../Fonts/My Font.ttf"} {
+		if got := rw.rewriteURI(uri, oldDoc, oldDoc); got != uri {
+			t.Errorf("rewriteURI(%q) = %q, want original spelling", uri, got)
+		}
+	}
+	if got := rw.rewriteURI("../Images/old.png", oldDoc, "new/Text/doc.xhtml"); got != "../Images/new.png" {
+		t.Errorf("moved target rewrite = %q, want ../Images/new.png", got)
+	}
+	if len(*warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", *warnings)
+	}
+}
+
+func TestRewriteDecodesEntityEscapedAttributeValues(t *testing.T) {
+	warnings := []string{}
+	rw := &refRewriter{
+		pathMap: map[string]string{
+			"old/Text/a&b.xhtml":      "old/Text/ab.xhtml",
+			"old/Text/a.xhtml":        "old/Text/b.xhtml",
+			"old/Images/old.png":      "old/Images/new.png",
+			"old/Images/old&name.png": "old/Images/new&name.png",
+		},
+		files: map[string]bool{
+			"old/Text/a&b.xhtml":      true,
+			"old/Text/a.xhtml":        true,
+			"old/Images/old.png":      true,
+			"old/Images/old&name.png": true,
+		},
+		warnings: &warnings,
+	}
+	input := `<a href="a&amp;b.xhtml">link</a><a href="a.xhtml?x=1&amp;y=2">query</a>` +
+		`<div style="background-image:url(&quot;../Images/old.png&quot;)"></div>` +
+		`<div style="background:url(../Images/old.png?x=1&amp;y=2)"></div>` +
+		`<div style="background:url(../Images/old&amp;name.png)"></div>` +
+		`<style>.cover{background:url(&quot;../Images/old.png&quot;);mask:url(../Images/old&amp;name.png);background:url(../Images/old.png?x=1&amp;y=2)}</style>`
+	want := `<a href="ab.xhtml">link</a><a href="b.xhtml?x=1&amp;y=2">query</a>` +
+		`<div style="background-image:url(&quot;../Images/new.png&quot;)"></div>` +
+		`<div style="background:url(../Images/new.png?x=1&amp;y=2)"></div>` +
+		`<div style="background:url(../Images/new%26name.png)"></div>` +
+		`<style>.cover{background:url(&quot;../Images/new.png&quot;);mask:url(../Images/new%26name.png);background:url(../Images/new.png?x=1&amp;y=2)}</style>`
+	got := rewriteMarkupReferences(input, "old/Text/chapter.xhtml", "old/Text/chapter.xhtml", rw)
+	if rw.err != nil {
+		t.Fatal(rw.err)
+	}
+	if got != want {
+		t.Fatalf("entity-escaped references = %q, want %q", got, want)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+
+	bad := &refRewriter{warnings: &[]string{}}
+	_ = rewriteMarkupReferences(`<div style="x:&bogus;"></div>`, "old/Text/chapter.xhtml", "old/Text/chapter.xhtml", bad)
+	if bad.err == nil {
+		t.Fatal("unsupported entity in style attribute should set the rewrite error")
+	}
+	bad = &refRewriter{warnings: &[]string{}}
+	_ = rewriteMarkupReferences(`<a href="a&bogus;b.xhtml"></a>`, "old/Text/chapter.xhtml", "old/Text/chapter.xhtml", bad)
+	if bad.err == nil {
+		t.Fatal("unsupported entity in URI attribute should set the rewrite error")
+	}
+}
+
 // TestMarkupRewriteXMLStylesheetPI 覆盖 <?xml-stylesheet …?>：它是 SVG 与
 // XHTML 里合法的样式表引用，改名后必须跟着改（区域化扫描初版整段跳过全部
 // PI，导致引用静默断链，且没有任何下游红线能发现）。其余 PI 仍原样保留。

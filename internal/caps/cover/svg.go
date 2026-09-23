@@ -38,26 +38,27 @@ func resizeSVGCoverPages(data []byte, documentPath, coverPath string, width, hei
 			tags[r.Start] = r.End
 		}
 	}
-	return []byte(rewriteSVGBlocks(text, documentPath, coverPath, width, height, tags))
+	lower := asciiLower(text)
+	return []byte(rewriteSVGBlocks(text, lower, documentPath, coverPath, width, height, tags))
 }
 
 // rewriteSVGBlocks 实现 SVG_BLOCK_RE.sub(replace_svg)。
-func rewriteSVGBlocks(text, documentPath, coverPath string, width, height int, tags map[int]int) string {
+func rewriteSVGBlocks(text, lower, documentPath, coverPath string, width, height int, tags map[int]int) string {
 	var out strings.Builder
 	pos := 0
 	for {
-		openStart, openEnd, ok := findSVGOpenTag(text, pos, tags)
+		openStart, openEnd, ok := findSVGOpenTag(text, lower, pos, tags)
 		if !ok {
 			break
 		}
-		closeStart, closeEnd, found := findSVGCloseTag(text, openEnd, tags)
+		closeStart, closeEnd, found := findSVGCloseTag(text, lower, openEnd, tags)
 		if !found {
 			// 整体匹配失败，从下一个字节继续找 <svg。
 			pos = openStart + 1
 			continue
 		}
 		body := text[openEnd:closeStart]
-		newBody, hasCoverImage := rewriteSVGImages(body, documentPath, coverPath, width, height, tags, openEnd)
+		newBody, hasCoverImage := rewriteSVGImages(body, lower[openEnd:closeStart], documentPath, coverPath, width, height, tags, openEnd)
 		if !hasCoverImage {
 			out.WriteString(text[pos:closeEnd])
 			pos = closeEnd
@@ -76,8 +77,7 @@ func rewriteSVGBlocks(text, documentPath, coverPath string, width, height int, t
 
 // findSVGOpenTag 实现 `<svg\b[^>]*>`（大小写不敏感），且只接受落在真实
 // 标签区间上的候选（tags 为 nil 时退回纯字面扫描，供不关心区域的调用方）。
-func findSVGOpenTag(text string, from int, tags map[int]int) (int, int, bool) {
-	lower := strings.ToLower(text)
+func findSVGOpenTag(text, lower string, from int, tags map[int]int) (int, int, bool) {
 	for i := from; i+4 <= len(text); {
 		j := strings.Index(lower[i:], "<svg")
 		if j < 0 {
@@ -108,8 +108,7 @@ func findSVGOpenTag(text string, from int, tags map[int]int) (int, int, bool) {
 
 // findSVGCloseTag 实现 `</svg\s*>`（大小写不敏感）；正则的 .*? 允许
 // 跳过不成立的 "</svg" 候选继续向后找。
-func findSVGCloseTag(text string, from int, tags map[int]int) (int, int, bool) {
-	lower := strings.ToLower(text)
+func findSVGCloseTag(text, lower string, from int, tags map[int]int) (int, int, bool) {
 	i := from
 	for i+5 <= len(text) {
 		j := strings.Index(lower[i:], "</svg")
@@ -141,19 +140,24 @@ func isASCIISpace(b byte) bool {
 }
 
 // rewriteSVGImages 实现 SVG_IMAGE_RE.sub(replace_image)。
-func rewriteSVGImages(body, documentPath, coverPath string, width, height int, tags map[int]int, base int) (string, bool) {
+func rewriteSVGImages(body, lowerBody, documentPath, coverPath string, width, height int, tags map[int]int, base int) (string, bool) {
 	var out strings.Builder
 	pos := 0
 	hasCoverImage := false
 	for {
-		start, end, ok := findImageTag(body, pos, tags, base)
+		start, end, ok := findImageTag(body, lowerBody, pos, tags, base)
 		if !ok {
 			break
 		}
 		tag := body[start:end]
 		replaced := ""
-		for _, m := range findNameQuoteMatches(tag, 0, uriAttrNames) {
-			if uriTargetsArchive(m.uri, documentPath, coverPath) {
+		attrs, ok := xhtml.TagAttrs(tag)
+		for _, attr := range attrs {
+			if !ok || attr.Quote == 0 || !hasAttrName(uriAttrNames, attr.Name) {
+				continue
+			}
+			uri := tag[attr.ValueSpan.Start:attr.ValueSpan.End]
+			if uriTargetsArchive(uri, documentPath, coverPath) {
 				hasCoverImage = true
 				replaced = setXMLTagAttribute(setXMLTagAttribute(tag, "width", itoa(width)), "height", itoa(height))
 				break
@@ -174,8 +178,7 @@ func rewriteSVGImages(body, documentPath, coverPath string, width, height int, t
 // findImageTag 实现 `<image\b[^>]*>`（大小写不敏感）。body 是 <svg> 元素的
 // 内容，base 是它在整份文档里的起始偏移 —— tags 的键是文档绝对坐标，比对前
 // 必须加回 base。tags 为 nil 时退回纯字面扫描。
-func findImageTag(body string, from int, tags map[int]int, base int) (int, int, bool) {
-	lower := strings.ToLower(body)
+func findImageTag(body, lower string, from int, tags map[int]int, base int) (int, int, bool) {
 	for i := from; i+6 <= len(body); {
 		j := strings.Index(lower[i:], "<image")
 		if j < 0 {
@@ -202,6 +205,16 @@ func findImageTag(body string, from int, tags map[int]int, base int) (int, int, 
 		return i, i + end + 1, true
 	}
 	return 0, 0, false
+}
+
+func asciiLower(s string) string {
+	lower := []byte(s)
+	for i, b := range lower {
+		if b >= 'A' && b <= 'Z' {
+			lower[i] = b + ('a' - 'A')
+		}
+	}
+	return string(lower)
 }
 
 // uriTargetsArchive 复刻 core.uri_targets_archive。
@@ -239,53 +252,16 @@ func setXMLTagAttribute(tag, name, value string) string {
 // findTagAttr 在 tag 里找 `\s{name}\s*=\s*(["'])(.*?)\1` 的首个命中，
 // 返回（值内容结束位置=闭引号下标, 值起始, 引号）。
 func findTagAttr(tag, name string) (int, int, byte, bool) {
-	lowerName := strings.ToLower(name)
-	for i := 0; i < len(tag); {
-		if tag[i] != ' ' && tag[i] != '\t' && tag[i] != '\n' && tag[i] != '\r' && tag[i] != '\f' && tag[i] != '\v' {
-			_, size := utf8.DecodeRuneInString(tag[i:])
-			if size == 0 {
-				break
-			}
-			i += size
-			continue
+	attrs, ok := xhtml.TagAttrs(tag)
+	if !ok {
+		return 0, 0, 0, false
+	}
+	for _, attr := range attrs {
+		if strings.EqualFold(attr.Name, name) && attr.Quote != 0 {
+			return attr.ValueSpan.End, attr.ValueSpan.Start, attr.Quote, true
 		}
-		wsStart := i
-		j := skipASCIISpace(tag, i)
-		if j+len(lowerName) <= len(tag) && strings.EqualFold(tag[j:j+len(lowerName)], lowerName) {
-			k := skipASCIISpace(tag, j+len(lowerName))
-			if k < len(tag) && tag[k] == '=' {
-				k = skipASCIISpace(tag, k+1)
-				if k < len(tag) && (tag[k] == '"' || tag[k] == '\'') {
-					quote := tag[k]
-					vs := k + 1
-					vEnd := strings.IndexByte(tag[vs:], quote)
-					if vEnd < 0 {
-						return 0, 0, 0, false
-					}
-					return vs + vEnd, vs, quote, true
-				}
-			}
-		}
-		_ = wsStart
-		_, size := utf8.DecodeRuneInString(tag[i:])
-		if size == 0 {
-			break
-		}
-		i += size
 	}
 	return 0, 0, 0, false
-}
-
-func skipASCIISpace(s string, i int) int {
-	for i < len(s) {
-		switch s[i] {
-		case ' ', '\t', '\n', '\r', '\f', '\v':
-			i++
-		default:
-			return i
-		}
-	}
-	return i
 }
 
 func itoa(v int) string {

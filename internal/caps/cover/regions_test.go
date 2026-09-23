@@ -80,6 +80,70 @@ func TestTransformResourceDoesNotTreatTitleAltAsCSS(t *testing.T) {
 	}
 }
 
+func TestRewriteMarkupIgnoresAttributeLookalikesInsideValues(t *testing.T) {
+	pathMap, knownFiles := regionsFixturePathMap()
+	const doc = "OEBPS/Text/chapter.xhtml"
+	const input = `<img alt='src="../Images/old.png"' title='style="background:url(../Images/old.png)"' data-src="../Images/old.png" src="../Images/old.png"/>`
+	const want = `<img alt='src="../Images/old.png"' title='style="background:url(../Images/old.png)"' data-src="../Images/old.png" src="../Images/new.png"/>`
+	got, err := rewriteMarkupReferences(input, doc, doc, pathMap, knownFiles, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("attribute lookalike rewrite = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteURIKeepsSpellingWhenTargetUnchanged(t *testing.T) {
+	pathMap, knownFiles := regionsFixturePathMap()
+	knownFiles["OEBPS/Images/插图.jpg"] = true
+	knownFiles["OEBPS/Text/ch2.xhtml"] = true
+	knownFiles["OEBPS/Fonts/My Font.ttf"] = true
+	const doc = "OEBPS/Text/chapter.xhtml"
+	for _, uri := range []string{"../Images/插图.jpg", "./ch2.xhtml#n1", "../Fonts/My Font.ttf"} {
+		if got := rewriteURI(uri, doc, doc, pathMap, knownFiles); got != uri {
+			t.Errorf("rewriteURI(%q) = %q, want original spelling", uri, got)
+		}
+	}
+	if got := rewriteURI("../Images/old.png", doc, doc, pathMap, knownFiles); got != "../Images/new.png" {
+		t.Errorf("moved target rewrite = %q, want ../Images/new.png", got)
+	}
+}
+
+func TestRewriteDecodesEntityEscapedAttributeValues(t *testing.T) {
+	pathMap, knownFiles := regionsFixturePathMap()
+	pathMap["OEBPS/Text/a&b.xhtml"] = "OEBPS/Text/ab.xhtml"
+	pathMap["OEBPS/Text/a.xhtml"] = "OEBPS/Text/b.xhtml"
+	pathMap["OEBPS/Images/old&name.png"] = "OEBPS/Images/new&name.png"
+	knownFiles["OEBPS/Text/a&b.xhtml"] = true
+	knownFiles["OEBPS/Text/a.xhtml"] = true
+	knownFiles["OEBPS/Images/old&name.png"] = true
+	const doc = "OEBPS/Text/chapter.xhtml"
+	input := `<a href="a&amp;b.xhtml">link</a><a href="a.xhtml?x=1&amp;y=2">query</a>` +
+		`<div style="background-image:url(&quot;../Images/old.png&quot;)"></div>` +
+		`<div style="background:url(../Images/old.png?x=1&amp;y=2)"></div>` +
+		`<div style="background:url(../Images/old&amp;name.png)"></div>` +
+		`<style>.cover{background:url(&quot;../Images/old.png&quot;);mask:url(../Images/old&amp;name.png);background:url(../Images/old.png?x=1&amp;y=2)}</style>`
+	want := `<a href="ab.xhtml">link</a><a href="b.xhtml?x=1&amp;y=2">query</a>` +
+		`<div style="background-image:url(&quot;../Images/new.png&quot;)"></div>` +
+		`<div style="background:url(../Images/new.png?x=1&amp;y=2)"></div>` +
+		`<div style="background:url(../Images/new%26name.png)"></div>` +
+		`<style>.cover{background:url(&quot;../Images/new.png&quot;);mask:url(../Images/new%26name.png);background:url(../Images/new.png?x=1&amp;y=2)}</style>`
+	got, err := rewriteMarkupReferences(input, doc, doc, pathMap, knownFiles, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("entity-escaped references = %q, want %q", got, want)
+	}
+	if _, err := rewriteMarkupReferences(`<div style="x:&bogus;"></div>`, doc, doc, pathMap, knownFiles, nil); err == nil {
+		t.Fatal("unsupported entity in style attribute should be rejected")
+	}
+	if _, err := rewriteMarkupReferences(`<a href="a&bogus;b.xhtml"></a>`, doc, doc, pathMap, knownFiles, nil); err == nil {
+		t.Fatal("unsupported entity in URI attribute should be rejected")
+	}
+}
+
 func TestTransformResourceStandaloneCSSStillRewritesWholeFile(t *testing.T) {
 	pathMap, knownFiles := regionsFixturePathMap()
 	const doc = "OEBPS/Styles/main.css"

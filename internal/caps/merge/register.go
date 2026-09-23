@@ -23,6 +23,14 @@ var attribEscape = strings.NewReplacer(
 	"\t", "&#09;",
 ).Replace
 
+var singleQuoteEscaper = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"'", "&#39;",
+	`"`, "&quot;",
+)
+
 // cdataEscape 复刻 ElementTree._escape_cdata 的文本转义。
 var cdataEscape = strings.NewReplacer(
 	"&", "&amp;",
