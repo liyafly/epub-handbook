@@ -289,9 +289,5 @@ func runRedline(argv []string) int {
 }
 
 func marshalEnvelope(env any) ([]byte, error) {
-	data, err := json.MarshalIndent(env, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(data, '\n'), nil
+	return pipeline.MarshalEnvelope(env)
 }

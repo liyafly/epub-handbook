@@ -245,7 +245,7 @@ func slicesContains(list []string, v string) bool {
 
 // inspect 是 inspect_path(path, "cleanup") 对 EPUB 输入的主流程。
 func (ins *inspector) inspect(ctx context.Context) {
-	q := shlexQuote(ins.b.InputPath())
+	q := report.ShellQuote(ins.b.InputPath())
 	// 旧 preflight / AI / refinement 入口已合并为 Go capability。保留原有
 	// 推荐顺序，但让报告中的每一项都能由当前 `epub` CLI 直接执行。
 	ins.addCommand("epub run epub.package.nav.audit --input " + q + " --json")
@@ -295,7 +295,7 @@ func (ins *inspector) inspect(ctx context.Context) {
 
 func (ins *inspector) inspectOPF(ctx context.Context) {
 	pkg := ins.pkg
-	q := shlexQuote(ins.b.InputPath())
+	q := report.ShellQuote(ins.b.InputPath())
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
 			return
@@ -800,18 +800,4 @@ func isCSSURLFunction(ref cssscan.Reference) bool {
 	// Preserve the legacy url() check for @import url(...), but do not add new
 	// checks for quoted @import values that the old extractor did not inspect.
 	return ref.Kind == cssscan.ReferenceImport && ref.ValueSpan.Start-ref.Span.Start > 1
-}
-
-// shlexQuote 复刻 Python shlex.quote：不含危险字符时原样返回，
-// 否则用单引号包裹并按 '"'"' 方式转义内部单引号。
-func shlexQuote(s string) string {
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		unsafe := b < 'a' && b != '_' && b != '%' && b != '+' && b != '=' && b != '@' && b != ',' && b != '.' && b != '/' && b != '-' ||
-			(b > 'z' && b != '~') || (b > 'Z' && b < 'a' && b != '^') || (b > '9' && b < 'A')
-		if unsafe || b == ' ' || b == '\t' || b == '\n' || b == '\r' {
-			return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
-		}
-	}
-	return s
 }

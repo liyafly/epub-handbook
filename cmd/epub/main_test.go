@@ -48,6 +48,19 @@ func TestRunCapabilityUsageErrorsHonorJSON(t *testing.T) {
 	}
 }
 
+func TestMarshalEnvelopeDoesNotEscapeHTML(t *testing.T) {
+	data, err := marshalEnvelope(map[string]string{"value": "<>&"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `\u003c`) || strings.Contains(string(data), `\u003e`) || strings.Contains(string(data), `\u0026`) {
+		t.Fatalf("HTML characters were escaped: %s", data)
+	}
+	if !strings.HasSuffix(string(data), "\n") {
+		t.Fatalf("JSON envelope missing trailing newline: %q", data)
+	}
+}
+
 func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 	if code := runCapabilities([]string{"--id", "no.such.capability"}); code != 3 {
 		t.Fatalf("unknown capability exit = %d, want 3", code)

@@ -466,19 +466,19 @@ func TestNavAuditCommandQuotesPaths(t *testing.T) {
 		"/a/b/book.epub":             "/a/b/book.epub",
 		"/a/sp ace/my book.epub":     "'/a/sp ace/my book.epub'",
 		"/a/b/指南 (赤霓).epub":          "'/a/b/指南 (赤霓).epub'",
-		"/a/b/中文书名.epub":             "/a/b/中文书名.epub",
-		"/a/it's/book.epub":          `'/a/it'\''s/book.epub'`,
+		"/a/b/中文书名.epub":             "'/a/b/中文书名.epub'",
+		"/a/it's/book.epub":          `'/a/it'"'"'s/book.epub'`,
 		"/a/b/$(rm -rf ~)/book.epub": "'/a/b/$(rm -rf ~)/book.epub'",
 	}
 	for in, wantQuoted := range cases {
-		if got := shellQuote(in); got != wantQuoted {
+		if got := report.ShellQuote(in); got != wantQuoted {
 			t.Errorf("shellQuote(%q) = %q, want %q", in, got, wantQuoted)
 		}
 		if got, want := navAuditCommand(in), "epub run epub.package.nav.audit --input "+wantQuoted+" --json"; got != want {
 			t.Errorf("navAuditCommand(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := shellQuote(""); got != "''" {
+	if got := report.ShellQuote(""); got != "''" {
 		t.Errorf("shellQuote(\"\") = %q", got)
 	}
 }

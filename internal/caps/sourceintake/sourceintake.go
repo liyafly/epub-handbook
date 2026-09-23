@@ -596,31 +596,7 @@ func buildReport(sc *scanResult, maxFiles int) report.Result {
 // navAuditCommand 是 intake.already-epub 的 detail 与 nextCommands 共用的
 // 单一来源：两处必须逐字相同，且能被直接粘进 shell（书名常含空格与括号）。
 func navAuditCommand(abs string) string {
-	return "epub run epub.package.nav.audit --input " + shellQuote(abs) + " --json"
-}
-
-// shellQuote 让路径可以被安全地粘进 POSIX shell：只含安全字符时原样返回
-// （保持既有命令文本不变），否则用单引号包裹并转义内部单引号。
-// 非 ASCII 字符对 shell 没有特殊含义，按安全处理，避免中文书名被整体引号包住。
-func shellQuote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	for _, r := range s {
-		if r > 0x7F {
-			continue
-		}
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			continue
-		}
-		switch r {
-		case '@', '%', '+', '=', ':', ',', '.', '/', '-', '_':
-			continue
-		}
-		return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-	}
-	return s
+	return "epub run epub.package.nav.audit --input " + report.ShellQuote(abs) + " --json"
 }
 
 func inputKind(sc *scanResult) string {

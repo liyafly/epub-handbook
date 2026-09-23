@@ -113,6 +113,11 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	if env.Status == report.StatusComplete && outcome.ExitCode != ExitOK {
 		t.Errorf("complete 状态退出码 = %d", outcome.ExitCode)
 	}
+	for _, event := range env.Events {
+		if event.Step == "redline" {
+			t.Fatal("unchanged read-only capability should skip redline")
+		}
+	}
 }
 
 func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {

@@ -97,7 +97,7 @@ func TestNativeFixtureGolden(t *testing.T) {
 }
 
 func normalizeFixtureCommands(commands []string, path string) []string {
-	quoted := shlexQuote(path)
+	quoted := report.ShellQuote(path)
 	out := make([]string, len(commands))
 	for i, command := range commands {
 		out[i] = strings.ReplaceAll(command, quoted, "<fixture.epub>")
@@ -329,9 +329,9 @@ func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {
 	}{
 		{"missing", false,
 			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable.",
-			"epubcheck " + shlexQuote(path)},
+			"epubcheck " + report.ShellQuote(path)},
 		{"present", true,
-			"epubcheck " + shlexQuote(path),
+			"epubcheck " + report.ShellQuote(path),
 			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

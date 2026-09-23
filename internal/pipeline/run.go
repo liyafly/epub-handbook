@@ -453,7 +453,11 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// noBook 能力没有 Book 可比对（当前契约 redLines 均为空）；
 	// 若未来声明红线，需要为无 Book 场景另行设计，不得静默跳过。
 	redlineFailed := false
-	if len(redLines) > 0 && !failed && b != nil && !multiOutputCap {
+	redlineNeeded := needsWrite
+	if b != nil {
+		redlineNeeded = redlineNeeded || len(b.ModifiedNames()) > 0
+	}
+	if len(redLines) > 0 && redlineNeeded && !failed && b != nil && !multiOutputCap {
 		redlineFindings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), redLines, redline.Options{
 			PathMap:              renames,
 			AllowList:            []string{"*/nav.xhtml", "*/toc.ncx"},
@@ -610,9 +614,9 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		if !needsWrite {
 			return nil
 		}
-		command := "epub run " + id + " --input " + shellQuote(placeholder(opts.InputPath, "<reviewed-input>"))
+		command := "epub run " + id + " --input " + report.ShellQuote(placeholder(opts.InputPath, "<reviewed-input>"))
 		if contract.Execution.Output != ExecOutputMulti {
-			command += " --output " + shellQuote(placeholder(opts.OutputPath, "<out.epub>"))
+			command += " --output " + report.ShellQuote(placeholder(opts.OutputPath, "<out.epub>"))
 		}
 		command += " --json"
 		args := maps.Clone(userArgs)
@@ -626,23 +630,21 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 			if key == "input" || key == "output" || key == "dry_run" {
 				continue
 			}
-			command += " " + shellQuote(key+"="+args[key])
+			command += " " + report.ShellQuote(key+"="+args[key])
 		}
 		return []string{command}
 	}
 	switch id {
 	case "epub.package.nav.audit":
 		out = append(out,
-			"epub run epub.layout.audit --input "+shellQuote(placeholder(opts.OutputPath, opts.InputPath)))
+			"epub run epub.layout.audit --input "+report.ShellQuote(opts.InputPath))
 	case "epub.structure.normalize":
-		out = append(out, "epub redline --check all --path-map "+shellQuote("<normalize-envelope.json>")+" "+
-			shellQuote(placeholder(opts.InputPath, "<before.epub>"))+" "+
-			shellQuote(placeholder(opts.OutputPath, "<after.epub>")))
+		out = append(out, "epub redline --check all --path-map "+report.ShellQuote("<normalize-envelope.json>")+" "+
+			report.ShellQuote(placeholder(opts.InputPath, "<before.epub>"))+" "+
+			report.ShellQuote(placeholder(opts.OutputPath, "<after.epub>")))
 	}
 	return out
 }
-
-func shellQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
 
 func placeholder(vals ...string) string {
 	for _, v := range vals {
