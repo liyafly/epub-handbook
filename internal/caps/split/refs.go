@@ -8,7 +8,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -85,27 +84,6 @@ func collectMarkupReferences(data []byte) ([]resourceReference, error) {
 				return nil, fmt.Errorf("style element: %w", cerr)
 			}
 			out = append(out, uris...)
-		}
-	}
-	return out, nil
-}
-
-// collectCSSURIsStrict scans CSS url() and quoted @import references while
-// respecting comments and strings. It deliberately rejects an unterminated
-// comment/string/function and CSS escapes inside a URL: retaining uncertain
-// input is safer than silently dropping a local resource from a segment.
-func collectCSSURIsStrict(text string) ([]string, error) {
-	references, err := cssscan.ScanReferences([]byte(text))
-	if err != nil {
-		return nil, fmt.Errorf("invalid CSS: %w", err)
-	}
-	var out []string
-	for _, ref := range references {
-		if strings.ContainsRune(ref.Value, '\\') {
-			return nil, fmt.Errorf("invalid CSS: escaped URL at byte %d", ref.ValueSpan.Start)
-		}
-		if ref.Value != "" {
-			out = append(out, ref.Value)
 		}
 	}
 	return out, nil

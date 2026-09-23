@@ -1,9 +1,31 @@
 package split
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
+
+	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 )
+
+// collectCSSURIsStrict is a test-only projection of the strict scanner contract.
+func collectCSSURIsStrict(text string) ([]string, error) {
+	references, err := cssscan.ScanReferences([]byte(text))
+	if err != nil {
+		return nil, fmt.Errorf("invalid CSS: %w", err)
+	}
+	var out []string
+	for _, ref := range references {
+		if strings.ContainsRune(ref.Value, '\\') {
+			return nil, fmt.Errorf("invalid CSS: escaped URL at byte %d", ref.ValueSpan.Start)
+		}
+		if ref.Value != "" {
+			out = append(out, ref.Value)
+		}
+	}
+	return out, nil
+}
 
 func TestParseSrcsetCandidates(t *testing.T) {
 	tests := []struct {
