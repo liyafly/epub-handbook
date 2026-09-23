@@ -20,50 +20,6 @@ func decodeUTF8Replace(data []byte) string {
 
 func isSpaceRune(r rune) bool { return unicode.IsSpace(r) }
 
-// pyStrip 复刻 str.strip()（无参：剥两侧 Unicode 空白）。
-func pyStrip(s string) string {
-	return strings.TrimFunc(s, func(r rune) bool { return isSpaceRune(r) })
-}
-
-// pyRStrip 复刻 str.rstrip()。
-func pyRStrip(s string) string {
-	return strings.TrimRightFunc(s, func(r rune) bool { return isSpaceRune(r) })
-}
-
-// normalizeSpace 复刻 re.sub(r"\s+", " ", value).strip()。
-func normalizeSpace(value string) string {
-	var b strings.Builder
-	started := false
-	pendingSpace := false
-	for _, r := range value {
-		if isSpaceRune(r) {
-			if started {
-				pendingSpace = true
-			}
-			continue
-		}
-		if pendingSpace {
-			b.WriteByte(' ')
-			pendingSpace = false
-		}
-		started = true
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-// removeAllSpace 复刻 re.sub(r"\s+", "", value)。
-func removeAllSpace(value string) string {
-	var b strings.Builder
-	b.Grow(len(value))
-	for _, r := range value {
-		if !isSpaceRune(r) {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
 // ---- 正则语义助手（RE2 无反向引用/前瞻处手工实现） ----
 
 // isWordRune 对齐 Python \w（字母、数字、下划线，Unicode 感知）。
@@ -145,8 +101,6 @@ func pyRepr(s string) string {
 func decodeRune(s string) (rune, int) { return utf8.DecodeRuneInString(s) }
 
 func decodeLastRune(s string) (rune, int) { return utf8.DecodeLastRuneInString(s) }
-
-func utf8Valid(data []byte) bool { return utf8.Valid(data) }
 
 // pyLineCount 复刻 len(text.splitlines())：按 \r\n / \r / \n 以及
 // \v \f \x1c \x1d \x1e \x85 \u2028 \u2029 切行的行数。

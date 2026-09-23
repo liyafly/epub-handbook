@@ -276,16 +276,6 @@ func propText(values []string) string {
 	return strings.Join(out, " ")
 }
 
-// addProp 复刻 core.add_prop（当前调用方均未使用，随 pytool.go 整体迁移
-// 保留：与 removeProp 同源，删掉会让 add/remove 这对语义失去对称性）。
-func addProp(value, prop string) string {
-	props := SplitProps(value)
-	if !containsStr(props, prop) {
-		props = append(props, prop)
-	}
-	return propText(props)
-}
-
 // RemoveProp 复刻 core.remove_prop。
 func RemoveProp(value, prop string) string {
 	var out []string
@@ -295,15 +285,6 @@ func RemoveProp(value, prop string) string {
 		}
 	}
 	return propText(out)
-}
-
-func containsStr(list []string, v string) bool {
-	for _, x := range list {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 // UniqueID 复刻 core.unique_id（used 集合由调用方持有并被修改）。

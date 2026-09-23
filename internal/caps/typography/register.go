@@ -15,8 +15,5 @@ const coverageWarningText = "样本与预设的 class 覆盖率较低；请审�
 // typography.go 的 rewriteStylesheetLinks），不再需要整文本正则 —— 那两条
 // 正则在注释/CDATA/<script> 里同形文字上也会命中，是已修复的缺陷。
 
-// idSanitizeRe 对齐 epub_lib.unique_id 的 re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
-var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
-
 // layerNameRe restricts preset layers to a portable CSS filename.
 var layerNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*\.css$`)

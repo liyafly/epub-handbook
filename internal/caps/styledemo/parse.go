@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -349,13 +348,6 @@ func pyListOrNone(items []string) string {
 		quoted[i] = "'" + s + "'"
 	}
 	return "[" + strings.Join(quoted, ", ") + "]"
-}
-
-// sortedStrings 对齐 sorted(...)。
-func sortedStrings(in []string) []string {
-	out := append([]string(nil), in...)
-	sort.Strings(out)
-	return out
 }
 
 // pyDecodeUTF8 对齐 bytes.decode("utf-8")：成功返回文本，失败返回

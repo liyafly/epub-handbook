@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
@@ -675,8 +676,7 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 		href := pypath.RelativeURI(opfPath, cssPath)
 		item := existing[cssPath]
 		if item == nil {
-			id := uniqueID(idSeen, "style-"+pypath.BaseStem(cssPath))
-			idSeen[id] = true
+			id := pypath.UniqueID("style-"+pypath.BaseStem(cssPath), idSeen)
 			insert.WriteString(opf.BuildCSSItem(id, href))
 			added = append(added, href)
 			continue
@@ -857,13 +857,11 @@ func nonNilFindings(findings []report.Finding) []report.Finding {
 }
 
 func utf8Strict(data []byte) (string, bool) {
-	if !isUTF8(data) {
+	if !utf8.Valid(data) {
 		return "", false
 	}
 	return string(data), true
 }
-
-func isUTF8(data []byte) bool { return utf8Valid(data) }
 
 // opfPathFromContainer 复刻 epub_lib.opf_path_from_container。
 func opfPathFromContainer(b *book.Book) (string, error) {

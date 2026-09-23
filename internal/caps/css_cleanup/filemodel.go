@@ -133,7 +133,6 @@ func (m *fileModel) patch(name string, edits []editset.Edit) error {
 	// range is strictly inside one prior replacement. Compose those edits into
 	// the replacement payload; ranges crossing a replacement boundary remain a
 	// hard error rather than an offset guess.
-	type replacementSpan struct{ start, end int64 }
 	spans := currentReplacementSpans(old)
 	inside := make(map[int][]editset.Edit)
 	var rebased []editset.Edit

@@ -448,14 +448,22 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 	}
 
-	ins.checkCSSURLs(ctx, pkg)
+	manifestPaths := make(map[string]struct{}, len(pkg.Manifest))
+	for _, item := range pkg.Manifest {
+		if item.ArchivePath != "" {
+			if _, exists := manifestPaths[item.ArchivePath]; !exists {
+				manifestPaths[item.ArchivePath] = struct{}{}
+			}
+		}
+	}
+	ins.checkCSSURLs(ctx, pkg, manifestPaths)
 	ins.checkImages(ctx, pkg)
 	ins.checkXHTML(ctx, pkg)
 	ins.ocrHeuristic(pkg)
 	ins.mediaDrivenSkills(pkg, q)
 }
 
-func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package) {
+func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manifestPaths map[string]struct{}) {
 	fontExts := map[string]bool{".otf": true, ".ttf": true, ".woff": true, ".woff2": true}
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
@@ -500,7 +508,7 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package) {
 			}
 			abs := joinArchivePath(parentDir(item.ArchivePath), clean)
 			if hasEntry(ins.b, abs) {
-				if _, ok := manifestItemByArchivePath(ins.pkg, abs); !ok {
+				if _, ok := manifestPaths[abs]; !ok {
 					ins.addFinding("error", "CSS url() target missing from OPF manifest",
 						item.Href+" -> "+target, "")
 					ins.addSkill("epub-package-nav-auditor", "error")
@@ -782,15 +790,6 @@ func unhexByte(c byte) int {
 
 func isExternalURL(uri string) bool {
 	return opf.IsExternalURI(uri) || strings.HasPrefix(uri, "#")
-}
-
-func manifestItemByArchivePath(pkg *opf.Package, path string) (opf.ManifestItem, bool) {
-	for _, it := range pkg.Manifest {
-		if it.ArchivePath == path {
-			return it, true
-		}
-	}
-	return opf.ManifestItem{}, false
 }
 
 func isCSSURLFunction(ref cssscan.Reference) bool {
