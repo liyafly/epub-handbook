@@ -113,7 +113,7 @@ coverage 是 preset 类覆盖率，低于 30% 时先核对是否适合该预设�
 ## 图片转化工具建议
 
 本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure。
-**这些工具都不由 CLI 探测或调用**（`facts.toolAvailability` 目前只探测 `epubcheck`），
+**这些工具都不由 CLI 探测或调用**（layout audit 的 `facts["epub.layout.audit.toolAvailability"]` 目前只探测 `epubcheck`，nav audit 则是 `facts["epub.package.nav.audit.toolAvailability"]`），
 需要自己确认已安装、自己运行，然后回到 EPUB 层复核：
 
 | 工具 | 用途 | 人工注意事项 |
@@ -133,6 +133,6 @@ epub redline --check all <redline-base.epub> work/after/step-N-images.epub
 
 ## 输出字段
 
-统一信封、可选字段、退出码、上游诊断与建议命令的解释只在 [skills 公共命令与返回](../../skills/README.md#公共命令与返回) 维护。能力专属 facts 见该索引中的对应 SKILL.md；键前缀与直接明细键需区分，不另造报告形状。
+统一信封、可选字段、退出码、上游诊断与建议命令的解释只在 [skills 公共命令与返回](../../skills/README.md#公共命令与返回) 维护。能力专属 facts 见该索引中的对应 SKILL.md；所有能力 facts 均以能力 id 为前缀，不另造报告形状。
 
 特别注意：typography 的 coverage 是 class 覆盖，不是字体 cmap；字体检测器失败不提供覆盖结论；layout audit 当前是结构/风险审查而非实际渲染器；dry-run 状态必须结合 findings，不能仅靠“没有输出文件”判定通过。

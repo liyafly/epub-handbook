@@ -19,7 +19,7 @@ epub run epub.image.layout.optimize --input "book.epub" --json
 
 ## 返回怎么读
 
-`facts.imageFindings[]` 给出 file、selector、image、scene、finding、candidates；`facts.warningList` 是扫描缺口。前缀 `epub.image.layout.optimize.` 的 `findings/warnings` 是计数。
+前缀 `epub.image.layout.optimize.`：`imageFindings[]` 给出 file、selector、image、scene、finding、candidates；`warningList` 是扫描缺口；`findings/warnings` 是计数。
 候选类别包括 lone-image-no-figure、caption-detached、float-width-risk、missing-alt、chapter-head-image-candidate、fullpage-image-alite-candidate。计数不等于错误数，也不是批量改写清单；公共语义见 [索引](../README.md)。
 
 ## 依据返回怎么判断

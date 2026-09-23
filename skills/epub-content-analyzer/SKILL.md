@@ -20,8 +20,8 @@ epub run epub.text.content.analyze --input "book.epub" --json
 
 ## 返回怎么读
 
-- 前缀 `epub.text.content.analyze.`：`blocks`、`review_required`、`roles`。
-- `facts.blockList[]`：source、locator、primary_role、candidate_roles、confidence、review_required、evidence、typography；`facts.sourceErrors` 列出未解析文件。
+- 前缀 `epub.text.content.analyze.`：`blocks`、`review_required`、`roles`、`blockList[]`、`sourceErrors`。
+- `blockList[]` 每项含 source、locator、primary_role、candidate_roles、confidence、review_required、evidence、typography；`sourceErrors` 列出未解析文件。
 - `content.analysis-failed` 无有效分析；`content.source-error` 分析不完整；`content.review-required` 需上下文复核。
 
 ## 依据返回怎么判断

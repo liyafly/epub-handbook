@@ -20,7 +20,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 ## 返回怎么读
 
 - 前缀 `epub.font.coverage.analyze.`：`profile`、`status`（pass/warn/fail，区别于信封 status）、`summary`。
-- `facts.charInventory`、`chainHealth`、`unresolved`、`textRuns` 是明细；结合位置、CSS 继承和字体链查看。
+- 同一前缀下的 `charInventory`、`chainHealth`、`unresolved`、`textRuns` 是明细（如 `facts["epub.font.coverage.analyze.charInventory"]`）；结合位置、CSS 继承和字体链查看。
 - `fontcoverage.fail/risk` 是覆盖问题；`fontcoverage.adapter` 是检测器失败，此时无有效覆盖结论。provider 成功返回报告后才可能有 `detectorExitCode/Stderr`。公共语义见 [索引](../README.md)。
 
 ## 依据返回怎么判断
