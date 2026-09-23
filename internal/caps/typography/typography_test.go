@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -322,6 +323,28 @@ func TestTypographyLoadPresetErrors(t *testing.T) {
 	os.WriteFile(filepath.Join(bad, "preset.json"), []byte(`{"name": "bad", "version": "1", "layers": ["../evil.css"]}`), 0o644)
 	if _, _, err := loadPreset(t.Context(), "bad", dir); err == nil || !strings.Contains(err.Error(), "invalid stylesheet layer") {
 		t.Fatalf("路径穿越层应报错: %v", err)
+	}
+}
+
+func TestLoadPresetRejectsUnsafeLayerNames(t *testing.T) {
+	for _, layer := range []string{"a&b.css", "a b.css", "a#b.css", ".css"} {
+		t.Run(layer, func(t *testing.T) {
+			dir := t.TempDir()
+			presetDir := filepath.Join(dir, "bad")
+			if err := os.MkdirAll(presetDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			metadata, err := json.Marshal(map[string]any{"name": "bad", "version": "1", "layers": []string{layer}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(presetDir, "preset.json"), metadata, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, _, err := loadPreset(t.Context(), "bad", dir); !errors.Is(err, ErrPreset) {
+				t.Fatalf("unsafe layer %q error=%v, want ErrPreset", layer, err)
+			}
+		})
 	}
 }
 

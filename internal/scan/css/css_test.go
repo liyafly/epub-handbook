@@ -148,6 +148,22 @@ func TestScanReferencesStrictURLFunctionName(t *testing.T) {
 	}
 }
 
+func TestParseMarksRulesInsideAtRule(t *testing.T) {
+	sheet, err := Parse([]byte(`@media screen { @supports (display: grid) { body { font-family: serif; } } }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range sheet.Rules {
+		if rule.Selector == "body" {
+			if !rule.InAtRule {
+				t.Fatal("body rule nested in @media/@supports was not marked InAtRule")
+			}
+			return
+		}
+	}
+	t.Fatal("nested body rule not found")
+}
+
 func FuzzParseNeverPanics(f *testing.F) {
 	for _, seed := range [][]byte{
 		[]byte(`a{color:red}`),

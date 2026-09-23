@@ -3,6 +3,7 @@ package csscleanup
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -523,28 +525,54 @@ func TestCleanupPreservesByteIdenticalCSSWithDistinctReferences(t *testing.T) {
 	}
 }
 
-func TestCleanupDoesNotRewriteFontFaceDescriptor(t *testing.T) {
+func TestCleanupPreservesEmbeddedFontFamilyReferencesAcrossStylesheets(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "font-face.epub")
 	output := filepath.Join(dir, "out.epub")
 	files := cssCleanupFixtureFiles()
-	files["OEBPS/Styles/style0002.css"] = `@font-face {
+	files["OEBPS/Styles/style0002.css"] = `body { font-family: "SimHei"; }
+p { font-family: "STKaiti"; }
+`
+	files["OEBPS/Styles/style0004.css"] = `@font-face {
   font-family: "SimHei";
   src: url("../Fonts/book.woff2");
 }
-
-body { font-family: "SimHei"; }
 `
-	files["OEBPS/Styles/style0004.css"] = `p { color: black; }` + "\n"
 	buildFixtureEpub(t, input, files)
 	mustRun(t, input, output, false)
-	got := string(readZipData(t, output)["OEBPS/Styles/style0002.css"])
-	if !strings.Contains(got, `@font-face {
+	outputFiles := readZipData(t, output)
+	consumer := string(outputFiles["OEBPS/Styles/style0002.css"])
+	face := string(outputFiles["OEBPS/Styles/style0004.css"])
+	if !strings.Contains(face, `@font-face {
   font-family: "SimHei";`) {
-		t.Fatalf("@font-face family descriptor was rewritten: %s", got)
+		t.Fatalf("@font-face family descriptor was rewritten: %s", face)
 	}
-	if !strings.Contains(got, `body { font-family: `+heiChain+`; }`) {
-		t.Fatalf("qualified style rule was not rewritten: %s", got)
+	if !strings.Contains(consumer, `body { font-family: "SimHei"; }`) {
+		t.Fatalf("consumer stopped referencing the embedded font face: %s", consumer)
+	}
+	if !strings.Contains(consumer, `p { font-family: `+kaiChain+`; }`) {
+		t.Fatalf("unrelated system font family was not rewritten: %s", consumer)
+	}
+}
+
+func TestCleanupIgnoresNonUTF8XHTML(t *testing.T) {
+	files := cssCleanupFixtureFiles()
+	text := `<?xml version="1.0" encoding="UTF-16"?><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" href="../Styles/style0002.css"/></head><body>正文</body></html>`
+	units := utf16.Encode([]rune(text))
+	data := []byte{0xff, 0xfe}
+	for _, unit := range units {
+		var pair [2]byte
+		binary.LittleEndian.PutUint16(pair[:], unit)
+		data = append(data, pair[:]...)
+	}
+	files["OEBPS/Text/chapter1.xhtml"] = string(data)
+	input := filepath.Join(t.TempDir(), "utf16.xhtml.epub")
+	output := filepath.Join(t.TempDir(), "out.epub")
+	buildFixtureEpub(t, input, files)
+	mustRun(t, input, output, false)
+	got := readZipData(t, output)["OEBPS/Text/chapter1.xhtml"]
+	if !bytes.Equal(got, data) {
+		t.Fatalf("UTF-16 XHTML changed: got %d bytes, want %d", len(got), len(data))
 	}
 }
 

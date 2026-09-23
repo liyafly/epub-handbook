@@ -139,7 +139,7 @@ func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, stri
 	layerData := map[string][]byte{}
 	for _, l := range layersAny {
 		layer, ok := l.(string)
-		if !ok || pypath.Basename(layer) != layer || !strings.HasSuffix(layer, ".css") {
+		if !ok || !layerNameRe.MatchString(layer) {
 			return presetConfig{}, "", presetErrf("invalid stylesheet layer in preset %s: %s", name, pyRepr(layer))
 		}
 		cssPath := filepath.Join(dir, "Styles", layer)
@@ -653,6 +653,11 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 	}
 	existing := map[string]*opf.SpanNode{}
 	idSeen := map[string]bool{}
+	for _, node := range opfRoot.Walk() {
+		if id, ok := node.AttrByLocal("", "id"); ok {
+			idSeen[id] = true
+		}
+	}
 	for _, it := range manifestNode.Kids {
 		if it.Name.Space != opf.OPFURI || it.Name.Local != "item" {
 			continue
@@ -661,9 +666,6 @@ func ensureManifestStylesheets(opfPath string, opfData []byte, opfRoot *opf.Span
 			if resolved, err := pypath.ResolveRelativePath(opfPath, pypath.URLSplit(href).Path); err == nil {
 				existing[resolved] = it
 			}
-		}
-		if id, ok := it.AttrByLocal("", "id"); ok {
-			idSeen[id] = true
 		}
 	}
 	added := []string{}

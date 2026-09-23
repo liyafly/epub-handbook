@@ -17,3 +17,6 @@ const coverageWarningText = "样本与预设的 class 覆盖率较低；请审�
 
 // idSanitizeRe 对齐 epub_lib.unique_id 的 re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
 var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
+
+// layerNameRe restricts preset layers to a portable CSS filename.
+var layerNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*\.css$`)

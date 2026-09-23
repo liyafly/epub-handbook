@@ -129,6 +129,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	rep.CSSFilesBefore = len(cssItems)
 
 	cssPaths := sortedKeys(cssItems)
+	processedCSSPaths := make([]string, 0, len(cssPaths))
+	embeddedFamilies := map[string]bool{}
 	for _, cssPath := range cssPaths {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, err
@@ -137,6 +139,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			rep.Warnings = append(rep.Warnings, "CSS manifest item does not resolve: "+cssPath)
 			continue
 		}
+		processedCSSPaths = append(processedCSSPaths, cssPath)
 		data, err := m.raw(cssPath)
 		if err != nil {
 			return report.Result{}, cleanupErrf("%v", err)
@@ -171,7 +174,21 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if err != nil {
 			return report.Result{}, cleanupErrf("%s: CSS parse after semicolon repair failed: %v", cssPath, err)
 		}
-		fontEdits, rewrites, err := fontFamilyEdits(cssPath, fixed, sheet)
+		collectEmbeddedFontFamilies(fixed, sheet, embeddedFamilies)
+	}
+	for _, cssPath := range processedCSSPaths {
+		if err := ctx.Err(); err != nil {
+			return report.Result{}, err
+		}
+		fixed, err := m.raw(cssPath)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%v", err)
+		}
+		sheet, err := css.Parse(fixed)
+		if err != nil {
+			return report.Result{}, cleanupErrf("%s: CSS parse before font-family rewrite failed: %v", cssPath, err)
+		}
+		fontEdits, rewrites, err := fontFamilyEdits(cssPath, fixed, sheet, embeddedFamilies)
 		if err != nil {
 			return report.Result{}, cleanupErrf("%s: %v", cssPath, err)
 		}
@@ -209,28 +226,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			return report.Result{}, err
 		}
 		m.set(path, generated[path])
-	}
-
-	// XHTML link 重写。
-	xhtmlPaths := xhtmlZipPaths(opfRoot, opfDir)
-	for _, xhtmlPath := range xhtmlPaths {
-		if err := ctx.Err(); err != nil {
-			return report.Result{}, err
-		}
-		data, ok := m.get(xhtmlPath)
-		if !ok {
-			continue
-		}
-		edits, changed, err := rewriteCSSLinkEdits(xhtmlPath, data, mapping)
-		if err != nil {
-			return report.Result{}, cleanupErrf("%s: %v", xhtmlPath, err)
-		}
-		if changed {
-			if err := m.patch(xhtmlPath, edits); err != nil {
-				return report.Result{}, cleanupErrf("%s: %v", xhtmlPath, err)
-			}
-			rep.XHTMLFilesUpdated++
-		}
 	}
 
 	// scoped-local 合并。
@@ -382,7 +377,9 @@ func sanitizeCSSData(path string, data []byte) ([]editset.Edit, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	fontEdits, rewrites, err := fontFamilyEdits(path, fixed, sheet)
+	embeddedFamilies := map[string]bool{}
+	collectEmbeddedFontFamilies(fixed, sheet, embeddedFamilies)
+	fontEdits, rewrites, err := fontFamilyEdits(path, fixed, sheet, embeddedFamilies)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -728,7 +725,32 @@ func topLevelSemicolon(data []byte, start, end int) bool {
 	return false
 }
 
-func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet) ([]editset.Edit, int, error) {
+func collectEmbeddedFontFamilies(data []byte, sheet *css.Stylesheet, out map[string]bool) {
+	for _, rule := range sheet.Rules {
+		if !rule.AtRule || !strings.EqualFold(rule.AtRuleName, "font-face") {
+			continue
+		}
+		for _, decl := range rule.Declarations {
+			if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") ||
+				decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
+				continue
+			}
+			if key := normalizedFontFamily(css.StripComments(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))); key != "" {
+				out[key] = true
+			}
+		}
+	}
+}
+
+func normalizedFontFamily(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) >= 2 && ((value[0] == '\'' && value[len(value)-1] == '\'') || (value[0] == '"' && value[len(value)-1] == '"')) {
+		value = value[1 : len(value)-1]
+	}
+	return removeAllSpace(strings.ToLower(value))
+}
+
+func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet, embeddedFamilies map[string]bool) ([]editset.Edit, int, error) {
 	var edits []editset.Edit
 	for _, rule := range sheet.Rules {
 		// A declaration-shaped entry inside an at-rule is a descriptor, not
@@ -746,6 +768,9 @@ func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet) ([]editset
 			}
 			replacement := systemFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))
 			if replacement == "" || replacement == string(data[decl.ValueSpan.Start:decl.ValueSpan.End]) {
+				continue
+			}
+			if embeddedFamilies[normalizedFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))] {
 				continue
 			}
 			edits = append(edits, editset.Replace(path, int64(decl.ValueSpan.Start), int64(decl.ValueSpan.Len()), []byte(replacement)))

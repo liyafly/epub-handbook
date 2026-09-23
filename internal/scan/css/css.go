@@ -145,6 +145,7 @@ type Rule struct {
 	AtRuleName   string
 	HasBlock     bool
 	Nested       bool
+	InAtRule     bool
 	Declarations []Declaration
 }
 
@@ -587,6 +588,7 @@ func parseRuleList(data []byte, start, end int, nested bool) ([]Rule, []Declarat
 					Body:         string(data[i+1 : close]),
 					BodySpan:     Span{i + 1, close},
 					Span:         Span{selector.Start, close + 1},
+					InAtRule:     nested,
 					Declarations: decls,
 				})
 				allDecls = append(allDecls, decls...)

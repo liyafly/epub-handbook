@@ -28,7 +28,7 @@ func describeScenes(ctx context.Context, b *book.Book, p Params) (report.Result,
 		defer root.Close()
 		read = root.ReadFile
 	}
-	scenes, err := scanScenes(ctx, read, p.Query)
+	scenes, findings, err := scanScenes(ctx, read, p.Query)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -36,17 +36,17 @@ func describeScenes(ctx context.Context, b *book.Book, p Params) (report.Result,
 		"mode": "catalog", "query": p.Query, "scenes": scenes, "sceneCount": len(scenes),
 		"previewStatus": "not-rendered", "readerStatus": "not-verified",
 		"evidenceSource": "docs/final/reader-matrix.yaml",
-	}}, nil
+	}, Findings: findings}, nil
 }
 
-func scanScenes(ctx context.Context, read func(string) ([]byte, error), query string) ([]report.StyleScene, error) {
+func scanScenes(ctx context.Context, read func(string) ([]byte, error), query string) ([]report.StyleScene, []report.Finding, error) {
 	container, err := read(opf.ContainerPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	root, err := opf.ScanSpanTree(container)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	packagePath := ""
 	for _, node := range root.Walk() {
@@ -57,40 +57,45 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 	}
 	packagePath, err = pypath.ValidateArchivePath(packagePath, "container rootfile")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	data, err := read(packagePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pkg, err := opf.Parse(packagePath, data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scenes := []report.StyleScene{}
+	findings := []report.Finding{}
 	query = strings.ToLower(strings.TrimSpace(query))
 	for _, ref := range pkg.Spine {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		item, ok := pkg.ItemByID(ref.IDRef)
 		if !ok {
-			return nil, fmt.Errorf("catalog: missing spine item %s", ref.IDRef)
+			findings = append(findings, report.Finding{
+				Level: "warn", ID: "styledemo.catalog-missing-spine-item", Title: ref.IDRef,
+				Detail: "catalog spine idref does not resolve to a manifest item", Location: packagePath,
+			})
+			continue
 		}
 		if item.MediaType != "application/xhtml+xml" || pypath.HasNavProp(item.Properties) {
 			continue
 		}
 		name, err := pypath.ValidateArchivePath(item.ArchivePath, "scene path")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		data, err := read(name)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		doc, err := opf.ScanXHTMLSpanTree(data)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
+			return nil, nil, fmt.Errorf("%s: %w", name, err)
 		}
 		scene := report.StyleScene{ID: ref.IDRef, Path: name, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Classes: []string{}, Stylesheets: []string{}}
 		for _, node := range doc.Walk() {
@@ -116,10 +121,14 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 			}
 			cssPath, err := pypath.ResolveRelativePath(name, pypath.URLSplit(href).Path)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if _, err := read(cssPath); err != nil {
-				return nil, fmt.Errorf("catalog stylesheet %s: %w", cssPath, err)
+				findings = append(findings, report.Finding{
+					Level: "warn", ID: "styledemo.catalog-missing-stylesheet", Title: cssPath,
+					Detail: err.Error(), Location: name,
+				})
+				continue
 			}
 			if !slices.Contains(scene.Stylesheets, cssPath) {
 				scene.Stylesheets = append(scene.Stylesheets, cssPath)
@@ -130,5 +139,5 @@ func scanScenes(ctx context.Context, read func(string) ([]byte, error), query st
 			scenes = append(scenes, scene)
 		}
 	}
-	return scenes, nil
+	return scenes, findings, nil
 }

@@ -21,20 +21,51 @@ import (
 // an explicit font repair before replacing the book's stylesheet links.
 func preserveFontMode(ctx context.Context, b *book.Book, root *opf.SpanNode, paths []string, fontsPath string, layers map[string][]byte) (string, error) {
 	meta := root.ChildByLocal(opf.OPFURI, "metadata")
-	lockedMeta := false
+	var fontModeValues []string
 	metaCount := 0
 	if meta != nil {
 		for _, node := range meta.ChildrenByLocal(opf.OPFURI, "meta") {
 			property, _ := node.AttrByLocal("", "property")
-			if property == "ibooks:specified-fonts" {
+			if strings.TrimSpace(property) == "ibooks:specified-fonts" {
 				metaCount++
-				lockedMeta = strings.TrimSpace(node.IterText()) == "true"
+				fontModeValues = append(fontModeValues, strings.TrimSpace(node.IterText()))
+			}
+			name, _ := node.AttrByLocal("", "name")
+			if strings.TrimSpace(name) == "ibooks:specified-fonts" {
+				content, _ := node.AttrByLocal("", "content")
+				fontModeValues = append(fontModeValues, strings.TrimSpace(content))
 			}
 		}
 	}
-	if metaCount > 1 || (metaCount == 1 && !lockedMeta) {
+	if metaCount > 1 {
 		return "", presetErrf("ambiguous ibooks:specified-fonts metadata; repair font mode before applying a whole-book preset")
 	}
+	const displayOptionsPath = "META-INF/com.apple.ibooks.display-options.xml"
+	if b.Has(displayOptionsPath) {
+		data, err := b.CurrentContext(ctx, displayOptionsPath)
+		if err != nil {
+			return "", err
+		}
+		displayOptions, err := opf.ScanSpanTree(data)
+		if err != nil {
+			return "", presetErrf("ambiguous ibooks:specified-fonts metadata; repair font mode before applying a whole-book preset")
+		}
+		for _, node := range displayOptions.Walk() {
+			if node.Name.Local != "option" {
+				continue
+			}
+			name, _ := node.AttrByLocal("", "name")
+			if strings.TrimSpace(name) == "specified-fonts" {
+				fontModeValues = append(fontModeValues, strings.TrimSpace(node.IterText()))
+			}
+		}
+	}
+	for _, value := range fontModeValues {
+		if value != "true" {
+			return "", presetErrf("ambiguous ibooks:specified-fonts metadata; repair font mode before applying a whole-book preset")
+		}
+	}
+	lockedMeta := len(fontModeValues) > 0
 
 	// Read the spine first so selector classification can distinguish book-wide
 	// body classes from page-role classes before inspecting any stylesheet.
@@ -174,6 +205,10 @@ func bodyBindings(data []byte, bookClasses map[string]bool) (direct, legacy bool
 	}
 	for _, rule := range sheet.Rules {
 		if rule.AtRule {
+			if rule.HasBlock && !rule.Nested && len(rule.Declarations) == 0 &&
+				strings.Contains(strings.ToLower(css.StripComments(rule.Body)), "font") {
+				return false, false, fmt.Errorf("opaque @%s block with font declarations requires explicit review", rule.AtRuleName)
+			}
 			continue
 		}
 		for _, decl := range rule.Declarations {
@@ -284,7 +319,7 @@ func selectorClasses(s string) []string {
 }
 
 func checkStableBinding(sheet *css.Stylesheet, rule css.Rule, decl css.Declaration) error {
-	if rule.Nested || strings.EqualFold(decl.Name, "all") {
+	if rule.InAtRule || strings.EqualFold(decl.Name, "all") {
 		return fmt.Errorf("conditional or reset body font binding requires explicit review")
 	}
 	for _, token := range sheet.Tokens {

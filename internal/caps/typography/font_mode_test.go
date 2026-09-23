@@ -164,6 +164,74 @@ func TestWholeBookPresetPreservesLegacyLockedBodyMode(t *testing.T) {
 	}
 }
 
+func TestWholeBookPresetReadsLegacyFontMetadata(t *testing.T) {
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	for _, tc := range []struct {
+		name    string
+		addOPF  bool
+		option  string
+		wantErr bool
+	}{
+		{name: "legacy-opf-name", addOPF: true},
+		{name: "display-options", option: " true "},
+		{name: "conflicting-display-options", addOPF: true, option: "false", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := fontModeFixture("", `body { font-family: serif; }`, nil)
+			if tc.addOPF {
+				files[fontModeOPFPath] = strings.Replace(files[fontModeOPFPath], "  </metadata>",
+					`    <meta name="ibooks:specified-fonts" content=" true "/>`+"\n  </metadata>", 1)
+			}
+			if tc.option != "" || tc.name == "conflicting-display-options" {
+				files["META-INF/com.apple.ibooks.display-options.xml"] = `<display_options><platform name="*"><option name="specified-fonts">` + tc.option + `</option></platform></display_options>`
+			}
+			input := filepath.Join(t.TempDir(), "input.epub")
+			buildFixtureEpub(t, input, files)
+			b, err := runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
+			if tc.wantErr {
+				if err == nil || len(b.ModifiedNames()) != 0 {
+					t.Fatalf("conflicting legacy metadata was accepted or modified input: %v, %v", b.ModifiedNames(), err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Run rejected legacy locked metadata: %v", err)
+			}
+		})
+	}
+}
+
+func TestWholeBookPresetRefusesConditionalBodyFont(t *testing.T) {
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	for _, tc := range []struct{ name, css string }{
+		{"media", `@media screen { body { font-family: serif; } }`},
+		{"supports", `@supports (font-family: serif) { body { font-family: serif; } }`},
+		{"opaque-moz-document", `@-moz-document url-prefix() { body { font-family: serif; } }`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := fontModeFixture("", tc.css, new(true))
+			input := filepath.Join(t.TempDir(), "input.epub")
+			buildFixtureEpub(t, input, files)
+			b, err := runFontModePreset(t, input, filepath.Join(t.TempDir(), "output.epub"), presets, "literary-cn", true)
+			if err == nil || len(b.ModifiedNames()) != 0 {
+				t.Fatalf("conditional body font was accepted or modified input: %v, %v", b.ModifiedNames(), err)
+			}
+		})
+	}
+}
+
+func TestManifestIDAvoidsNonManifestIDs(t *testing.T) {
+	files := typographyFixture("")
+	files[fontModeOPFPath] = strings.Replace(files[fontModeOPFPath], `<dc:title>Preset Fixture</dc:title>`, `<dc:title id="style-notes">Preset Fixture</dc:title>`, 1)
+	input := filepath.Join(t.TempDir(), "input.epub")
+	buildFixtureEpub(t, input, files)
+	_, output := applyFontModePreset(t, input, filepath.Join(repoRootDir(t), "templates", "style-presets"), "literary-cn")
+	opfData := string(output[fontModeOPFPath])
+	if !strings.Contains(opfData, `<dc:title id="style-notes">`) || !strings.Contains(opfData, `id="style-notes-2" href="Styles/notes.css"`) {
+		t.Fatalf("new manifest id collided with a metadata id:\n%s", opfData)
+	}
+}
+
 func TestWholeBookPresetRejectsFontMetadataBodyModeMismatchWithoutEdits(t *testing.T) {
 	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
 	dir := t.TempDir()
