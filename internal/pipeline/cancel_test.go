@@ -207,9 +207,13 @@ func TestRunCancellationObservedAfterRedline(t *testing.T) {
 			})
 
 			out := filepath.Join(t.TempDir(), "out.epub")
+			output := out
+			if !tc.write {
+				output = ""
+			}
 			outcome, err := Run(ctx, Options{
 				RepoRoot: root, CapabilityID: id,
-				InputPath: buildSampleEpub(t), OutputPath: out, DryRun: tc.write,
+				InputPath: buildSampleEpub(t), OutputPath: output, DryRun: tc.write,
 			})
 			if err != nil {
 				t.Fatalf("Run returned Go error: %v", err)

@@ -19,6 +19,7 @@ func TestRunCapabilityUsageErrorsHonorJSON(t *testing.T) {
 		{name: "json after key value", argv: []string{"epub.package.nav.audit", "mode=x", "--json"}, want: "before KEY=VALUE"},
 		{name: "numeric json boolean", argv: []string{"--json=1"}, want: "缺少 capability-id"},
 		{name: "flag parse error", argv: []string{"epub.package.nav.audit", "--json", "--unknown"}, want: "flag provided"},
+		{name: "duplicate input flag", argv: []string{"epub.package.nav.audit", "--json", "--input", "a.epub", "--input=b.epub"}, want: "重复全局 flag: --input"},
 		{name: "duplicate parameter", argv: []string{"epub.typography.optimize", "--json", "preset=one", "preset=two"}, want: "重复参数"},
 	}
 	for _, tc := range cases {
@@ -44,6 +45,12 @@ func TestRunCapabilityUsageErrorsHonorJSON(t *testing.T) {
 				t.Fatalf("detail = %q, want substring %q", env.Findings[0].Detail, tc.want)
 			}
 		})
+	}
+}
+
+func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
+	if code := runCapabilities([]string{"--id", "no.such.capability"}); code != 3 {
+		t.Fatalf("unknown capability exit = %d, want 3", code)
 	}
 }
 

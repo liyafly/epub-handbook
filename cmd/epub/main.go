@@ -75,6 +75,9 @@ func runCapability(argv []string) int {
 		return runUsageError("", jsonRequested, errors.New("缺少 capability-id"))
 	}
 	id := argv[0]
+	if err := rejectDuplicatePathFlags(argv[1:]); err != nil {
+		return runUsageError(id, jsonRequested, err)
+	}
 	fs := flag.NewFlagSet("epub run", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", "", "输入 EPUB")
@@ -142,6 +145,36 @@ func runCapability(argv []string) int {
 	return outcome.ExitCode
 }
 
+// rejectDuplicatePathFlags catches ambiguous input/output choices before the
+// standard flag parser silently keeps the last value.
+func rejectDuplicatePathFlags(argv []string) error {
+	counts := map[string]int{"input": 0, "output": 0}
+	for i := 0; i < len(argv); i++ {
+		arg := argv[i]
+		for _, name := range []string{"input", "output"} {
+			if arg == "-"+name || arg == "--"+name {
+				counts[name]++
+				// The next token is the value for this flag, even if it begins
+				// with a dash; flag.Parse will report a missing value if absent.
+				if i+1 < len(argv) {
+					i++
+				}
+				break
+			}
+			if strings.HasPrefix(arg, "-"+name+"=") || strings.HasPrefix(arg, "--"+name+"=") {
+				counts[name]++
+				break
+			}
+		}
+	}
+	for _, name := range []string{"input", "output"} {
+		if counts[name] > 1 {
+			return fmt.Errorf("重复全局 flag: --%s", name)
+		}
+	}
+	return nil
+}
+
 // wantsJSON recognizes the boolean flag before flag.Parse runs, including
 // parse-error paths where FlagSet may stop before reaching --json.
 func wantsJSON(argv []string) bool {
@@ -199,6 +232,9 @@ func runCapabilities(argv []string) int {
 	contracts, err := pipeline.DescribeCapabilities(root, *id)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "epub:", err)
+		if errors.Is(err, pipeline.ErrUnknownCapability) {
+			return pipeline.ExitUsage
+		}
 		return 1
 	}
 	if *jsonOut {

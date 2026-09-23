@@ -144,3 +144,37 @@ func TestRunMetadataRedlineWritesOutputButFails(t *testing.T) {
 		t.Fatalf("redline.metadata finding missing: %#v", result.Envelope.Findings)
 	}
 }
+
+func TestDryRunMetadataRedlineSuggestsApplyingReviewedCandidate(t *testing.T) {
+	root := t.TempDir()
+	writeTestContract(t, root, "test.meta.edit", nil, true, []string{"metadata"})
+	installTestRunner(t, "test.meta.edit", func(_ context.Context, b *book.Book, _ Args, _ Upstream) (report.Result, error) {
+		data, err := b.Current("OEBPS/content.opf")
+		if err != nil {
+			return report.Result{}, err
+		}
+		old := []byte("<dc:title>书</dc:title>")
+		i := bytes.Index(data, old)
+		if i < 0 {
+			return report.Result{}, errors.New("fixture title not found")
+		}
+		if err := b.Apply([]editset.Edit{{Path: "OEBPS/content.opf", Offset: int64(i), Length: int64(len(old)), Replacement: []byte("<dc:title>新书名</dc:title>")}}); err != nil {
+			return report.Result{}, err
+		}
+		return report.Result{Capability: "test.meta.edit", Status: report.StatusComplete}, nil
+	})
+
+	outcome, err := Run(t.Context(), Options{
+		RepoRoot: root, CapabilityID: "test.meta.edit", InputPath: buildSampleEpub(t),
+		OutputPath: filepath.Join(t.TempDir(), "candidate.epub"), DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Envelope.Status != report.StatusFailed || outcome.ExitCode != ExitFailed || !hasFindingID(outcome.Envelope.Findings, "redline.metadata") {
+		t.Fatalf("dry-run redline outcome = status %q exit %d findings %#v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if len(outcome.Envelope.NextCommands) != 1 || strings.Contains(outcome.Envelope.NextCommands[0], "--dry-run") {
+		t.Fatalf("dry-run redline nextCommands = %q, want one apply command", outcome.Envelope.NextCommands)
+	}
+}

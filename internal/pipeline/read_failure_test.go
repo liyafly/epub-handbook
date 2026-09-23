@@ -42,8 +42,12 @@ func TestIgnoredInputReadErrorCannotBecomeSuccessfulStage(t *testing.T) {
 				return report.Result{Capability: id, Status: report.StatusComplete, Facts: map[string]any{"partial": true}}, nil
 			})
 			out := filepath.Join(t.TempDir(), "out.epub")
+			output := out
+			if mode == "readonly" {
+				output = ""
+			}
 			result, err := Run(t.Context(), Options{RepoRoot: root, CapabilityID: id,
-				InputPath: corruptFixtureEntry(t, "OEBPS/c1.xhtml"), OutputPath: out, DryRun: mode == "preview"})
+				InputPath: corruptFixtureEntry(t, "OEBPS/c1.xhtml"), OutputPath: output, DryRun: mode == "preview"})
 			if err != nil || result.ExitCode != ExitFailed || result.Envelope.Status != report.StatusFailed {
 				t.Fatalf("ignored read failure: %+v, %v", result, err)
 			}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -186,6 +187,34 @@ func TestRunPendingCapabilityFails(t *testing.T) {
 			}
 		})
 	}
+	noInput, err := Run(t.Context(), Options{CapabilityID: "epub.notes.legacy-fallback"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noInput.ExitCode != ExitFailed || noInput.Envelope.Status != report.StatusFailed {
+		t.Fatalf("pending capability without input = status %q exit %d, want failed / 1", noInput.Envelope.Status, noInput.ExitCode)
+	}
+	if len(noInput.Envelope.Events) != 1 || noInput.Envelope.Events[0].Step != "epub.notes.legacy-fallback" || noInput.Envelope.Events[0].Status != "skipped" {
+		t.Fatalf("pending capability event = %#v, want one skipped event", noInput.Envelope.Events)
+	}
+	if len(noInput.Envelope.Findings) != 1 || noInput.Envelope.Findings[0].ID != "capability.not-implemented" {
+		t.Fatalf("pending capability findings = %#v, want capability.not-implemented", noInput.Envelope.Findings)
+	}
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile(filepath.Join(root, "testdata/envelope/pending-capability.report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.MarshalIndent(noInput.Envelope, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(append(data, '\n')); got != string(want) {
+		t.Fatalf("pending envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
 }
 
 func TestRunUsageErrors(t *testing.T) {
@@ -209,18 +238,17 @@ func TestRunUsageErrors(t *testing.T) {
 
 func TestRunRejectsOutputOverwriteInput(t *testing.T) {
 	epub := buildSampleEpub(t)
-	// 只读能力忽略 output，不报错。
-	outcome, _ := Run(t.Context(), Options{
+	// 只读能力不接受 --output。
+	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.package.nav.audit",
 		InputPath:    epub,
-		OutputPath:   epub,
+		OutputPath:   filepath.Join(t.TempDir(), "ignored.epub"),
 	})
-	if outcome.ExitCode != ExitOK && outcome.ExitCode != ExitFailed {
-		t.Fatalf("只读能力不应因 output=input 报用法错误，got %d", outcome.ExitCode)
+	if outcome.ExitCode != ExitUsage || err == nil || !strings.Contains(err.Error(), "does not write an output") {
+		t.Fatalf("只读能力 --output = exit %d err %v, want usage error", outcome.ExitCode, err)
 	}
-	// 写入型能力的 overwrite 保护在 caps 各自的 Params 层校验；
-	// pipeline 层的用法错误覆盖 dry-run transformer 的 --output 必填路径。
-	outcome, err := Run(t.Context(), Options{
+	// 写入型能力的 --output 必填检查也属于 pipeline 用法校验。
+	outcome, err = Run(t.Context(), Options{
 		CapabilityID: "epub.structure.normalize",
 		InputPath:    epub,
 		DryRun:       false,
@@ -243,6 +271,13 @@ func TestRedlineCompareExitCodes(t *testing.T) {
 	}
 	if code != 0 {
 		t.Errorf("干净比对退出码 = %d", code)
+	}
+	code, err = RedlineCompare(before, after, "not-a-check", nil, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != ExitUsage {
+		t.Errorf("bad --check exit = %d, want usage code %d", code, ExitUsage)
 	}
 }
 
@@ -321,9 +356,57 @@ func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
 func TestNormalizeNextCommandUsesFlagFirstOrder(t *testing.T) {
 	c := Contract{ID: "epub.structure.normalize"}
 	c.Execution.Output = ExecOutputSingle
-	got := nextCommands(c, Options{}, nil, true)
-	want := "epub redline --check all --path-map <normalize-envelope.json> <before> <after>"
+	opts := Options{InputPath: "source book.epub", OutputPath: "candidate book.epub"}
+	got := nextCommands(c, opts, nil, true)
+	want := "epub redline --check all --path-map '<normalize-envelope.json>' 'source book.epub' 'candidate book.epub'"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("nextCommands = %q, want [%q]", got, want)
+	}
+}
+
+func TestRunRejectsOutputForReadOnly(t *testing.T) {
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.package.nav.audit",
+		InputPath:    buildSampleEpub(t),
+		OutputPath:   filepath.Join(t.TempDir(), "candidate.epub"),
+	})
+	if err == nil || outcome.ExitCode != ExitUsage || !strings.Contains(err.Error(), "does not write an output") {
+		t.Fatalf("read-only output = exit %d err %v, want usage error", outcome.ExitCode, err)
+	}
+}
+
+func TestRunRejectsOutputForMultiOutput(t *testing.T) {
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.package.split",
+		InputPath:    buildSampleEpub(t),
+		OutputPath:   filepath.Join(t.TempDir(), "candidate.epub"),
+		Args:         Args{"output_dir": filepath.Join(t.TempDir(), "segments"), "split_points": "0"},
+	})
+	if err == nil || outcome.ExitCode != ExitUsage || !strings.Contains(err.Error(), "writes to output_dir") {
+		t.Fatalf("multi-output --output = exit %d err %v, want usage error", outcome.ExitCode, err)
+	}
+}
+
+func TestRunRejectsExistingOutputEarly(t *testing.T) {
+	root := t.TempDir()
+	const id = "test.write.existing-output"
+	writeTestContract(t, root, id, nil, true, nil)
+	called := false
+	installTestRunner(t, id, func(context.Context, *book.Book, Args, Upstream) (report.Result, error) {
+		called = true
+		return report.Result{Capability: id, Status: report.StatusComplete}, nil
+	})
+	output := filepath.Join(t.TempDir(), "existing.epub")
+	if err := os.WriteFile(output, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := Run(t.Context(), Options{
+		RepoRoot: root, CapabilityID: id, InputPath: buildSampleEpub(t), OutputPath: output,
+	})
+	if err == nil || outcome.ExitCode != ExitUsage || !strings.Contains(err.Error(), "output already exists") {
+		t.Fatalf("existing output = exit %d err %v, want usage error", outcome.ExitCode, err)
+	}
+	if called {
+		t.Fatal("runner was called before existing output rejection")
 	}
 }

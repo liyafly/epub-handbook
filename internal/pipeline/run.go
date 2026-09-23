@@ -117,6 +117,52 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		usageErr := &UsageError{Err: err}
 		return UsageOutcome(opts.CapabilityID, usageErr), usageErr
 	}
+	needsWrite := chainNeedsWrite(chain)
+	chainReady := chainImplemented(chain)
+	multiOutputCap := contract.Execution.Output == ExecOutputMulti
+	// A pending capability can explain its status without touching an EPUB.
+	// Keep this ahead of input stat/open/hash so the result is stable even when
+	// the caller has not yet supplied an input path.
+	if !chainReady {
+		missing := contract.ID
+		for _, c := range chain {
+			if !Implemented(c.ID) {
+				missing = c.ID
+				break
+			}
+		}
+		env.Status = report.StatusFailed
+		env.Events = []report.Event{{Step: missing, Status: "skipped", Message: "capability has no Go implementation"}}
+		env.Findings = []report.Finding{{
+			Level: "error", ID: "capability.not-implemented",
+			Title:  "Capability not implemented in Go",
+			Detail: fmt.Sprintf("%s has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`", missing),
+		}}
+		return Outcome{Envelope: env, ExitCode: ExitFailed}, nil
+	}
+	if !needsWrite && opts.OutputPath != "" {
+		return usage("capability %s does not write an output; remove --output", contract.ID)
+	}
+	if multiOutputCap && opts.OutputPath != "" {
+		return usage("capability %s writes to output_dir; remove --output", contract.ID)
+	}
+	if needsWrite && !opts.DryRun {
+		if multiOutputCap {
+			if opts.Args.Get("output_dir") == "" {
+				return usage("output_dir is required for capability %s", contract.ID)
+			}
+		} else {
+			if opts.OutputPath == "" {
+				return usage("--output is required for capability %s", contract.ID)
+			}
+			if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
+				return usage("output must not overwrite the input EPUB")
+			}
+			if _, err := os.Lstat(opts.OutputPath); err == nil {
+				return usage("output already exists: %s", opts.OutputPath)
+			}
+		}
+	}
 	noBookCap := contract.Execution.Input == ExecInputEpubOrTree
 	// sourceInput 能力（planner，如 epub.source.intake）：--input 必填，可以是
 	// 目录或任意文件；永不 book.Open，b 恒为 nil。
@@ -136,27 +182,6 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	} else if !noBookCap {
 		return usage("--input is required")
 	}
-	needsWrite := chainNeedsWrite(chain)
-	chainReady := chainImplemented(chain)
-	multiOutputCap := contract.Execution.Output == ExecOutputMulti
-	// Pending manual/AI capabilities must report capability.not-implemented
-	// consistently. Their eventual output shape must not force callers to invent
-	// an output path before the registry can explain that no Go runner exists.
-	if chainReady && needsWrite && !opts.DryRun {
-		if multiOutputCap {
-			if opts.Args.Get("output_dir") == "" {
-				return usage("output_dir is required for capability %s", contract.ID)
-			}
-		} else {
-			if opts.OutputPath == "" {
-				return usage("--output is required for capability %s", contract.ID)
-			}
-			if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
-				return usage("output must not overwrite the input EPUB")
-			}
-		}
-	}
-
 	if opts.InputPath != "" && (!inputIsDir || sourceInputCap) {
 		// 信封 input：文件带 sha256；目录（sourceInput）只记 path
 		// （envelope.schema.json 的 input.sha256 可选）。
@@ -554,7 +579,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// 退回 pipeline 的静态建议。未执行的能力（DRM 拦截 / 未实现 / 上游 runner
 	// 报错）在 up 里没有条目，直接走静态分支。
 	env.NextCommands = dropSelfReruns(dedupe(up[contract.ID].NextCommands), contract.ID)
-	if len(env.NextCommands) == 0 && !(opts.DryRun && needsWrite && env.Status != report.StatusApprovalRequired) {
+	if len(env.NextCommands) == 0 && !(opts.DryRun && needsWrite && (failed || cancelled)) {
 		env.NextCommands = nextCommands(contract, opts, userArgs, needsWrite)
 	}
 
@@ -610,7 +635,9 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		out = append(out,
 			"epub run epub.layout.audit --input "+shellQuote(placeholder(opts.OutputPath, opts.InputPath)))
 	case "epub.structure.normalize":
-		out = append(out, "epub redline --check all --path-map <normalize-envelope.json> <before> <after>")
+		out = append(out, "epub redline --check all --path-map "+shellQuote("<normalize-envelope.json>")+" "+
+			shellQuote(placeholder(opts.InputPath, "<before.epub>"))+" "+
+			shellQuote(placeholder(opts.OutputPath, "<after.epub>")))
 	}
 	return out
 }
@@ -664,6 +691,9 @@ func RedlineCompareWith(before, after, check string, allowList []string, pathMap
 	}
 	if text != "" {
 		fmt.Fprint(os.Stderr, text)
+	}
+	if rep.Code == 2 {
+		return ExitUsage, nil
 	}
 	return rep.Code, nil
 }
