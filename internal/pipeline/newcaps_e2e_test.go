@@ -509,3 +509,158 @@ func writeEnglishTypographyEPUB(t *testing.T) string {
 	}
 	return input
 }
+
+func TestLiteraryStructureEndToEndAndRedline(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeLiteraryStructureEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.literary.structure.format",
+		InputPath:    input,
+		DryRun:       true,
+		Args: Args{
+			"assignments": `[{"path":"OEBPS/Text/01-body.xhtml","tag":"blockquote","index":0,"class":"epigraph"}]`,
+			"stylesheet":  "OEBPS/Styles/literary.css",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("status=%q exit=%d findings=%+v, want planned / 0", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.literary.structure.format.editCount"]; got != 2 {
+		t.Fatalf("editCount=%#v, want class and stylesheet-link edits", got)
+	}
+	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/01-body.xhtml"}) {
+		t.Fatalf("modified_entries=%#v", got)
+	}
+	var redlinePassed bool
+	for _, event := range outcome.Envelope.Events {
+		if event.Step == "redline" {
+			redlinePassed = event.Status == "completed" && event.Message == "0 findings"
+		}
+	}
+	if !redlinePassed {
+		t.Fatalf("events=%+v, want complete all-item redline with 0 findings", outcome.Envelope.Events)
+	}
+	if outcome.Envelope.Input == nil {
+		t.Fatal("input artifact missing from E2E envelope")
+	}
+	outcome.Envelope.Input.Path = "<fixture.epub>"
+	outcome.Envelope.Input.SHA256 = ""
+	for i, command := range outcome.Envelope.NextCommands {
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+	}
+	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "literary_structure", "basic.report.json")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(goldenPath, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, want) {
+		t.Fatalf("literary structure E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+	}
+}
+
+func TestLiteraryStructureRejectsInvalidClassWithoutChanges(t *testing.T) {
+	input := writeLiteraryStructureEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.literary.structure.format",
+		InputPath:    input,
+		DryRun:       true,
+		Args: Args{
+			"assignments": `[{"path":"OEBPS/Text/01-body.xhtml","tag":"blockquote","index":0,"class":"my-fancy"}]`,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed || !hasFindingID(outcome.Envelope.Findings, "literary.class-not-allowed") {
+		t.Fatalf("status=%q exit=%d findings=%+v, want class-not-allowed / exit 1", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["modified_entries"]; len(got.([]string)) != 0 {
+		t.Fatalf("modified_entries=%#v, want []", got)
+	}
+	if got := outcome.Envelope.Facts["epub.literary.structure.format.editCount"]; got != 0 {
+		t.Fatalf("editCount=%#v, want 0", got)
+	}
+}
+
+func TestLiteraryStructureAssignmentsValidationUsesUsageExit(t *testing.T) {
+	input := writeLiteraryStructureEPUB(t)
+	for _, assignments := range []string{
+		"{",
+		"[]",
+		`[{"path":"OEBPS/Text/01-body.xhtml","id":"target","tag":"blockquote","class":"epigraph"}]`,
+		`[{"path":"OEBPS/Text/01-body.xhtml","class":"epigraph"}]`,
+	} {
+		outcome, err := Run(t.Context(), Options{
+			CapabilityID: "epub.literary.structure.format",
+			InputPath:    input,
+			DryRun:       true,
+			Args:         Args{"assignments": assignments},
+		})
+		if err == nil || outcome.ExitCode != ExitUsage || outcome.Envelope.Status != report.StatusFailed {
+			t.Fatalf("assignments=%q outcome=%+v err=%v, want usage / exit 3", assignments, outcome, err)
+		}
+	}
+}
+
+func writeLiteraryStructureEPUB(t *testing.T) string {
+	t.Helper()
+	entries := map[string]string{
+		"META-INF/container.xml":    `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+		"OEBPS/content.opf":         `<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="uid"><metadata><dc:title>Literary structure fixture</dc:title><dc:identifier id="uid">urn:uuid:literary-structure</dc:identifier><dc:language>zh-CN</dc:language><meta name="cover" content="cover"/></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="cover" href="cover.png" media-type="image/png" properties="cover-image"/><item id="base" href="Styles/base.css" media-type="text/css"/><item id="fonts" href="Styles/fonts.css" media-type="text/css"/><item id="literary" href="Styles/literary.css" media-type="text/css"/><item id="chapter" href="Text/01-body.xhtml" media-type="application/xhtml+xml"/></manifest><spine toc="ncx"><itemref idref="chapter"/></spine></package>`,
+		"OEBPS/nav.xhtml":           `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN"><head><title>Navigation</title></head><body><nav epub:type="toc"><ol><li><a href="Text/01-body.xhtml">Body</a></li></ol></nav></body></html>`,
+		"OEBPS/Text/01-body.xhtml":  `<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN"><head><title>Body</title><link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/><link rel="stylesheet" type="text/css" href="../Styles/base.css"/></head><body><h1>Body</h1><blockquote>引用文字</blockquote><p>正文继续。</p></body></html>`,
+		"OEBPS/toc.ncx":             `<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head/><docTitle><text>Fixture</text></docTitle><navMap><navPoint id="n1" playOrder="1"><navLabel><text>Body</text></navLabel><content src="Text/01-body.xhtml"/></navPoint></navMap></ncx>`,
+		"OEBPS/cover.png":           "PNG fixture bytes",
+		"OEBPS/Styles/base.css":     `.body { line-height: 1.6; }`,
+		"OEBPS/Styles/fonts.css":    `.font-st { font-family: serif; }`,
+		"OEBPS/Styles/literary.css": `.epigraph { font-style: italic; }`,
+	}
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	mimetype, err := writer.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mimetype.Write([]byte("application/epub+zip")); err != nil {
+		t.Fatal(err)
+	}
+	paths := make([]string, 0, len(entries))
+	for name := range entries {
+		paths = append(paths, name)
+	}
+	slices.Sort(paths)
+	for _, name := range paths {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(entries[name])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(t.TempDir(), "literary-structure.epub")
+	if err := os.WriteFile(input, archive.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return input
+}

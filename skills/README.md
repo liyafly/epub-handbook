@@ -41,7 +41,7 @@ epub redline --check all "before.epub" "after.epub"
 | `epub-cleanup` | 按清洗 runbook 规范目录、迁移 package、调整 CSS/CJK 样式并检查标准弹注 | `epub.structure.normalize`、`epub.package.migrate.epub3`、`epub.css.layering.optimize`、`epub.typography.optimize`，写入；`epub.notes.popup.normalize`，只读 |
 | `epub-package-ops` | 明确授权后合并、拆分、改元数据、换封面或转 A-lite | `epub.package.merge`、`epub.package.split`、`epub.metadata.edit`、`epub.cover.replace`、`epub.alite.convert`，写入 |
 | `epub-source-intake` | 非 EPUB 源文件盘点与接入计划；不抽取 PDF、不做 OCR | `epub.source.intake`，只读 |
-| `epub-special-layout` | 英文、文学结构、竖排/Ruby 与多看旧版弹注 fallback | `epub.typography.english.optimize`、`epub.notes.legacy-fallback`、`epub.vertical.ruby.optimize`，写入；待实现：`epub.literary.structure.format` |
+| `epub-special-layout` | 英文、文学结构、竖排/Ruby 与多看旧版弹注 fallback | `epub.typography.english.optimize`、`epub.literary.structure.format`、`epub.notes.legacy-fallback`、`epub.vertical.ruby.optimize`，写入 |
 | `epub-reader-verify` | Kindle 风险、版式 demo、转换器与目标阅读器证据 | `epub.kindle.compatibility.check`、`epub.style.demo.maintain`，只读 |
 
 ## 维护规则

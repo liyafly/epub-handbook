@@ -22,6 +22,7 @@ import (
 	fontcoverage "github.com/liyafly/epub-handbook/internal/caps/fontcoverage"
 	imagelayout "github.com/liyafly/epub-handbook/internal/caps/image_layout"
 	kindlecheck "github.com/liyafly/epub-handbook/internal/caps/kindle_check"
+	literarystructure "github.com/liyafly/epub-handbook/internal/caps/literary_structure"
 	mergecap "github.com/liyafly/epub-handbook/internal/caps/merge"
 	metadatacap "github.com/liyafly/epub-handbook/internal/caps/metadata"
 	migrateepub3 "github.com/liyafly/epub-handbook/internal/caps/migrate_epub3"
@@ -257,6 +258,27 @@ func init() {
 			return report.Result{}, usageErrorf("rp_open 和 rp_close 必须各是一个非空白且不含 < > & 引号的字符")
 		}
 		return verticalruby.Run(ctx, b, verticalruby.Params{Op: op, ScopePaths: scope, RPOpen: rpOpen, RPClose: rpClose})
+	})
+	register("epub.literary.structure.format", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
+		raw, ok := args["assignments"]
+		if !ok {
+			return report.Result{}, usageErrorf("assignments 必填，值为非空 JSON 数组")
+		}
+		var assignments []literarystructure.Assignment
+		if err := json.Unmarshal([]byte(raw), &assignments); err != nil || len(assignments) == 0 {
+			return report.Result{}, usageErrorf("assignments 必须是非空 JSON 数组文本")
+		}
+		for _, assignment := range assignments {
+			hasID := assignment.ID != ""
+			hasTag := assignment.Tag != ""
+			if hasID == hasTag {
+				return report.Result{}, usageErrorf("每个 assignment 必须且只能提供 id 或 tag")
+			}
+		}
+		return literarystructure.Run(ctx, b, literarystructure.Params{
+			Assignments: assignments,
+			Stylesheet:  args.Get("stylesheet"),
+		})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		if args.Get("query") != "" && !args.Bool("catalog") {

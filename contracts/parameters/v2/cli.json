@@ -206,8 +206,18 @@
       "parameters": {}
     },
     "epub.literary.structure.format": {
-      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
-      "parameters": {}
+      "description": "按显式目标清单为 spine XHTML 元素追加 literary.css 词表内的 class；不猜角色、不改结构与正文。",
+      "parameters": {
+        "assignments": {
+          "type": "string",
+          "required": true,
+          "description": "非空 JSON 数组文本，不是文件路径；每项用 path 加 id，或 path 加 tag/index 定位，并提供 class。index 是文件内同名元素按文档序的零基序号。"
+        },
+        "stylesheet": {
+          "type": "string",
+          "description": "可选：manifest 中已存在的 text/css ZIP 内路径；为每个新增 class 的 XHTML 补链接。"
+        }
+      }
     },
     "epub.notes.legacy-fallback": {
       "description": "在已通过 popup 校验的标准 grouped footnote 上只叠加多看 legacy class；不复制注释、不改图标、manifest 与 CSS。",

@@ -43,13 +43,18 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 文学结构精排
 
-`epub.literary.structure.format` 当前未实现；人工读取目标 XHTML 和 literary.css，按授权最小改写。角色模糊时先分析：
+角色已经人工确认后，用 `epub.literary.structure.format` 按显式清单追加 class。能力只接受 SPEC §7 与文白指南列出的词表，不会推断页面角色；目标必须精确指定为元素 `id`，或 `tag` 加该文件内同名元素的零基 `index`。可选 `stylesheet` 必须是 manifest 已有 CSS。先 dry-run 审阅计划，再写出新候选：
 
 ```sh
-epub run epub.text.content.analyze --input "before.epub" --json
-epub run epub.layout.audit --input "candidate.epub" --json
+epub run epub.literary.structure.format --input "before.epub" --dry-run --json \
+  'assignments=[{"path":"OEBPS/Text/chapter.xhtml","id":"epigraph","class":"epigraph"}]' \
+  'stylesheet=OEBPS/Styles/literary.css'
+epub run epub.literary.structure.format --input "before.epub" --output "candidate.epub" --json \
+  'assignments=[{"path":"OEBPS/Text/chapter.xhtml","tag":"blockquote","index":0,"class":"epigraph"}]'
 epub redline --check all "before.epub" "candidate.epub"
 ```
+
+角色尚未确认时，先用 `epub.text.content.analyze` 与 `epub.layout.audit` 收集证据，并由人复核后再填写清单。一次运行出现任何 error finding 时整批零写入；既有 class 与已链接 stylesheet 都是 no-op。
 
 ### 竖排与 Ruby
 
@@ -86,7 +91,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 文学结构精排
 
-blockList 的 evidence/confidence 用于角色复核，不是自动套 class 的许可；layout 是静态风险，redline 不能证明美观。
+检查 `facts["epub.literary.structure.format.plannedEdits"]`、`skipped`、`assignmentsTotal` 与 `editCount`。`literary.target-ambiguous`、`literary.target-forbidden` 等 error 表示整批未修改；redline 检查内容和锚点边界，不证明角色选择或视觉效果正确。
 
 ### 竖排与 Ruby
 
