@@ -47,13 +47,11 @@
 
 - [pipeline/](pipeline/)：已有 EPUB 的清洗流程与工具
   - [book-workspace.md](pipeline/book-workspace.md)：一书一 Git 的本地工作区约定
-  - [go-cli-rearchitecture.md](pipeline/go-cli-rearchitecture.md)：SPEC 落地前的 Go CLI 背景蓝图；与 `final/SPEC-go-architecture.md` 冲突时以后者为准
   - [cleanup-flow.md](pipeline/cleanup-flow.md)
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
   - [epub3-migration.md](pipeline/epub3-migration.md)：EPUB3 迁移产物与验收
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
-  - [skills-matrix.md](pipeline/skills-matrix.md)
 
 ### 模板、工具与历史
 

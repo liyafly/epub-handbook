@@ -23,7 +23,7 @@
 - 字体 provider（`tools-font/`）独立于发行包，由 `internal/extern` 调起；安装与缺失时降级见 `tools-font/README.md`。
 - CSS 只做 Go scan/editset 的 lossless byte-range edit；禁止整文档序列化或用正则解析复杂 CSS。
 - **禁止修改 `internal/archguard/`**。守卫失败改实现；怀疑守卫错误则停下交人类审阅。
-- 不恢复旧执行面，不新增其调用引用；`tools/parity/legacy-refs.txt` 保持零条目。迁移背景不能覆盖架构 SPEC；`docs/pipeline/go-cli-rearchitecture.md` 仅是历史蓝图。
+- 不恢复旧执行面，不新增其调用引用；`tools/parity/legacy-refs.txt` 保持零条目。迁移背景不能覆盖架构 SPEC；`archive/meta/2026-08-go-cli-rearchitecture.md` 仅是历史蓝图。
 - `skills/` 是纯文档层，不放 `.py` / `.sh`，不依赖 Go internal 或私有 provider 路径。能力调用只用 `epub run <capability-id>`；发现与红线走公开 `epub capabilities` / `epub redline`。
 - 新 capability 按架构 SPEC §6.1 任务模板开发，并通过 §5.2 parity gate。
 
