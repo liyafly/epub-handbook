@@ -342,7 +342,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		ins.addFinding("warn",
 			"Manifest filenames contain decoded special characters; run structure normalization before richer cleanup",
 			"", "filename-obfuscation")
-		ins.addSkill("epub-structure-normalizer", "warn")
+		ins.addSkill("epub-cleanup", "warn")
 		ins.addCommand("epub run epub.structure.normalize --input " + q +
 			" --output work/after/step-0-normalized.epub --dry-run --json")
 	}
@@ -354,8 +354,8 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 	}
 	if version != "" && !strings.HasPrefix(version, "3") {
 		ins.addFinding("warn", "EPUB 2 package should be migrated to EPUB 3 before richer cleanup/features", "", "epub3-migration")
-		ins.addSkill("epub3-migrator", "warn")
-		ins.addSkill("epub-package-nav-auditor", "warn")
+		ins.addSkill("epub-cleanup", "warn")
+		ins.addSkill("epub-audit", "warn")
 		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q + " --dry-run --json")
 		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q +
 			" --output work/after/step-1-epub3.epub --json")
@@ -365,7 +365,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 	if langs := pkg.Metadata["language"]; len(langs) > 0 && strings.TrimSpace(langs[0]) != "" {
 		ins.summary.Language = collapseSpace(langs[0])
 		if strings.HasPrefix(strings.ToLower(ins.summary.Language), "en") {
-			ins.addSkill("epub-english-typography-optimizer", "info")
+			ins.addSkill("epub-special-layout", "info")
 		}
 	}
 
@@ -385,7 +385,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 			level = "error"
 		}
 		ins.addFinding(level, "EPUB 3 package should contain exactly one nav item", "", "")
-		ins.addSkill("epub-package-nav-auditor", level)
+		ins.addSkill("epub-audit", level)
 	}
 
 	// NCX。
@@ -393,8 +393,8 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 	hasSpineToc := pkg.SpineToc != ""
 	if !hasNCX || !hasSpineToc {
 		ins.addFinding("warn", `Kindle/legacy delivery should keep toc.ncx and spine toc="ncx"`, "", "")
-		ins.addSkill("epub-kindle-compatibility-checker", "warn")
-		ins.addSkill("epub-package-nav-auditor", "warn")
+		ins.addSkill("epub-reader-verify", "warn")
+		ins.addSkill("epub-audit", "warn")
 	}
 
 	// 封面。
@@ -411,8 +411,8 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 	}
 	if !hasCoverProp || !hasCoverMeta {
 		ins.addFinding("warn", `Cover should have properties="cover-image" and legacy meta name="cover"`, "", "")
-		ins.addSkill("epub-image-layout-optimizer", "warn")
-		ins.addSkill("epub-kindle-compatibility-checker", "warn")
+		ins.addSkill("epub-audit", "warn")
+		ins.addSkill("epub-reader-verify", "warn")
 	}
 
 	// manifest href 解析。
@@ -422,7 +422,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 		if item.Href == "" {
 			ins.addFinding("error", "Manifest item missing href", item.ID, "")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 			continue
 		}
 		if item.ArchivePath == "" {
@@ -430,7 +430,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 		if !hasEntry(ins.b, item.ArchivePath) {
 			ins.addFinding("error", "Manifest href missing", item.ArchivePath, "")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 		}
 	}
 
@@ -441,12 +441,12 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 		if ref.IDRef == "" {
 			ins.addFinding("error", "Spine idref missing from manifest", "<missing>", "")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 			continue
 		}
 		if _, ok := pkg.ItemByID(ref.IDRef); !ok {
 			ins.addFinding("error", "Spine idref missing from manifest", ref.IDRef, "")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 		}
 	}
 
@@ -484,7 +484,7 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 		references, err := cssscan.ScanReferences(raw)
 		if err != nil {
 			ins.addFinding("error", "CSS reference scan failed: "+err.Error(), item.Href, "css-reference-scan")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 			continue
 		}
 		for _, ref := range references {
@@ -513,7 +513,7 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 				if _, ok := manifestPaths[abs]; !ok {
 					ins.addFinding("error", "CSS url() target missing from OPF manifest",
 						item.Href+" -> "+target, "")
-					ins.addSkill("epub-package-nav-auditor", "error")
+					ins.addSkill("epub-audit", "error")
 				}
 				continue
 			}
@@ -527,13 +527,13 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 				ins.addFinding("warn",
 					"CSS font url() target missing; preserve declaration for local() fallback and review manually",
 					item.Href+" -> "+target, "missing-css-font-fallback")
-				ins.addSkill("epub-css-layering-optimizer", "warn")
-				ins.addSkill("epub-package-nav-auditor", "warn")
-				ins.addSkill("epub-typography-optimizer", "warn")
+				ins.addSkill("epub-cleanup", "warn")
+				ins.addSkill("epub-audit", "warn")
+				ins.addSkill("epub-cleanup", "warn")
 			} else {
 				ins.addFinding("error", "CSS url() target missing", item.Href+" -> "+target, "")
-				ins.addSkill("epub-css-layering-optimizer", "error")
-				ins.addSkill("epub-package-nav-auditor", "error")
+				ins.addSkill("epub-cleanup", "error")
+				ins.addSkill("epub-audit", "error")
 			}
 		}
 	}
@@ -551,15 +551,15 @@ func (ins *inspector) checkImages(ctx context.Context, pkg *opf.Package) {
 		switch {
 		case strings.HasSuffix(lower, ".webp"):
 			ins.addFinding("warn", "WebP is not a Kindle main-path image format", item.Href, "")
-			ins.addSkill("epub-image-layout-optimizer", "warn")
-			ins.addSkill("epub-kindle-compatibility-checker", "warn")
+			ins.addSkill("epub-audit", "warn")
+			ins.addSkill("epub-reader-verify", "warn")
 		case strings.HasSuffix(lower, ".svg") && opf.HasNavProps(item.Properties) && strings.Contains(" "+item.Properties+" ", " cover-image "):
 			ins.addFinding("warn", "SVG-only cover is risky for Kindle delivery", item.Href, "")
-			ins.addSkill("epub-image-layout-optimizer", "warn")
-			ins.addSkill("epub-kindle-compatibility-checker", "warn")
+			ins.addSkill("epub-audit", "warn")
+			ins.addSkill("epub-reader-verify", "warn")
 		case strings.HasSuffix(lower, ".tif") || strings.HasSuffix(lower, ".tiff") || strings.HasSuffix(lower, ".gif"):
 			ins.addFinding("warn", "Convert this image to JPEG/PNG for EPUB delivery", item.Href, "")
-			ins.addSkill("epub-image-layout-optimizer", "warn")
+			ins.addSkill("epub-audit", "warn")
 		}
 	}
 }
@@ -590,30 +590,30 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 		imageRefs += len(imgRe.FindAllString(text, -1))
 
 		if enLangRe.MatchString(text) {
-			ins.addSkill("epub-english-typography-optimizer", "info")
+			ins.addSkill("epub-special-layout", "info")
 		}
 		// 对齐 Python：含 <math（或命名空间 URI 子串）而 manifest 缺 properties。
 		if (strings.Contains(text, "<math") || strings.Contains(text, mathmlURI)) && !propsContain(pkg, item.Properties, "mathml") {
 			ins.addFinding("error", `MathML XHTML item missing properties="mathml"`, item.Href, "")
-			ins.addSkill("epub-package-nav-auditor", "error")
-			ins.addSkill("epub-kindle-compatibility-checker", "error")
+			ins.addSkill("epub-audit", "error")
+			ins.addSkill("epub-reader-verify", "error")
 		}
 		if (strings.Contains(text, "<svg") || strings.Contains(text, svgURI)) && !propsContain(pkg, item.Properties, "svg") {
 			ins.addFinding("error", `Inline SVG XHTML item missing properties="svg"`, item.Href, "")
-			ins.addSkill("epub-package-nav-auditor", "error")
+			ins.addSkill("epub-audit", "error")
 		}
 		if noterefRe.MatchString(text) {
-			ins.addSkill("epub-popup-footnote-converter", "info")
+			ins.addSkill("epub-cleanup", "info")
 			if !footnoteRe.MatchString(text) {
 				ins.addFinding("warn", "noteref found without same-file footnote aside", item.Href, "")
-				ins.addSkill("epub-popup-footnote-converter", "warn")
+				ins.addSkill("epub-cleanup", "warn")
 			}
 		}
 		if strings.Contains(text, "duokan-footnote") {
-			ins.addSkill("epub-legacy-footnote-fallback", "info")
+			ins.addSkill("epub-special-layout", "info")
 		}
 		if strings.Contains(text, "writing-mode") || strings.Contains(text, "page-vrl") || strings.Contains(text, "<ruby") {
-			ins.addSkill("epub-vertical-ruby-optimizer", "info")
+			ins.addSkill("epub-special-layout", "info")
 		}
 	}
 	ins.summaryOCRCounters(textChars, imageRefs)
@@ -636,25 +636,25 @@ func (ins *inspector) ocrHeuristic(pkg *opf.Package) {
 
 func (ins *inspector) mediaDrivenSkills(pkg *opf.Package, q string) {
 	if ins.summary.MediaCounts["css"] > 0 {
-		ins.addSkill("epub-css-layering-optimizer", "info")
+		ins.addSkill("epub-cleanup", "info")
 	}
 	if ins.summary.MediaCounts["xhtml"] > 0 {
-		ins.addSkill("epub-content-analyzer", "info")
+		ins.addSkill("epub-audit", "info")
 		ins.addCommand("epub run epub.text.content.analyze --input " + q + " --json")
 	}
 	if ins.summary.MediaCounts["images"] > 0 {
-		ins.addSkill("epub-image-layout-optimizer", "info")
+		ins.addSkill("epub-audit", "info")
 	}
 	if ins.summary.MediaCounts["fonts"] > 0 {
-		ins.addSkill("epub-font-coverage-analyzer", "info")
+		ins.addSkill("epub-audit", "info")
 		ins.addCommand("epub run epub.font.coverage.analyze --input " + q + " --json")
 	}
 	lang := ins.summary.Language
 	if ins.summary.MediaCounts["xhtml"] > 0 && !strings.HasPrefix(strings.ToLower(lang), "en") {
-		ins.addSkill("epub-typography-optimizer", "info")
+		ins.addSkill("epub-cleanup", "info")
 	}
-	ins.addSkill("epub-layout-auditor", "info")
-	ins.addSkill("epub-package-nav-auditor", "info")
+	ins.addSkill("epub-audit", "info")
+	ins.addSkill("epub-audit", "info")
 }
 
 // applyWorkflowMode 对齐 apply_workflow_mode：cleanup 模式重排技能。

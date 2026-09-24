@@ -72,12 +72,12 @@ func (ins *inspector) toolAvailability() map[string]bool {
 }
 
 // orderedSkills 对齐 apply_workflow_mode：去掉 source-intake，
-// layout-auditor 固定首位，其余按 (级别, 原序) 稳定排序。
+// epub-audit 固定首位，其余按 (级别, 原序) 稳定排序。
 func (ins *inspector) orderedSkills() []string {
 	first := ""
 	var rest []string
 	for _, s := range ins.skills {
-		if s == "$epub-layout-auditor" {
+		if s == "$epub-audit" {
 			first = s
 			continue
 		}

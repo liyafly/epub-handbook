@@ -57,15 +57,8 @@
     "warn": 5
   },
   "recommendedSkills": [
-    "$epub-layout-auditor",
-    "$epub-structure-normalizer",
-    "$epub3-migrator",
-    "$epub-package-nav-auditor",
-    "$epub-css-layering-optimizer",
-    "$epub-typography-optimizer",
-    "$epub-image-layout-optimizer",
-    "$epub-content-analyzer",
-    "$epub-font-coverage-analyzer"
+    "$epub-audit",
+    "$epub-cleanup"
   ],
   "toolAvailability": {
     "epubcheck": false

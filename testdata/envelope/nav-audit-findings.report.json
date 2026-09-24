@@ -2747,17 +2747,10 @@
     },
     "epub.package.nav.audit.input_kind": "existing-epub",
     "epub.package.nav.audit.recommendedSkills": [
-      "$epub-layout-auditor",
-      "$epub-package-nav-auditor",
-      "$epub-kindle-compatibility-checker",
-      "$epub-css-layering-optimizer",
-      "$epub-typography-optimizer",
-      "$epub-image-layout-optimizer",
-      "$epub-legacy-footnote-fallback",
-      "$epub-vertical-ruby-optimizer",
-      "$epub-popup-footnote-converter",
-      "$epub-content-analyzer",
-      "$epub-font-coverage-analyzer"
+      "$epub-audit",
+      "$epub-reader-verify",
+      "$epub-cleanup",
+      "$epub-special-layout"
     ],
     "epub.package.nav.audit.summary": {
       "language": "zh-CN",
