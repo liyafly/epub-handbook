@@ -25,6 +25,7 @@ import (
 	metadatacap "github.com/liyafly/epub-handbook/internal/caps/metadata"
 	migrateepub3 "github.com/liyafly/epub-handbook/internal/caps/migrate_epub3"
 	navaudit "github.com/liyafly/epub-handbook/internal/caps/navaudit"
+	notesfallback "github.com/liyafly/epub-handbook/internal/caps/notes_fallback"
 	popupnotes "github.com/liyafly/epub-handbook/internal/caps/popupnotes"
 	sourceintake "github.com/liyafly/epub-handbook/internal/caps/sourceintake"
 	splitcap "github.com/liyafly/epub-handbook/internal/caps/split"
@@ -182,6 +183,26 @@ func init() {
 	})
 	registerReadOnly("epub.notes.popup.normalize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return popupnotes.Run(ctx, b, popupnotes.Params{})
+	})
+	register("epub.notes.legacy-fallback", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+		violations := -1
+		if result, ok := up[notesfallback.UpstreamID]; ok {
+			if count, ok := result.Facts["violations"].(int); ok {
+				violations = count
+			}
+		}
+		var scope []string
+		if raw, ok := args["scope_paths"]; ok {
+			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
+				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
+			}
+			for _, path := range scope {
+				if path == "" {
+					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
+				}
+			}
+		}
+		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, ScopePaths: scope})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		if args.Get("query") != "" && !args.Bool("catalog") {

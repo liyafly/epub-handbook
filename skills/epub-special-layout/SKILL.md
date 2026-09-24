@@ -61,12 +61,17 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 旧版弹注 fallback
 
-`epub.notes.legacy-fallback` 当前未实现；人工叠加 hooks 后只读验证：
+先确认标准 grouped footnote 通过 popup validator；该写入能力也会自动运行同一上游校验。审阅 dry-run 计划后，写到新候选：
 
 ```sh
+epub run epub.notes.popup.normalize --input "before.epub" --json
+epub run epub.notes.legacy-fallback --input "before.epub" --dry-run --json
+epub run epub.notes.legacy-fallback --input "before.epub" --output "candidate.epub" --json
 epub run epub.notes.popup.normalize --input "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
+
+只处理精确的 spine XHTML 子集时，可在 dry-run 与实跑命令中加 `scope_paths='["OEBPS/Text/chapter.xhtml"]'`；每个路径必须属于 spine XHTML。检查 `facts["epub.notes.legacy-fallback.plannedEdits"]`、`editCount`、`filesScanned` 和 `skipped`。若上游不干净、目标路径不在 spine、结构不支持或属性不能安全编辑，finding 为 error 且本能力零写入；范围内没有 noteref 时返回 `notes-fallback.no-notes` info，不修改文件。
 
 ## 返回怎么读
 
@@ -84,7 +89,7 @@ blockList 的 evidence/confidence 用于角色复核，不是自动套 class 的
 
 ### 旧版弹注 fallback
 
-前缀 `epub.notes.popup.normalize.`：`noterefs/text_files/violations`；`error popupnotes` 的 title/location 指向问题。零违反只代表结构合格，不证明旧多看交互正确。
+前缀 `epub.notes.popup.normalize.`：`noterefs/text_files/violations`；`error popupnotes` 的 title/location 指向问题。零违反只代表结构合格，不证明旧多看交互正确。fallback 的 `plannedEdits` 列出 path/tag/id/addClass，`skipped` 说明未选文件、无注释文件或已有目标 class；有 error 时计划清空且不应用任何 class 编辑。
 
 ## 依据返回怎么判断
 

@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **`epub.notes.legacy-fallback`**：新增多看旧版弹注 class fallback；要求标准弹注校验干净，支持精确 spine XHTML 范围与 dry-run 计划，任何 error finding 都不会应用部分编辑。
 - **`epub.kindle.compatibility.check`**：新增只读 Kindle 静态风险 validator，覆盖 NCX/封面/图片、MathML、manifest CSS 与 spine XHTML；报告固定顺序的 finding 与计数，不代表目标阅读器验收。
 - **字体工具 CLI**：`tools-font/subset-demo` 更名为 `tools-font/epub-font`，提供 `epub-font subset` / `epub-font check`；修复 `check` 将 CSS 非渲染字符串当作必需字符的误报。
 - **引用安全与 EPUB 输入限额**（`390e27f`）：XHTML / CSS / SVG 引用改写限定在真实语法区域；ZIP 元数据、归档条目数、单条与总解压量及辅助输入加入上限与取消检查。

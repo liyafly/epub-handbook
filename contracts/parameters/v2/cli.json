@@ -210,8 +210,13 @@
       "parameters": {}
     },
     "epub.notes.legacy-fallback": {
-      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
-      "parameters": {}
+      "description": "在已通过 popup 校验的标准 grouped footnote 上只叠加多看 legacy class；不复制注释、不改图标、manifest 与 CSS。",
+      "parameters": {
+        "scope_paths": {
+          "type": "json-string-array",
+          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；省略则处理全部含注释的 spine XHTML。"
+        }
+      }
     },
     "epub.typography.english.optimize": {
       "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
