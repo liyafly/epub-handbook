@@ -114,6 +114,11 @@ func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (repor
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
+	actionableFindings := ins.detectActionable(ctx)
+	if err := ctx.Err(); err != nil {
+		return report.Result{}, err
+	}
+	ins.addActionableFindings(actionableFindings)
 
 	res := report.Result{
 		Capability: "epub.package.nav.audit",
@@ -156,7 +161,7 @@ func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (repor
 	res.Facts["findingsByLevel"] = countFindingsByLevel(res.Findings)
 	res.Facts["recommendedSkills"] = ins.orderedSkills()
 	res.Facts["toolAvailability"] = ins.toolAvailability()
-	res.Facts["actionableFindings"] = ins.detectActionable(ctx)
+	res.Facts["actionableFindings"] = actionableFindings
 	res.NextCommands = ins.nextCommands()
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
@@ -276,9 +281,6 @@ func (ins *inspector) inspect(ctx context.Context) {
 		ins.summary.HasOPF = true
 		ins.summary.OPF = ins.opfPath
 		ins.inspectOPF(ctx)
-	}
-	if len(ins.findings) == 0 {
-		ins.addFinding("info", "No immediate structural issue detected by harness", "", "")
 	}
 	ins.addCommand("epub capabilities --json")
 	// preflight 特有：epubcheck 可用性（经 extern；本机无 → 注释行占位）。

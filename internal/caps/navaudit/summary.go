@@ -46,6 +46,20 @@ func countFindingsByLevel(findings []report.Finding) findingsByLevel {
 	return levels
 }
 
+// addActionableFindings exposes detector issues in the primary findings list.
+// Actionable detector results do not have a severity field, so each is reported
+// as a warning. The informational all-clear message is emitted only when both
+// structural and actionable findings are empty.
+func (ins *inspector) addActionableFindings(actionable []detectorFinding) {
+	if len(ins.findings) == 0 && len(actionable) == 0 {
+		ins.addFinding("info", "No immediate structural issue detected by harness", "", "")
+		return
+	}
+	for _, finding := range actionable {
+		ins.addFinding("warn", "Actionable issue detected: "+finding.Kind, finding.File, finding.Kind)
+	}
+}
+
 // toolAvailability 返回本机外部工具探测结果（无探测记录时为空对象）。
 func (ins *inspector) toolAvailability() map[string]bool {
 	out := map[string]bool{}

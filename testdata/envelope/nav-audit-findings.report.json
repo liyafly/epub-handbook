@@ -20,7 +20,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -34,7 +34,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -48,7 +48,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -62,7 +62,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -76,7 +76,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -90,7 +90,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -104,7 +104,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -118,7 +118,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -132,7 +132,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -146,7 +146,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -160,7 +160,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -174,7 +174,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -188,7 +188,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -202,7 +202,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -216,7 +216,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -230,7 +230,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -244,7 +244,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -258,7 +258,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -272,7 +272,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -286,7 +286,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -300,7 +300,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -314,7 +314,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -328,7 +328,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -342,7 +342,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -356,7 +356,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -370,7 +370,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -384,7 +384,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -398,7 +398,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -412,7 +412,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -426,7 +426,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -440,7 +440,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -454,7 +454,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -468,7 +468,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -482,7 +482,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -496,7 +496,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -510,7 +510,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -524,7 +524,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -538,7 +538,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -552,7 +552,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -566,7 +566,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -580,7 +580,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -594,7 +594,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -608,7 +608,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -622,7 +622,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -636,7 +636,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -650,7 +650,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -664,7 +664,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -678,7 +678,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -692,7 +692,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -706,7 +706,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -720,7 +720,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -734,7 +734,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -748,7 +748,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -762,7 +762,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -776,7 +776,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -790,7 +790,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -804,7 +804,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -818,7 +818,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -832,7 +832,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -846,7 +846,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -860,7 +860,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -874,7 +874,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -888,7 +888,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -902,7 +902,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -916,7 +916,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -930,7 +930,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -944,7 +944,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -958,7 +958,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -972,7 +972,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -986,7 +986,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1000,7 +1000,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1014,7 +1014,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1028,7 +1028,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1042,7 +1042,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1056,7 +1056,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1070,7 +1070,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1084,7 +1084,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1098,7 +1098,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1112,7 +1112,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1126,7 +1126,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1140,7 +1140,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1154,7 +1154,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1168,7 +1168,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1182,7 +1182,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1196,7 +1196,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1210,7 +1210,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1224,7 +1224,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1238,7 +1238,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1252,7 +1252,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1266,7 +1266,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1280,7 +1280,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1294,7 +1294,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1308,7 +1308,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1322,7 +1322,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1336,7 +1336,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1350,7 +1350,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1364,7 +1364,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1378,7 +1378,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1392,7 +1392,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1406,7 +1406,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1420,7 +1420,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1434,7 +1434,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1448,7 +1448,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1462,7 +1462,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1476,7 +1476,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1490,7 +1490,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1504,7 +1504,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1518,7 +1518,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1532,7 +1532,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1546,7 +1546,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1560,7 +1560,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1574,7 +1574,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1588,7 +1588,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1602,7 +1602,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1616,7 +1616,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1630,7 +1630,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1644,7 +1644,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1658,7 +1658,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1672,7 +1672,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1686,7 +1686,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1700,7 +1700,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1714,7 +1714,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1728,7 +1728,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1742,7 +1742,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1756,7 +1756,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1770,7 +1770,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1784,7 +1784,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1798,7 +1798,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1812,7 +1812,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1826,7 +1826,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1840,7 +1840,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1854,7 +1854,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1868,7 +1868,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1882,7 +1882,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1896,7 +1896,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1910,7 +1910,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1924,7 +1924,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1938,7 +1938,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1952,7 +1952,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1966,7 +1966,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1980,7 +1980,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -1994,7 +1994,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2008,7 +2008,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2022,7 +2022,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2036,7 +2036,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2050,7 +2050,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2064,7 +2064,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2078,7 +2078,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2092,7 +2092,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2106,7 +2106,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2120,7 +2120,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2134,7 +2134,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2148,7 +2148,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2162,7 +2162,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2176,7 +2176,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2190,7 +2190,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2204,7 +2204,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2218,7 +2218,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2232,7 +2232,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2246,7 +2246,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2260,7 +2260,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2274,7 +2274,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2288,7 +2288,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2302,7 +2302,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2316,7 +2316,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2330,7 +2330,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2344,7 +2344,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2358,7 +2358,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2372,7 +2372,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2386,7 +2386,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2400,7 +2400,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2414,7 +2414,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2428,7 +2428,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2442,7 +2442,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2456,7 +2456,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2470,7 +2470,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "missing-html-lang",
@@ -2484,7 +2484,7 @@
         "lane": "tag",
         "autoFixable": true,
         "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+        "evidence": "<html> root element missing lang/xml:lang"
       },
       {
         "kind": "empty-paragraph",
@@ -2742,7 +2742,7 @@
     "epub.package.nav.audit.auditStatus": "fail",
     "epub.package.nav.audit.findingsByLevel": {
       "error": 2,
-      "warn": 9,
+      "warn": 204,
       "info": 0
     },
     "epub.package.nav.audit.input_kind": "existing-epub",
@@ -2784,49 +2784,49 @@
       "id": "audit.0",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/sgc-nav.css -\u003e ../Fonts/SimHei.ttf"
+      "location": "Styles/sgc-nav.css -> ../Fonts/SimHei.ttf"
     },
     {
       "level": "warn",
       "id": "audit.1",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/YaSong.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/YaSong.ttf"
     },
     {
       "level": "warn",
       "id": "audit.2",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/FangSong.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/FangSong.ttf"
     },
     {
       "level": "warn",
       "id": "audit.3",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/ZhunYuan.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/ZhunYuan.ttf"
     },
     {
       "level": "warn",
       "id": "audit.4",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/KaiTi.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/KaiTi.ttf"
     },
     {
       "level": "warn",
       "id": "audit.5",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/SimHei.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/SimHei.ttf"
     },
     {
       "level": "warn",
       "id": "audit.6",
       "title": "CSS font url() target missing; preserve declaration for local() fallback and review manually",
       "detail": "missing-css-font-fallback",
-      "location": "Styles/Stylesheet.css -\u003e ../Fonts/XiaoBiaoSong.ttf"
+      "location": "Styles/Stylesheet.css -> ../Fonts/XiaoBiaoSong.ttf"
     },
     {
       "level": "warn",
@@ -2851,6 +2851,1371 @@
       "id": "audit.10",
       "title": "MathML XHTML item missing properties=\"mathml\"",
       "location": "Text/Chapter8-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.11",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.12",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.13",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.14",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.15",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.16",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/cover.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.17",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter1-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.18",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter2-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.19",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.20",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter2-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.21",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter2-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.22",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter2-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.23",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.24",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.25",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.26",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.27",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.28",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.29",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.30",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.31",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.32",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.33",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.34",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.35",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.36",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.37",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.38",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.39",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.40",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-13.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.41",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-4-14.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.42",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.43",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.44",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.45",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.46",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.47",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.48",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter4-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.49",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.50",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.51",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.52",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.53",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.54",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.55",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.56",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.57",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.58",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.59",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.60",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.61",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.62",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.63",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.64",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.65",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.66",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.67",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.68",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.69",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.70",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.71",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-13.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.72",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-14.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.73",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-15.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.74",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-16.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.75",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-17.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.76",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-18.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.77",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-19.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.78",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-20.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.79",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-21.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.80",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-22.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.81",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-23.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.82",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-3-24.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.83",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.84",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.85",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.86",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.87",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.88",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.89",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.90",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.91",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.92",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.93",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.94",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.95",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.96",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-13.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.97",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-14.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.98",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-15.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.99",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-16.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.100",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-17.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.101",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-18.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.102",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-4-19.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.103",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.104",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter5-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.105",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.106",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.107",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.108",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.109",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.110",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-3-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.111",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-3-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.112",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-3-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.113",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter6-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.114",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.115",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.116",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.117",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.118",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.119",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.120",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.121",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.122",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.123",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.124",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.125",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.126",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.127",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.128",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.129",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.130",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.131",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.132",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.133",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.134",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.135",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.136",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.137",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.138",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-7-12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.139",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.140",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.141",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter3-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.142",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.143",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.144",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.145",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.146",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.147",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.148",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.149",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.150",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter10-11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.151",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter11.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.152",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter11-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.153",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter11-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.154",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.155",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter11-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.156",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.157",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.158",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.159",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Copyright.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.160",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Sponsor.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.161",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Acknowledgments.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.162",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Landmarks.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.163",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.164",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.165",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.166",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.167",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Foreword.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.168",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Learning-Path.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.169",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.170",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Colophon.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.171",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.172",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Book-notes.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.173",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter7-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.174",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.175",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.176",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter12-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.177",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-3.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.178",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.179",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.180",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.181",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-7.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.182",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-8.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.183",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.184",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-10.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.185",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter9-13.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.186",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Appendix6.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.187",
+      "title": "Actionable issue detected: missing-html-lang",
+      "detail": "missing-html-lang",
+      "location": "OEBPS/Text/Chapter8-5.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.188",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter2-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.189",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter2-2.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.190",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter3-4-4.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.191",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.192",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.193",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.194",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.195",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.196",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.197",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.198",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.199",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.200",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.201",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.202",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.203",
+      "title": "Actionable issue detected: empty-paragraph",
+      "detail": "empty-paragraph",
+      "location": "OEBPS/Text/Chapter5-3-1.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.204",
+      "title": "Actionable issue detected: missing-manifest-properties",
+      "detail": "missing-manifest-properties",
+      "location": "OEBPS/Text/Chapter5-3-9.xhtml"
+    },
+    {
+      "level": "warn",
+      "id": "audit.205",
+      "title": "Actionable issue detected: missing-manifest-properties",
+      "detail": "missing-manifest-properties",
+      "location": "OEBPS/Text/Chapter8-8.xhtml"
     }
   ],
   "events": [
@@ -2862,7 +4227,7 @@
   "nextCommands": [
     "epub run epub.layout.audit --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
     "epub run epub.notes.popup.normalize --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --dry-run --json",
-    "epub redline --check all \u003cbefore.epub\u003e \u003cafter.epub\u003e",
+    "epub redline --check all <before.epub> <after.epub>",
     "epub run epub.text.content.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
     "epub run epub.font.coverage.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
     "epub capabilities --json",

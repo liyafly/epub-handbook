@@ -96,6 +96,47 @@ func TestNativeFixtureGolden(t *testing.T) {
 	}
 }
 
+func TestActionableMissingHTMLLangAppearsInFindings(t *testing.T) {
+	path := writeNativeFixture(t)
+	b, err := book.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Facts["auditStatus"]; got == "pass" {
+		t.Fatalf("auditStatus = %v, want warning or failure for missing html lang", got)
+	}
+	for _, finding := range res.Findings {
+		if finding.Detail == "missing-html-lang" {
+			return
+		}
+	}
+	t.Fatalf("findings do not include missing-html-lang: %+v", res.Findings)
+}
+
+func TestAllClearInfoRequiresNoActionableFindings(t *testing.T) {
+	t.Run("all clear", func(t *testing.T) {
+		ins := &inspector{}
+		ins.addActionableFindings(nil)
+		if len(ins.findings) != 1 || ins.findings[0].Level != "info" {
+			t.Fatalf("all-clear findings = %+v, want one info finding", ins.findings)
+		}
+	})
+
+	t.Run("actionable issue", func(t *testing.T) {
+		ins := &inspector{}
+		ins.addActionableFindings([]detectorFinding{{Kind: "missing-html-lang", File: "nav.xhtml"}})
+		if len(ins.findings) != 1 || ins.findings[0].Level != "warn" || ins.findings[0].Kind != "missing-html-lang" {
+			t.Fatalf("actionable findings = %+v, want only a warning for missing-html-lang", ins.findings)
+		}
+	})
+}
+
 func normalizeFixtureCommands(commands []string, path string) []string {
 	quoted := report.ShellQuote(path)
 	out := make([]string, len(commands))

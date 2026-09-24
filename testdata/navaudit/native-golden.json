@@ -42,12 +42,19 @@
       "level": "warn",
       "location": "Images/legacy.gif",
       "title": "Convert this image to JPEG/PNG for EPUB delivery"
+    },
+    {
+      "detail": "missing-html-lang",
+      "id": "audit.4",
+      "level": "warn",
+      "location": "OEBPS/nav.xhtml",
+      "title": "Actionable issue detected: missing-html-lang"
     }
   ],
   "findingsByLevel": {
     "error": 0,
     "info": 0,
-    "warn": 4
+    "warn": 5
   },
   "recommendedSkills": [
     "$epub-layout-auditor",
