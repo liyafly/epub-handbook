@@ -149,9 +149,9 @@ func buildChainedIDFixture(t *testing.T, path string) {
 	entries := []fixtureEntry{
 		{"mimetype", "application/epub+zip"},
 		{"META-INF/container.xml", `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`},
-		{"OPS/package.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:test:chained</dc:identifier><dc:title>Chained IDs</dc:title><dc:language>en</dc:language></metadata><manifest><item id="y" href="Text/x.xhtml" media-type="application/xhtml+xml"/><item id="z" href="Text/y.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="y"/><itemref idref="z"/></spine></package>`},
-		{"OPS/Text/x.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>X</title></head><body><p>Text from X.</p></body></html>`},
-		{"OPS/Text/y.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Y</title></head><body><p>Text from Y.</p></body></html>`},
+		{"OPS/package.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:test:chained</dc:identifier><dc:title>Chained IDs</dc:title><dc:language>en</dc:language></metadata><manifest><item id="y" href="Text/x*.xhtml" media-type="application/xhtml+xml"/><item id="z" href="Text/y*.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="y"/><itemref idref="z"/></spine></package>`},
+		{"OPS/Text/x*.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>X</title></head><body><p>Text from X.</p></body></html>`},
+		{"OPS/Text/y*.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Y</title></head><body><p>Text from Y.</p></body></html>`},
 	}
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
@@ -383,16 +383,27 @@ func TestDeobfuscateMatchesPythonAssertions(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	rep := factsOf(t, res)
-	if rep.FontObfuscationResources != 1 || rep.RenamedResources != 5 || rep.MovedResources != 7 {
+	if rep.FontObfuscationResources != 1 || rep.RenamedResources != 2 || rep.MovedResources != 7 {
 		t.Fatalf("报告错误: %+v", rep)
+	}
+	wantRaw, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "structure-normalize", "deobfuscate-mappings.json"))
+	if err != nil {
+		t.Fatalf("read deobfuscate mapping golden: %v", err)
+	}
+	var wantMappings map[string]string
+	if err := json.Unmarshal(wantRaw, &wantMappings); err != nil {
+		t.Fatalf("decode deobfuscate mapping golden: %v", err)
+	}
+	if !reflect.DeepEqual(res.Renames, wantMappings) {
+		t.Fatalf("Renames = %v, want golden %v", res.Renames, wantMappings)
 	}
 
 	zr := openZip(t, output)
 	assertMimetypeStored(t, zr)
 	names := zipNames(zr)
 	for _, want := range []string{
-		"OPS/Text/chapter-one.xhtml", "OPS/Text/appendix.xhtml", "OPS/Styles/main-css.css",
-		"OPS/Images/cover-image.jpg", "OPS/Fonts/font-main.ttf", "OPS/toc.ncx",
+		"OPS/Text/chapter-one.xhtml", "OPS/Text/appendix.xhtml", "OPS/Styles/theme.css",
+		"OPS/Images/cover-image.jpg", "OPS/Fonts/font.ttf", "OPS/book.ncx",
 	} {
 		if !names[want] {
 			t.Errorf("缺少 entry %s；实际 %v", want, names)
@@ -403,6 +414,9 @@ func TestDeobfuscateMatchesPythonAssertions(t *testing.T) {
 	for _, want := range []string{
 		`id="chapter-one.xhtml" href="Text/chapter-one.xhtml"`,
 		`id="cover-image" href="Images/cover-image.jpg"`,
+		`id="main-css" href="Styles/theme.css"`,
+		`id="font-main" href="Fonts/font.ttf"`,
+		`id="toc" href="book.ncx"`,
 	} {
 		if !strings.Contains(opf, want) {
 			t.Errorf("OPF 缺少 %q", want)
@@ -410,7 +424,7 @@ func TestDeobfuscateMatchesPythonAssertions(t *testing.T) {
 	}
 	chapter := string(zipRead(t, zr, "OPS/Text/chapter-one.xhtml"))
 	for _, want := range []string{
-		`href="../Styles/main-css.css"`,
+		`href="../Styles/theme.css"`,
 		`src="../Images/cover-image.jpg"`,
 		`srcset="data:image/svg+xml,%3Csvg%3E 1x, ../Images/cover-image.jpg 2x, ../Images/cover-image.jpg#hi 3x"`,
 		"正文保留。",
@@ -420,7 +434,7 @@ func TestDeobfuscateMatchesPythonAssertions(t *testing.T) {
 		}
 	}
 	enc := string(zipRead(t, zr, "META-INF/encryption.xml"))
-	if !strings.Contains(enc, `URI="OPS/Fonts/font-main.ttf"`) {
+	if !strings.Contains(enc, `URI="OPS/Fonts/font.ttf"`) {
 		t.Errorf("encryption.xml 未同步改写: %q", enc)
 	}
 }
@@ -465,13 +479,13 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	}
 	// Result.Renames 把 format 与 deobfuscate 两阶段组合成原路径到最终路径。
 	wantRenames := map[string]string{
-		"OPS/legacy/book.ncx":       "OPS/toc.ncx",
+		"OPS/legacy/book.ncx":       "OPS/book.ncx",
 		"OPS/legacy/nav.xhtml":      "OPS/Text/nav.xhtml",
 		"OPS/legacy/?mix.xhtml":     "OPS/Text/chapter-one.xhtml",
 		"OPS/legacy/appendix.xhtml": "OPS/Text/appendix.xhtml",
-		"OPS/legacy/theme.css":      "OPS/Styles/main-css.css",
+		"OPS/legacy/theme.css":      "OPS/Styles/theme.css",
 		"OPS/assets/*cover.JPG":     "OPS/Images/cover-image.jpg",
-		"OPS/assets/font.ttf":       "OPS/Fonts/font-main.ttf",
+		"OPS/assets/font.ttf":       "OPS/Fonts/font.ttf",
 	}
 	if !reflect.DeepEqual(res.Renames, wantRenames) {
 		t.Fatalf("Renames 阶段组合错误: %v", res.Renames)
@@ -480,7 +494,7 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	zr := openZip(t, output)
 	assertMimetypeStored(t, zr)
 	names := zipNames(zr)
-	if !names["OPS/Text/chapter-one.xhtml"] || !names["OPS/Styles/main-css.css"] {
+	if !names["OPS/Text/chapter-one.xhtml"] || !names["OPS/Styles/theme.css"] {
 		t.Fatalf("normalize 产物缺 entry: %v", names)
 	}
 	chapter := string(zipRead(t, zr, "OPS/Text/chapter-one.xhtml"))
@@ -505,8 +519,8 @@ func TestDeobfuscateChainedIDsPassRedline(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	wantRenames := map[string]string{
-		"OPS/Text/x.xhtml": "OPS/Text/y.xhtml",
-		"OPS/Text/y.xhtml": "OPS/Text/z.xhtml",
+		"OPS/Text/x*.xhtml": "OPS/Text/y.xhtml",
+		"OPS/Text/y*.xhtml": "OPS/Text/z.xhtml",
 	}
 	if !reflect.DeepEqual(res.Renames, wantRenames) {
 		t.Fatalf("Renames = %v, want simultaneous stage map %v", res.Renames, wantRenames)
@@ -622,24 +636,41 @@ func TestDeobfuscatedBasenameRules(t *testing.T) {
 	}{
 		{"chapter-one.xhtml", "OPS/legacy/?mix.xhtml", "chapter-one.xhtml"},
 		{"appendix", "OPS/legacy/appendix.xhtml", "appendix.xhtml"},
-		{"main-css", "OPS/legacy/theme.css", "main-css.css"},
+		{"main-css", "OPS/legacy/theme.css", "theme.css"},
 		{"cover-image", "OPS/assets/*cover.JPG", "cover-image.jpg"},
-		{"font-main", "OPS/assets/font.ttf", "font-main.ttf"},
-		{"toc", "OPS/legacy/book.ncx", "toc.ncx"},
+		{"font-main", "OPS/assets/font.ttf", "font.ttf"},
+		{"toc", "OPS/legacy/book.ncx", "book.ncx"},
 		// slim 规则：id 上的 ~slim / -slim / _slim 后缀保留为 ~slim。
-		{"main-css~slim", "OPS/legacy/theme.css", "main-css~slim.css"},
-		{"main-css-slim", "OPS/legacy/theme.css", "main-css~slim.css"},
+		{"main-css~slim", "OPS/legacy/theme*.css", "main-css~slim.css"},
+		{"main-css-slim", "OPS/legacy/theme*.css", "main-css~slim.css"},
 		// 源文件名带 slim：id 无 slim 也要补 ~slim。
 		{"text", "OPS/legacy/chapter~slim.xhtml", "text~slim.xhtml"},
 		// 非法字符清洗 + 空名回退到 sha256（Python：连续非法段替换为一个 "-"）。
-		{"weird*name", "OPS/x.html", "weird-name.html"},
-		{"***", "OPS/x.html", "-.html"},
-		{"...", "OPS/x.html", "resource-" + sha256Hex12("...") + ".html"},
+		{"weird*name", "OPS/*x.html", "weird-name.html"},
+		{"***", "OPS/?x.html", "-.html"},
+		{"...", "OPS/?mix.html", "resource-" + sha256Hex12("...") + ".html"},
 	}
 	for _, tc := range cases {
 		got := deobfuscatedBasename(manifestResource{itemID: tc.itemID, archivePath: tc.archivePath})
 		if got != tc.want {
 			t.Errorf("deobfuscatedBasename(%q, %q) = %q, want %q", tc.itemID, tc.archivePath, got, tc.want)
+		}
+	}
+}
+
+func TestReadableFilenameRules(t *testing.T) {
+	for _, name := range []string{"chapter.xhtml", "cover.png", "toc.ncx", "book-02.xhtml", "style_1.css", "part9"} {
+		if !readableFilename(name) {
+			t.Errorf("readableFilename(%q) = false", name)
+		}
+	}
+	hash32 := strings.Repeat("a", 32) + ".xhtml"
+	hash40 := strings.Repeat("b", 40) + ".css"
+	hash64 := strings.Repeat("C", 64) + ".jpg"
+	long := strings.Repeat("a", 36) + ".xhtml"
+	for _, name := range []string{"123.xhtml", "?mix.xhtml", hash32, hash40, hash64, long, "a..xhtml", "-_.xhtml"} {
+		if readableFilename(name) {
+			t.Errorf("readableFilename(%q) = true", name)
 		}
 	}
 }

@@ -603,6 +603,9 @@ func classifyResource(resource manifestResource) string {
 // deobfuscatedBasename 逐行复刻 deobfuscated_basename。
 func deobfuscatedBasename(resource manifestResource) string {
 	sourceName := pyBasename(resource.archivePath)
+	if readableFilename(sourceName) {
+		return sourceName
+	}
 	_, sourceExt := pySplitExt(sourceName)
 	itemName := resource.itemID
 	itemStem, itemExt := pySplitExt(itemName)
@@ -624,6 +627,61 @@ func deobfuscatedBasename(resource manifestResource) string {
 		suffix = "~slim"
 	}
 	return stem + suffix + strings.ToLower(sourceExt)
+}
+
+func readableFilename(name string) bool {
+	if name == "" || len(name) > 40 || strings.Count(name, ".") > 1 {
+		return false
+	}
+	stem, _ := pySplitExt(name)
+	if stem == "" || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") {
+		return false
+	}
+	for _, r := range name {
+		if r == '.' {
+			continue
+		}
+		if !asciiAlphaNumeric(r) && r != '-' && r != '_' {
+			return false
+		}
+	}
+	if (len(stem) == 32 || len(stem) == 40 || len(stem) == 64) && allHex(stem) {
+		return false
+	}
+	for _, word := range strings.FieldsFunc(stem, func(r rune) bool { return r == '-' || r == '_' }) {
+		if word != "" && !allASCIIDigits(word) {
+			return true
+		}
+	}
+	return false
+}
+
+func asciiAlphaNumeric(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+}
+
+func allASCIIDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func allHex(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f' || r >= 'A' && r <= 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 // cutSlimSuffix 复刻正则 (?:[~_-]?slim)$（大小写不敏感）的匹配与剥离。

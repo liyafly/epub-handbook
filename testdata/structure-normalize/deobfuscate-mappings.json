@@ -1,0 +1,9 @@
+{
+  "OPS/legacy/book.ncx": "OPS/book.ncx",
+  "OPS/legacy/nav.xhtml": "OPS/Text/nav.xhtml",
+  "OPS/legacy/?mix.xhtml": "OPS/Text/chapter-one.xhtml",
+  "OPS/legacy/appendix.xhtml": "OPS/Text/appendix.xhtml",
+  "OPS/legacy/theme.css": "OPS/Styles/theme.css",
+  "OPS/assets/*cover.JPG": "OPS/Images/cover-image.jpg",
+  "OPS/assets/font.ttf": "OPS/Fonts/font.ttf"
+}
