@@ -3,7 +3,7 @@
   "id": "epub.kindle.compatibility.check",
   "version": "1.0.0",
   "kind": "validator",
-  "legacySkillSlugs": ["epub-kindle-compatibility-checker"],
+  "legacySkillSlugs": ["epub-reader-verify"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
   "redLines": [],

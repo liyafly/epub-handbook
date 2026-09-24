@@ -3,7 +3,7 @@
   "id": "epub.layout.audit",
   "version": "1.0.0",
   "kind": "planner",
-  "legacySkillSlugs": ["epub-layout-auditor"],
+  "legacySkillSlugs": ["epub-audit"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/execution-plan.schema.json",
   "redLines": [],

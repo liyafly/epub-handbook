@@ -3,7 +3,7 @@
   "id": "epub.vertical.ruby.optimize",
   "version": "1.0.0",
   "kind": "transformer",
-  "legacySkillSlugs": ["epub-vertical-ruby-optimizer"],
+  "legacySkillSlugs": ["epub-special-layout"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "anchors"],

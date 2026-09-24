@@ -3,7 +3,7 @@
   "id": "epub.literary.structure.format",
   "version": "1.0.0",
   "kind": "transformer",
-  "legacySkillSlugs": ["epub-literary-structure-formatter"],
+  "legacySkillSlugs": ["epub-special-layout"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "anchors"],

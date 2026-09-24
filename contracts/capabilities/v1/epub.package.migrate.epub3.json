@@ -3,7 +3,7 @@
   "id": "epub.package.migrate.epub3",
   "version": "1.0.0",
   "kind": "transformer",
-  "legacySkillSlugs": ["epub3-migrator"],
+  "legacySkillSlugs": ["epub-cleanup"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "metadata", "spine", "anchors", "cover", "drm"],

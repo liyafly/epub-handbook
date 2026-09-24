@@ -3,7 +3,7 @@
   "id": "epub.cover.replace",
   "version": "1.0.0",
   "kind": "transformer",
-  "legacySkillSlugs": ["epub-package-operator"],
+  "legacySkillSlugs": ["epub-package-ops"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "metadata", "spine", "anchors", "cover", "drm"],

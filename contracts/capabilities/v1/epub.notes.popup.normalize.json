@@ -3,7 +3,7 @@
   "id": "epub.notes.popup.normalize",
   "version": "1.0.0",
   "kind": "transformer",
-  "legacySkillSlugs": ["epub-popup-footnote-converter"],
+  "legacySkillSlugs": ["epub-cleanup"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/run-report.schema.json",
   "redLines": ["text", "anchors", "metadata"],

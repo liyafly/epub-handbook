@@ -3,7 +3,7 @@
   "id": "epub.style.demo.maintain",
   "version": "1.0.0",
   "kind": "planner",
-  "legacySkillSlugs": ["epub-style-demo-maintainer"],
+  "legacySkillSlugs": ["epub-reader-verify"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/execution-plan.schema.json",
   "redLines": [],

@@ -3,7 +3,7 @@
   "id": "epub.package.nav.audit",
   "version": "1.0.0",
   "kind": "validator",
-  "legacySkillSlugs": ["epub-package-nav-auditor"],
+  "legacySkillSlugs": ["epub-audit"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
   "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
   "redLines": ["metadata", "spine", "cover", "drm"],
