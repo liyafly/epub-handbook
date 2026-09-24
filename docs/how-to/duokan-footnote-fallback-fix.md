@@ -8,7 +8,7 @@
 
 开始前先确认：
 
-- 标准弹注已经通过 `epub-popup-footnote-converter` 整理；
+- 标准弹注已经通过 `epub-cleanup` 整理；
 - noteref、注释目标和回跳位于同一 XHTML；
 - 同一 XHTML 只有一个 grouped note body；
 - 目标阅读器与版本可用于实测。
@@ -67,7 +67,7 @@ ol.duokan-footnote-content {
 
 - `templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml`：单条 fallback；
 - `templates/epub-style-demo/retired/06-multi-legacy-note-fallback.xhtml`：历史多条注释 grouped list 对照；
-- `skills/epub-legacy-footnote-fallback/SKILL.md`：可执行行为契约；
+- `skills/epub-special-layout/SKILL.md`：可执行行为契约；
 - `docs/final/reader-matrix.yaml`：阅读器实测记录。
 
 ## 5. 验证

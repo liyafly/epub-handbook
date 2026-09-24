@@ -85,7 +85,7 @@
   的解析失败改走 `pipeline.UsageError`（退出码 3），不再与 `max_files` 一个退 3 一个退 1。
 - **改名映射出得了信封**：`epub.package.merge` / `epub.cover.replace` 的改名此前只走内部
   `Result.Renames`（喂 pipeline 的红线 path map），信封里只有计数，`epub redline --path-map`
-  在合并或换封面之后没有映射可用；`skills/epub-package-operator/SKILL.md` 却让 agent 去读
+  在合并或换封面之后没有映射可用；`skills/epub-package-ops/SKILL.md` 却让 agent 去读
   信封里并不存在的 `renames` 字段。现在两者都给出与 `epub.structure.normalize` 同形状的
   `facts` 键 `mappings`（`{from,to}` 数组，空时为 `[]`），SKILL.md 同步改为实际键名。
 - **`epub.font.coverage.analyze` 的错误归因**：`extern.Run` 的 error 被丢弃，进程起不来时
@@ -100,6 +100,17 @@
   `internal/legacy_surface/`、`internal/docguard/` 与 INV-10 棘轮基线。
 
 ### Changed
+
+- **Skills 按任务从 19 个合并为 6 个入口**：
+
+  | 新 skill | 合并来源 |
+  | --- | --- |
+  | `epub-audit` | `epub-package-nav-auditor`、`epub-layout-auditor`、`epub-content-analyzer`、`epub-image-layout-optimizer`、`epub-font-coverage-analyzer` |
+  | `epub-cleanup` | `epub-structure-normalizer`、`epub3-migrator`、`epub-css-layering-optimizer`、`epub-typography-optimizer`、`epub-popup-footnote-converter` |
+  | `epub-package-ops` | `epub-package-operator`、`epub-alite-converter` |
+  | `epub-source-intake` | 保持不变 |
+  | `epub-special-layout` | `epub-english-typography-optimizer`、`epub-literary-structure-formatter`、`epub-vertical-ruby-optimizer`、`epub-legacy-footnote-fallback` |
+  | `epub-reader-verify` | `epub-kindle-compatibility-checker`、`epub-style-demo-maintainer` |
 
 - **共享字节编辑 helper 并传播扫描取消**（`77235e9`）：公共路径与 OPF edit helpers 供能力复用；将 context 传入目录遍历、XML token 扫描和 CSS 清理阶段。
 

@@ -109,7 +109,7 @@ epub redline --check all BOOK.epub NEW.epub
 ## 5. 在清洗流水线中的位置（编号对应 [cleanup-flow.md](cleanup-flow.md)）
 
 - §1 健康检查：列出 WebP、大图、大字体作为黄线候选。
-- §6 分派清洗：由 `epub-image-layout-optimizer` 和 `epub-typography-optimizer` 调用本指南命令。
+- §6 分派清洗：由 `epub-audit` 和 `epub-cleanup` 调用本指南命令。
 - §7 文本校验：每个写出步骤后 `epub redline --check all` 必须退出 0。
 - §8 Diff 人工 review：资源层显示文件 hash、大小和格式变化。
 

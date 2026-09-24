@@ -1,6 +1,6 @@
 # 典型脏 EPUB 模式目录
 
-> 状态：模式 + 推荐 skill 顺序；用作 `epub-layout-auditor` 决策的具体落地参考。
+> 状态：模式 + 推荐 skill 顺序；用作 `epub-audit` 决策的具体落地参考。
 > 对应 SPEC：[§10 能力清单](../final/SPEC-实现约束.md)。
 
 ## 怎么用本目录
@@ -24,11 +24,9 @@
 
 推荐 skill 顺序：
 
-1. `epub-package-nav-auditor`
-2. `epub-css-layering-optimizer`
-3. `epub-popup-footnote-converter`
-4. `epub-typography-optimizer`
-5. `epub-legacy-footnote-fallback`（可选）
+1. `epub-audit`
+2. `epub-cleanup`
+3. `epub-special-layout`（可选）
 
 ## 模式 C：Fan-made / 自制 EPUB
 
@@ -36,10 +34,8 @@
 
 推荐 skill 顺序：
 
-1. `epub-package-nav-auditor`
-2. `epub-typography-optimizer`
-3. `epub-css-layering-optimizer`
-4. `epub-image-layout-optimizer`（如有图）
+1. `epub-audit`
+2. `epub-cleanup`
 
 ## 模式 D：自己旧作品 / 早期模板
 
@@ -47,9 +43,8 @@
 
 推荐 skill 顺序：
 
-1. `epub-package-nav-auditor`
-2. `epub-layout-auditor`
-3. `epub-alite-converter`（可选）
+1. `epub-audit`
+2. `epub-package-ops`（可选）
 
 ## 模式 E：技术书 / 教科书
 
@@ -57,11 +52,10 @@
 
 推荐 skill 顺序：
 
-1. `epub-package-nav-auditor`
-2. `epub-literary-structure-formatter`
-3. `epub-popup-footnote-converter`
-4. `epub-css-layering-optimizer`
-5. `epub-kindle-compatibility-checker`
+1. `epub-audit`
+2. `epub-special-layout`
+3. `epub-cleanup`
+4. `epub-reader-verify`
 
 ## 模式 F：合集 / 大部头古籍
 
@@ -69,10 +63,9 @@
 
 推荐 skill 顺序：
 
-1. `epub-package-nav-auditor`
-2. `epub-vertical-ruby-optimizer`
-3. `epub-literary-structure-formatter`
-4. `epub-typography-optimizer`
+1. `epub-audit`
+2. `epub-special-layout`
+3. `epub-cleanup`
 
 ## 模式 G：英文 / 双语 epub
 
@@ -80,10 +73,9 @@
 
 推荐 skill 顺序：
 
-1. `epub-english-typography-optimizer`
-2. `epub-typography-optimizer`
-3. `epub-popup-footnote-converter`
-4. `epub-image-layout-optimizer`
+1. `epub-audit`
+2. `epub-special-layout`
+3. `epub-cleanup`
 
 ## 模式 H：「看上去没问题」的 epub
 
@@ -95,7 +87,7 @@
 
 特征：manifest href 分散在非标准目录，或 URI 解码后的文件名含 `?`、`*`、`:` 等特殊字符，文件名不可读。
 
-推荐：在 EPUB3 迁移和精排前使用 `epub-structure-normalizer`，固定执行 `normalize`：
+推荐：在 EPUB3 迁移和精排前使用 `epub-cleanup`，固定执行 `normalize`：
 
 ```text
 format 目录格式化 -> deobfuscate-filenames 文件名反混淆

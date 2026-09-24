@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于 EPUB 合并、按目录拆分、元数据编辑和封面替换。
 > 推荐入口：四个单能力 `epub run` 命令。
-> 对应 skill：`$epub-package-operator`。
+> 对应 skill：`$epub-package-ops`。
 
 ## 适用范围
 

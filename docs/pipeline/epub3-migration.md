@@ -2,7 +2,7 @@
 
 > 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
 > 执行入口：`epub run epub.package.migrate.epub3`（结构规范化：`epub run epub.structure.normalize`）
-> 对应 skill：`$epub3-migrator`
+> 对应 skill：`$epub-cleanup`
 
 新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页为保留流水线内部结构的可读性，仍以 `work/book-a/` 表示流水线工作目录；新项目实际应指向 `work-epub/<book>/03 制作工作区/.pipeline/`。
 

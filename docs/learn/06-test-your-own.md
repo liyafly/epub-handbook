@@ -45,7 +45,7 @@ cp work/source.epub work/source-copy.epub
 ## 4. 调用 layout-auditor 看 findings
 
 ```text
-请使用 epub-layout-auditor 审稿 work/source.epub
+请使用 epub-audit 审稿 work/source.epub
 ```
 
 或者直接跑：

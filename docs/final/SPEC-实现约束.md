@@ -326,20 +326,20 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 | 问题模式 | 主路径 skill | 自动化程度 |
 | --- | --- | --- |
-| 大量内联 `style="..."` -> 抽到外联 CSS | `epub-css-layering-optimizer` | 高 |
-| 标准 footnote 缺 `epub:type`、缺 `aria-describedby` -> 补齐 | `epub-popup-footnote-converter` | 高 |
-| 多看 / 旧版阅读器需要弹注 fallback | `epub-legacy-footnote-fallback` | 高 |
-| OPF manifest 缺 `properties="svg" / "mathml"` | `epub-package-nav-auditor` | 高 |
-| nav.xhtml 缺失 / 结构破损 | `epub-package-nav-auditor` | 中 |
-| toc.ncx 与 nav.xhtml 不同步 | `epub-package-nav-auditor` | 高 |
-| 字体策略不规范 | `epub-typography-optimizer` | 中 |
-| 中英混排排版不稳 | `epub-typography-optimizer` | 高 |
-| 英文小说首字下沉 / 字体策略 | `epub-english-typography-optimizer` | 中 |
-| 图文环绕用不稳定布局 | `epub-image-layout-optimizer` | 中 |
-| Ruby 注音不规范 | `epub-vertical-ruby-optimizer` | 高 |
-| Kindle Enhanced Typesetting 转换失败 | `epub-kindle-compatibility-checker` | 中 |
-| 文学结构混在一起 | `epub-literary-structure-formatter` | 中 |
-| 普通 epub 加 A-lite 增强 | `epub-alite-converter` | 中 |
+| 大量内联 `style="..."` -> 抽到外联 CSS | `epub-cleanup` | 高 |
+| 标准 footnote 缺 `epub:type`、缺 `aria-describedby` -> 补齐 | `epub-cleanup` | 高 |
+| 多看 / 旧版阅读器需要弹注 fallback | `epub-special-layout` | 高 |
+| OPF manifest 缺 `properties="svg" / "mathml"` | `epub-audit` | 高 |
+| nav.xhtml 缺失 / 结构破损 | `epub-audit` | 中 |
+| toc.ncx 与 nav.xhtml 不同步 | `epub-audit` | 高 |
+| 字体策略不规范 | `epub-cleanup` | 中 |
+| 中英混排排版不稳 | `epub-cleanup` | 高 |
+| 英文小说首字下沉 / 字体策略 | `epub-special-layout` | 中 |
+| 图文环绕用不稳定布局 | `epub-audit` | 中 |
+| Ruby 注音不规范 | `epub-special-layout` | 高 |
+| Kindle Enhanced Typesetting 转换失败 | `epub-reader-verify` | 中 |
+| 文学结构混在一起 | `epub-special-layout` | 中 |
+| 普通 epub 加 A-lite 增强 | `epub-package-ops` | 中 |
 
 #### 不能做
 
