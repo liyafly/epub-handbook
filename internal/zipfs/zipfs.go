@@ -96,6 +96,7 @@ func (e *Entry) Modified() time.Time   { return e.zf.Modified }
 type Archive struct {
 	path   string
 	f      *os.File
+	reader io.ReaderAt
 	size   int64
 	order  []string
 	byName map[string]*Entry
@@ -141,13 +142,44 @@ func OpenWithLimits(ctx context.Context, path string, limits Limits) (*Archive, 
 	if stat.Size() > limits.MaxArchiveBytes {
 		return nil, fmt.Errorf("zipfs: archive %q is %d bytes: %w", path, stat.Size(), ErrLimitExceeded)
 	}
+	a, err := openReaderAt(ctx, path, f, stat.Size(), limits)
+	if err != nil {
+		return nil, err
+	}
+	a.f = f
+	closeOnError = false
+	return a, nil
+}
+
+// OpenBytesContext opens an in-memory ZIP archive using DefaultLimits. The
+// caller owns data and must not mutate it until the returned archive is closed.
+func OpenBytesContext(ctx context.Context, path string, data []byte) (*Archive, error) {
+	return OpenBytesWithLimits(ctx, path, data, DefaultLimits())
+}
+
+// OpenBytesWithLimits opens an in-memory ZIP archive with the supplied limits.
+func OpenBytesWithLimits(ctx context.Context, path string, data []byte, limits Limits) (*Archive, error) {
+	if err := validateLimits(limits); err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limits.MaxArchiveBytes {
+		return nil, fmt.Errorf("zipfs: archive %q is %d bytes: %w", path, len(data), ErrLimitExceeded)
+	}
+	reader := bytes.NewReader(data)
+	return openReaderAt(ctx, path, reader, int64(len(data)), limits)
+}
+
+func openReaderAt(ctx context.Context, path string, reader io.ReaderAt, size int64, limits Limits) (*Archive, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	if err := preflightEntryCount(f, stat.Size(), limits, ctx); err != nil {
+	if size > limits.MaxArchiveBytes {
+		return nil, fmt.Errorf("zipfs: archive %q is %d bytes: %w", path, size, ErrLimitExceeded)
+	}
+	if err := preflightEntryCount(reader, size, limits, ctx); err != nil {
 		return nil, fmt.Errorf("zipfs: preflight %q: %w", path, err)
 	}
-	r, err := zip.NewReader(f, stat.Size())
+	r, err := zip.NewReader(reader, size)
 	if err != nil {
 		return nil, fmt.Errorf("zipfs: %s: not a zip container: %w", path, err)
 	}
@@ -156,8 +188,8 @@ func OpenWithLimits(ctx context.Context, path string, limits Limits) (*Archive, 
 	}
 	a := &Archive{
 		path:   path,
-		f:      f,
-		size:   stat.Size(),
+		reader: reader,
+		size:   size,
 		order:  make([]string, 0, len(r.File)),
 		byName: make(map[string]*Entry, len(r.File)),
 		limits: limits,
@@ -176,7 +208,6 @@ func OpenWithLimits(ctx context.Context, path string, limits Limits) (*Archive, 
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	closeOnError = false
 	return a, nil
 }
 
@@ -213,7 +244,12 @@ func validateArchiveEntries(files []*zip.File, limits Limits) error {
 
 func (a *Archive) Path() string { return a.path }
 
-func (a *Archive) Close() error { return a.f.Close() }
+func (a *Archive) Close() error {
+	if a.f == nil {
+		return nil
+	}
+	return a.f.Close()
+}
 
 // Names 返回全部 entry 名，保持容器内的物理顺序。
 func (a *Archive) Names() []string {
@@ -317,7 +353,7 @@ func (a *Archive) SHA256Context(ctx context.Context) (string, error) {
 		return "", err
 	}
 	h := sha256.New()
-	reader := io.NewSectionReader(a.f, 0, a.size)
+	reader := io.NewSectionReader(a.reader, 0, a.size)
 	if err := copyBoundedContext(ctx, h, reader, a.limits.MaxArchiveBytes); err != nil {
 		return "", err
 	}
@@ -428,6 +464,74 @@ func (a *Archive) WriteToContext(ctx context.Context, outPath string, plans []Pl
 	return a.writeTo(ctx, outPath, plans)
 }
 
+// WriteBytesContext serializes the current archive plan into bounded memory.
+// It is used when a capability chain needs an intermediate archive without an
+// intermediate disk write.
+func (a *Archive) WriteBytesContext(ctx context.Context, plans []Plan) ([]byte, error) {
+	if err := validatePlans(plans); err != nil {
+		return nil, err
+	}
+	output := &boundedBuffer{limit: a.limits.MaxArchiveBytes}
+	if err := a.writePlans(ctx, output, plans); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}
+
+// WriteNewFileContext atomically writes a new regular file without replacing
+// an existing path. EPUB archives and their JSON sidecars use the same disk
+// boundary and no-overwrite policy.
+func WriteNewFileContext(ctx context.Context, outPath string, data []byte, mode os.FileMode) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := validateOutputFilePath(outPath); err != nil {
+		return err
+	}
+	dir := filepath.Dir(outPath)
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("zipfs: create output parent %q: %w", dir, err)
+		}
+	}
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(outPath)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("zipfs: create temporary output beside %q: %w", outPath, err)
+	}
+	tmpPath := tmp.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tmp.Close()
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if err := tmp.Chmod(mode); err != nil {
+		return fmt.Errorf("zipfs: set output permissions: %w", err)
+	}
+	var output io.Writer = tmp
+	if ctx != nil {
+		output = contextWriter{ctx: ctx, writer: tmp}
+	}
+	if _, err := output.Write(data); err != nil {
+		return fmt.Errorf("zipfs: write %q: %w", outPath, err)
+	}
+	if err := tmp.Sync(); err != nil {
+		return fmt.Errorf("zipfs: sync output: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("zipfs: close output: %w", err)
+	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := renameNoReplace(tmpPath, outPath); err != nil {
+		return fmt.Errorf("zipfs: rename output: %w", err)
+	}
+	committed = true
+	return nil
+}
+
 func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) error {
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -435,25 +539,8 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 	if err := validateOutputFilePath(outPath); err != nil {
 		return err
 	}
-	seen := make(map[string]bool, len(plans))
-	for i := range plans {
-		p := &plans[i]
-		if p.Deleted {
-			continue
-		}
-		if err := ValidateEntryName(p.Name); err != nil {
-			return fmt.Errorf("zipfs: plan %q: %w", p.Name, err)
-		}
-		if p.Source == nil && p.Content == nil {
-			return fmt.Errorf("%w: %s", ErrInvalidPlan, p.Name)
-		}
-		if p.Source != nil && p.Content == nil && p.Source.Name() != p.Name {
-			return fmt.Errorf("zipfs: passthrough source name %q does not match plan name %q", p.Source.Name(), p.Name)
-		}
-		if seen[p.Name] {
-			return fmt.Errorf("zipfs: duplicate output entry %q", p.Name)
-		}
-		seen[p.Name] = true
+	if err := validatePlans(plans); err != nil {
+		return err
 	}
 
 	dir := filepath.Dir(outPath)
@@ -481,9 +568,58 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 		return fmt.Errorf("zipfs: set output permissions: %w", err)
 	}
 
-	var output io.Writer = tmp
+	if err := a.writePlans(ctx, tmp, plans); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return fmt.Errorf("zipfs: sync output: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("zipfs: close output: %w", err)
+	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := renameNoReplace(tmpPath, outPath); err != nil {
+		return fmt.Errorf("zipfs: rename output: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+func validatePlans(plans []Plan) error {
+	seen := make(map[string]bool, len(plans))
+	for i := range plans {
+		p := &plans[i]
+		if p.Deleted {
+			continue
+		}
+		if err := ValidateEntryName(p.Name); err != nil {
+			return fmt.Errorf("zipfs: plan %q: %w", p.Name, err)
+		}
+		if p.Source == nil && p.Content == nil {
+			return fmt.Errorf("%w: %s", ErrInvalidPlan, p.Name)
+		}
+		if p.Source != nil && p.Content == nil && p.Source.Name() != p.Name {
+			return fmt.Errorf("zipfs: passthrough source name %q does not match plan name %q", p.Source.Name(), p.Name)
+		}
+		if seen[p.Name] {
+			return fmt.Errorf("zipfs: duplicate output entry %q", p.Name)
+		}
+		seen[p.Name] = true
+	}
+	return nil
+}
+
+func (a *Archive) writePlans(ctx context.Context, output io.Writer, plans []Plan) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := validatePlans(plans); err != nil {
+		return err
+	}
 	if ctx != nil {
-		output = contextWriter{ctx: ctx, writer: tmp}
+		output = contextWriter{ctx: ctx, writer: output}
 	}
 	w := zip.NewWriter(output)
 	for i := range plans {
@@ -520,20 +656,19 @@ func (a *Archive) writeTo(ctx context.Context, outPath string, plans []Plan) err
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("zipfs: close writer: %w", err)
 	}
-	if err := tmp.Sync(); err != nil {
-		return fmt.Errorf("zipfs: sync output: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("zipfs: close output: %w", err)
-	}
-	if err := contextErr(ctx); err != nil {
-		return err
-	}
-	if err := renameNoReplace(tmpPath, outPath); err != nil {
-		return fmt.Errorf("zipfs: rename output: %w", err)
-	}
-	committed = true
 	return nil
+}
+
+type boundedBuffer struct {
+	bytes.Buffer
+	limit int64
+}
+
+func (b *boundedBuffer) Write(data []byte) (int, error) {
+	if int64(len(data)) > b.limit-int64(b.Len()) {
+		return 0, ErrLimitExceeded
+	}
+	return b.Buffer.Write(data)
 }
 
 // WriteDirectory 以目录为单位提交多个 EPUB。所有文件先写入 outputDir

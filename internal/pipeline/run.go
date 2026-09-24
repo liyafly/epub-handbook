@@ -19,18 +19,21 @@ import (
 
 // Options 是一次 run 的全部输入。
 type Options struct {
-	RepoRoot     string
-	CapabilityID string
-	InputPath    string
-	OutputPath   string
-	DryRun       bool
-	Args         Args
+	RepoRoot      string
+	CapabilityID  string
+	InputPath     string
+	InputBytes    []byte
+	OutputPath    string
+	DryRun        bool
+	CaptureOutput bool
+	Args          Args
 }
 
 // Outcome 是 pipeline 的完整产出：信封 + 退出码。
 type Outcome struct {
-	Envelope report.Envelope
-	ExitCode int
+	Envelope    report.Envelope
+	ExitCode    int
+	OutputBytes []byte
 }
 
 // 退出码语义（SPEC §8.5）。
@@ -146,29 +149,43 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	if multiOutputCap && opts.OutputPath != "" {
 		return usage("capability %s writes to output_dir; remove --output", contract.ID)
 	}
+	noBookCap := contract.Execution.Input == ExecInputEpubOrTree
+	sourceInputCap := contract.Execution.Input == ExecInputSourcePath
+	inputFromBytes := opts.InputBytes != nil
+	if inputFromBytes && opts.InputPath == "" {
+		return usage("an input path label is required with in-memory EPUB bytes")
+	}
+	if inputFromBytes && (noBookCap || sourceInputCap) {
+		return usage("capability %s does not accept in-memory EPUB bytes", contract.ID)
+	}
+	if opts.CaptureOutput && (!needsWrite || multiOutputCap || opts.DryRun || opts.OutputPath != "") {
+		return usage("in-memory output capture requires a non-dry-run, single-output capability without --output")
+	}
 	if needsWrite && !opts.DryRun {
 		if multiOutputCap {
 			if opts.Args.Get("output_dir") == "" {
 				return usage("output_dir is required for capability %s", contract.ID)
 			}
 		} else {
-			if opts.OutputPath == "" {
+			if opts.OutputPath == "" && !opts.CaptureOutput {
 				return usage("--output is required for capability %s", contract.ID)
 			}
-			if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
-				return usage("output must not overwrite the input EPUB")
-			}
-			if _, err := os.Lstat(opts.OutputPath); err == nil {
-				return usage("output already exists: %s", opts.OutputPath)
+			if opts.OutputPath != "" {
+				if absIn, absOut, err := samePath(opts.InputPath, opts.OutputPath); err == nil && absIn == absOut {
+					return usage("output must not overwrite the input EPUB")
+				}
+				if _, err := os.Lstat(opts.OutputPath); err == nil {
+					return usage("output already exists: %s", opts.OutputPath)
+				}
 			}
 		}
 	}
-	noBookCap := contract.Execution.Input == ExecInputEpubOrTree
 	// sourceInput 能力（planner，如 epub.source.intake）：--input 必填，可以是
 	// 目录或任意文件；永不 book.Open，b 恒为 nil。
-	sourceInputCap := contract.Execution.Input == ExecInputSourcePath
 	inputIsDir := false
-	if opts.InputPath != "" {
+	if inputFromBytes {
+		inputIsDir = false
+	} else if opts.InputPath != "" {
 		st, statErr := os.Stat(opts.InputPath)
 		if statErr != nil {
 			return usage("input not found: %s", opts.InputPath)
@@ -198,11 +215,15 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		return cancelInput(err)
 	}
 	var b *book.Book
-	if opts.InputPath != "" && !inputIsDir && !sourceInputCap {
+	if inputFromBytes || (opts.InputPath != "" && !inputIsDir && !sourceInputCap) {
 		var err error
-		b, err = book.OpenContext(ctx, opts.InputPath)
+		if inputFromBytes {
+			b, err = book.OpenBytesContext(ctx, opts.InputPath, opts.InputBytes)
+		} else {
+			b, err = book.OpenContext(ctx, opts.InputPath)
+		}
 		if err != nil {
-			if env.Input != nil {
+			if env.Input != nil && !inputFromBytes {
 				if sum, hashErr := book.FileSHA256Context(ctx, opts.InputPath); hashErr == nil {
 					env.Input.SHA256 = sum
 				}
@@ -511,6 +532,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		}
 	}
 
+	var outputBytes []byte
 	// 输出落盘（INV-3 单次写）：单输出链在全部 stage 通过后只写一次。
 	// dry-run、DRM/runner/未实现/目标 stage 失败不写；红线失败仍写（见上）；
 	// multi-output 的 split runner 自己管理段产物。
@@ -523,6 +545,23 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 				Title: "Cannot write output without an EPUB input",
 			})
 			events = append(events, report.Event{Step: "write-output", Status: "failed", Message: "input book is nil"})
+		} else if opts.CaptureOutput {
+			var err error
+			outputBytes, err = b.WriteBytesContext(ctx)
+			if err != nil {
+				failed = true
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					cancelled = true
+					env.Status = report.StatusCancelled
+					findings = append(findings, report.Finding{Level: "error", ID: "run.cancelled", Title: "Run cancelled before completion", Detail: "the run's context was cancelled while capturing an in-memory EPUB result"})
+				} else {
+					env.Status = report.StatusFailed
+					findings = append(findings, report.Finding{Level: "error", ID: "output.capture-failed", Title: "Failed to capture in-memory EPUB output", Detail: err.Error()})
+				}
+				events = append(events, report.Event{Step: "write-output", Status: "failed", Message: err.Error()})
+			} else {
+				events = append(events, report.Event{Step: "write-output", Status: "completed", Message: "captured in memory; no disk write"})
+			}
 		} else if err := b.WriteToContext(ctx, opts.OutputPath); err != nil {
 			failed = true
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -606,7 +645,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		// 那会破坏 pre-commit hook / epub_text_gate.py 依赖的既有退出码语义。
 		exit = ExitFailed
 	}
-	return Outcome{Envelope: env, ExitCode: exit}, nil
+	return Outcome{Envelope: env, ExitCode: exit, OutputBytes: outputBytes}, nil
 }
 
 // nextCommands 按 SPEC §8.2 给 agent 提示下一步（`epub run` 形态）。

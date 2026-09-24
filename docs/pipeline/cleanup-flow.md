@@ -89,6 +89,24 @@ epub redline --check metadata,spine,cover,drm,anchors \
 
 一次处理多本 EPUB 时，每本书建立独立书级工作区，并按本文主线执行。批量处理不免除单书预检、每次写出后的 S6 红线和人工 diff review。单批次建议不超过 50 本，便于逐本复核。
 
+### 批量预览与候选输出
+
+`epub clean` 可对单本 EPUB 或目录中的 `.epub` 文件按统一步骤运行；目录递归扫描，忽略非 EPUB 文件，并按路径排序。步骤默认是 `normalize,migrate,css,typography`；`--steps` 可缩小范围，但必须保持该顺序。`--jobs` 默认为 1，设为大于 0 的整数可并行处理不同书目。
+
+```sh
+# 预览完整链。输入文件放在 flags 前；只写每本书的 JSON 汇总，不发布 EPUB。
+epub clean "$CUR" --out "$W/clean-preview"
+
+# 审查汇总后，显式写出最终候选。
+epub clean "$BOOKS" --out "$W/clean-approved" --approve --jobs 2
+```
+
+完整链的中间 EPUB 始终留在内存中，并逐步执行红线；随后对最终内存候选执行全项红线。无论是否带 `--approve`，`--out` 下每本书都只写一个 `<书名>.clean.json` 汇总信封；汇总包含审计、所选步骤的输入/输出 SHA-256 链、findings、各步红线结果和最终红线结果。若运行了 normalize，汇总的 `facts["epub.clean.normalize.mappings"]` 可直接作为后续 `epub redline --path-map` 的映射信封。未批准时外层状态为 `planned`；批准并通过时为 `complete`。成功退出码为 0；任何 error finding、步骤失败或红线失败会标为 `failed` 并返回 1。
+
+带 `--approve` 时，最后一个成功步骤产生的候选在全项红线后写入输入书籍的相对目录下同名 EPUB；步骤中间态不写入磁盘。若某一步或最终红线失败但此前已有候选，会保留最近成功的候选供分析，汇总仍标为 `failed`，不得把它设为最新通过版本。已有的报告或候选路径不会覆盖；目录输入的 `--out` 必须在输入目录之外。flags-first 写法可用 `epub clean --out DIR [其他 flags] INPUT`，把输入放在 flags 后面。
+
+`epub clean` 不替代 S8 人工 diff review、S9 制作说明或真实阅读器验收。只有报告与候选对应的 SHA、finding 和 diff 都审过，且相关阅读器实测完成后，才记录书级结论。
+
 ### 模型与隐私说明
 
 清洗主体是**确定性能力命令**，AI 只是辅助——AI 不直接执行写出步骤，默认流程**完全不调用任何模型**，可离线/气隙运行，稿件不出本机。
@@ -133,6 +151,7 @@ epub redline --check all \
 
 | 能力 / 命令 | 做什么 | 何时运行 |
 | --- | --- | --- |
+| `epub clean INPUT --out DIR [--steps …] [--approve] [--jobs N]` | 按默认顺序批量运行预检、规范化、EPUB3 迁移、CSS 与排版步骤；逐书写汇总，批准且红线通过时写最终候选 | 单书或多书需要重复同一确定性步骤时；细节见附录 B |
 | 按序清洗序列（见 [cleanup-flow.md](cleanup-flow.md)） | 保留 before 基线、结构审计、结构规范化、EPUB3 迁移、CSS / 排版精排、redline 校验 | 单书清洗的默认顺序 |
 | `epub run epub.package.nav.audit` | 检查 ZIP / mimetype / container / OPF / manifest / spine / XML / CSS url / DRM 标记，并给出结构 findings | 拿到一本 EPUB 后第一步 |
 | `epub run epub.structure.normalize` | 可选：先格式化目录，再按 OPF manifest id 反混淆；inspect 非 dry-run 会写未修改副本 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |

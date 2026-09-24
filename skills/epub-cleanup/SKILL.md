@@ -31,6 +31,20 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版和标准�
 
 ## 调什么
 
+### 多本书按序预览或写出
+
+当用户要对一本或多本已有 EPUB 执行同一组确定性清洗步骤时，可用 `epub clean` 汇总每本书的审计、SHA 链、步骤 findings 和红线结果：
+
+```sh
+# 默认全链预览，只写每本书的 .clean.json 汇总
+epub clean "before.epub" --out "clean-preview"
+
+# 审查汇总后，显式写出最终候选
+epub clean "books/" --out "clean-approved" --approve --jobs 2
+```
+
+默认步骤为 `normalize,migrate,css,typography`。`--steps` 可按该顺序选择其中若干步；`--jobs` 必须大于 0。目录输入递归查找 EPUB，输出目录须在输入目录外；已有产物不会覆盖。失败候选和报告要结合人工 diff review 分析，不得更新成最新通过版本。完整状态、产物命名与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
+
 ### 目录结构规范化
 
 ```sh

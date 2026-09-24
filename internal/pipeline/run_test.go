@@ -48,7 +48,7 @@ func buildTypographySampleEpub(t *testing.T) string {
 			t.Fatal(closeErr)
 		}
 		if f.Name == "OEBPS/nav.xhtml" {
-			content = bytes.Replace(content, []byte(`lang="zh-CN"><body>`), []byte("lang=\"zh-CN\">\n<head>\n<title>nav</title>\n</head>\n<body>"), 1)
+			content = bytes.Replace(content, []byte("</head>"), []byte("\n</head>\n"), 1)
 			if !bytes.Contains(content, []byte("</head>")) {
 				t.Fatal("test fixture nav.xhtml needs a head section for typography")
 			}
@@ -364,6 +364,45 @@ func TestRunRejectsOutputOverwriteInput(t *testing.T) {
 	})
 	if err == nil && outcome.ExitCode != ExitUsage {
 		t.Logf("structure.normalize 未实现时的行为：exit=%d err=%v", outcome.ExitCode, err)
+	}
+}
+
+func TestRunCapturesWriteOutputInMemory(t *testing.T) {
+	input := buildSampleEpub(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID:  "epub.package.migrate.epub3",
+		InputPath:     input,
+		CaptureOutput: true,
+		Args:          Args{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusComplete {
+		t.Fatalf("capture outcome status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if len(outcome.OutputBytes) == 0 {
+		t.Fatal("write capability did not return captured EPUB bytes")
+	}
+	if outcome.Envelope.Output != nil {
+		t.Fatalf("in-memory capture unexpectedly reported a disk output: %+v", outcome.Envelope.Output)
+	}
+	captured := false
+	for _, event := range outcome.Envelope.Events {
+		if event.Step == "write-output" && strings.Contains(event.Message, "captured in memory") {
+			captured = true
+		}
+	}
+	if !captured {
+		t.Fatalf("capture event missing from report: %+v", outcome.Envelope.Events)
+	}
+	b, err := book.OpenBytesContext(t.Context(), input, outcome.OutputBytes)
+	if err != nil {
+		t.Fatalf("captured output is not a readable EPUB: %v", err)
+	}
+	defer b.Close()
+	if len(b.Names()) == 0 {
+		t.Fatal("captured output has no EPUB entries")
 	}
 }
 

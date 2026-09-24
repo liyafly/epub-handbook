@@ -46,6 +46,19 @@ func OpenContext(ctx context.Context, path string) (*Book, error) {
 	if err != nil {
 		return nil, err
 	}
+	return openArchive(ctx, arch)
+}
+
+// OpenBytesContext opens an in-memory EPUB and builds its entry table.
+func OpenBytesContext(ctx context.Context, path string, data []byte) (*Book, error) {
+	arch, err := zipfs.OpenBytesContext(ctx, path, data)
+	if err != nil {
+		return nil, err
+	}
+	return openArchive(ctx, arch)
+}
+
+func openArchive(ctx context.Context, arch *zipfs.Archive) (*Book, error) {
 	b := &Book{
 		arch:             arch,
 		byName:           make(map[string]*zipfs.Entry),
@@ -353,6 +366,14 @@ func (b *Book) WriteToContext(ctx context.Context, path string) error {
 		return err
 	}
 	return b.arch.WriteToContext(ctx, path, b.plans())
+}
+
+// WriteBytesContext serializes the current EPUB state in memory without a disk write.
+func (b *Book) WriteBytesContext(ctx context.Context) ([]byte, error) {
+	if err := b.ReadError(); err != nil {
+		return nil, err
+	}
+	return b.arch.WriteBytesContext(ctx, b.plans())
 }
 
 func (b *Book) plans() []zipfs.Plan {

@@ -146,6 +146,49 @@ func TestRawPassthrough(t *testing.T) {
 	}
 }
 
+func TestWriteBytesAndOpenBytes(t *testing.T) {
+	input := buildInputZip(t)
+	archive, err := OpenBytesContext(t.Context(), "memory-input.epub", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archive.Close()
+
+	plans := make([]Plan, 0, len(archive.Names()))
+	for _, name := range archive.Names() {
+		entry, ok := archive.Lookup(name)
+		if !ok {
+			t.Fatalf("entry %q missing", name)
+		}
+		plan := Plan{Name: name, Source: entry}
+		if name == "a/chapter.xhtml" {
+			content, err := archive.ReadContext(t.Context(), name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan.Content = bytes.Replace(content, []byte("正文。"), []byte("正文（改）。"), 1)
+		}
+		plans = append(plans, plan)
+	}
+
+	output, err := archive.WriteBytesContext(t.Context(), plans)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, err := OpenBytesContext(t.Context(), "memory-output.epub", output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close()
+	got, err := opened.ReadContext(t.Context(), "a/chapter.xhtml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("正文（改）。")) {
+		t.Fatalf("in-memory output did not preserve edited entry: %q", got[:min(len(got), 80)])
+	}
+}
+
 // TestPassthroughOnSampleBook 用仓库里 49MB 的样本书做透传 I/O 实测：
 // 只改一个小 XHTML，断言其余全部 entry 字节级一致，并报告搬运量。
 // 这是 W0 完成判据「800MB → 几 MB」的实测凭据（go-rewrite-handoff.md §4）。

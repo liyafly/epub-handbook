@@ -612,10 +612,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 // book.Open 保证，这里校验输入/输出冲突与输出已存在）。
 func validateOutputPaths(inputPath, outputPath string, dryRun bool) error {
 	inputPath = pyAbs(inputPath)
-	outputPath = pyAbs(outputPath)
 	if st, err := os.Stat(inputPath); err != nil || !st.Mode().IsRegular() {
 		return presetErrf("input EPUB does not exist: %s", inputPath)
 	}
+	// An empty output is valid for in-memory pipeline capture and dry-run calls.
+	// It must not resolve to the current working directory as pyAbs("") does.
+	if outputPath == "" {
+		return nil
+	}
+	outputPath = pyAbs(outputPath)
 	if inputPath == outputPath {
 		return presetErrf("output must not overwrite the input EPUB")
 	}

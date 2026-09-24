@@ -71,6 +71,46 @@ func TestOpenProjectsEntries(t *testing.T) {
 	}
 }
 
+func TestOpenBytesAndWriteBytes(t *testing.T) {
+	input := buildSampleEpub(t)
+	b, err := OpenBytesContext(t.Context(), "memory-input.epub", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	original, err := b.CurrentContext(t.Context(), "OEBPS/Text/c1.xhtml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := bytes.Index(original, []byte("第一章"))
+	if start < 0 {
+		t.Fatal("fixture is missing the chapter heading")
+	}
+	if err := b.Apply([]editset.Edit{editset.Replace("OEBPS/Text/c1.xhtml", int64(start), int64(len("第一章")), []byte("第二章"))}); err != nil {
+		t.Fatal(err)
+	}
+	output, err := b.WriteBytesContext(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(output) == 0 {
+		t.Fatal("WriteBytesContext returned empty EPUB bytes")
+	}
+	opened, err := OpenBytesContext(t.Context(), "memory-output.epub", output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close()
+	content, err := opened.CurrentContext(t.Context(), "OEBPS/Text/c1.xhtml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "第二章") {
+		t.Fatalf("in-memory EPUB output does not contain applied edit: %s", content)
+	}
+}
+
 func TestApplyModifyCreateDelete(t *testing.T) {
 	b, _ := openSample(t)
 

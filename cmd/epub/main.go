@@ -37,6 +37,8 @@ func run(argv []string) int {
 	switch argv[0] {
 	case "run":
 		return runCapability(argv[1:])
+	case "clean":
+		return runClean(argv[1:])
 	case "capabilities":
 		return runCapabilities(argv[1:])
 	case "redline":
@@ -57,6 +59,7 @@ func usage(w *os.File) {
 用法:
   epub run <capability-id> [--input PATH] [--output PATH] [--dry-run] [--json]
             [KEY=VALUE...]
+  epub clean <in.epub | 目录> --out DIR [--steps normalize,migrate,css,typography] [--approve] [--jobs N]
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub redline [--check TEXT,...|all] [--allow-list GLOB]...
             [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose] [--json]
@@ -66,6 +69,99 @@ func usage(w *os.File) {
 
 退出码: 0 成功; 1 失败; 2 需要人工批准; 3 用法错误。
 `)
+}
+
+// runClean 只解析批量命令参数并回传 pipeline 的结果。
+func runClean(argv []string) int {
+	input := ""
+	flagArgs := argv
+	if len(argv) > 0 && !strings.HasPrefix(argv[0], "-") {
+		input = argv[0]
+		flagArgs = argv[1:]
+	}
+	if err := rejectDuplicateCleanFlags(flagArgs); err != nil {
+		fmt.Fprintln(os.Stderr, "epub clean:", err)
+		return pipeline.ExitUsage
+	}
+	fs := flag.NewFlagSet("epub clean", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	outputDir := fs.String("out", "", "输出目录")
+	stepsValue := fs.String("steps", "", "步骤：normalize,migrate,css,typography")
+	approve := fs.Bool("approve", false, "通过红线后写出最终候选 EPUB")
+	jobs := fs.Int("jobs", 1, "并行处理书目数")
+	if err := fs.Parse(flagArgs); err != nil {
+		return pipeline.ExitUsage
+	}
+	if *jobs < 1 {
+		fmt.Fprintln(os.Stderr, "epub clean: --jobs must be a positive integer")
+		return pipeline.ExitUsage
+	}
+	if input == "" {
+		if fs.NArg() != 1 {
+			fmt.Fprintln(os.Stderr, "epub clean: provide one input EPUB or directory")
+			return pipeline.ExitUsage
+		}
+		input = fs.Arg(0)
+	} else if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "epub clean: unexpected positional arguments")
+		return pipeline.ExitUsage
+	}
+	steps := []string(nil)
+	if *stepsValue != "" {
+		steps = []string{}
+		for step := range strings.SplitSeq(*stepsValue, ",") {
+			steps = append(steps, strings.TrimSpace(step))
+		}
+	}
+	ctx, stop := runCtx()
+	defer stop()
+	result, err := pipeline.Clean(ctx, pipeline.CleanOptions{
+		InputPath: input, OutputDir: *outputDir, Steps: steps, Approve: *approve, Jobs: *jobs,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "epub clean:", err)
+		if _, ok := errors.AsType[*pipeline.UsageError](err); ok {
+			return pipeline.ExitUsage
+		}
+		return pipeline.ExitFailed
+	}
+	for _, book := range result.Books {
+		fmt.Printf("%s: %s (report %s)", book.InputPath, book.Envelope.Status, book.ReportPath)
+		if book.OutputPath != "" {
+			fmt.Printf("; output %s", book.OutputPath)
+		}
+		fmt.Println()
+		if book.Err != nil {
+			fmt.Fprintln(os.Stderr, "epub clean:", book.Err)
+		}
+	}
+	return result.ExitCode
+}
+
+func rejectDuplicateCleanFlags(argv []string) error {
+	counts := map[string]int{"out": 0, "steps": 0, "jobs": 0, "approve": 0}
+	for index := 0; index < len(argv); index++ {
+		arg := argv[index]
+		for _, name := range []string{"out", "steps", "jobs", "approve"} {
+			if arg == "-"+name || arg == "--"+name {
+				counts[name]++
+				if name != "approve" && index+1 < len(argv) {
+					index++
+				}
+				break
+			}
+			if strings.HasPrefix(arg, "-"+name+"=") || strings.HasPrefix(arg, "--"+name+"=") {
+				counts[name]++
+				break
+			}
+		}
+	}
+	for _, name := range []string{"out", "steps", "jobs", "approve"} {
+		if counts[name] > 1 {
+			return fmt.Errorf("duplicate flag: --%s", name)
+		}
+	}
+	return nil
 }
 
 // runCapability 处理 `epub run <id>`。

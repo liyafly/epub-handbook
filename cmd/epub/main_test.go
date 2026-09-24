@@ -124,6 +124,40 @@ func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 	}
 }
 
+func TestRunCleanAcceptsInputBeforeAndAfterFlags(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "input.epub")
+	writeRedlineFixture(t, input, "same text")
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{name: "input first", args: []string{input, "--out", filepath.Join(root, "out-first"), "--steps", "normalize"}},
+		{name: "flags first", args: []string{"--out", filepath.Join(root, "out-flags"), "--steps=normalize", input}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, stdout, stderr := captureRunFunc(t, func() int { return runClean(tc.args) })
+			if code != 0 || stderr != "" {
+				t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+			if !strings.Contains(stdout, "planned") || !strings.Contains(stdout, "report ") {
+				t.Fatalf("stdout=%q, want planned status and summary path", stdout)
+			}
+		})
+	}
+}
+
+func TestRunCleanRejectsMissingAndDuplicateFlags(t *testing.T) {
+	for _, args := range [][]string{
+		{}, {"some.epub"}, {"--out", "out"}, {"input.epub", "--out", "out", "--out", "again"},
+		{"input.epub", "--out", "out", "--jobs", "0"},
+	} {
+		if code := runClean(args); code != 3 {
+			t.Errorf("runClean(%q) exit=%d, want 3", args, code)
+		}
+	}
+}
+
 func captureRunCapability(t *testing.T, argv []string) (code int, stdout, stderr string) {
 	t.Helper()
 	return captureRunFunc(t, func() int { return runCapability(argv) })
