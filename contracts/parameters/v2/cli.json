@@ -233,8 +233,29 @@
       }
     },
     "epub.vertical.ruby.optimize": {
-      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
-      "parameters": {}
+      "description": "确定性修补 Ruby 的 rp 括号后备，或为标准 writing-mode 声明补齐厂商前缀。",
+      "parameters": {
+        "op": {
+          "type": "string",
+          "description": "要执行的修补：ruby-rp 或 writing-mode-prefix。",
+          "required": true,
+          "enum": ["ruby-rp", "writing-mode-prefix"]
+        },
+        "scope_paths": {
+          "type": "json-string-array",
+          "description": "非空 JSON 数组；ruby-rp 时为精确的 spine XHTML 路径，writing-mode-prefix 时为精确的 manifest CSS 路径。省略则扫描全部对应资源。"
+        },
+        "rp_open": {
+          "type": "string",
+          "description": "ruby-rp 插入的左括号，必须是一个安全的非空白字符。",
+          "default": "（"
+        },
+        "rp_close": {
+          "type": "string",
+          "description": "ruby-rp 插入的右括号，必须是一个安全的非空白字符。",
+          "default": "）"
+        }
+      }
     }
   }
 }

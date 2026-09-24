@@ -53,14 +53,16 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 竖排与 Ruby
 
-`epub.vertical.ruby.optimize` 当前未实现；按授权人工调整后：
+用 `epub.vertical.ruby.optimize` 做单一机械修补：`op=ruby-rp` 为没有 fallback 的直接 `<rt>` 添加 `<rp>` 括号；`op=writing-mode-prefix` 为 manifest CSS 中精确的标准 `writing-mode` 补齐缺失的 WebKit/EPUB 前缀。一次只运行一个 op；可用 `scope_paths` 指定 spine XHTML 或 manifest CSS 路径。`rp_open` / `rp_close` 默认是全角括号，也可设置为一个安全字符。先 dry-run 审阅计划，再向新路径写候选：
 
 ```sh
-epub run epub.layout.audit --input "candidate.epub" --json
+epub run epub.vertical.ruby.optimize --input "before.epub" --dry-run --json op=ruby-rp
+epub run epub.vertical.ruby.optimize --input "before.epub" --output "candidate.epub" --json op=ruby-rp
 epub redline --check all "before.epub" "candidate.epub"
+epub run epub.vertical.ruby.optimize --input "before.epub" --dry-run --json op=writing-mode-prefix
 ```
 
-若涉及弹注另跑 popup validator；
+Ruby 包含 `rtc`、嵌套 Ruby、自闭合 `rt`、已有不完整 `rp` 或带命名空间前缀时会跳过并报告；标准 writing-mode 值不受支持、厂商前缀冲突或 CSS 无法解析时也不会猜测。一次运行发现任何 error 时整批零写入。涉及弹注另跑 popup validator。
 
 ### 旧版弹注 fallback
 
@@ -88,7 +90,7 @@ blockList 的 evidence/confidence 用于角色复核，不是自动套 class 的
 
 ### 竖排与 Ruby
 
-静态扫描/红线不验证排版引擎的实际文字方向或 Ruby 行高；必须分别报告源码结构、内容边界与目标阅读器结果。
+审阅 `facts["epub.vertical.ruby.optimize.op"]`、`plannedEdits`、`skipped`、`filesScanned` 和 `editCount`。静态扫描/红线不验证排版引擎的实际文字方向或 Ruby 行高；必须分别报告源码结构、内容边界与目标阅读器结果。
 
 ### 旧版弹注 fallback
 

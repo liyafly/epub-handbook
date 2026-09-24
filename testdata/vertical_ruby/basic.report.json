@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.vertical.ruby.optimize",
+  "status": "planned",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "facts": {
+    "dry_run": true,
+    "epub.layout.audit.actionableFindings": [],
+    "epub.layout.audit.auditStatus": "pass",
+    "epub.layout.audit.findings": [
+      {
+        "level": "info",
+        "id": "audit.0",
+        "title": "No immediate structural issue detected by harness"
+      }
+    ],
+    "epub.layout.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.layout.audit.input_kind": "existing-epub",
+    "epub.layout.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-special-layout",
+      "$epub-cleanup"
+    ],
+    "epub.layout.audit.status": "complete",
+    "epub.layout.audit.summary": {
+      "language": "ja",
+      "manifest_items": 5,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 8
+    },
+    "epub.layout.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.package.nav.audit.actionableFindings": [],
+    "epub.package.nav.audit.auditStatus": "pass",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "info",
+        "id": "audit.0",
+        "title": "No immediate structural issue detected by harness"
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-special-layout",
+      "$epub-cleanup"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "ja",
+      "manifest_items": 5,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 8
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.vertical.ruby.optimize.editCount": 2,
+    "epub.vertical.ruby.optimize.filesScanned": 2,
+    "epub.vertical.ruby.optimize.op": "ruby-rp",
+    "epub.vertical.ruby.optimize.plannedEdits": [
+      {
+        "path": "OEBPS/chapter.xhtml",
+        "action": "insert-rp",
+        "target": 1
+      }
+    ],
+    "epub.vertical.ruby.optimize.skipped": [],
+    "modified_entries": [
+      "OEBPS/chapter.xhtml"
+    ]
+  },
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.layout.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.vertical.ruby.optimize",
+      "status": "completed"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    }
+  ],
+  "nextCommands": [
+    "epub run epub.vertical.ruby.optimize --input \u003cfixture.epub\u003e --output '\u003cout.epub\u003e' --json op=ruby-rp"
+  ]
+}

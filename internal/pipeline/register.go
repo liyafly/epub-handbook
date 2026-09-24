@@ -33,6 +33,7 @@ import (
 	structurenormalize "github.com/liyafly/epub-handbook/internal/caps/structure_normalize"
 	styledemo "github.com/liyafly/epub-handbook/internal/caps/styledemo"
 	typographycap "github.com/liyafly/epub-handbook/internal/caps/typography"
+	verticalruby "github.com/liyafly/epub-handbook/internal/caps/vertical_ruby"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -224,6 +225,38 @@ func init() {
 			}
 		}
 		return englishtypography.Run(ctx, b, englishtypography.Params{Lang: lang, ScopePaths: scope})
+	})
+	register("epub.vertical.ruby.optimize", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
+		op, ok := args["op"]
+		if !ok {
+			return report.Result{}, usageErrorf("op 必填，取值为 ruby-rp 或 writing-mode-prefix")
+		}
+		if op != verticalruby.OpRubyRP && op != verticalruby.OpWritingModePrefix {
+			return report.Result{}, usageErrorf("op 必须是 ruby-rp 或 writing-mode-prefix")
+		}
+		var scope []string
+		if raw, ok := args["scope_paths"]; ok {
+			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
+				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
+			}
+			for _, path := range scope {
+				if strings.TrimSpace(path) == "" {
+					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
+				}
+			}
+		}
+		rpOpen := args.Get("rp_open")
+		if _, ok := args["rp_open"]; !ok {
+			rpOpen = "（"
+		}
+		rpClose := args.Get("rp_close")
+		if _, ok := args["rp_close"]; !ok {
+			rpClose = "）"
+		}
+		if !verticalruby.ValidRPToken(rpOpen) || !verticalruby.ValidRPToken(rpClose) {
+			return report.Result{}, usageErrorf("rp_open 和 rp_close 必须各是一个非空白且不含 < > & 引号的字符")
+		}
+		return verticalruby.Run(ctx, b, verticalruby.Params{Op: op, ScopePaths: scope, RPOpen: rpOpen, RPClose: rpClose})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		if args.Get("query") != "" && !args.Bool("catalog") {
