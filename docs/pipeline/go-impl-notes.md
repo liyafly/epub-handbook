@@ -154,6 +154,6 @@ JSON 形状放进 `Result.Facts["legacyReport"]` 供 parity P2 逐字节比对�
 
 - 不再有 `--legacy-report` flag、`legacy_report` Args 键、`Params.LegacyReport` 或
   `facts.legacyReport`；曾只在 legacy 报告里出现的数据已提升为各能力的正式 `facts`
-  键（camelCase，见 `refinement-harnesses.md` 与各 SKILL.md）。
+  键（camelCase，见各 SKILL.md）。
 - 测试改为直接断言 `Result.Facts` / `Findings` / 输出字节；不得再以 legacy 形状为金标准。
 - 仍然不变：退出码语义（信封换了，0/非 0 含义不变）。

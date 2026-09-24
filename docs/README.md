@@ -50,7 +50,6 @@
   - [go-cli-rearchitecture.md](pipeline/go-cli-rearchitecture.md)：SPEC 落地前的 Go CLI 背景蓝图；与 `final/SPEC-go-architecture.md` 冲突时以后者为准
   - [cleanup-flow.md](pipeline/cleanup-flow.md)
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
-  - [refinement-harnesses.md](pipeline/refinement-harnesses.md)
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
   - [skills-matrix.md](pipeline/skills-matrix.md)

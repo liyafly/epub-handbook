@@ -122,6 +122,26 @@ grep -E "media-type=\"image/webp\"" OEBPS/package.opf && echo "WebP MIME still i
 epub run epub.package.nav.audit --input <artifact.epub> --json
 ```
 
+### 3.6 图片转化工具建议
+
+本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure。
+这些工具不由 CLI 探测或调用；需要自行确认已安装、运行后回到 EPUB 层复核：
+
+| 工具 | 用途 | 人工注意事项 |
+| --- | --- | --- |
+| [ImageMagick `magick`](https://imagemagick.org/command-line-tools/) | WebP / TIFF / GIF / SVG 等转 JPEG / PNG，必要时 resize / identify | 转换后回到 `epub.package.nav.audit` 复核格式、manifest 与封面 |
+| [oxipng](https://github.com/oxipng/oxipng) | PNG 无损优化 | 用于已经确认视觉质量的 PNG |
+| [pngquant](https://pngquant.org/) | PNG 有损量化压缩 | 必须人工抽样看质量 |
+| [jpegoptim](https://github.com/tjko/jpegoptim) | JPEG 优化 / 压缩 | 必须保留原图备份 |
+| [svgo](https://github.com/svg/svgo) | SVG 清理 / 优化 | Kindle 主路径仍优先预栅格化风险 SVG |
+
+外部工具只改资源字节。资源改完后必须重新运行：
+
+```sh
+epub run epub.package.nav.audit --input work/after/step-N-images.epub --json
+epub redline --check all <redline-base.epub> work/after/step-N-images.epub
+```
+
 产物结构检查由 nav.audit 与 `epub redline`（正文不变）组合覆盖；EPUBCheck 在 GitHub Actions 作为 CI gate 运行。
 
 ## 7. 不做的
