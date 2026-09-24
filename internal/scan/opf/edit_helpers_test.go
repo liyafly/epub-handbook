@@ -42,3 +42,62 @@ func TestSharedOPFEditsPreserveNeighborBytes(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestClassTokenEdit(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		token   string
+		want    string
+		present bool
+		wantErr bool
+	}{
+		{name: "missing class", input: `<p id="x">text</p>`, token: "alpha", want: `<p id="x" class="alpha">text</p>`},
+		{name: "append existing class", input: `<p class='x'>text</p>`, token: "y", want: `<p class='x y'>text</p>`},
+		{name: "token already present", input: `<p class="x y">text</p>`, token: "x", want: `<p class="x y">text</p>`, present: true},
+		{name: "empty class", input: `<p class="">text</p>`, token: "x", want: `<p class="x">text</p>`},
+		{name: "self closing", input: `<img src="x"/>`, token: "icon", want: `<img src="x" class="icon"/>`},
+		{name: "invalid token", input: `<p>text</p>`, token: "a b", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := []byte(tt.input)
+			root, err := ScanSpanTree(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			edit, present, err := ClassTokenEdit("chapter.xhtml", data, root, tt.token)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ClassTokenEdit error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if present != tt.present {
+				t.Fatalf("present = %v, want %v", present, tt.present)
+			}
+			if present {
+				return
+			}
+			got, err := editset.Apply("chapter.xhtml", data, []editset.Edit{edit})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClassTokenEditRejectsMismatchedSpan(t *testing.T) {
+	data := []byte(`<p class="x">text</p>`)
+	root, err := ScanSpanTree(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.Open.End--
+	if _, _, err := ClassTokenEdit("chapter.xhtml", data, root, "y"); err == nil {
+		t.Fatal("ClassTokenEdit accepted a mismatched open-tag span")
+	}
+}

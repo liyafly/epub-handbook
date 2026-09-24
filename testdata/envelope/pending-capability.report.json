@@ -1,18 +1,18 @@
 {
   "schemaVersion": "2",
-  "capability": "epub.notes.legacy-fallback",
+  "capability": "epub.fixture.pending",
   "status": "failed",
   "findings": [
     {
       "level": "error",
       "id": "capability.not-implemented",
       "title": "Capability not implemented in Go",
-      "detail": "epub.notes.legacy-fallback has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`"
+      "detail": "epub.fixture.pending has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`"
     }
   ],
   "events": [
     {
-      "step": "epub.notes.legacy-fallback",
+      "step": "epub.fixture.pending",
       "status": "skipped",
       "message": "capability has no Go implementation"
     }

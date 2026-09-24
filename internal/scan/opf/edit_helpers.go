@@ -1,9 +1,57 @@
 package opf
 
 import (
+	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 )
+
+// ClassTokenEdit returns a lossless edit that adds token to n's class
+// attribute. It appends inside the existing quoted value, or inserts a new
+// class attribute before the end of the open tag. present is true when the
+// token already exists. Unsafe source spans or values return an error.
+func ClassTokenEdit(path string, data []byte, n *SpanNode, token string) (edit editset.Edit, present bool, err error) {
+	if !validClassToken(token) {
+		return editset.Edit{}, false, fmt.Errorf("class token %q: only [A-Za-z0-9_-] allowed", token)
+	}
+	if n == nil || n.Open.Start < 0 || n.Open.End > len(data) || n.Open.End-n.Open.Start < 3 ||
+		data[n.Open.Start] != '<' || data[n.Open.End-1] != '>' {
+		return editset.Edit{}, false, fmt.Errorf("%s: open-tag span does not match source bytes", path)
+	}
+	if idx := n.AttrIndex("", "class"); idx >= 0 {
+		if slices.Contains(strings.Fields(n.Attrs[idx].Value), token) {
+			return editset.Edit{}, true, nil
+		}
+		span, _, ok := RawAttrValueSpan(data, n, idx)
+		if !ok || span.Start < n.Open.Start || span.End > n.Open.End || span.Start > span.End {
+			return editset.Edit{}, false, fmt.Errorf("%s: class attribute value is not quoted or span does not match source bytes", path)
+		}
+		if strings.TrimSpace(string(data[span.Start:span.End])) == "" {
+			return editset.Replace(path, int64(span.Start), int64(span.Len()), []byte(token)), false, nil
+		}
+		return editset.Insert(path, int64(span.End), []byte(" "+token)), false, nil
+	}
+	at := n.Open.End - 1
+	if n.SelfClose && data[at-1] == '/' {
+		at--
+	}
+	return editset.Insert(path, int64(at), []byte(` class="`+token+`"`)), false, nil
+}
+
+func validClassToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	for _, r := range token {
+		if !((r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-') {
+			return false
+		}
+	}
+	return true
+}
 
 // ManifestNodes returns all direct OPF manifest/item nodes in document order.
 // Foreign namespaces and nested lookalikes do not count.

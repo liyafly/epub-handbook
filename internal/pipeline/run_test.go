@@ -226,80 +226,104 @@ func TestTypographyUsesEmbeddedPresetOutsideRepository(t *testing.T) {
 	}
 }
 
-// TestRunPendingCapabilityFails 锁定 pending 能力语义：契约存在但无 Go
-// 实现时必须 failed + exit 1，不得伪装成 complete/exit 0。
-// （B 类纯 AI skill epub.kindle.compatibility.check 设计上永无 Go 实现。）
-func TestRunPendingCapabilityFails(t *testing.T) {
-	epub := buildSampleEpub(t)
-	pending := []string{
-		"epub.kindle.compatibility.check",
-		"epub.literary.structure.format",
-		"epub.notes.legacy-fallback",
-		"epub.typography.english.optimize",
-		"epub.vertical.ruby.optimize",
+const pendingFixtureID = "epub.fixture.pending"
+
+// pendingFixtureRoot returns an isolated contract root for testing the generic
+// pending-capability behavior after all product capabilities are implemented.
+func pendingFixtureRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	contractDir := filepath.Join(root, "contracts", "capabilities", "v1")
+	parameterDir := filepath.Join(root, "contracts", "parameters", "v2")
+	if err := os.MkdirAll(contractDir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	for _, id := range pending {
-		t.Run(id, func(t *testing.T) {
-			outcome, err := Run(t.Context(), Options{
-				CapabilityID: id,
-				InputPath:    epub,
-				Args:         Args{},
-			})
+	if err := os.MkdirAll(parameterDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{
+  "schemaVersion": "1",
+  "id": "epub.fixture.pending",
+  "version": "1.0.0",
+  "kind": "validator",
+  "legacySkillSlugs": ["epub-fixture"],
+  "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",
+  "outputSchema": "contracts/schemas/v1/inspection-report.schema.json",
+  "redLines": [],
+  "permissions": {"requiresWriteAccess": false, "network": "none"},
+  "execution": {"input": "epub", "output": "none"},
+  "requires": []
+}`
+	parameters := `{
+  "schemaVersion": "2",
+  "capabilities": {
+    "epub.fixture.pending": {"description": "pending behavior test", "parameters": {}}
+  }
+}`
+	for path, content := range map[string]string{
+		filepath.Join(contractDir, pendingFixtureID+".json"): contract,
+		filepath.Join(parameterDir, "cli.json"):              parameters,
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// TestRunPendingCapabilityFails locks down the generic behavior when a
+// contract exists but its runner has not been registered.
+func TestRunPendingCapabilityFails(t *testing.T) {
+	root := pendingFixtureRoot(t)
+	repoRoot := repoRootForTest(t)
+	epub := buildSampleEpub(t)
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{{name: "with input", input: epub}, {name: "without input"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			outcome, err := Run(t.Context(), Options{RepoRoot: root, CapabilityID: pendingFixtureID, InputPath: tc.input})
 			if err != nil {
 				t.Fatal(err)
 			}
 			env := outcome.Envelope
-			if env.Status != report.StatusFailed {
-				t.Errorf("pending 能力 status = %q, want failed", env.Status)
+			if env.Status != report.StatusFailed || outcome.ExitCode != ExitFailed {
+				t.Fatalf("pending capability = status %q exit %d, want failed / 1", env.Status, outcome.ExitCode)
 			}
-			if outcome.ExitCode != ExitFailed {
-				t.Errorf("pending 能力退出码 = %d, want 1", outcome.ExitCode)
+			if len(env.Events) != 1 || env.Events[0].Step != pendingFixtureID || env.Events[0].Status != "skipped" {
+				t.Fatalf("pending capability events = %#v, want one skipped fixture event", env.Events)
 			}
-			found := false
-			for _, f := range env.Findings {
-				if f.ID == "capability.not-implemented" {
-					found = true
-					if f.Level != "error" {
-						t.Errorf("finding level = %q, want error", f.Level)
-					}
-					if strings.Contains(f.Detail, "oracle") {
-						t.Errorf("finding detail 不应再指向已删除的 Python oracle: %q", f.Detail)
-					}
-				}
+			if len(env.Findings) != 1 || env.Findings[0].ID != "capability.not-implemented" || env.Findings[0].Level != "error" {
+				t.Fatalf("pending capability findings = %#v, want one error capability.not-implemented", env.Findings)
 			}
-			if !found {
-				t.Error("缺少 capability.not-implemented finding")
+			if strings.Contains(env.Findings[0].Detail, "oracle") {
+				t.Fatalf("finding detail should not refer to deleted Python oracle: %q", env.Findings[0].Detail)
+			}
+			if tc.input != "" {
+				return
+			}
+			want, err := os.ReadFile(filepath.Join(repoRoot, "testdata/envelope/pending-capability.report.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.MarshalIndent(env, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(append(data, '\n')); got != string(want) {
+				t.Fatalf("pending envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", got, want)
 			}
 		})
 	}
-	noInput, err := Run(t.Context(), Options{CapabilityID: "epub.notes.legacy-fallback"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if noInput.ExitCode != ExitFailed || noInput.Envelope.Status != report.StatusFailed {
-		t.Fatalf("pending capability without input = status %q exit %d, want failed / 1", noInput.Envelope.Status, noInput.ExitCode)
-	}
-	if len(noInput.Envelope.Events) != 1 || noInput.Envelope.Events[0].Step != "epub.notes.legacy-fallback" || noInput.Envelope.Events[0].Status != "skipped" {
-		t.Fatalf("pending capability event = %#v, want one skipped event", noInput.Envelope.Events)
-	}
-	if len(noInput.Envelope.Findings) != 1 || noInput.Envelope.Findings[0].ID != "capability.not-implemented" {
-		t.Fatalf("pending capability findings = %#v, want capability.not-implemented", noInput.Envelope.Findings)
-	}
+}
+
+func repoRootForTest(t *testing.T) string {
+	t.Helper()
 	root, err := FindRepoRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := os.ReadFile(filepath.Join(root, "testdata/envelope/pending-capability.report.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := json.MarshalIndent(noInput.Envelope, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(append(data, '\n')); got != string(want) {
-		t.Fatalf("pending envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", got, want)
-	}
+	return root
 }
 
 func TestRunUsageErrors(t *testing.T) {
