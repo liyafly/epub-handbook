@@ -174,6 +174,81 @@ func TestNotesFallbackRejectsInvalidPopupUpstream(t *testing.T) {
 	}
 }
 
+func TestEnglishTypographyEndToEnd(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeEnglishTypographyEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.english.optimize",
+		InputPath:    input,
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("status=%q exit=%d findings=%+v, want planned / 0", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 3 {
+		t.Fatalf("editCount=%#v, want 3", got)
+	}
+	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{
+		"OEBPS/Text/english-1.xhtml", "OEBPS/Text/english-2.xhtml", "OEBPS/Text/english-3.xhtml",
+	}) {
+		t.Fatalf("modified_entries=%#v", got)
+	}
+	var sawCJK, sawOPFLanguage bool
+	for _, finding := range outcome.Envelope.Findings {
+		sawCJK = sawCJK || finding.ID == "english.skipped-cjk-text"
+		sawOPFLanguage = sawOPFLanguage || finding.ID == "english.opf-language-differs"
+	}
+	if !sawCJK || !sawOPFLanguage {
+		t.Fatalf("expected CJK skip and OPF language info findings, got %+v", outcome.Envelope.Findings)
+	}
+	if outcome.Envelope.Input == nil {
+		t.Fatal("input artifact missing from E2E envelope")
+	}
+	outcome.Envelope.Input.Path = "<fixture.epub>"
+	outcome.Envelope.Input.SHA256 = ""
+	for i, command := range outcome.Envelope.NextCommands {
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+	}
+	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "english_typography", "basic.report.json")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(goldenPath, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, want) {
+		t.Fatalf("English typography E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+	}
+}
+
+func TestEnglishTypographyInvalidLanguageIsUsageError(t *testing.T) {
+	input := writeEnglishTypographyEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.english.optimize",
+		InputPath:    input,
+		DryRun:       true,
+		Args:         Args{"lang": "en_US"},
+	})
+	if err == nil || outcome.ExitCode != ExitUsage || outcome.Envelope.Status != report.StatusFailed {
+		t.Fatalf("outcome=%+v err=%v, want usage / exit 3", outcome, err)
+	}
+}
+
 func writeNewCapabilityEPUB(t *testing.T) string {
 	t.Helper()
 	entries := map[string]string{
@@ -261,6 +336,53 @@ func writeNotesFallbackEPUB(t *testing.T, missingBacklink bool) string {
 		t.Fatal(err)
 	}
 	input := filepath.Join(t.TempDir(), "notes-fallback.epub")
+	if err := os.WriteFile(input, archive.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return input
+}
+
+func writeEnglishTypographyEPUB(t *testing.T) string {
+	t.Helper()
+	entries := map[string]string{
+		"META-INF/container.xml":     `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+		"OEBPS/content.opf":          `<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="uid"><metadata><dc:title>English typography fixture</dc:title><dc:identifier id="uid">urn:uuid:english-typography</dc:identifier><dc:language>zh-CN</dc:language><meta name="cover" content="cover"/></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="cover" href="cover.png" media-type="image/png" properties="cover-image"/><item id="style" href="styles.css" media-type="text/css"/><item id="en1" href="Text/english-1.xhtml" media-type="application/xhtml+xml"/><item id="en2" href="Text/english-2.xhtml" media-type="application/xhtml+xml"/><item id="en3" href="Text/english-3.xhtml" media-type="application/xhtml+xml"/><item id="copyright" href="Text/copyright.xhtml" media-type="application/xhtml+xml"/></manifest><spine toc="ncx"><itemref idref="en1"/><itemref idref="en2"/><itemref idref="en3"/><itemref idref="copyright"/></spine></package>`,
+		"OEBPS/nav.xhtml":            `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN"><head><title>Navigation</title></head><body><nav epub:type="toc"><ol><li><a href="Text/english-1.xhtml">Chapter One</a></li><li><a href="Text/english-2.xhtml">Chapter Two</a></li><li><a href="Text/english-3.xhtml">Chapter Three</a></li><li><a href="Text/copyright.xhtml">版权页</a></li></ol></nav></body></html>`,
+		"OEBPS/toc.ncx":              `<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head/><docTitle><text>Fixture</text></docTitle><navMap><navPoint id="n1" playOrder="1"><navLabel><text>Chapter One</text></navLabel><content src="Text/english-1.xhtml"/></navPoint></navMap></ncx>`,
+		"OEBPS/cover.png":            "PNG fixture bytes",
+		"OEBPS/styles.css":           `.body { color: black; }`,
+		"OEBPS/Text/english-1.xhtml": `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter One</title></head><body><p>The clock began to ring before the rain had stopped.</p></body></html>`,
+		"OEBPS/Text/english-2.xhtml": `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter Two</title></head><body><p>Clara walked down the bright and narrow street.</p></body></html>`,
+		"OEBPS/Text/english-3.xhtml": `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter Three</title></head><body><p>She returned home when the station clock struck once.</p></body></html>`,
+		"OEBPS/Text/copyright.xhtml": `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>版权页</title></head><body><p>版权页 出版信息 版权所有 版次</p></body></html>`,
+	}
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	mimetype, err := writer.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mimetype.Write([]byte("application/epub+zip")); err != nil {
+		t.Fatal(err)
+	}
+	paths := make([]string, 0, len(entries))
+	for name := range entries {
+		paths = append(paths, name)
+	}
+	slices.Sort(paths)
+	for _, name := range paths {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(entries[name])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(t.TempDir(), "english-typography.epub")
 	if err := os.WriteFile(input, archive.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}

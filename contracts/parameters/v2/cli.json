@@ -219,8 +219,18 @@
       }
     },
     "epub.typography.english.optimize": {
-      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
-      "parameters": {}
+      "description": "只做确定性的语言声明：为缺 lang/xml:lang 的 XHTML 根元素补齐；排版取舍由模型按 SPEC §5.9 另行决定。",
+      "parameters": {
+        "lang": {
+          "type": "string",
+          "description": "要写入的 BCP 47 语言标签，如 en、en-GB。",
+          "default": "en"
+        },
+        "scope_paths": {
+          "type": "json-string-array",
+          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；省略则扫描全部 spine XHTML。"
+        }
+      }
     },
     "epub.vertical.ruby.optimize": {
       "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",

@@ -29,12 +29,15 @@ description: 处理英文排版、文学结构、竖排与 Ruby、多看旧版�
 
 ### 英文排版
 
-`epub.typography.english.optimize` 当前未实现；按用户授权人工修改 XHTML/CSS，不反复调用占位能力。检查入口：
+先用 `epub.typography.english.optimize` dry-run 检查 spine XHTML 的语言声明，再审阅计划并写出新候选。该能力只补齐 `html` 根节点的 `lang` / `xml:lang`；字体链、段落节奏、对齐、断字、首字装饰与插图仍按 SPEC §5.9 逐项判断，不由此能力修改。
 
 ```sh
-epub run epub.layout.audit --input "candidate.epub" --json
+epub run epub.typography.english.optimize --input "before.epub" --dry-run --json
+epub run epub.typography.english.optimize --input "before.epub" --output "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
+
+可显式传 `lang=en-GB`，或传 `scope_paths='["OEBPS/Text/chapter.xhtml"]'` 限定 spine XHTML；路径须精确匹配 spine 项。省略 scope 时，不同主语言与 CJK 比例达到阈值的无语言页面会跳过；显式 scope 中已有其他主语言则报 error，且整本零编辑。审阅 `plannedEdits[{path,action,value}]`、`skipped[{path,reason}]`、`filesScanned` 与 `editCount`；`lang-mismatch` 表示不猜测两种声明中的哪一个正确，`opf-language-differs` 只提示，能力不改 OPF。
 
 涉及弹注时加 popup validator，涉及 demo 时走 demo skill；
 
@@ -77,7 +80,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 英文排版
 
-layout findings 只证明静态扫描结果；红线证明所选内容边界。把静态发现、实际阅读器现象、尚未验证项分别列出，不把人工实施描述成自动能力已落地。
+`english.already-declared` 与 `english.declared-on-body` 表示没有改动；`english.skipped-other-lang`、`english.skipped-cjk-text` 与 `english.lang-mismatch` 表示该页被保留。显式范围出现 `english.lang-conflict` 时全书不应用计划中的修改。OPF 语言 finding 只是提示。layout findings 只证明静态扫描结果；红线证明所选内容边界。把静态发现、实际阅读器现象、尚未验证项分别列出。
 
 ### 文学结构精排
 

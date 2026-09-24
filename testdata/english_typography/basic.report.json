@@ -1,0 +1,335 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.typography.english.optimize",
+  "status": "planned",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "facts": {
+    "dry_run": true,
+    "epub.layout.audit.actionableFindings": [
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/copyright.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      }
+    ],
+    "epub.layout.audit.auditStatus": "warn",
+    "epub.layout.audit.findings": [
+      {
+        "level": "warn",
+        "id": "audit.0",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-1.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.1",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-2.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.2",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-3.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.3",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/copyright.xhtml"
+      }
+    ],
+    "epub.layout.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 4,
+      "info": 0
+    },
+    "epub.layout.audit.input_kind": "existing-epub",
+    "epub.layout.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-cleanup"
+    ],
+    "epub.layout.audit.status": "complete",
+    "epub.layout.audit.summary": {
+      "language": "zh-CN",
+      "manifest_items": 8,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 5
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 4,
+      "zip_entries": 11
+    },
+    "epub.layout.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.package.nav.audit.actionableFindings": [
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-1.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-2.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/english-3.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/Text/copyright.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "zh-CN"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      }
+    ],
+    "epub.package.nav.audit.auditStatus": "warn",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "warn",
+        "id": "audit.0",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-1.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.1",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-2.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.2",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/english-3.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.3",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/Text/copyright.xhtml"
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 4,
+      "info": 0
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-cleanup"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "zh-CN",
+      "manifest_items": 8,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 5
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 4,
+      "zip_entries": 11
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.typography.english.optimize.editCount": 3,
+    "epub.typography.english.optimize.filesScanned": 4,
+    "epub.typography.english.optimize.plannedEdits": [
+      {
+        "path": "OEBPS/Text/english-1.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      },
+      {
+        "path": "OEBPS/Text/english-2.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      },
+      {
+        "path": "OEBPS/Text/english-3.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      }
+    ],
+    "epub.typography.english.optimize.skipped": [
+      {
+        "path": "OEBPS/Text/copyright.xhtml",
+        "reason": "cjk-text"
+      }
+    ],
+    "modified_entries": [
+      "OEBPS/Text/english-1.xhtml",
+      "OEBPS/Text/english-2.xhtml",
+      "OEBPS/Text/english-3.xhtml"
+    ]
+  },
+  "findings": [
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.package.nav.audit.findings\"]",
+      "location": "epub.package.nav.audit"
+    },
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.layout.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.layout.audit.findings\"]",
+      "location": "epub.layout.audit"
+    },
+    {
+      "level": "info",
+      "id": "english.opf-language-differs",
+      "title": "OPF language differs from the requested XHTML language",
+      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"",
+      "location": "OEBPS/content.opf"
+    },
+    {
+      "level": "info",
+      "id": "english.skipped-cjk-text",
+      "title": "Undeclared-language page contains substantial CJK text",
+      "detail": "CJK-to-letter ratio is at least 0.2; left unchanged",
+      "location": "OEBPS/Text/copyright.xhtml"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 4 warn"
+    },
+    {
+      "step": "epub.layout.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 4 warn"
+    },
+    {
+      "step": "epub.typography.english.optimize",
+      "status": "completed"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    }
+  ],
+  "nextCommands": [
+    "epub run epub.typography.english.optimize --input \u003cfixture.epub\u003e --output '\u003cout.epub\u003e' --json"
+  ]
+}

@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **`epub.typography.english.optimize`**：新增只补齐 spine XHTML 根节点 `lang` / `xml:lang` 的确定性写入能力；按主语言、body 声明和 CJK 比例跳过歧义页面，不改 CSS 与 OPF metadata。
 - **`epub.notes.legacy-fallback`**：新增多看旧版弹注 class fallback；要求标准弹注校验干净，支持精确 spine XHTML 范围与 dry-run 计划，任何 error finding 都不会应用部分编辑。
 - **`epub.kindle.compatibility.check`**：新增只读 Kindle 静态风险 validator，覆盖 NCX/封面/图片、MathML、manifest CSS 与 spine XHTML；报告固定顺序的 finding 与计数，不代表目标阅读器验收。
 - **字体工具 CLI**：`tools-font/subset-demo` 更名为 `tools-font/epub-font`，提供 `epub-font subset` / `epub-font check`；修复 `check` 将 CSS 非渲染字符串当作必需字符的误报。

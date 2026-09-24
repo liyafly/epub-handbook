@@ -18,6 +18,7 @@ import (
 	contentanalyze "github.com/liyafly/epub-handbook/internal/caps/content_analyze"
 	covercap "github.com/liyafly/epub-handbook/internal/caps/cover"
 	csscleanup "github.com/liyafly/epub-handbook/internal/caps/css_cleanup"
+	englishtypography "github.com/liyafly/epub-handbook/internal/caps/english_typography"
 	fontcoverage "github.com/liyafly/epub-handbook/internal/caps/fontcoverage"
 	imagelayout "github.com/liyafly/epub-handbook/internal/caps/image_layout"
 	kindlecheck "github.com/liyafly/epub-handbook/internal/caps/kindle_check"
@@ -203,6 +204,26 @@ func init() {
 			}
 		}
 		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, ScopePaths: scope})
+	})
+	register("epub.typography.english.optimize", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
+		lang, ok := args["lang"]
+		if !ok {
+			lang = "en"
+		} else if !englishtypography.ValidLang(lang) {
+			return report.Result{}, usageErrorf("lang 必须符合 BCP 47 子集，如 en 或 en-GB")
+		}
+		var scope []string
+		if raw, ok := args["scope_paths"]; ok {
+			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
+				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
+			}
+			for _, path := range scope {
+				if strings.TrimSpace(path) == "" {
+					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
+				}
+			}
+		}
+		return englishtypography.Run(ctx, b, englishtypography.Params{Lang: lang, ScopePaths: scope})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		if args.Get("query") != "" && !args.Bool("catalog") {
