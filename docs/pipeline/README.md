@@ -1,21 +1,17 @@
 # 批处理流水线
 
-> 把已有 epub 批量处理（清洗、改造、对比、回写）的工作流文档。
+清洗一本已有 EPUB：**只按 [cleanup-flow.md](cleanup-flow.md) 的主线走。** 下面是主线某一步需要时才读的专题。
 
-## 核心文档（按读取顺序）
+| 专题 | 何时读 |
+| --- | --- |
+| [book-workspace.md](book-workspace.md) | S0：建书级工作区 |
+| [cleanup-patterns.md](cleanup-patterns.md) | S5：按症状选能力 |
+| [epub3-migration.md](epub3-migration.md) | S3：迁移产物与验收 |
+| [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md) | S5：CSS 与字体链 |
+| [asset-optimization.md](asset-optimization.md) | S5 / S5f：图片与字体 |
+| [package-operations.md](package-operations.md) | 合并、拆分、元数据、封面 |
+| [epub-diff-review.md](epub-diff-review.md) | S8：人工 diff |
+| [reference-font-role-patterns.md](reference-font-role-patterns.md) | 字体角色参考 |
 
-维护 Go CLI、contracts、providers 或旧实现迁移时，先读
-[go-cli-rearchitecture.md](go-cli-rearchitecture.md)；它不改变普通清洗任务的以下顺序：
-
-1. [cleanup-flow.md](cleanup-flow.md)：流水线主流程（preflight -> 可选结构规范化 -> EPUB3 迁移 -> 精排建议 -> 红线 gate -> diff review -> reader-matrix 回写）
-2. [epub3-migration.md](epub3-migration.md)：EPUB3 迁移产物与验收
-3. [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)：重复 CSS 收口、系统优先字体链和局部样式合并
-5. [package-operations.md](package-operations.md)：EPUB 合并、按目录拆分、元数据编辑和封面替换
-6. [cleanup-patterns.md](cleanup-patterns.md)：典型脏 EPUB 模式识别与 skill 推荐顺序
-7. [asset-optimization.md](asset-optimization.md)：图片与字体优化（精排建议的资源附件）
-8. EPUB diff review：见 [epub-diff-review.md](epub-diff-review.md)（Calibre / VS Code）
-10. [reference-font-role-patterns.md](reference-font-role-patterns.md)：本地文学 EPUB 的脱敏字体角色分析
-
-## SPEC 对应
-
-清洗流程的硬规则在 [../final/SPEC-实现约束.md §10](../final/SPEC-实现约束.md)。
+Go 维护（不是清洗流程）：[go-rewrite-handoff.md](go-rewrite-handoff.md)、[go-impl-notes.md](go-impl-notes.md)。
+硬规则：[../final/SPEC-实现约束.md §10](../final/SPEC-实现约束.md)。
