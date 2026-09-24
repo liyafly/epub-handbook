@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB Package 导航审核"
-  short_description: "只读预检 EPUB 包、导航、资源引用与加密风险，不自动改书。"
-  default_prompt: "使用 $epub-package-nav-auditor 预检这本 EPUB，区分阻断项、可修复结构问题与待复核项。"

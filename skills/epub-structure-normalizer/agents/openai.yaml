@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB 结构格式化与文件名反混淆"
-  short_description: "先审查双阶段路径映射，再规范资源目录并验证正文与引用不变。"
-  default_prompt: "使用 $epub-structure-normalizer 先 dry-run 审查路径映射，确认后写新候选并做带映射的红线验证。"

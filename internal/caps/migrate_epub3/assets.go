@@ -220,14 +220,14 @@ hr.xian {
 `
 
 // notePNGBytes 复刻 core.note_png_bytes：NOTE_ASSET（仓库根
-// skills/epub-popup-footnote-converter/assets/note.png）存在时读盘，
+// skills/epub-cleanup/assets/note.png）存在时读盘，
 // 否则回退内置 base64。Python 侧按脚本位置定位资产；Go 侧从当前工作
 // 目录向上找仓库根（含 go.mod 的目录），找不到再用回退字节。
 func notePNGBytes() []byte {
 	dir, err := os.Getwd()
 	if err == nil {
 		for {
-			candidate := filepath.Join(dir, "skills", "epub-popup-footnote-converter", "assets", "note.png")
+			candidate := filepath.Join(dir, "skills", "epub-cleanup", "assets", "note.png")
 			if data, rerr := os.ReadFile(candidate); rerr == nil {
 				return data
 			}

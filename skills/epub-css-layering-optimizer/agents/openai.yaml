@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB CSS 分层优化"
-  short_description: "保守修补 CSS 与旧字体链，语义拆层、自动去重和作用域归并均停用。"
-  default_prompt: "使用 $epub-css-layering-optimizer 审查 CSS 清理计划与级联风险，在授权范围内做最小调整。"

@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB A-lite 转换"
-  short_description: "将明确指定的封面式页面转 A-lite，保留原构图、文字和资源。"
-  default_prompt: "使用 $epub-alite-converter 审查并转换指定页面，保留原图文构图，验证红线及可重排表现。"

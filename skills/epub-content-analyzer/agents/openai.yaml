@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB 文本内容分析"
-  short_description: "只读识别结构角色、证据与歧义，给出字体角色而非字形覆盖结论。"
-  default_prompt: "使用 $epub-content-analyzer 分析文本角色与歧义，结合上下文给出可复核建议，不改写内容。"

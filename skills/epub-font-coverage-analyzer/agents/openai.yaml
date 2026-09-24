@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB 字体覆盖分析"
-  short_description: "只读检测真实缺字与字体链回退，明确 provider 缺失和模型局限。"
-  default_prompt: "使用 $epub-font-coverage-analyzer 检测字形覆盖与回退风险，区分缺字、未到达回退及未解析部分。"

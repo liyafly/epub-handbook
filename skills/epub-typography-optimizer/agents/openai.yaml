@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB 字体排版优化"
-  short_description: "审查 CJK 字体角色与 preset 样式改动，先做代表性页面再推广。"
-  default_prompt: "使用 $epub-typography-optimizer 保留既有字体模式，用明确 scope_paths 先做局部候选，审查改动后再推广。"

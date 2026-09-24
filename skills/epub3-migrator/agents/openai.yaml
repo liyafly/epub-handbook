@@ -1,4 +1,0 @@
-interface:
-  display_name: "EPUB3 迁移"
-  short_description: "审查后把旧 EPUB 迁移为 EPUB3，复核导航、注释和内容边界。"
-  default_prompt: "使用 $epub3-migrator 判断迁移需求，审查与授权范围一致的计划后写新候选并验证。"
