@@ -1,6 +1,6 @@
 """Command line: subset the fonts listed in a config for one EPUB.
 
-    uv run python -m subset_demo BOOK.epub --config fonts.json --out-dir OUT [--out-epub CANDIDATE.epub]
+    epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
 
 Exit codes: 0 = every check passed; 1 = a check failed (report written, no
 candidate EPUB); 2 = bad input or unsupported font (nothing trustworthy written).
@@ -22,7 +22,6 @@ import fontTools
 
 from . import epubtext, fontops
 
-REPORT_NAME = "subset-report.json"
 CONFIG_KEYS = {"version", "fonts"}
 FONT_KEYS = {"target", "master", "variation", "extraText"}
 
@@ -68,14 +67,20 @@ def _load_config(path: Path) -> dict:
     return config
 
 
-def _check_output_paths(epub: Path, out_dir: Path, out_epub: Path | None) -> None:
-    if out_dir.exists() and (not out_dir.is_dir() or any(out_dir.iterdir())):
-        raise UsageError(f"--out-dir {out_dir} must not exist or must be an empty directory")
-    if out_epub is not None:
-        if out_epub.exists():
-            raise UsageError(f"--out-epub {out_epub} already exists; choose a new path")
-        if out_epub.resolve() == epub.resolve():
-            raise UsageError("--out-epub must differ from the input EPUB")
+def report_path(out_epub: Path) -> Path:
+    return out_epub.with_name(out_epub.stem + ".font-report.json")
+
+
+def _check_output_paths(epub: Path, out_epub: Path) -> None:
+    if out_epub.suffix.lower() != ".epub":
+        raise UsageError("--out must end with .epub")
+    if out_epub.resolve() == epub.resolve():
+        raise UsageError("--out must differ from the input EPUB")
+    if out_epub.exists():
+        raise UsageError(f"--out {out_epub} already exists; choose a new path")
+    report = report_path(out_epub)
+    if report.exists():
+        raise UsageError(f"report {report} already exists; choose a new output path")
 
 
 def _read_master(job: dict, config_dir: Path, zf: zipfile.ZipFile) -> tuple[bytes, str]:
@@ -106,6 +111,10 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
     if "MATH" in master_font:
         raise fontops.FontJobError(f"{master_label}: has an OpenType MATH table; keep the complete math font (handbook §4.6 step 4)")
     master = fontops.font_facts(master_font)
+    if "variation" not in job and master.axes:
+        raise fontops.FontJobError(
+            f'{target}: variable font; add it to --config with variation.mode ("instance" is recommended, see README)'
+        )
     fontops.check_target_format(target, master.outline)
     limits = fontops.axis_limits(master, spec, master_label)
 
@@ -167,13 +176,13 @@ def write_candidate_epub(src: Path, dst: Path, replacements: dict) -> list:
 
 def run(args) -> int:
     epub = Path(args.epub)
-    out_dir = Path(args.out_dir)
-    out_epub = Path(args.out_epub) if args.out_epub else None
-    config_path = Path(args.config)
+    out_epub = Path(args.out)
+    report = report_path(out_epub)
+    config_path = Path(args.config) if args.config else None
     if not epub.is_file():
         raise UsageError(f"{epub} is not a regular file")
-    config = _load_config(config_path)
-    _check_output_paths(epub, out_dir, out_epub)
+    _check_output_paths(epub, out_epub)
+    config = _load_config(config_path) if config_path else None
     try:
         zf = zipfile.ZipFile(epub)
     except zipfile.BadZipFile as exc:
@@ -183,37 +192,44 @@ def run(args) -> int:
             book = epubtext.read_book_text(zf)
         except epubtext.EpubError as exc:
             raise UsageError(str(exc)) from exc
+        if config is None:
+            manifest_fonts = [
+                item for item in book.items
+                if item.path.lower().endswith(tuple(fontops.FLAVOR_BY_EXT)) or "font" in item.media_type.lower()
+            ]
+            if not manifest_fonts:
+                raise UsageError("the EPUB has no manifest fonts")
+            config = {"version": 1, "fonts": [{"target": item.path} for item in manifest_fonts]}
+            config_dir = epub.parent
+        else:
+            config_dir = config_path.parent
         try:
-            results = [_process_job(job, book, zf, config_path.parent) for job in config["fonts"]]
+            results = [_process_job(job, book, zf, config_dir) for job in config["fonts"]]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for result in results:
-        path = out_dir / result["target"]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(result["_bytes"])
-
     all_ok = all(result["ok"] for result in results)
-    report = {
-        "tool": "subset_demo",
+    report_data = {
+        "tool": "epub-font subset",
         "fontTools": fontTools.version,
         "input": {"path": str(epub), "sha256": fontops.sha256(epub.read_bytes())},
-        "config": {"path": str(config_path), "sha256": fontops.sha256(config_path.read_bytes())},
+        "config": ({"path": str(config_path), "sha256": fontops.sha256(config_path.read_bytes())}
+                   if config_path else None),
         "charset": {
             "total": len(book.all_chars()),
             "bySource": {name: len(chars) for name, chars in sorted(book.chars_by_source.items())},
         },
         "fonts": [{k: v for k, v in result.items() if k != "_bytes"} for result in results],
         "ok": all_ok,
-        "candidateEpub": None,
+        "output": None,
     }
-    if all_ok and out_epub is not None:
+    out_epub.parent.mkdir(parents=True, exist_ok=True)
+    if all_ok:
         warnings = write_candidate_epub(epub, out_epub, {r["target"]: r["_bytes"] for r in results})
-        report["candidateEpub"] = {"path": str(out_epub), "sha256": fontops.sha256(out_epub.read_bytes()),
-                                   "warnings": warnings}
-    (out_dir / REPORT_NAME).write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        report_data["output"] = {"path": str(out_epub), "sha256": fontops.sha256(out_epub.read_bytes()),
+                                 "warnings": warnings}
+    report.write_text(
+        json.dumps(report_data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
     for result in results:
@@ -225,18 +241,16 @@ def run(args) -> int:
               + (f", failed: {', '.join(failed)}" if failed else ""))
         for warning in result["warnings"]:
             print(f"  warning: {warning}")
-    print(f"report: {out_dir / REPORT_NAME}")
-    if out_epub is not None:
-        print(f"candidate: {out_epub}" if report["candidateEpub"] else "candidate: not written (a check failed)")
+    print(f"report: {report}")
+    print(f"output: {out_epub}" if report_data["output"] else "output: not written (a check failed)")
     return 0 if all_ok else 1
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m subset_demo", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(prog="epub-font subset", description=__doc__.splitlines()[0])
     parser.add_argument("epub", help="input EPUB (read only)")
-    parser.add_argument("--config", required=True, help="fonts.json (see examples/fonts.sample.json)")
-    parser.add_argument("--out-dir", required=True, help="new or empty directory for subset fonts and the report")
-    parser.add_argument("--out-epub", help="optional new EPUB path; written only when every check passes")
+    parser.add_argument("--out", required=True, help="new output EPUB path (must not exist)")
+    parser.add_argument("--config", help="optional fonts.json (see examples/fonts.*.json)")
     args = parser.parse_args(argv)
     try:
         return run(args)

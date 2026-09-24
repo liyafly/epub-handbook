@@ -1,6 +1,6 @@
-# subset-demo：EPUB 字体子集化（含可变字体 VF）
+# epub-font：EPUB 字体子集化与全量校验
 
-独立 Python + fontTools 演示工具，与 `coverage-detector/` 同级，**不打包进发行包，也不是 `epub run` capability**。
+独立 Python + fontTools 命令行工具，与 `coverage-detector/` 同级，**不打包进 EPUB Handbook 发行包，也不是 `epub run` capability**。
 它只做一件事：把 EPUB 里**已存在**的字体条目替换成按全书字符集裁切后的字体字节，并逐项核验。
 OPF、CSS、XHTML 与其他 entry 原样复制（同顺序、同压缩方式），所以字体 alias、包内路径、CSS URL 与 OPF id 都不变
 （`docs/final/字体别名命名规范.md` §4.7）。
@@ -8,7 +8,14 @@ OPF、CSS、XHTML 与其他 entry 原样复制（同顺序、同压缩方式）�
 ## 安装
 
 ```sh
-cd tools-font/subset-demo
+uv tool install --editable tools-font/epub-font
+epub-font --help
+```
+
+在仓库内开发或运行离线测试：
+
+```sh
+cd tools-font/epub-font
 uv sync
 uv run pytest -q          # 离线测试，使用合成字体，不需要下载
 ```
@@ -16,12 +23,14 @@ uv run pytest -q          # 离线测试，使用合成字体，不需要下载
 ## 用法
 
 ```sh
-uv run python -m subset_demo BOOK.epub --config fonts.json --out-dir OUT/ [--out-epub CANDIDATE.epub]
+epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
+epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json]
 ```
 
-- `OUT/` 必须不存在或为空；写出 `OUT/<字体包内路径>` 与 `OUT/subset-report.json`。
-- `--out-epub` 只在**全部检查通过**时写出；路径必须不存在，且不能等于输入。
-- 退出码：`0` 全部通过；`1` 有检查失败（报告已写，候选 EPUB 不写）；`2` 输入/配置错误或不支持的字体（什么都不写）。
+- `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
+- 省略 `--config` 时自动处理 OPF manifest 中的全部静态字体；配置文件可指定母版、额外字符或可变字体模式。
+- `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
+- `subset` 退出码：`0` 全部检查通过并写出 EPUB；`1` 字体核验失败（报告已写，EPUB 不写）；`2` 输入/配置错误或不支持的字体（报告与 EPUB 均不写）。`check` 退出码：`0` 全覆盖；`1` 有缺字；`2` 输入错误。
 
 ## fonts.json
 
@@ -39,7 +48,7 @@ uv run python -m subset_demo BOOK.epub --config fonts.json --out-dir OUT/ [--out
 | --- | --- | --- |
 | `target` | 是 | EPUB 内已存在、且在 OPF manifest 中的字体 ZIP 路径；扩展名决定输出格式：`.ttf`（需 TrueType 轮廓）、`.otf`（需 CFF/CFF2 轮廓）、`.woff`、`.woff2` |
 | `master` | 否 | 包外母版路径（相对 fonts.json 所在目录）；省略时用 `target` 当前字节原地子集化。可为 `.ttf/.otf/.woff/.woff2`，不支持 `.ttc/.otc` |
-| `variation.mode` | 否 | `keep`（默认，保留全部变体）/ `instance`（钉住所有轴 → 静态字体，手册 §4.6 推荐）/ `limit`（收窄轴范围，仍是 VF） |
+| `variation.mode` | 可变字体必填；静态字体省略 | `keep`（保留全部变体）/ `instance`（钉住所有轴 → 静态字体，手册 §4.6 推荐）/ `limit`（收窄轴范围，仍是 VF） |
 | `variation.axes` | 视 mode | `instance`：`{"wght": 600}`，未写的轴取默认值；`limit`：`{"wght": [400, 700]}` 或数字（钉住该轴） |
 | `extraText` | 否 | 额外保留的字符（SPEC §4 第 5 条 `extraCodepoints`） |
 
@@ -63,15 +72,15 @@ manifest 中全部 XHTML / SVG / NCX（含 nav）的文本节点，`alt` / `titl
 
 母版里本来就没有的字符列在 `notInMaster`（警告，不算失败）：它们要靠字体链后续字体兜底，交给 `epub.font.coverage.analyze` 判断。
 
-## 全量校验：`subset_demo.fullcheck`
+## 全量校验：`epub-font check`
 
 独立于子集工具的"字符是否全量在字体里"检查（不 import `epubtext` / `fontops`；文本用 lxml 收集，字体直接读 cmap），
 用来复核子集产物，也可以检查任何 EPUB 的嵌入字体或包外母版：
 
 ```sh
-uv run python -m subset_demo.fullcheck BOOK.epub --font OEBPS/Fonts/st-all.ttf [--font ...]   # 书内字体，按全书用字
-uv run python -m subset_demo.fullcheck BOOK.epub --all-fonts                                     # 每个 manifest 字体都按全书用字
-uv run python -m subset_demo.fullcheck BOOK.epub --font-file rare.ttf --chars-file rare.txt      # 包外字体 + 指定字符清单（如 .rare 补字）
+epub-font check BOOK.epub --font OEBPS/Fonts/st-all.ttf [--font ...]       # 指定书内字体
+epub-font check BOOK.epub                                                  # 默认检查所有 manifest 字体
+epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包外字体 + 指定字符清单
 ... [--json report.json]
 ```
 
@@ -82,7 +91,7 @@ uv run python -m subset_demo.fullcheck BOOK.epub --font-file rare.ttf --chars-fi
 - 判定：`missing`（无 cmap 或映射到 .notdef）、`noInk`（映射到没有轮廓的字形，空格与格式字符除外）、
   `missingSequences`（文本里出现的 IVS/SVS 序列不在 cmap 14）→ 任一非空即 exit 1；
   `optionalMissing`（ZWSP、ZWJ、软连字符等格式字符）只报告不判失败。可变字体按默认实例检查字形。
-- 退出码：`0` 全量；`1` 有缺失；`2` 输入错误（未指定字体、字体不在 manifest、字体被混淆等）。
+- 退出码：`0` 全量；`1` 有缺失；`2` 输入错误（字体不在 manifest、字体被混淆等）。
 
 ## 已知限制
 

@@ -160,9 +160,9 @@ wheels = [
 ]
 
 [[package]]
-name = "epub-font-subset-demo"
-version = "0.1.0"
-source = { virtual = "." }
+name = "epub-font"
+version = "1.0.0"
+source = { editable = "." }
 dependencies = [
     { name = "fonttools", extra = ["woff"] },
     { name = "lxml" },

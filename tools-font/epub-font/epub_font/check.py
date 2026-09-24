@@ -1,8 +1,8 @@
 """Check that fonts contain EVERY character the book (or a given list) needs.
 
-    uv run python -m subset_demo.fullcheck BOOK.epub --font OEBPS/Fonts/st-all.ttf [--font ...]
-    uv run python -m subset_demo.fullcheck BOOK.epub --all-fonts
-    uv run python -m subset_demo.fullcheck BOOK.epub --font-file /path/master.ttf --chars-file rare.txt
+    epub-font check BOOK.epub [--font OEBPS/Fonts/st-all.ttf ...]
+    epub-font check BOOK.epub
+    epub-font check BOOK.epub --font-file /path/master.ttf --chars-file rare.txt
     ... [--json REPORT.json]
 
 Deliberately independent of epubtext.py / fontops.py (nothing is imported from them):
@@ -153,7 +153,7 @@ def _is_selector(cp: int) -> bool:
     return 0xFE00 <= cp <= 0xFE0F or 0xE0100 <= cp <= 0xE01EF or 0x180B <= cp <= 0x180F
 
 
-def _strings(css_text: str) -> list:
+def _strings(css_text: str, *, inline: bool = False) -> list:
     out = []
 
     def walk(nodes):
@@ -166,13 +166,20 @@ def _strings(css_text: str) -> list:
             elif kind in ("() block", "[] block", "{} block"):
                 walk(node.content)
 
-    walk(tinycss2.parse_component_value_list(css_text, skip_comments=True))
+    if inline:
+        nodes = tinycss2.parse_blocks_contents(css_text, skip_comments=True, skip_whitespace=True)
+    else:
+        nodes = tinycss2.parse_stylesheet(css_text, skip_comments=True, skip_whitespace=True)
+    for decl in _declarations(nodes):
+        if decl.lower_name in RENDERED_STRING_PROPERTIES:
+            walk(decl.value)
     return out
 
 
 EMPHASIS_PROPERTIES = {"text-emphasis", "text-emphasis-style", "-webkit-text-emphasis",
                        "-webkit-text-emphasis-style", "-epub-text-emphasis", "-epub-text-emphasis-style"}
 HYPHENS_PROPERTIES = {"hyphens", "-webkit-hyphens", "-epub-hyphens"}
+RENDERED_STRING_PROPERTIES = {"content", "quotes", "list-style", "list-style-type"} | EMPHASIS_PROPERTIES
 
 
 def _declarations(nodes):
@@ -244,8 +251,11 @@ def harvest_book(zf: zipfile.ZipFile) -> tuple:
             harvest.walk(root, path)
         elif media == "text/css":
             harvest.css.append(zf.read(path).decode("utf-8-sig", errors="replace"))
-    for text in harvest.css + harvest.inline:
+    for text in harvest.css:
         for value in _strings(text):
+            harvest.add(value, "css")
+    for text in harvest.inline:
+        for value in _strings(text, inline=True):
             harvest.add(value, "css")
     generated = _generated(harvest.css, harvest.inline, harvest.has_q, set(harvest.chars))
     harvest.add("".join(ch for ch in dict.fromkeys(generated) if ch not in harvest.chars), "css-generated")
@@ -325,14 +335,12 @@ def run(args) -> int:
     epub = Path(args.epub)
     if not epub.is_file():
         raise CheckError(f"{epub} is not a file")
-    if not (args.font or args.all_fonts or args.font_file):
-        raise CheckError("choose the fonts to check: --font PATH_IN_EPUB (repeatable), --all-fonts, or --font-file FILE")
     with zipfile.ZipFile(epub) as zf:
         items, harvest = harvest_book(zf)
         if args.chars_file:
             harvest = _chars_from_file(Path(args.chars_file))
         manifest_fonts = [p for p, media in items if p.lower().endswith(FONT_EXTENSIONS) or "font" in media]
-        targets = list(dict.fromkeys(manifest_fonts if args.all_fonts else (args.font or [])))
+        targets = list(dict.fromkeys(manifest_fonts if not args.font and not args.font_file else (args.font or [])))
         encrypted = _encrypted(zf)
         results = []
         for target in targets:
@@ -347,7 +355,7 @@ def run(args) -> int:
         raise CheckError("no fonts to check (the book has no manifest fonts)")
 
     report = {
-        "tool": "subset_demo.fullcheck",
+        "tool": "epub-font check",
         "input": {"path": str(epub), "sha256": hashlib.sha256(epub.read_bytes()).hexdigest()},
         "scope": f"chars-file:{args.chars_file}" if args.chars_file else "book",
         "requiredChars": len(harvest.chars),
@@ -375,10 +383,9 @@ def run(args) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m subset_demo.fullcheck", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(prog="epub-font check", description=__doc__.splitlines()[0])
     parser.add_argument("epub")
     parser.add_argument("--font", action="append", help="font path inside the EPUB (repeatable)")
-    parser.add_argument("--all-fonts", action="store_true", help="check every manifest font against the same set")
     parser.add_argument("--font-file", action="append", help="font file outside the EPUB (repeatable)")
     parser.add_argument("--chars-file", help="UTF-8 file listing the required characters instead of the whole book")
     parser.add_argument("--json", help="write the full report here")
@@ -388,7 +395,3 @@ def main(argv=None) -> int:
     except CheckError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-
-
-if __name__ == "__main__":
-    sys.exit(main())

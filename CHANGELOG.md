@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **字体工具 CLI**：`tools-font/subset-demo` 更名为 `tools-font/epub-font`，提供 `epub-font subset` / `epub-font check`；修复 `check` 将 CSS 非渲染字符串当作必需字符的误报。
 - **引用安全与 EPUB 输入限额**（`390e27f`）：XHTML / CSS / SVG 引用改写限定在真实语法区域；ZIP 元数据、归档条目数、单条与总解压量及辅助输入加入上限与取消检查。
 - **移除 EPUBCheck 拒绝的 CSS 方向规则**（`62c5b37`）：从 demo 的 `chapter-compat.css` 和 `poster.css` 删除 `direction: ltr`。
 

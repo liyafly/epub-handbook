@@ -28,8 +28,7 @@
 | JPEG 无损优化 | `jpegtran` / mozjpeg | `brew install mozjpeg` |
 | WebP 编解码 | `dwebp` / `cwebp` | `brew install webp` |
 | 通用转换 | ImageMagick `magick` | `brew install imagemagick` |
-| 字体子集化 | `pyftsubset` / fonttools | `python3 -m pip install fonttools brotli zopfli` |
-| 字形扫描 | `glyphhanger` | `npm install -g glyphhanger` |
+| 字体子集化与全量校验 | `epub-font` | `uv tool install --editable tools-font/epub-font` |
 
 ## 3. 图片处理
 
@@ -88,29 +87,17 @@ unzip -p book.epub OEBPS/package.opf | grep 'cover-image'
 
 中文字体单个常有 5-15MB；一本书实际用字远少于完整字体。子集化后体积通常降到 5-15%。
 
-### 4.1 glyphhanger
+### 4.1 字体子集化与全量校验
 
 ```sh
-npm install -g glyphhanger
-glyphhanger OEBPS/Text/*.xhtml \
-  --formats=woff2 \
-  --subset=OEBPS/Fonts/NotoSerifSC.otf
+epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
+epub-font check NEW.epub
+epub redline --check all BOOK.epub NEW.epub
 ```
 
-### 4.2 pyftsubset
+`epub-font subset` 只替换既有字体 entry 的字节，保留 ZIP 路径、CSS URL 与 OPF id；报告写在输出 EPUB 旁。省略配置时处理全部静态 manifest 字体；可变字体必须在配置中显式设置 `variation.mode`。子集化后运行全量覆盖检查与正文不变红线，再做目标阅读器实测。
 
-```sh
-pyftsubset OEBPS/Fonts/NotoSerifSC.otf \
-  --text-file=/tmp/used-chars.txt \
-  --output-file=OEBPS/Fonts/NotoSerifSC-subset.woff2 \
-  --flavor=woff2 \
-  --no-hinting \
-  --desubroutinize
-```
-
-子集化后同步 CSS `@font-face` 和 OPF manifest，再确认没有旧字体引用。
-
-### 4.3 WOFF2 vs WOFF vs OTF/TTF
+### 4.2 WOFF2 vs WOFF vs OTF/TTF
 
 | 格式 | 大小 | 推荐 |
 | --- | --- | --- |
@@ -149,6 +136,6 @@ epub run epub.package.nav.audit --input <artifact.epub> --json
 - [oxipng](https://github.com/shssoichiro/oxipng)
 - [mozjpeg](https://github.com/mozilla/mozjpeg)
 - [Google WebP tools](https://developers.google.com/speed/webp/docs/precompiled)
-- [fonttools / pyftsubset](https://github.com/fonttools/fonttools)
-- [glyphhanger](https://github.com/zachleat/glyphhanger)
+- [`epub-font` 使用说明](../../tools-font/epub-font/README.md)
+- [fontTools](https://github.com/fonttools/fonttools)
 - [EPUB 3 Core Media Types](https://www.w3.org/publishing/epub32/epub-spec.html#sec-cmt-supported)

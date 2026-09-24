@@ -62,7 +62,7 @@
 ## 待决策 / 开放项
 
 - Apple Books、Readest、Kindle Previewer 等目标阅读器仍需按 `docs/final/reader-matrix.yaml` 的待测项执行 GUI 实测；不得把构建、EPUBCheck 或浏览器结果记作 reader pass。
-- `subset-demo` 是独立 Python 演示与校验工具，不是正式 capability。若要升格为 `epub.font.subset`，需先做新契约、SPEC §6.1 设计与 §5.2 parity gate 的所有者决策。
+- `tools-font/epub-font` 是独立 Python 子集化与校验 CLI，不是正式 capability。若要升格为 `epub.font.subset`，需先做新契约、SPEC §6.1 设计与 §5.2 parity gate 的所有者决策。
 - Source intake 当前只做可审计盘点；PDF 解析、OCR、图片转码与后续内容抽取不在现有契约范围。扩大范围前需明确输入材料、隐私、许可和输出决策。
 - 手册与速查表之间的规则一致性目前没有自动语义守卫；涉及硬规则时按 `AGENTS.md` 同步检查 SPEC、终极实践手册、CSS 速查表和相关 skills。
 - 任一 reader 状态需要有真实版本、精确 artifact SHA 和可复核截图或日志；若证据缺一，状态继续留在 warn / na 或 untested，不由工具验证代填。

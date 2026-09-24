@@ -1,4 +1,4 @@
-"""Offline tests for subset_demo. Run: uv run pytest -q"""
+"""Offline tests for epub_font. Run: uv run pytest -q"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from fontTools.ttLib import TTFont
 
-from subset_demo import cli, epubtext, fontops
+from epub_font import epubtext, fontops, subset
 from tests import synth
 
 GLYF_VF = synth.build_glyf_font(variable=True)
@@ -185,6 +185,13 @@ def write_inputs(tmp_path: Path, config: dict, epub: bytes | None = None) -> tup
     return epub_path, config_path
 
 
+def run_subset(epub: Path, config: Path | None, out: Path) -> tuple[int, dict | None]:
+    args = [str(epub), "--out", str(out)] + (["--config", str(config)] if config else [])
+    code = subset.main(args)
+    report = subset.report_path(out)
+    return code, json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
+
+
 GOOD_CONFIG = {
     "version": 1,
     "fonts": [
@@ -199,11 +206,10 @@ GOOD_CONFIG = {
 
 def test_cli_end_to_end(tmp_path, capsys):
     epub, config = write_inputs(tmp_path, GOOD_CONFIG)
-    out_dir, candidate = tmp_path / "out", tmp_path / "candidate.epub"
-    code = cli.main([str(epub), "--config", str(config), "--out-dir", str(out_dir), "--out-epub", str(candidate)])
+    candidate = tmp_path / "candidate.epub"
+    code, report = run_subset(epub, config, candidate)
     assert code == 0, capsys.readouterr()
-    report = json.loads((out_dir / cli.REPORT_NAME).read_text(encoding="utf-8"))
-    assert report["ok"] and report["candidateEpub"]["warnings"] == []
+    assert report["ok"] and report["output"]["warnings"] == []
     assert [f["target"] for f in report["fonts"]] == [f["target"] for f in GOOD_CONFIG["fonts"]]
     kt = report["fonts"][2]
     assert kt["master"]["source"] == "epub:OEBPS/Fonts/kt.otf" and kt["output"]["axes"]
@@ -212,14 +218,18 @@ def test_cli_end_to_end(tmp_path, capsys):
         assert [i.filename for i in before.infolist()] == [i.filename for i in after.infolist()]
         assert after.infolist()[0].filename == "mimetype"
         assert after.infolist()[0].compress_type == zipfile.ZIP_STORED
+        font_reports = {font["target"]: font for font in report["fonts"]}
         for info in before.infolist():
             if info.filename in BOOK_FONTS:
-                assert after.read(info.filename) == (out_dir / info.filename).read_bytes()
+                output_font = after.read(info.filename)
+                assert output_font != before.read(info.filename)
+                assert fontops.sha256(output_font) == font_reports[info.filename]["output"]["sha256"]
             else:
                 assert after.read(info.filename) == before.read(info.filename), info.filename
-    semibold = TTFont(out_dir / "OEBPS/Fonts/st-all-semibold.ttf")
+        semibold = TTFont(io.BytesIO(after.read("OEBPS/Fonts/st-all-semibold.ttf")))
+        kt_font = TTFont(io.BytesIO(after.read("OEBPS/Fonts/kt.otf")))
     assert semibold["OS/2"].usWeightClass == 600
-    assert "uni5B57" in TTFont(out_dir / "OEBPS/Fonts/kt.otf").getGlyphOrder()   # extraText
+    assert "uni5B57" in kt_font.getGlyphOrder()   # extraText
     assert "uni5B57" not in semibold.getGlyphOrder()
 
 
@@ -228,8 +238,8 @@ def test_cli_is_deterministic(tmp_path):
     hashes = []
     for name in ("a", "b"):
         out_epub = tmp_path / f"{name}.epub"
-        assert cli.main([str(epub), "--config", str(config), "--out-dir", str(tmp_path / name),
-                         "--out-epub", str(out_epub)]) == 0
+        code, _ = run_subset(epub, config, out_epub)
+        assert code == 0
         hashes.append(fontops.sha256(out_epub.read_bytes()))
     assert hashes[0] == hashes[1]
 
@@ -240,30 +250,33 @@ def test_cli_is_deterministic(tmp_path):
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice"),
     ({"version": 2}, {}, "version must be 1"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "master": "masters/math.ttf"}]}, {}, "MATH"),
-    ({"fonts": [{"target": "OEBPS/Fonts/kt.otf", "master": "masters/serif-vf.ttf"}]}, {}, "needs CFF"),
+    ({"fonts": [{"target": "OEBPS/Fonts/kt.otf", "master": "masters/serif-vf.ttf",
+                  "variation": {"mode": "keep"}}]}, {}, "needs CFF"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}]}, {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "encryption.xml"),
 ])
 def test_cli_refuses_bad_input(tmp_path, capsys, config_patch, epub_kwargs, message):
     config = {**GOOD_CONFIG, **config_patch}
     epub_bytes = synth.build_epub(BOOK_FONTS, **epub_kwargs)
     epub, config_path = write_inputs(tmp_path, config, epub_bytes)
-    code = cli.main([str(epub), "--config", str(config_path), "--out-dir", str(tmp_path / "out"),
-                     "--out-epub", str(tmp_path / "candidate.epub")])
-    assert code == 2
+    candidate = tmp_path / "candidate.epub"
+    code, report = run_subset(epub, config_path, candidate)
+    assert code == 2 and report is None
     assert message in capsys.readouterr().err
-    assert not (tmp_path / "out").exists() and not (tmp_path / "candidate.epub").exists()
+    assert not candidate.exists() and not subset.report_path(candidate).exists()
 
 
 def test_cli_refuses_existing_outputs(tmp_path, capsys):
     epub, config = write_inputs(tmp_path, GOOD_CONFIG)
-    (tmp_path / "out").mkdir()
-    (tmp_path / "out" / "old.txt").write_text("x")
-    assert cli.main([str(epub), "--config", str(config), "--out-dir", str(tmp_path / "out")]) == 2
-    (tmp_path / "exists.epub").write_bytes(b"x")
-    assert cli.main([str(epub), "--config", str(config), "--out-dir", str(tmp_path / "out2"),
-                     "--out-epub", str(tmp_path / "exists.epub")]) == 2
-    assert cli.main([str(epub), "--config", str(config), "--out-dir", str(tmp_path / "out3"),
-                     "--out-epub", str(epub)]) == 2
+    exists = tmp_path / "exists.epub"
+    exists.write_bytes(b"x")
+    assert run_subset(epub, config, exists)[0] == 2
+    assert run_subset(epub, config, epub)[0] == 2
+    reserved = tmp_path / "reserved.epub"
+    reserved_report = subset.report_path(reserved)
+    reserved_report.write_text("{}", encoding="utf-8")
+    assert run_subset(epub, config, reserved)[0] == 2
+    assert reserved_report.read_text(encoding="utf-8") == "{}"
+    assert "already exists" in capsys.readouterr().err
 
 
 def test_cli_failed_check_writes_no_candidate(tmp_path, monkeypatch, capsys):
@@ -276,21 +289,39 @@ def test_cli_failed_check_writes_no_candidate(tmp_path, monkeypatch, capsys):
 
     monkeypatch.setattr(fontops, "subset_options", no_features)
     epub, config = write_inputs(tmp_path, GOOD_CONFIG)
-    code = cli.main([str(epub), "--config", str(config), "--out-dir", str(tmp_path / "out"),
-                     "--out-epub", str(tmp_path / "candidate.epub")])
+    candidate = tmp_path / "candidate.epub"
+    code, report = run_subset(epub, config, candidate)
     assert code == 1
-    report = json.loads((tmp_path / "out" / cli.REPORT_NAME).read_text(encoding="utf-8"))
-    assert not report["ok"] and report["candidateEpub"] is None
+    assert report and not report["ok"] and report["output"] is None
     assert not report["fonts"][0]["checks"]["vertical-alternates"]["ok"]
-    assert not (tmp_path / "candidate.epub").exists()
+    assert not candidate.exists()
+    output = capsys.readouterr().out
+    assert f"report: {subset.report_path(candidate)}" in output
+    assert "output: not written (a check failed)" in output
+
+
+def test_no_config_subsets_every_static_font(tmp_path):
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_STATIC}))
+    code, report = run_subset(epub, None, tmp_path / "new.epub")
+    assert code == 0 and [font["target"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
+
+
+def test_variable_font_needs_explicit_mode(tmp_path, capsys):
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_VF}))
+    out = tmp_path / "new.epub"
+    code, report = run_subset(epub, None, out)
+    assert code == 2 and report is None and "variation.mode" in capsys.readouterr().err
+    assert not out.exists() and not subset.report_path(out).exists()
 
 
 # ---------- optional: a real CJK variable font ----------
 
-REAL_FONT = os.environ.get("SUBSET_DEMO_REAL_FONT")
+REAL_FONT = os.environ.get("EPUB_FONT_REAL_FONT")
 
 
-@pytest.mark.skipif(not REAL_FONT, reason="set SUBSET_DEMO_REAL_FONT=/path/to/CJK-VF.ttf|.otf to run")
+@pytest.mark.skipif(not REAL_FONT, reason="set EPUB_FONT_REAL_FONT=/path/to/CJK-VF.ttf|.otf to run")
 @pytest.mark.parametrize("variation", [None, {"mode": "instance", "axes": {"wght": 600}}])
 def test_real_variable_font(variation):
     master = Path(REAL_FONT).read_bytes()
@@ -301,7 +332,7 @@ def test_real_variable_font(variation):
     assert len(data) < len(master) / 10
 
 
-@pytest.mark.skipif(not REAL_FONT, reason="set SUBSET_DEMO_REAL_FONT=/path/to/CJK-VF.ttf|.otf to run")
+@pytest.mark.skipif(not REAL_FONT, reason="set EPUB_FONT_REAL_FONT=/path/to/CJK-VF.ttf|.otf to run")
 def test_real_variable_font_wrong_weight_is_caught():
     master = Path(REAL_FONT).read_bytes()
     target = "real" + (".otf" if master[:4] == b"OTTO" else ".ttf")

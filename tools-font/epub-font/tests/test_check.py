@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from subset_demo import cli, fullcheck
+from epub_font import check, subset
 from tests import synth
 
 VS17 = "\U000E0100"
@@ -38,12 +38,12 @@ def make_epub(chapter: str = CHAPTER_DTD, fonts: dict | None = None, **kwargs) -
     return synth.build_epub(fonts or {"OEBPS/Fonts/st-all.ttf": PLACEHOLDER}, chapter=chapter, css=CSS, **kwargs)
 
 
-def required(epub: bytes) -> fullcheck.Harvest:
+def required(epub: bytes) -> check.Harvest:
     with zipfile.ZipFile(io.BytesIO(epub)) as zf:
-        return fullcheck.harvest_book(zf)[1]
+        return check.harvest_book(zf)[1]
 
 
-def font_covering(harvest: fullcheck.Harvest, drop: str = "", empty: str = "", uvs: bool = True) -> bytes:
+def font_covering(harvest: check.Harvest, drop: str = "", empty: str = "", uvs: bool = True) -> bytes:
     chars = "".join(ch for ch in harvest.chars if ch not in drop)
     return synth.build_font_for(chars, empty=empty, uvs=tuple(harvest.sequences) if uvs else ())
 
@@ -52,7 +52,7 @@ def run_cli(tmp_path: Path, epub: bytes, *args: str) -> tuple[int, dict | None]:
     book = tmp_path / "book.epub"
     book.write_bytes(epub)
     report = tmp_path / "report.json"
-    code = fullcheck.main([str(book), *args, "--json", str(report)])
+    code = check.main([str(book), *args, "--json", str(report)])
     return code, json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
 
 
@@ -70,6 +70,15 @@ def test_entities_without_doctype_are_decoded():
     h = required(make_epub(CHAPTER_NO_DTD))
     assert " " in h.chars and "…" in h.chars
     assert not h.warnings
+
+
+def test_font_names_and_charset_are_not_required():
+    css = '@charset "utf-8";\nbody { font-family: "思源宋体", serif; }\n.a::before { content: "甲"; }\n'
+    chapter = CHAPTER_DTD.replace("<body>", '<body style=\'quotes: "丙" "丁"\'>')
+    chars = required(synth.build_epub({"OEBPS/Fonts/st-all.ttf": PLACEHOLDER}, chapter=chapter, css=css)).chars
+    assert {"甲", "丙", "丁"} <= set(chars)
+    assert not set("思源宋体") & set(chars)
+    assert "8" not in chars
 
 
 def test_complete_font_passes(tmp_path):
@@ -113,7 +122,6 @@ def test_chars_file_and_external_font(tmp_path):
 
 
 @pytest.mark.parametrize("args,kwargs,message", [
-    ((), {}, "choose the fonts"),
     (("--font", "OEBPS/Fonts/none.ttf"), {}, "not a font in the manifest"),
     (("--font", "OEBPS/Fonts/st-all.ttf"), {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "obfuscated"),
 ])
@@ -122,13 +130,18 @@ def test_usage_errors(tmp_path, capsys, args, kwargs, message):
     assert code == 2 and message in capsys.readouterr().err
 
 
+def test_default_checks_every_manifest_font(tmp_path):
+    code, report = run_cli(tmp_path, make_epub())
+    assert [font["font"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
+
+
 def test_is_independent_of_the_subset_code():
-    source = Path(fullcheck.__file__).read_text(encoding="utf-8")
+    source = Path(check.__file__).read_text(encoding="utf-8")
     assert "epubtext" not in source.split('"""', 2)[2] and "fontops" not in source.split('"""', 2)[2]
 
 
 def test_agrees_with_subset_tool(tmp_path):
-    """Two independent collectors: every char fullcheck finds missing must be in the subset report's notInMaster."""
+    """Two independent collectors: every char check finds missing must be in the subset report's notInMaster."""
     book = tmp_path / "book.epub"
     book.write_bytes(make_epub())
     (tmp_path / "master.ttf").write_bytes(synth.build_glyf_font(variable=True))
@@ -136,14 +149,14 @@ def test_agrees_with_subset_tool(tmp_path):
     config.write_text(json.dumps({"version": 1, "fonts": [
         {"target": "OEBPS/Fonts/st-all.ttf", "master": "master.ttf", "variation": {"mode": "instance", "axes": {"wght": 400}}},
     ]}), encoding="utf-8")
-    assert cli.main([str(book), "--config", str(config), "--out-dir", str(tmp_path / "out"),
-                     "--out-epub", str(tmp_path / "candidate.epub")]) == 0
-    subset_report = json.loads((tmp_path / "out" / cli.REPORT_NAME).read_text(encoding="utf-8"))
+    candidate = tmp_path / "candidate.epub"
+    assert subset.main([str(book), "--config", str(config), "--out", str(candidate)]) == 0
+    subset_report = json.loads(subset.report_path(candidate).read_text(encoding="utf-8"))
     not_in_master = set(subset_report["fonts"][0]["notInMaster"])
-    code = fullcheck.main([str(tmp_path / "candidate.epub"), "--font", "OEBPS/Fonts/st-all.ttf",
+    code = check.main([str(tmp_path / "candidate.epub"), "--font", "OEBPS/Fonts/st-all.ttf",
                            "--json", str(tmp_path / "check.json")])
-    check = json.loads((tmp_path / "check.json").read_text(encoding="utf-8"))
+    check_report = json.loads((tmp_path / "check.json").read_text(encoding="utf-8"))
     assert code == 1   # the tiny synthetic master cannot cover the whole book
-    missing = {m["char"] for m in check["fonts"][0]["missing"]}
+    missing = {m["char"] for m in check_report["fonts"][0]["missing"]}
     assert missing and missing <= not_in_master
-    assert check["fonts"][0]["noInk"] == [] and check["fonts"][0]["missingSequences"] == []
+    assert check_report["fonts"][0]["noInk"] == [] and check_report["fonts"][0]["missingSequences"] == []
