@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -272,6 +273,70 @@ func TestRedlineSpineChangeDetected(t *testing.T) {
 		t.Errorf("spine 行未给出 idref 序列: %q", line)
 	}
 	wantNoLine(t, rep, text, "metadata:")
+}
+
+func TestRedlineAllowsAppendedNonLinearNavItemref(t *testing.T) {
+	beforeEntries := withoutNavItemref(t)
+	afterEntries := appendSpineItemref(t, beforeEntries, "nav", "no")
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "spine", Options{})
+	wantCode(t, rep, text, 0)
+	if len(rep.Lines) != 1 || rep.Lines[0] != passLine {
+		t.Fatalf("报告 = %q, want [%q]", rep.Lines, passLine)
+	}
+}
+
+func TestRedlineRejectsAppendedLinearNavItemref(t *testing.T) {
+	beforeEntries := withoutNavItemref(t)
+	afterEntries := appendSpineItemref(t, beforeEntries, "nav", "yes")
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "spine", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "spine: itemref sequence changed:")
+}
+
+func TestRedlineRejectsAppendedNonNavItemref(t *testing.T) {
+	beforeEntries := withoutNavItemref(t)
+	afterEntries := appendSpineItemref(t, beforeEntries, "c1", "no")
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "spine", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "spine: itemref sequence changed:")
+}
+
+func TestRedlineRejectsNavAppendWhenBeforeAlreadyHasNavItemref(t *testing.T) {
+	beforeEntries := baseEntries()
+	afterEntries := appendSpineItemref(t, beforeEntries, "nav", "no")
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "spine", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "spine: itemref sequence changed:")
+}
+
+func withoutNavItemref(t *testing.T) []zipEntry {
+	t.Helper()
+	return editEntry(t, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(`    <itemref idref="nav" linear="no"/>`+"\n"), nil, 1)
+	})
+}
+
+func appendSpineItemref(t *testing.T, entries []zipEntry, idref, linear string) []zipEntry {
+	t.Helper()
+	out := slices.Clone(entries)
+	for i := range out {
+		if out[i].name != "OEBPS/content.opf" {
+			continue
+		}
+		itemref := []byte(`    <itemref idref="` + idref + `" linear="` + linear + `"/>` + "\n  </spine>")
+		updated := bytes.Replace(out[i].content, []byte("</spine>"), itemref, 1)
+		if bytes.Equal(updated, out[i].content) {
+			t.Fatal("fixture OPF has no spine end tag")
+		}
+		out[i].content = updated
+		return out
+	}
+	t.Fatal("fixture has no OPF entry")
+	return nil
 }
 
 func TestRedlineCoverBytesChangeDetected(t *testing.T) {

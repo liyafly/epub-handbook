@@ -243,8 +243,44 @@ func (spineCheck) Check(before, after State, _ Options) ([]Finding, error) {
 	if equalStrings(bSpine, aSpine) {
 		return nil, nil
 	}
+	if allowsAppendedNavItemref(bPkg, aPkg) {
+		return nil, nil
+	}
 	return []Finding{{CheckSpine,
 		fmt.Sprintf("spine: itemref sequence changed: %s -> %s", pythonRepr(bSpine), pythonRepr(aSpine)), false}}, nil
+}
+
+// allowsAppendedNavItemref permits the single EPUB3 migration change where a
+// non-linear nav itemref is appended after the original spine sequence.
+func allowsAppendedNavItemref(before, after *opf.Package) bool {
+	if len(after.Spine) != len(before.Spine)+1 || hasNavItemref(before) {
+		return false
+	}
+	for i, item := range before.Spine {
+		if after.Spine[i].IDRef != item.IDRef {
+			return false
+		}
+	}
+	appended := after.Spine[len(after.Spine)-1]
+	return appended.Linear == "no" && hasNavManifestItem(after, appended.IDRef)
+}
+
+func hasNavItemref(pkg *opf.Package) bool {
+	for _, item := range pkg.Spine {
+		if hasNavManifestItem(pkg, item.IDRef) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasNavManifestItem(pkg *opf.Package, id string) bool {
+	for _, item := range pkg.Manifest {
+		if item.ID == id {
+			return opf.HasNavProps(item.Properties)
+		}
+	}
+	return false
 }
 
 func spineIDRefs(p *opf.Package) []string {
