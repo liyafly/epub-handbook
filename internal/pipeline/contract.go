@@ -8,9 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	epubhandbook "github.com/liyafly/epub-handbook"
 )
 
 // Contract 是 capability 契约的运行时投影（contracts/capabilities/v1/*.json）。
@@ -45,22 +49,53 @@ type Contract struct {
 // ErrUnknownCapability 表示契约目录里没有这个 id。
 var ErrUnknownCapability = errors.New("pipeline: unknown capability")
 
-// FindRepoRoot 从 cwd 向上找仓库根（以 contracts/capabilities/v1 为锚）。
+// FindRepoRoot 优先使用显式仓库根或从 cwd 向上寻找；没有检出时返回空根，
+// 表示调用方应使用二进制内嵌资源。
 func FindRepoRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("EPUB_HANDBOOK_ROOT")); root != "" {
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			return "", fmt.Errorf("pipeline: EPUB_HANDBOOK_ROOT 无效: %w", err)
+		}
+		if hasRepositoryContracts(abs) {
+			return abs, nil
+		}
+		return "", fmt.Errorf("pipeline: EPUB_HANDBOOK_ROOT %q 缺少 contracts/capabilities/v1", abs)
+	}
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "contracts", "capabilities", "v1")); err == nil {
+		if hasRepositoryContracts(dir) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("pipeline: 未找到仓库根（缺少 contracts/capabilities/v1）")
+			return "", nil
 		}
 		dir = parent
 	}
+}
+
+func hasRepositoryContracts(root string) bool {
+	info, err := os.Stat(filepath.Join(root, "contracts", "capabilities", "v1"))
+	return err == nil && info.IsDir()
+}
+
+func repositoryFS(root, subdir string) (fs.FS, error) {
+	base := epubhandbook.EmbeddedFS()
+	if root != "" {
+		base = os.DirFS(root)
+	}
+	return fs.Sub(base, filepath.ToSlash(subdir))
+}
+
+func readRepositoryFile(root, name string) ([]byte, error) {
+	if root != "" {
+		return os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
+	}
+	return fs.ReadFile(epubhandbook.EmbeddedFS(), filepath.ToSlash(name))
 }
 
 // ContractsDir 返回仓库内的契约目录。
@@ -73,7 +108,7 @@ func LoadContract(root, id string) (*Contract, error) {
 	if !validID(id) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownCapability, id)
 	}
-	raw, err := os.ReadFile(filepath.Join(ContractsDir(root), id+".json"))
+	raw, err := readRepositoryFile(root, filepath.ToSlash(filepath.Join("contracts", "capabilities", "v1", id+".json")))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownCapability, id)
 	}
@@ -89,13 +124,17 @@ func LoadContract(root, id string) (*Contract, error) {
 
 // AllContracts 读取全部契约，按 id 排序。
 func AllContracts(root string) ([]Contract, error) {
-	paths, err := filepath.Glob(filepath.Join(ContractsDir(root), "*.json"))
+	contractFS, err := repositoryFS(root, filepath.Join("contracts", "capabilities", "v1"))
+	if err != nil {
+		return nil, err
+	}
+	paths, err := fs.Glob(contractFS, "*.json")
 	if err != nil {
 		return nil, err
 	}
 	out := make([]Contract, 0, len(paths))
 	for _, p := range paths {
-		raw, err := os.ReadFile(p)
+		raw, err := fs.ReadFile(contractFS, p)
 		if err != nil {
 			return nil, err
 		}

@@ -65,7 +65,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if b != nil {
 		mode = "artifact"
 		if p.DemoDir == "" {
-			return report.Result{}, errors.New("styledemo: demo_dir is required (Python oracle always validates the source fixture)")
+			return report.Result{}, errors.New("styledemo: repository templates are unavailable; set EPUB_HANDBOOK_ROOT to a checkout or provide demo_dir (a source-tree --input directory also works)")
 		}
 		if err := validateSource(newDiskSource(p.DemoDir), &errs); err != nil {
 			return report.Result{}, err
@@ -75,7 +75,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 	} else {
 		if p.DemoDir == "" {
-			return report.Result{}, errors.New("styledemo: demo_dir is required in source-tree mode")
+			return report.Result{}, errors.New("styledemo: repository templates are unavailable; set EPUB_HANDBOOK_ROOT to a checkout or provide demo_dir (a source-tree --input directory also works)")
 		}
 		if err := validateSource(newDiskSource(p.DemoDir), &errs); err != nil {
 			return report.Result{}, err

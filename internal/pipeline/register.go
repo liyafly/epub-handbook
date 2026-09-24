@@ -6,10 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"sort"
 	"strconv"
 	"strings"
 
+	epubhandbook "github.com/liyafly/epub-handbook"
 	"github.com/liyafly/epub-handbook/internal/book"
 	alite "github.com/liyafly/epub-handbook/internal/caps/alite"
 	contentanalyze "github.com/liyafly/epub-handbook/internal/caps/content_analyze"
@@ -32,6 +35,8 @@ import (
 
 // Args 是 CLI 透传给 capability 的参数（--input/--output 之外的自定义键值）。
 type Args map[string]string
+
+const embeddedPresetsArg = "__pipeline_embedded_presets"
 
 // Get 返回参数值，缺省为空串。
 func (a Args) Get(k string) string { return a[k] }
@@ -228,9 +233,18 @@ func init() {
 		if preset == "" {
 			preset = "literary-cn"
 		}
+		var presetFS fs.FS
+		if args.Bool(embeddedPresetsArg) {
+			var err error
+			presetFS, err = fs.Sub(epubhandbook.EmbeddedFS(), typographycap.DefaultPresetsDir)
+			if err != nil {
+				return report.Result{}, fmt.Errorf("open embedded typography presets: %w", err)
+			}
+		}
 		return typographycap.Run(ctx, b, typographycap.Params{
 			Preset:     preset,
 			PresetDir:  args.Get("preset_dir"),
+			PresetFS:   presetFS,
 			Output:     args.Get("output"),
 			DryRun:     args.Bool("dry_run"),
 			ScopePaths: scope,

@@ -258,14 +258,18 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			} else {
 				runArgs["demo_dir"] = opts.InputPath
 			}
-		} else if runArgs["demo_dir"] == "" {
+		} else if runArgs["demo_dir"] == "" && root != "" {
 			runArgs["demo_dir"] = filepath.Join(root, "templates", "epub-style-demo")
 		}
 	}
 	if runArgs["preset_dir"] == "" && slices.ContainsFunc(chain, func(c Contract) bool {
 		return c.ID == typographycap.CapabilityID
 	}) {
-		runArgs["preset_dir"] = filepath.Join(root, typographycap.DefaultPresetsDir)
+		if root == "" {
+			runArgs[embeddedPresetsArg] = "true"
+		} else {
+			runArgs["preset_dir"] = filepath.Join(root, typographycap.DefaultPresetsDir)
+		}
 	}
 	opts.Args = runArgs
 

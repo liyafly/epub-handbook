@@ -22,7 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -63,6 +66,8 @@ type Params struct {
 	Preset string
 	// PresetDir 覆盖 preset 根目录；为空用 DefaultPresetsDir。
 	PresetDir string
+	// PresetFS 是只读内嵌 preset 根目录；非 nil 时优先于 PresetDir。
+	PresetFS fs.FS
 	// Output 是输出路径（报告字段 + 前置校验；本包不落盘，INV-3）。
 	Output string
 	// ScopePaths 非 nil 时仅向这些 spine XHTML 追加隔离样式，不替换共享 CSS。
@@ -114,22 +119,39 @@ type presetConfig struct {
 // presetDir 是 preset 根目录（PRESETS_ROOT），具体 preset 在其 name 子目录。
 func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, string, error) {
 	dir := filepath.Join(filepath.FromSlash(presetDir), name)
-	configPath := filepath.Join(dir, "preset.json")
-	if !isRegularFile(configPath) {
+	read := func(resource string, max int64) ([]byte, error) {
+		return book.ReadFileContext(ctx, filepath.Join(filepath.FromSlash(presetDir), filepath.FromSlash(resource)), max)
+	}
+	return loadPresetFromFS(ctx, name, os.DirFS(filepath.FromSlash(presetDir)), name, dir, read)
+}
+
+func loadEmbeddedPreset(ctx context.Context, name string, presetFS fs.FS) (presetConfig, string, error) {
+	dir := path.Join(DefaultPresetsDir, name)
+	read := func(resource string, max int64) ([]byte, error) {
+		return readPresetResource(ctx, presetFS, resource, max)
+	}
+	return loadPresetFromFS(ctx, name, presetFS, name, dir, read)
+}
+
+func loadPresetFromFS(ctx context.Context, name string, presetFS fs.FS, fsDir, displayDir string, read func(string, int64) ([]byte, error)) (presetConfig, string, error) {
+	info, err := fs.Stat(presetFS, fsDir)
+	if err != nil || !info.IsDir() {
 		return presetConfig{}, "", presetErrf("unknown preset: %s", name)
 	}
-	raw, err := book.ReadFileContext(ctx, configPath, 1<<20)
+	configPath := path.Join(fsDir, "preset.json")
+	displayConfigPath := filepath.Join(filepath.FromSlash(displayDir), "preset.json")
+	raw, err := read(configPath, 1<<20)
 	if err != nil {
-		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", configPath, err)
+		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", displayConfigPath, err)
 	}
 	var cfg map[string]any
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", configPath, err)
+		return presetConfig{}, "", fmt.Errorf("invalid preset metadata: %s: %w", displayConfigPath, err)
 	}
 	cfgName, _ := cfg["name"].(string)
 	cfgVersion, _ := cfg["version"].(string)
 	if cfg == nil || cfgName != name || cfgVersion != "1" {
-		return presetConfig{}, "", presetErrf("invalid preset metadata: %s", configPath)
+		return presetConfig{}, "", presetErrf("invalid preset metadata: %s", displayConfigPath)
 	}
 	layersAny, ok := cfg["layers"].([]any)
 	if !ok || len(layersAny) == 0 || len(layersAny) > 32 {
@@ -146,23 +168,46 @@ func loadPreset(ctx context.Context, name, presetDir string) (presetConfig, stri
 		if _, duplicate := layerData[layer]; duplicate {
 			return presetConfig{}, "", presetErrf("duplicate stylesheet layer: %s", layer)
 		}
-		cssPath := filepath.Join(dir, "Styles", layer)
-		data, err := book.ReadFileContext(ctx, cssPath, 4<<20)
+		cssPath := path.Join(fsDir, "Styles", layer)
+		displayCSSPath := filepath.Join(filepath.FromSlash(displayDir), "Styles", layer)
+		data, err := read(cssPath, 4<<20)
 		if err != nil {
-			return presetConfig{}, "", fmt.Errorf("preset stylesheet %s: %w", cssPath, err)
+			return presetConfig{}, "", fmt.Errorf("preset stylesheet %s: %w", displayCSSPath, err)
 		}
 		presetBytes += len(data)
 		if presetBytes > 16<<20 {
 			return presetConfig{}, "", presetErrf("preset stylesheet total exceeds 16 MiB: %s", name)
 		}
 		if pyLineCount(string(data)) > 500 {
-			return presetConfig{}, "", presetErrf("preset stylesheet exceeds the 500-line hard limit: %s", cssPath)
+			return presetConfig{}, "", presetErrf("preset stylesheet exceeds the 500-line hard limit: %s", displayCSSPath)
 		}
 		layerData[layer] = data
 		layers = append(layers, layer)
 	}
 	notes, _ := cfg["notes"].(string)
-	return presetConfig{Name: cfgName, Layers: layers, Notes: notes, CSS: layerData}, dir, nil
+	return presetConfig{Name: cfgName, Layers: layers, Notes: notes, CSS: layerData}, displayDir, nil
+}
+
+func readPresetResource(ctx context.Context, presetFS fs.FS, name string, max int64) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	file, err := presetFS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > max {
+		return nil, fmt.Errorf("preset resource exceeds %d bytes", max)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // ---- coverage ----
@@ -343,7 +388,14 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if presetDir == "" {
 		presetDir = DefaultPresetsDir
 	}
-	config, _, err := loadPreset(ctx, p.Preset, presetDir)
+	var config presetConfig
+	var err error
+	if p.PresetFS != nil {
+		presetDir = DefaultPresetsDir
+		config, _, err = loadEmbeddedPreset(ctx, p.Preset, p.PresetFS)
+	} else {
+		config, _, err = loadPreset(ctx, p.Preset, presetDir)
+	}
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -906,9 +958,4 @@ func opfPathFromContainer(b *book.Book) (string, error) {
 		return "", presetErrf("container rootfile does not resolve: %s", display)
 	}
 	return opfPath, nil
-}
-
-func isRegularFile(path string) bool {
-	st, err := os.Stat(path)
-	return err == nil && st.Mode().IsRegular()
 }

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,7 +13,7 @@ import (
 
 func loadParameterCatalog(root string) (report.ParameterCatalog, error) {
 	var catalog report.ParameterCatalog
-	raw, err := os.ReadFile(filepath.Join(root, "contracts/parameters/v2/cli.json"))
+	raw, err := readRepositoryFile(root, "contracts/parameters/v2/cli.json")
 	if err != nil {
 		return catalog, fmt.Errorf("parameter catalog: %w", err)
 	}

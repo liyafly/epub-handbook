@@ -146,6 +146,86 @@ func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
 	}
 }
 
+func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
+	t.Setenv("EPUB_HANDBOOK_ROOT", "")
+	if _, err := FindRepoRoot(); err != nil {
+		t.Fatal(err)
+	}
+	externalDir := t.TempDir()
+	t.Chdir(externalDir)
+	if root, err := FindRepoRoot(); err != nil || root != "" {
+		t.Fatalf("FindRepoRoot() = %q, %v; want embedded-resource mode", root, err)
+	}
+
+	infos, err := DescribeCapabilities("", "")
+	if err != nil {
+		t.Fatalf("DescribeCapabilities: %v", err)
+	}
+	if len(infos) != 22 {
+		t.Fatalf("embedded capability count = %d, want 22", len(infos))
+	}
+	if schema, err := readRepositoryFile("", "contracts/schemas/v2/envelope.schema.json"); err != nil || len(schema) == 0 {
+		t.Fatalf("embedded envelope schema: bytes=%d err=%v", len(schema), err)
+	}
+
+	input := buildSampleEpub(t)
+	audit, err := Run(t.Context(), Options{CapabilityID: "epub.package.nav.audit", InputPath: input})
+	if err != nil || audit.ExitCode != ExitOK {
+		t.Fatalf("embedded nav audit exit=%d err=%v findings=%+v", audit.ExitCode, err, audit.Envelope.Findings)
+	}
+
+	output := filepath.Join(externalDir, "migrated.epub")
+	migrate, err := Run(t.Context(), Options{
+		CapabilityID: "epub.package.migrate.epub3",
+		InputPath:    input,
+		OutputPath:   output,
+	})
+	if err != nil || migrate.ExitCode != ExitOK {
+		t.Fatalf("embedded migrate exit=%d err=%v findings=%+v", migrate.ExitCode, err, migrate.Envelope.Findings)
+	}
+	if _, err := os.Stat(output); err != nil {
+		t.Fatalf("migrate did not write output: %v", err)
+	}
+}
+
+func TestEPUBHandbookRootOverridesEmbeddedResources(t *testing.T) {
+	t.Setenv("EPUB_HANDBOOK_ROOT", "")
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	externalDir := t.TempDir()
+	t.Setenv("EPUB_HANDBOOK_ROOT", root)
+	t.Chdir(externalDir)
+	got, err := FindRepoRoot()
+	if err != nil || got != root {
+		t.Fatalf("FindRepoRoot() = %q, %v; want explicit root %q", got, err, root)
+	}
+	t.Setenv("EPUB_HANDBOOK_ROOT", filepath.Join(externalDir, "missing"))
+	if _, err := FindRepoRoot(); err == nil || !strings.Contains(err.Error(), "EPUB_HANDBOOK_ROOT") {
+		t.Fatalf("invalid EPUB_HANDBOOK_ROOT error = %v", err)
+	}
+}
+
+func TestTypographyUsesEmbeddedPresetOutsideRepository(t *testing.T) {
+	t.Setenv("EPUB_HANDBOOK_ROOT", "")
+	input := buildTypographySampleEpub(t)
+	output := filepath.Join(t.TempDir(), "candidate.epub")
+	t.Chdir(t.TempDir())
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.optimize",
+		InputPath:    input,
+		OutputPath:   output,
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatalf("Run with embedded preset: %v", err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+}
+
 // TestRunPendingCapabilityFails 锁定 pending 能力语义：契约存在但无 Go
 // 实现时必须 failed + exit 1，不得伪装成 complete/exit 0。
 // （B 类纯 AI skill epub.kindle.compatibility.check 设计上永无 Go 实现。）
