@@ -35,14 +35,16 @@
 
 ## 已有 EPUB 流程
 
-书级目录为 `work-epub/<book>/`，独立本地 Git，包含 `01 源文件/`、`02 校对材料/`、`03 制作工作区/`。主仓忽略 `work-epub/`，不得误加 submodule。详见 `docs/pipeline/book-workspace.md`。
+书级目录为 work-epub/<book>/，独立本地 Git，包含 01 源文件/、02 校对材料/、03 制作工作区/。主仓忽略 work-epub/，不得误加 submodule。详见 `docs/pipeline/book-workspace.md`。
 
-1. 冻结入选底本到 `01 源文件/` 并记录 SHA-256；只改 `03 制作工作区/epub/` 或新候选，禁止覆盖唯一原件。
-2. 预检：`epub run epub.package.nav.audit --input <input.epub> --json`，区分 DRM/损坏阻断与可修复结构问题。
-3. 目录混乱、文件名混淆或需稳定 diff 时，运行 `epub run epub.structure.normalize --input <input.epub> --output <normalized.epub> --dry-run --json`。人工审查“目录格式化 → 按 manifest id 反混淆”两阶段映射后实跑，原样保存 JSON 信封；不需要规范化则记录跳过理由。
-4. 以最新候选为输入，检查 EPUB3 迁移需求，再用 layout/content 审查分派必要专项能力；不为完成流程重复迁移或套用无关排版。
-5. `epub redline --check all --path-map <normalize-envelope.json> <before.epub> <after.epub>`；无改名时省略 `--path-map`。信封中的 `facts["epub.structure.normalize.mappings"]` 可直接读取，详见 `docs/pipeline/cleanup-flow.md` §1.5。随后用 Calibre Editor 或 VS Code 做人工 diff review。
-6. 在书根 `制作说明.md` 记录输入/输出 SHA、迁移或跳过理由、红线、diff review、阅读器实测及待办。中间报告放 `03 制作工作区/.pipeline/` 并忽略；被 gate 引用的映射或决策不得提前删除。
+1. **S0** 冻结入选底本到 `01 源文件/` 并记录 SHA-256；只改 `03 制作工作区/epub/` 或新候选，禁止覆盖唯一原件。
+2. **S1** 预检：`epub run epub.package.nav.audit --input <input.epub> --json`，区分 DRM/损坏阻断与可修复结构问题。
+3. **S2** 目录混乱、文件名混淆或需稳定 diff 时，运行 `epub run epub.structure.normalize --input <input.epub> --output <normalized.epub> --dry-run --json`。人工审查“目录格式化 → 按 manifest id 反混淆”两阶段映射后实跑，原样保存 JSON 信封；不需要规范化则记录跳过理由。
+4. **S3–S5** 以最新候选为输入，检查 EPUB3 迁移需求，再用 layout/content 审查分派必要专项能力；不为完成流程重复迁移或套用无关排版。
+5. **S6** `epub redline --check all --path-map <normalize-envelope.json> <before.epub> <after.epub>`；无改名时省略 `--path-map`。信封中的 `facts["epub.structure.normalize.mappings"]` 可直接读取，详见 `docs/pipeline/cleanup-flow.md` §1.5。随后用 Calibre Editor 或 VS Code 做人工 diff review。
+6. **S8–S9** 在书根 `制作说明.md` 记录输入/输出 SHA、迁移或跳过理由、红线、diff review、阅读器实测及待办。中间报告放 `03 制作工作区/.pipeline/` 并忽略；被 gate 引用的映射或决策不得提前删除。
+
+完整命令与通过条件见 `docs/pipeline/cleanup-flow.md`。
 
 正文校订必须有明确授权，并走 SPEC §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1；**不得删除正文不变 gate、伪造通过或用宽泛 allow-list 掩盖**。含文决策放 `02 校对材料/正文校订/`；其他机器输入按需放 `02 校对材料/`，跨书可复用且脱敏的判断才放 `records/typeset-decisions.jsonl`。
 

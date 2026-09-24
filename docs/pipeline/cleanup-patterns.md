@@ -110,3 +110,19 @@ format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 - 永远不要并行执行多个 skill。
 - 遇到红线立即停。
 - 每步产出 `after/step-N.epub`，结果不满意可回滚。
+
+## OCR-style 脏 epub 识别
+特征：
+
+- 章节几乎全是 `<img>` 引用，少量散乱文本。
+- 文本有大量 OCR 噪点。
+- 文件名常带 `scan` / `ocr` / `_p001`。
+
+判定：
+
+```sh
+epub run epub.layout.audit --input work/before/source.epub --json \
+  | jq '.findings[] | select(.detail == "ocr-residual")'
+```
+
+如果检测到，建议回到 `epub-source-intake`，重新 OCR 后再清洗。
