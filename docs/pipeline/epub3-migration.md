@@ -1,4 +1,4 @@
-# EPUB 清洗与 EPUB3 转换
+# EPUB3 迁移：产物与验收
 
 > 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
 > 执行入口：`epub run epub.package.migrate.epub3`（结构规范化：`epub run epub.structure.normalize`）
@@ -40,44 +40,7 @@ epub run epub.package.migrate.epub3 \
 
 正式执行不原地覆盖输入 EPUB（`--output` 不得与 `--input` 相同），并在报告中保留 before/after SHA-256 与底层转换明细。
 
-## 按序执行
-
-用一个新的脱敏工作目录承接真实文件，不把真实文件名写进提交记录。Go CLI 没有一键流水线命令，按序执行：
-
-```sh
-mkdir -p work/book-a/before work/book-a/after work/book-a/reports
-cp /path/to/input.epub work/book-a/before/source.epub
-
-epub run epub.package.nav.audit \
-  --input work/book-a/before/source.epub \
-  --json > work/book-a/reports/preflight.json
-
-epub run epub.package.migrate.epub3 \
-  --input work/book-a/before/source.epub \
-  --output work/book-a/after/cleaned.epub \
-  --json > work/book-a/reports/migrate.json
-
-epub run epub.notes.popup.normalize \
-  --input work/book-a/after/cleaned.epub \
-  --json > work/book-a/reports/popup.json
-
-epub redline --check metadata,drm,anchors \
-  --allow-list '*/nav.xhtml' \
-  work/book-a/before/source.epub work/book-a/after/cleaned.epub
-
-epub run epub.layout.audit \
-  --input work/book-a/after/cleaned.epub \
-  --json > work/book-a/reports/findings.json
-```
-
-按序完成：
-
-1. 复制输入为 `work/book-a/before/source.epub`，保留不可修改基线。
-2. 跑前置结构审计；有 error 级 finding 立即停止。
-3. 调用 EPUB3 迁移能力（含底层转换器全部阶段）。
-4. 跑弹注结构校验、红线子集 gate 和正文文本 gate。
-5. 生成精排建议和审计 findings。
-6. 各报告以 `--json` 统一信封写入 `reports/`，逐项归档。
+完整步骤见 [cleanup-flow.md](cleanup-flow.md) S3。
 
 输出 EPUB 位于 `work/book-a/after/cleaned.epub`，包含：
 
@@ -130,26 +93,11 @@ epub run epub.structure.normalize \
 
 角色拆分和本地文学 EPUB 的脱敏分析见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
 
-## 可选 CSS 去重与局部样式合并
+## CSS 清洗
 
-合订 EPUB 如果重复携带每册 CSS，可在 EPUB3 基线通过结构审计后运行：
+CSS 清洗只做保守修补（分号、装饰行、已知旧字体链）；去重、分层、scoped merge 已停用。
 
-```sh
-epub run epub.css.layering.optimize \
-  --input work/book-a/intermediate/step-1-epub3.epub \
-  --output work/book-a/after/final.epub \
-  --json > work/book-a/reports/css-cleanup.json
-```
-
-清洗器会：
-
-- 合并完全重复的 CSS；
-- 把结构相同但少量属性不同的样式拆成公共层与小型 override；
-- 将旧式 `cnepub`、`SimSun`、`SimHei`、`STKaiti` 声明替换为短系统字体链；
-- 同步更新 XHTML `<link>` 和 OPF CSS manifest；
-- 可选把引用页面集合互不重叠的局部样式归并为 `clean-scoped-local.css`，规则改写为 `body.css-local-*` 作用域；引用集合有交叠时跳过并报告。
-
-这是该能力的保守边界。完整决策和复用步骤见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
+能力边界和人工处理建议见 [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)。
 
 清洗前后必须运行完整红线 gate：
 
@@ -233,12 +181,12 @@ epub redline --check all \
 unzip -tqq work/book-a/after/cleaned.epub
 epub run epub.package.nav.audit --input work/book-a/after/cleaned.epub --json
 epub run epub.notes.popup.normalize --input work/book-a/after/cleaned.epub --json
-epub redline --check metadata,drm,anchors \
+epub redline --check all \
   --allow-list '*/nav.xhtml' \
   work/book-a/before/source.epub \
   work/book-a/after/cleaned.epub
 
-epub redline --check text \
+epub redline --check all \
   --allow-list '*/nav.xhtml' --allow-list '*/toc.ncx' \
   work/book-a/before/source.epub \
   work/book-a/after/cleaned.epub
@@ -282,7 +230,7 @@ mkdir -p work/book-a/after/kindle-preview-output
 
 ## 底层变换器入口
 
-旧 `epub3_oneclick_converter.py` 兼容入口已收口：`epub run epub.package.migrate.epub3` 是唯一执行入口。需要直接触发底层转换时（上层仍须先完成 before 备份、结构审计和审计记录），运行：
+需要直接触发底层转换时（上层仍须先完成 before 备份、结构审计和审计记录），运行：
 
 ```sh
 epub run epub.package.migrate.epub3 \

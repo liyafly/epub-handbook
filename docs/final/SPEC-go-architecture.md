@@ -437,7 +437,7 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 | `epub_cleanup_pipeline.py` | 438 | `internal/pipeline` | **整个 subprocess 编排层消失**，这是本次重写的主要收益点 |
 | `epub_cleanup_loop.py` | 711 | `internal/pipeline`（循环控制） | |
 | `epub_text_gate.py` | 51 | **删除** | 它只是 `validate_text_invariance.py` 的 subprocess 封装；Go 里直接函数调用 |
-| `epub_ai_harness.py` / `epub_package_tool.py` / `epub3_oneclick_converter.py` | 17/68/19 | **删除** | 三个都是 "Backward-compatible CLI façade"，零逻辑 |
+| `epub_ai_harness.py` / `epub_package_tool.py` / 旧 EPUB3 迁移门面 | 17/68/19 | **删除** | 三个都是 "Backward-compatible CLI façade"，零逻辑 |
 | `tools-font/coverage-detector/` | — | **不迁**，保持 Python | 依赖 `fonttools`，见 §9.4；经 `internal/extern` 调用 |
 
 > **反模式警告**：Python 侧有大量「转发层」（`epub3_conversion/{navigation,notes,package,xhtml}.py`、
@@ -452,7 +452,7 @@ C 类（不建 `caps/` 包）：`epub.kindle.compatibility.check`、`epub.litera
 > | 规模 | 438 行 | 1465 行 |
 > | 能力 | 版本号、`dcterms:modified`、nav 生成、spine idref —— 四件事 | 上述全部 **+** 多看注释、Sigil 遗留注释、正文字体锁定感知、封面 properties、guide→landmarks、媒体类型规范化、XHTML 外壳规范化 |
 > | 契约指向 | 无 | `epub.package.migrate.epub3` → `epub3_migration_apply_harness.py` |
-> | pipeline 调用 | 无 | `epub_cleanup_pipeline.py` → `epub3_oneclick_converter.py` |
+> | pipeline 调用 | 无 | `epub_cleanup_pipeline.py` → EPUB3 迁移门面 |
 > | 测试 | 173 行 | 510 行 |
 >
 > 决定性依据是第三、四行：**A 在执行链路上是孤儿**，只被文档和自身测试引用；

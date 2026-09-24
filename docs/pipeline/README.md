@@ -8,7 +8,7 @@
 [go-cli-rearchitecture.md](go-cli-rearchitecture.md)；它不改变普通清洗任务的以下顺序：
 
 1. [cleanup-flow.md](cleanup-flow.md)：流水线主流程（preflight -> 可选结构规范化 -> EPUB3 迁移 -> 精排建议 -> 红线 gate -> diff review -> reader-matrix 回写）
-2. [oneclick-epub3-converter.md](oneclick-epub3-converter.md)：已有 EPUB 一命令审计、旧 EPUB/EPUB2 转 EPUB3、弹注和 CJK 角色排版覆盖层
+2. [epub3-migration.md](epub3-migration.md)：EPUB3 迁移产物与验收
 3. [css-cleanup-system-fonts.md](css-cleanup-system-fonts.md)：重复 CSS 收口、系统优先字体链和局部样式合并
 5. [package-operations.md](package-operations.md)：EPUB 合并、按目录拆分、元数据编辑和封面替换
 6. [cleanup-patterns.md](cleanup-patterns.md)：典型脏 EPUB 模式识别与 skill 推荐顺序
