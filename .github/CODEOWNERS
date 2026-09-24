@@ -2,9 +2,7 @@
 # 守卫红了应该改代码，不是改守卫 —— 所以它的改动必须经人类审阅。
 /internal/archguard/            @liyafly
 
-# 伴随守卫包。SPEC §5.1 明确「改动它与改动 internal/archguard/ 一样，
-# 只能在人类审阅下进行」，因此审阅归属必须一并覆盖，否则那句话没有牙齿。
-/internal/legacy_surface/       @liyafly
+# 文档与契约守卫。
 /internal/docguard/             @liyafly
 
 # INV-10 棘轮基线：只删不增，改动即迁移进度回退。

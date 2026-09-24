@@ -1,5 +1,5 @@
-// Package docguard is a test-only companion guard (like internal/legacy_surface)
-// that mechanically checks the documentation and contract layer: SKILL.md
+// Package docguard is a test-only companion guard that mechanically checks the
+// documentation and contract layer: SKILL.md
 // frontmatter and section shape, agents/openai.yaml flatness, capability
 // manifests against their schema, and the AGENTS.md canonical-entrypoint tokens.
 //

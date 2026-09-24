@@ -149,8 +149,8 @@ register("epub.structure.normalize", func(ctx context.Context, b *book.Book, arg
 ## legacy-report 约定（P2 parity）—— 已拆除（2026-09-04）
 
 迁移期每个 capability 曾支持隐藏参数 `legacy_report=true`，把 Python oracle 的原始
-JSON 形状放进 `Result.Facts["legacyReport"]` 供 parity P2 逐字节比对。Python 脚本删除后
-该脚手架已按 SPEC §5.2 的触发条件整体移除：
+JSON 形状放进 `Result.Facts["legacyReport"]` 供迁移期 parity P2 逐字节比对。Python 脚本删除后
+该脚手架已按当时的迁移设计整体移除（历史说明见 `archive/meta/2026-09-go-parity-gate.md`）：
 
 - 不再有 `--legacy-report` flag、`legacy_report` Args 键、`Params.LegacyReport` 或
   `facts.legacyReport`；曾只在 legacy 报告里出现的数据已提升为各能力的正式 `facts`

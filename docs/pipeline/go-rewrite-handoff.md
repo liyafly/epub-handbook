@@ -62,7 +62,7 @@
 ## 待决策 / 开放项
 
 - Apple Books、Readest、Kindle Previewer 等目标阅读器仍需按 `docs/final/reader-matrix.yaml` 的待测项执行 GUI 实测；不得把构建、EPUBCheck 或浏览器结果记作 reader pass。
-- `tools-font/epub-font` 是独立 Python 子集化与校验 CLI，不是正式 capability。若要升格为 `epub.font.subset`，需先做新契约、SPEC §6.1 设计与 §5.2 parity gate 的所有者决策。
+- `tools-font/epub-font` 是独立 CLI，不是正式 capability。若要升格为 `epub.font.subset`，需先确定新契约与 SPEC §6.1 设计，并通过 golden 测试和全项 redline。
 - Source intake 当前只做可审计盘点；PDF 解析、OCR、图片转码与后续内容抽取不在现有契约范围。扩大范围前需明确输入材料、隐私、许可和输出决策。
 - 手册与速查表之间的规则一致性目前没有自动语义守卫；涉及硬规则时按 `AGENTS.md` 同步检查 SPEC、终极实践手册、CSS 速查表和相关 skills。
 - 任一 reader 状态需要有真实版本、精确 artifact SHA 和可复核截图或日志；若证据缺一，状态继续留在 warn / na 或 untested，不由工具验证代填。
@@ -73,7 +73,7 @@
 
 ### 范围与升级规则
 
-- 新增 capability 必须先定公开参数和结果契约，再按 SPEC §6.1 落实现、Go-native 测试、注册和 golden，并通过 §5.2 parity gate。
+- 新增 capability 必须先定公开参数和结果契约，再按 SPEC §6.1 落实现、Go-native 测试、pipeline 注册和 golden；验收 = golden 测试 + 全项 redline。
 - 不因历史迁移文档残留引用而恢复旧执行面；`archive/` 中的 Python 行为和旧架构仅为背景证据。
 - 字体子集 demo 的现有脚本仍属于 `tools-font/` 独立工具。将其中任一操作纳入 Go 流水线前，必须重新审查隐私、字体许可、可复现性与失败事务语义。
 
@@ -95,7 +95,7 @@
 2. 检查 `go.mod` 与模块版本，按 Go 编程指南 §2 读取当前工具链适用的版本化语言/API 规则。
 3. 确认当前分支、工作区与暂存区状态；审查拟提交的完整 staged 和 unstaged diff，不要把用户文件、字体母版或生成物一起暂存。
 4. Go 改动至少运行 `go build ./cmd/... ./internal/...` 与 `go test ./cmd/... ./internal/...`；涉及解析、并发或事务时增加 vet、race 或对应定向测试。
-5. 架构、capability、SKILL.md 或执行面改动另跑 `go test ./internal/archguard/ -v` 与 `go test ./internal/docguard/`，并按改动检查 `legacy_surface`。
+5. 架构、capability、SKILL.md 或执行面改动另跑 `go test ./internal/archguard/ -v` 与 `go test ./internal/docguard/`。
 6. 对 Go 行为改动运行固定 CLI 回归，比较信封、退出码、stderr 与 entry 字节差异；每个差异都要有已授权任务作为依据。
 7. `internal/archguard/` 禁止改动。怀疑守卫有误时停下交由人审，不改断言、不加豁免、不跳过测试。
 8. demo、validator、`docs/final/` 变更按根 `AGENTS.md` 构建模板，并对精确产物运行 maintain、popup、nav audit、redline 与 XML 检查。

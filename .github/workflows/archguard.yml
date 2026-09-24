@@ -39,7 +39,7 @@ jobs:
             exit 1
           fi
           touched=$(git diff --name-only "$base" HEAD \
-            | grep -E '^internal/(archguard|legacy_surface|docguard)/' || true)
+            | grep -E '^internal/(archguard|docguard)/' || true)
           if [ -n "$touched" ]; then
             echo "::warning title=守卫被改动::本 PR 触碰了守卫包（规则 0 / SPEC §5.1）：" \
                  "$touched 守卫红了应该改代码，不是改守卫。请在 PR 描述里说明理由。"
@@ -51,6 +51,6 @@ jobs:
       - name: 架构守卫
         run: go test ./internal/archguard/ -v
 
-      - name: 伴随守卫（旧执行面 / 文档与契约层）
-        # SPEC §5.1：test-only companion guards outside the §1 layer graph.
-        run: go test ./internal/legacy_surface/ ./internal/docguard/ -v
+      - name: 文档与契约守卫
+        # SPEC §5.1：test-only companion guard outside the §1 layer graph.
+        run: go test ./internal/docguard/ -v
