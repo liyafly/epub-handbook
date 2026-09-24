@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 专项排版"
+  short_description: "处理英文、文学结构、竖排与 Ruby、多看旧版弹注 fallback，保留正文并按目标设备验证。"
+  default_prompt: "使用 $epub-special-layout 按书型处理已授权专项排版，保持正文和结构并说明阅读器验证边界。"

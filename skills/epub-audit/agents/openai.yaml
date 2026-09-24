@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 只读审查"
+  short_description: "只读审查包结构、排版、文本角色、图片与字体覆盖，给出位置、证据和最小修复建议。"
+  default_prompt: "使用 $epub-audit 只读审查当前 EPUB，按优先级给出位置、证据、影响与最小修复建议。"

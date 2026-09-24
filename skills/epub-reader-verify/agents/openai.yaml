@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPUB 阅读器验证"
+  short_description: "检查 Kindle 静态风险、维护版式 demo，并记录具体阅读器和产物证据。"
+  default_prompt: "使用 $epub-reader-verify 建立版式验证场景并按产物、版本和证据记录阅读器结果。"
