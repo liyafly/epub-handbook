@@ -28,6 +28,8 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 | S8 人工 diff | 按 `epub-diff-review.md` 在 Calibre / VS Code 看 before vs `$CUR` | 记录 | 每处差异都在授权范围 | 回到 S5 |
 | S9 交付 | 按附录 E 模板写 `制作说明.md`；涉及阅读器兼容时更新 `reader-matrix.yaml`（未实测记 `warn`/待验证） | 制作说明.md | 用户确认 | — |
 
+写出能力的 dry-run 成功时，信封为 `status=planned`、退出码 0；候选只在内存中，不会创建 `--output` 文件。出现 error finding 时仍为 `failed` / exit 1。只读能力运行 dry-run 仍为 `complete` / exit 0。审阅 planned 的 facts 和红线后，再用同一参数去掉 `--dry-run` 写出新候选。
+
 `--path-map` 只在 S2 实际改过文件名时加。
 
 ## 附录 A 授权正文校订（仅用户明确授权）

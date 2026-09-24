@@ -587,7 +587,7 @@ Go 重写完成后，仓库只剩**文档层 + Go 实现 + 明确不迁的 Pytho
 {
   "schemaVersion": "2",
   "capability": "epub.structure.normalize",
-  "status": "complete | failed | approval-required | cancelled",
+  "status": "complete | planned | failed | approval-required | cancelled",
   "input":  {"path": "...", "sha256": "..."},
   "output": {"path": "...", "sha256": "..."},
   "facts":    {},
@@ -640,6 +640,7 @@ status / findings[].level / facts 里本能力特有的字段
 ## 依据返回怎么判断
 findings 里出现 X → 下一步做 Y
 status == approval-required → 停下来问人
+status == planned → 计划已通过红线且未写出；审阅 facts/findings 后再决定是否实跑
 ```
 
 第四段是关键：**skill 的价值在"怎么判断"，不在"怎么调用"**。
@@ -652,7 +653,7 @@ status == approval-required → 停下来问人
 
 | 码 | 含义 |
 |:--:|---|
-| 0 | 成功，无 error 级 finding |
+| 0 | 成功，无 error 级 finding；写出能力的成功 dry-run 为 `planned` |
 | 1 | 失败、存在 error 级 finding，或取消（status=cancelled） |
 | 2 | `approval-required` —— 需要人工批准才能继续 |
 | 3 | 用法错误（参数非法、文件不存在） |

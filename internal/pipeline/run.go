@@ -385,7 +385,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 			}
 			// A runner may not consume ctx yet. Re-check at the other side of the
 			// stage boundary so cancellation during the final/read-only stage cannot
-			// be reported as complete (or as approval-required for a dry-run).
+			// be reported as complete (or planned for a successful dry-run).
 			if cErr := ctx.Err(); cErr != nil {
 				cancelled = true
 				failed = true
@@ -438,7 +438,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	case failed:
 		env.Status = report.StatusFailed
 	case opts.DryRun && needsWrite:
-		env.Status = report.StatusApprovalRequired
+		env.Status = report.StatusPlanned
 	default:
 		env.Status = report.StatusComplete
 	}
@@ -593,6 +593,8 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		exit = ExitFailed
 	case report.StatusApprovalRequired:
 		exit = ExitApproval
+	case report.StatusPlanned:
+		exit = ExitOK
 	case report.StatusCancelled:
 		// SPEC §8.5 只定义 0/1/2/3，没有专门的"取消"退出码档位。取消属于
 		// 「没跑完」，与 failed 一样映射到 1；靠 status/finding（而不是退出码）

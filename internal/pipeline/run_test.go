@@ -138,8 +138,8 @@ func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if outcome.Envelope.Status != report.StatusApprovalRequired || outcome.ExitCode != ExitApproval {
-		t.Fatalf("status=%q exit=%d, want approval-required/2; findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	if outcome.Envelope.Status != report.StatusPlanned || outcome.ExitCode != ExitOK {
+		t.Fatalf("status=%q exit=%d, want planned/0; findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
 	}
 	if len(outcome.Envelope.NextCommands) != 1 || strings.Contains(outcome.Envelope.NextCommands[0], "preset_dir=") {
 		t.Fatalf("nextCommands = %q, want a command without injected preset_dir", outcome.Envelope.NextCommands)

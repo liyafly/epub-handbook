@@ -30,9 +30,9 @@
 
 | Exit | 含义 | 操作 |
 |---:|---|---|
-| 0 | complete，无 error finding | 检查 warnings 和产物是否符合任务目标。 |
+| 0 | complete，或无 error finding 的 planned | `planned` 表示 dry-run 已检查内存候选但未写出；审阅 findings/facts 与范围后再决定是否实跑。 |
 | 1 | failed、error finding 或 cancelled | 查看 findings/events；cancelled 不得保留半成品。 |
-| 2 | approval-required | 先审阅候选与变更范围，取得批准后再执行写出。 |
+| 2 | approval-required | 按显式批准要求审阅候选与变更范围后再执行写出。成功 dry-run 使用 `planned` / exit 0。 |
 | 3 | 用法错误或输入不存在 | 修正参数、路径或输入类型后重跑。 |
 
 成功的写出 envelope 会记录 output path 与 SHA；写出状态为 failed 仍可能有可 review 的候选。每次检查都要确认 output 是否存在，不从 exit code 单独推断。

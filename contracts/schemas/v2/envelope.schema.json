@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": {"const": "2"},
     "capability": {"type": "string"},
-    "status": {"type": "string", "enum": ["complete", "failed", "cancelled", "approval-required"]},
+    "status": {"type": "string", "enum": ["complete", "planned", "failed", "cancelled", "approval-required"]},
     "input": {
       "type": "object",
       "additionalProperties": false,

@@ -40,7 +40,7 @@ func referenceBook(t *testing.T) string {
 // format 阶段（Python 语义：dry-run 也在内存应用）会改写 Chapter11-2 /
 // Chapter12-2 / Chapter8-6 里正文代码样例中的路径字符串，text 红线因此报
 // error → failed / exit 1；若未来 normalize 不再触碰正文，则应回到
-// approval-required / exit 2。两种情形下上游都不得成为阻断原因。
+// planned / exit 0。两种情形下上游都不得成为阻断原因。
 func TestRunRealBookNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
 	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.structure.normalize",
@@ -94,8 +94,8 @@ func TestRunRealBookNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
 		if !hasEvent(env.Events, "redline", "failed") {
 			t.Errorf("redline:failed event missing: %#v", env.Events)
 		}
-	} else if env.Status != report.StatusApprovalRequired || outcome.ExitCode != ExitApproval {
-		t.Fatalf("status = %q exit = %d without redline errors, want approval-required / 2", env.Status, outcome.ExitCode)
+	} else if env.Status != report.StatusPlanned || outcome.ExitCode != ExitOK {
+		t.Fatalf("status = %q exit = %d without redline errors, want planned / 0", env.Status, outcome.ExitCode)
 	}
 	if env.Output != nil {
 		t.Errorf("dry-run must not write output: %#v", env.Output)

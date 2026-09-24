@@ -22,7 +22,7 @@ func TestNormalizePreviewMatchesAppliedCandidate(t *testing.T) {
 			after := filepath.Join(t.TempDir(), "candidate.epub")
 			opts := Options{CapabilityID: "epub.structure.normalize", InputPath: before, OutputPath: after, DryRun: true, Args: Args{"mode": mode}}
 			preview, err := Run(t.Context(), opts)
-			if err != nil || preview.ExitCode != ExitApproval {
+			if err != nil || preview.ExitCode != ExitOK || preview.Envelope.Status != report.StatusPlanned {
 				t.Fatalf("preview exit=%d err=%v findings=%v", preview.ExitCode, err, preview.Envelope.Findings)
 			}
 			if _, err := os.Stat(after); !os.IsNotExist(err) {

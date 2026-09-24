@@ -52,7 +52,7 @@ type Params struct {
 	// OutputDir 是段产物目录（每段一个 <stem>_<NN>.epub）。
 	OutputDir string
 	// DryRun 只规划和验证所有分段，不创建 output_dir 或其 sibling 临时目录。
-	// 最终 status 由 pipeline 按全局 dry-run 规则提升为 approval-required。
+	// 最终 status 由 pipeline 按全局 dry-run 规则提升为 planned。
 	DryRun bool
 }
 

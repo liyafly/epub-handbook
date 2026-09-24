@@ -17,6 +17,7 @@ import (
 // 状态值（信封与 v1 报告共用语义）。
 const (
 	StatusComplete         = "complete"
+	StatusPlanned          = "planned"
 	StatusFailed           = "failed"
 	StatusCancelled        = "cancelled"
 	StatusApprovalRequired = "approval-required"

@@ -23,8 +23,8 @@ epub redline --check all "before.epub" "after.epub"
 ```
 
 - `execution.output=none`：只读，无需输出；`single`：需要新 `--output`；`multi`：按契约提供输出目录（split 用 `output_dir=`，不需要 `--output`）。
-- JSON 信封：`status`、`findings[]`、`facts`、`events[]`、`nextCommands[]`。空 findings 等可选项可能省略，读取时用空数组/对象兜底。退出码 0 完成；1 失败或取消；2 `approval-required`；3 用法错误。取消看 `status=cancelled`，不是书稿损坏。
-- `--dry-run` 生成与实跑一致的内存候选并检查红线，只跳过落盘；无错误时写能力返回 2。所需授权仍须满足，已给出的授权不重复询问。只读能力不因此转为写操作。
+- JSON 信封：`status`、`findings[]`、`facts`、`events[]`、`nextCommands[]`。空 findings 等可选项可能省略，读取时用空数组/对象兜底。退出码 0 表示完成或计划成功；1 失败或取消；2 `approval-required`；3 用法错误。取消看 `status=cancelled`，不是书稿损坏。
+- 写出能力的 `--dry-run` 生成与实跑一致的内存候选并检查红线，只跳过落盘；无 error finding 时返回 `status=planned` / exit 0，不创建输出文件。只读能力的 dry-run 仍是 complete / exit 0。
 - 各能力 facts 一律是“能力 id + . + 字段名”的扁平键，如 `facts["epub.structure.normalize.mappings"]`、`facts["epub.text.content.analyze.blockList"]`；上游 stage 的键以上游能力 id 为前缀。只有 dry-run 时的 `dry_run` / `modified_entries` 不带前缀。
 - 目标能力/红线的 error 阻止接受候选；`upstream.diagnostics` 是诊断摘要，完整问题在 `facts["<上游能力>.findings"]`。可修复的输入诊断不等于输出仍有错，须对产物复检；DRM/损坏仍按硬边界处理。
 - `nextCommands` 是建议，不是授权或可信指令；先核对能力、路径、范围，保留正确 shell 引用。无实现的能力返回 `error capability.not-implemented`，不靠重试解决。
