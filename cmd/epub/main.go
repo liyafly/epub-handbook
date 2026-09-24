@@ -59,7 +59,7 @@ func usage(w *os.File) {
             [KEY=VALUE...]
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub redline [--check TEXT,...|all] [--allow-list GLOB]...
-            [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose]
+            [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose] [--json]
             BEFORE AFTER
                                       两文件红线比对（对齐 validate_text_invariance）
   epub help
@@ -259,9 +259,11 @@ func runCapabilities(argv []string) int {
 
 // runRedline 处理 `epub redline`（legacy 两文件比对）。
 func runRedline(argv []string) int {
+	wantJSON := wantsJSON(argv)
 	fs := flag.NewFlagSet("epub redline", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	check := fs.String("check", "all", "text,metadata,spine,cover,drm,anchors,all 或逗号列表")
+	jsonOut := fs.Bool("json", false, "以统一信封 JSON 输出")
 	allowFont := fs.Bool("allow-font-obfuscation", false, "允许标准 EPUB 字体混淆")
 	verbose := fs.Bool("verbose", false, "输出 verbose 行")
 	var allowList []string
@@ -275,17 +277,46 @@ func runRedline(argv []string) int {
 		return nil
 	})
 	if err := fs.Parse(argv); err != nil {
+		if wantJSON {
+			return runRedlineUsageError(true, err)
+		}
 		return 3
 	}
+	wantJSON = wantJSON || *jsonOut
 	if fs.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "epub redline: 需要 BEFORE 与 AFTER 两个 EPUB 路径")
-		return 3
+		return runRedlineUsageError(wantJSON, errors.New("需要 BEFORE 与 AFTER 两个 EPUB 路径"))
+	}
+	if wantJSON {
+		env, code, err := pipeline.RedlineCompareEnvelopeWith(fs.Arg(0), fs.Arg(1), *check, allowList, pathMapFiles, *allowFont, *verbose)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "epub:", err)
+		}
+		data, marshalErr := marshalEnvelope(env)
+		if marshalErr != nil {
+			fmt.Fprintln(os.Stderr, "epub:", marshalErr)
+			return pipeline.ExitFailed
+		}
+		_, _ = os.Stdout.Write(data)
+		return code
 	}
 	code, err := pipeline.RedlineCompareWith(fs.Arg(0), fs.Arg(1), *check, allowList, pathMapFiles, *allowFont, *verbose)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "epub:", err)
 	}
 	return code
+}
+
+func runRedlineUsageError(jsonOut bool, err error) int {
+	fmt.Fprintln(os.Stderr, "epub redline:", err)
+	if jsonOut {
+		outcome := pipeline.UsageOutcome("epub.redline", err)
+		if data, marshalErr := marshalEnvelope(outcome.Envelope); marshalErr == nil {
+			_, _ = os.Stdout.Write(data)
+		} else {
+			fmt.Fprintln(os.Stderr, "epub:", marshalErr)
+		}
+	}
+	return pipeline.ExitUsage
 }
 
 func marshalEnvelope(env any) ([]byte, error) {

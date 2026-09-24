@@ -666,15 +666,51 @@ func RedlineCompare(before, after, check string, allowList []string, allowFontOb
 // 文件路径（对齐 validate_text_invariance.py 的 --path-map），由本层载入并
 // 链式展开改名映射（cmd 层保持零 EPUB/redline 知识）。
 func RedlineCompareWith(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (int, error) {
+	outcome, err := compareRedline(before, after, check, allowList, pathMapFiles, allowFontObfuscation, verbose)
+	if err != nil {
+		return outcome.ExitCode, err
+	}
+	writeRedlineLines(outcome.lines)
+	return outcome.ExitCode, nil
+}
+
+// RedlineCompareEnvelopeWith runs the same comparison as RedlineCompareWith
+// and returns its v2 envelope without writing legacy text to stderr.
+func RedlineCompareEnvelopeWith(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (report.Envelope, int, error) {
+	outcome, err := compareRedline(before, after, check, allowList, pathMapFiles, allowFontObfuscation, verbose)
+	return outcome.Envelope, outcome.ExitCode, err
+}
+
+type redlineOutcome struct {
+	Envelope report.Envelope
+	ExitCode int
+	lines    []string
+}
+
+func compareRedline(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (redlineOutcome, error) {
 	pathMap := map[string]string{}
 	for _, p := range pathMapFiles {
 		raw, err := book.ReadFileContext(nil, p, 16<<20)
 		if err != nil {
-			return ExitUsage, fmt.Errorf("读取 --path-map 失败: %w", err)
+			message := fmt.Sprintf("读取 --path-map 失败: %v", err)
+			return redlineOutcome{
+				Envelope: redlineEnvelope(before, after, check, []string{message}, []report.Finding{{
+					Level: "error", ID: "redline.input.0", Title: "Unable to read --path-map", Detail: err.Error(),
+				}}),
+				ExitCode: ExitUsage,
+				lines:    []string{message},
+			}, fmt.Errorf("读取 --path-map 失败: %w", err)
 		}
 		m, err := redline.LoadPathMap(raw)
 		if err != nil {
-			return ExitUsage, err
+			message := err.Error()
+			return redlineOutcome{
+				Envelope: redlineEnvelope(before, after, check, []string{message}, []report.Finding{{
+					Level: "error", ID: "redline.input.0", Title: "Invalid --path-map", Detail: message,
+				}}),
+				ExitCode: ExitUsage,
+				lines:    []string{message},
+			}, err
 		}
 		pathMap = redline.ComposePathMaps(pathMap, m)
 	}
@@ -685,19 +721,71 @@ func RedlineCompareWith(before, after, check string, allowList []string, pathMap
 		Verbose:              verbose,
 	})
 	if err != nil {
-		return ExitFailed, err
+		message := err.Error()
+		return redlineOutcome{
+			Envelope: redlineEnvelope(before, after, check, []string{message}, []report.Finding{{
+				Level: "error", ID: "redline.failed.0", Title: "Redline comparison failed", Detail: message,
+			}}),
+			ExitCode: ExitFailed,
+			lines:    []string{message},
+		}, err
 	}
-	text := strings.Join(rep.Lines, "\n")
+	exitCode := rep.Code
+	if exitCode == 2 {
+		exitCode = ExitUsage
+	}
+	findings := make([]report.Finding, 0, len(rep.Findings))
+	for i, finding := range rep.Findings {
+		if finding.Verbose {
+			continue
+		}
+		findings = append(findings, report.Finding{
+			Level: "error", ID: fmt.Sprintf("redline.%s.%d", finding.Check, i),
+			Title: finding.Message, Detail: finding.Check,
+		})
+	}
+	if exitCode == ExitOK {
+		findings = append(findings, report.Finding{
+			Level: "info", ID: "redline.pass", Title: "All requested red-line checks passed.",
+		})
+	}
+	return redlineOutcome{
+		Envelope: redlineEnvelope(before, after, check, rep.Lines, findings),
+		ExitCode: exitCode,
+		lines:    rep.Lines,
+	}, nil
+}
+
+func redlineEnvelope(before, after, check string, lines []string, findings []report.Finding) report.Envelope {
+	if lines == nil {
+		lines = []string{}
+	}
+	status := report.StatusComplete
+	for _, finding := range findings {
+		if finding.Level == "error" {
+			status = report.StatusFailed
+			break
+		}
+	}
+	return report.Envelope{
+		SchemaVersion: "2",
+		Capability:    "epub.redline",
+		Status:        status,
+		Facts: map[string]any{
+			"epub.redline.check":  check,
+			"epub.redline.before": before,
+			"epub.redline.after":  after,
+			"epub.redline.lines":  lines,
+		},
+		Findings: findings,
+	}
+}
+
+func writeRedlineLines(lines []string) {
+	text := strings.Join(lines, "\n")
 	if text != "" {
-		text += "\n"
+		fmt.Fprint(os.Stderr, text+"\n")
 	}
-	if text != "" {
-		fmt.Fprint(os.Stderr, text)
-	}
-	if rep.Code == 2 {
-		return ExitUsage, nil
-	}
-	return rep.Code, nil
 }
 
 // dropSelfReruns 去掉「再跑一遍刚跑完的能力」这类建议。能力自己的命令表

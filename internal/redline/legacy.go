@@ -27,6 +27,8 @@ type Report struct {
 	Code int
 	// Lines 是按 legacy 顺序排好的输出行（verbose 行已按位置插入）。
 	Lines []string
+	// Findings 是可供 envelope 消费的结构化问题；verbose 行不属于 findings。
+	Findings []Finding
 }
 
 // Check 对选中的红线做一次 in-process 比对，返回问题 findings（不含 verbose 行）。
@@ -146,27 +148,35 @@ func renderReport(rep runReport, o Options) []string {
 func CompareFiles(beforePath, afterPath string, checkArg string, o Options) (Report, error) {
 	checks, err := resolveChecks(splitCheckArg(checkArg))
 	if err != nil {
-		return Report{Code: 2, Lines: []string{"input error: " + err.Error()}}, nil
+		return inputFailure("input error: " + err.Error()), nil
 	}
 	before, err := openState(beforePath)
 	if err != nil {
-		return Report{Code: 2, Lines: []string{"input error: " + err.Error()}}, nil
+		return inputFailure("input error: " + err.Error()), nil
 	}
 	defer before.Close()
 	after, err := openState(afterPath)
 	if err != nil {
-		return Report{Code: 2, Lines: []string{"input error: " + err.Error()}}, nil
+		return inputFailure("input error: " + err.Error()), nil
 	}
 	defer after.Close()
 
 	rep, err := runChecks(before, after, checks, o)
 	if err != nil {
 		if isErrInput(err) {
-			return Report{Code: 2, Lines: []string{"input error: " + inputErrorText(err)}}, nil
+			return inputFailure("input error: " + inputErrorText(err)), nil
 		}
 		return Report{}, err
 	}
-	return Report{Code: rep.code, Lines: renderReport(rep, o)}, nil
+	return Report{Code: rep.code, Lines: renderReport(rep, o), Findings: rep.findings}, nil
+}
+
+func inputFailure(message string) Report {
+	return Report{
+		Code:     2,
+		Lines:    []string{message},
+		Findings: []Finding{{Check: "input", Message: message}},
+	}
 }
 
 // pathMapShapes 是 --path-map 接受的形状说明（错误信息里复用）。

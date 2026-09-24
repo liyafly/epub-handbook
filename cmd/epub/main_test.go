@@ -1,9 +1,13 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -61,6 +65,59 @@ func TestMarshalEnvelopeDoesNotEscapeHTML(t *testing.T) {
 	}
 }
 
+func TestRunRedlineJSONPassAndFail(t *testing.T) {
+	dir := t.TempDir()
+	before := filepath.Join(dir, "before.epub")
+	passAfter := filepath.Join(dir, "pass-after.epub")
+	failAfter := filepath.Join(dir, "fail-after.epub")
+	writeRedlineFixture(t, before, "same text")
+	writeRedlineFixture(t, passAfter, "same text")
+	writeRedlineFixture(t, failAfter, "changed text")
+
+	for _, tc := range []struct {
+		name       string
+		after      string
+		wantCode   int
+		wantStatus string
+		wantLevel  string
+	}{
+		{name: "pass", after: passAfter, wantCode: 0, wantStatus: "complete", wantLevel: "info"},
+		{name: "fail", after: failAfter, wantCode: 1, wantStatus: "failed", wantLevel: "error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, stdout, stderr := captureRunFunc(t, func() int {
+				return runRedline([]string{"--check", "all", "--json", before, tc.after})
+			})
+			if code != tc.wantCode {
+				t.Fatalf("exit = %d, want %d; stdout=%s stderr=%s", code, tc.wantCode, stdout, stderr)
+			}
+			if stderr != "" {
+				t.Fatalf("JSON mode wrote legacy text to stderr: %s", stderr)
+			}
+			var env struct {
+				SchemaVersion string         `json:"schemaVersion"`
+				Capability    string         `json:"capability"`
+				Status        string         `json:"status"`
+				Facts         map[string]any `json:"facts"`
+				Findings      []struct {
+					Level string `json:"level"`
+					ID    string `json:"id"`
+					Title string `json:"title"`
+				} `json:"findings"`
+			}
+			if err := jsonv2.Unmarshal([]byte(stdout), &env); err != nil {
+				t.Fatalf("stdout is not a JSON envelope: %v\n%s", err, stdout)
+			}
+			if env.SchemaVersion != "2" || env.Capability != "epub.redline" || env.Status != tc.wantStatus {
+				t.Fatalf("envelope header = %#v", env)
+			}
+			if len(env.Facts) == 0 || len(env.Findings) == 0 || env.Findings[0].Level != tc.wantLevel {
+				t.Fatalf("envelope facts/findings = %#v / %#v", env.Facts, env.Findings)
+			}
+		})
+	}
+}
+
 func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 	if code := runCapabilities([]string{"--id", "no.such.capability"}); code != 3 {
 		t.Fatalf("unknown capability exit = %d, want 3", code)
@@ -68,6 +125,11 @@ func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 }
 
 func captureRunCapability(t *testing.T, argv []string) (code int, stdout, stderr string) {
+	t.Helper()
+	return captureRunFunc(t, func() int { return runCapability(argv) })
+}
+
+func captureRunFunc(t *testing.T, runFunc func() int) (code int, stdout, stderr string) {
 	t.Helper()
 	outR, outW, err := os.Pipe()
 	if err != nil {
@@ -83,7 +145,7 @@ func captureRunCapability(t *testing.T, argv []string) (code int, stdout, stderr
 		os.Stdout, os.Stderr = originalOut, originalErr
 	}()
 
-	code = runCapability(argv)
+	code = runFunc()
 	if err := outW.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -105,4 +167,37 @@ func captureRunCapability(t *testing.T, argv []string) (code int, stdout, stderr
 		t.Fatal(err)
 	}
 	return code, string(outBytes), string(errBytes)
+}
+
+func writeRedlineFixture(t *testing.T, path, paragraph string) {
+	t.Helper()
+	entries := []struct {
+		name   string
+		data   []byte
+		method uint16
+	}{
+		{name: "mimetype", data: []byte("application/epub+zip"), method: zip.Store},
+		{name: "META-INF/container.xml", data: []byte(`<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
+		{name: "OEBPS/content.opf", data: []byte(`<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="book-id"><metadata><dc:identifier id="book-id">urn:uuid:test-redline</dc:identifier><dc:title>CLI fixture</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`)},
+		{name: "OEBPS/nav.xhtml", data: []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body><nav><a href="Text/chapter.xhtml">Chapter</a></nav></body></html>`)},
+		{name: "OEBPS/Text/chapter.xhtml", data: []byte(`<html xmlns="http://www.w3.org/1999/xhtml" lang="en"><body><p id="p1">` + paragraph + `</p></body></html>`)},
+	}
+	var buffer bytes.Buffer
+	w := zip.NewWriter(&buffer)
+	for _, entry := range entries {
+		header := &zip.FileHeader{Name: entry.name, Method: entry.method}
+		writer, err := w.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writer.Write(entry.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buffer.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
