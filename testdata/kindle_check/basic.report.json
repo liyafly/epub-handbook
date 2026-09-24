@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.kindle.compatibility.check",
+  "status": "complete",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "facts": {
+    "dry_run": true,
+    "epub.kindle.compatibility.check.checks": [
+      "kindle.ncx-missing",
+      "kindle.cover-image-missing",
+      "kindle.cover-meta-missing",
+      "kindle.cover-not-raster",
+      "kindle.image-webp",
+      "kindle.image-tiff",
+      "kindle.image-gif",
+      "kindle.image-svg",
+      "kindle.mathml-properties-missing",
+      "kindle.css-transform-rotate",
+      "kindle.css-styled-underline",
+      "kindle.css-amzn-media-query",
+      "kindle.css-img-direct-float",
+      "kindle.css-unicode-range",
+      "kindle.css-parse-failed",
+      "kindle.xhtml-parse-failed"
+    ],
+    "epub.kindle.compatibility.check.counts": {
+      "kindle.cover-image-missing": 0,
+      "kindle.cover-meta-missing": 0,
+      "kindle.cover-not-raster": 0,
+      "kindle.css-amzn-media-query": 0,
+      "kindle.css-img-direct-float": 0,
+      "kindle.css-parse-failed": 0,
+      "kindle.css-styled-underline": 0,
+      "kindle.css-transform-rotate": 0,
+      "kindle.css-unicode-range": 0,
+      "kindle.image-gif": 0,
+      "kindle.image-svg": 0,
+      "kindle.image-tiff": 0,
+      "kindle.image-webp": 0,
+      "kindle.mathml-properties-missing": 0,
+      "kindle.ncx-missing": 0,
+      "kindle.xhtml-parse-failed": 0
+    },
+    "epub.kindle.compatibility.check.cssFilesScanned": 1,
+    "epub.kindle.compatibility.check.staticOnly": true,
+    "epub.kindle.compatibility.check.xhtmlFilesScanned": 2,
+    "epub.package.nav.audit.actionableFindings": [],
+    "epub.package.nav.audit.auditStatus": "pass",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "info",
+        "id": "audit.0",
+        "title": "No immediate structural issue detected by harness"
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-special-layout",
+      "$epub-cleanup"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "en",
+      "manifest_items": 5,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 8
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "modified_entries": []
+  },
+  "events": [
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.kindle.compatibility.check",
+      "status": "completed"
+    }
+  ]
+}

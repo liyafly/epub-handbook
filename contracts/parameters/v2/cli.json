@@ -202,7 +202,7 @@
       }
     },
     "epub.kindle.compatibility.check": {
-      "description": "尚无 Go runner；需依据专项 skill 人工/模型处理，不能伪称 CLI 已实现。",
+      "description": "只读 Kindle 静态风险检查（SPEC-实现约束 §5–§5.10）；静态通过不等于 Previewer 或设备验收。",
       "parameters": {}
     },
     "epub.literary.structure.format": {

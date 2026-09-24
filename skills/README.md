@@ -42,7 +42,7 @@ epub redline --check all "before.epub" "after.epub"
 | `epub-package-ops` | 明确授权后合并、拆分、改元数据、换封面或转 A-lite | `epub.package.merge`、`epub.package.split`、`epub.metadata.edit`、`epub.cover.replace`、`epub.alite.convert`，写入 |
 | `epub-source-intake` | 非 EPUB 源文件盘点与接入计划；不抽取 PDF、不做 OCR | `epub.source.intake`，只读 |
 | `epub-special-layout` | 英文、文学结构、竖排/Ruby 与多看旧版弹注 fallback | 人工；`epub.typography.english.optimize`、`epub.literary.structure.format`、`epub.vertical.ruby.optimize`、`epub.notes.legacy-fallback` 尚未实现 |
-| `epub-reader-verify` | Kindle 风险、版式 demo、转换器与目标阅读器证据 | `epub.style.demo.maintain`，只读；人工；`epub.kindle.compatibility.check` 尚未实现 |
+| `epub-reader-verify` | Kindle 风险、版式 demo、转换器与目标阅读器证据 | `epub.kindle.compatibility.check`、`epub.style.demo.maintain`，只读 |
 
 ## 维护规则
 

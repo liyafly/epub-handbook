@@ -21,14 +21,20 @@ Kindle 交付前，或 Previewer/App 与其他阅读器不同。规则按 [SPEC]
 
 ### Kindle 兼容检查
 
-`epub.kindle.compatibility.check` 当前未实现；使用可用静态检查，再读实际转换日志：
+`epub.kindle.compatibility.check` 是只读静态检查；输出不代表 Kindle Previewer、App 或设备验收。按以下顺序采集、审阅和复查：
 
 ```sh
-epub run epub.package.nav.audit --input "book.epub" --json
-epub run epub.layout.audit --input "book.epub" --json
+# 1. 生成只读检查报告
+epub run epub.kindle.compatibility.check --input "book.epub" --dry-run --json > "kindle-plan.json"
+# 2. 审阅所有 Kindle finding 及计数
+python3 -c 'import json; r=json.load(open("kindle-plan.json")); print(json.dumps({"findings":r.get("findings",[]),"counts":r.get("facts",{}).get("epub.kindle.compatibility.check.counts",{})}, ensure_ascii=False, indent=2))'
+# 3. 对确认后的输入重新运行只读扫描；本能力不写出 EPUB
+epub run epub.kindle.compatibility.check --input "book.epub" --json > "kindle-final.json"
+# 4. 若另有已授权修复候选，验证内容边界
+epub redline --check all "book.epub" "candidate.epub"
 ```
 
-有授权修复后按根 AGENTS 跑红线；涉及注释加 popup validator。实测前确认本机转换器版本、实际输出与日志路径，按 [demo README](../../templates/epub-style-demo/README.md) 选择验证场景。
+前两次扫描均为只读，不会生成 `plannedEdits`；审阅时按 finding ID 选择对应专项并遵守授权。第 4 步只适用于已存在的候选，不把静态报告当成修改许可。实测前确认本机转换器版本、实际输出与日志路径，按 [demo README](../../templates/epub-style-demo/README.md) 选择验证场景。
 
 ### 版式 demo 与证据
 
@@ -49,7 +55,7 @@ maintain 均只读，无 `--output`。catalog=true 从真实 spine 生成场景�
 
 ### Kindle 兼容检查
 
-JSON 只代表静态发现，见 [公共语义](../README.md)。转换日志另记文件、错误码、资源路径、工具/版本、产物 SHA。转换成功、Previewer 展示、App/设备验收是三种不同证据。
+读取 `facts.epub.kindle.compatibility.check.checks` 的检查顺序、`counts` 的逐项命中数、`cssFilesScanned` / `xhtmlFilesScanned` 的扫描范围和 `staticOnly=true`。这是只读 validator，不返回 `plannedEdits` 或 `skipped`。finding 前缀为 `kindle.`；error 会令状态 `failed`，warn/info 不会单独阻断。转换日志另记文件、错误码、资源路径、工具/版本、产物 SHA。转换成功、Previewer 展示、App/设备验收是三种不同证据。
 
 ### 版式 demo 与证据
 
@@ -59,9 +65,11 @@ JSON 只代表静态发现，见 [公共语义](../README.md)。转换日志另�
 
 ### Kindle 兼容检查
 
-- 包结构：nav+NCX、spine toc、封面 cover-image/兼容 metadata、MathML properties。
-- 资源/布局：JPEG/PNG 主路径，风险 SVG 需 fallback；figure 承载 float/% 宽度；带样式下划线有普通 underline；长 token、表格、代码和大字号不能溢出。
-- 日志 warning 映射具体资源再判断，不默认无害；没有实测不虚构 pass/fail。设备不可用时列待验项，不把静态修复当成验收完成。
+- `kindle.ncx-missing`：补齐 NCX manifest item 或 spine `toc`；`kindle.cover-image-missing`、`kindle.cover-meta-missing`、`kindle.cover-not-raster`：按封面规范核对 cover-image、name=cover 元数据和 JPEG/PNG 主路径。
+- `kindle.image-webp` 是 error，改用 JPEG/PNG 并重查；`kindle.image-tiff`、`kindle.image-gif` 要逐资源复核，GIF 另人工确认帧数；`kindle.image-svg` 检查目标格式的 raster fallback。
+- `kindle.mathml-properties-missing`：为含 MathML 的 spine item 补 `properties="mathml"`；`kindle.css-transform-rotate`：移除通用 EPUB 便签旋转；`kindle.css-styled-underline`：先声明基础 underline 再声明增强样式。
+- `kindle.css-amzn-media-query`：移除 Kindle 专用媒体查询；`kindle.css-img-direct-float`：将 float 放在 wrapping figure；`kindle.css-unicode-range`：核对字体分配在目标 Kindle 格式中的实测结果。
+- `kindle.css-parse-failed` / `kindle.xhtml-parse-failed`：修复或人工检查对应文件后重跑。转换日志中的 warning 映射到具体资源再判断，不默认无害；没有实测不虚构 pass/fail。设备不可用时列待验项，不把静态修复当成验收完成。
 - 改动交最窄专项 skill，保留 EPUB3 语义和正文；新兼容规则走 demo → 实测 → matrix → SPEC，不把私有 CSS 当关键内容唯一路径。
 
 ### 版式 demo 与证据
