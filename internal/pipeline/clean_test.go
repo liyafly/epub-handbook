@@ -48,8 +48,8 @@ func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 		t.Fatalf("saved summary=%+v", saved)
 	}
 	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
-	if len(steps) != 2 || steps[0].Name != "audit" || steps[1].Name != "normalize" {
-		t.Fatalf("steps=%+v, want audit then normalize", steps)
+	if len(steps) != 3 || steps[0].Name != "audit" || steps[1].Name != "normalize" || steps[2].Name != "audit-final" {
+		t.Fatalf("steps=%+v, want audit, normalize, and final audit", steps)
 	}
 	if steps[1].InputSHA256 == "" || steps[1].OutputSHA256 == "" {
 		t.Fatalf("normalize SHA chain=%+v, want input and output hashes", steps[1])
@@ -66,7 +66,7 @@ func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 	}
 }
 
-func TestCleanDefaultDryRunChainsAllDocumentedSteps(t *testing.T) {
+func TestCleanDefaultDryRunOnlyAudits(t *testing.T) {
 	input := buildEpubWithOPF(t)
 	result, err := Clean(t.Context(), CleanOptions{
 		InputPath: input, OutputDir: filepath.Join(t.TempDir(), "out"), Jobs: 1,
@@ -75,26 +75,24 @@ func TestCleanDefaultDryRunChainsAllDocumentedSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result.ExitCode != ExitOK || len(result.Books) != 1 || result.Books[0].Envelope.Status != report.StatusPlanned {
-		t.Fatalf("result=%+v, want a successful full-chain preview", result)
+		t.Fatalf("result=%+v, want a successful audit-only plan", result)
 	}
-	steps := result.Books[0].Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
-	want := []string{"audit", "normalize", "migrate", "css", "typography"}
-	if len(steps) != len(want) {
-		t.Fatalf("steps=%+v, want %v", steps, want)
+	bookResult := result.Books[0]
+	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
+	if len(steps) != 1 || steps[0].Name != "audit" {
+		t.Fatalf("steps=%+v, want audit only", steps)
 	}
-	for index, name := range want {
-		if steps[index].Name != name {
-			t.Fatalf("step %d=%q, want %q", index, steps[index].Name, name)
-		}
-		if index > 1 && steps[index].InputSHA256 != steps[index-1].OutputSHA256 {
-			t.Fatalf("step %s input SHA=%s, previous output SHA=%s", name, steps[index].InputSHA256, steps[index-1].OutputSHA256)
-		}
-		if index > 0 && (steps[index].Redline == nil || steps[index].Redline.Status != report.StatusComplete || hasCleanErrorFinding(steps[index].Redline.Findings)) {
-			t.Fatalf("step %s redline=%+v, want explicit successful redline result", name, steps[index].Redline)
-		}
+	if _, exists := bookResult.Envelope.Facts["epub.clean.previewSHA256"]; exists {
+		t.Fatalf("audit-only plan has a preview SHA: %+v", bookResult.Envelope.Facts)
 	}
-	if redline := result.Books[0].Envelope.Facts["epub.clean.redline"].(cleanRedlineSummary); redline.Status != report.StatusComplete {
-		t.Fatalf("final redline=%+v, want complete", redline)
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "planned" {
+		t.Fatalf("artifact disposition=%v, want planned", got)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.selectedSteps"].([]string); len(got) != 0 {
+		t.Fatalf("selected steps=%v, want none", got)
+	}
+	if result.Envelope.Capability != cleanCapabilityID || result.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("batch envelope=%+v, want planned epub.clean envelope", result.Envelope)
 	}
 }
 
@@ -113,7 +111,7 @@ func TestCleanApprovedRunWritesOnlyFinalCandidateAndReport(t *testing.T) {
 	input := buildEpubWithOPF(t)
 	outputDir := filepath.Join(t.TempDir(), "out")
 	result, err := Clean(t.Context(), CleanOptions{
-		InputPath: input, OutputDir: outputDir, Approve: true, Jobs: 1,
+		InputPath: input, OutputDir: outputDir, Steps: []string{"normalize"}, Approve: true, Jobs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -126,8 +124,8 @@ func TestCleanApprovedRunWritesOnlyFinalCandidateAndReport(t *testing.T) {
 		t.Fatalf("status=%q output=%q", bookResult.Envelope.Status, bookResult.OutputPath)
 	}
 	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
-	if len(steps) != 5 || steps[0].Name != "audit" || steps[4].Name != "typography" {
-		t.Fatalf("steps=%+v, want audit plus all four steps", steps)
+	if len(steps) != 3 || steps[0].Name != "audit" || steps[1].Name != "normalize" || steps[2].Name != "audit-final" {
+		t.Fatalf("steps=%+v, want audit, normalize, and final audit", steps)
 	}
 	for _, path := range []string{bookResult.OutputPath, bookResult.ReportPath} {
 		if _, err := os.Stat(path); err != nil {
@@ -164,13 +162,61 @@ func TestCleanApprovedRunWritesOnlyFinalCandidateAndReport(t *testing.T) {
 	}
 }
 
-func hasCleanErrorFinding(findings []report.Finding) bool {
-	for _, finding := range findings {
-		if finding.Level == "error" {
-			return true
+func TestCleanFailedRunRetainsOnlyExplicitReviewCandidate(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir,
+		Steps: []string{"normalize", "typography"}, Preset: "missing-preset", Scope: []string{"all"},
+		Approve: true, RetainReviewCandidate: true, Jobs: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want one failed book", result)
+	}
+	bookResult := result.Books[0]
+	wantReview := filepath.Join(outputDir, "in.review-only.epub")
+	if bookResult.Envelope.Status != report.StatusFailed || bookResult.OutputPath != wantReview {
+		t.Fatalf("status=%q output=%q, want failed review-only candidate", bookResult.Envelope.Status, bookResult.OutputPath)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "review-only" {
+		t.Fatalf("artifact disposition=%v, want review-only", got)
+	}
+	if _, err := os.Stat(wantReview); err != nil {
+		t.Fatalf("review-only candidate missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "in.epub")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("failed run wrote an approved EPUB: %v", err)
+	}
+}
+
+func TestCleanFailedApprovedRunWithholdsCandidateByDefault(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir,
+		Steps: []string{"normalize", "typography"}, Preset: "missing-preset", Scope: []string{"all"},
+		Approve: true, Jobs: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 || result.Books[0].Envelope.Status != report.StatusFailed {
+		t.Fatalf("result=%+v, want failed book", result)
+	}
+	if result.Books[0].OutputPath != "" || result.Books[0].Envelope.Output != nil {
+		t.Fatalf("failed run published a candidate: %+v", result.Books[0])
+	}
+	if got := result.Books[0].Envelope.Facts["pipeline.artifactDisposition"]; got != "withheld" {
+		t.Fatalf("artifact disposition=%v, want withheld", got)
+	}
+	for _, path := range []string{filepath.Join(outputDir, "in.epub"), filepath.Join(outputDir, "in.review-only.epub")} {
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("failed run created %s: %v", path, err)
 		}
 	}
-	return false
 }
 
 func TestCleanDirectoryUsesSortedInputsAndParallelJobs(t *testing.T) {
@@ -246,13 +292,44 @@ func TestCleanRejectsInputOutputOverlapAndInvalidSteps(t *testing.T) {
 	if _, ok := errors.AsType[*UsageError](err); err == nil || !ok {
 		t.Fatalf("nested output error=%v, want UsageError", err)
 	}
+	if _, err := Clean(t.Context(), CleanOptions{InputPath: filepath.Join(inputDir, "book.epub"), OutputDir: filepath.Join(t.TempDir(), "out"), Approve: true}); err == nil {
+		t.Fatal("--approve without a transform step succeeded")
+	}
 	for _, steps := range [][]string{{}, {"typo"}, {"css", "normalize"}, {"normalize", "normalize"}} {
-		if _, err := normalizeCleanSteps(steps); err == nil {
+		if _, err := normalizeCleanSteps(steps, "", nil); err == nil {
 			t.Errorf("normalizeCleanSteps(%v) succeeded, want error", steps)
 		}
 	}
-	all, err := normalizeCleanSteps(nil)
-	if err != nil || len(all) != 4 {
-		t.Fatalf("default steps=%v err=%v, want four steps", all, err)
+	defaults, err := normalizeCleanSteps(nil, "", nil)
+	if err != nil || len(defaults) != 0 {
+		t.Fatalf("default steps=%v err=%v, want audit-only plan", defaults, err)
+	}
+	if _, err := normalizeCleanSteps([]string{"typography"}, "", []string{"all"}); err == nil {
+		t.Fatal("typography without an explicit preset succeeded")
+	}
+	if _, err := normalizeCleanSteps([]string{"typography"}, "literary-cn", nil); err == nil {
+		t.Fatal("typography without an explicit scope succeeded")
+	}
+	steps, err := normalizeCleanSteps([]string{"typography"}, "literary-cn", []string{"OEBPS/Text/a.xhtml", "OEBPS/Text/b.xhtml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if steps[0].args["preset"] != "literary-cn" || steps[0].args["scope_paths"] != `["OEBPS/Text/a.xhtml","OEBPS/Text/b.xhtml"]` {
+		t.Fatalf("typography args=%v, want explicit preset and exact scope", steps[0].args)
+	}
+}
+
+func TestCleanAuditOnlyAllowsOnlyKnownMigrateRepairs(t *testing.T) {
+	findings := []report.Finding{
+		{Level: "error", ID: "mathml", Title: `MathML XHTML item missing properties="mathml"`},
+		{Level: "error", ID: "svg", Title: `Inline SVG XHTML item missing properties="svg"`},
+		{Level: "error", ID: "drm", Title: "EPUB has META-INF/encryption.xml"},
+	}
+	if got := cleanAuditBlockers(findings, nil); len(got) != len(findings) {
+		t.Fatalf("audit-only blockers=%v, want all errors", got)
+	}
+	got := cleanAuditBlockers(findings, []cleanStepDefinition{{name: "migrate"}})
+	if len(got) != 1 || got[0].ID != "drm" {
+		t.Fatalf("migration blockers=%v, want only DRM", got)
 	}
 }

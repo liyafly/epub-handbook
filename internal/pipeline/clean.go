@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"os"
@@ -22,12 +23,15 @@ import (
 const cleanCapabilityID = "epub.clean"
 
 type CleanOptions struct {
-	RepoRoot  string
-	InputPath string
-	OutputDir string
-	Steps     []string
-	Approve   bool
-	Jobs      int
+	RepoRoot              string
+	InputPath             string
+	OutputDir             string
+	Steps                 []string
+	Preset                string
+	Scope                 []string
+	Approve               bool
+	RetainReviewCandidate bool
+	Jobs                  int
 }
 
 type CleanBookResult struct {
@@ -41,6 +45,7 @@ type CleanBookResult struct {
 
 type CleanBatchResult struct {
 	Books    []CleanBookResult
+	Envelope report.Envelope
 	ExitCode int
 }
 
@@ -90,9 +95,15 @@ func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
 	if opts.Jobs == 0 {
 		opts.Jobs = 1
 	}
-	steps, err := normalizeCleanSteps(opts.Steps)
+	steps, err := normalizeCleanSteps(opts.Steps, opts.Preset, opts.Scope)
 	if err != nil {
 		return CleanBatchResult{}, &UsageError{Err: err}
+	}
+	if opts.Approve && len(steps) == 0 {
+		return CleanBatchResult{}, &UsageError{Err: errors.New("--approve requires at least one transform step")}
+	}
+	if opts.RetainReviewCandidate && !opts.Approve {
+		return CleanBatchResult{}, &UsageError{Err: errors.New("--retain-review-candidate requires --approve")}
 	}
 	if err := ctx.Err(); err != nil {
 		return CleanBatchResult{}, err
@@ -143,7 +154,7 @@ func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
 			return CleanBatchResult{}, err
 		}
 	}
-	if err := preflightCleanOutputs(inputs, inputPath, inputIsDir, outputDir, opts.Approve); err != nil {
+	if err := preflightCleanOutputs(inputs, inputPath, inputIsDir, outputDir, opts.Approve, opts.RetainReviewCandidate); err != nil {
 		return CleanBatchResult{}, err
 	}
 
@@ -196,7 +207,48 @@ func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
 			batch.ExitCode = ExitFailed
 		}
 	}
+	bookSummaries := make([]report.CleanBookSummary, 0, len(batch.Books))
+	for _, bookResult := range batch.Books {
+		disposition, _ := bookResult.Envelope.Facts["pipeline.artifactDisposition"].(string)
+		bookSummaries = append(bookSummaries, report.CleanBookSummary{
+			InputPath: bookResult.InputPath, ReportPath: bookResult.ReportPath,
+			OutputPath: bookResult.OutputPath, ArtifactDisposition: disposition,
+			Status: bookResult.Envelope.Status, ExitCode: bookResult.ExitCode,
+			Error: errorString(bookResult.Err), Findings: nonNilCleanFindings(bookResult.Envelope.Findings),
+		})
+	}
+	batch.Envelope = report.CleanBatchEnvelope(bookSummaries)
 	return batch, nil
+}
+
+// CleanFailureEnvelope constructs a batch-level envelope for failures that
+// prevent clean from discovering or scheduling any input book.
+func CleanFailureEnvelope(err error) report.Envelope {
+	status := report.StatusFailed
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		status = report.StatusCancelled
+	}
+	return report.Envelope{
+		SchemaVersion: "2",
+		Capability:    cleanCapabilityID,
+		Status:        status,
+		Facts: map[string]any{
+			"pipeline.artifactDisposition": "none",
+			"pipeline.blockers":            []string{"clean.batch-failed"},
+		},
+		Findings: []report.Finding{{
+			Level: "error", ID: "clean.batch-failed", Title: "EPUB clean batch could not start",
+			Detail: err.Error(),
+		}},
+		Events: []report.Event{},
+	}
+}
+
+func errorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func pathIsWithin(base, candidate string) bool {
@@ -235,10 +287,13 @@ func resolveProspectivePath(path string) (string, error) {
 	}
 }
 
-func normalizeCleanSteps(requested []string) ([]cleanStepDefinition, error) {
+func normalizeCleanSteps(requested []string, preset string, scope []string) ([]cleanStepDefinition, error) {
 	all := cleanStepDefinitions()
 	if requested == nil {
-		return all, nil
+		if preset != "" || len(scope) > 0 {
+			return nil, errors.New("--preset and --scope require the typography step")
+		}
+		return []cleanStepDefinition{}, nil
 	}
 	if len(requested) == 0 {
 		return nil, errors.New("--steps must name at least one step")
@@ -260,6 +315,50 @@ func normalizeCleanSteps(requested []string) ([]cleanStepDefinition, error) {
 		selected = append(selected, all[index])
 		previous = index
 	}
+	typographySelected := slices.ContainsFunc(selected, func(step cleanStepDefinition) bool { return step.name == "typography" })
+	if !typographySelected {
+		if preset != "" || len(scope) > 0 {
+			return nil, errors.New("--preset and --scope require --steps typography")
+		}
+		return selected, nil
+	}
+	if strings.TrimSpace(preset) == "" {
+		return nil, errors.New("the typography step requires an explicit --preset")
+	}
+	if len(scope) == 0 {
+		return nil, errors.New("the typography step requires --scope all or one or more exact spine XHTML paths")
+	}
+	allScope := slices.Contains(scope, "all")
+	if allScope && len(scope) != 1 {
+		return nil, errors.New("--scope all cannot be combined with individual paths")
+	}
+	seenScope := make(map[string]struct{}, len(scope))
+	for _, path := range scope {
+		if path == "all" {
+			continue
+		}
+		if strings.TrimSpace(path) == "" || path == "." || filepath.IsAbs(path) || strings.ContainsRune(path, '\\') ||
+			filepath.ToSlash(filepath.Clean(filepath.FromSlash(path))) != path || strings.HasPrefix(path, "../") || path == ".." {
+			return nil, fmt.Errorf("--scope requires exact relative EPUB paths using forward slashes: %q", path)
+		}
+		if _, exists := seenScope[path]; exists {
+			return nil, fmt.Errorf("duplicate --scope path %q", path)
+		}
+		seenScope[path] = struct{}{}
+	}
+	for index := range selected {
+		if selected[index].name != "typography" {
+			continue
+		}
+		selected[index].args["preset"] = strings.TrimSpace(preset)
+		if !allScope {
+			encodedScope, err := jsonv2.Marshal(scope)
+			if err != nil {
+				return nil, fmt.Errorf("encode --scope: %w", err)
+			}
+			selected[index].args["scope_paths"] = string(encodedScope)
+		}
+	}
 	return selected, nil
 }
 
@@ -268,7 +367,7 @@ func cleanStepDefinitions() []cleanStepDefinition {
 		{name: "normalize", capability: "epub.structure.normalize", args: Args{"mode": "normalize"}},
 		{name: "migrate", capability: "epub.package.migrate.epub3", args: Args{}},
 		{name: "css", capability: "epub.css.layering.optimize", args: Args{}},
-		{name: "typography", capability: "epub.typography.optimize", args: Args{"preset": "literary-cn"}},
+		{name: "typography", capability: "epub.typography.optimize", args: Args{}},
 	}
 }
 
@@ -308,7 +407,7 @@ func discoverCleanInputs(ctx context.Context, inputPath string, inputIsDir bool)
 	return inputs, nil
 }
 
-func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir bool, outputDir string, approve bool) error {
+func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir bool, outputDir string, approve, retainReviewCandidate bool) error {
 	if info, err := os.Stat(outputDir); err == nil && !info.IsDir() {
 		return &UsageError{Err: fmt.Errorf("--out is not a directory: %s", outputDir)}
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -317,22 +416,33 @@ func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir boo
 	planned := map[string]string{}
 	for _, input := range inputs {
 		outputPath, reportPath := cleanOutputPaths(input, inputIsDir, outputDir)
-		for path, label := range map[string]string{reportPath: "summary report"} {
+		for _, candidate := range []struct{ path, label string }{{reportPath, "summary report"}} {
+			path, label := candidate.path, candidate.label
 			if previous, exists := planned[path]; exists {
 				return &UsageError{Err: fmt.Errorf("output collision: %s and %s both map to %s", previous, label, path)}
 			}
 			planned[path] = label
 		}
 		if approve {
-			for _, path := range []string{outputPath} {
+			paths := []struct{ path, label string }{{outputPath, "approved EPUB output"}}
+			if retainReviewCandidate {
+				paths = append(paths, struct{ path, label string }{cleanReviewOutputPath(outputPath), "review-only EPUB output"})
+			}
+			for _, candidate := range paths {
+				path := candidate.path
 				if previous, exists := planned[path]; exists {
-					return &UsageError{Err: fmt.Errorf("output collision: %s and %s both map to %s", previous, "approved EPUB output", path)}
+					return &UsageError{Err: fmt.Errorf("output collision: %s and %s both map to %s", previous, candidate.label, path)}
 				}
-				planned[path] = "approved EPUB output"
+				planned[path] = candidate.label
 			}
 		}
 	}
+	plannedPaths := make([]string, 0, len(planned))
 	for path := range planned {
+		plannedPaths = append(plannedPaths, path)
+	}
+	slices.Sort(plannedPaths)
+	for _, path := range plannedPaths {
 		if _, err := os.Lstat(path); err == nil {
 			return &UsageError{Err: fmt.Errorf("output already exists: %s", path)}
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -340,6 +450,11 @@ func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir boo
 		}
 	}
 	return nil
+}
+
+func cleanReviewOutputPath(outputPath string) string {
+	extension := filepath.Ext(outputPath)
+	return strings.TrimSuffix(outputPath, extension) + ".review-only" + extension
 }
 
 func cleanOutputPaths(input cleanInput, inputIsDir bool, outputDir string) (outputPath, reportPath string) {
@@ -385,8 +500,24 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		cancelled = audit.Envelope.Status == report.StatusCancelled
 		stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit", "epub.package.nav.audit", currentSHA, "", audit.Envelope.Status, audit.Envelope, nil))
 		allEvents = append(allEvents, audit.Envelope.Events...)
-		allFindings = appendCleanFindings(allFindings, "audit", audit.Envelope.Findings)
-		if audit.ExitCode != ExitOK {
+		blockers := cleanAuditBlockers(audit.Envelope.Findings, steps)
+		for _, finding := range audit.Envelope.Findings {
+			if finding.Level == "error" && !containsCleanFinding(blockers, finding) {
+				allFindings = appendCleanFindings(allFindings, "audit", []report.Finding{{
+					Level: "info", ID: finding.ID, Title: finding.Title,
+					Detail: "This issue will be checked again after the selected repair steps.", Location: finding.Location,
+				}})
+				continue
+			}
+			if finding.Level != "error" || len(blockers) > 0 {
+				allFindings = appendCleanFindings(allFindings, "audit", []report.Finding{finding})
+			}
+		}
+		if len(blockers) > 0 {
+			failure = fmt.Errorf("nav audit found %d blocking error(s)", len(blockers))
+		} else if audit.ExitCode != ExitOK && !slices.ContainsFunc(audit.Envelope.Findings, func(finding report.Finding) bool {
+			return finding.Level == "error"
+		}) {
 			failure = fmt.Errorf("nav audit exited with code %d", audit.ExitCode)
 		}
 	}
@@ -420,17 +551,37 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 				failure = fmt.Errorf("serialize normalize path map: %w", err)
 			}
 		}
-		if candidateBytes != nil {
-			currentBytes = candidateBytes
-			currentSHA = candidateSHA
-		}
 		if runErr != nil {
 			failure = errors.Join(failure, runErr)
 		} else if outcome.ExitCode != ExitOK {
 			failure = errors.Join(failure, fmt.Errorf("%s exited with code %d", step.name, outcome.ExitCode))
+		} else if candidateBytes != nil {
+			currentBytes = candidateBytes
+			currentSHA = candidateSHA
 		}
 		if failure != nil {
 			break
+		}
+	}
+
+	if failure == nil && len(steps) > 0 && currentBytes != nil {
+		finalAudit, finalAuditErr := Run(ctx, Options{
+			RepoRoot: opts.RepoRoot, CapabilityID: "epub.package.nav.audit",
+			InputPath: input.path, InputBytes: currentBytes, DryRun: true,
+		})
+		if finalAuditErr != nil {
+			failure = finalAuditErr
+			allEvents = append(allEvents, report.Event{Step: "audit-final", Status: "failed", Message: finalAuditErr.Error()})
+		} else {
+			stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit-final", "epub.package.nav.audit", currentSHA, "", finalAudit.Envelope.Status, finalAudit.Envelope, nil))
+			allEvents = append(allEvents, finalAudit.Envelope.Events...)
+			allFindings = appendCleanFindings(allFindings, "audit-final", finalAudit.Envelope.Findings)
+			blockers := cleanAuditBlockers(finalAudit.Envelope.Findings, nil)
+			if len(blockers) > 0 {
+				failure = fmt.Errorf("post-transform nav audit found %d blocking error(s)", len(blockers))
+			} else if finalAudit.ExitCode != ExitOK {
+				failure = fmt.Errorf("post-transform nav audit exited with code %d", finalAudit.ExitCode)
+			}
 		}
 	}
 
@@ -451,12 +602,23 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		allEvents = append(allEvents, redlineSummary.Events...)
 	}
 
-	if opts.Approve && redlineAttempted && currentBytes != nil && ctx.Err() == nil {
+	reviewCandidateWritten := false
+	if opts.Approve && failure == nil && redlineAttempted && currentBytes != nil && ctx.Err() == nil {
 		if writeErr := zipfs.WriteNewFileContext(ctx, outputPath, currentBytes, 0o644); writeErr != nil {
 			failure = errors.Join(failure, fmt.Errorf("write approved candidate: %w", writeErr))
 		} else {
 			result.OutputPath = outputPath
 			env.Output = &report.Artifact{Path: outputPath, SHA256: currentSHA}
+		}
+	}
+	if opts.RetainReviewCandidate && failure != nil && redlineAttempted && currentBytes != nil && ctx.Err() == nil {
+		reviewPath := cleanReviewOutputPath(outputPath)
+		if writeErr := zipfs.WriteNewFileContext(ctx, reviewPath, currentBytes, 0o644); writeErr != nil {
+			failure = errors.Join(failure, fmt.Errorf("write review-only candidate: %w", writeErr))
+		} else {
+			result.OutputPath = reviewPath
+			env.Output = &report.Artifact{Path: reviewPath, SHA256: currentSHA}
+			reviewCandidateWritten = true
 		}
 	}
 
@@ -491,6 +653,25 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		"epub.clean.steps":    stepSummaries,
 		"epub.clean.redline":  redlineSummary,
 	}
+	selectedSteps := make([]string, 0, len(steps))
+	for _, step := range steps {
+		selectedSteps = append(selectedSteps, step.name)
+	}
+	facts["pipeline.selectedSteps"] = selectedSteps
+	artifactDisposition := "none"
+	switch {
+	case reviewCandidateWritten:
+		artifactDisposition = "review-only"
+	case env.Output != nil:
+		artifactDisposition = "approved"
+	case status == report.StatusPlanned && currentBytes == nil:
+		artifactDisposition = "planned"
+	case currentBytes != nil && failure == nil:
+		artifactDisposition = "planned"
+	case currentBytes != nil:
+		artifactDisposition = "withheld"
+	}
+	facts["pipeline.artifactDisposition"] = artifactDisposition
 	for _, step := range stepSummaries {
 		if step.Name == "normalize" {
 			if mappings, ok := step.Facts["epub.structure.normalize.mappings"]; ok {
@@ -499,14 +680,43 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 			break
 		}
 	}
-	if !opts.Approve {
+	if currentBytes != nil && env.Output == nil {
 		facts["epub.clean.previewSHA256"] = currentSHA
 	}
-	env.Facts = facts
 	env.Events = allEvents
 	env.Findings = append(env.Findings, allFindings...)
+	blockers := make([]string, 0)
+	for _, finding := range env.Findings {
+		if finding.Level == "error" {
+			blockers = append(blockers, finding.ID)
+		}
+	}
+	slices.Sort(blockers)
+	blockers = slices.Compact(blockers)
+	facts["pipeline.blockers"] = blockers
+	env.Facts = facts
 	result.Envelope = env
 	return result
+}
+
+func cleanAuditBlockers(findings []report.Finding, steps []cleanStepDefinition) []report.Finding {
+	migrateSelected := slices.ContainsFunc(steps, func(step cleanStepDefinition) bool { return step.name == "migrate" })
+	blockers := make([]report.Finding, 0)
+	for _, finding := range findings {
+		if finding.Level != "error" {
+			continue
+		}
+		migratable := migrateSelected && (finding.Title == `MathML XHTML item missing properties="mathml"` ||
+			finding.Title == `Inline SVG XHTML item missing properties="svg"`)
+		if !migratable {
+			blockers = append(blockers, finding)
+		}
+	}
+	return blockers
+}
+
+func containsCleanFinding(findings []report.Finding, target report.Finding) bool {
+	return slices.ContainsFunc(findings, func(finding report.Finding) bool { return finding.ID == target.ID })
 }
 
 func cleanBytesSHA256(data []byte) string {

@@ -156,6 +156,55 @@ func TestRunCleanRejectsMissingAndDuplicateFlags(t *testing.T) {
 			t.Errorf("runClean(%q) exit=%d, want 3", args, code)
 		}
 	}
+	if err := rejectDuplicateCleanFlags([]string{"--scope", "a.xhtml", "--scope", "b.xhtml"}); err != nil {
+		t.Fatalf("repeatable --scope rejected: %v", err)
+	}
+}
+
+func TestRunCleanJSONWritesOnlyBatchEnvelopeToStdout(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "input.epub")
+	writeRedlineFixture(t, input, "same text")
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return runClean([]string{input, "--out", filepath.Join(root, "out"), "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%s", code, stderr)
+	}
+	var envelope struct {
+		SchemaVersion string         `json:"schemaVersion"`
+		Capability    string         `json:"capability"`
+		Status        string         `json:"status"`
+		Facts         map[string]any `json:"facts"`
+	}
+	if err := jsonv2.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("stdout is not a batch envelope: %v\n%s", err, stdout)
+	}
+	if envelope.SchemaVersion != "2" || envelope.Capability != "epub.clean" || envelope.Status != "planned" {
+		t.Fatalf("unexpected batch envelope: %#v", envelope)
+	}
+	if _, ok := envelope.Facts["epub.clean.books"]; !ok {
+		t.Fatalf("batch book summaries missing: %#v", envelope.Facts)
+	}
+}
+
+func TestRunCleanJSONUsageErrorReturnsEnvelope(t *testing.T) {
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return runClean([]string{"input.epub", "--out", "out", "--steps", "typography", "--preset", "literary-cn", "--json"})
+	})
+	if code != 3 || stderr == "" {
+		t.Fatalf("exit=%d stderr=%q, want usage error", code, stderr)
+	}
+	var envelope struct {
+		Capability string `json:"capability"`
+		Status     string `json:"status"`
+	}
+	if err := jsonv2.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("stdout is not a usage envelope: %v\n%s", err, stdout)
+	}
+	if envelope.Capability != "epub.clean" || envelope.Status != "failed" {
+		t.Fatalf("usage envelope=%#v", envelope)
+	}
 }
 
 func captureRunCapability(t *testing.T, argv []string) (code int, stdout, stderr string) {

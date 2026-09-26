@@ -91,19 +91,27 @@ epub redline --check metadata,spine,cover,drm,anchors \
 
 ### 批量预览与候选输出
 
-`epub clean` 可对单本 EPUB 或目录中的 `.epub` 文件按统一步骤运行；目录递归扫描，忽略非 EPUB 文件，并按路径排序。步骤默认是 `normalize,migrate,css,typography`；`--steps` 可缩小范围，但必须保持该顺序。`--jobs` 默认为 1，设为大于 0 的整数可并行处理不同书目。
+`epub clean` 可对单本 EPUB 或目录中的 `.epub` 文件按统一步骤运行；目录递归扫描，忽略非 EPUB 文件，并按路径排序。默认不执行变换，只审计并生成逐书 `planned` 报告。使用 `--steps` 明确选择 `normalize,migrate,css,typography` 中的步骤，顺序必须保持不变。选择 `typography` 时还必须同时指定 `--preset NAME` 和 `--scope all` 或一个/多个精确的 EPUB 内 spine XHTML 路径；`all` 表示整书预设替换。`--jobs` 默认为 1，设为大于 0 的整数可并行处理不同书目。
 
 ```sh
-# 预览完整链。输入文件放在 flags 前；只写每本书的 JSON 汇总，不发布 EPUB。
+# 默认只审计并生成计划；只写每本书的 JSON 汇总，不变换书稿。
 epub clean "$CUR" --out "$W/clean-preview"
 
-# 审查汇总后，显式写出最终候选。
-epub clean "$BOOKS" --out "$W/clean-approved" --approve --jobs 2
+# 明确选择结构变换；审查后才加 --approve 写出。
+epub clean "$CUR" --out "$W/normalize-preview" --steps normalize
+epub clean "$CUR" --out "$W/normalize-approved" --steps normalize --approve
+
+# 排版必须给出预设与范围。
+epub clean "$CUR" --out "$W/type-preview" --steps typography \
+  --preset literary-cn --scope OEBPS/Text/chapter.xhtml
+
+# JSON 模式只把批次信封写到 stdout；日志和错误写到 stderr。
+epub clean "$BOOKS" --out "$W/clean-preview" --json
 ```
 
-完整链的中间 EPUB 始终留在内存中，并逐步执行红线；随后对最终内存候选执行全项红线。无论是否带 `--approve`，`--out` 下每本书都只写一个 `<书名>.clean.json` 汇总信封；汇总包含审计、所选步骤的输入/输出 SHA-256 链、findings、各步红线结果和最终红线结果。若运行了 normalize，汇总的 `facts["epub.clean.normalize.mappings"]` 可直接作为后续 `epub redline --path-map` 的映射信封。未批准时外层状态为 `planned`；批准并通过时为 `complete`。成功退出码为 0；任何 error finding、步骤失败或红线失败会标为 `failed` 并返回 1。
+步骤候选只在内存中串联，各步报告记录真实输入/输出 SHA；随后对最终候选重新运行 nav audit 和全项红线。每本书写一个 `<书名>.clean.json` 信封；批次 `--json` 还会在 stdout 返回含逐书状态、路径和 findings 的 `epub.clean` 信封。若运行了 normalize，逐书报告的 `facts["epub.clean.normalize.mappings"]` 可直接作为后续 `epub redline --path-map` 的映射信封。未批准时状态为 `planned`；批准并通过时为 `complete`。成功退出码为 0；阻断、步骤失败或末次审计/红线失败会标为 `failed` 并返回 1。
 
-带 `--approve` 时，最后一个成功步骤产生的候选在全项红线后写入输入书籍的相对目录下同名 EPUB；步骤中间态不写入磁盘。若某一步或最终红线失败但此前已有候选，会保留最近成功的候选供分析，汇总仍标为 `failed`，不得把它设为最新通过版本。已有的报告或候选路径不会覆盖；目录输入的 `--out` 必须在输入目录之外。flags-first 写法可用 `epub clean --out DIR [其他 flags] INPUT`，把输入放在 flags 后面。
+带 `--approve` 时，最后一个成功步骤产生的候选只有在末次审计和全项红线通过后才写入输入书籍的相对目录下同名 EPUB；步骤中间态不写入磁盘。若步骤或检查失败，候选默认不写出。只有同时指定 `--retain-review-candidate`，且已有完整候选并完成最终红线尝试时，才另存为 `<书名>.review-only.epub`；外层状态仍为 `failed`，不能把它作为通过版本。报告 facts 中 `pipeline.artifactDisposition` 和 `pipeline.blockers` 说明候选资格与阻断项：`planned` 表示未发布的审计计划或内存预演，`approved` 表示通过 gate 并已写出，`review-only` 表示失败后按显式选项留存，`withheld` 表示候选被阻断且未留存，`none` 表示没有候选。已有报告或候选路径不会覆盖；目录输入的 `--out` 必须在输入目录之外。flags-first 写法可用 `epub clean --out DIR [其他 flags] INPUT`，把输入放在 flags 后面。
 
 `epub clean` 不替代 S8 人工 diff review、S9 制作说明或真实阅读器验收。只有报告与候选对应的 SHA、finding 和 diff 都审过，且相关阅读器实测完成后，才记录书级结论。
 

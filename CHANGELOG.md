@@ -5,7 +5,7 @@
 ### Fixed
 
 - **`epub.literary.structure.format`**：新增按显式 JSON 清单定位 spine XHTML 元素并追加白名单 class 的能力；支持多 class 合并、可选 manifest CSS 链接、歧义拒绝与整批 error 零写入。
-- **`epub clean`**：新增单书与目录批量清洗入口；逐步在内存中运行规范化、EPUB3 迁移、CSS 与中文排版并执行红线，只写逐书汇总。显式 `--approve` 时保留最近成功步骤的候选供审查，并阻止覆盖已有输出。
+- **`epub clean`**：默认改为仅审计并生成计划；结构步骤须由 `--steps` 明确选择，typography 还须给出 `--preset` 与 `--scope`。`--approve` 仅在步骤、末次审计与全项红线通过后写出；失败候选默认不保留，显式 `--retain-review-candidate` 才另存为 `.review-only.epub`。批次新增 `--json` v2 汇总。
 - **`epub.typography.english.optimize`**：新增只补齐 spine XHTML 根节点 `lang` / `xml:lang` 的确定性写入能力；按主语言、body 声明和 CJK 比例跳过歧义页面，不改 CSS 与 OPF metadata。
 - **`epub.vertical.ruby.optimize`**：新增 Ruby `<rp>` 后备括号与标准 `writing-mode` 厂商前缀两种确定性修补，支持精确范围、冲突跳过、整批 error 零写入和 dry-run 计划。
 - **`epub.notes.legacy-fallback`**：新增多看旧版弹注 class fallback；要求标准弹注校验干净，支持精确 spine XHTML 范围与 dry-run 计划，任何 error finding 都不会应用部分编辑。

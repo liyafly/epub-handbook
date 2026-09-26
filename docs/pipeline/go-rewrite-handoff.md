@@ -3,13 +3,13 @@
 > 当前实现规则以 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md) 为准。本页只记录接手所需的现状、开放项和检查入口。
 > 迁移期决策快照见 [`archive/meta/2026-08-30-go-rewrite-decisions.md`](../../archive/meta/2026-08-30-go-rewrite-decisions.md)；逐轮复审证据见 [`archive/meta/2026-09-go-rewrite-review-log.md`](../../archive/meta/2026-09-go-rewrite-review-log.md)。
 
-## 当前状态（2026-09-24）
+## 当前状态（2026-09-26）
 
 - Go 单一公开 CLI 与 `internal/` 能力流水线是唯一执行面；`contracts/` 是机器契约来源，`tools-font/` 是独立字体 provider。架构硬约束与守卫要求以 Go 架构 SPEC 为准。
-- 22 个 capability 中 17 个由 Go 实现并 ready：16 个迁移能力与 1 个 source intake planner（B 类）；5 个纯 AI / 人工 skill 属 C 类，不建专属 `caps/` 包。
+- contracts 与 registry 各有 22 个 capability。当前执行形态为 13 个输出型与 9 个只读型；注册数不代表所有能力都不依赖外部工具，运行状态以 `epub capabilities --json` 为准。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
-- Go CLI `v0.3.0` 已发布。发布信息见仓库 GitHub Release 与 CHANGELOG。
+- 最近发布基线为 Go CLI `v0.3.0`；后续版本以 GitHub Release 与 CHANGELOG 的实际附件和校验和为准。
 - `internal/docguard` 已接替技能 frontmatter、OpenAI YAML 形状、skill 索引、AI 入口和契约结构等元校验。手册、速查表与 SPEC 的语义同步仍需人工核对。
 - CI、静态检查和产物验证不代表原生阅读器验收；每项 reader 结论只对 reader-matrix 记录的精确 artifact 与 SHA 生效。
 
@@ -23,19 +23,19 @@
 | 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；禁止整份文档序列化。 |
 | 字体工具 | `tools-font/` 私有于仓库 provider，由 `internal/extern` 调用；不进入 CLI 发行包。 |
 | 遗留执行面 | Python 执行脚本与 parity harness 已移除；`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
-| 写出 gate | 先在内存中执行完整 requires 链与红线，再按能力规则写出；error finding 不等于无产物，须读 envelope 的状态与 output。 |
+| 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选默认不保留，显式 `--retain-review-candidate` 时只写 `.review-only.epub`。 |
 | 取消 | 取消用 `status=cancelled` 和 exit 1 表示；取消的事务不写出，不能将其伪装成一般书稿错误。 |
 
 ### CLI 状态与退出码
 
 | Exit | 含义 | 操作 |
 |---:|---|---|
-| 0 | complete，或无 error finding 的 planned | `planned` 表示 dry-run 已检查内存候选但未写出；审阅 findings/facts 与范围后再决定是否实跑。 |
+| 0 | complete，或无 error finding 的 planned | `planned` 的 clean 默认只完成审计；选了步骤时表示已检查内存候选但未写出。审阅 findings/facts 与范围后再决定是否批准。 |
 | 1 | failed、error finding 或 cancelled | 查看 findings/events；cancelled 不得保留半成品。 |
 | 2 | approval-required | 按显式批准要求审阅候选与变更范围后再执行写出。成功 dry-run 使用 `planned` / exit 0。 |
 | 3 | 用法错误或输入不存在 | 修正参数、路径或输入类型后重跑。 |
 
-成功的写出 envelope 会记录 output path 与 SHA；写出状态为 failed 仍可能有可 review 的候选。每次检查都要确认 output 是否存在，不从 exit code 单独推断。
+成功的写出 envelope 会记录 output path 与 SHA。普通单能力的失败候选规则依能力而定；`epub clean` 失败时默认无 EPUB output，只有显式 `--retain-review-candidate` 才留下 `.review-only.epub`。每次检查都要确认 output 与 `pipeline.artifactDisposition`，不从 exit code 单独推断。
 
 ### 回归优先级
 
@@ -49,6 +49,7 @@
 - 上游 requires stage 是诊断输入；其 failed 状态不单独阻断目标能力。DRM 预检、runner Go error、未实现能力与目标能力失败仍会阻断。
 - 输出能力在内存态完成预期变更与契约红线检查。红线 error 会标记 failed；只要 runner 和输出事务成功，仍可能给出候选产物供 diff review。
 - `--dry-run` 阻止磁盘输出，但必须完整运行内存变更和相应检查；不能把 dry-run 当作跳过能力执行。
+- `epub clean` 默认只审计并生成计划。选择变换用 `--steps`；typography 还必须明确 `--preset` 与 `--scope`。`--approve` 只在步骤、末次审计和全项红线通过时写最终候选。
 - 多产物能力必须使用 `output_dir` 契约；只读能力不得接受或建议 `--output`。
 - `epub redline --path-map` 接受 normalize、merge、cover 等 envelope 的 `facts.*.mappings`；无改名时成功 envelope 可提供空数组。
 - shell 建议命令必须正确引用路径；JSON envelope 使用共享 legacy-compatible marshal 约定，保留稳定输出形状。

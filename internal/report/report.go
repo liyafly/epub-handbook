@@ -35,7 +35,7 @@ type Finding struct {
 // Event 是一次运行的步骤记录。
 type Event struct {
 	Step    string `json:"step"`
-	Status  string `json:"status"` // started | completed | failed | skipped
+	Status  string `json:"status"` // started | completed | failed | skipped | cancelled
 	Message string `json:"message,omitempty"`
 }
 
@@ -56,6 +56,74 @@ type Envelope struct {
 	Findings      []Finding      `json:"findings,omitempty"`
 	Events        []Event        `json:"events,omitempty"`
 	NextCommands  []string       `json:"nextCommands,omitempty"`
+}
+
+// CleanBookSummary 是 epub clean 批次 JSON 的逐书摘要。
+type CleanBookSummary struct {
+	InputPath           string    `json:"inputPath"`
+	ReportPath          string    `json:"reportPath"`
+	OutputPath          string    `json:"outputPath,omitempty"`
+	ArtifactDisposition string    `json:"artifactDisposition"`
+	Status              string    `json:"status"`
+	ExitCode            int       `json:"exitCode"`
+	Error               string    `json:"error,omitempty"`
+	Findings            []Finding `json:"findings"`
+}
+
+// CleanBatchEnvelope 汇总逐书 clean 结果，不改变每本书单独保存的信封。
+func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
+	status := StatusPlanned
+	if len(books) == 0 {
+		status = StatusFailed
+	}
+	allCancelled := len(books) > 0
+	allComplete := len(books) > 0
+	allPlanned := len(books) > 0
+	for _, book := range books {
+		allCancelled = allCancelled && book.Status == StatusCancelled
+		allComplete = allComplete && book.Status == StatusComplete
+		allPlanned = allPlanned && book.Status == StatusPlanned
+		if book.Status == StatusFailed {
+			status = StatusFailed
+		}
+	}
+	if allCancelled {
+		status = StatusCancelled
+	} else if allComplete {
+		status = StatusComplete
+	} else if allPlanned {
+		status = StatusPlanned
+	}
+	envelope := Envelope{
+		SchemaVersion: "2",
+		Capability:    "epub.clean",
+		Status:        status,
+		Facts: map[string]any{
+			"epub.clean.bookCount": len(books),
+			"epub.clean.books":     books,
+		},
+		Findings: []Finding{},
+		Events:   []Event{},
+	}
+	for _, book := range books {
+		eventStatus := "completed"
+		if book.Status == StatusCancelled {
+			eventStatus = "cancelled"
+		} else if book.ExitCode != 0 {
+			eventStatus = "failed"
+		}
+		envelope.Events = append(envelope.Events, Event{
+			Step: "clean:" + book.InputPath, Status: eventStatus, Message: book.Status,
+		})
+		if book.ExitCode == 0 {
+			continue
+		}
+		envelope.Findings = append(envelope.Findings, Finding{
+			Level: "error", ID: "clean.book-failed", Title: "EPUB clean failed for book",
+			Detail: book.Error, Location: book.InputPath,
+		})
+	}
+	return envelope
 }
 
 // Result 是一个 capability 的三段式产物（扫描 → 应用 → 报告）的报告段。
