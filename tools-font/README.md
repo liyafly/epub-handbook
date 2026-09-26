@@ -42,7 +42,7 @@
 
 ## epub-font：字体子集化与全量校验（含可变字体）
 
-`epub-font/` 是独立 Python + FontTools CLI（与 coverage-detector 同样用 `uv` 管理，不打包进发行包、不是 capability）。安装后使用 `epub-font subset` 与 `epub-font check`；仓库内安装方式及详细选项见 [`epub-font/README.md`](epub-font/README.md)。
+`epub-font/` 是独立 Python + FontTools provider（与 coverage-detector 同样用 `uv` 管理，不打包进 Go CLI 发行包）。除了直接使用 `epub-font subset` / `epub-font check`，书级构建还可通过 Go capability `epub.font.subset` 调用 provider；该能力把检查通过的字体 entry 写进内存候选，再由 pipeline 统一完成红线和最终写出。安装方式及详细选项见 [`epub-font/README.md`](epub-font/README.md)。
 它把 EPUB 中**已存在**的字体条目替换成按全书字符集裁切后的字节，支持静态字体与可变字体
 （`instance` 钉住轴出静态字重 / `limit` 收窄轴范围 / `keep` 保留变体），并核验 cmap、IVS、竖排替换字形、轮廓、轴与格式。
 不指定 `--config` 时自动处理全部静态 manifest 字体；可变字体必须在配置中显式填写 `variation.mode`。OPF / CSS / XHTML 不变，alias 与包内路径保持稳定。

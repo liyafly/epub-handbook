@@ -5,6 +5,7 @@
 ## 快速分流
 
 - 已有 EPUB：先用 `epub-audit` 预检；再按问题进入 `epub-cleanup`、`epub-package-ops` 或 `epub-special-layout`。目标包含特定阅读器时加 `epub-reader-verify`。
+- 新书或长期维护中的书：用 `templates/book-starter/new-book.sh` 建立书级 Git 与解包源，后续只运行书内 `build.sh`；完整字体母版跟随源树，子集化写入临时候选。详见[书级工作区](../docs/pipeline/book-workspace.md)。
 - 只有文本/PDF/扫描件：先 `epub-source-intake` 盘点；它不抽取 PDF、不做 OCR、不生成 EPUB。
 - 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。不要默认全书套 preset；用户只要方案时不写书稿。
 - 只审查时输出“位置、问题证据、影响、最小建议”；授权修复时再实施。审批与书稿保护按 `AGENTS.md`，不在各 skill 重复。
@@ -38,7 +39,7 @@ epub redline --check all "before.epub" "after.epub"
 | Skill | 触发/边界 | 能力与执行方式 |
 | --- | --- | --- |
 | `epub-audit` | 只读检查包结构、导航、排版、文本角色、图片和字体；不直接修书 | `epub.package.nav.audit`、`epub.layout.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze`，只读 |
-| `epub-cleanup` | 按清洗 runbook 规范目录、迁移 package、调整 CSS/CJK 样式并检查标准弹注 | `epub.structure.normalize`、`epub.package.migrate.epub3`、`epub.css.layering.optimize`、`epub.typography.optimize`，写入；`epub.notes.popup.normalize`，只读 |
+| `epub-cleanup` | 按清洗 runbook 规范目录、迁移 package、调整 CSS/CJK 样式、从完整母版生成字体子集并检查标准弹注 | `epub.structure.normalize`、`epub.package.migrate.epub3`、`epub.css.layering.optimize`、`epub.typography.optimize`、`epub.font.subset`，写入；`epub.notes.popup.normalize`，只读 |
 | `epub-package-ops` | 明确授权后合并、拆分、改元数据、换封面或转 A-lite | `epub.package.merge`、`epub.package.split`、`epub.metadata.edit`、`epub.cover.replace`、`epub.alite.convert`，写入 |
 | `epub-source-intake` | 非 EPUB 源文件盘点与接入计划；不抽取 PDF、不做 OCR | `epub.source.intake`，只读 |
 | `epub-special-layout` | 英文、文学结构、竖排/Ruby 与多看旧版弹注 fallback | `epub.typography.english.optimize`、`epub.literary.structure.format`、`epub.notes.legacy-fallback`、`epub.vertical.ruby.optimize`，写入 |

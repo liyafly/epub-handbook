@@ -1,6 +1,6 @@
 # epub-font：EPUB 字体子集化与全量校验
 
-独立 Python + fontTools 命令行工具，与 `coverage-detector/` 同级，**不打包进 EPUB Handbook 发行包，也不是 `epub run` capability**。
+独立 Python + fontTools provider，与 `coverage-detector/` 同级，**不打包进 EPUB Handbook Go 发行包**。书级构建可经正式的 `epub.font.subset` capability 调用它；也可以直接使用下面的 CLI。
 它只做一件事：把 EPUB 里**已存在**的字体条目替换成按全书字符集裁切后的字体字节，并逐项核验。
 OPF、CSS、XHTML 与其他 entry 原样复制（同顺序、同压缩方式），所以字体 alias、包内路径、CSS URL 与 OPF id 都不变
 （`docs/final/字体别名命名规范.md` §4.7）。
@@ -28,6 +28,7 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 ```
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
+- Go capability 会在私有临时目录调用 provider；provider 报告跟随这次临时目录清理，结果通过 capability envelope 的 facts/findings 返回。
 - 省略 `--config` 时自动处理 OPF manifest 中的全部静态字体；配置文件可指定母版、额外字符或可变字体模式。
 - `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
 - `subset` 退出码：`0` 全部检查通过并写出 EPUB；`1` 字体核验失败（报告已写，EPUB 不写）；`2` 输入/配置错误或不支持的字体（报告与 EPUB 均不写）。`check` 退出码：`0` 全覆盖；`1` 有缺字；`2` 输入错误。

@@ -1,4 +1,4 @@
 interface:
-  display_name: "EPUB 清洗"
-  short_description: "按清洗 runbook 处理目录、版本、CSS、中文排版和标准弹注，保留原件并审查红线差异。"
-  default_prompt: "使用 $epub-cleanup 按清洗 runbook 处理已授权范围，先预检与 dry-run，再审查候选和红线。"
+  display_name: "EPUB 清洗与字体维护"
+  short_description: "按清洗 runbook 调整结构、CSS、中文排版、字体子集和标准弹注，保留原件并审查红线。"
+  default_prompt: "使用 $epub-cleanup 按清洗 runbook 处理已授权范围；字体子集从书级 Git 的完整母版重建，先预检再审查红线。"

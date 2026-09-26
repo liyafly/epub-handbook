@@ -483,5 +483,8 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 
 字体子集化依赖 `fonttools`，Go 和 Rust 都没有能替代的成熟库
 （`hb-subset` 是 C，`klippa`/`skrifa` 未成熟）。
-`tools-font/coverage-detector/` **保持 Python 独立项目不动**，由 `internal/extern` 起子进程调用。
-这与 `AGENTS.md` 现有策略一致。
+`tools-font/epub-font/` **保持 Python 独立 provider**，由正式 capability
+`epub.font.subset` 经 `internal/extern` 起子进程调用；provider 不进入 Go 发行包。能力只把验证后的
+manifest 字体 entry 写入内存候选，最终 ZIP 仍由 Go pipeline 在红线通过后一次写出。
+`tools-font/coverage-detector/` 也保持 Python 独立项目，由 `internal/extern` 调用。这与
+`AGENTS.md` 现有策略一致。

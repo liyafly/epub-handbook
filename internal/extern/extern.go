@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -91,6 +92,17 @@ func Require(name string) error {
 		return ErrToolMissing
 	}
 	return nil
+}
+
+// TempDir creates a private scratch directory for an external provider and
+// returns its cleanup function. Provider outputs must stay outside the book's
+// output path until the pipeline has validated and committed the final EPUB.
+func TempDir(parent, pattern string) (string, func() error, error) {
+	dir, err := os.MkdirTemp(parent, pattern)
+	if err != nil {
+		return "", nil, fmt.Errorf("extern: create provider workspace: %w", err)
+	}
+	return dir, func() error { return os.RemoveAll(dir) }, nil
 }
 
 // CmdResult 是一次外部进程运行的产出。

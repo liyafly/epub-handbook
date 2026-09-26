@@ -20,6 +20,7 @@ import (
 	csscleanup "github.com/liyafly/epub-handbook/internal/caps/css_cleanup"
 	englishtypography "github.com/liyafly/epub-handbook/internal/caps/english_typography"
 	fontcoverage "github.com/liyafly/epub-handbook/internal/caps/fontcoverage"
+	fontsubset "github.com/liyafly/epub-handbook/internal/caps/fontsubset"
 	imagelayout "github.com/liyafly/epub-handbook/internal/caps/image_layout"
 	kindlecheck "github.com/liyafly/epub-handbook/internal/caps/kindle_check"
 	literarystructure "github.com/liyafly/epub-handbook/internal/caps/literary_structure"
@@ -180,6 +181,9 @@ func init() {
 			profile = "kindle-pessimistic"
 		}
 		return fontcoverage.Run(ctx, b, fontcoverage.Params{Profile: profile})
+	})
+	register("epub.font.subset", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
+		return fontsubset.Run(ctx, b, fontsubset.Params{FontConfig: args.Get("font_config")})
 	})
 	registerReadOnly("epub.kindle.compatibility.check", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return kindlecheck.Run(ctx, b, kindlecheck.Params{})

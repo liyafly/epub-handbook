@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.font.subset",
+  "status": "complete",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "output": {
+    "path": "\u003ccandidate.epub\u003e"
+  },
+  "facts": {
+    "epub.font.subset.changedFonts": [
+      "OEBPS/Fonts/full.ttf"
+    ],
+    "epub.font.subset.fontEntries": [
+      "OEBPS/Fonts/full.ttf"
+    ],
+    "epub.font.subset.provider": "epub-font",
+    "epub.font.subset.providerLog": "provider did not return diagnostic output",
+    "epub.package.nav.audit.actionableFindings": [
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/nav.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "en"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      },
+      {
+        "kind": "missing-html-lang",
+        "file": "OEBPS/chapter.xhtml",
+        "locator": {
+          "selector": "html"
+        },
+        "params": {
+          "value": "en"
+        },
+        "lane": "tag",
+        "autoFixable": true,
+        "confidence": "high",
+        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
+      }
+    ],
+    "epub.package.nav.audit.auditStatus": "warn",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "warn",
+        "id": "audit.0",
+        "title": "Kindle/legacy delivery should keep toc.ncx and spine toc=\"ncx\""
+      },
+      {
+        "level": "warn",
+        "id": "audit.1",
+        "title": "Cover should have properties=\"cover-image\" and legacy meta name=\"cover\""
+      },
+      {
+        "level": "warn",
+        "id": "audit.2",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/nav.xhtml"
+      },
+      {
+        "level": "warn",
+        "id": "audit.3",
+        "title": "Actionable issue detected: missing-html-lang",
+        "detail": "missing-html-lang",
+        "location": "OEBPS/chapter.xhtml"
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 4,
+      "info": 0
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-reader-verify",
+      "$epub-special-layout"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "en",
+      "manifest_items": 3,
+      "media_counts": {
+        "css": 0,
+        "fonts": 1,
+        "images": 0,
+        "other": 0,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/package.opf",
+      "package_version": "3.0",
+      "spine_items": 1,
+      "zip_entries": 6
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    }
+  },
+  "findings": [
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.package.nav.audit.findings\"]",
+      "location": "epub.package.nav.audit"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 4 warn"
+    },
+    {
+      "step": "epub.font.subset",
+      "status": "completed"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    },
+    {
+      "step": "write-output",
+      "status": "completed",
+      "message": "\u003ccandidate.epub\u003e"
+    }
+  ]
+}

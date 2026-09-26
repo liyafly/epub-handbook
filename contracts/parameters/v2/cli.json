@@ -48,6 +48,15 @@
         }
       }
     },
+    "epub.font.subset": {
+      "description": "使用独立 epub-font provider，从当前 EPUB 的完整字体母版生成已核验子集；只在内存候选中替换字体 entry。",
+      "parameters": {
+        "font_config": {
+          "type": "string",
+          "description": "可选 epub-font fonts.json 路径；master 路径相对配置文件所在目录。"
+        }
+      }
+    },
     "epub.notes.popup.normalize": {
       "description": "只读弹注验证；实际转换由 EPUB3 迁移能力完成。",
       "parameters": {}

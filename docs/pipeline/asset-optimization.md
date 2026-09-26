@@ -90,12 +90,13 @@ unzip -p book.epub OEBPS/package.opf | grep 'cover-image'
 ### 4.1 字体子集化与全量校验
 
 ```sh
-epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
-epub-font check NEW.epub
-epub redline --check all BOOK.epub NEW.epub
+epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json
+epub redline --check all full-font-source.epub subset-candidate.epub
 ```
 
-`epub-font subset` 只替换既有字体 entry 的字节，保留 ZIP 路径、CSS URL 与 OPF id；报告写在输出 EPUB 旁。省略配置时处理全部静态 manifest 字体；可变字体必须在配置中显式设置 `variation.mode`。子集化后运行全量覆盖检查与正文不变红线，再做目标阅读器实测。
+推荐由正式 capability `epub.font.subset` 调用独立 `epub-font` provider。完整字体保留在书级 Git 的解包源中；每次都从完整母版生成候选子集，不能把上次输出当作新母版。能力只替换现有 manifest 字体 entry，不改 OPF / CSS / XHTML；provider 的逐字体核验成功后，pipeline 再运行红线并写候选。可变字体需在书根 `fonts.json` 中显式设置 `variation.mode`。书级固定产物与失败保留语义见[工作区指南](book-workspace.md)。
+
+需要单独检查既有产物或排查字体配置时，仍可直接使用 `epub-font check`；字体 provider 的 CLI 选项见 [`epub-font` 文档](../../tools-font/epub-font/README.md)。完成静态检查后再做目标阅读器实测。
 
 ### 4.2 WOFF2 vs WOFF vs OTF/TTF
 

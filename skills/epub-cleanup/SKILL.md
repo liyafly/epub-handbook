@@ -1,6 +1,6 @@
 ---
 name: epub-cleanup
-description: 清洗已有 EPUB 的目录、版本、CSS、中文排版和标准弹注。按清洗 runbook 做已授权的局部变更，保留原件，先预检和 dry-run，再审查红线差异。
+description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体子集和标准弹注。按清洗 runbook 做已授权的局部变更，保留原件，先预检和 dry-run，再审查红线差异。
 ---
 
 # EPUB 清洗
@@ -24,6 +24,17 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版和标准�
 ### 中文字体与正文节奏
 
 处理 CJK 字体链、行距/缩进/长 token 与角色样式。改字体前读 [SPEC §3、§4、§8](../../docs/final/SPEC-实现约束.md)；新增 alias/文件/class 前读 [字体命名规范](../../docs/final/字体别名命名规范.md)。保留既有自由/锁定模式，不把“更好看”自动解释为锁定正文字体。
+
+### 完整字体重新子集化
+
+维护书籍时把完整、获准使用的字体母版放进解包源并由书级 Git 保存。构建从源 EPUB 重新子集化到候选，不能把上次的子集当作新的母版：
+
+```sh
+epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json
+epub redline --check all full-font-source.epub subset-candidate.epub
+```
+
+此 capability 经 `internal/extern` 调用独立 `epub-font` provider；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
 
 ### 标准弹注
 

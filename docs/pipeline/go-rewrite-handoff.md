@@ -6,7 +6,7 @@
 ## 当前状态（2026-09-26）
 
 - Go 单一公开 CLI 与 `internal/` 能力流水线是唯一执行面；`contracts/` 是机器契约来源，`tools-font/` 是独立字体 provider。架构硬约束与守卫要求以 Go 架构 SPEC 为准。
-- contracts 与 registry 各有 22 个 capability。当前执行形态为 13 个输出型与 9 个只读型；注册数不代表所有能力都不依赖外部工具，运行状态以 `epub capabilities --json` 为准。
+- contracts 与 registry 各有 23 个 capability。当前执行形态为 14 个输出型与 9 个只读型；`epub.font.subset` 经 `internal/extern` 调用独立 `epub-font` provider。注册数不代表所有能力都不依赖外部工具，运行状态以 `epub capabilities --json` 为准。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
 - 最近发布基线为 Go CLI `v0.4.0`（tag `v0.4.0`）；GitHub Release 提供 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。四个平台均通过版本、能力发现和内嵌预设的脱仓 smoke；这不构成目标阅读器验收。后续版本以实际 Release 附件和校验和为准。
@@ -21,7 +21,7 @@
 | 契约 | `contracts/capabilities/` 定义 capability、权限、requires 与执行形态；v2 envelope 由 schema 和 INV-6 守卫。 |
 | EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出；`epub clean` 的多步处理共享源 archive，步骤间不生成中间 ZIP。 |
 | 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell/link 与弹注转换按目标范围写入，弹注匹配要求真实标签边界。 |
-| 字体工具 | `tools-font/` 私有于仓库 provider，由 `internal/extern` 调用；不进入 CLI 发行包。 |
+| 字体工具 | `tools-font/` 私有于仓库 provider，由 `internal/extern` 调用；`epub.font.subset` 仅把已验证的字体 entry 应用到内存态，不进入 CLI 发行包。 |
 | 遗留执行面 | Python 执行脚本与 parity harness 已移除；`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
 | 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选默认不保留，显式 `--retain-review-candidate` 时只写 `.review-only.epub`。 |
 | 取消 | 取消用 `status=cancelled` 和 exit 1 表示；取消的事务不写出，不能将其伪装成一般书稿错误。 |
@@ -64,7 +64,7 @@
 ## 待决策 / 开放项
 
 - Apple Books、Readest、Kindle Previewer 等目标阅读器仍需按 `docs/final/reader-matrix.yaml` 的待测项执行 GUI 实测；不得把构建、EPUBCheck 或浏览器结果记作 reader pass。
-- `tools-font/epub-font` 是独立 CLI，不是正式 capability。若要升格为 `epub.font.subset`，需先确定新契约与 SPEC §6.1 设计，并通过 golden 测试和全项 redline。
+- `epub.font.subset` 已作为正式 capability 注册；provider 仍需单独安装和测试。缺 provider、配置错误或字体验证失败时，书级构建必须失败并保留上次通过的 dist。
 - Source intake 当前只做可审计盘点；PDF 解析、OCR、图片转码与后续内容抽取不在现有契约范围。扩大范围前需明确输入材料、隐私、许可和输出决策。
 - 手册与速查表之间的规则一致性目前没有自动语义守卫；涉及硬规则时按 `AGENTS.md` 同步检查 SPEC、终极实践手册、CSS 速查表和相关 skills。
 - 任一 reader 状态需要有真实版本、精确 artifact SHA 和可复核截图或日志；若证据缺一，状态继续留在 warn / na 或 untested，不由工具验证代填。
@@ -77,7 +77,7 @@
 
 - 新增 capability 必须先定公开参数和结果契约，再按 SPEC §6.1 落实现、Go-native 测试、pipeline 注册和 golden；验收 = golden 测试 + 全项 redline。
 - 不因历史迁移文档残留引用而恢复旧执行面；`archive/` 中的 Python 行为和旧架构仅为背景证据。
-- 字体子集 demo 的现有脚本仍属于 `tools-font/` 独立工具。将其中任一操作纳入 Go 流水线前，必须重新审查隐私、字体许可、可复现性与失败事务语义。
+- 新增 Go capability 仍须遵循 §6.1 的契约、golden 和全项 redline；字体子集尤其要验证书级构建从完整源字体重建，并验证 provider 失败时不覆盖既有产物。
 
 ## 决策索引
 
