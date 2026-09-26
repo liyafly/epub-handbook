@@ -80,8 +80,22 @@ func UsageOutcome(capabilityID string, err error) Outcome {
 	return Outcome{Envelope: usageEnvelope(capabilityID, err), ExitCode: ExitUsage}
 }
 
-// Run 执行一个 capability 及其依赖链。
+// Run executes one capability and its dependency chain on a newly opened input.
 func Run(ctx context.Context, opts Options) (Outcome, error) {
+	return run(ctx, opts, nil, nil)
+}
+
+// runWithBook executes one capability against a caller-owned in-memory session.
+// It never closes the supplied Book or serializes it as an intermediate EPUB.
+func runWithBook(ctx context.Context, opts Options, current, before *book.Book) (Outcome, error) {
+	if current == nil {
+		return UsageOutcome(opts.CapabilityID, errors.New("in-memory session requires an open book")), errors.New("in-memory session requires an open book")
+	}
+	return run(ctx, opts, current, before)
+}
+
+// run is shared by the public single-run path and clean's multi-step session.
+func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) (Outcome, error) {
 	env := report.Envelope{
 		SchemaVersion: "2",
 		Capability:    opts.CapabilityID,
@@ -161,7 +175,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	if opts.CaptureOutput && (!needsWrite || multiOutputCap || opts.DryRun || opts.OutputPath != "") {
 		return usage("in-memory output capture requires a non-dry-run, single-output capability without --output")
 	}
-	if needsWrite && !opts.DryRun {
+	if needsWrite && !opts.DryRun && sessionBook == nil {
 		if multiOutputCap {
 			if opts.Args.Get("output_dir") == "" {
 				return usage("output_dir is required for capability %s", contract.ID)
@@ -214,8 +228,8 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	if err := ctx.Err(); err != nil {
 		return cancelInput(err)
 	}
-	var b *book.Book
-	if inputFromBytes || (opts.InputPath != "" && !inputIsDir && !sourceInputCap) {
+	b := sessionBook
+	if b == nil && (inputFromBytes || (opts.InputPath != "" && !inputIsDir && !sourceInputCap)) {
 		var err error
 		if inputFromBytes {
 			b, err = book.OpenBytesContext(ctx, opts.InputPath, opts.InputBytes)
@@ -241,7 +255,7 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		}
 		defer b.Close()
 	}
-	if env.Input != nil && !inputIsDir {
+	if env.Input != nil && !inputIsDir && sessionBook == nil {
 		if b != nil {
 			if sum, err := b.InputSHA256Context(ctx); err == nil {
 				env.Input.SHA256 = sum
@@ -483,7 +497,11 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 		redlineNeeded = redlineNeeded || len(b.ModifiedNames()) > 0
 	}
 	if len(redLines) > 0 && redlineNeeded && !failed && b != nil && !multiOutputCap {
-		redlineFindings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), redLines, redline.Options{
+		before := redline.OriginalState(b)
+		if stageInput != nil {
+			before = redline.CurrentState(stageInput)
+		}
+		redlineFindings, err := redline.Check(before, redline.CurrentState(b), redLines, redline.Options{
 			PathMap:              renames,
 			AllowList:            []string{"*/nav.xhtml", "*/toc.ncx"},
 			AllowFontObfuscation: runArgs.Bool("allow_font_obfuscation"),
@@ -536,7 +554,9 @@ func Run(ctx context.Context, opts Options) (Outcome, error) {
 	// 输出落盘（INV-3 单次写）：单输出链在全部 stage 通过后只写一次。
 	// dry-run、DRM/runner/未实现/目标 stage 失败不写；红线失败仍写（见上）；
 	// multi-output 的 split runner 自己管理段产物。
-	if !failed && !opts.DryRun && needsWrite && !multiOutputCap {
+	if !failed && !opts.DryRun && needsWrite && !multiOutputCap && sessionBook != nil {
+		events = append(events, report.Event{Step: "write-output", Status: "completed", Message: "candidate retained in the shared clean session; final output is managed by epub clean"})
+	} else if !failed && !opts.DryRun && needsWrite && !multiOutputCap {
 		if b == nil {
 			env.Status = report.StatusFailed
 			failed = true

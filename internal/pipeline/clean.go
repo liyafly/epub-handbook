@@ -3,8 +3,6 @@ package pipeline
 import (
 	"cmp"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
@@ -61,15 +59,16 @@ type cleanStepDefinition struct {
 }
 
 type cleanStepSummary struct {
-	Name         string               `json:"name"`
-	Capability   string               `json:"capability"`
-	Status       string               `json:"status"`
-	InputSHA256  string               `json:"inputSHA256"`
-	OutputSHA256 string               `json:"outputSHA256,omitempty"`
-	Redline      *cleanRedlineSummary `json:"redline,omitempty"`
-	Facts        map[string]any       `json:"facts,omitempty"`
-	Findings     []report.Finding     `json:"findings"`
-	Events       []report.Event       `json:"events"`
+	Name           string               `json:"name"`
+	Capability     string               `json:"capability"`
+	Status         string               `json:"status"`
+	InputState     string               `json:"inputState"`
+	OutputState    string               `json:"outputState"`
+	ChangedEntries []string             `json:"changedEntries"`
+	Redline        *cleanRedlineSummary `json:"redline,omitempty"`
+	Facts          map[string]any       `json:"facts,omitempty"`
+	Findings       []report.Finding     `json:"findings"`
+	Events         []report.Event       `json:"events"`
 }
 
 type cleanRedlineSummary struct {
@@ -476,29 +475,35 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 	outputPath, reportPath := cleanOutputPaths(input, inputIsDir, outputDir)
 	result := CleanBookResult{InputPath: input.path, ReportPath: reportPath, ExitCode: ExitFailed}
 	env := report.Envelope{SchemaVersion: "2", Capability: cleanCapabilityID, Status: report.StatusFailed}
-	inputSHA, err := book.FileSHA256Context(ctx, input.path)
+	original, err := book.OpenContext(ctx, input.path)
 	if err != nil {
+		if inputSHA, hashErr := book.FileSHA256Context(ctx, input.path); hashErr == nil {
+			env.Input = &report.Artifact{Path: input.path, SHA256: inputSHA}
+		}
 		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to read input EPUB", err)
 	}
+	defer original.Close()
+	inputSHA, err := original.InputSHA256Context(ctx)
+	if err != nil {
+		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to hash input EPUB", err)
+	}
 	env.Input = &report.Artifact{Path: input.path, SHA256: inputSHA}
+	session := newCleanSession(original)
 
 	stepSummaries := []cleanStepSummary{}
 	allEvents := []report.Event{}
 	allFindings := []report.Finding{}
-	var normalizeEnvelope []byte
-	var currentBytes []byte
-	currentSHA := inputSHA
 	var failure error
 	cancelled := false
 	redlineAttempted := false
 
-	audit, auditErr := Run(ctx, Options{RepoRoot: opts.RepoRoot, CapabilityID: "epub.package.nav.audit", InputPath: input.path, DryRun: true})
+	audit, auditErr := runWithBook(ctx, Options{RepoRoot: opts.RepoRoot, CapabilityID: "epub.package.nav.audit", InputPath: input.path, DryRun: true}, session.current, nil)
 	if auditErr != nil {
 		failure = auditErr
-		stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit", "epub.package.nav.audit", currentSHA, "", "failed", report.Envelope{}, auditErr))
+		stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit", "epub.package.nav.audit", "input", "input", []string{}, "failed", report.Envelope{}, auditErr))
 	} else {
 		cancelled = audit.Envelope.Status == report.StatusCancelled
-		stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit", "epub.package.nav.audit", currentSHA, "", audit.Envelope.Status, audit.Envelope, nil))
+		stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit", "epub.package.nav.audit", "input", "input", []string{}, audit.Envelope.Status, audit.Envelope, nil))
 		allEvents = append(allEvents, audit.Envelope.Events...)
 		blockers := cleanAuditBlockers(audit.Envelope.Findings, steps)
 		for _, finding := range audit.Envelope.Findings {
@@ -530,50 +535,55 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 			failure = err
 			break
 		}
+		inputState := session.stateID
+		checkpoint := session.current
+		candidate := session.BeginStep()
 		runOptions := Options{
 			RepoRoot: opts.RepoRoot, CapabilityID: step.capability,
-			InputPath: input.path, Args: step.args, CaptureOutput: true,
+			InputPath: input.path, Args: step.args,
 		}
-		if currentBytes != nil {
-			runOptions.InputBytes = currentBytes
+		outcome, runErr := runWithBook(ctx, runOptions, candidate, checkpoint)
+		changedEntries, changesErr := session.ModifiedEntries(candidate)
+		if changesErr != nil {
+			runErr = errors.Join(runErr, fmt.Errorf("compare in-memory step changes: %w", changesErr))
 		}
-		outcome, runErr := Run(ctx, runOptions)
-		candidateBytes := outcome.OutputBytes
-		candidateSHA := cleanBytesSHA256(candidateBytes)
-		summary := cleanStepSummaryFrom(step.name, step.capability, currentSHA, candidateSHA, outcome.Envelope.Status, outcome.Envelope, runErr)
 		cancelled = cancelled || outcome.Envelope.Status == report.StatusCancelled
-		stepSummaries = append(stepSummaries, summary)
+		outputState := inputState
+		if runErr == nil && outcome.ExitCode == ExitOK {
+			session.CommitStep(step.name, candidate)
+			outputState = session.stateID
+		}
+		stepSummaries = append(stepSummaries, cleanStepSummaryFrom(step.name, step.capability, inputState, outputState, changedEntries, outcome.Envelope.Status, outcome.Envelope, runErr))
 		allEvents = append(allEvents, outcome.Envelope.Events...)
 		allFindings = appendCleanFindings(allFindings, step.name, outcome.Envelope.Findings)
-		if step.name == "normalize" && candidateBytes != nil {
-			normalizeEnvelope, err = MarshalEnvelope(outcome.Envelope)
-			if err != nil {
-				failure = fmt.Errorf("serialize normalize path map: %w", err)
+		if step.name == "normalize" && runErr == nil && outcome.ExitCode == ExitOK {
+			normalizeReport, marshalErr := MarshalEnvelope(outcome.Envelope)
+			if marshalErr != nil {
+				failure = fmt.Errorf("serialize normalize path map: %w", marshalErr)
+			} else {
+				session.SetNormalizeReport(normalizeReport)
 			}
 		}
 		if runErr != nil {
 			failure = errors.Join(failure, runErr)
 		} else if outcome.ExitCode != ExitOK {
 			failure = errors.Join(failure, fmt.Errorf("%s exited with code %d", step.name, outcome.ExitCode))
-		} else if candidateBytes != nil {
-			currentBytes = candidateBytes
-			currentSHA = candidateSHA
 		}
 		if failure != nil {
 			break
 		}
 	}
 
-	if failure == nil && len(steps) > 0 && currentBytes != nil {
-		finalAudit, finalAuditErr := Run(ctx, Options{
+	if failure == nil && len(steps) > 0 && session.hasCandidate {
+		finalAudit, finalAuditErr := runWithBook(ctx, Options{
 			RepoRoot: opts.RepoRoot, CapabilityID: "epub.package.nav.audit",
-			InputPath: input.path, InputBytes: currentBytes, DryRun: true,
-		})
+			InputPath: input.path, DryRun: true,
+		}, session.current, nil)
 		if finalAuditErr != nil {
 			failure = finalAuditErr
 			allEvents = append(allEvents, report.Event{Step: "audit-final", Status: "failed", Message: finalAuditErr.Error()})
 		} else {
-			stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit-final", "epub.package.nav.audit", currentSHA, "", finalAudit.Envelope.Status, finalAudit.Envelope, nil))
+			stepSummaries = append(stepSummaries, cleanStepSummaryFrom("audit-final", "epub.package.nav.audit", session.stateID, session.stateID, []string{}, finalAudit.Envelope.Status, finalAudit.Envelope, nil))
 			allEvents = append(allEvents, finalAudit.Envelope.Events...)
 			allFindings = appendCleanFindings(allFindings, "audit-final", finalAudit.Envelope.Findings)
 			blockers := cleanAuditBlockers(finalAudit.Envelope.Findings, nil)
@@ -586,10 +596,10 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 	}
 
 	var redlineSummary cleanRedlineSummary
-	if currentBytes != nil {
+	if session.hasCandidate {
 		redlineAttempted = true
 		var redlineErr error
-		redlineSummary, redlineErr = compareCleanRedline(ctx, input.path, currentBytes, inputSHA, currentSHA, normalizeEnvelope)
+		redlineSummary, redlineErr = compareCleanRedline(session, inputSHA)
 		allEvents = append(allEvents, redlineSummary.Events...)
 		allFindings = appendCleanFindings(allFindings, "redline", redlineSummary.Findings)
 		if redlineErr != nil {
@@ -603,21 +613,31 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 	}
 
 	reviewCandidateWritten := false
-	if opts.Approve && failure == nil && redlineAttempted && currentBytes != nil && ctx.Err() == nil {
-		if writeErr := zipfs.WriteNewFileContext(ctx, outputPath, currentBytes, 0o644); writeErr != nil {
+	if opts.Approve && failure == nil && redlineAttempted && session.hasCandidate && ctx.Err() == nil {
+		if writeErr := session.current.WriteToContext(ctx, outputPath); writeErr != nil {
 			failure = errors.Join(failure, fmt.Errorf("write approved candidate: %w", writeErr))
 		} else {
 			result.OutputPath = outputPath
-			env.Output = &report.Artifact{Path: outputPath, SHA256: currentSHA}
+			env.Output = &report.Artifact{Path: outputPath}
+			if outputSHA, hashErr := book.FileSHA256ContextLimit(ctx, outputPath, 4<<30); hashErr == nil {
+				env.Output.SHA256 = outputSHA
+			} else {
+				allFindings = append(allFindings, report.Finding{Level: "warn", ID: "clean.output-sha256-unavailable", Title: "Output SHA-256 unavailable", Detail: hashErr.Error(), Location: outputPath})
+			}
 		}
 	}
-	if opts.RetainReviewCandidate && failure != nil && redlineAttempted && currentBytes != nil && ctx.Err() == nil {
+	if opts.RetainReviewCandidate && failure != nil && redlineAttempted && session.hasCandidate && ctx.Err() == nil {
 		reviewPath := cleanReviewOutputPath(outputPath)
-		if writeErr := zipfs.WriteNewFileContext(ctx, reviewPath, currentBytes, 0o644); writeErr != nil {
+		if writeErr := session.current.WriteToContext(ctx, reviewPath); writeErr != nil {
 			failure = errors.Join(failure, fmt.Errorf("write review-only candidate: %w", writeErr))
 		} else {
 			result.OutputPath = reviewPath
-			env.Output = &report.Artifact{Path: reviewPath, SHA256: currentSHA}
+			env.Output = &report.Artifact{Path: reviewPath}
+			if outputSHA, hashErr := book.FileSHA256ContextLimit(ctx, reviewPath, 4<<30); hashErr == nil {
+				env.Output.SHA256 = outputSHA
+			} else {
+				allFindings = append(allFindings, report.Finding{Level: "warn", ID: "clean.output-sha256-unavailable", Title: "Output SHA-256 unavailable", Detail: hashErr.Error(), Location: reviewPath})
+			}
 			reviewCandidateWritten = true
 		}
 	}
@@ -664,11 +684,11 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		artifactDisposition = "review-only"
 	case env.Output != nil:
 		artifactDisposition = "approved"
-	case status == report.StatusPlanned && currentBytes == nil:
+	case status == report.StatusPlanned && !session.hasCandidate:
 		artifactDisposition = "planned"
-	case currentBytes != nil && failure == nil:
+	case session.hasCandidate && failure == nil:
 		artifactDisposition = "planned"
-	case currentBytes != nil:
+	case session.hasCandidate:
 		artifactDisposition = "withheld"
 	}
 	facts["pipeline.artifactDisposition"] = artifactDisposition
@@ -680,8 +700,8 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 			break
 		}
 	}
-	if currentBytes != nil && env.Output == nil {
-		facts["epub.clean.previewSHA256"] = currentSHA
+	if session.hasCandidate && env.Output == nil {
+		facts["epub.clean.previewState"] = session.stateID
 	}
 	env.Events = allEvents
 	env.Findings = append(env.Findings, allFindings...)
@@ -719,42 +739,26 @@ func containsCleanFinding(findings []report.Finding, target report.Finding) bool
 	return slices.ContainsFunc(findings, func(finding report.Finding) bool { return finding.ID == target.ID })
 }
 
-func cleanBytesSHA256(data []byte) string {
-	if data == nil {
-		return ""
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
-}
-
-func compareCleanRedline(ctx context.Context, inputPath string, candidate []byte, inputSHA, candidateSHA string, normalizeEnvelope []byte) (cleanRedlineSummary, error) {
-	before, err := book.OpenContext(ctx, inputPath)
-	if err != nil {
-		return cleanRedlineSummary{}, err
-	}
-	defer before.Close()
-	after, err := book.OpenBytesContext(ctx, inputPath, candidate)
-	if err != nil {
-		return cleanRedlineSummary{}, err
-	}
-	defer after.Close()
-
+func compareCleanRedline(session *cleanSession, inputSHA string) (cleanRedlineSummary, error) {
 	pathMap := map[string]string{}
-	if len(normalizeEnvelope) > 0 {
-		pathMap, err = redline.LoadPathMap(normalizeEnvelope)
+	if len(session.normalizeReport) > 0 {
+		var err error
+		pathMap, err = redline.LoadPathMap(session.normalizeReport)
 		if err != nil {
 			return cleanRedlineSummary{}, err
 		}
 	}
-	findings, err := redline.Check(redline.OriginalState(before), redline.CurrentState(after), nil, redline.Options{PathMap: pathMap})
+	findings, err := redline.Check(redline.OriginalState(session.original), redline.CurrentState(session.current), nil, redline.Options{PathMap: pathMap})
+	if readErr := session.current.ReadError(); readErr != nil && err == nil {
+		err = readErr
+	}
 	result := cleanRedlineSummary{
 		Status: report.StatusComplete,
 		Facts: map[string]any{
 			"epub.redline.check":          "all",
-			"epub.redline.before":         inputPath,
-			"epub.redline.after":          "in-memory final candidate",
+			"epub.redline.before":         session.original.InputPath(),
+			"epub.redline.afterState":     session.stateID,
 			"epub.redline.beforeSHA256":   inputSHA,
-			"epub.redline.afterSHA256":    candidateSHA,
 			"epub.redline.findingCount":   len(findings),
 			"epub.redline.pathMapEntries": len(pathMap),
 		},
@@ -783,13 +787,14 @@ func compareCleanRedline(ctx context.Context, inputPath string, candidate []byte
 	return result, nil
 }
 
-func cleanStepSummaryFrom(name, capability, inputSHA, outputSHA, status string, env report.Envelope, err error) cleanStepSummary {
+func cleanStepSummaryFrom(name, capability, inputState, outputState string, changedEntries []string, status string, env report.Envelope, err error) cleanStepSummary {
 	findings := nonNilCleanFindings(env.Findings)
 	if err != nil {
 		findings = append(findings, report.Finding{Level: "error", ID: "clean.step-run-failed", Title: "Clean stage failed", Detail: err.Error(), Location: name})
 	}
 	summary := cleanStepSummary{
-		Name: name, Capability: capability, Status: status, InputSHA256: inputSHA, OutputSHA256: outputSHA,
+		Name: name, Capability: capability, Status: status,
+		InputState: inputState, OutputState: outputState, ChangedEntries: slices.Clone(changedEntries),
 		Facts: env.Facts, Findings: findings, Events: nonNilCleanEvents(env.Events),
 	}
 	if capability != "epub.package.nav.audit" {

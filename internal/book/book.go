@@ -8,9 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/zipfs"
@@ -61,10 +63,11 @@ func OpenBytesContext(ctx context.Context, path string, data []byte) (*Book, err
 func openArchive(ctx context.Context, arch *zipfs.Archive) (*Book, error) {
 	b := &Book{
 		arch:             arch,
+		ownsArchive:      true,
 		byName:           make(map[string]*zipfs.Entry),
 		cur:              make(map[string][]byte),
 		deleted:          make(map[string]bool),
-		origCache:        make(map[string][]byte),
+		source:           &originalCache{entries: make(map[string][]byte)},
 		maxRetainedBytes: MaxRetainedBytes,
 	}
 	seen := make(map[string]bool, len(arch.Names()))
@@ -95,19 +98,51 @@ func openArchive(ctx context.Context, arch *zipfs.Archive) (*Book, error) {
 // Book 是一个打开的 EPUB：输入容器 + 待应用的修改集。
 type Book struct {
 	arch             *zipfs.Archive
+	ownsArchive      bool
+	source           *originalCache
 	order            []string
 	byName           map[string]*zipfs.Entry
 	cur              map[string][]byte
 	added            []string
 	deleted          map[string]bool
-	origCache        map[string][]byte
-	retainedBytes    int64
+	currentBytes     int64
 	maxRetainedBytes int64
 	readErr          error
 }
 
+type originalCache struct {
+	mu            sync.Mutex
+	entries       map[string][]byte
+	retainedBytes int64
+}
+
 // Close 释放底层容器句柄。
-func (b *Book) Close() error { return b.arch.Close() }
+func (b *Book) Close() error {
+	if !b.ownsArchive {
+		return nil
+	}
+	return b.arch.Close()
+}
+
+// Fork 返回一个共享只读 ZIP archive、但具有独立当前修改集的 Book。
+// entry 字节不可变，fork 只复制索引和修改映射；调用方只需关闭最初打开的 Book。
+func (b *Book) Fork() *Book {
+	if b == nil {
+		return nil
+	}
+	return &Book{
+		arch:             b.arch,
+		source:           b.source,
+		order:            slices.Clone(b.order),
+		byName:           maps.Clone(b.byName),
+		cur:              maps.Clone(b.cur),
+		added:            slices.Clone(b.added),
+		deleted:          maps.Clone(b.deleted),
+		currentBytes:     b.currentBytes,
+		maxRetainedBytes: b.maxRetainedBytes,
+		readErr:          b.readErr,
+	}
+}
 
 // InputPath 返回输入文件路径。
 func (b *Book) InputPath() string { return b.arch.Path() }
@@ -186,22 +221,31 @@ func (b *Book) OriginalContext(ctx context.Context, name string) ([]byte, error)
 	if ctx != nil && ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if data, ok := b.origCache[name]; ok {
-		return data, nil
-	}
 	e, ok := b.byName[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrMissingEntry, name)
 	}
-	if e.Size() > b.maxRetainedBytes-b.retainedBytes {
+	b.source.mu.Lock()
+	defer b.source.mu.Unlock()
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if data, ok := b.source.entries[name]; ok {
+		if b.source.retainedBytes+b.currentBytes > b.maxRetainedBytes {
+			return nil, b.rememberReadError(fmt.Errorf("%w: %s", ErrMemoryLimit, name))
+		}
+		return data, nil
+	}
+	remaining := b.maxRetainedBytes - b.source.retainedBytes - b.currentBytes
+	if remaining < 0 || e.Size() > remaining {
 		return nil, b.rememberReadError(fmt.Errorf("%w: %s", ErrMemoryLimit, name))
 	}
 	data, err := b.arch.ReadContext(ctx, e.Name())
 	if err != nil {
 		return nil, b.rememberReadError(err)
 	}
-	b.origCache[name] = data
-	b.retainedBytes += int64(len(data))
+	b.source.entries[name] = data
+	b.source.retainedBytes += int64(len(data))
 	return data, nil
 }
 
@@ -301,7 +345,7 @@ func (b *Book) Apply(edits []editset.Edit) error {
 			}
 			delete(b.deleted, path) // 删除后按原名重建：恢复可见性，位置回到原序。
 			b.cur[path] = slices.Clone(group[0].Replacement)
-			b.retainedBytes += int64(len(group[0].Replacement))
+			b.currentBytes += int64(len(group[0].Replacement))
 			if _, isOriginal := b.byName[path]; !isOriginal && !slices.Contains(b.added, path) {
 				b.added = append(b.added, path)
 			}
@@ -325,14 +369,17 @@ func (b *Book) Apply(edits []editset.Edit) error {
 		if err != nil {
 			return err
 		}
-		b.retainedBytes += int64(len(updated) - len(b.cur[path]))
+		b.currentBytes += int64(len(updated) - len(b.cur[path]))
 		b.cur[path] = updated
 	}
 	return nil
 }
 
 func (b *Book) checkContentBudget(path string, size int64) error {
-	if size < 0 || size > zipfs.DefaultLimits().MaxEntryBytes || size-int64(len(b.cur[path])) > b.maxRetainedBytes-b.retainedBytes {
+	b.source.mu.Lock()
+	defer b.source.mu.Unlock()
+	remaining := b.maxRetainedBytes - b.source.retainedBytes - b.currentBytes
+	if size < 0 || size > zipfs.DefaultLimits().MaxEntryBytes || size-int64(len(b.cur[path])) > remaining {
 		return fmt.Errorf("%w: %s", ErrMemoryLimit, path)
 	}
 	return nil
@@ -343,7 +390,7 @@ func (b *Book) deleteEntry(path string) error {
 		return fmt.Errorf("%w: %s", ErrMissingEntry, path)
 	}
 	b.deleted[path] = true
-	b.retainedBytes -= int64(len(b.cur[path]))
+	b.currentBytes -= int64(len(b.cur[path]))
 	delete(b.cur, path)
 	if i := slices.Index(b.added, path); i >= 0 {
 		b.added = slices.Delete(b.added, i, i+1)

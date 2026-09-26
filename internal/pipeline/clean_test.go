@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json/v2"
 	"errors"
 	"os"
@@ -10,9 +11,50 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
+
+func TestCleanSessionCommitsBookForkAndTracksEntryChanges(t *testing.T) {
+	original, err := book.OpenBytesContext(t.Context(), "session.epub", epubFixtureBytes(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer original.Close()
+	session := newCleanSession(original)
+	candidate := session.BeginStep()
+	path := "OEBPS/c1.xhtml"
+	content, err := candidate.CurrentContext(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := bytes.Index(content, []byte("段落。"))
+	if start < 0 {
+		t.Fatal("fixture is missing the paragraph text")
+	}
+	if err := candidate.Apply([]editset.Edit{editset.Replace(path, int64(start), int64(len("段落。")), []byte("已修改。"))}); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := session.ModifiedEntries(candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(changed, []string{path}) {
+		t.Fatalf("changed entries=%v, want only %s", changed, path)
+	}
+	session.CommitStep("normalize", candidate)
+	if session.stateID != "step:normalize" || !session.hasCandidate {
+		t.Fatalf("session state=%q candidate=%t", session.stateID, session.hasCandidate)
+	}
+	originalContent, err := original.CurrentContext(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(originalContent, []byte("段落。")) || bytes.Contains(originalContent, []byte("已修改。")) {
+		t.Fatalf("committing a fork mutated the original Book: %q", originalContent)
+	}
+}
 
 func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 	input := buildEpubWithOPF(t)
@@ -51,11 +93,22 @@ func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 	if len(steps) != 3 || steps[0].Name != "audit" || steps[1].Name != "normalize" || steps[2].Name != "audit-final" {
 		t.Fatalf("steps=%+v, want audit, normalize, and final audit", steps)
 	}
-	if steps[1].InputSHA256 == "" || steps[1].OutputSHA256 == "" {
-		t.Fatalf("normalize SHA chain=%+v, want input and output hashes", steps[1])
+	if steps[1].InputState != "input" || steps[1].OutputState != "step:normalize" || steps[1].ChangedEntries == nil {
+		t.Fatalf("normalize state chain=%+v, want explicit state IDs and a changed-entry list", steps[1])
 	}
-	if saved.Facts["epub.clean.previewSHA256"] != steps[1].OutputSHA256 {
-		t.Fatalf("preview SHA=%v step output=%s", saved.Facts["epub.clean.previewSHA256"], steps[1].OutputSHA256)
+	if saved.Facts["epub.clean.previewSHA256"] != nil || saved.Facts["epub.clean.previewState"] != "step:normalize" {
+		t.Fatalf("preview state=%v preview SHA=%v", saved.Facts["epub.clean.previewState"], saved.Facts["epub.clean.previewSHA256"])
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	stepFacts := raw["facts"].(map[string]any)["epub.clean.steps"].([]any)[1].(map[string]any)
+	if _, exists := stepFacts["inputSHA256"]; exists {
+		t.Fatalf("intermediate stage must not claim an EPUB SHA: %+v", stepFacts)
+	}
+	if _, exists := stepFacts["outputSHA256"]; exists {
+		t.Fatalf("intermediate stage must not claim an EPUB SHA: %+v", stepFacts)
 	}
 	if _, err := redline.LoadPathMap(data); err != nil {
 		t.Fatalf("clean summary cannot be reused as --path-map: %v", err)
@@ -63,6 +116,53 @@ func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 	redline := bookResult.Envelope.Facts["epub.clean.redline"].(cleanRedlineSummary)
 	if redline.Status != report.StatusComplete {
 		t.Fatalf("redline=%+v, want complete", redline)
+	}
+}
+
+func TestCleanSharesSessionAcrossSelectedSteps(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: filepath.Join(t.TempDir(), "out"),
+		Steps: []string{"normalize", "migrate", "css"}, Jobs: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitOK || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want a successful planned book", result)
+	}
+	bookResult := result.Books[0]
+	if bookResult.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("clean status=%s findings=%+v", bookResult.Envelope.Status, bookResult.Envelope.Findings)
+	}
+	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
+	wantNames := []string{"audit", "normalize", "migrate", "css", "audit-final"}
+	if len(steps) != len(wantNames) {
+		t.Fatalf("steps=%+v, want %v", steps, wantNames)
+	}
+	for index, name := range wantNames {
+		if steps[index].Name != name {
+			t.Fatalf("step %d=%q, want %q", index, steps[index].Name, name)
+		}
+	}
+	for index, name := range []string{"normalize", "migrate", "css"} {
+		step := steps[index+1]
+		if step.InputState != "input" && index == 0 {
+			t.Errorf("first transform input state=%q, want input", step.InputState)
+		}
+		if index > 0 && step.InputState != "step:"+[]string{"normalize", "migrate"}[index-1] {
+			t.Errorf("%s input state=%q", name, step.InputState)
+		}
+		if step.OutputState != "step:"+name || step.ChangedEntries == nil {
+			t.Errorf("%s result=%+v, want committed state and changed-entry list", name, step)
+		}
+	}
+	if got := bookResult.Envelope.Facts["epub.clean.previewState"]; got != "step:css" {
+		t.Fatalf("preview state=%v, want step:css", got)
+	}
+	redlineSummary := bookResult.Envelope.Facts["epub.clean.redline"].(cleanRedlineSummary)
+	if redlineSummary.Status != report.StatusComplete {
+		t.Fatalf("redline=%+v, want complete", redlineSummary)
 	}
 }
 
@@ -101,7 +201,7 @@ func TestCleanStepSummaryPreservesFailedRedlineResult(t *testing.T) {
 		Events:   []report.Event{{Step: "redline", Status: "failed", Message: "1 finding"}},
 		Findings: []report.Finding{{Level: "error", ID: "redline.text", Title: "Text changed"}},
 	}
-	summary := cleanStepSummaryFrom("normalize", "epub.structure.normalize", "before", "after", report.StatusFailed, env, nil)
+	summary := cleanStepSummaryFrom("normalize", "epub.structure.normalize", "input", "input", []string{}, report.StatusFailed, env, nil)
 	if summary.Redline == nil || summary.Redline.Status != report.StatusFailed || len(summary.Redline.Findings) != 1 {
 		t.Fatalf("redline summary=%+v, want failed result and finding", summary.Redline)
 	}
@@ -184,8 +284,19 @@ func TestCleanFailedRunRetainsOnlyExplicitReviewCandidate(t *testing.T) {
 	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "review-only" {
 		t.Fatalf("artifact disposition=%v, want review-only", got)
 	}
+	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
+	if len(steps) != 3 || steps[1].OutputState != "step:normalize" || steps[2].InputState != "step:normalize" || steps[2].OutputState != "step:normalize" {
+		t.Fatalf("failed step was committed into the session: %+v", steps)
+	}
 	if _, err := os.Stat(wantReview); err != nil {
 		t.Fatalf("review-only candidate missing: %v", err)
+	}
+	reviewSHA, err := book.FileSHA256Context(t.Context(), wantReview)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bookResult.Envelope.Output == nil || bookResult.Envelope.Output.SHA256 != reviewSHA {
+		t.Fatalf("review-only SHA=%s envelope=%+v", reviewSHA, bookResult.Envelope.Output)
 	}
 	if _, err := os.Stat(filepath.Join(outputDir, "in.epub")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("failed run wrote an approved EPUB: %v", err)
@@ -211,6 +322,9 @@ func TestCleanFailedApprovedRunWithholdsCandidateByDefault(t *testing.T) {
 	}
 	if got := result.Books[0].Envelope.Facts["pipeline.artifactDisposition"]; got != "withheld" {
 		t.Fatalf("artifact disposition=%v, want withheld", got)
+	}
+	if got := result.Books[0].Envelope.Facts["epub.clean.previewState"]; got != "step:normalize" {
+		t.Fatalf("withheld preview state=%v, want last successful step", got)
 	}
 	for _, path := range []string{filepath.Join(outputDir, "in.epub"), filepath.Join(outputDir, "in.review-only.epub")} {
 		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {

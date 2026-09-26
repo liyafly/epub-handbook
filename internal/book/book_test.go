@@ -3,6 +3,7 @@ package book
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -108,6 +109,55 @@ func TestOpenBytesAndWriteBytes(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "第二章") {
 		t.Fatalf("in-memory EPUB output does not contain applied edit: %s", content)
+	}
+}
+
+func TestForkSharesArchiveAndIsolatesCurrentEdits(t *testing.T) {
+	parent, _ := openSample(t)
+	fork := parent.Fork()
+	path := "OEBPS/Text/c1.xhtml"
+	original, err := parent.Current(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := bytes.Index(original, []byte("第一章"))
+	if start < 0 {
+		t.Fatal("fixture is missing the chapter heading")
+	}
+	if err := fork.Apply([]editset.Edit{editset.Replace(path, int64(start), int64(len("第一章")), []byte("fork 修改"))}); err != nil {
+		t.Fatal(err)
+	}
+	if err := fork.Close(); err != nil {
+		t.Fatalf("closing a fork must not close the shared archive: %v", err)
+	}
+	parentContent, err := parent.Current(path)
+	if err != nil {
+		t.Fatalf("parent archive was closed with the fork: %v", err)
+	}
+	if !bytes.Equal(parentContent, original) {
+		t.Fatalf("fork edit leaked into parent: got %q want %q", parentContent, original)
+	}
+	forkContent, err := fork.Current(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(forkContent, []byte("fork 修改")) {
+		t.Fatalf("fork did not retain its isolated edit: %q", forkContent)
+	}
+}
+
+func TestForkSharesOriginalCacheBudget(t *testing.T) {
+	parent, _ := openSample(t)
+	parent.maxRetainedBytes = 30
+	fork := parent.Fork()
+	if _, err := fork.Original("mimetype"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parent.Original("OEBPS/content.opf"); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := fork.Original("META-INF/container.xml"); !errors.Is(err, ErrMemoryLimit) || data != nil {
+		t.Fatalf("fork cache exceeded the shared per-book budget: data=%q err=%v", data, err)
 	}
 }
 

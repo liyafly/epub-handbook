@@ -9,7 +9,7 @@ import (
 )
 
 // epubFixtureBytes 构造最小合法 EPUB。
-func epubFixtureBytes(t *testing.T) []byte {
+func epubFixtureBytes(t testing.TB) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
@@ -34,7 +34,7 @@ func epubFixtureBytes(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func buildEpubWithOPF(t *testing.T) string {
+func buildEpubWithOPF(t testing.TB) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "in.epub")
 	if err := os.WriteFile(path, epubFixtureBytes(t), 0o644); err != nil {

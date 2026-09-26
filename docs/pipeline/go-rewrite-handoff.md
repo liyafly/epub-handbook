@@ -19,7 +19,7 @@
 |---|---|
 | CLI | `cmd/epub` 只处理参数和退出码；业务编排在 `internal/pipeline`。 |
 | 契约 | `contracts/capabilities/` 定义 capability、权限、requires 与执行形态；v2 envelope 由 schema 和 INV-6 守卫。 |
-| EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出。 |
+| EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出；`epub clean` 的多步处理共享源 archive，步骤间不生成中间 ZIP。 |
 | 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell/link 与弹注转换按目标范围写入，弹注匹配要求真实标签边界。 |
 | 字体工具 | `tools-font/` 私有于仓库 provider，由 `internal/extern` 调用；不进入 CLI 发行包。 |
 | 遗留执行面 | Python 执行脚本与 parity harness 已移除；`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
@@ -50,6 +50,7 @@
 - 输出能力在内存态完成预期变更与契约红线检查。红线 error 会标记 failed；只要 runner 和输出事务成功，仍可能给出候选产物供 diff review。
 - `--dry-run` 阻止磁盘输出，但必须完整运行内存变更和相应检查；不能把 dry-run 当作跳过能力执行。
 - `epub clean` 默认只审计并生成计划。选择变换用 `--steps`；typography 还必须明确 `--preset` 与 `--scope`。`--approve` 只在步骤、末次审计和全项红线通过时写最终候选。
+- `epub clean` 在一个 Book session 中提交成功步骤；失败步骤的 fork 不进入后续阶段。逐步摘要用 `inputState` / `outputState` 和 `changedEntries` 描述内存态差异；只有 envelope 的输入和实际写出的最终输出具有文件 SHA，预演用 `epub.clean.previewState` 标出当前状态。
 - 多产物能力必须使用 `output_dir` 契约；只读能力不得接受或建议 `--output`。
 - `epub redline --path-map` 接受 normalize、merge、cover 等 envelope 的 `facts.*.mappings`；无改名时成功 envelope 可提供空数组。
 - shell 建议命令必须正确引用路径；JSON envelope 使用共享 legacy-compatible marshal 约定，保留稳定输出形状。
