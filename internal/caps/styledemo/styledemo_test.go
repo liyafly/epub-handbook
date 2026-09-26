@@ -66,8 +66,9 @@ func assertLinesContain(t *testing.T, lines []string, wants ...string) {
 func buildDemoEpub(t *testing.T, repo, outPath string) {
 	t.Helper()
 	script := filepath.Join(repo, "templates", "epub-style-demo", "build.sh")
-	cmd := exec.CommandContext(t.Context(), "sh", script, outPath)
+	cmd := exec.CommandContext(t.Context(), "sh", script)
 	cmd.Dir = repo
+	cmd.Env = append(os.Environ(), "EPUB_STYLE_DEMO_OUT="+outPath)
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errb

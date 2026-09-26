@@ -46,6 +46,8 @@
 
 完整命令与通过条件见 `docs/pipeline/cleanup-flow.md`。
 
+一次性清洗通过并确定可维护候选后，后续维护转为书级 Git 解包源：新书可从仓库根运行 `sh templates/book-starter/new-book.sh work-epub/<book>`；解包源保存在 `03 制作工作区/epub/`，完整字体跟随源树维护。构建用 `03 制作工作区/epub/build.sh`，经导航审计和全项 redline 后覆盖唯一的 `03 制作工作区/dist/book.epub`；临时过程放 `.pipeline/` 并忽略。规则与既有 EPUB 接入详见 `docs/pipeline/book-workspace.md`。
+
 正文校订必须有明确授权，并走 SPEC §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1；**不得删除正文不变 gate、伪造通过或用宽泛 allow-list 掩盖**。含文决策放 `02 校对材料/正文校订/`；其他机器输入按需放 `02 校对材料/`，跨书可复用且脱敏的判断才放 `records/typeset-decisions.jsonl`。
 
 加密默认停止，不提供 DRM 解密。目标不存在的 stale encryption 引用可由工具移除；真实资源仅在工具确认标准字体 obfuscation 且获明确授权时单独处理，不猜测未知算法。失败候选保留供分析，不发布、不自动回滚用户改动。

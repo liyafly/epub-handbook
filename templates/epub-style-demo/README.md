@@ -8,10 +8,10 @@
 sh templates/epub-style-demo/build.sh
 ```
 
-脚本会生成类似：
+脚本每次成功后覆盖同一个文件：
 
 ```text
-templates/epub-style-demo/dist/epub-style-demo-YYYYMMDD-HHMMSS.epub
+templates/epub-style-demo/dist/epub-style-demo.epub
 ```
 
 ## 样本页

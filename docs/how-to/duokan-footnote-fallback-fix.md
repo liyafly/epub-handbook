@@ -76,7 +76,7 @@ ol.duokan-footnote-content {
 
 ```sh
 bash templates/epub-style-demo/build.sh
-EPUB="$(ls -t templates/epub-style-demo/dist/*.epub | head -1)"
+EPUB="templates/epub-style-demo/dist/epub-style-demo.epub"
 epub run epub.style.demo.maintain --input "$EPUB" --json
 epub run epub.notes.popup.normalize --input "$EPUB" --json
 ```

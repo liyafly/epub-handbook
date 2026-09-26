@@ -39,36 +39,42 @@
 **不要**从手写 XML 开始。直接复制现成骨架，三步出书：
 
 ```sh
-# 1. 复制骨架（已经是一本结构合规的最小书）
-cp -r templates/book-starter ~/my-book && cd ~/my-book
+# 1. 一条命令创建书级 Git 工作区和最小 EPUB 骨架
+sh templates/book-starter/new-book.sh work-epub/my-book
 
 # 2. 改书名/作者，写正文
-#    - 编辑 OEBPS/package.opf 里的 dc:title / dc:creator
-#    - 编辑 OEBPS/Text/01-chapter.xhtml 写你的正文
+#    - 编辑 work-epub/my-book/03 制作工作区/epub/OEBPS/package.opf
+#    - 编辑 work-epub/my-book/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml
 
-# 3. 构建 + 体检
-sh build.sh
-epub run epub.package.nav.audit --input dist/book-starter-<时间戳>.epub --json   # error 清零就算过关
+# 3. 构建 + 体检，成功后覆盖唯一的 dist/book.epub
+sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
 ```
 
-体检通过后，拖进 Apple Books 或 Kindle Previewer 看效果。
-详细步骤见 [做一本书](做一本书.md)。
+解包源和完整字体母版由书级 Git 维护；临时 EPUB 放进 `.pipeline/`，失败时保留上一份通过检查的
+产物。字体 provider 安装方法、已有 EPUB 接入和 Git 约定见[一书一 Git 工作区](../pipeline/book-workspace.md)。
+体检通过后，拖进 Apple Books 或 Kindle Previewer 看效果，并把实测 reader 版本和产物 SHA 记入 `制作说明.md`。
+详细步骤见[做一本书](做一本书.md)。
 
 > 想从零一行行理解每个文件怎么来的，再看 [手写 XML 的原理路径](做一本书.md#附录想理解每个文件怎么来的)。
 
 ### C. 我有一本别人做的 EPUB，想修 / 清洗它
 
-Go CLI 没有一键清洗流水线：按固定顺序逐能力跑，**保留原件**、先检查风险、再生成清洗后的版本，步间人工 review：
+首次接入仍要冻结底本、识别风险并审查候选，但无需为每一步保存一份 EPUB。先做只读预览：
 
 ```sh
-epub run epub.package.nav.audit --input /path/to/别人的.epub --json
-epub run epub.structure.normalize --input /path/to/别人的.epub --dry-run --json
+epub clean /path/to/别人的.epub --out /path/to/clean-preview --json
 ```
 
-dry-run 报告人工确认后去掉 `--dry-run` 实跑，再按 `epub.package.migrate.epub3` → `epub.css.layering.optimize` → `epub.typography.optimize` 逐能力精排，最后用 `epub redline --check all` 比对改前与改后，校验正文不变。
+依据预览选实际需要的步骤，再单独审查变换计划；迁移、CSS 清理等只用一条明确步骤链：
 
-改前备份、各步产物与 `--json` 报告按约定放在该书 `03 制作工作区/.pipeline/` 下。一本书的完整目录见 [一书一 Git 工作区](../pipeline/book-workspace.md)。
-完整流程和红线（哪些内容绝对不许改）见 [清洗流水线](../pipeline/cleanup-flow.md)。
+```sh
+epub clean /path/to/别人的.epub --out /path/to/clean-plan \
+  --steps normalize,migrate,css --json
+```
+
+计划确认后，使用相同范围加 `--approve` 生成唯一最终候选。正文排版还需明确 preset 和范围；不要为了“走完整流程”重复迁移或运行无关能力。候选通过 redline 和人工 diff review 后，按[一书一 Git 工作区](../pipeline/book-workspace.md)接入解包源；后续普通修改只需编辑源文件并运行书内 `build.sh`。
+
+临时计划和中间报告放在 `03 制作工作区/.pipeline/`，最终候选另行审核；不保留按步骤生成的 EPUB 堆。完整参数和红线见[清洗流水线](../pipeline/cleanup-flow.md)。
 
 ---
 
