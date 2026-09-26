@@ -8,10 +8,9 @@
 //   - normalize：两阶段 = 先 format 再 deobfuscate。
 //     dry-run 同样生成完整内存候选供红线检查，只有 pipeline 决定是否落盘。
 //
-// 字节保真策略（parity 基准是 Python oracle 的最终输出字节）：
+// 字节保真策略：
 // XHTML 按真实标记区域重写；CSS 用 lossless token spans/editset 后按原编码回编；
-// OPF / encryption.xml 在 Python 侧是 ElementTree 整体重写，这里用
-// xmlmini.go 逐条复刻 ET 的解析与序列化规则，保证最终字节一致。
+// OPF / encryption.xml 只对命中的属性值或被删除的元素应用字节区间编辑。
 // 所有写入一律以 []editset.Edit 交给 book.Apply（SPEC §6.1 三段式），
 // 未修改 entry 由 zipfs 原样透传（INV-1）。
 package structurenormalize
@@ -31,6 +30,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
+	opfscan "github.com/liyafly/epub-handbook/internal/scan/opf"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
@@ -202,7 +202,7 @@ func scanRewriteStage(ctx context.Context, b *book.Book, op string, dryRun bool)
 	}
 
 	// read_package。
-	opfPath, opfRoot, resources, err := readPackage(files, current)
+	opfPath, resources, err := readPackage(files, current)
 	if err != nil {
 		return stageResult{}, err
 	}
@@ -228,7 +228,7 @@ func scanRewriteStage(ctx context.Context, b *book.Book, op string, dryRun bool)
 		return stageResult{}, err
 	}
 	// transform_files → editset.Edit。
-	creates, deletes, replaces, err := transformContent(ctx, b, names, files, opfPath, opfRoot, encPath, pathMap, &rep)
+	creates, deletes, replaces, err := transformContent(ctx, b, names, files, opfPath, encPath, pathMap, &rep)
 	if err != nil {
 		return stageResult{}, err
 	}
@@ -409,18 +409,18 @@ func renamesFromStages(stages ...stageReport) map[string]string {
 
 // ---- read_package ----
 
-func readPackage(files map[string]bool, current func(string) ([]byte, error)) (string, *xmlElem, []manifestResource, error) {
+func readPackage(files map[string]bool, current func(string) ([]byte, error)) (string, []manifestResource, error) {
 	const containerPath = "META-INF/container.xml"
 	if !files[containerPath] {
-		return "", nil, nil, toolErrf("missing META-INF/container.xml")
+		return "", nil, toolErrf("missing META-INF/container.xml")
 	}
 	containerData, err := current(containerPath)
 	if err != nil {
-		return "", nil, nil, toolErrf("%v", err)
+		return "", nil, toolErrf("%v", err)
 	}
 	container, err := parseXMLTree(containerData)
 	if err != nil {
-		return "", nil, nil, toolErrf("%s: XML parse failed: %v", containerPath, err)
+		return "", nil, toolErrf("%s: XML parse failed: %v", containerPath, err)
 	}
 	opfPath := ""
 	for _, e := range iterAll(container) {
@@ -430,26 +430,26 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 		}
 	}
 	if opfPath == "" {
-		return "", nil, nil, toolErrf("container.xml has no rootfile full-path")
+		return "", nil, toolErrf("container.xml has no rootfile full-path")
 	}
 	opfPath, err = validateArchivePath(opfPath, "container.xml rootfile")
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, err
 	}
 	if !files[opfPath] {
-		return "", nil, nil, toolErrf("container.xml rootfile does not resolve: %s", opfPath)
+		return "", nil, toolErrf("container.xml rootfile does not resolve: %s", opfPath)
 	}
 	opfData, err := current(opfPath)
 	if err != nil {
-		return "", nil, nil, toolErrf("%v", err)
+		return "", nil, toolErrf("%v", err)
 	}
 	opfRoot, err := parseXMLTree(opfData)
 	if err != nil {
-		return "", nil, nil, toolErrf("%s: XML parse failed: %v", opfPath, err)
+		return "", nil, toolErrf("%s: XML parse failed: %v", opfPath, err)
 	}
 	manifest := opfRoot.findChild("manifest")
 	if manifest == nil {
-		return "", nil, nil, toolErrf("%s: OPF missing manifest", opfPath)
+		return "", nil, toolErrf("%s: OPF missing manifest", opfPath)
 	}
 	var resources []manifestResource
 	itemIDs := map[string]bool{}
@@ -464,10 +464,10 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 			mediaType = "application/octet-stream"
 		}
 		if itemID == "" || href == "" {
-			return "", nil, nil, toolErrf("%s: manifest item missing id or href", opfPath)
+			return "", nil, toolErrf("%s: manifest item missing id or href", opfPath)
 		}
 		if itemIDs[itemID] {
-			return "", nil, nil, toolErrf("%s: duplicate manifest id: %s", opfPath, itemID)
+			return "", nil, toolErrf("%s: duplicate manifest id: %s", opfPath, itemID)
 		}
 		itemIDs[itemID] = true
 		if pyIsExternalURI(href) {
@@ -475,11 +475,11 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 		}
 		archivePath, err := resolveRelativePath(opfPath, pyURLSplit(href).path)
 		if err != nil {
-			return "", nil, nil, err
+			return "", nil, err
 		}
 		resources = append(resources, manifestResource{itemID: itemID, href: href, mediaType: mediaType, archivePath: archivePath})
 	}
-	return opfPath, opfRoot, resources, nil
+	return opfPath, resources, nil
 }
 
 // ---- encryption ----
@@ -820,13 +820,13 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 
 // ---- transform_files ----
 
-// transformContent 逐行复刻 transform_files，产出 editset.Edit：
-//   - OPF / encryption.xml：ET 兼容重写（xmlmini）；
+// transformContent 扫描并产出 editset.Edit：
+//   - OPF / encryption.xml：只编辑命中的 XML 字节区间；
 //   - CSS / 标记类：decode_text → 正则语义重写 → 原编码回编；
 //   - 其余字节透传（不产生编辑，zipfs 原样搬运）；
 //   - 改名 = 新建 entry（携带重写后的完整内容）+ 删除旧 entry；
 //   - mimetype：Python 总是重写为规范内容并以 STORED 写出。
-func transformContent(ctx context.Context, b *book.Book, names []string, files map[string]bool, opfPath string, opfRoot *xmlElem, encPath string, pathMap map[string]string, rep *stageReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
+func transformContent(ctx context.Context, b *book.Book, names []string, files map[string]bool, opfPath string, encPath string, pathMap map[string]string, rep *stageReport) ([]editset.Edit, []editset.Edit, []editset.Edit, error) {
 	rw := &refRewriter{pathMap: pathMap, files: files, warnings: &rep.Warnings}
 	transformed := map[string]bool{}
 	var creates, deletes, replaces []editset.Edit
@@ -863,7 +863,7 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 		drop := false
 		switch {
 		case oldPath == opfPath:
-			updated, err = rewriteOPF(opfRoot, opfPath, rw)
+			updated, err = rewriteOPF(currentBytes, opfPath, rw)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -920,19 +920,20 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 	return creates, deletes, replaces, nil
 }
 
-// rewriteOPF 逐行复刻 rewrite_opf：manifest item 的 href 直接按 path_map
-// 改写；其余元素的 href/src 走 rewrite_uri。最后按 ET 规则序列化。
-func rewriteOPF(opfRoot *xmlElem, opfPath string, rw *refRewriter) ([]byte, error) {
-	manifest := opfRoot.findChild("manifest")
-	if manifest == nil {
+// rewriteOPF 只编辑 OPF 中被 path_map 命中的 manifest href 与本地 href/src
+// 属性值。注释、处理指令、DOCTYPE、CDATA、属性顺序和周边字节保持不变。
+func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
+	source, root, baseOffset, direct, err := losslessXMLSource(opfPath, data)
+	if err != nil {
+		return nil, err
+	}
+	if root.ChildByLocal(opfscan.OPFURI, "manifest") == nil {
 		return nil, toolErrf("%s: OPF missing manifest", opfPath)
 	}
-	for _, item := range manifest.children {
-		if item.name != "item" {
-			continue
-		}
-		href, _ := item.getAttr("href")
-		if href == "" || pyIsExternalURI(href) {
+	var edits []editset.Edit
+	for _, item := range opfscan.ManifestNodes(root) {
+		href, ok := item.AttrByLocal("", "href")
+		if !ok || href == "" || pyIsExternalURI(href) {
 			continue
 		}
 		parts := pyURLSplit(href)
@@ -941,41 +942,52 @@ func rewriteOPF(opfRoot *xmlElem, opfPath string, rw *refRewriter) ([]byte, erro
 			return nil, err
 		}
 		if target, ok := rw.pathMap[oldTarget]; ok && target != "" {
-			item.setAttr("", "href", pyURLUnsplitPath(relativeURI(opfPath, target), parts.query, parts.fragment))
-		}
-	}
-	for _, elem := range iterAll(opfRoot) {
-		if elem.name == "item" {
-			continue
-		}
-		for _, attrName := range []string{"href", "src"} {
-			if uri, ok := elem.getAttr(attrName); ok && uri != "" {
-				elem.setAttr("", attrName, rw.rewriteURI(uri, opfPath, opfPath))
+			updated := pyURLUnsplitPath(relativeURI(opfPath, target), parts.query, parts.fragment)
+			if updated != href {
+				edit, err := opfAttributeEdit(opfPath, source, baseOffset, item, "href", updated)
+				if err != nil {
+					return nil, err
+				}
+				edits = append(edits, edit)
 			}
 		}
 	}
-	return etreeToBytes(opfRoot), nil
-}
-
-// rewriteEncryptionXML 逐行复刻 rewrite_encryption_xml：更新存活
-// CipherReference 的 URI、删除指向缺失目标的引用、清掉空 EncryptedData；
-// 全部清空时返回 keep=false（entry 删除）。
-func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathMap map[string]string) ([]byte, bool, error) {
-	root, err := parseXMLTree(data)
-	if err != nil {
-		return nil, false, toolErrf("%s: XML parse failed: %v", path, err)
-	}
-	parents := map[*xmlElem]*xmlElem{}
-	for _, e := range iterAll(root) {
-		for _, c := range e.children {
-			parents[c] = e
-		}
-	}
-	for _, elem := range iterAll(root) {
-		if elem.name != "CipherReference" {
+	for _, elem := range root.Walk() {
+		if elem.Name.Local == "item" {
 			continue
 		}
-		uri, _ := elem.getAttr("URI")
+		for _, attrName := range []string{"href", "src"} {
+			if uri, ok := elem.AttrByLocal("", attrName); ok && uri != "" {
+				updated := rw.rewriteURI(uri, opfPath, opfPath)
+				if updated == uri {
+					continue
+				}
+				edit, err := opfAttributeEdit(opfPath, source, baseOffset, elem, attrName, updated)
+				if err != nil {
+					return nil, err
+				}
+				edits = append(edits, edit)
+			}
+		}
+	}
+	return opfscanApply(opfPath, data, edits, direct)
+}
+
+// rewriteEncryptionXML 更新存活 CipherReference 的 URI，删除指向缺失目标
+// 的引用并清掉空 EncryptedData；全部清空时返回 keep=false（entry 删除）。
+func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathMap map[string]string) ([]byte, bool, error) {
+	source, root, baseOffset, direct, err := losslessXMLSource(path, data)
+	if err != nil {
+		return nil, false, err
+	}
+	nodes := root.Walk()
+	removed := map[*opfscan.SpanNode]bool{}
+	var edits []editset.Edit
+	for _, elem := range nodes {
+		if elem.Name.Local != "CipherReference" {
+			continue
+		}
+		uri, _ := elem.AttrByLocal("", "URI")
 		if uri == "" {
 			continue
 		}
@@ -985,51 +997,118 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 			return nil, false, err
 		}
 		if !files[oldTarget] {
-			if p := parents[elem]; p != nil {
-				p.removeChild(elem)
-			}
+			removed[elem] = true
 			continue
 		}
 		target := oldTarget
 		if mapped, ok := pathMap[oldTarget]; ok {
 			target = mapped
 		}
-		elem.setAttr("", "URI", pyURLUnsplitPath(pyQuote(target), parts.query, parts.fragment))
-	}
-	parents = map[*xmlElem]*xmlElem{}
-	for _, e := range iterAll(root) {
-		for _, c := range e.children {
-			parents[c] = e
+		updated := pyURLUnsplitPath(pyQuote(target), parts.query, parts.fragment)
+		if updated != uri {
+			edit, err := opfAttributeEdit(path, source, baseOffset, elem, "URI", updated)
+			if err != nil {
+				return nil, false, err
+			}
+			edits = append(edits, edit)
 		}
 	}
-	for _, elem := range iterAll(root) {
-		if elem.name != "EncryptedData" {
+	for _, elem := range nodes {
+		if elem.Name.Local != "EncryptedData" {
 			continue
 		}
 		hasRef := false
-		for _, d := range iterAll(elem) {
-			if d.name == "CipherReference" {
+		for _, d := range elem.Walk() {
+			if d.Name.Local == "CipherReference" && !removed[d] {
 				hasRef = true
 				break
 			}
 		}
 		if !hasRef {
-			if p := parents[elem]; p != nil {
-				p.removeChild(elem)
-			}
+			removed[elem] = true
 		}
 	}
-	found := false
-	for _, e := range iterAll(root) {
-		if e.name == "EncryptedData" {
-			found = true
+	remaining := false
+	for _, node := range nodes {
+		if node.Name.Local == "EncryptedData" && !removed[node] && !hasRemovedAncestor(node, removed) {
+			remaining = true
 			break
 		}
 	}
-	if !found {
+	if !remaining {
 		return nil, false, nil
 	}
-	return etreeToBytes(root), true, nil
+	for node := range removed {
+		if hasRemovedAncestor(node, removed) {
+			continue
+		}
+		end := node.TailAfter(source).End
+		start := node.Open.Start
+		if end < start || end > len(source) {
+			return nil, false, toolErrf("%s: element span does not match source bytes", path)
+		}
+		edits = append(edits, editset.Replace(path, int64(baseOffset+start), int64(end-start), []byte{}))
+	}
+	updated, err := opfscanApply(path, data, edits, direct)
+	if err != nil {
+		return nil, false, err
+	}
+	return updated, true, nil
+}
+
+// losslessXMLSource returns the scanner's UTF-8 view and whether its offsets
+// map directly to the original bytes. UTF-8 BOM is a fixed three-byte prefix;
+// transcoded source is accepted only when no edits need to be applied.
+func losslessXMLSource(path string, data []byte) ([]byte, *opfscan.SpanNode, int, bool, error) {
+	converted, err := xmlSourceToUTF8(data)
+	if err != nil {
+		return nil, nil, 0, false, toolErrf("%s: XML parse failed: %v", path, err)
+	}
+	source := []byte(converted)
+	root, err := opfscan.ScanSpanTree(data)
+	if err != nil {
+		return nil, nil, 0, false, toolErrf("%s: XML parse failed: %v", path, err)
+	}
+	original := data
+	baseOffset := 0
+	if bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
+		original = data[3:]
+		baseOffset = 3
+	}
+	direct := bytes.Equal(source, original)
+	return source, root, baseOffset, direct, nil
+}
+
+func opfAttributeEdit(path string, source []byte, baseOffset int, node *opfscan.SpanNode, name, value string) (editset.Edit, error) {
+	index := node.AttrIndex("", name)
+	span, quote, ok := opfscan.RawAttrValueSpan(source, node, index)
+	if !ok || span.Start < node.Open.Start || span.End > node.Open.End || span.Start > span.End {
+		return editset.Edit{}, toolErrf("%s: %s attribute value has no safe source span", path, name)
+	}
+	return editset.Replace(path, int64(baseOffset+span.Start), int64(span.Len()), []byte(attrEscapeFor(quote, value))), nil
+}
+
+func opfscanApply(path string, data []byte, edits []editset.Edit, direct bool) ([]byte, error) {
+	if len(edits) == 0 {
+		return data, nil
+	}
+	if !direct {
+		return nil, toolErrf("%s: lossless XML edits require UTF-8 source bytes", path)
+	}
+	updated, err := editset.Apply(path, data, edits)
+	if err != nil {
+		return nil, toolErrf("%s: XML edits overlap or exceed source: %v", path, err)
+	}
+	return updated, nil
+}
+
+func hasRemovedAncestor(node *opfscan.SpanNode, removed map[*opfscan.SpanNode]bool) bool {
+	for parent := node.Parent; parent != nil; parent = parent.Parent {
+		if removed[parent] {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- 引用重写（正则语义的扫描器实现） ----

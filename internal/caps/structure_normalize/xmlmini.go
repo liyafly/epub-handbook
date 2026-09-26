@@ -1,15 +1,6 @@
-// xmlmini.go 提供与 Python ElementTree 字节兼容的最小 XML 模型与
-// URL/编码工具。全部为包内私有实现：
-//
-//   - 解析（含命名空间、实体、EOL 归一）→ 树上做与 Python 相同的变更
-//     → 按 ET.tostring(root, encoding="utf-8", xml_declaration=True)
-//     的确切规则序列化（含 xmlns 前缀注册表、按前缀稳定排序、
-//     <tag /> 空元素、属性/文本转义表）。
-//   - urlsplit / quote / unquote / relpath 等 urllib 与 posixpath 语义。
-//
-// 存在的唯一理由是字节级复刻 Python oracle（epub_structure_tool.py 用
-// ElementTree 整体重写 OPF 与 encryption.xml）；对外仍只通过
-// editset.Edit 交付字节（SPEC §6.1 三段式）。
+// xmlmini.go 提供包内的 XML 读取、文本编解码与 Python URL/path 语义。
+// 解析树只用于读取 EPUB 结构；OPF 与 encryption.xml 的修改使用
+// internal/scan/opf 的原文区间，不把解析树序列化回文档。
 package structurenormalize
 
 import (
@@ -40,8 +31,6 @@ type xmlElem struct {
 	ns       string // "" 表示不在任何命名空间
 	name     string // local 名
 	attrs    []xmlAttr
-	text     string
-	tail     string
 	children []*xmlElem
 }
 
@@ -64,28 +53,7 @@ func (e *xmlElem) getAttr(local string) (string, bool) {
 	return "", false
 }
 
-// setAttr 复刻 Element.set：已有键原位更新（保持属性顺序），新键追加。
-func (e *xmlElem) setAttr(ns, name, value string) {
-	for i := range e.attrs {
-		if e.attrs[i].ns == ns && e.attrs[i].name == name {
-			e.attrs[i].value = value
-			return
-		}
-	}
-	e.attrs = append(e.attrs, xmlAttr{ns: ns, name: name, value: value})
-}
-
-func (e *xmlElem) removeChild(target *xmlElem) {
-	for i, c := range e.children {
-		if c == target {
-			e.children = append(e.children[:i:i], e.children[i+1:]...)
-			return
-		}
-	}
-}
-
-// iterAll 按文档序（前序）返回 root 与全部后代，对齐 root.iter()。
-// 返回的是快照，删除元素不影响遍历（Python 侧用 list(root.iter())）。
+// iterAll 按文档序（前序）返回 root 与全部后代。
 func iterAll(root *xmlElem) []*xmlElem {
 	var out []*xmlElem
 	var walk func(e *xmlElem)
@@ -139,8 +107,8 @@ func (p *xmlParser) lookupDefault() (string, bool) {
 	return "", false
 }
 
-// parseXMLTree 把字节解析为 ET 形状的树（注释 / PI / DOCTYPE 一律丢弃，
-// 与 ET.fromstring 一致）。输入按声明编码先行转换为 UTF-8。
+// parseXMLTree 读取 XML 的命名空间、元素与属性结构；文本只校验而不
+// 存入树。输入按声明编码先行转换为 UTF-8。
 func parseXMLTree(data []byte) (*xmlElem, error) {
 	src, err := xmlSourceToUTF8(data)
 	if err != nil {
@@ -390,25 +358,10 @@ func (p *xmlParser) parseElement() (*xmlElem, error) {
 	p.scopes = append(p.scopes, scope)
 	defer func() { p.scopes = p.scopes[:len(p.scopes)-1] }()
 
-	var pending strings.Builder
-	var lastChild *xmlElem
-	flush := func() {
-		if pending.Len() == 0 {
-			return
-		}
-		if lastChild == nil {
-			elem.text += pending.String()
-		} else {
-			lastChild.tail += pending.String()
-		}
-		pending.Reset()
-	}
 	for {
-		chunk, err := p.readTextRun()
-		if err != nil {
+		if _, err := p.readTextRun(); err != nil {
 			return nil, err
 		}
-		pending.WriteString(chunk)
 		if p.pos >= len(p.src) {
 			return nil, &parseError{"no element found"}
 		}
@@ -427,10 +380,9 @@ func (p *xmlParser) parseElement() (*xmlElem, error) {
 			if endName != rawName {
 				return nil, &parseError{"mismatched tag"}
 			}
-			flush()
 			return elem, nil
 		case p.hasPrefix("<!--"):
-			// 注释丢弃，两侧文本合并（expat 行为）。
+			// 注释不属于结构读取结果。
 			if err := p.skipComment(); err != nil {
 				return nil, err
 			}
@@ -444,18 +396,15 @@ func (p *xmlParser) parseElement() (*xmlElem, error) {
 			if end < 0 {
 				return nil, errToken()
 			}
-			pending.WriteString(p.src[p.pos : p.pos+end]) // CDATA 不做 EOL 归一
 			p.pos += end + 3
 		case p.hasPrefix("<!"):
 			return nil, errToken()
 		default:
-			flush()
 			child, err := p.parseElement()
 			if err != nil {
 				return nil, err
 			}
 			elem.children = append(elem.children, child)
-			lastChild = child
 		}
 	}
 }
@@ -584,113 +533,6 @@ func decodeEntity(s string) (string, int, error) {
 
 func validXMLRune(r rune) bool {
 	return r != 0 && r <= utf8.MaxRune && !(r >= 0xD800 && r <= 0xDFFF)
-}
-
-// ---- 序列化（复刻 ET.tostring 的确切输出） ----
-
-type nsDecl struct {
-	prefix string
-	uri    string
-}
-
-// etreeToBytes 复刻 ET.tostring(root, encoding="utf-8", xml_declaration=True)：
-//   - 声明固定为 <?xml version='1.0' encoding='utf-8'?>\n（单引号、小写 utf-8）；
-//   - xmlns 声明全部落在根元素上，按前缀稳定排序（空前缀最前，与
-//     CPython _serialize_xml 的 sorted(..., key=prefix) 一致）；
-//   - 未注册 URI 的前缀按文档序编号 ns0、ns1…（len(namespaces)）；
-//   - 空元素输出 <tag />（斜杠前有空格）；
-//   - 属性值转义 & < > " \r \n \t，文本/tail 只转义 & < >；
-//   - 末尾没有换行。
-func etreeToBytes(root *xmlElem) []byte {
-	used := map[string]string{} // uri → prefix
-	var decls []nsDecl
-	qname := func(ns, name string) string {
-		if ns == "" {
-			return name
-		}
-		prefix, ok := used[ns]
-		if !ok {
-			prefix, known := namespacePrefixes[ns]
-			if !known {
-				prefix = fmt.Sprintf("ns%d", len(used))
-			}
-			if prefix != "xml" { // xml 前缀不声明（与 CPython 一致）
-				used[ns] = prefix
-				decls = append(decls, nsDecl{prefix: prefix, uri: ns})
-			}
-		}
-		if prefix == "" {
-			return name
-		}
-		return prefix + ":" + name
-	}
-	// 收集命名空间：文档序（前序），元素 tag 先于其属性。
-	var walk func(e *xmlElem)
-	walk = func(e *xmlElem) {
-		qname(e.ns, e.name)
-		for _, a := range e.attrs {
-			qname(a.ns, a.name)
-		}
-		for _, c := range e.children {
-			walk(c)
-		}
-	}
-	walk(root)
-
-	// 声明按前缀稳定排序（sorted(namespaces.items(), key=prefix)）。
-	sortStableByPrefix(decls)
-
-	var b strings.Builder
-	b.WriteString("<?xml version='1.0' encoding='utf-8'?>\n")
-	writeXMLElement(&b, root, qname, decls, true)
-	return []byte(b.String())
-}
-
-func sortStableByPrefix(decls []nsDecl) {
-	for i := 1; i < len(decls); i++ {
-		for j := i; j > 0 && decls[j].prefix < decls[j-1].prefix; j-- {
-			decls[j], decls[j-1] = decls[j-1], decls[j]
-		}
-	}
-}
-
-func writeXMLElement(b *strings.Builder, e *xmlElem, qname func(string, string) string, decls []nsDecl, isRoot bool) {
-	b.WriteByte('<')
-	tag := qname(e.ns, e.name)
-	b.WriteString(tag)
-	if isRoot {
-		for _, d := range decls {
-			if d.prefix != "" {
-				b.WriteString(` xmlns:` + d.prefix + `="` + attribEscaper.Replace(d.uri) + `"`)
-			} else {
-				b.WriteString(` xmlns="` + attribEscaper.Replace(d.uri) + `"`)
-			}
-		}
-	}
-	for _, a := range e.attrs {
-		b.WriteByte(' ')
-		b.WriteString(qname(a.ns, a.name))
-		b.WriteString(`="`)
-		b.WriteString(attribEscaper.Replace(a.value))
-		b.WriteByte('"')
-	}
-	if e.text != "" || len(e.children) > 0 {
-		b.WriteByte('>')
-		if e.text != "" {
-			b.WriteString(cdataEscaper.Replace(e.text))
-		}
-		for _, c := range e.children {
-			writeXMLElement(b, c, qname, nil, false)
-		}
-		b.WriteString("</")
-		b.WriteString(tag)
-		b.WriteByte('>')
-	} else {
-		b.WriteString(" />")
-	}
-	if e.tail != "" {
-		b.WriteString(cdataEscaper.Replace(e.tail))
-	}
 }
 
 // ---- 输入编码转换 ----

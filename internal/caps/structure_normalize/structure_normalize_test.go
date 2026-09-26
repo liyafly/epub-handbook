@@ -714,29 +714,108 @@ func TestXHTMLReferenceScanner(t *testing.T) {
 	}
 }
 
-func TestETSerializerPinnedRules(t *testing.T) {
-	// 复刻 CPython 探针的结果：声明形状、未知 ns 的 ns0/ns1 编号、
-	// 属性原位更新、空元素 " />"、文本/属性转义。
-	src := `<?xml version="1.0" encoding="UTF-8"?>
-<root xmlns="urn:demo" xmlns:p="urn:other" k="a &lt; b">
-  <p:child />
-  <empty></empty>
-  <t>x &amp; y</t>
-</root>
+func TestRewriteOPFUsesLosslessAttributeEdits(t *testing.T) {
+	src := `<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE o:package>
+<o:package xmlns:o="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<!-- preserve this comment -->
+<?review preserve?>
+<o:metadata><dc:title><![CDATA[A < title]]></dc:title></o:metadata>
+<o:manifest><o:item id="chapter" href='old.xhtml?mode=read#start' media-type="application/xhtml+xml" /></o:manifest>
+<o:guide><o:reference href='old.xhtml#start' /><o:meta href="old.xhtml#ref" /></o:guide>
+</o:package>
 `
-	root, err := parseXMLTree([]byte(src))
+	input := append([]byte{0xEF, 0xBB, 0xBF}, []byte(src)...)
+	warnings := []string{}
+	rw := &refRewriter{
+		pathMap:  map[string]string{"OPS/old.xhtml": "OPS/new'chapter.xhtml"},
+		files:    map[string]bool{"OPS/old.xhtml": true},
+		warnings: &warnings,
+	}
+	got, err := rewriteOPF(input, "OPS/package.opf", rw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := string(etreeToBytes(root))
-	want := `<?xml version='1.0' encoding='utf-8'?>` + "\n" +
-		`<ns0:root xmlns:ns0="urn:demo" xmlns:ns1="urn:other" k="a &lt; b">` + "\n" +
-		`  <ns1:child />` + "\n" +
-		`  <ns0:empty />` + "\n" +
-		`  <ns0:t>x &amp; y</ns0:t>` + "\n" +
-		`</ns0:root>`
-	if got != want {
-		t.Fatalf("ET 序列化不一致:\n got %q\nwant %q", got, want)
+	wantText := strings.Replace(src, "old.xhtml?mode=read#start", "new%27chapter.xhtml?mode=read#start", 1)
+	wantText = strings.Replace(wantText, "old.xhtml#start", "new%27chapter.xhtml#start", 1)
+	wantText = strings.Replace(wantText, `href="old.xhtml#ref"`, `href="new%27chapter.xhtml#ref"`, 1)
+	want := append([]byte{0xEF, 0xBB, 0xBF}, []byte(wantText)...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("OPF 除目标属性外发生了字节变化:\n got %q\nwant %q", got, want)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("意外的引用告警: %v", warnings)
+	}
+}
+
+func TestRewriteOPFDoesNotApplyUTF8SpansToTranscodedSource(t *testing.T) {
+	prefix := []byte(`<?xml version="1.0" encoding="ISO-8859-1"?><package xmlns="http://www.idpf.org/2007/opf"><metadata><title>caf`)
+	noEditSuffix := []byte(`</title></metadata><manifest/></package>`)
+	noEdit := append(append([]byte(nil), prefix...), 0xe9)
+	noEdit = append(noEdit, noEditSuffix...)
+	warnings := []string{}
+	rw := &refRewriter{pathMap: map[string]string{}, files: map[string]bool{}, warnings: &warnings}
+	got, err := rewriteOPF(noEdit, "OPS/package.opf", rw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, noEdit) {
+		t.Fatalf("无修改的 legacy XML 应逐字节透传: got %q want %q", got, noEdit)
+	}
+
+	editSuffix := []byte(`</title></metadata><manifest><item id="chapter" href="old.xhtml"/></manifest></package>`)
+	withEdit := append(append([]byte(nil), prefix...), 0xe9)
+	withEdit = append(withEdit, editSuffix...)
+	rw = &refRewriter{
+		pathMap:  map[string]string{"OPS/old.xhtml": "OPS/new.xhtml"},
+		files:    map[string]bool{"OPS/old.xhtml": true},
+		warnings: &warnings,
+	}
+	if _, err := rewriteOPF(withEdit, "OPS/package.opf", rw); !errors.Is(err, ErrStructureTool) {
+		t.Fatalf("无法映射原始编码字节的编辑应安全失败，got %v", err)
+	}
+}
+
+func TestRewriteEncryptionXMLUsesLosslessEdits(t *testing.T) {
+	src := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE e:encryption>
+<e:encryption xmlns:e="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:x="http://www.w3.org/2001/04/xmlenc#">
+<!-- retain comment -->
+<?review retain?>
+<x:EncryptedData><x:CipherData><x:CipherReference URI='old/font.ttf?download=1#font'/></x:CipherData></x:EncryptedData>
+<!-- retain separator -->
+<x:EncryptedData><x:CipherData><x:CipherReference URI="missing.ttf"/></x:CipherData></x:EncryptedData><!-- retain tail -->
+<x:EncryptedData><x:CipherData/></x:EncryptedData><!-- retain empty-record tail -->
+</e:encryption>
+`
+	input := append([]byte{0xEF, 0xBB, 0xBF}, []byte(src)...)
+	got, keep, err := rewriteEncryptionXML(input, "META-INF/encryption.xml", map[string]bool{"old/font.ttf": true}, map[string]string{"old/font.ttf": "new/a&b.ttf"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !keep {
+		t.Fatal("保留资源仍有加密记录，keep 应为 true")
+	}
+	wantText := strings.Replace(src, "old/font.ttf?download=1#font", "new/a%26b.ttf?download=1#font", 1)
+	wantText = strings.Replace(wantText, `<x:EncryptedData><x:CipherData><x:CipherReference URI="missing.ttf"/></x:CipherData></x:EncryptedData>`, "", 1)
+	wantText = strings.Replace(wantText, `<x:EncryptedData><x:CipherData/></x:EncryptedData>`, "", 1)
+	want := append([]byte{0xEF, 0xBB, 0xBF}, []byte(wantText)...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("encryption.xml 除目标属性/元素外发生了字节变化:\n got %q\nwant %q", got, want)
+	}
+	if !bytes.Contains(got, []byte("<!DOCTYPE e:encryption>")) || !bytes.Contains(got, []byte("<?review retain?>")) || !bytes.Contains(got, []byte("<!-- retain separator -->")) {
+		t.Fatalf("DOCTYPE、PI 或邻接注释被改动或丢弃: %q", got)
+	}
+}
+
+func TestRewriteEncryptionXMLDropsEntryWhenNoEncryptedDataRemains(t *testing.T) {
+	input := []byte(`<encryption><EncryptedData><CipherData><CipherReference URI="gone.ttf"/></CipherData></EncryptedData></encryption>`)
+	got, keep, err := rewriteEncryptionXML(input, "META-INF/encryption.xml", map[string]bool{}, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if keep || got != nil {
+		t.Fatalf("全 stale 加密记录应要求移除 entry，got keep=%t data=%q", keep, got)
 	}
 }
 
