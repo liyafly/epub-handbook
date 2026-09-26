@@ -124,6 +124,38 @@ func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 	}
 }
 
+func TestRunVersionJSONReportsBuildAndPlatform(t *testing.T) {
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return run([]string{"version", "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%q", code, stderr)
+	}
+	var got struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+		BuiltAt string `json:"builtAt"`
+		Go      string `json:"go"`
+		GOOS    string `json:"goos"`
+		GOARCH  string `json:"goarch"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("version JSON is invalid: %v: %s", err, stdout)
+	}
+	if got.Version == "" || got.Commit == "" || got.BuiltAt == "" || got.Go == "" || got.GOOS == "" || got.GOARCH == "" {
+		t.Fatalf("version JSON is missing build information: %+v", got)
+	}
+}
+
+func TestRunVersionRejectsArguments(t *testing.T) {
+	code, _, stderr := captureRunFunc(t, func() int {
+		return run([]string{"version", "unexpected"})
+	})
+	if code != 3 || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("exit=%d stderr=%q, want usage error", code, stderr)
+	}
+}
+
 func TestRunCleanAcceptsInputBeforeAndAfterFlags(t *testing.T) {
 	root := t.TempDir()
 	input := filepath.Join(root, "input.epub")

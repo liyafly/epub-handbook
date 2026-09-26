@@ -9,6 +9,8 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 `epub run ... --json` 返回统一 JSON 信封（capabilities 返回数组，redline 返回文本），退出码 0/1/2/3
 （0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
 
+可从 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases/latest) 下载 0.4.0 CLI：Linux amd64、Windows amd64、macOS arm64 和 macOS amd64。发布附件含 SHA256 校验和与安装说明；二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。字体覆盖是可选 provider，安装方式见对应版本的发行说明。
+
 ## 我想……
 
 | 目标 | 最短入口 |

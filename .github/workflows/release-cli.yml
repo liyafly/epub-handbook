@@ -1,0 +1,165 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Go build, tests, vet, and guards
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build all packages
+        run: go build ./...
+
+      - name: Test application packages
+        shell: bash
+        run: |
+          packages="$(go list ./... | grep -vE '/internal/(archguard|docguard)$')"
+          test -n "$packages"
+          # Package paths contain no whitespace; keep guard packages in their own visible steps.
+          go test -count=1 $packages
+
+      - name: Vet all packages
+        run: go vet ./...
+
+      - name: Architecture guard
+        run: go test ./internal/archguard/ -v
+
+      - name: Documentation and contract guard
+        run: go test ./internal/docguard/ -v
+
+  native-smoke:
+    name: Native smoke (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+            binary: epub
+          - runner: windows-2025
+            goos: windows
+            goarch: amd64
+            binary: epub.exe
+          - runner: macos-15
+            goos: darwin
+            goarch: arm64
+            binary: epub
+          - runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            binary: epub
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set release metadata
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            release_version="${GITHUB_REF_NAME#v}"
+          else
+            release_version="0.4.0-dev"
+          fi
+          built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          printf 'RELEASE_VERSION=%s\n' "$release_version" >> "$GITHUB_ENV"
+          printf 'BUILT_AT=%s\n' "$built_at" >> "$GITHUB_ENV"
+        env:
+          TARGET_GOOS: ${{ matrix.goos }}
+          TARGET_GOARCH: ${{ matrix.goarch }}
+
+      - name: Build and package native binary
+        shell: bash
+        env:
+          TARGET_GOOS: ${{ matrix.goos }}
+          TARGET_GOARCH: ${{ matrix.goarch }}
+          BINARY_NAME: ${{ matrix.binary }}
+        run: |
+          mkdir -p dist release-artifacts
+          ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${GITHUB_SHA} -X main.builtAt=${BUILT_AT}"
+          go build -trimpath -buildvcs=true -ldflags "$ldflags" -o "dist/$BINARY_NAME" ./cmd/epub
+
+          package_dir="$RUNNER_TEMP/epub-package"
+          mkdir -p "$package_dir"
+          cp "dist/$BINARY_NAME" "$package_dir/$BINARY_NAME"
+          sed "s/@VERSION@/${RELEASE_VERSION}/g" docs/release/README.md > "$package_dir/README.md"
+          archive_name="epub_v${RELEASE_VERSION}_${TARGET_GOOS}_${TARGET_GOARCH}.tar.gz"
+          tar -czf "release-artifacts/$archive_name" -C "$package_dir" .
+
+      - name: Run outside-checkout smoke
+        shell: bash
+        env:
+          BINARY_NAME: ${{ matrix.binary }}
+          TARGET_GOOS: ${{ matrix.goos }}
+          TARGET_GOARCH: ${{ matrix.goarch }}
+        run: bash .github/scripts/release-smoke.sh "$GITHUB_WORKSPACE/dist/$BINARY_NAME" "$RELEASE_VERSION" "$TARGET_GOOS" "$TARGET_GOARCH"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epub-release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: release-artifacts/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: native-smoke
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: epub-release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Prepare checksums and release notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          shopt -s nullglob
+          archives=("dist/epub_v${version}_"*.tar.gz)
+          if [[ ${#archives[@]} -ne 4 ]]; then
+            echo "expected four native archives for v${version}, found ${#archives[@]}" >&2
+            exit 1
+          fi
+          (cd dist && sha256sum "epub_v${version}_"*.tar.gz > SHA256SUMS)
+          sed "s/@VERSION@/${version}/g" docs/release/README.md > dist/README.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/epub_v*.tar.gz
+            dist/SHA256SUMS
+            dist/README.md

@@ -41,6 +41,8 @@ func run(argv []string) int {
 		return runClean(argv[1:])
 	case "capabilities":
 		return runCapabilities(argv[1:])
+	case "version":
+		return runVersion(argv[1:])
 	case "redline":
 		return runRedline(argv[1:])
 	case "help", "-h", "--help":
@@ -64,6 +66,7 @@ func usage(w *os.File) {
              [--retain-review-candidate] [--jobs N] [--json]
             （默认只审计；typography 必须显式指定预设与范围）
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
+  epub version [--json]          显示版本、commit、构建时间与目标平台
   epub redline [--check TEXT,...|all] [--allow-list GLOB]...
             [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose] [--json]
             BEFORE AFTER
