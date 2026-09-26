@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.4.0 - 2026-09-26
+
+### Added
+
+- **`epub version` 与 CLI 发行包**：新增 plain / JSON 版本信息（version、commit、构建时间、Go 版本和目标平台）；为 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 增加原生构建、脱仓 smoke、SHA256 校验和及使用说明。smoke 覆盖版本、能力发现和内嵌 typography preset，不代表阅读器验收。
+
+### Changed
+
+- **阅读器矩阵证据状态**：缺少精确 artifact SHA 或阅读器版本的历史 pass 保留为历史观察并改标 warn，不再用于证明当前产物兼容。
 
 ### Fixed
 
