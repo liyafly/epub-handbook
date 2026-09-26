@@ -83,7 +83,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             release_version="${GITHUB_REF_NAME#v}"
           else
-            release_version="0.4.0-dev"
+            release_version="0.4.1-dev"
           fi
           built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           printf 'RELEASE_VERSION=%s\n' "$release_version" >> "$GITHUB_ENV"

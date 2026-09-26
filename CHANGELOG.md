@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.1 - 2026-09-26
+
+### Added
+
+- **书级 Git 快速工作区**：`templates/book-starter/new-book.sh` 一次创建独立本地仓库、解包 EPUB 源目录和制作记录；日常构建只覆盖 `dist/book.epub`，临时 EPUB、报告和字体子集不再堆积。
+- **`epub.font.subset`**：新增正式 Go capability，经 `internal/extern` 调用独立 `epub-font` provider；从书级 Git 中的完整字体母版生成并验证子集，只改内存候选中的字体 entry。
+
+### Changed
+
+- **书籍构建事务**：book-starter 和 EPUB style demo 改为固定输出名；导航审计与全项 redline 通过后才覆盖上次产物，失败时保留最近一次通过验证的 EPUB。
+- **书籍维护指南**：明确书级 Git 维护解包源、完整字体和制作决策；已有 EPUB 通过一次性清洗接入后，后续局部修改直接走单一构建命令。
+
 ## v0.4.0 - 2026-09-26
 
 ### Added
