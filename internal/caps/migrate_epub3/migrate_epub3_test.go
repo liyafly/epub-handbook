@@ -313,6 +313,181 @@ func TestInlineOnlyParagraphFormatting(t *testing.T) {
 	}
 }
 
+func TestApplyOPFTreeEditsPreservesUnchangedSource(t *testing.T) {
+	src := `<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE o:package>
+<o:package xmlns:o="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version='2.0'>
+<!-- keep comment -->
+<?review keep?>
+<o:metadata>
+  <dc:title><![CDATA[A < title]]></dc:title>
+  <dc:date event='creation'>2020</dc:date>
+</o:metadata>
+<o:manifest>
+  <o:item id='image' href='cover.jpg' media-type='image/gif' data='a &amp; b'/>
+</o:manifest>
+<o:spine/>
+</o:package>
+`
+	input := append([]byte{0xEF, 0xBB, 0xBF}, []byte(src)...)
+	root, err := parseXMLTree(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := captureOPFEditSnapshot("OPS/package.opf", input, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.setAttr("", "version", "3.0")
+	root.setAttr("", "prefix", "rendition: http://www.idpf.org/vocab/rendition/#")
+	metadata := root.childByTag(opfURI, "metadata")
+	date := metadata.childByTag(dcURI, "date")
+	date.delAttr("", "event")
+	metadata.appendChild(newElem(opfURI, "meta", xmlAttr{name: "property", value: "example"}))
+	metadata.children[len(metadata.children)-1].text = "new & now"
+	manifest := root.childByTag(opfURI, "manifest")
+	item := manifest.childByTag(opfURI, "item")
+	item.setAttr("", "media-type", "image/jpeg")
+	item.setAttr("", "properties", "cover-image")
+	manifest.appendChild(newElem(opfURI, "item",
+		xmlAttr{name: "id", value: "fresh"},
+		xmlAttr{name: "href", value: "fresh.xhtml"},
+		xmlAttr{name: "media-type", value: "application/xhtml+xml"},
+	))
+	spine := root.childByTag(opfURI, "spine")
+	spine.setAttr("", "toc", "ncx")
+	spine.appendChild(newElem(opfURI, "itemref", xmlAttr{name: "idref", value: "ncx"}))
+
+	got, err := applyOPFTreeEdits(snapshot, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantText := `<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE o:package>
+<o:package xmlns:o="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version='3.0' prefix="rendition: http://www.idpf.org/vocab/rendition/#">
+<!-- keep comment -->
+<?review keep?>
+<o:metadata>
+  <dc:title><![CDATA[A < title]]></dc:title>
+  <dc:date>2020</dc:date>
+  <o:meta property="example">new &amp; now</o:meta>
+</o:metadata>
+<o:manifest>
+  <o:item id='image' href='cover.jpg' media-type='image/jpeg' data='a &amp; b' properties="cover-image"/>
+  <o:item id="fresh" href="fresh.xhtml" media-type="application/xhtml+xml" />
+</o:manifest>
+<o:spine toc="ncx">
+  <o:itemref idref="ncx" />
+</o:spine>
+</o:package>
+`
+	want := append([]byte{0xEF, 0xBB, 0xBF}, []byte(wantText)...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("OPF 非目标字节发生变化:\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestApplyOPFTreeEditsReplacesLastMetadataNode(t *testing.T) {
+	src := `<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>
+  <dc:date event="creation">2020</dc:date>
+</metadata></package>`
+	input := []byte(src)
+	root, err := parseXMLTree(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := captureOPFEditSnapshot("OPS/package.opf", input, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := root.childByTag(opfURI, "metadata")
+	date := metadata.childByTag(dcURI, "date")
+	created := newElem(opfURI, "meta", xmlAttr{name: "property", value: "dcterms:created"})
+	created.text = date.text
+	index := metadata.indexOfChild(date)
+	metadata.removeChild(date)
+	metadata.insertChildAt(index, created)
+
+	got, err := applyOPFTreeEdits(snapshot, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>
+  <meta property="dcterms:created">2020</meta>
+</metadata></package>`
+	if string(got) != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestApplyOPFTreeEditsUpdatesExistingTextLosslessly(t *testing.T) {
+	src := `<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <!-- keep this comment -->
+  <metadata><meta property='dcterms:modified'>old &amp; date</meta></metadata>
+</package>`
+	input := []byte(src)
+	root, err := parseXMLTree(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := captureOPFEditSnapshot("OPS/package.opf", input, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modified := root.childByTag(opfURI, "metadata").childByTag(opfURI, "meta")
+	modified.text = "2026-09-26T00:00:00Z"
+	got, err := applyOPFTreeEdits(snapshot, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Replace(src, "old &amp; date", "2026-09-26T00:00:00Z", 1)
+	if string(got) != want {
+		t.Fatalf("OPF 非目标字节发生变化:\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestApplyOPFTreeEditsExpandsSelfClosingTextNode(t *testing.T) {
+	src := `<package xmlns="http://www.idpf.org/2007/opf"><metadata><meta property="dcterms:modified"/></metadata></package>`
+	input := []byte(src)
+	root, err := parseXMLTree(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := captureOPFEditSnapshot("OPS/package.opf", input, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modified := root.childByTag(opfURI, "metadata").childByTag(opfURI, "meta")
+	modified.text = "2026-09-26T00:00:00Z"
+	got, err := applyOPFTreeEdits(snapshot, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `<package xmlns="http://www.idpf.org/2007/opf"><metadata><meta property="dcterms:modified">2026-09-26T00:00:00Z</meta></metadata></package>`
+	if string(got) != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestApplyOPFTreeEditsRejectsTextWithCDATA(t *testing.T) {
+	src := `<package xmlns="http://www.idpf.org/2007/opf"><metadata><meta property="dcterms:modified"><![CDATA[old]]></meta></metadata></package>`
+	input := []byte(src)
+	root, err := parseXMLTree(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := captureOPFEditSnapshot("OPS/package.opf", input, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modified := root.childByTag(opfURI, "metadata").childByTag(opfURI, "meta")
+	modified.text = "2026-09-26T00:00:00Z"
+	if _, err := applyOPFTreeEdits(snapshot, root); err == nil {
+		t.Fatal("expected unsafe CDATA text replacement to fail")
+	}
+}
+
 func TestOneclickDefaultFixture(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy.epub")

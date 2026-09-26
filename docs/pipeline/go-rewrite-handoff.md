@@ -20,7 +20,7 @@
 | CLI | `cmd/epub` 只处理参数和退出码；业务编排在 `internal/pipeline`。 |
 | 契约 | `contracts/capabilities/` 定义 capability、权限、requires 与执行形态；v2 envelope 由 schema 和 INV-6 守卫。 |
 | EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出。 |
-| 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；禁止整份文档序列化。 |
+| 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize 与 EPUB3 OPF 迁移按范围写入。EPUB3 XHTML 迁移仍待移除整篇格式化。 |
 | 字体工具 | `tools-font/` 私有于仓库 provider，由 `internal/extern` 调用；不进入 CLI 发行包。 |
 | 遗留执行面 | Python 执行脚本与 parity harness 已移除；`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
 | 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选默认不保留，显式 `--retain-review-candidate` 时只写 `.review-only.epub`。 |

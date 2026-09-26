@@ -21,24 +21,6 @@ const (
 	renditionURI = "http://www.idpf.org/vocab/rendition/#"
 )
 
-// namespacePrefixesOPF 复刻 epub_lib.py import 期 register_namespace 之后的
-// ElementTree._namespace_map 终态。关键点：register_namespace 的实现会先删掉
-// 「同 URI 或同前缀」的旧条目，因此 epub_lib 末尾的
-// register_namespace("opf", OPF_URI) 抹掉了最初的 "" → OPF 绑定；
-// format_xhtml_multiline 的 finally 里虽然重注册 "" → OPF，但紧接着的
-// register_namespace("opf", OPF_URI) 又再次抹掉。最终 OPF 序列化带
-// opf: 前缀（<opf:package ...>）。xhtml 默认条目也被抹掉（html 前缀删除）。
-var namespacePrefixesOPF = map[string]string{
-	"http://www.w3.org/XML/1998/namespace":        "xml",
-	"http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf",
-	"http://schemas.xmlsoap.org/wsdl/":            "wsdl",
-	"http://www.w3.org/2001/XMLSchema":            "xs",
-	"http://www.w3.org/2001/XMLSchema-instance":   "xsi",
-	"http://purl.org/dc/elements/1.1/":            "dc",
-	"http://purl.org/dc/terms/":                   "dcterms",
-	"http://www.idpf.org/2007/opf":                "opf",
-}
-
 // namespacePrefixesXHTML 是 format_xhtml_multiline 序列化期间的注册表状态：
 // register_namespace("", XHTML_URI) 抹掉 html 默认条目并绑定空前缀，
 // register_namespace("epub", OPS_URI) 绑定 epub。

@@ -21,9 +21,8 @@
 //     normalize_duokan_notes → svg/mathml/scripted 属性标记 →
 //     format_xhtml_multiline（element-only 缩进、混合内容不缩进、
 //     无效 XML 原样放行）
-//  8. OPF 最终重序列化：字节区间编辑复刻 ET.tostring 输出（xmlmini），
-//     前缀注册表对齐 epub_lib.py import 期之后的 _namespace_map（OPF 带
-//     opf: 前缀，见 register.go 注释）。
+//  8. OPF 只编辑被迁移规则命中的属性、移除的旧 metadata 节点与新建的
+//     metadata / manifest / spine 片段；保留其它原文。
 //
 // 三段式（SPEC §6.1）：扫描只读 b 并产出 []editset.Edit；b.Apply 是唯一
 // 写点；报告不落盘。mimetype 重置与固定 mtime、字母序新 entry 由
@@ -167,6 +166,10 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	if err != nil {
 		return nil, convErrf("%s: XML parse failed: %v", opfPath, err)
 	}
+	opfSnapshot, err := captureOPFEditSnapshot(opfPath, opfData, root)
+	if err != nil {
+		return nil, err
+	}
 	if v, ok := root.getAttr("version"); ok {
 		rep.PackageVersionBefore = &v
 	}
@@ -209,7 +212,11 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	if err := ensureNav(files, root, opfPath, rep); err != nil {
 		return nil, err
 	}
-	files.write(opfPath, serializeTree(root, namespacePrefixesOPF, true))
+	updatedOPF, err := applyOPFTreeEdits(opfSnapshot, root)
+	if err != nil {
+		return nil, err
+	}
+	files.write(opfPath, updatedOPF)
 
 	edits, err := buildEdits(b, files)
 	if err != nil {

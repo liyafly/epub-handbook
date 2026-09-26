@@ -76,3 +76,20 @@ func RemoveElementEdit(path string, data []byte, node *SpanNode) editset.Edit {
 	end := node.TailAfter(data).End
 	return editset.Replace(path, int64(start), int64(end-start), []byte{})
 }
+
+// RemoveAttributeEdit removes one attribute and its immediately preceding
+// whitespace, while preserving the neighboring attribute bytes.
+func RemoveAttributeEdit(path string, data []byte, node *SpanNode, index int) (editset.Edit, error) {
+	if node == nil || index < 0 || index >= len(node.Attrs) {
+		return editset.Edit{}, fmt.Errorf("%s: attribute index %d is out of range", path, index)
+	}
+	raw := RawAttrsIn(data, node.Open)
+	if index >= len(raw) || raw[index].Span.Start < node.Open.Start || raw[index].Span.End > node.Open.End || raw[index].Span.Start > raw[index].Span.End {
+		return editset.Edit{}, fmt.Errorf("%s: attribute %d has no safe source span", path, index)
+	}
+	start := raw[index].Span.Start
+	for start > node.Open.Start+1 && isASCIISpaceByte(data[start-1]) {
+		start--
+	}
+	return editset.Replace(path, int64(start), int64(raw[index].Span.End-start), []byte{}), nil
+}

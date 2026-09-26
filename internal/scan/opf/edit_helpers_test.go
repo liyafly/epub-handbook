@@ -43,6 +43,26 @@ func TestSharedOPFEditsPreserveNeighborBytes(t *testing.T) {
 	}
 }
 
+func TestRemoveAttributeEditPreservesOtherAttributes(t *testing.T) {
+	data := []byte("<dc:date\n    event = 'creation'\n    keep=\"value\" />")
+	root, err := ScanSpanTree(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit, err := RemoveAttributeEdit("package.opf", data, root, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := editset.Apply("package.opf", data, []editset.Edit{edit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<dc:date\n    keep=\"value\" />"
+	if string(got) != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
 func TestClassTokenEdit(t *testing.T) {
 	tests := []struct {
 		name    string

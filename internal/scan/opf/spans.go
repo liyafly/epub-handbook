@@ -148,6 +148,7 @@ func (n *SpanNode) TailAfter(data []byte) Span {
 // RawAttr 是开标签里一个属性的原文投影。
 type RawAttr struct {
 	RawName   string
+	Span      Span // 属性名至结束引号（不含周边空白）
 	ValueSpan Span // 引号内的原文区间（无引号属性为零值）
 	Quote     byte // 0 表示无引号
 }
@@ -196,7 +197,7 @@ func RawAttrsIn(data []byte, open Span) []RawAttr {
 		}
 		if j >= len(s) || s[j] != '=' {
 			// 无值属性。
-			out = append(out, RawAttr{RawName: rawName})
+			out = append(out, RawAttr{RawName: rawName, Span: Span{Start: lo + nameStart, End: lo + i}})
 			i = j
 			continue
 		}
@@ -206,7 +207,7 @@ func RawAttrsIn(data []byte, open Span) []RawAttr {
 		}
 		if j >= len(s) || (s[j] != '"' && s[j] != '\'') {
 			// 非法形态：记为无值属性，保持与解码侧一一对应。
-			out = append(out, RawAttr{RawName: rawName})
+			out = append(out, RawAttr{RawName: rawName, Span: Span{Start: lo + nameStart, End: lo + j}})
 			i = j
 			continue
 		}
@@ -214,14 +215,18 @@ func RawAttrsIn(data []byte, open Span) []RawAttr {
 		vs := j + 1
 		ve := bytes.IndexByte(s[vs:], quote)
 		if ve < 0 {
-			out = append(out, RawAttr{RawName: rawName})
+			out = append(out, RawAttr{RawName: rawName, Span: Span{Start: lo + nameStart, End: lo + len(s)}})
 			i = len(s)
 			continue
 		}
 		ve += vs
 		isXMLNS := rawName == "xmlns" || strings.HasPrefix(rawName, "xmlns:")
 		if !isXMLNS {
-			out = append(out, RawAttr{RawName: rawName, ValueSpan: Span{Start: lo + vs, End: lo + ve}, Quote: quote})
+			out = append(out, RawAttr{
+				RawName:   rawName,
+				Span:      Span{Start: lo + nameStart, End: lo + ve + 1},
+				ValueSpan: Span{Start: lo + vs, End: lo + ve}, Quote: quote,
+			})
 		}
 		i = ve + 1
 	}

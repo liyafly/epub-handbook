@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **`epub.package.migrate.epub3` OPF 更新**：改用字节区间编辑，只改迁移命中的属性、metadata 与新建 manifest/spine 节点；保留非目标 OPF 原文，并对无法安全改写的文本形态明确拒绝。
 - **`epub.literary.structure.format`**：新增按显式 JSON 清单定位 spine XHTML 元素并追加白名单 class 的能力；支持多 class 合并、可选 manifest CSS 链接、歧义拒绝与整批 error 零写入。
 - **`epub clean`**：默认改为仅审计并生成计划；结构步骤须由 `--steps` 明确选择，typography 还须给出 `--preset` 与 `--scope`。`--approve` 仅在步骤、末次审计与全项红线通过后写出；失败候选默认不保留，显式 `--retain-review-candidate` 才另存为 `.review-only.epub`。批次新增 `--json` v2 汇总。
 - **`epub.typography.english.optimize`**：新增只补齐 spine XHTML 根节点 `lang` / `xml:lang` 的确定性写入能力；按主语言、body 声明和 CJK 比例跳过歧义页面，不改 CSS 与 OPF metadata。
