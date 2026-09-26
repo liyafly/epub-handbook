@@ -472,3 +472,106 @@ func sameLocalName(name, want string) bool {
 func isXHTMLSpace(value byte) bool {
 	return value == ' ' || value == '\t' || value == '\n' || value == '\r'
 }
+
+func pyMatchGroupByteSpan(match *pyMatch, name string) (int, int, bool) {
+	index, ok := match.re.named[name]
+	if !ok || !match.hasGroupI(index) {
+		return 0, 0, false
+	}
+	return match.byteStart(index), match.byteEnd(index), true
+}
+
+func matchHasRealElementBoundaries(text string, regions []xhtmlscan.Region, start, end int, firstName, lastName string) bool {
+	if start < 0 || end < start || end > len(text) {
+		return false
+	}
+	for start < end && isXHTMLSpace(text[start]) {
+		start++
+	}
+	for end > start && isXHTMLSpace(text[end-1]) {
+		end--
+	}
+	var first, last *xhtmlscan.Region
+	for i := range regions {
+		region := &regions[i]
+		if region.Kind != xhtmlscan.RegionTag || region.Span.Start < start || region.Span.End > end {
+			continue
+		}
+		if first == nil {
+			first = region
+		}
+		last = region
+	}
+	if first == nil || last == nil || first.Span.Start != start || last.Span.End != end {
+		return false
+	}
+	firstTag, firstClosing, firstOK := xhtmlRegionTag(text, *first)
+	lastTag, lastClosing, lastOK := xhtmlRegionTag(text, *last)
+	return firstOK && lastOK && !firstClosing && lastClosing &&
+		sameLocalName(firstTag.Name, firstName) && sameLocalName(lastTag.Name, lastName)
+}
+
+func matchHasRealSingleElement(text string, regions []xhtmlscan.Region, start, end int, name string) bool {
+	if start < 0 || end < start || end > len(text) {
+		return false
+	}
+	for start < end && isXHTMLSpace(text[start]) {
+		start++
+	}
+	for end > start && isXHTMLSpace(text[end-1]) {
+		end--
+	}
+	for _, region := range regions {
+		if region.Kind != xhtmlscan.RegionTag || region.Span.Start != start || region.Span.End != end {
+			continue
+		}
+		tag, closing, valid := xhtmlRegionTag(text, region)
+		return valid && !closing && sameLocalName(tag.Name, name)
+	}
+	return false
+}
+
+func regionTagNameAndClosing(text string, region xhtmlscan.Region) (string, bool, bool) {
+	if region.Kind != xhtmlscan.RegionTag || region.Span.Start < 0 || region.Span.End > len(text) || region.Span.Start >= region.Span.End {
+		return "", false, false
+	}
+	name, _, closing := xhtmlscan.TagParts(text[region.Span.Start:region.Span.End])
+	return name, closing, name != ""
+}
+
+func rewriteDuokanMarkerGlyph(text string) (string, int, string, error) {
+	regions, stop := xhtmlscan.ScanRegions(text)
+	warning := ""
+	if stop != xhtmlscan.ScanComplete {
+		warning = fmt.Sprintf("markup scan stopped at byte offset %d (unterminated comment/CDATA/PI/declaration/tag or unclosed style/script); Duokan note markup after this offset left unchanged", stop)
+	}
+	const oldGlyph, newGlyph = "⊙", "◎"
+	var edits []editset.Edit
+	for i, region := range regions {
+		if region.Kind != xhtmlscan.RegionTag {
+			continue
+		}
+		name, closing, valid := regionTagNameAndClosing(text, region)
+		if !valid || !closing || !sameLocalName(name, "a") {
+			continue
+		}
+		for j := i - 1; j >= 0; j-- {
+			previous := regions[j]
+			if previous.Kind != xhtmlscan.RegionTag || previous.Span.End+len(oldGlyph) != region.Span.Start {
+				continue
+			}
+			if string(text[previous.Span.End:region.Span.Start]) == oldGlyph {
+				edits = append(edits, editset.Replace("xhtml", int64(previous.Span.End), int64(len(oldGlyph)), []byte(newGlyph)))
+			}
+			break
+		}
+	}
+	updated, changed, err := applyXHTMLEdits(text, edits)
+	if err != nil {
+		return "", 0, warning, err
+	}
+	if !changed {
+		updated = text
+	}
+	return updated, len(edits), warning, nil
+}

@@ -82,7 +82,6 @@ func buildPatterns() map[string]*pyRegexp {
 	def("sigilNote", `<aside\b(?=[^>]*\bid\s*=\s*["']footnote_(?P<num>\d+)["'])[^>]*>\s*<p\b[^>]*>\s*<a\b(?=[^>]*\bhref\s*=\s*["']#noteref_(?P=num)["'])[^>]*>\s*\[(?P=num)\]\s*</a>(?P<body>.*?)</p>\s*</aside>`, true, true)
 	def("sigilNoteref", `<a\b(?=[^>]*\bid\s*=\s*["']noteref_(?P<num>\d+)["'])[^>]*>\s*\[(?P=num)\]\s*</a>`, true, true)
 	def("noteMarkerSup", `<sup(?P<attrs>\s[^>]*)?>(?P<content>\s*<a\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bnoteref-icon\b)[^>]*>.*?</a>\s*)</sup>`, true, true)
-	def("classAttr", `\bclass\s*=\s*(?P<quote>["'])(?P<value>[^"']*)(?P=quote)`, true, false)
 	def("hrBeforeNotes", `\s*<hr\b[^>]*/?>\s*$`, true, true)
 	// 属性标记检查（re.I）。
 	def("svgCheck", `<(?:svg|svg:svg)\b`, true, false)

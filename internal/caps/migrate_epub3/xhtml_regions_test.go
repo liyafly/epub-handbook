@@ -46,10 +46,19 @@ func TestNormalizeDuokanNotesSkipsEscapedProse(t *testing.T) {
 			want:      `<!-- <li class="duokan-footnote-item"> --><![CDATA[class="duokan-footnote"]]><br/>`,
 			wantCount: 0,
 		},
+		{
+			name:      "注释中的 aside 和 glyph 示例不改",
+			in:        `<!-- <aside epub:type="footnote">fake</aside> >⊙</a> --><p>正文</p>`,
+			want:      `<!-- <aside epub:type="footnote">fake</aside> >⊙</a> --><p>正文</p>`,
+			wantCount: 0,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, count, warnings := normalizeDuokanNotes(tc.in)
+			got, count, warnings, err := normalizeDuokanNotes(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if got != tc.want {
 				t.Errorf("改写结果不符:\n got %s\nwant %s", got, tc.want)
 			}
@@ -63,11 +72,57 @@ func TestNormalizeDuokanNotesSkipsEscapedProse(t *testing.T) {
 	}
 }
 
+func TestPlainAndSigilNoteConvertersIgnoreCommentExamples(t *testing.T) {
+	plain := `<!-- <p class="note"><a id="m1"></a><a href="#w1">[1]</a> note</p><a id="w1"></a><a href="#m1"><sup>[1]</sup></a> -->`
+	got, converted, markers, err := convertPlainNotes(plain, "../Images/note.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != plain || converted != 0 || markers != 0 {
+		t.Fatalf("comment text must remain unchanged: converted=%d markers=%d got=%q", converted, markers, got)
+	}
+
+	sigil := `<!-- <section epub:type="footnotes"><aside id="footnote_1"><p><a href="#noteref_1">[1]</a>note</p></aside></section><a id="noteref_1">[1]</a> -->`
+	got, converted, markers, err = convertSigilLegacyNotes(sigil, "../Images/note.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != sigil || converted != 0 || markers != 0 {
+		t.Fatalf("comment text must remain unchanged: converted=%d markers=%d got=%q", converted, markers, got)
+	}
+}
+
+func TestPlainNoteConverterKeepsInterleavedBodyContent(t *testing.T) {
+	input := `<p>正文<a id="w1"></a><a href="#m1"><sup>[1]</sup></a></p><p class="note"><a id="m1"></a><a href="#w1">[1]</a>note one</p><p>keep this paragraph</p><p class="note"><a id="m2"></a><a href="#w2">[2]</a>note two</p>`
+	got, converted, markers, err := convertPlainNotes(input, "../Images/note.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != input || converted != 0 || markers != 0 {
+		t.Fatalf("interleaved body content must block conversion: converted=%d markers=%d got=%q", converted, markers, got)
+	}
+}
+
+func TestMarkNoteMarkerSupIgnoresCommentExamples(t *testing.T) {
+	input := `<!-- <sup><a class="noteref-icon" href="#n">x</a></sup> --><p><sup class='keep'><a class="noteref-icon" href="#n">x</a></sup></p>`
+	want := `<!-- <sup><a class="noteref-icon" href="#n">x</a></sup> --><p><sup class='keep note-marker'><a class="noteref-icon" href="#n">x</a></sup></p>`
+	got, changed, err := markNoteMarkerSup(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed || got != want {
+		t.Fatalf("got %q changed=%t want %q", got, changed, want)
+	}
+}
+
 // TestNormalizeDuokanNotesWarnsOnTruncatedScan 断言区域扫描截断时不静默半改：
 // 截断点之后的标签保持原样，并给出带偏移的告警。
 func TestNormalizeDuokanNotesWarnsOnTruncatedScan(t *testing.T) {
 	in := `<li class="duokan-footnote-item">a</li><!-- 未闭合注释 <li class="duokan-footnote-item">`
-	got, count, warnings := normalizeDuokanNotes(in)
+	got, count, warnings, err := normalizeDuokanNotes(in)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if count != 1 {
 		t.Errorf("截断前的标签应改名一次, count = %d", count)
 	}
