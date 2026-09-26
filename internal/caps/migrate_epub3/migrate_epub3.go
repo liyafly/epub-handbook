@@ -18,9 +18,8 @@
 //  6. note.png 图标（优先读 skills 资产；href 按 unique_href 规则）
 //  7. update_xhtml_files 每页管线：normalize_xhtml_shell →
 //     convert_plain_notes → convert_sigil_legacy_notes →
-//     normalize_duokan_notes → svg/mathml/scripted 属性标记 →
-//     format_xhtml_multiline（element-only 缩进、混合内容不缩进、
-//     无效 XML 原样放行）
+//     normalize_duokan_notes → svg/mathml/scripted 属性标记；XHTML shell 与
+//     metadata 的变更只落在目标字节区间，不整页格式化。
 //  8. OPF 只编辑被迁移规则命中的属性、移除的旧 metadata 节点与新建的
 //     metadata / manifest / spine 片段；保留其它原文。
 //

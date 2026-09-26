@@ -1,12 +1,12 @@
-// xhtml.go 复刻 scripts/epub3_conversion/core.py 的每页 XHTML 管线：
-// normalize_xhtml_shell、format_xhtml_multiline（element-only 缩进）、
-// ensure_stylesheet_link、三类弹注迁移（plain / Sigil / Duokan）与
-// note-marker 标记。全部正则经 pyregex.go 按 Python re 语义执行。
+// xhtml.go 实现 EPUB3 迁移的 XHTML 页面处理：shell 属性与插入使用字节范围
+// 编辑，弹注转换保留其能力专属结构逻辑；不对整页做 parse/serialize 往返。
 package migrateepub3
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
@@ -26,132 +26,6 @@ func xhtmlDefaultLanguage(root *xmlElem) string {
 		}
 	}
 	return ""
-}
-
-// normalizeXHTMLShell 逐行复刻 core.normalize_xhtml_shell。
-func normalizeXHTMLShell(text, defaultLanguage string) (string, bool) {
-	changed := false
-	if _, ok := pyPatterns["doctype"].search(text); ok {
-		text, _ = pyPatterns["doctype"].subTemplate(text, "", 1)
-		changed = true
-	}
-	declaration := ""
-	if m, ok := pyPatterns["xmlDecl"].search(text); ok {
-		declaration = pyStrip(m.groupI(0)) + "\n"
-		end := m.byteEnd(0)
-		if end < 0 || end > len(text) {
-			end = 0
-		}
-		text = pyStripLeft(text[end:])
-	}
-	if !strings.HasPrefix(strings.ToLower(pyStripLeft(text)), "<!doctype html>") {
-		text = declaration + "<!DOCTYPE html>\n" + pyStripLeft(text)
-		changed = true
-	} else if declaration != "" {
-		text = declaration + pyStripLeft(text)
-	}
-
-	if m, ok := pyPatterns["htmlTag"].search(text); ok {
-		attrs := m.groupI(1)
-		if !strings.Contains(attrs, "xmlns:epub") {
-			attrs += ` xmlns:epub="` + opsURI + `"`
-			changed = true
-		}
-		langMatch, hasLang := pyPatterns["langAttr"].search(attrs)
-		xmlLangMatch, hasXMLLang := pyPatterns["xmlLangAttr"].search(attrs)
-		language := ""
-		if defaultLanguage != "" {
-			language = pyStrip(defaultLanguage)
-		}
-		if !hasLang && (hasXMLLang || language != "") {
-			value := language
-			if hasXMLLang {
-				value = xmlLangMatch.groupI(2)
-			}
-			attrs += ` lang="` + saxEscapeAttr(value) + `"`
-			changed = true
-		}
-		if !hasXMLLang && (hasLang || language != "") {
-			value := language
-			if hasLang {
-				value = langMatch.groupI(2)
-			}
-			attrs += ` xml:lang="` + saxEscapeAttr(value) + `"`
-			changed = true
-		}
-		text = text[:m.byteStart(0)] + "<html" + attrs + ">" + text[m.byteEnd(0):]
-	}
-
-	if _, ok := pyPatterns["metaHTTP"].search(text); ok {
-		text, _ = pyPatterns["metaHTTP"].subTemplate(text, `<meta charset="utf-8"/>`, 1)
-		changed = true
-	} else if !strings.Contains(strings.ToLower(text), "<meta charset=") {
-		if _, ok := pyPatterns["headEnd"].search(text); ok {
-			text, _ = pyPatterns["headEnd"].subTemplate(text, "  <meta charset=\"utf-8\"/>\n</head>", 1)
-			changed = true
-		}
-	}
-	if strings.Contains(strings.ToLower(text), "<big") {
-		text, _ = pyPatterns["bigOpen"].subTemplate(text, `<span\1 class="big">`, 0)
-		text, _ = pyPatterns["bigClose"].subTemplate(text, `</span>`, 0)
-		changed = true
-	}
-	return text, changed
-}
-
-// formatXHTMLMultiline 逐行复刻 core.format_xhtml_multiline：
-// 解析失败（无效 XML）时原样放行。
-func formatXHTMLMultiline(text string) (string, bool) {
-	stripped, _ := pyPatterns["xmlDecl"].subTemplate(text, "", 1)
-	stripped, _ = pyPatterns["doctype"].subTemplate(stripped, "", 1)
-	stripped = pyStrip(stripped)
-	root, err := parseXMLTree([]byte(stripped))
-	if err != nil {
-		return text, false
-	}
-	indentElementOnly(root, 0)
-	formatted := "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!DOCTYPE html>\n" +
-		string(serializeTree(root, namespacePrefixesXHTML, false)) + "\n"
-	return formatted, formatted != text
-}
-
-// hasMixedTextContent 逐行复刻 core.has_mixed_text_content。
-func hasMixedTextContent(e *xmlElem) bool {
-	if pyStrip(e.text) != "" {
-		return true
-	}
-	for _, child := range e.children {
-		if pyStrip(child.tail) != "" || inlineContentTags[child.name] {
-			return true
-		}
-	}
-	return false
-}
-
-// indentElementOnly 逐行复刻 core.indent_element_only。
-func indentElementOnly(e *xmlElem, level int) {
-	children := e.children
-	if len(children) == 0 || hasMixedTextContent(e) {
-		return
-	}
-	childIndent := "\n" + strings.Repeat("  ", level+1)
-	parentIndent := "\n" + strings.Repeat("  ", level)
-	e.text = childIndent
-	for _, child := range children {
-		indentElementOnly(child, level+1)
-		child.tail = childIndent
-	}
-	children[len(children)-1].tail = parentIndent
-}
-
-// ensureStylesheetLink 逐行复刻 epub_lib.ensure_stylesheet_link。
-func ensureStylesheetLink(text, href string) (string, bool) {
-	if strings.Contains(text, href) {
-		return text, false
-	}
-	link := `  <link href="` + href + `" type="text/css" rel="stylesheet"/>` + "\n"
-	updated, n := pyPatterns["headEnd"].subTemplate(text, link+"</head>", 1)
-	return updated, n > 0
 }
 
 // updateXHTMLFiles 逐行复刻 core.update_xhtml_files。
@@ -174,12 +48,21 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 		if err != nil {
 			continue
 		}
+		if !xhtmlSourceIsUTF8(original) {
+			return false, convErrf("%s: lossless XHTML migration requires UTF-8 source bytes", zipPath)
+		}
 		text := utf8ReplaceDecode(original)
-		text, changed := normalizeXHTMLShell(text, defaultLanguage)
+		text, changed, err := normalizeXHTMLShell(text, defaultLanguage)
+		if err != nil {
+			return false, convErrf("%s: cannot normalize XHTML shell: %v", zipPath, err)
+		}
 		if typography {
 			styleHref := relHref(zipPath, styleZip)
 			var linked bool
-			text, linked = ensureStylesheetLink(text, styleHref)
+			text, linked, err = ensureStylesheetLink(text, styleHref)
+			if err != nil {
+				return false, convErrf("%s: cannot add stylesheet link: %v", zipPath, err)
+			}
 			if linked {
 				rep.StylesheetLinksAdded++
 				changed = true
@@ -220,14 +103,45 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 		if pyPatterns["scriptCheck"].hasMatch(text) && addProps(item, "scripted") {
 			rep.ManifestItemsUpdated++
 		}
-		text, reformatted := formatXHTMLMultiline(text)
-		changed = changed || reformatted
 		if changed {
 			files.write(zipPath, []byte(text))
 			rep.XHTMLFilesUpdated++
 		}
 	}
 	return defaultNoteIconUsed, nil
+}
+
+func xhtmlSourceIsUTF8(data []byte) bool {
+	if !utf8.Valid(data) {
+		return false
+	}
+	if bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
+		data = data[3:]
+	}
+	i := 0
+	for i < len(data) && (data[i] == ' ' || data[i] == '\t' || data[i] == '\r' || data[i] == '\n') {
+		i++
+	}
+	const xmlTarget = "<?xml"
+	if len(data[i:]) < len(xmlTarget) || !strings.EqualFold(string(data[i:i+len(xmlTarget)]), xmlTarget) {
+		return true
+	}
+	if i+len(xmlTarget) < len(data) {
+		next := data[i+len(xmlTarget)]
+		if next != ' ' && next != '\t' && next != '\r' && next != '\n' && next != '?' {
+			return true // e.g. an xml-stylesheet processing instruction
+		}
+	}
+	end := bytes.Index(data[i:], []byte("?>"))
+	if end < 0 {
+		return false
+	}
+	decl := data[i : i+end+2]
+	encoding := xmlEncodingRe.FindSubmatch(decl)
+	if encoding == nil {
+		return true
+	}
+	return strings.EqualFold(string(encoding[1]), "utf-8") || strings.EqualFold(string(encoding[1]), "utf8")
 }
 
 // ---- 弹注迁移（scripts/epub3_conversion/notes.py → core） ----

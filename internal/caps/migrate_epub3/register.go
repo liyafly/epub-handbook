@@ -5,7 +5,6 @@ package migrateepub3
 
 import (
 	"regexp"
-	"strings"
 )
 
 // Python 侧 XML 命名空间 URI（epub_lib.py）。
@@ -19,41 +18,6 @@ const (
 	opsURI       = "http://www.idpf.org/2007/ops"
 	ibooksPrefix = "http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/"
 	renditionURI = "http://www.idpf.org/vocab/rendition/#"
-)
-
-// namespacePrefixesXHTML 是 format_xhtml_multiline 序列化期间的注册表状态：
-// register_namespace("", XHTML_URI) 抹掉 html 默认条目并绑定空前缀，
-// register_namespace("epub", OPS_URI) 绑定 epub。
-var namespacePrefixesXHTML = map[string]string{
-	"http://www.w3.org/XML/1998/namespace":        "xml",
-	"http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf",
-	"http://schemas.xmlsoap.org/wsdl/":            "wsdl",
-	"http://www.w3.org/2001/XMLSchema":            "xs",
-	"http://www.w3.org/2001/XMLSchema-instance":   "xsi",
-	"http://purl.org/dc/elements/1.1/":            "dc",
-	"http://purl.org/dc/terms/":                   "dcterms",
-	"http://www.idpf.org/2007/opf":                "opf",
-	"http://www.idpf.org/2007/ops":                "epub",
-	"http://www.w3.org/1999/xhtml":                "",
-}
-
-// attribEscaper 复刻 ElementTree._escape_attrib：属性值转义
-// & < > " \r \n \t。
-var attribEscaper = strings.NewReplacer(
-	"&", "&amp;",
-	"<", "&lt;",
-	">", "&gt;",
-	`"`, "&quot;",
-	"\r", "&#13;",
-	"\n", "&#10;",
-	"\t", "&#09;",
-)
-
-// cdataEscaper 复刻 ElementTree._escape_cdata：文本与 tail 只转义 & < >。
-var cdataEscaper = strings.NewReplacer(
-	"&", "&amp;",
-	"<", "&lt;",
-	">", "&gt;",
 )
 
 // xmlEncodingRe 复刻 XML_ENCODING_RE：从字节前缀里提取声明的编码名。
@@ -89,15 +53,6 @@ var typographyRoles = []string{
 	"type-meta",
 }
 
-// inlineContentTags 对齐 INLINE_CONTENT_TAGS。
-var inlineContentTags = map[string]bool{
-	"a": true, "abbr": true, "b": true, "bdi": true, "bdo": true, "br": true,
-	"cite": true, "code": true, "em": true, "i": true, "img": true,
-	"kbd": true, "label": true, "mark": true, "q": true, "ruby": true,
-	"s": true, "samp": true, "small": true, "span": true, "strong": true,
-	"sub": true, "sup": true, "time": true, "u": true, "var": true, "wbr": true,
-}
-
 // guideTypeToEpub 对齐 GUIDE_TYPE_TO_EPUB。
 var guideTypeToEpub = map[string]string{
 	"cover":          "cover",
@@ -118,17 +73,7 @@ func buildPatterns() map[string]*pyRegexp {
 	// sanitize_ncx_text 的坏引号修复（re.I）。
 	def("ncxSrcFix", `(<content\b[^>]*\bsrc=)(["'])([^"']+?)(["'])(#[^"'>\s/]+)`, true, false)
 	// normalize_xhtml_shell（re.I；DOCTYPE 另有 re.S）。
-	def("xmlDecl", `^\s*<\?xml[^>]*\?>`, true, false)
 	def("doctype", `<!DOCTYPE[^>]*>`, true, true)
-	def("htmlTag", `<html\b([^>]*)>`, true, false)
-	def("headEnd", `</head\s*>`, true, false)
-	def("metaHTTP", `<meta\b(?=[^>]*http-equiv=["']Content-Type["'])(?=[^>]*charset=utf-8)[^>]*/?>`, true, false)
-	// html_repl 的 lang 补齐（无 re.I）。
-	def("langAttr", `(?<![:\w-])lang\s*=\s*(["'])(.*?)\1`, false, false)
-	def("xmlLangAttr", `xml:lang\s*=\s*(["'])(.*?)\1`, false, false)
-	// big → span。
-	def("bigOpen", `<big\b([^>]*)>`, true, false)
-	def("bigClose", `</big\s*>`, true, false)
 	// 本地纯文本弹注（re.S）。
 	def("plainNoteref", `<a\s+id="w(?P<num>\d+)"></a>\s*<a\s+href="(?P<href>[^"]*#m(?P=num))">\s*<sup>\[(?P=num)\]</sup>\s*</a>`, false, true)
 	def("plainNote", `\s*<p\s+class="note"\s*>\s*<a\s+id="m(?P<num>\d+)"></a>\s*<a\s+href="[^"]*#w(?P=num)">\[(?P=num)\]</a>\s*(?P<body>.*?)</p>`, false, true)

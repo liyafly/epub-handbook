@@ -300,19 +300,6 @@ func factsOf(t *testing.T, res report.Result) resultFacts {
 
 // ---- 语义测试（镜像 scripts/test_epub3_oneclick_converter.py） ----
 
-func TestInlineOnlyParagraphFormatting(t *testing.T) {
-	source := `<?xml version="1.0"?><!DOCTYPE html>` +
-		`<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head>` +
-		`<body><p><span>甲</span><span>乙</span></p></body></html>`
-	formatted, changed := formatXHTMLMultiline(source)
-	if !changed {
-		t.Fatal("应报告 changed")
-	}
-	if !strings.Contains(formatted, "<p><span>甲</span><span>乙</span></p>") {
-		t.Fatalf("行内内容不应缩进:\n%s", formatted)
-	}
-}
-
 func TestApplyOPFTreeEditsPreservesUnchangedSource(t *testing.T) {
 	src := `<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE o:package>
@@ -590,8 +577,6 @@ func TestOneclickDefaultFixture(t *testing.T) {
 		`class="footnote-list"`,
 		`role="doc-backlink"`,
 		"注释正文保留。",
-		"\n  <head>",
-		"\n  <body>",
 	} {
 		if !strings.Contains(chapter, want) {
 			t.Errorf("chapter 缺少 %q:\n%s", want, chapter)

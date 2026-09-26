@@ -1,13 +1,9 @@
-// xmlmini.go 提供与 Python ElementTree 字节兼容的最小 XML 模型。
+// xmlmini.go 提供与 Python ElementTree 语义兼容的最小 XML 模型。
 // 从 internal/caps/structure_normalize/xmlmini.go 复制并按本 capability
 // 的需要裁剪（caps 之间禁止 import，故整份私有拷贝）：
 //
-//   - 解析（含命名空间、实体、EOL 归一）→ 树上做与 Python 相同的变更
-//     → 按 ET.tostring 的确切规则序列化。与 structure_normalize 的差别
-//     在命名空间前缀注册表：epub_lib.py import 期最后一次
-//     register_namespace("opf", OPF_URI) 会把 OPF 绑定到 "opf" 前缀
-//     （空前缀注册被同 URI 的后注册抹掉），因此 OPF 输出是
-//     <opf:package ...>；而 XHTML 排版序列化期间 "" → xhtml。
+//   - 解析（含命名空间、实体、EOL 归一）→ 树上执行迁移规则；OPF 与 XHTML
+//     写回走各自的字节范围编辑器，不经整文档序列化。
 //   - posixpath 的 join/normpath/dirname/basename/splitext/relpath 语义。
 package migrateepub3
 
@@ -666,112 +662,6 @@ func decodeEntity(s string) (string, int, error) {
 
 func validXMLRune(r rune) bool {
 	return r != 0 && r <= utf8.MaxRune && !(r >= 0xD800 && r <= 0xDFFF)
-}
-
-// ---- 序列化（复刻 ET.tostring 的确切输出） ----
-
-type nsDecl struct {
-	prefix string
-	uri    string
-}
-
-// serializeTree 复刻 ET.tostring：qname 前缀查 prefixes（uri → prefix），
-// 不在表内的 URI 按 "ns%d"（当前已登记数量）生成；声明全部落在根元素、
-// 按前缀稳定排序；空前缀输出 xmlns="..."；空元素 <tag />；
-// 属性转义 & < > " \r \n \t，文本/tail 只转义 & < >。
-// withDecl 为 true 时输出 <?xml version='1.0' encoding='utf-8'?>\n 前缀。
-func serializeTree(root *xmlElem, prefixes map[string]string, withDecl bool) []byte {
-	used := map[string]string{} // uri → prefix
-	var decls []nsDecl
-	qname := func(ns, name string) string {
-		if ns == "" {
-			return name
-		}
-		prefix, ok := used[ns]
-		if !ok {
-			var known bool
-			prefix, known = prefixes[ns] // 不能用 := —— 会遮蔽外层 prefix
-			if !known {
-				prefix = fmt.Sprintf("ns%d", len(used))
-			}
-			if prefix != "xml" { // xml 前缀不声明（与 CPython 一致）
-				used[ns] = prefix
-				decls = append(decls, nsDecl{prefix: prefix, uri: ns})
-			}
-		}
-		if prefix == "" {
-			return name
-		}
-		return prefix + ":" + name
-	}
-	// 收集命名空间：文档序（前序），元素 tag 先于其属性。
-	var walk func(e *xmlElem)
-	walk = func(e *xmlElem) {
-		qname(e.ns, e.name)
-		for _, a := range e.attrs {
-			qname(a.ns, a.name)
-		}
-		for _, c := range e.children {
-			walk(c)
-		}
-	}
-	walk(root)
-
-	sortStableByPrefix(decls)
-
-	var b strings.Builder
-	if withDecl {
-		b.WriteString("<?xml version='1.0' encoding='utf-8'?>\n")
-	}
-	writeXMLElement(&b, root, qname, decls, true)
-	return []byte(b.String())
-}
-
-func sortStableByPrefix(decls []nsDecl) {
-	for i := 1; i < len(decls); i++ {
-		for j := i; j > 0 && decls[j].prefix < decls[j-1].prefix; j-- {
-			decls[j], decls[j-1] = decls[j-1], decls[j]
-		}
-	}
-}
-
-func writeXMLElement(b *strings.Builder, e *xmlElem, qname func(string, string) string, decls []nsDecl, isRoot bool) {
-	b.WriteByte('<')
-	tag := qname(e.ns, e.name)
-	b.WriteString(tag)
-	if isRoot {
-		for _, d := range decls {
-			if d.prefix != "" {
-				b.WriteString(` xmlns:` + d.prefix + `="` + attribEscaper.Replace(d.uri) + `"`)
-			} else {
-				b.WriteString(` xmlns="` + attribEscaper.Replace(d.uri) + `"`)
-			}
-		}
-	}
-	for _, a := range e.attrs {
-		b.WriteByte(' ')
-		b.WriteString(qname(a.ns, a.name))
-		b.WriteString(`="`)
-		b.WriteString(attribEscaper.Replace(a.value))
-		b.WriteByte('"')
-	}
-	if e.text != "" || len(e.children) > 0 {
-		b.WriteByte('>')
-		if e.text != "" {
-			b.WriteString(cdataEscaper.Replace(e.text))
-		}
-		for _, c := range e.children {
-			writeXMLElement(b, c, qname, nil, false)
-		}
-		b.WriteString("</")
-		b.WriteString(tag)
-		b.WriteByte('>')
-	} else {
-		b.WriteString(" />")
-	}
-	if e.tail != "" {
-		b.WriteString(cdataEscaper.Replace(e.tail))
-	}
 }
 
 // ---- 输入编码转换 ----
