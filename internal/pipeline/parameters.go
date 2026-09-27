@@ -11,6 +11,9 @@ import (
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
+// CapabilityInfo is the public discovery model used by the CLI presentation layer.
+type CapabilityInfo = report.CapabilityInfo
+
 func loadParameterCatalog(root string) (report.ParameterCatalog, error) {
 	var catalog report.ParameterCatalog
 	raw, err := readRepositoryFile(root, "contracts/parameters/v2/cli.json")

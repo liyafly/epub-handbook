@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/liyafly/epub-handbook/internal/pipeline"
+	"github.com/liyafly/epub-handbook/internal/report"
 )
 
 func TestRunCapabilityUsageErrorsHonorJSON(t *testing.T) {
@@ -121,6 +124,53 @@ func TestRunRedlineJSONPassAndFail(t *testing.T) {
 func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
 	if code := runCapabilities([]string{"--id", "no.such.capability"}); code != 3 {
 		t.Fatalf("unknown capability exit = %d, want 3", code)
+	}
+}
+
+func TestCapabilitiesTextShowsContractDetailsInStableOrder(t *testing.T) {
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return runCapabilities([]string{"--id", "epub.typography.optimize"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%q", code, stderr)
+	}
+	for _, want := range []string{"应用样式预设", "input:      epub", "output:     single", "preset (string) default=\"literary-cn\"", "scope_paths (json-string-array)"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("capability detail output missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Index(stdout, "  allow_font_obfuscation") > strings.Index(stdout, "  preset (string)") || strings.Index(stdout, "  preset (string)") > strings.Index(stdout, "  scope_paths (") {
+		t.Fatalf("parameter order is not stable: %s", stdout)
+	}
+}
+
+func TestStyleCatalogTextShowsMatchesAndNoMatchGuidance(t *testing.T) {
+	for _, tc := range []struct {
+		query string
+		want  string
+	}{
+		{query: "chapter", want: "scenes:"},
+		{query: "no-such-scene-should-match", want: "0 scenes matched; try a shorter query"},
+	} {
+		code, stdout, stderr := captureRunCapability(t, []string{"epub.style.demo.maintain", "catalog=true", "query=" + tc.query})
+		if code != 0 || stderr != "" || !strings.Contains(stdout, tc.want) {
+			t.Errorf("query %q: exit=%d stderr=%q stdout=%q", tc.query, code, stderr, stdout)
+		}
+	}
+}
+
+func TestCleanBatchSummarySeparatesPlannedFromWrittenOutputs(t *testing.T) {
+	result := pipeline.CleanBatchResult{Books: []pipeline.CleanBookResult{
+		{Envelope: report.Envelope{Status: report.StatusPlanned}},
+		{Envelope: report.Envelope{Status: report.StatusComplete}, OutputPath: "book.epub"},
+		{Envelope: report.Envelope{Status: report.StatusFailed}},
+		{Envelope: report.Envelope{Status: report.StatusCancelled}},
+	}}
+	got := formatCleanBatchSummary(result)
+	for _, want := range []string{"planned=1", "complete=1", "failed=1", "cancelled=1", "outputs=1/4", "planned books have no written EPUB"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("summary missing %q: %s", want, got)
+		}
 	}
 }
 

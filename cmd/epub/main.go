@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -174,7 +175,27 @@ func runClean(argv []string) int {
 			fmt.Fprintln(os.Stderr, "epub clean:", book.Err)
 		}
 	}
+	fmt.Println(formatCleanBatchSummary(result))
 	return result.ExitCode
+}
+
+func formatCleanBatchSummary(result pipeline.CleanBatchResult) string {
+	counts := map[string]int{"planned": 0, "complete": 0, "failed": 0, "cancelled": 0}
+	outputs := 0
+	for _, book := range result.Books {
+		if _, ok := counts[book.Envelope.Status]; ok {
+			counts[book.Envelope.Status]++
+		}
+		if book.OutputPath != "" {
+			outputs++
+		}
+	}
+	summary := fmt.Sprintf("batch: planned=%d complete=%d failed=%d cancelled=%d outputs=%d/%d",
+		counts["planned"], counts["complete"], counts["failed"], counts["cancelled"], outputs, len(result.Books))
+	if counts["planned"] > 0 {
+		summary += "; planned books have no written EPUB"
+	}
+	return summary
 }
 
 func rejectDuplicateCleanFlags(argv []string) error {
@@ -292,18 +313,148 @@ func runCapability(argv []string) int {
 		}
 		os.Stdout.Write(data)
 	} else {
-		fmt.Printf("capability: %s\nstatus:     %s\n", env.Capability, env.Status)
-		if env.Output != nil {
-			fmt.Printf("output:     %s\n", env.Output.Path)
-		}
-		for _, f := range env.Findings {
-			fmt.Printf("[%s] %s\n", f.Level, f.Title)
-		}
-		for _, c := range env.NextCommands {
-			fmt.Printf("next: %s\n", c)
-		}
+		printCapabilitySummary(outcome)
 	}
 	return outcome.ExitCode
+}
+
+func printCapabilitySummary(outcome pipeline.Outcome) {
+	env := outcome.Envelope
+	fmt.Printf("capability: %s\nstatus:     %s\n", env.Capability, env.Status)
+	if env.Output != nil {
+		fmt.Printf("output:     %s\n", env.Output.Path)
+	}
+	if env.Capability == "epub.style.demo.maintain" && factString(env.Facts, "epub.style.demo.maintain.mode") == "catalog" {
+		printStyleCatalog(env.Facts)
+	}
+	if env.Capability == "epub.typography.optimize" {
+		printTypographySummary(env.Facts)
+	}
+	for _, f := range env.Findings {
+		fmt.Printf("[%s] %s\n", f.Level, f.Title)
+	}
+	for _, c := range env.NextCommands {
+		fmt.Printf("next: %s\n", c)
+	}
+}
+
+func printStyleCatalog(facts map[string]any) {
+	prefix := "epub.style.demo.maintain."
+	collection := factString(facts, prefix+"collection")
+	if collection == "presets" {
+		var presets []struct {
+			ID          string   `json:"id"`
+			Description string   `json:"description"`
+			Layers      []string `json:"layers"`
+			Source      string   `json:"source"`
+		}
+		if decodeFact(facts[prefix+"presets"], &presets) {
+			fmt.Printf("presets: %d\n", len(presets))
+			for _, preset := range presets {
+				fmt.Printf("- %s — %s\n  layers: %s\n  source: %s\n", preset.ID, preset.Description, strings.Join(preset.Layers, ", "), preset.Source)
+			}
+			if len(presets) == 0 {
+				fmt.Println("0 presets matched; try a broader query.")
+			}
+		}
+		return
+	}
+	var scenes []struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+		Path  string `json:"path"`
+	}
+	if !decodeFact(facts[prefix+"scenes"], &scenes) {
+		return
+	}
+	fmt.Printf("scenes: %d\n", len(scenes))
+	for _, scene := range scenes {
+		fmt.Printf("- %s — %s\n  %s\n", scene.ID, scene.Title, scene.Path)
+	}
+	if len(scenes) == 0 {
+		fmt.Println("0 scenes matched; try a shorter query such as chapter, poetry, or note.")
+	}
+}
+
+func printTypographySummary(facts map[string]any) {
+	prefix := "epub.typography.optimize."
+	if preset := factString(facts, prefix+"preset"); preset != "" {
+		fmt.Printf("preset:     %s\n", preset)
+	}
+	mode := factString(facts, prefix+"applicationMode")
+	if mode == "" {
+		mode = "whole-book"
+	}
+	fmt.Printf("scope:      %s (%d XHTML files)\n", mode, factInt(facts, prefix+"xhtmlLinks"))
+	var actions []struct {
+		Action string `json:"action"`
+	}
+	if decodeFact(facts[prefix+"stylesheetActions"], &actions) {
+		counts := map[string]int{}
+		for _, action := range actions {
+			counts[action.Action]++
+		}
+		fmt.Printf("stylesheets: add=%d replace=%d keep=%d\n", counts["add"], counts["replace"], counts["keep"])
+	}
+	var coverage struct {
+		Ratio        float64  `json:"ratio"`
+		Uncovered    []string `json:"uncoveredClasses"`
+		Used         []string `json:"usedClasses"`
+		Basis        string   `json:"basis"`
+		Insufficient bool     `json:"insufficientToDetermineApplicability"`
+		Warning      string   `json:"warning"`
+	}
+	if decodeFact(facts[prefix+"coverage"], &coverage) {
+		if len(coverage.Used) == 0 {
+			fmt.Println("class-token coverage: insufficient class tokens to determine applicability")
+		} else {
+			fmt.Printf("class-token coverage: %.0f%%", coverage.Ratio*100)
+			if len(coverage.Uncovered) > 0 {
+				shown := coverage.Uncovered
+				if len(shown) > 20 {
+					shown = shown[:20]
+				}
+				fmt.Printf("; uncovered: %s", strings.Join(shown, ", "))
+				if len(coverage.Uncovered) > len(shown) {
+					fmt.Printf(" (+%d more)", len(coverage.Uncovered)-len(shown))
+				}
+			}
+			fmt.Println()
+		}
+		if coverage.Warning != "" {
+			fmt.Printf("warning: %s\n", coverage.Warning)
+		}
+		fmt.Println("coverage counts class-token matches; it does not measure CSS cascade or visual compatibility.")
+	}
+	if factString(facts, prefix+"fontModeAction") == "preserve" {
+		fmt.Printf("font mode:  %s (preserved)\n", factString(facts, prefix+"fontMode"))
+	}
+}
+
+func decodeFact(value any, target any) bool {
+	if value == nil {
+		return false
+	}
+	data, err := json.Marshal(value)
+	return err == nil && json.Unmarshal(data, target) == nil
+}
+
+func factString(facts map[string]any, key string) string {
+	value, _ := facts[key].(string)
+	return value
+}
+
+func factInt(facts map[string]any, key string) int {
+	switch value := facts[key].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
+	}
 }
 
 // rejectDuplicatePathFlags catches ambiguous input/output choices before the
@@ -407,6 +558,12 @@ func runCapabilities(argv []string) int {
 		fmt.Println(string(data))
 		return 0
 	}
+	if *id != "" {
+		for _, c := range contracts {
+			printCapabilityDetails(c)
+		}
+		return 0
+	}
 	fmt.Printf("%-42s %-10s %s\n", "CAPABILITY", "KIND", "GO")
 	for _, c := range contracts {
 		status := "pending"
@@ -416,6 +573,45 @@ func runCapabilities(argv []string) int {
 		fmt.Printf("%-42s %-10s %s\n", c.ID, c.Kind, status)
 	}
 	return 0
+}
+
+func printCapabilityDetails(capability pipeline.CapabilityInfo) {
+	status := "pending"
+	if capability.Implemented {
+		status = "ready"
+	}
+	fmt.Printf("capability: %s\nkind:       %s\nimplemented:%s\ndescription: %s\n",
+		capability.ID, capability.Kind, " "+status, capability.Description)
+	fmt.Printf("input:      %s\noutput:     %s\nwrite:      %t\nnetwork:    %s\n",
+		capability.Execution.Input, capability.Execution.Output,
+		capability.Permissions.RequiresWriteAccess, capability.Permissions.Network)
+	if len(capability.Parameters) == 0 {
+		fmt.Println("parameters: none")
+		return
+	}
+	keys := make([]string, 0, len(capability.Parameters))
+	for key := range capability.Parameters {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	fmt.Println("parameters:")
+	for _, key := range keys {
+		parameter := capability.Parameters[key]
+		fmt.Printf("  %s (%s)", key, parameter.Type)
+		if parameter.Required {
+			fmt.Print(" required")
+		}
+		if parameter.Default != nil {
+			fmt.Printf(" default=%q", *parameter.Default)
+		}
+		if len(parameter.Enum) > 0 {
+			fmt.Printf(" enum=%s", strings.Join(parameter.Enum, "|"))
+		}
+		if parameter.Minimum != nil {
+			fmt.Printf(" min=%d", *parameter.Minimum)
+		}
+		fmt.Printf("\n    %s\n", parameter.Description)
+	}
 }
 
 // runRedline 处理 `epub redline`（legacy 两文件比对）。
