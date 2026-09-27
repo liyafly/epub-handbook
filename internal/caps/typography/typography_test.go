@@ -198,6 +198,12 @@ func TestTypographyDryRun(t *testing.T) {
 		t.Fatalf("xhtmlLinkFiles 不符: %v", files)
 	}
 	coverage := rep["coverage"].(map[string]any)
+	if rep["coverageBasis"] != "class-token" || rep["scopeFileCount"] != float64(1) {
+		t.Fatalf("coverage basis / scope file count = %v / %v", rep["coverageBasis"], rep["scopeFileCount"])
+	}
+	if coverage["insufficientToDetermineApplicability"] != false {
+		t.Fatalf("class-bearing sample should have a measurable applicability signal: %v", coverage)
+	}
 	ratio := coverage["ratio"].(float64)
 	if ratio < 0.3 {
 		t.Fatalf("coverage ratio 应 >= 0.3: %v", coverage)
@@ -235,9 +241,43 @@ func TestTypographyDryRun(t *testing.T) {
 	if randomCoverage["ratio"].(float64) >= 0.3 {
 		t.Fatalf("随机 class 的 ratio 应 < 0.3: %v", randomCoverage)
 	}
+	uncovered, ok := randomCoverage["uncoveredClasses"].([]any)
+	wantUncovered := []string{"calibre99", "mystery-token", "raw-scene"}
+	if !ok || len(uncovered) != len(wantUncovered) {
+		t.Fatalf("uncoveredClasses = %v, want %v", randomCoverage["uncoveredClasses"], wantUncovered)
+	}
+	for i, want := range wantUncovered {
+		if uncovered[i] != want {
+			t.Fatalf("uncoveredClasses = %v, want stable order %v", uncovered, wantUncovered)
+		}
+	}
 	warning, _ := randomCoverage["warning"].(string)
 	if !strings.Contains(warning, "class 覆盖率") || strings.Contains(warning, "oneclick") {
 		t.Fatalf("应输出低覆盖率 warning: %q", warning)
+	}
+
+	noClassSource := filepath.Join(dir, "no-class.epub")
+	buildFixtureEpub(t, noClassSource, typographyFixture(""))
+	noClassBook, err := book.Open(noClassSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer noClassBook.Close()
+	noClassResult, err := Run(context.Background(), noClassBook, Params{
+		Preset: "literary-cn", PresetDir: presets, Output: filepath.Join(dir, "no-class-output.epub"), DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	noClassCoverage := noClassResult.Facts["coverage"].(map[string]any)
+	if noClassResult.Facts["scopeFileCount"] != 1 || noClassCoverage["insufficientToDetermineApplicability"] != true {
+		t.Fatalf("empty-class coverage facts = %+v", noClassResult.Facts)
+	}
+	if noClassCoverage["ratio"] != 0.0 || !strings.Contains(noClassCoverage["warning"].(string), "无法用 class-token 覆盖率判断") {
+		t.Fatalf("empty-class coverage should report insufficient evidence: %+v", noClassCoverage)
+	}
+	if len(noClassResult.Findings) == 0 || noClassResult.Findings[0].ID != "typography.coverage-insufficient" {
+		t.Fatalf("empty-class findings = %+v", noClassResult.Findings)
 	}
 }
 

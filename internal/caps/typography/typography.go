@@ -80,11 +80,13 @@ type Params struct {
 
 // presetCoverage 是类覆盖度统计，序列化进 facts["coverage"]。
 type presetCoverage struct {
-	UsedClasses    []string
-	CoveredClasses []string
-	Ratio          float64
-	Threshold      float64
-	Warning        *string
+	UsedClasses                          []string
+	CoveredClasses                       []string
+	UncoveredClasses                     []string
+	Ratio                                float64
+	Threshold                            float64
+	InsufficientToDetermineApplicability bool
+	Warning                              *string
 }
 
 // stylesheetAction 是逐层样式表动作，序列化进 facts["stylesheetActions"]。
@@ -343,9 +345,12 @@ func pyRound4(v float64) float64 {
 // coverageReport 复刻 coverage_report（threshold 比较用四舍五入后的 ratio）。
 func coverageReport(used, styled map[string]bool) presetCoverage {
 	covered := map[string]bool{}
+	uncovered := map[string]bool{}
 	for c := range used {
 		if styled[c] {
 			covered[c] = true
+		} else {
+			uncovered[c] = true
 		}
 	}
 	ratio := 0.0
@@ -354,16 +359,22 @@ func coverageReport(used, styled map[string]bool) presetCoverage {
 	}
 	rounded := pyRound4(ratio)
 	warning := (*string)(nil)
-	if rounded < coverageThreshold {
+	insufficient := len(used) == 0
+	if insufficient {
+		w := coverageInsufficientText
+		warning = &w
+	} else if rounded < coverageThreshold {
 		w := coverageWarningText
 		warning = &w
 	}
 	return presetCoverage{
-		UsedClasses:    sortedSet(used),
-		CoveredClasses: sortedSet(covered),
-		Ratio:          rounded,
-		Threshold:      coverageThreshold,
-		Warning:        warning,
+		UsedClasses:                          sortedSet(used),
+		CoveredClasses:                       sortedSet(covered),
+		UncoveredClasses:                     sortedSet(uncovered),
+		Ratio:                                rounded,
+		Threshold:                            coverageThreshold,
+		InsufficientToDetermineApplicability: insufficient,
+		Warning:                              warning,
 	}
 }
 
@@ -465,7 +476,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	facts := map[string]any{
 		"preset":            p.Preset,
+		"coverageBasis":     "class-token",
 		"coverage":          coverageFacts(reportBase.Coverage),
+		"scopeFileCount":    len(xhtmlPaths),
 		"stylesheets":       len(actions),
 		"stylesheetActions": actions,
 		"xhtmlLinks":        len(xhtmlPaths),
@@ -476,7 +489,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	findings := []report.Finding{}
 	if reportBase.Coverage.Warning != nil {
-		findings = append(findings, report.Finding{Level: "warn", ID: "typography.low-coverage", Title: *reportBase.Coverage.Warning})
+		id := "typography.low-coverage"
+		if reportBase.Coverage.InsufficientToDetermineApplicability {
+			id = "typography.coverage-insufficient"
+		}
+		findings = append(findings, report.Finding{Level: "warn", ID: id, Title: *reportBase.Coverage.Warning})
 	}
 
 	// 2. 应用（唯一写点）。
@@ -910,10 +927,12 @@ func wholeLineIndent(text string, pos int) (lineStart int, indent string, ok boo
 
 func coverageFacts(c presetCoverage) map[string]any {
 	facts := map[string]any{
-		"usedClasses":    c.UsedClasses,
-		"coveredClasses": c.CoveredClasses,
-		"ratio":          c.Ratio,
-		"threshold":      c.Threshold,
+		"usedClasses":                          c.UsedClasses,
+		"coveredClasses":                       c.CoveredClasses,
+		"uncoveredClasses":                     c.UncoveredClasses,
+		"ratio":                                c.Ratio,
+		"threshold":                            c.Threshold,
+		"insufficientToDetermineApplicability": c.InsufficientToDetermineApplicability,
 	}
 	if c.Warning != nil {
 		facts["warning"] = *c.Warning

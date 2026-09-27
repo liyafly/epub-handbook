@@ -387,7 +387,15 @@ func printTypographySummary(facts map[string]any) {
 	if mode == "" {
 		mode = "whole-book"
 	}
-	fmt.Printf("scope:      %s (%d XHTML files)\n", mode, factInt(facts, prefix+"xhtmlLinks"))
+	scopeFileCount := factInt(facts, prefix+"scopeFileCount")
+	if scopeFileCount == 0 {
+		scopeFileCount = factInt(facts, prefix+"xhtmlLinks")
+	}
+	fileWord := "files"
+	if scopeFileCount == 1 {
+		fileWord = "file"
+	}
+	fmt.Printf("scope:      %s (%d XHTML %s)\n", mode, scopeFileCount, fileWord)
 	var actions []struct {
 		Action string `json:"action"`
 	}
@@ -402,15 +410,18 @@ func printTypographySummary(facts map[string]any) {
 		Ratio        float64  `json:"ratio"`
 		Uncovered    []string `json:"uncoveredClasses"`
 		Used         []string `json:"usedClasses"`
-		Basis        string   `json:"basis"`
 		Insufficient bool     `json:"insufficientToDetermineApplicability"`
 		Warning      string   `json:"warning"`
 	}
 	if decodeFact(facts[prefix+"coverage"], &coverage) {
-		if len(coverage.Used) == 0 {
-			fmt.Println("class-token coverage: insufficient class tokens to determine applicability")
+		basis := factString(facts, prefix+"coverageBasis")
+		if basis == "" {
+			basis = "class-token"
+		}
+		if coverage.Insufficient || len(coverage.Used) == 0 {
+			fmt.Printf("%s coverage: insufficient class tokens to determine applicability\n", basis)
 		} else {
-			fmt.Printf("class-token coverage: %.0f%%", coverage.Ratio*100)
+			fmt.Printf("%s coverage: %.0f%%", basis, coverage.Ratio*100)
 			if len(coverage.Uncovered) > 0 {
 				shown := coverage.Uncovered
 				if len(shown) > 20 {
@@ -426,7 +437,7 @@ func printTypographySummary(facts map[string]any) {
 		if coverage.Warning != "" {
 			fmt.Printf("warning: %s\n", coverage.Warning)
 		}
-		fmt.Println("coverage counts class-token matches; it does not measure CSS cascade or visual compatibility.")
+		fmt.Printf("coverage basis: %s; this counts class attributes and does not measure CSS cascade or visual compatibility.\n", basis)
 	}
 	if factString(facts, prefix+"fontModeAction") == "preserve" {
 		fmt.Printf("font mode:  %s (preserved)\n", factString(facts, prefix+"fontMode"))

@@ -10,6 +10,9 @@ const coverageThreshold = 0.3
 // coverageWarningText 对齐 coverage_report 的中文 warning 文案。
 const coverageWarningText = "样本与预设的 class 覆盖率较低；请审查未覆盖角色并验证局部试样，不要自动改写正文结构"
 
+// coverageInsufficientText distinguishes tag-only XHTML from low class-token coverage.
+const coverageInsufficientText = "样本的 spine XHTML 中没有 class token，无法用 class-token 覆盖率判断标签选择器的适用性；请核对代表性页面的元素结构"
+
 // 注：曾经住在这里的 typoLinkRe / typoHeadEndRe（对齐 Python LINK_RE /
 // HEAD_END_RE）已改为 xhtml.ScanRegions 驱动的区域化实现（见
 // typography.go 的 rewriteStylesheetLinks），不再需要整文本正则 —— 那两条

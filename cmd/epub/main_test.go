@@ -159,6 +159,58 @@ func TestStyleCatalogTextShowsMatchesAndNoMatchGuidance(t *testing.T) {
 	}
 }
 
+func TestTypographySummaryExplainsCoverageBasisAndScope(t *testing.T) {
+	cases := []struct {
+		name  string
+		facts map[string]any
+		want  []string
+	}{
+		{
+			name: "class tokens present",
+			facts: map[string]any{
+				"epub.typography.optimize.applicationMode": "scoped-additive",
+				"epub.typography.optimize.coverageBasis":   "class-token",
+				"epub.typography.optimize.scopeFileCount":  1,
+				"epub.typography.optimize.coverage": map[string]any{
+					"ratio": 0.5, "usedClasses": []string{"known", "unknown"},
+					"uncoveredClasses": []string{"unknown"}, "insufficientToDetermineApplicability": false,
+				},
+			},
+			want: []string{"scope:      scoped-additive (1 XHTML file)", "class-token coverage: 50%", "uncovered: unknown", "does not measure CSS cascade"},
+		},
+		{
+			name: "tag-only page",
+			facts: map[string]any{
+				"epub.typography.optimize.applicationMode": "whole-book",
+				"epub.typography.optimize.coverageBasis":   "class-token",
+				"epub.typography.optimize.scopeFileCount":  1,
+				"epub.typography.optimize.coverage": map[string]any{
+					"ratio": 0.0, "usedClasses": []string{}, "uncoveredClasses": []string{},
+					"insufficientToDetermineApplicability": true,
+					"warning":                              "no class tokens; inspect a representative page",
+				},
+			},
+			want: []string{"scope:      whole-book (1 XHTML file)", "class-token coverage: insufficient class tokens to determine applicability", "warning: no class tokens"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, stdout, stderr := captureRunFunc(t, func() int {
+				printTypographySummary(tc.facts)
+				return 0
+			})
+			if stderr != "" {
+				t.Fatalf("stderr = %q", stderr)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(stdout, want) {
+					t.Errorf("summary missing %q:\n%s", want, stdout)
+				}
+			}
+		})
+	}
+}
+
 func TestCleanBatchSummarySeparatesPlannedFromWrittenOutputs(t *testing.T) {
 	result := pipeline.CleanBatchResult{Books: []pipeline.CleanBookResult{
 		{Envelope: report.Envelope{Status: report.StatusPlanned}},
