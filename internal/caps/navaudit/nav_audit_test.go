@@ -183,7 +183,7 @@ func writeNativeFixture(t *testing.T) string {
 		{name: "OEBPS/nav.xhtml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
   <head><title>Contents</title></head>
-  <body><nav epub:type="toc"><ol><li><a href="Text/ch?apter.xhtml">Chapter</a></li></ol></nav></body>
+  <body><nav epub:type="toc"><ol><li><a href="Text/ch%3Fapter.xhtml#chapter-heading">Chapter</a></li></ol></nav></body>
 </html>
 `)},
 		{name: "OEBPS/Styles/main.css", body: []byte(`@font-face { font-family: Native; src: url("../Fonts/Missing.ttf"); }
@@ -194,8 +194,8 @@ body { font-family: Native, serif; }
 		{name: "OEBPS/Fonts/Body.ttf", body: []byte("font")},
 		{name: "OEBPS/Text/ch?apter.xhtml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN">
-  <head><title>Chapter</title></head>
-  <body><h1>第一章</h1><p>这是 Go 原生 nav.audit fixture。</p></body>
+  <head><title>Chapter</title><link rel="stylesheet" href="../Styles/main.css"/></head>
+  <body><h1 id="chapter-heading">第一章</h1><img src="../Images/cover.png"/><p>这是 Go 原生 nav.audit fixture。</p></body>
 </html>
 `)},
 		{name: "OEBPS/toc.ncx", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -355,6 +355,257 @@ func rewriteZipEntry(t *testing.T, src, dst, entry string, fn func([]byte) []byt
 	}
 	if err := os.WriteFile(dst, buf.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func addZipEntry(t *testing.T, src, dst, name string, body []byte) {
+	t.Helper()
+	zr, err := zip.OpenReader(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		h := &zip.FileHeader{Name: f.Name, Method: f.Method}
+		fw, err := w.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fw, err := w.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runNativeAudit(t *testing.T, path string) report.Result {
+	t.Helper()
+	b, err := book.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+func requireFindingKind(t *testing.T, res report.Result, kind string) report.Finding {
+	t.Helper()
+	for _, finding := range res.Findings {
+		if finding.Detail == kind {
+			return finding
+		}
+	}
+	t.Fatalf("finding kind %q not found: %+v", kind, res.Findings)
+	return report.Finding{}
+}
+
+func TestXHTMLLocalResourceTargets(t *testing.T) {
+	chapter := "OEBPS/Text/ch?apter.xhtml"
+	for _, tc := range []struct {
+		name       string
+		mutate     func(t *testing.T, path string) string
+		wantKind   string
+		wantTitle  string
+		wantInPath []string
+	}{
+		{
+			name: "missing image",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "broken-image.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`src="../Images/cover.png"`), []byte(`src="../Images/missing.png"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-target", wantTitle: "image target is missing",
+			wantInPath: []string{chapter, `"../Images/missing.png"`, "OEBPS/Images/missing.png"},
+		},
+		{
+			name: "missing stylesheet",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "broken-stylesheet.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="../Styles/main.css"`), []byte(`href="../Styles/missing.css"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-target", wantTitle: "stylesheet target is missing",
+			wantInPath: []string{chapter, `"../Styles/missing.css"`, "OEBPS/Styles/missing.css"},
+		},
+		{
+			name: "missing hyperlink target",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "broken-link.epub")
+				rewriteZipEntry(t, path, dst, "OEBPS/nav.xhtml", func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="Text/ch%3Fapter.xhtml#chapter-heading"`), []byte(`href="Text/missing.xhtml"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-target", wantTitle: "link target is missing",
+			wantInPath: []string{"OEBPS/nav.xhtml", `"Text/missing.xhtml"`, "OEBPS/Text/missing.xhtml"},
+		},
+		{
+			name: "image exists but has no manifest item",
+			mutate: func(t *testing.T, path string) string {
+				withImage := filepath.Join(t.TempDir(), "unmanifested-image-source.epub")
+				addZipEntry(t, path, withImage, "OEBPS/Images/unlisted.png", []byte("png"))
+				dst := filepath.Join(t.TempDir(), "unmanifested-image.epub")
+				rewriteZipEntry(t, withImage, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`src="../Images/cover.png"`), []byte(`src="../Images/unlisted.png"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-manifest-item", wantTitle: "missing from the OPF manifest",
+			wantInPath: []string{chapter, `"../Images/unlisted.png"`, "OEBPS/Images/unlisted.png"},
+		},
+		{
+			name: "stylesheet exists but has no manifest item",
+			mutate: func(t *testing.T, path string) string {
+				withCSS := filepath.Join(t.TempDir(), "unmanifested-css-source.epub")
+				addZipEntry(t, path, withCSS, "OEBPS/Styles/unlisted.css", []byte("body {}"))
+				dst := filepath.Join(t.TempDir(), "unmanifested-css.epub")
+				rewriteZipEntry(t, withCSS, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="../Styles/main.css"`), []byte(`href="../Styles/unlisted.css"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-manifest-item", wantTitle: "missing from the OPF manifest",
+			wantInPath: []string{chapter, `"../Styles/unlisted.css"`, "OEBPS/Styles/unlisted.css"},
+		},
+		{
+			name: "stylesheet manifest item has wrong media type",
+			mutate: func(t *testing.T, path string) string {
+				withItem := filepath.Join(t.TempDir(), "wrong-css-type-source.epub")
+				rewriteZipEntry(t, path, withItem, "OEBPS/content.opf", func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`media-type="text/css"`), []byte(`media-type="application/octet-stream"`), 1)
+				})
+				return withItem
+			},
+			wantKind: "xhtml-stylesheet-manifest-type", wantTitle: "no text/css OPF manifest declaration",
+			wantInPath: []string{chapter, `"../Styles/main.css"`, "OEBPS/Styles/main.css"},
+		},
+		{
+			name: "escaping path",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "escaping-path.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`src="../Images/cover.png"`), []byte(`src="../../../outside.png"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-invalid-target", wantTitle: "target is invalid",
+			wantInPath: []string{chapter, `"../../../outside.png"`, "<invalid>"},
+		},
+		{
+			name: "unsupported base URL",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "base-url.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte("</head>"), []byte(`<base href="../"/></head>`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-base-unsupported", wantTitle: "base URL semantics are not supported",
+			wantInPath: []string{chapter, `"../"`, "<unresolved>"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := tc.mutate(t, writeNativeFixture(t))
+			res := runNativeAudit(t, path)
+			if res.Status != report.StatusFailed || res.Facts["auditStatus"] != "fail" {
+				t.Fatalf("audit status = %q/%v, want failed/fail", res.Status, res.Facts["auditStatus"])
+			}
+			finding := requireFindingKind(t, res, tc.wantKind)
+			if !strings.Contains(finding.Title, tc.wantTitle) {
+				t.Errorf("finding title = %q, want to contain %q", finding.Title, tc.wantTitle)
+			}
+			for _, want := range tc.wantInPath {
+				if !strings.Contains(finding.Location, want) {
+					t.Errorf("finding location %q does not contain %q", finding.Location, want)
+				}
+			}
+		})
+	}
+}
+
+func TestXHTMLResourceScannerIgnoresExternalAndNonElementMarkup(t *testing.T) {
+	path := writeNativeFixture(t)
+	withExternal := filepath.Join(t.TempDir(), "external-and-encoded.epub")
+	rewriteZipEntry(t, path, withExternal, "OEBPS/Text/ch?apter.xhtml", func(data []byte) []byte {
+		data = bytes.Replace(data, []byte(`src="../Images/cover.png"`), []byte(`src="../Images/cover%2Epng?download=1&amp;lang=zh"`), 1)
+		return bytes.Replace(data, []byte("</body>"), []byte(`<!-- <img src="../Images/comment-missing.png"/> -->
+  <script><![CDATA[<a href="missing-script.xhtml">not markup</a> <img src="missing-script.png"/>]]></script>
+  <img src="https://example.test/remote.png"/><a href="mailto:reader@example.test">mail</a></body>`), 1)
+	})
+	res := runNativeAudit(t, withExternal)
+	for _, finding := range res.Findings {
+		if strings.HasPrefix(finding.Detail, "xhtml-") {
+			t.Errorf("unexpected XHTML reference finding: %+v", finding)
+		}
+	}
+}
+
+func TestXHTMLResourceTargetResolvesEncodedUnicodeAndSpaces(t *testing.T) {
+	path := writeNativeFixture(t)
+	withImage := filepath.Join(t.TempDir(), "encoded-image-source.epub")
+	addZipEntry(t, path, withImage, "OEBPS/Images/章节 封面.png", []byte("png"))
+	withManifest := filepath.Join(t.TempDir(), "encoded-image-manifest.epub")
+	rewriteZipEntry(t, withImage, withManifest, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte("</manifest>"), []byte(`<item id="encoded-image" href="Images/章节 封面.png" media-type="image/png"/></manifest>`), 1)
+	})
+	withReference := filepath.Join(t.TempDir(), "encoded-image-reference.epub")
+	rewriteZipEntry(t, withManifest, withReference, "OEBPS/Text/ch?apter.xhtml", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(`src="../Images/cover.png"`),
+			[]byte(`src="../Images/%E7%AB%A0%E8%8A%82%20%E5%B0%81%E9%9D%A2.png?download=1&amp;lang=zh"`), 1)
+	})
+	res := runNativeAudit(t, withReference)
+	for _, finding := range res.Findings {
+		if strings.HasPrefix(finding.Detail, "xhtml-") {
+			t.Errorf("unexpected XHTML reference finding: %+v", finding)
+		}
+	}
+}
+
+func TestXHTMLParseFailureIsAnAuditError(t *testing.T) {
+	path := writeNativeFixture(t)
+	broken := filepath.Join(t.TempDir(), "broken-xhtml.epub")
+	rewriteZipEntry(t, path, broken, "OEBPS/Text/ch?apter.xhtml", func([]byte) []byte {
+		return []byte(`<html><body><img src="missing.png"></body>`)
+	})
+	res := runNativeAudit(t, broken)
+	finding := requireFindingKind(t, res, "xhtml-parse-error")
+	if res.Status != report.StatusFailed || res.Facts["auditStatus"] != "fail" {
+		t.Fatalf("audit status = %q/%v, want failed/fail", res.Status, res.Facts["auditStatus"])
+	}
+	if finding.Location != "OEBPS/Text/ch?apter.xhtml" {
+		t.Errorf("parse error location = %q", finding.Location)
 	}
 }
 

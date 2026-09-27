@@ -114,6 +114,31 @@ jobs:
           test ! -f "$book/03 制作工作区/epub/README.md"
           EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"
           test -s "$output"
+          chapter="$book/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
+          cp "$chapter" "$RUNNER_TEMP/book-starter-chapter.xhtml"
+          before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
+          python3 - "$chapter" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          marker = "</body>"
+          if marker not in source:
+              raise SystemExit("starter chapter has no body end tag")
+          path.write_text(source.replace(marker, '<img src="../Images/missing.png"/>\n</body>', 1))
+          PY
+          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh" >"$RUNNER_TEMP/book-starter-broken-reference.log" 2>&1; then
+            echo "Expected a missing XHTML image reference to fail the build." >&2
+            exit 1
+          fi
+          grep -q 'XHTML local image target is missing from the ZIP archive' "$RUNNER_TEMP/book-starter-broken-reference.log"
+          grep -q 'OEBPS/Images/missing.png' "$RUNNER_TEMP/book-starter-broken-reference.log"
+          after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
+          test "$before_sha" = "$after_sha"
+          cp "$RUNNER_TEMP/book-starter-chapter.xhtml" "$chapter"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"
+          test -s "$output"
           before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           printf '\n<broken' >> "$book/03 制作工作区/epub/OEBPS/package.opf"
           if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then

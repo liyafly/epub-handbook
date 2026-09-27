@@ -120,6 +120,89 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	}
 }
 
+func TestRunNavAuditFailsOnBrokenXHTMLResource(t *testing.T) {
+	source := buildSampleEpub(t)
+	broken := filepath.Join(t.TempDir(), "broken-reference.epub")
+	rewritePipelineEpubEntry(t, source, broken, "OEBPS/c1.xhtml", func(data []byte) []byte {
+		return bytes.Replace(data, []byte("</body>"), []byte(`<img src="Images/missing.png"/></body>`), 1)
+	})
+
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.package.nav.audit",
+		InputPath:    broken,
+		Args:         Args{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed {
+		t.Fatalf("broken resource result = status %q exit %d, want failed / %d", outcome.Envelope.Status, outcome.ExitCode, ExitFailed)
+	}
+	for _, finding := range outcome.Envelope.Findings {
+		if finding.Detail == "xhtml-missing-target" && finding.Level == "error" {
+			if !strings.Contains(finding.Location, "OEBPS/c1.xhtml") ||
+				!strings.Contains(finding.Location, `"Images/missing.png"`) ||
+				!strings.Contains(finding.Location, "OEBPS/Images/missing.png") {
+				t.Fatalf("finding omits source/reference/resolved target: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing XHTML resource finding: %+v", outcome.Envelope.Findings)
+}
+
+func rewritePipelineEpubEntry(t *testing.T, src, dst, entry string, fn func([]byte) []byte) {
+	t.Helper()
+	input, err := os.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := input.Stat()
+	if err != nil {
+		input.Close()
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(input, info.Size())
+	if err != nil {
+		input.Close()
+		t.Fatal(err)
+	}
+	defer input.Close()
+	var archive bytes.Buffer
+	zw := zip.NewWriter(&archive)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(rc)
+		closeErr := rc.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if f.Name == entry {
+			content = fn(content)
+		}
+		header := f.FileHeader
+		w, err := zw.CreateHeader(&header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, archive.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
 	root, err := FindRepoRoot()
 	if err != nil {
