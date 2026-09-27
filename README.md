@@ -6,7 +6,7 @@
 
 CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o epub ./cmd/epub` 后直接使用）。
 `epub capabilities --json` 列出全部能力；加 `--id <capability-id>` 可只看该能力的参数、默认值和执行形态。
-`epub run ... --json` 返回统一 JSON 信封（capabilities 返回数组，redline 返回文本），退出码 0/1/2/3
+`epub run ... --json` 与 `epub redline --json` 返回统一 JSON 信封；`epub capabilities --json` 返回能力数组。退出码 0/1/2/3
 （0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
 
 可从 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases/latest) 下载 0.4.1 CLI：Linux amd64、Windows amd64、macOS arm64 和 macOS amd64。发布附件含 SHA256 校验和与安装说明；二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。字体覆盖和书籍构建中的字体子集化由可选 provider 提供，安装方式见对应版本的发行说明。
@@ -21,17 +21,16 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 
 ### 做一本书
 
-直接复制现成骨架：
+推荐用脚本创建独立书级 Git 工作区：
 
 ```sh
-cp -r templates/book-starter ~/my-book
-# 改 OEBPS/package.opf 和 OEBPS/Text/01-chapter.xhtml
-(cd ~/my-book && sh build.sh)
-# 保持在本仓根目录运行 CLI；输入应选定单个构建产物
-go run ./cmd/epub run epub.package.nav.audit --input ~/my-book/dist/*.epub --json
+sh templates/book-starter/new-book.sh work-epub/my-book
+go build -o /tmp/epub ./cmd/epub
+EPUB_BIN=/tmp/epub sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
+/tmp/epub run epub.package.nav.audit --input 'work-epub/my-book/03 制作工作区/dist/book.epub' --json
 ```
 
-详细步骤、手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
+构建脚本需要已安装的 `epub` CLI；未安装时像示例一样设置 `EPUB_BIN` 为本地二进制的路径。详细步骤和手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
 
 ### 修一本现成 EPUB
 
@@ -72,8 +71,8 @@ epub clean "$BOOKS" --out "$W/typography-preview" --steps typography \
 想找版式示例，先搜索真实 demo；想试改已有 EPUB，先做局部候选：
 
 ```sh
-go run ./cmd/epub run epub.style.demo.maintain --json catalog=true query=chapter
-go run ./cmd/epub capabilities --id epub.typography.optimize --json
+epub run epub.style.demo.maintain catalog=true query=chapter
+epub capabilities --id epub.typography.optimize
 go run ./cmd/epub run epub.typography.optimize --input before.epub --output sample.epub --dry-run --json 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
 ```
 

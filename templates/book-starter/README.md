@@ -40,7 +40,7 @@ uv tool install --editable tools-font/epub-font
 
 ## 进阶排版
 
-默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。切换主题时把选定 preset 的主题 CSS 放入 `OEBPS/Styles/`，同步修改 OPF 中 `css-theme` href，并删除不用的主题文件。
+默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。手工切换 CSS 层不等同于完整套用一个 preset：预设有多个分层文件以及对应的 manifest/head 引用；对已有 EPUB，请用 `epub.typography.optimize` 生成候选并审核报告。
 
 ## 需要查细节时
 
