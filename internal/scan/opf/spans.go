@@ -7,6 +7,7 @@ package opf
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -264,19 +265,33 @@ func (n *SpanNode) AttrIndex(spaceURI, local string) int {
 // ET.fromstring：注释 / PI / DOCTYPE 丢弃、实体解码、EOL 归一；
 // 声明的非 UTF-8 编码先转换为 UTF-8。
 func ScanSpanTree(data []byte) (*SpanNode, error) {
-	return scanSpanTree(data, nil)
+	return scanSpanTreeContext(context.Background(), data, nil)
 }
 
 // ScanXHTMLSpanTree additionally accepts the named character references from
 // the HTML entity set used by common EPUB2 XHTML documents. Source spans still
 // refer to the original bytes, so callers can safely edit the original source.
 func ScanXHTMLSpanTree(data []byte) (*SpanNode, error) {
-	return scanSpanTree(data, xml.HTMLEntity)
+	return scanSpanTreeContext(context.Background(), data, xml.HTMLEntity)
 }
 
-func scanSpanTree(data []byte, entity map[string]string) (*SpanNode, error) {
+// ScanXHTMLSpanTreeContext is the cancellable form of ScanXHTMLSpanTree.
+func ScanXHTMLSpanTreeContext(ctx context.Context, data []byte) (*SpanNode, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return scanSpanTreeContext(ctx, data, xml.HTMLEntity)
+}
+
+func scanSpanTreeContext(ctx context.Context, data []byte, entity map[string]string) (*SpanNode, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	src, err := xmlSourceToUTF8(data)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	d := xml.NewDecoder(strings.NewReader(src))
@@ -320,6 +335,9 @@ func scanSpanTree(data []byte, entity map[string]string) (*SpanNode, error) {
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		prev := int(d.InputOffset())
 		tok, err := d.Token()
 		curOff := int(d.InputOffset())

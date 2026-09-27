@@ -567,6 +567,7 @@ func (ins *inspector) checkImages(ctx context.Context, pkg *opf.Package) {
 func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 	textChars, imageRefs := 0, 0
 	manifestMedia := make(map[string]map[string]struct{}, len(pkg.Manifest))
+	manifestXHTML := make(map[string]struct{}, len(pkg.Manifest))
 	for _, item := range pkg.Manifest {
 		if item.ArchivePath == "" {
 			continue
@@ -575,7 +576,11 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			manifestMedia[item.ArchivePath] = make(map[string]struct{})
 		}
 		manifestMedia[item.ArchivePath][strings.ToLower(item.MediaType)] = struct{}{}
+		if strings.EqualFold(item.MediaType, "application/xhtml+xml") {
+			manifestXHTML[item.ArchivePath] = struct{}{}
+		}
 	}
+	documents := make([]xhtmlDocument, 0, len(manifestXHTML))
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
 			return
@@ -592,13 +597,17 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			}
 			continue
 		}
-		root, scanErr := opf.ScanXHTMLSpanTree(raw)
+		root, scanErr := opf.ScanXHTMLSpanTreeContext(ctx, raw)
 		if scanErr != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			ins.addFinding("error", "XHTML could not be parsed; local references were not verified: "+scanErr.Error(),
 				item.ArchivePath, "xhtml-parse-error")
 			ins.addSkill("epub-audit", "error")
 		} else {
-			ins.checkXHTMLResources(ctx, xhtmlDocument{item: item, root: root}, manifestMedia)
+			doc := ins.scanXHTMLDocument(ctx, item, root, manifestMedia)
+			documents = append(documents, doc)
 		}
 		text := string(raw)
 		stripped := tagStripRe.ReplaceAllString(text, "")
@@ -639,6 +648,7 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			ins.addSkill("epub-special-layout", "info")
 		}
 	}
+	ins.checkXHTMLFragments(ctx, documents, manifestXHTML)
 	ins.summaryOCRCounters(textChars, imageRefs)
 }
 

@@ -124,7 +124,7 @@ func TestRunNavAuditFailsOnBrokenXHTMLResource(t *testing.T) {
 	source := buildSampleEpub(t)
 	broken := filepath.Join(t.TempDir(), "broken-reference.epub")
 	rewritePipelineEpubEntry(t, source, broken, "OEBPS/c1.xhtml", func(data []byte) []byte {
-		return bytes.Replace(data, []byte("</body>"), []byte(`<img src="Images/missing.png"/></body>`), 1)
+		return bytes.Replace(data, []byte("</body>"), []byte(`<img src="Images/missing.png"/><a href="#missing-anchor">bad anchor</a></body>`), 1)
 	})
 
 	outcome, err := Run(t.Context(), Options{
@@ -138,17 +138,25 @@ func TestRunNavAuditFailsOnBrokenXHTMLResource(t *testing.T) {
 	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed {
 		t.Fatalf("broken resource result = status %q exit %d, want failed / %d", outcome.Envelope.Status, outcome.ExitCode, ExitFailed)
 	}
+	foundResource, foundFragment := false, false
 	for _, finding := range outcome.Envelope.Findings {
-		if finding.Detail == "xhtml-missing-target" && finding.Level == "error" {
-			if !strings.Contains(finding.Location, "OEBPS/c1.xhtml") ||
-				!strings.Contains(finding.Location, `"Images/missing.png"`) ||
-				!strings.Contains(finding.Location, "OEBPS/Images/missing.png") {
-				t.Fatalf("finding omits source/reference/resolved target: %+v", finding)
-			}
-			return
+		if finding.Level != "error" {
+			continue
+		}
+		switch finding.Detail {
+		case "xhtml-missing-target":
+			foundResource = strings.Contains(finding.Location, "OEBPS/c1.xhtml") &&
+				strings.Contains(finding.Location, `"Images/missing.png"`) &&
+				strings.Contains(finding.Location, "OEBPS/Images/missing.png")
+		case "xhtml-missing-fragment":
+			foundFragment = strings.Contains(finding.Location, "OEBPS/c1.xhtml") &&
+				strings.Contains(finding.Location, `"#missing-anchor"`) &&
+				strings.Contains(finding.Location, "OEBPS/c1.xhtml#missing-anchor")
 		}
 	}
-	t.Fatalf("missing XHTML resource finding: %+v", outcome.Envelope.Findings)
+	if !foundResource || !foundFragment {
+		t.Fatalf("broken reference findings: resource=%v fragment=%v findings=%+v", foundResource, foundFragment, outcome.Envelope.Findings)
+	}
 }
 
 func rewritePipelineEpubEntry(t *testing.T, src, dst, entry string, fn func([]byte) []byte) {

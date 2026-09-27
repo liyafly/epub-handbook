@@ -183,7 +183,7 @@ func writeNativeFixture(t *testing.T) string {
 		{name: "OEBPS/nav.xhtml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
   <head><title>Contents</title></head>
-  <body><nav epub:type="toc"><ol><li><a href="Text/ch%3Fapter.xhtml#chapter-heading">Chapter</a></li></ol></nav></body>
+  <body><nav epub:type="toc" id="contents"><ol><li><a href="Text/ch%3Fapter.xhtml?mode=print#chapter-heading">Chapter</a></li></ol></nav></body>
 </html>
 `)},
 		{name: "OEBPS/Styles/main.css", body: []byte(`@font-face { font-family: Native; src: url("../Fonts/Missing.ttf"); }
@@ -195,7 +195,7 @@ body { font-family: Native, serif; }
 		{name: "OEBPS/Text/ch?apter.xhtml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN">
   <head><title>Chapter</title><link rel="stylesheet" href="../Styles/main.css"/></head>
-  <body><h1 id="chapter-heading">第一章</h1><img src="../Images/cover.png"/><p>这是 Go 原生 nav.audit fixture。</p></body>
+  <body><h1 id="chapter-heading">第一章</h1><img src="../Images/cover.png"/><p id="章节">这是 Go 原生 nav.audit fixture。</p><p xml:id="xml-legacy">XML ID.</p><a href="#chapter-heading">回到标题</a><a href="../nav.xhtml#contents">目录</a></body>
 </html>
 `)},
 		{name: "OEBPS/toc.ncx", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -464,7 +464,7 @@ func TestXHTMLLocalResourceTargets(t *testing.T) {
 			mutate: func(t *testing.T, path string) string {
 				dst := filepath.Join(t.TempDir(), "broken-link.epub")
 				rewriteZipEntry(t, path, dst, "OEBPS/nav.xhtml", func(data []byte) []byte {
-					return bytes.Replace(data, []byte(`href="Text/ch%3Fapter.xhtml#chapter-heading"`), []byte(`href="Text/missing.xhtml"`), 1)
+					return bytes.Replace(data, []byte(`href="Text/ch%3Fapter.xhtml?mode=print#chapter-heading"`), []byte(`href="Text/missing.xhtml"`), 1)
 				})
 				return dst
 			},
@@ -535,6 +535,18 @@ func TestXHTMLLocalResourceTargets(t *testing.T) {
 			wantKind: "xhtml-base-unsupported", wantTitle: "base URL semantics are not supported",
 			wantInPath: []string{chapter, `"../"`, "<unresolved>"},
 		},
+		{
+			name: "unsupported xml base URL",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "xml-base-url.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`xml:lang="zh-CN"`), []byte(`xml:base="../" xml:lang="zh-CN"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-base-unsupported", wantTitle: "base URL semantics are not supported",
+			wantInPath: []string{chapter, `"../"`, "<unresolved>"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := tc.mutate(t, writeNativeFixture(t))
@@ -590,6 +602,153 @@ func TestXHTMLResourceTargetResolvesEncodedUnicodeAndSpaces(t *testing.T) {
 		if strings.HasPrefix(finding.Detail, "xhtml-") {
 			t.Errorf("unexpected XHTML reference finding: %+v", finding)
 		}
+	}
+}
+
+func TestXHTMLFragmentTargets(t *testing.T) {
+	chapter := "OEBPS/Text/ch?apter.xhtml"
+	navLink := []byte(`href="Text/ch%3Fapter.xhtml?mode=print#chapter-heading"`)
+	for _, tc := range []struct {
+		name      string
+		mutate    func(t *testing.T, path string) string
+		wantKind  string
+		wantLevel string
+		wantTitle string
+		wantPath  []string
+	}{
+		{
+			name: "missing same-file fragment",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "missing-same-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#absent"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-fragment", wantLevel: "error", wantTitle: "fragment target ID is missing",
+			wantPath: []string{chapter, `"#absent"`, chapter + "#absent"},
+		},
+		{
+			name: "missing cross-file fragment",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "missing-cross-fragment.epub")
+				rewriteZipEntry(t, path, dst, "OEBPS/nav.xhtml", func(data []byte) []byte {
+					return bytes.Replace(data, navLink, []byte(`href="Text/ch%3Fapter.xhtml?mode=print#absent"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-missing-fragment", wantLevel: "error", wantTitle: "fragment target ID is missing",
+			wantPath: []string{"OEBPS/nav.xhtml", `"Text/ch%3Fapter.xhtml?mode=print#absent"`, chapter + "#absent"},
+		},
+		{
+			name: "percent-encoded unicode ID",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "encoded-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#%E7%AB%A0%E8%8A%82"`), 1)
+				})
+				return dst
+			},
+		},
+		{
+			name: "xml id",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "xml-id-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#xml-legacy"`), 1)
+				})
+				return dst
+			},
+		},
+		{
+			name: "empty fragment",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "empty-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#"`), 1)
+				})
+				return dst
+			},
+		},
+		{
+			name: "invalid fragment encoding",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "invalid-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#%ZZ"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-invalid-fragment", wantLevel: "error", wantTitle: "invalid percent-encoding",
+			wantPath: []string{chapter, `"#%ZZ"`, "<invalid-fragment>"},
+		},
+		{
+			name: "EPUB CFI is reported as unverified",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "cfi-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="#epubcfi(/6/2[chapter])"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-cfi-unverified", wantLevel: "warn", wantTitle: "not resolved by this audit",
+			wantPath: []string{chapter, `"#epubcfi(/6/2[chapter])"`},
+		},
+		{
+			name: "fragment on non-XHTML target is outside ID validation",
+			mutate: func(t *testing.T, path string) string {
+				dst := filepath.Join(t.TempDir(), "non-xhtml-fragment.epub")
+				rewriteZipEntry(t, path, dst, chapter, func(data []byte) []byte {
+					return bytes.Replace(data, []byte(`href="#chapter-heading"`), []byte(`href="../Images/cover.png#figure"`), 1)
+				})
+				return dst
+			},
+		},
+		{
+			name: "unmanifested XHTML fragment target",
+			mutate: func(t *testing.T, path string) string {
+				withTarget := filepath.Join(t.TempDir(), "unmanifested-xhtml-source.epub")
+				addZipEntry(t, path, withTarget, "OEBPS/Text/unlisted.xhtml", []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="there">target</p></body></html>`))
+				dst := filepath.Join(t.TempDir(), "unmanifested-xhtml.epub")
+				rewriteZipEntry(t, withTarget, dst, "OEBPS/nav.xhtml", func(data []byte) []byte {
+					return bytes.Replace(data, navLink, []byte(`href="Text/unlisted.xhtml#there"`), 1)
+				})
+				return dst
+			},
+			wantKind: "xhtml-fragment-target-unverified", wantLevel: "error", wantTitle: "not declared as a readable XHTML manifest item",
+			wantPath: []string{"OEBPS/nav.xhtml", `"Text/unlisted.xhtml#there"`, "OEBPS/Text/unlisted.xhtml#there"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := tc.mutate(t, writeNativeFixture(t))
+			res := runNativeAudit(t, path)
+			var found *report.Finding
+			for i := range res.Findings {
+				if res.Findings[i].Detail == tc.wantKind {
+					found = &res.Findings[i]
+					break
+				}
+			}
+			if tc.wantKind == "" {
+				for _, finding := range res.Findings {
+					if strings.HasPrefix(finding.Detail, "xhtml-") {
+						t.Errorf("unexpected XHTML fragment finding: %+v", finding)
+					}
+				}
+				return
+			}
+			if found == nil {
+				t.Fatalf("finding kind %q not found: %+v", tc.wantKind, res.Findings)
+			}
+			if found.Level != tc.wantLevel || !strings.Contains(found.Title, tc.wantTitle) {
+				t.Errorf("finding = %+v, want level %q and title containing %q", *found, tc.wantLevel, tc.wantTitle)
+			}
+			for _, want := range tc.wantPath {
+				if !strings.Contains(found.Location, want) {
+					t.Errorf("finding location %q does not contain %q", found.Location, want)
+				}
+			}
+		})
 	}
 }
 

@@ -1,9 +1,20 @@
 package opf
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 )
+
+func TestScanXHTMLSpanTreeContextHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	root, err := ScanXHTMLSpanTreeContext(ctx, []byte(`<html xmlns="http://www.w3.org/1999/xhtml"/>`))
+	if root != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled XHTML scan = root %v, err %v; want nil and context.Canceled", root, err)
+	}
+}
 
 // spanText 按区间切回原文，用于断言 INV-2 的无损字节区间契约。
 func spanText(data []byte, s Span) string { return string(data[s.Start:s.End]) }
