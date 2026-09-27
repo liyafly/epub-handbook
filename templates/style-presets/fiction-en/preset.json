@@ -1,0 +1,14 @@
+{
+  "name": "fiction-en",
+  "version": "1",
+  "description": "英文小说：仅作用于显式英文页面，保留阅读器字体与重排，首字下沉为可选增强",
+  "layers": [
+    "fonts.css",
+    "base.css",
+    "notes.css",
+    "effects.css",
+    "literary.css",
+    "media.css"
+  ],
+  "notes": "要求源页面有 lang=en 与 english-fiction 角色；不改文档语言，不锁默认字体，不启用浮动首字，待阅读器实测"
+}

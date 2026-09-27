@@ -111,7 +111,7 @@ epub run epub.typography.optimize --input "$BASE" --output "$CANDIDATE" --dry-ru
 ### 12. 英文小说
 
 - **源码和定位：** [`18-english-fiction.xhtml`](OEBPS/Text/18-english-fiction.xhtml)，根 `lang="en"`、`.english-fiction`、`.en-noindent`、`.en-extract` 和图注。
-- **样式层：** `base.css`、`fonts.css`、`literary.css`、`effects.css`。
+- **样式层：** `fiction-en` 预设；`font-en-serif` 只在原 XHTML 显式标记时作为可选增强。
 - **试用范围：** 从实际英文 spine 页小范围试用；确认该页语言后再用 `epub.typography.english.optimize` 修补缺失声明。
 - **限制和降级：** 不把英文规则套到中文段落；保持长单词可换行，不默认依赖断字或浮动首字。
 - **阅读器状态：** 有旧 artifact 的 warn 记录；需要用新 artifact 和确切阅读器版本复测。
