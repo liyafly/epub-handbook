@@ -1,0 +1,14 @@
+@charset "utf-8";
+
+.math-block { margin: 1em 0; overflow-x: auto; text-align: center; text-indent: 0; }
+.math-inline { white-space: nowrap; }
+.math-note { font-size: .9em; text-align: left; text-indent: 0; }
+.img-left { float: left; width: 30%; margin: 0 1em .6em 0; text-align: center; }
+.img-right { float: right; width: 30%; margin: 0 0 .6em 1em; text-align: center; }
+.img-left img,
+.img-right img { width: 100%; height: auto; margin: 0; }
+.img-center,
+.figure-fullwidth { display: block; margin: .8em auto; text-align: center; }
+.img-center img { max-width: 100%; height: auto; }
+.clear-both { clear: both; }
+.figure-grid { display: block; margin: 1em 0; }

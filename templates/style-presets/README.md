@@ -1,6 +1,6 @@
 # EPUB 风格预设
 
-风格预设把常见中文书型的排版选择收敛为三个菜单项。每个预设只提供
+风格预设把常见中文书型的排版选择收敛为四个菜单项。每个预设只提供
 `Styles/` CSS、OPF stylesheet 声明和 XHTML `<head>` link，不改正文文本或结构。
 
 ## 使用前提
@@ -10,7 +10,7 @@
 查看 `coverage`；低于 30% 表示原书尚未迁入该体系，应先走 cleanup pipeline。
 低 coverage 不是错误，但直接应用很可能静默无效。
 
-预设即 `templates/style-presets/` 下的三个目录（`literary-cn` / `academic-cn` /
+预设即 `templates/style-presets/` 下的四个目录（`plain-cn` / `literary-cn` / `academic-cn` /
 `classical-annotated-cn`）：
 
 ```sh

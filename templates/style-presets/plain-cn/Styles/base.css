@@ -1,0 +1,44 @@
+@charset "utf-8";
+
+@page { margin: .75em; padding: 0; }
+
+html { margin: 0; padding: 0; }
+
+body {
+  margin: 0;
+  padding: .9em;
+  font-size: 100%;
+  line-height: 1.72;
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.25em 0 .65em;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  line-height: 1.38;
+  text-indent: 0;
+}
+
+p { margin: .55em 0; text-align: justify; text-indent: 2em; }
+ul, ol { margin: .8em 0; padding-left: 2em; }
+dl { margin: .8em 0; }
+dt { margin-top: .5em; font-weight: 700; }
+dd { margin-left: 2em; }
+a { color: inherit; }
+em { font-style: normal; text-emphasis: filled dot; -webkit-text-emphasis: filled dot; }
+strong { font-weight: 700; }
+blockquote { margin: 1em 1em; padding-left: .9em; border-left: .1em solid #999; }
+figure { margin: 1.1em 0; text-align: center; }
+img { max-width: 100%; height: auto; }
+figcaption { margin-top: .4em; font-size: .9em; text-indent: 0; }
+table { width: 100%; border-collapse: collapse; font-size: .95em; }
+th, td { padding: .35em .45em; border: 1px solid #999; vertical-align: top; }
+pre { margin: 1em 0; padding: .7em; overflow-x: auto; border: 1px solid #aaa; }
+code, kbd, samp, pre { font-family: "SF Mono", Consolas, "Source Code Pro", monospace; }
+ruby { ruby-align: center; }
+rt { font-size: .5em; line-height: 1; }
+rp { display: none; }
+.has-ruby { line-height: 2; }
+.table-wrap { margin: 1em 0; overflow-x: auto; }
+.title-page { min-height: 88%; padding-top: 18%; text-align: center; page-break-after: always; }
+.title-page p { text-align: center; text-indent: 0; }
