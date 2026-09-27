@@ -10,7 +10,7 @@
 sh templates/book-starter/new-book.sh work-epub/my-book
 ```
 
-脚本会创建一本书的独立本地 Git 仓库，放入最小 EPUB 骨架、构建脚本、`.gitignore`、`THIRD_PARTY.md` 和 `制作说明.md`。目标目录必须尚不存在，避免覆盖已有书稿。首次写完元数据或正文后提交：
+脚本会创建一本书的独立本地 Git 仓库，放入书根 `README.md`、最小 EPUB 骨架、构建脚本、`.gitignore`、`THIRD_PARTY.md` 和 `制作说明.md`。书根 README 是给后续维护者的日常操作说明；解包目录只放 EPUB 源文件和构建脚本。目标目录必须尚不存在，避免覆盖已有书稿。首次写完元数据或正文后提交：
 
 ```sh
 git -C work-epub/my-book add .
@@ -21,6 +21,7 @@ git -C work-epub/my-book commit -m 'chore: establish book source'
 
 ```text
 work-epub/my-book/
+├── README.md                  # 书级日常修改、构建与字体说明
 ├── 01 源文件/                 # 已有 EPUB 的冻结底本；新书可暂为空
 ├── 02 校对材料/               # 按需放校对资料和授权决策
 ├── 03 制作工作区/
@@ -28,8 +29,7 @@ work-epub/my-book/
 │   │   ├── mimetype
 │   │   ├── META-INF/
 │   │   ├── OEBPS/
-│   │   ├── build.sh
-│   │   └── README.md
+│   │   └── build.sh
 │   ├── .pipeline/             # 临时打包、报告和候选，Git 忽略
 │   └── dist/book.epub         # 最近一次通过验证的产物，Git 忽略并覆盖
 ├── .gitignore
@@ -47,7 +47,7 @@ work-epub/my-book/
 sh '03 制作工作区/epub/build.sh'
 ```
 
-脚本把中间包和报告放进 `03 制作工作区/.pipeline/`，最后运行导航结构审计和全项 redline；所有检查通过才用同卷重命名覆盖 `03 制作工作区/dist/book.epub`。构建失败时，最近一次通过验证的 `book.epub` 保持原样。不会按时间戳生成新文件，也不会把中间 EPUB 留在书目录里。
+脚本把中间包和报告放进 `03 制作工作区/.pipeline/`，最后运行导航结构审计和全项 redline；所有检查通过才用同卷重命名覆盖 `03 制作工作区/dist/book.epub`。每次构建先清除上次 gate 报告，当前报告使用固定文件名保存，重复构建不会累计报告；终端只显示通过/警告摘要，失败时会打印对应报告。构建失败时，最近一次通过验证的 `book.epub` 保持原样。不会按时间戳生成新文件，也不会把中间 EPUB 留在书目录里。
 
 `dist/book.epub` 和 `.pipeline/` 默认由新书脚本写进书级 `.gitignore`。Git 主要维护解包源、校对材料、脚本与制作决策；交付 EPUB 是可从某次源提交重建的输出。每次交付后，在 `制作说明.md` 记录源提交、产物 SHA-256 和阅读器实测。若要长期归档具体交付版，把它发布到书级仓库之外的发行位置，并保留对应 SHA，不要把反复构建的二进制历史塞进源文件提交。
 

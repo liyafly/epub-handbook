@@ -18,6 +18,24 @@ LOCK_DIR="$PIPELINE_DIR/build.lock"
 OUTPUT="$DIST_DIR/book.epub"
 EPUB_BIN=${EPUB_BIN:-epub}
 
+run_check() {
+	report_path=$1
+	shift
+	label=$1
+	if [ "$label" = run ]; then
+		label=$2
+	fi
+	if "$EPUB_BIN" "$@" >"$report_path" 2>&1; then
+		warnings=$(grep -c '"level": "warn"' "$report_path" || :)
+		printf 'PASS %s (warnings: %s; report: %s)\n' "$label" "${warnings:-0}" "${report_path#"$BOOK_DIR"/}"
+	else
+		status=$?
+		printf 'FAIL %s (report: %s)\n' "$label" "${report_path#"$BOOK_DIR"/}" >&2
+		cat "$report_path" >&2
+		return "$status"
+	fi
+}
+
 if ! command -v zip >/dev/null 2>&1; then
 	echo "zip is required." >&2
 	exit 1
@@ -40,6 +58,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 	echo "Another build is active (or a stale lock exists): $LOCK_DIR" >&2
 	exit 1
 fi
+rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt"
 BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
 cleanup() {
 	rm -rf "$BUILD_TMP"
@@ -67,17 +86,16 @@ fi
 
 if [ "$HAS_FONTS" = true ]; then
 	if [ -f "$FONT_CONFIG" ]; then
-		"$EPUB_BIN" run epub.font.subset --input "$FULL_EPUB" --output "$FINAL_EPUB" --json "font_config=$FONT_CONFIG"
+		run_check "$PIPELINE_DIR/font-subset.json" run epub.font.subset --input "$FULL_EPUB" --output "$FINAL_EPUB" --json "font_config=$FONT_CONFIG"
 	else
-		"$EPUB_BIN" run epub.font.subset --input "$FULL_EPUB" --output "$FINAL_EPUB" --json
+		run_check "$PIPELINE_DIR/font-subset.json" run epub.font.subset --input "$FULL_EPUB" --output "$FINAL_EPUB" --json
 	fi
 else
-	"$EPUB_BIN" run epub.package.nav.audit --input "$FULL_EPUB" --json
 	cp "$FULL_EPUB" "$FINAL_EPUB"
 fi
 
-"$EPUB_BIN" run epub.package.nav.audit --input "$FINAL_EPUB" --json
-"$EPUB_BIN" redline --check all "$FULL_EPUB" "$FINAL_EPUB"
+run_check "$PIPELINE_DIR/nav-audit.json" run epub.package.nav.audit --input "$FINAL_EPUB" --json
+run_check "$PIPELINE_DIR/redline.txt" redline --check all "$FULL_EPUB" "$FINAL_EPUB"
 
 # BUILD_TMP is under PIPELINE_DIR, on the same volume as DIST_DIR. Rename only
 # after every check succeeds so a failed build preserves the last good EPUB.

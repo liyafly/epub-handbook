@@ -44,7 +44,9 @@ trap 'exit 1' HUP INT TERM
 mkdir -p "$TMP/01 源文件" "$TMP/02 校对材料" "$TMP/03 制作工作区/epub"
 EPUB_DIR="$TMP/03 制作工作区/epub"
 cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" \
-	"$TEMPLATE_DIR/README.md" "$TEMPLATE_DIR/build.sh" "$EPUB_DIR/"
+	"$TEMPLATE_DIR/build.sh" "$EPUB_DIR/"
+
+cp "$TEMPLATE_DIR/README.md" "$TMP/README.md"
 
 cat >"$TMP/01 源文件/README.md" <<'EOF'
 # 冻结源文件
@@ -90,6 +92,7 @@ cat >"$TMP/制作说明.md" <<'EOF'
 ## 构建与验证
 
 - 命令：`sh '03 制作工作区/epub/build.sh'`
+- 源提交：待首次交付后填写
 - 最近构建：待首次构建后填写
 - 产物 SHA-256：待首次构建后填写
 - 阅读器实测：待验证；记录阅读器名称、版本和 artifact SHA 后再标为通过

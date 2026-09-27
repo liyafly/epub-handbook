@@ -1,71 +1,51 @@
-# book-starter
+# 书级 EPUB 工作区
 
-最小可成书骨架：标题页 + 一章正文 + nav + NCX，预装 literary-cn preset（自由模式，
-body 不锁字体）。用途是「十分钟出一本结构合规的书」，进阶场景从
-`templates/epub-style-demo/` 按页复制。
+本仓库维护一本书的解包源、制作决策和必要材料。日常只改
+`03 制作工作区/epub/OEBPS/`；打包与检查由脚本完成，不需要手动解压、复制多个 EPUB
+或整理时间戳产物。初始书稿包含标题页、第一章、导航、NCX 和基础样式。
 
-## 用法
+## 日常修改
 
-从手册仓库根目录一条命令创建书级 Git 工作区：
+1. 修改 `package.opf`、`nav.xhtml`、`toc.ncx`、`Text/` 或 `Styles/` 中需要的文件。换书名时同步修改 OPF 标题、作者、UUID，以及 NCX 的 `dtb:uid`。新增章节时同步 OPF manifest/spine、nav 和 NCX。
+2. 在书根检查并提交源文件：
 
-```sh
-sh templates/book-starter/new-book.sh work-epub/my-book
-```
+   ```sh
+   git status --short
+   git diff --check
+   git add -A
+   git commit -m 'content: update book source'
+   ```
 
-改书级工作区的 `03 制作工作区/epub/OEBPS/`。先更新 `package.opf` 的 `dc:title`、
-`dc:creator`、`dc:identifier`（换一个新 UUID，并同步 `toc.ncx` 的 `dtb:uid`），再编辑
-`Text/` 中的章节。新增章节时仍须同步 OPF manifest+spine、`nav.xhtml` 和 `toc.ncx`。
-版本控制只提交解包源与制作说明；`.pipeline/` 和 `dist/` 已在书级 `.gitignore` 中。
+   `dist/` 和 `.pipeline/` 已忽略，不会把构建产物加入书级 Git。
+3. 在书根运行唯一构建命令：
 
-构建并检查：
+   ```sh
+   sh '03 制作工作区/epub/build.sh'
+   ```
 
-```sh
-sh '03 制作工作区/epub/build.sh'
-```
-
-最新产物固定为 `03 制作工作区/dist/book.epub`。通过导航审计和全项 redline 后会覆盖旧产物；
-中间 EPUB 与报告留在忽略的 `.pipeline/`，构建失败不会覆盖上一版通过检查的产物。
-
-若从仓库源码运行新 capability，先构建当前 CLI 并传入路径：
-
-```sh
-go build -o /tmp/epub-handbook-cli ./cmd/epub
-EPUB_BIN=/tmp/epub-handbook-cli sh '03 制作工作区/epub/build.sh'
-```
+4. 交付文件固定为 `03 制作工作区/dist/book.epub`。导航审计和全项 redline 通过后才覆盖；失败时保留上一版。临时 EPUB 会在构建结束时清理；当前报告固定保存在忽略目录 `.pipeline/`，每次构建先清掉上次报告，不会累积。
+5. 交付时在 `制作说明.md` 记录源提交、产物 SHA-256 和真实阅读器实测。没有在目标阅读器中打开验证时，状态保持“待验证”。
 
 ## 字体
 
-完整字体母版放在 `OEBPS/Fonts/`，正常登记到 OPF 和 CSS，并随书级 Git 保存。安装独立
-provider 后，构建会从完整母版生成当前正文所需子集；后续新增生僻字时仍从完整源字体重新生成，
-不会因上一次的子集而缺字：
+获准使用的完整 `.ttf` / `.otf` 母版放在 `03 制作工作区/epub/OEBPS/Fonts/`，登记到 OPF manifest 和 CSS，并与解包源一起提交。构建会从完整母版为当前正文生成子集；新增字后会重新计算，不会把唯一字体母版替换成子集。字体来源和许可记入 `THIRD_PARTY.md`。
+
+书中没有字体时不需要字体 provider。含字体时，需要安装 `epub-font` provider，且 `epub` CLI 必须提供 `epub.font.subset` 能力。可在手册仓库根目录安装 provider：
 
 ```sh
 uv tool install --editable tools-font/epub-font
 ```
 
-无字体的书不需要安装 provider。若母版放在 EPUB 外部，在书根建立 `fonts.json`，其中
-`target` 是 ZIP 内 manifest 字体路径、`master` 相对 `fonts.json`；配置格式见
-[`epub-font` 文档](../../tools-font/epub-font/README.md)。字体来源与许可记入书级
-`THIRD_PARTY.md`。完整书级维护与已有 EPUB 接入方式见
-[`docs/pipeline/book-workspace.md`](../../docs/pipeline/book-workspace.md)。
+若母版放在 EPUB 外部，可在书根放 `fonts.json`，`master` 路径相对该配置文件。
 
-## 换 preset
+## 进阶排版
 
-```sh
-cp <仓库路径>/templates/style-presets/academic-cn/Styles/*.css OEBPS/Styles/
-```
+默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。切换主题时把选定 preset 的主题 CSS 放入 `OEBPS/Styles/`，同步修改 OPF 中 `css-theme` href，并删除不用的主题文件。
 
-三个 preset 的文件名只有主题层不同（`literary.css` / `academic.css` /
-`classical.css`），换完后把 `package.opf` 里 `css-theme` 那一行的 href 改成对应
-文件名，并删除旧主题层文件。页面默认只 link `fonts.css` + `base.css`；需要弹注 /
-文字效果 / 图文混排时按 `docs/final/SPEC-实现约束.md` §7 的分层约定补 link。
+## 需要查细节时
 
-## 模式说明
-
-默认自由模式（SPEC §8）：`body` 与普通正文 `p` 都不声明字体。整书锁定字体时，
-取消 `fonts.css` 中直接 `body` 规则的注释；不必修改每页 XHTML，也不要给裸 `p`
-重复指定字体。随后在
-`package.opf` metadata 加 `<meta property="ibooks:specified-fonts">true</meta>`
-并在 `<package>` 声明 ibooks prefix。meta 与字体锁定的配对关系暂无独立 lint 能力，
-以 `epub run epub.package.nav.audit` 的 findings、demo 校验器（本仓模板）与人工
-diff review 复核（见 `docs/pipeline/go-rewrite-handoff.md` 遗留项 4）。
+- [书级工作区与已有 EPUB 接入](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)
+- [排版实现约束](https://github.com/liyafly/epub-handbook/blob/main/docs/final/SPEC-%E5%AE%9E%E7%8E%B0%E7%BA%A6%E6%9D%9F.md)
+- [可复用主题样式](https://github.com/liyafly/epub-handbook/tree/main/templates/style-presets)
+- [字体 provider 配置](https://github.com/liyafly/epub-handbook/blob/main/tools-font/epub-font/README.md)
+- [可选排版样例](https://github.com/liyafly/epub-handbook/tree/main/templates/epub-style-demo)

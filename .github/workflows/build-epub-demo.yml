@@ -101,6 +101,28 @@ jobs:
           go test ./internal/archguard/ -v
           go test ./...
 
+      - name: Smoke book workspace starter
+        shell: bash
+        run: |
+          book="$RUNNER_TEMP/book starter smoke"
+          output="$book/03 制作工作区/dist/book.epub"
+          go build -o "$RUNNER_TEMP/epub" ./cmd/epub
+          sh templates/book-starter/new-book.sh "$book"
+          test -f "$book/README.md"
+          test ! -f "$book/03 制作工作区/epub/README.md"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"
+          test -s "$output"
+          before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
+          printf '\n<broken' >> "$book/03 制作工作区/epub/OEBPS/package.opf"
+          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then
+            echo "Expected a malformed source build to fail." >&2
+            exit 1
+          fi
+          after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
+          test "$before_sha" = "$after_sha"
+          epub_count=$(find "$book/03 制作工作区" -type f -name '*.epub' | wc -l | tr -d ' ')
+          test "$epub_count" = 1
+
       - name: Validate demo artifact with epub CLI
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
@@ -118,6 +140,9 @@ jobs:
           curl -L -o epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
           unzip -q epubcheck.zip -d "$RUNNER_TEMP/epubcheck"
           echo "EPUBCHECK_JAR=$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar" >> "$GITHUB_ENV"
+
+      - name: Validate book starter with EPUBCheck
+        run: java -jar "$EPUBCHECK_JAR" "$RUNNER_TEMP/book starter smoke/03 制作工作区/dist/book.epub" --mode epub --profile default
 
       - name: Validate with EPUBCheck
         run: |
