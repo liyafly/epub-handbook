@@ -24,8 +24,13 @@ func TestCatalogMatchesSourceAndArtifactWithoutClaimingAcceptance(t *testing.T) 
 		t.Fatalf("missing active scenes: %d", len(scenes))
 	}
 	for _, scene := range scenes {
-		if scene.Title == "" || len(scene.SHA256) != 64 || len(scene.Stylesheets) == 0 {
+		if scene.Title == "" || len(scene.SHA256) != 64 || len(scene.Stylesheets) == 0 || len(scene.StylesheetSHA256) != len(scene.Stylesheets) {
 			t.Fatalf("incomplete scene %+v", scene)
+		}
+		for _, stylesheet := range scene.Stylesheets {
+			if len(scene.StylesheetSHA256[stylesheet]) != 64 {
+				t.Fatalf("stylesheet hash missing for %s: %+v", stylesheet, scene.StylesheetSHA256)
+			}
 		}
 	}
 	artifact := filepath.Join(t.TempDir(), "demo.epub")
@@ -54,6 +59,39 @@ func TestCatalogMatchesSourceAndArtifactWithoutClaimingAcceptance(t *testing.T) 
 	empty, err := Run(t.Context(), b, p)
 	if err != nil || empty.Facts["sceneCount"] != 0 || empty.Facts["scenes"] == nil {
 		t.Fatalf("no match=%v %v", empty.Facts, err)
+	}
+}
+
+func TestPresetCatalogReadsMetadataFiltersAndReportsUntestedStatus(t *testing.T) {
+	root := t.TempDir()
+	presetDir := filepath.Join(root, "fiction-en")
+	if err := os.Mkdir(presetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"name":"fiction-en","version":"1","description":"English novel layout","layers":["fonts.css","base.css","literary.css"],"notes":"Reader testing required"}`
+	if err := os.WriteFile(filepath.Join(presetDir, "preset.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Run(t.Context(), nil, Params{Catalog: true, Collection: "presets", PresetDir: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	presets := result.Facts["presets"].([]report.StylePreset)
+	if len(presets) != 1 || presets[0].ID != "fiction-en" || presets[0].Source != "filesystem" || presets[0].ReaderStatus != "not-verified" {
+		t.Fatalf("preset catalog = %+v", presets)
+	}
+	if !reflect.DeepEqual(presets[0].Layers, []string{"fonts.css", "base.css", "literary.css"}) || presets[0].Notes != "Reader testing required" {
+		t.Fatalf("preset metadata = %+v", presets[0])
+	}
+	result, err = Run(t.Context(), nil, Params{Catalog: true, Collection: "presets", PresetDir: root, Query: "no-match"})
+	if err != nil || result.Facts["presetCount"] != 0 || result.Facts["presets"] == nil {
+		t.Fatalf("empty preset query facts=%v err=%v", result.Facts, err)
+	}
+}
+
+func TestCatalogRejectsCollectionWithoutCatalog(t *testing.T) {
+	if _, err := Run(t.Context(), nil, Params{Collection: "presets"}); err == nil {
+		t.Fatal("collection without catalog=true was accepted")
 	}
 }
 
@@ -99,6 +137,18 @@ func TestCatalogAcceptsHTMLNamedEntities(t *testing.T) {
 	}
 	if reads["OEBPS/Styles/base.css"] != 1 {
 		t.Fatalf("duplicate stylesheet was read %d times", reads["OEBPS/Styles/base.css"])
+	}
+	originalHash := result[0].StylesheetSHA256["OEBPS/Styles/base.css"]
+	files["OEBPS/Styles/base.css"] = []byte(`body { color: navy; }`)
+	updated, _, err := scanScenes(t.Context(), func(name string) ([]byte, error) {
+		data, ok := files[name]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return data, nil
+	}, "")
+	if err != nil || len(updated) != 1 || updated[0].StylesheetSHA256["OEBPS/Styles/base.css"] == originalHash {
+		t.Fatalf("stylesheet source change did not update provenance hash: scenes=%+v err=%v", updated, err)
 	}
 }
 

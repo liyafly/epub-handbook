@@ -67,6 +67,11 @@ func TestRunUsageErrorsCarryEnvelopeAndExit3(t *testing.T) {
 				Args: Args{"expect_volumes": "many"}},
 			want: "expect_volumes",
 		},
+		{
+			name: "collection 需要 catalog",
+			opts: Options{CapabilityID: "epub.style.demo.maintain", Args: Args{"collection": "presets"}},
+			want: "collection requires catalog=true",
+		},
 	}
 
 	for _, tc := range cases {

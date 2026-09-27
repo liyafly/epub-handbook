@@ -148,9 +148,15 @@ func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
 
 func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	t.Setenv("EPUB_HANDBOOK_ROOT", "")
-	if _, err := FindRepoRoot(); err != nil {
+	root, err := FindRepoRoot()
+	if err != nil {
 		t.Fatal(err)
 	}
+	sourceCatalog, err := Run(t.Context(), Options{RepoRoot: root, CapabilityID: "epub.style.demo.maintain", Args: Args{"catalog": "true"}})
+	if err != nil || sourceCatalog.ExitCode != ExitOK {
+		t.Fatalf("checkout catalog exit=%d err=%v", sourceCatalog.ExitCode, err)
+	}
+	sourceScenes := sourceCatalog.Envelope.Facts["epub.style.demo.maintain.scenes"]
 	externalDir := t.TempDir()
 	t.Chdir(externalDir)
 	if root, err := FindRepoRoot(); err != nil || root != "" {
@@ -166,6 +172,34 @@ func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	}
 	if schema, err := readRepositoryFile("", "contracts/schemas/v2/envelope.schema.json"); err != nil || len(schema) == 0 {
 		t.Fatalf("embedded envelope schema: bytes=%d err=%v", len(schema), err)
+	}
+
+	embeddedCatalog, err := Run(t.Context(), Options{CapabilityID: "epub.style.demo.maintain", Args: Args{"catalog": "true"}})
+	if err != nil || embeddedCatalog.ExitCode != ExitOK {
+		t.Fatalf("embedded catalog exit=%d err=%v findings=%+v", embeddedCatalog.ExitCode, err, embeddedCatalog.Envelope.Findings)
+	}
+	embeddedScenes := embeddedCatalog.Envelope.Facts["epub.style.demo.maintain.scenes"]
+	sourceJSON, err := json.Marshal(sourceScenes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	embeddedJSON, err := json.Marshal(embeddedScenes)
+	if err != nil || !bytes.Equal(sourceJSON, embeddedJSON) {
+		t.Fatalf("checkout and embedded scene catalogs differ: marshal err=%v", err)
+	}
+	if embeddedCatalog.Envelope.Facts["epub.style.demo.maintain.resourceSource"] != "embedded" {
+		t.Fatalf("embedded source origin = %v", embeddedCatalog.Envelope.Facts["epub.style.demo.maintain.resourceSource"])
+	}
+	noMatch, err := Run(t.Context(), Options{CapabilityID: "epub.style.demo.maintain", Args: Args{"catalog": "true", "query": "unlikely-no-match"}})
+	if err != nil || noMatch.ExitCode != ExitOK || noMatch.Envelope.Facts["epub.style.demo.maintain.sceneCount"] != 0 {
+		t.Fatalf("empty embedded search exit=%d err=%v facts=%+v", noMatch.ExitCode, err, noMatch.Envelope.Facts)
+	}
+	embeddedPresets, err := Run(t.Context(), Options{CapabilityID: "epub.style.demo.maintain", Args: Args{"catalog": "true", "collection": "presets"}})
+	if err != nil || embeddedPresets.ExitCode != ExitOK {
+		t.Fatalf("embedded preset catalog exit=%d err=%v", embeddedPresets.ExitCode, err)
+	}
+	if embeddedPresets.Envelope.Facts["epub.style.demo.maintain.resourceSource"] != "embedded" || embeddedPresets.Envelope.Facts["epub.style.demo.maintain.presetCount"] != 3 {
+		t.Fatalf("embedded preset catalog facts = %+v", embeddedPresets.Envelope.Facts)
 	}
 
 	input := buildSampleEpub(t)

@@ -27,6 +27,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"sort"
@@ -46,8 +47,14 @@ type Params struct {
 	// DemoDir 是 demo 源树根（templates/epub-style-demo 的绝对路径）。
 	// 源树模式必填；产物模式必填（Python 的 validate_source 无条件先跑）。
 	DemoDir string
-	Catalog bool
-	Query   string
+	// DemoFS is the read-only embedded source tree used for discovery outside a checkout.
+	DemoFS fs.FS
+	// PresetDir and PresetFS provide the checkout or embedded preset catalog.
+	PresetDir  string
+	PresetFS   fs.FS
+	Catalog    bool
+	Collection string
+	Query      string
 }
 
 // Run 执行 demo fixture 校验（只读）。
@@ -56,7 +63,22 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return report.Result{}, err
 	}
 	if p.Catalog {
-		return describeScenes(ctx, b, p)
+		collection := p.Collection
+		if collection == "" {
+			collection = "scenes"
+		}
+		switch collection {
+		case "scenes":
+			p.Collection = collection
+			return describeScenes(ctx, b, p)
+		case "presets":
+			return describePresets(ctx, p)
+		default:
+			return report.Result{}, fmt.Errorf("styledemo: unsupported catalog collection %q", collection)
+		}
+	}
+	if p.Collection != "" && p.Collection != "scenes" {
+		return report.Result{}, errors.New("styledemo: collection is only supported with catalog=true")
 	}
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []string

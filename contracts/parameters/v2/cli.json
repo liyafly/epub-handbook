@@ -62,7 +62,7 @@
       "parameters": {}
     },
     "epub.style.demo.maintain": {
-      "description": "只读验证 demo 或发现真实样例；catalog=true 返回可搜索场景，不构建、不做阅读器验收。",
+      "description": "只读验证 demo 或发现真实样例；catalog=true 可搜索真实场景和内置预设，不构建、不应用样式、不做阅读器验收。",
       "parameters": {
         "demo_dir": {
           "type": "string",
@@ -72,6 +72,12 @@
           "type": "boolean",
           "description": "从真实 spine/XHTML 生成场景目录；仅发现，不运行验证器。",
           "default": "false"
+        },
+        "collection": {
+          "type": "string",
+          "description": "catalog=true 时列出 scenes 或 presets。",
+          "default": "scenes",
+          "enum": ["scenes", "presets"]
         },
         "query": {
           "type": "string",

@@ -32,6 +32,14 @@ epub run epub.typography.optimize \
 自定义预设限 1–32 个不重复层：JSON 至多 1 MiB，单层 CSS 至多 4 MiB，
 CSS 合计至多 16 MiB；所有输入必须是普通文件。
 
+可在仓库内或发行二进制目录外搜索内置预设：
+
+```sh
+epub run epub.style.demo.maintain catalog=true collection=presets query=academic
+```
+
+目录结果来自 preset.json，列出说明、CSS 层和资源来源；`readerStatus=not-verified` 表示尚无对应阅读器实测。它只帮助发现选项，不会验证或应用预设。
+
 预设遵守 `docs/final/SPEC-实现约束.md` §7 的 CSS 分层和加载顺序。新增预设时：
 
 1. 建立 `<name>/preset.json`、`README.md` 和 `Styles/`。

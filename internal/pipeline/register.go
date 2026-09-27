@@ -43,6 +43,8 @@ import (
 type Args map[string]string
 
 const embeddedPresetsArg = "__pipeline_embedded_presets"
+const embeddedDemoArg = "__pipeline_embedded_demo"
+const presetCatalogDirArg = "__pipeline_preset_catalog_dir"
 
 // Get 返回参数值，缺省为空串。
 func (a Args) Get(k string) string { return a[k] }
@@ -285,10 +287,34 @@ func init() {
 		})
 	})
 	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		if args.Get("query") != "" && !args.Bool("catalog") {
-			return report.Result{}, usageErrorf("query requires catalog=true")
+		if !args.Bool("catalog") {
+			if args.Get("query") != "" {
+				return report.Result{}, usageErrorf("query requires catalog=true")
+			}
+			if _, exists := args["collection"]; exists {
+				return report.Result{}, usageErrorf("collection requires catalog=true")
+			}
 		}
-		return styledemo.Run(ctx, b, styledemo.Params{DemoDir: args.Get("demo_dir"), Catalog: args.Bool("catalog"), Query: args.Get("query")})
+		var demoFS, presetFS fs.FS
+		if args.Bool(embeddedDemoArg) {
+			var err error
+			demoFS, err = fs.Sub(epubhandbook.EmbeddedFS(), "templates/epub-style-demo")
+			if err != nil {
+				return report.Result{}, fmt.Errorf("open embedded demo catalog: %w", err)
+			}
+		}
+		if args.Bool(embeddedPresetsArg) {
+			var err error
+			presetFS, err = fs.Sub(epubhandbook.EmbeddedFS(), "templates/style-presets")
+			if err != nil {
+				return report.Result{}, fmt.Errorf("open embedded preset catalog: %w", err)
+			}
+		}
+		return styledemo.Run(ctx, b, styledemo.Params{
+			DemoDir: args.Get("demo_dir"), DemoFS: demoFS,
+			PresetDir: args.Get(presetCatalogDirArg), PresetFS: presetFS,
+			Catalog: args.Bool("catalog"), Collection: args.Get("collection"), Query: args.Get("query"),
+		})
 	})
 	registerSourceInput("epub.source.intake", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		maxFiles := 0

@@ -295,6 +295,15 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 			}
 		} else if runArgs["demo_dir"] == "" && root != "" {
 			runArgs["demo_dir"] = filepath.Join(root, "templates", "epub-style-demo")
+		} else if runArgs["demo_dir"] == "" && root == "" && runArgs["catalog"] == "true" && opts.InputPath == "" {
+			runArgs[embeddedDemoArg] = "true"
+		}
+	}
+	if contract.ID == "epub.style.demo.maintain" && runArgs["catalog"] == "true" && runArgs["collection"] == "presets" {
+		if root == "" {
+			runArgs[embeddedPresetsArg] = "true"
+		} else {
+			runArgs[presetCatalogDirArg] = filepath.Join(root, "templates", "style-presets")
 		}
 	}
 	if runArgs["preset_dir"] == "" && slices.ContainsFunc(chain, func(c Contract) bool {

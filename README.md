@@ -72,13 +72,14 @@ epub clean "$BOOKS" --out "$W/typography-preview" --steps typography \
 
 ```sh
 epub run epub.style.demo.maintain catalog=true query=chapter
+epub run epub.style.demo.maintain catalog=true collection=presets query=academic
 epub capabilities --id epub.typography.optimize
 go run ./cmd/epub run epub.typography.optimize --input before.epub --output sample.epub --dry-run --json 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
 ```
 
 `scope_paths` 应替换成实际 spine XHTML 路径。局部模式追加独立 CSS，保留原样式与其他章节；
 不传此参数是整书预设应用，保留已有字体层及自由／锁定模式；模式冲突会拒绝处理，
-详见[预设说明](templates/style-presets/README.md)。发现示例、预览候选和真实阅读器视觉验收是三个不同阶段。
+详见[预设说明](templates/style-presets/README.md)。catalog 搜索会列出真实 XHTML 场景或内置预设；脱离仓库运行时，发行二进制使用随包资源。发现、候选生成和真实阅读器验收是三个不同阶段。
 
 | 能力 | 位置 |
 | --- | --- |

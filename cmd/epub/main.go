@@ -347,11 +347,13 @@ func printStyleCatalog(facts map[string]any) {
 			Description string   `json:"description"`
 			Layers      []string `json:"layers"`
 			Source      string   `json:"source"`
+			SourcePath  string   `json:"sourcePath"`
+			Reader      string   `json:"readerStatus"`
 		}
 		if decodeFact(facts[prefix+"presets"], &presets) {
 			fmt.Printf("presets: %d\n", len(presets))
 			for _, preset := range presets {
-				fmt.Printf("- %s — %s\n  layers: %s\n  source: %s\n", preset.ID, preset.Description, strings.Join(preset.Layers, ", "), preset.Source)
+				fmt.Printf("- %s — %s\n  layers: %s\n  source: %s (%s); reader: %s\n", preset.ID, preset.Description, strings.Join(preset.Layers, ", "), preset.Source, preset.SourcePath, preset.Reader)
 			}
 			if len(presets) == 0 {
 				fmt.Println("0 presets matched; try a broader query.")
@@ -367,7 +369,7 @@ func printStyleCatalog(facts map[string]any) {
 	if !decodeFact(facts[prefix+"scenes"], &scenes) {
 		return
 	}
-	fmt.Printf("scenes: %d\n", len(scenes))
+	fmt.Printf("scenes: %d (%s; %s)\n", len(scenes), factString(facts, prefix+"resourceSource"), factString(facts, prefix+"sourcePathBase"))
 	for _, scene := range scenes {
 		fmt.Printf("- %s — %s\n  %s\n", scene.ID, scene.Title, scene.Path)
 	}
