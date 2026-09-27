@@ -1,0 +1,105 @@
+name: Font Provider Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'tools-font/**'
+      - 'templates/book-starter/**'
+      - '.github/scripts/font-provider-smoke.py'
+      - '.github/workflows/font-providers.yml'
+  pull_request:
+    paths:
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'tools-font/**'
+      - 'templates/book-starter/**'
+      - '.github/scripts/font-provider-smoke.py'
+      - '.github/workflows/font-providers.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  providers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install locked Python projects
+        run: |
+          uv sync --project tools-font/epub-font --frozen
+          uv sync --project tools-font/coverage-detector --frozen
+
+      - name: Test epub-font provider
+        working-directory: tools-font/epub-font
+        run: uv run --project . --frozen pytest -q
+
+      - name: Test coverage detector
+        working-directory: tools-font/coverage-detector
+        run: uv run --project . --frozen pytest -q
+
+      - name: Build Go CLI
+        run: go build -o "$RUNNER_TEMP/epub" ./cmd/epub
+
+      - name: Race-test provider execution and EPUB build packages
+        run: go test -race ./internal/book ./internal/extern ./internal/pipeline ./internal/zipfs
+
+      - name: Build and verify synthetic font book
+        run: >-
+          uv run --project tools-font/epub-font --frozen python
+          .github/scripts/font-provider-smoke.py
+          --epub-bin "$RUNNER_TEMP/epub"
+          --workspace "$RUNNER_TEMP/font-provider-smoke"
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install EPUBCheck
+        run: |
+          curl -fL -o "$RUNNER_TEMP/epubcheck.zip" https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+          unzip -q "$RUNNER_TEMP/epubcheck.zip" -d "$RUNNER_TEMP/epubcheck"
+
+      - name: Validate positive synthetic artifact with EPUBCheck
+        run: >-
+          java -jar "$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar"
+          "$RUNNER_TEMP/font-provider-smoke/合成字体书/03 制作工作区/dist/book.epub"
+          --mode epub --profile default
+          --out "$RUNNER_TEMP/font-provider-smoke/epubcheck.xml"
+
+      - name: Upload font provider smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: font-provider-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/font-provider-smoke/
+          if-no-files-found: warn
+          retention-days: 30
