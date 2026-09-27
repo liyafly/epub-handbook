@@ -3,6 +3,8 @@ package pipeline
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,7 +50,16 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.font.subset.fontEntries"]; fmt.Sprint(got) != "[OEBPS/Fonts/full.ttf OEBPS/Fonts/math.otf]" {
 		t.Fatalf("fontEntries = %#v", got)
 	}
-	var sawSubset, sawAudit, sawRedline bool
+	var sawSubset, sawAudit, sawRedline, sawFontWarning bool
+	for _, finding := range outcome.Envelope.Findings {
+		if finding.ID == "font-subset.not-in-master" && finding.Level == "warn" &&
+			finding.Location == "OEBPS/Fonts/full.ttf" && strings.Contains(finding.Detail, "1 required character") {
+			sawFontWarning = true
+		}
+	}
+	if !sawFontWarning {
+		t.Fatalf("findings=%+v, want structured missing-master warning", outcome.Envelope.Findings)
+	}
 	for _, event := range outcome.Envelope.Events {
 		switch event.Step {
 		case "epub.font.subset":
@@ -199,7 +210,89 @@ func rewriteFontSubset(input, outputPath string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	inputBytes, err := os.ReadFile(input)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	outputBytes, err := os.ReadFile(outputPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fullFont := []byte("FULL FONT")
+	subsetFont := []byte("SUBSET FONT")
+	mathFont := []byte("FULL MATH FONT")
+	sha := func(data []byte) string {
+		digest := sha256.Sum256(data)
+		return hex.EncodeToString(digest[:])
+	}
+	report := map[string]any{
+		"schemaVersion":   1,
+		"tool":            "epub-font subset",
+		"providerVersion": "test-1.0",
+		"fontTools":       "4.test",
+		"input":           map[string]any{"path": input, "sha256": sha(inputBytes)},
+		"fonts": []any{
+			fontSubsetReportEntry("OEBPS/Fonts/full.ttf", "font", "subset", "", fullFont, subsetFont, sha, 1),
+			fontSubsetReportEntry("OEBPS/Fonts/math.otf", "math", "preserve", "math-table", mathFont, mathFont, sha, 0),
+		},
+		"ok":     true,
+		"output": map[string]any{"path": outputPath, "sha256": sha(outputBytes), "warnings": []string{}},
+	}
+	reportBytes, err := json.Marshal(report)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	reportPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".font-report.json"
+	if err := os.WriteFile(reportPath, reportBytes, 0o600); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 	return 0
+}
+
+func fontSubsetReportEntry(target, manifestID, action, reason string, original, output []byte,
+	sha func([]byte) string, missingCount int) map[string]any {
+	checks := map[string]any{"cmap-coverage": map[string]any{"ok": true, "wanted": 2, "present": 2}}
+	notInMaster := []string{}
+	var requiredCodepoints *int
+	var notInMasterCount *int
+	warnings := []string{}
+	variation := map[string]any{"mode": "keep", "axes": map[string]any{}}
+	if action == "subset" {
+		required := 2
+		count := missingCount
+		requiredCodepoints = &required
+		notInMasterCount = &count
+		if count > 0 {
+			notInMaster = []string{"U+9F98 龘"}
+			checks["cmap-coverage"] = map[string]any{"ok": true, "wanted": 2, "present": 1}
+			warnings = []string{target + ": 1 required characters are not in the master font (fallback fonts must cover them)"}
+		}
+	} else {
+		notInMaster = nil
+		variation["mode"] = "preserve"
+		checks = map[string]any{"preserved-bytes": map[string]any{"ok": true, "sha256": sha(original)}}
+	}
+	return map[string]any{
+		"target": target, "manifestId": manifestID, "mediaType": "application/vnd.ms-opentype",
+		"action": action, "reason": reason,
+		"master":             map[string]any{"source": "epub:" + target, "sha256": sha(original), "bytes": len(original), "glyphs": 12, "outline": "glyf", "axes": []string{}},
+		"variation":          variation,
+		"original":           map[string]any{"sha256": sha(original), "bytes": len(original)},
+		"output":             map[string]any{"sha256": sha(output), "bytes": len(output), "glyphs": outputGlyphCount(action), "outline": "glyf", "flavor": nil, "axes": []string{}, "tables": []string{"cmap", "glyf"}},
+		"requiredCodepoints": requiredCodepoints, "notInMaster": notInMaster, "notInMasterCount": notInMasterCount,
+		"checks": checks, "ok": true, "warnings": warnings,
+	}
+}
+
+func outputGlyphCount(action string) int {
+	if action == "preserve" {
+		return 12
+	}
+	return 11
 }
 
 func quoteFontSubsetShell(value string) string {

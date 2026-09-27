@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import zipfile
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import fontTools
@@ -257,7 +258,9 @@ def run(args) -> int:
 
     all_ok = all(result["ok"] for result in results)
     report_data = {
+        "schemaVersion": 1,
         "tool": "epub-font subset",
+        "providerVersion": package_version("epub-font"),
         "fontTools": fontTools.version,
         "input": {"path": str(epub), "sha256": fontops.sha256(epub.read_bytes())},
         "config": ({"path": str(config_path), "sha256": fontops.sha256(config_path.read_bytes())}

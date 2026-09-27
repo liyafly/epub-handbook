@@ -18,6 +18,68 @@
     ],
     "epub.font.subset.provider": "epub-font",
     "epub.font.subset.providerLog": "provider did not return diagnostic output",
+    "epub.font.subset.providerReport": {
+      "schemaVersion": 1,
+      "providerVersion": "test-1.0",
+      "fontToolsVersion": "4.test",
+      "inputSHA256": "acb9b749d23c0bc739d2f28009c4754ae555079733dee91f7136a62a1120e1e5",
+      "outputSHA256": "c84fc10479b1b321c721fda304236fa797ddce2226c1413cc33bd062e5810cf6",
+      "ok": true,
+      "fonts": [
+        {
+          "target": "OEBPS/Fonts/full.ttf",
+          "action": "subset",
+          "reason": "",
+          "masterSHA256": "acff6485c11e6d62264aecdf123bf905cee5c01711d4652d01c31ecea9cce739",
+          "originalSHA256": "acff6485c11e6d62264aecdf123bf905cee5c01711d4652d01c31ecea9cce739",
+          "outputSHA256": "f53ecea585f90e2836aeeadfe3e488c3e50926af7d0c5929a72e3dae7507a135",
+          "masterBytes": 9,
+          "originalBytes": 9,
+          "outputBytes": 11,
+          "masterGlyphs": 12,
+          "outputGlyphs": 11,
+          "requiredCodepoints": 2,
+          "notInMaster": [
+            "U+9F98 龘"
+          ],
+          "notInMasterCount": 1,
+          "checks": {
+            "cmap-coverage": {
+              "ok": true,
+              "present": 1,
+              "wanted": 2
+            }
+          },
+          "warnings": [
+            "OEBPS/Fonts/full.ttf: 1 required characters are not in the master font (fallback fonts must cover them)"
+          ]
+        },
+        {
+          "target": "OEBPS/Fonts/math.otf",
+          "action": "preserve",
+          "reason": "math-table",
+          "masterSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
+          "originalSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
+          "outputSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
+          "masterBytes": 14,
+          "originalBytes": 14,
+          "outputBytes": 14,
+          "masterGlyphs": 12,
+          "outputGlyphs": 12,
+          "requiredCodepoints": null,
+          "notInMaster": null,
+          "notInMasterCount": null,
+          "checks": {
+            "preserved-bytes": {
+              "ok": true,
+              "sha256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd"
+            }
+          },
+          "warnings": []
+        }
+      ],
+      "warnings": []
+    },
     "epub.package.nav.audit.actionableFindings": [
       {
         "kind": "missing-html-lang",
@@ -113,6 +175,13 @@
       "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
       "detail": "see facts[\"epub.package.nav.audit.findings\"]",
       "location": "epub.package.nav.audit"
+    },
+    {
+      "level": "warn",
+      "id": "font-subset.not-in-master",
+      "title": "Font master lacks required characters",
+      "detail": "1 required characters are absent from the master font; fallback fonts must cover them; examples: U+9F98 龘",
+      "location": "OEBPS/Fonts/full.ttf"
     }
   ],
   "events": [

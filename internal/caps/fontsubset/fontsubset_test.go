@@ -3,6 +3,9 @@ package fontsubset
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,15 +19,7 @@ import (
 )
 
 func TestRunReplacesOnlyManifestFontInMemory(t *testing.T) {
-	provider := makeProvider(t, `
-import sys, zipfile
-source = sys.argv[2]
-output = sys.argv[sys.argv.index("--out") + 1]
-with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
-    for entry in src.infolist():
-        data = b"SUBSET FONT" if entry.filename == "OEBPS/Fonts/full.ttf" else src.read(entry)
-        dst.writestr(entry, data)
-`)
+	provider := makeReportingProvider(t)
 	b, input := openFontBook(t)
 	defer b.Close()
 
@@ -38,6 +33,31 @@ with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
 	}
 	if result.Status != "complete" {
 		t.Fatalf("status = %q", result.Status)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].ID != "font-subset.not-in-master" || result.Findings[0].Level != "warn" {
+		t.Fatalf("findings = %+v, want one structured missing-master warning", result.Findings)
+	}
+	if result.Findings[0].Location != "OEBPS/Fonts/full.ttf" || !strings.Contains(result.Findings[0].Detail, "1 required character") {
+		t.Fatalf("finding = %+v, want target and missing count", result.Findings[0])
+	}
+	data, err := json.Marshal(result.Facts["providerReport"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var providerReport map[string]any
+	if err := json.Unmarshal(data, &providerReport); err != nil {
+		t.Fatal(err)
+	}
+	if providerReport["providerVersion"] != "test-1.0" || providerReport["fontToolsVersion"] != "4.test" {
+		t.Fatalf("providerReport versions = %#v", providerReport)
+	}
+	fonts, ok := providerReport["fonts"].([]any)
+	if !ok || len(fonts) != 1 {
+		t.Fatalf("providerReport fonts = %#v", providerReport["fonts"])
+	}
+	fontSummary, ok := fonts[0].(map[string]any)
+	if !ok || fontSummary["target"] != "OEBPS/Fonts/full.ttf" || fontSummary["notInMasterCount"] != float64(1) {
+		t.Fatalf("providerReport font = %#v", fonts[0])
 	}
 	font, err := b.Current("OEBPS/Fonts/full.ttf")
 	if err != nil {
@@ -97,14 +117,7 @@ func TestRunSupportsRelativeInputPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("provider shim uses a POSIX executable")
 	}
-	provider := makeProvider(t, `import sys, zipfile
-source = sys.argv[2]
-output = sys.argv[sys.argv.index("--out") + 1]
-with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
-    for entry in src.infolist():
-        data = b"SUBSET FONT" if entry.filename == "OEBPS/Fonts/full.ttf" else src.read(entry)
-        dst.writestr(entry, data)
-`)
+	provider := makeReportingProvider(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 	if err := os.WriteFile("source.epub", fontFixture(t), 0o600); err != nil {
@@ -119,6 +132,119 @@ with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
 		t.Fatalf("Run() with relative input path: %v", err)
 	}
 }
+
+func TestRunRejectsInvalidProviderReportsWithoutApplyingCandidate(t *testing.T) {
+	for _, mode := range []string{"missing", "corrupt", "oversized", "wrong-target", "wrong-manifest-id", "wrong-media-type", "wrong-output-sha"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Setenv("EPUB_FONT_REPORT_TEST_MODE", mode)
+			provider := makeReportingProvider(t)
+			b, _ := openFontBook(t)
+			defer b.Close()
+
+			result, err := Run(t.Context(), b, Params{ToolPath: provider})
+			if err == nil || result.Status != "failed" {
+				t.Fatalf("Run() = status %q, error %v; want failed report validation", result.Status, err)
+			}
+			if len(result.Findings) == 0 || result.Findings[0].ID != "font-subset.report-invalid" {
+				t.Fatalf("findings = %+v, want report-invalid", result.Findings)
+			}
+			font, readErr := b.Current("OEBPS/Fonts/full.ttf")
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if !bytes.Equal(font, []byte("FULL FONT")) {
+				t.Fatalf("font changed after invalid report: %q", font)
+			}
+		})
+	}
+}
+
+func TestRunProviderCancellationReturnsCancelledErrorWithoutApplyingCandidate(t *testing.T) {
+	provider := makeProvider(t, "import time; time.sleep(30)")
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	_, err := Run(ctx, b, Params{ToolPath: provider})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+	font, readErr := b.Current("OEBPS/Fonts/full.ttf")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !bytes.Equal(font, []byte("FULL FONT")) {
+		t.Fatalf("font changed after cancellation: %q", font)
+	}
+}
+
+func makeReportingProvider(t *testing.T) string {
+	t.Helper()
+	return makeProvider(t, reportingProviderPython)
+}
+
+const reportingProviderPython = `
+import hashlib, json, os, sys, zipfile
+from pathlib import Path
+source = Path(sys.argv[2])
+output = Path(sys.argv[sys.argv.index("--out") + 1])
+target = "OEBPS/Fonts/full.ttf"
+with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
+    for entry in src.infolist():
+        data = b"SUBSET FONT" if entry.filename == target else src.read(entry)
+        dst.writestr(entry, data)
+source_font = zipfile.ZipFile(source).read(target)
+output_font = zipfile.ZipFile(output).read(target)
+sha = lambda data: hashlib.sha256(data).hexdigest()
+report = {
+    "schemaVersion": 1,
+    "tool": "epub-font subset",
+    "providerVersion": "test-1.0",
+    "fontTools": "4.test",
+    "input": {"path": str(source), "sha256": sha(source.read_bytes())},
+    "config": None,
+    "charset": {"total": 2, "bySource": {"text": 2}},
+    "fonts": [{
+        "target": target, "manifestId": "font", "mediaType": "application/vnd.ms-opentype",
+        "action": "subset",
+        "master": {"source": "epub:" + target, "sha256": sha(source_font), "bytes": len(source_font),
+                   "glyphs": 12, "outline": "glyf", "axes": []},
+        "variation": {"mode": "keep", "axes": {}},
+        "original": {"sha256": sha(source_font), "bytes": len(source_font)},
+        "output": {"sha256": sha(output_font), "bytes": len(output_font), "glyphs": 11,
+                   "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},
+        "requiredCodepoints": 2, "notInMaster": ["U+9F98 龘"], "notInMasterCount": 1,
+        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 1}},
+        "ok": True,
+        "warnings": [target + ": 1 required characters are not in the master font (fallback fonts must cover them)"]
+    }],
+    "ok": True,
+    "output": {"path": str(output), "sha256": sha(output.read_bytes()), "warnings": []}
+}
+mode = os.environ.get("EPUB_FONT_REPORT_TEST_MODE", "valid")
+report_path = output.with_name(output.stem + ".font-report.json")
+if mode == "missing":
+    sys.exit(0)
+if mode == "corrupt":
+    report_path.write_text("{", encoding="utf-8")
+    sys.exit(0)
+if mode == "oversized":
+    report_path.write_bytes(b" " * (8 * 1024 * 1024 + 1))
+    sys.exit(0)
+if mode == "wrong-target":
+    report["fonts"][0]["target"] = "OEBPS/Fonts/unlisted.ttf"
+if mode == "wrong-manifest-id":
+    report["fonts"][0]["manifestId"] = "not-the-font-item"
+if mode == "wrong-media-type":
+    report["fonts"][0]["mediaType"] = "application/xhtml+xml"
+if mode == "wrong-output-sha":
+    report["output"]["sha256"] = "0" * 64
+report_path.write_text(json.dumps(report), encoding="utf-8")
+`
 
 func makeProvider(t *testing.T, pythonBody string) string {
 	t.Helper()
