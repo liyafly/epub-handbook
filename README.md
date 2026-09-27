@@ -9,7 +9,7 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 `epub run ... --json` 与 `epub redline --json` 返回统一 JSON 信封；`epub capabilities --json` 返回能力数组。退出码 0/1/2/3
 （0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
 
-可从 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases/latest) 下载 0.4.2 CLI：Linux amd64、Windows amd64、macOS arm64 和 macOS amd64。发布附件含 SHA256 校验和与安装说明；二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。字体覆盖和书籍构建中的字体子集化由可选 provider 提供，安装方式见对应版本的发行说明。
+截至 2026-09-27，当前发布版本为 [`v0.4.2`](https://github.com/liyafly/epub-handbook/releases/tag/v0.4.2)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 二进制、安装说明及 `SHA256SUMS`。二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。后续版本见 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases)。
 
 ## 我想……
 
@@ -92,12 +92,14 @@ go run ./cmd/epub run epub.typography.optimize --input before.epub --output samp
 | 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
 | 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
 
-架构是面向 Windows、macOS、Linux 的 Go 单一 CLI（`cmd/epub` + `internal/`），
-架构规则由 `internal/archguard/` 的守卫测试强制；旧的 Python 脚本、Swift/GUI 实现和
-provider 适配层已按迁移计划删除。字体能力由 `tools-font/coverage-detector/` 下独立的
-Python + FontTools 项目提供，不打包进发行包：需要本机安装 `uv`（在该目录执行一次 `uv sync`），
-缺少 `uv` 时 `epub.font.coverage.analyze` 会以带明确提示的 failed 结果显式失败；
-其余 capability 只需要 Go 二进制。
+架构是面向 Windows、macOS、Linux 的 Go 单一公开 CLI（`cmd/epub` + `internal/`），
+架构规则由 `internal/archguard/` 的守卫测试强制。旧的主程序 Python、Swift/GUI 执行层已按迁移计划删除；
+`tools-font/` 保留两个独立安装、不会打包进发行包的 Python provider：
+
+- `epub.font.coverage.analyze` 调用 coverage detector，分析嵌入字体覆盖和字体链风险。在仓库 checkout 中使用该能力前，于 `tools-font/coverage-detector/` 执行 `uv sync`；缺少 `uv` 时能力会以带明确提示的 failed 结果失败。
+- `epub.font.subset` 调用 `epub-font`，为书级构建从完整字体母版生成并检查字形子集。需要该能力时运行 `uv tool install --editable tools-font/epub-font`；无字体的书不需要它，含字体的构建若缺 provider 或检查失败会失败并保留原有 dist。
+
+两项 provider 都由 `internal/extern` 作为外部进程调用；发行版的 Go CLI 本身不包含它们。`epub capabilities --json` 展示已注册能力及其契约依赖；外部工具的安装要求和缺失行为见对应工具文档。
 
 EPUB 输入默认限制为：压缩文件 512 MiB、100,000 个 ZIP 条目、单条目解压后
 256 MiB、声明解压总量 1 GiB、条目路径 4096 字节。实际解压流也检查单条目限额；

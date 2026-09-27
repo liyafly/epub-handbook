@@ -4,6 +4,8 @@
 `03 制作工作区/epub/OEBPS/`；打包与检查由脚本完成，不需要手动解压、复制多个 EPUB
 或整理时间戳产物。初始书稿包含标题页、第一章、导航、NCX 和基础样式。
 
+此 starter 和 `build.sh` 只支持 `mimetype`、`META-INF/`、`OEBPS/` 布局；starter 初始结构把 OPF 放在 `OEBPS/package.opf`。它不是任意已有 EPUB 的通用打包器；接入不同目录布局的书籍前，请按 [已有 EPUB 接入说明](../../docs/pipeline/book-workspace.md#已有-epub-的一次性接入) 核对并保留其可用构建路径。
+
 ## 日常修改
 
 1. 修改 `package.opf`、`nav.xhtml`、`toc.ncx`、`Text/` 或 `Styles/` 中需要的文件。换书名时同步修改 OPF 标题、作者、UUID，以及 NCX 的 `dtb:uid`。新增章节时同步 OPF manifest/spine、nav 和 NCX。

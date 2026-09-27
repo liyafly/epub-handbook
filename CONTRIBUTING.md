@@ -52,9 +52,9 @@
    go test ./internal/archguard/ -v
    go test ./internal/docguard/
    bash templates/epub-style-demo/build.sh
-   NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)
-   go run ./cmd/epub run epub.style.demo.maintain --input templates/epub-style-demo/dist/"$NEW" --json
-   go run ./cmd/epub run epub.notes.popup.normalize --input templates/epub-style-demo/dist/"$NEW" --json
+   EPUB=templates/epub-style-demo/dist/epub-style-demo.epub
+   go run ./cmd/epub run epub.style.demo.maintain --input "$EPUB" --json
+   go run ./cmd/epub run epub.notes.popup.normalize --input "$EPUB" --json
    ```
 
 5. commit：使用 [conventional commits](https://www.conventionalcommits.org/) 风格，如 `feat:` / `fix:` / `docs:` / `chore:`。
