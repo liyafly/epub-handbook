@@ -40,13 +40,17 @@
 
 4. 跑校验：
 
-   修改 Go 代码请本地运行 `go test ./...`；pre-commit hook 只提供快反馈，CI 会运行更完整的验证矩阵。
+   若本地 checkout 含有被忽略的 `work-epub/` 书稿，Go 的 `./...` 仍会发现其中的脚本目录。此时本地使用下面列出的根包、`cmd` 与 `internal` 包集合；在干净 checkout 和 CI 中继续运行完整 `./...` 检查。pre-commit hook 只提供快反馈。
 
    修改 `docs/final/EPUB 3 HTML CSS 属性速查表.md` 时，必须同步重新生成或手工同步同名 `.html` 派生文件，并核对主体内容一致。
 
    ```sh
-   go test ./...
+   go build . ./cmd/... ./internal/...
+   go test -count=1 . ./cmd/... ./internal/...
+   go vet . ./cmd/... ./internal/...
+   go test -race . ./cmd/... ./internal/...
    go test ./internal/archguard/ -v
+   go test ./internal/docguard/
    bash templates/epub-style-demo/build.sh
    NEW=$(ls -t templates/epub-style-demo/dist/ | head -1)
    go run ./cmd/epub run epub.style.demo.maintain --input templates/epub-style-demo/dist/"$NEW" --json

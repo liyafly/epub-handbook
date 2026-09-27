@@ -63,7 +63,7 @@
 | 改动 | 至少验证 |
 | --- | --- |
 | 任意改动 | `git diff --check` |
-| Go 代码 | `go build ./...`、`go test ./...` |
+| Go 代码 | 含 `work-epub/` 的本地工作区运行 `go build . ./cmd/... ./internal/...` 与 `go test -count=1 . ./cmd/... ./internal/...`；干净 checkout/CI 另跑 `go build ./...`、`go test ./...` |
 | 架构、capability、SKILL.md、文档执行面 | `go test ./internal/archguard/ -v`；入口/技能文档另跑 `go test ./internal/docguard/` |
 | 已有 EPUB 清洗 | nav audit、normalize dry-run 或跳过理由、全项 redline、人工 diff review |
 | demo、validator、`docs/final/` | build demo；对产物运行 `epub run epub.style.demo.maintain --input <artifact> --json` 与 `epub run epub.notes.popup.normalize --input <artifact> --json` |

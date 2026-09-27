@@ -39,7 +39,7 @@
 
 ### 回归优先级
 
-- 对契约、pipeline、编辑器或 scanner 的改动优先跑 `go test ./cmd/... ./internal/...` 与固定 CLI 回归矩阵。
+- 本地 checkout 含被忽略的书稿目录时，对契约、pipeline、编辑器或 scanner 的改动跑 `go build . ./cmd/... ./internal/...`、`go test -count=1 . ./cmd/... ./internal/...` 与固定 CLI 回归矩阵；干净 checkout/CI 仍运行 `./...` 全模块检查。
 - 对 I/O 限额、取消或 ZIP 写出改动加 race 与失败事务验证，确认超限/取消时没有输出文件。
 - 对 reader matrix、demo XHTML/CSS、阅读器文档的改动逐 SHA 重建 demo，并把 maintain、popup、nav audit 与 redline 结果绑定到新 artifact。
 - 字体 provider 更新需分别报告 Python 单测、Go external wrapper 行为和字体许可；其中任何一层通过都不能代替另外两层。

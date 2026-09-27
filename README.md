@@ -116,10 +116,13 @@ EPUB 输入默认限制为：压缩文件 512 MiB、100,000 个 ZIP 条目、单
 按改动类型执行 [AGENTS.md](AGENTS.md) 的最小验证矩阵。Go 代码与入口变更至少运行：
 
 ```sh
-go test ./...
+go build . ./cmd/... ./internal/...
+go test -count=1 . ./cmd/... ./internal/...
 go test ./internal/archguard/
 git diff --check
 ```
+
+本地有 `work-epub/` 书级工作区时，用以上明确包集合，避免 Go 把被主仓忽略的书稿辅助脚本当作模块包；在干净 checkout 和 CI 中仍运行完整的 `go build ./...` 与 `go test ./...`。
 
 阅读器兼容性结论必须先有 demo、artifact、阅读器名称和版本及实测现象，再写入
 `docs/final/reader-matrix.yaml`；不能只根据手册推断。
