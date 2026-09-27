@@ -5,7 +5,7 @@
 | 场景 | XHTML | 主要检查点 | 目标阅读器 |
 |---|---|---|---|
 | 封面式标题页 | `Text/00-title.xhtml` | 标题页分页、landmark cover、标题居中 | Apple Books / Kindle Previewer / Thorium |
-| 普通正文 | `Text/01-body.xhtml` | 段落缩进、行高、引用、着重、图片 figure | 全部 |
+| 普通正文 | `Text/01-body.xhtml` | 段落缩进、行高、引用、着重、图片 figure；T09 的 plain-cn 局部候选已按 SHA 在 Apple Books / Readest / Kindle Previewer 实测，默认 demo 构建和 Thorium 仍需独立验证，见 [`2026-09-27-style-presets.md`](../../docs/final/reader-evidence/2026-09-27-style-presets.md) | 全部 |
 | 标准弹注 | `Text/02-ruby-note.xhtml` | `noteref`、同文件 `aside`、回跳、Ruby 行距、图片脚注图标不抬高正文行距 | Apple Books / Thorium / KOReader |
 | A-lite 海报 | `Text/03-vertical-alite.xhtml` | `body.fullpage`、`.fullframe padding:0`、背景、竖排标题 | Apple Books / Kindle Previewer |
 | 单图卷封 contain 对照 | `Text/03c-poster-contain.xhtml` | `body.poster-bg-contain`、`background-size: contain`、`.poster-fallback`、单页不裁图 | Apple Books / Kindle App / Kindle Previewer |
@@ -19,7 +19,7 @@
 | 前置页 | `Text/15-frontmatter.xhtml` | `epub:type="frontmatter copyright-page"`、连续 `p.cp` 保真转录、`dl` 标签/值增强与题献题记 | 全部 |
 | 数学公式与 MathML | `Text/16-math.xhtml` | 分式、根式、上下标、矩阵、semantics/TeX annotation；presentation table 保守编号、Grid 增强、可换行方程组；`thead`/`tbody`/`th scope`/真实 `rowspan` 分组的固定布局长 MathML，局部候选相对字号 | Kindle App / Kindle Previewer / Readest / Apple Books / Thorium（新增数据表场景均待复测） |
 | 图文环绕与图片尺寸 | `Text/17-image-layout.xhtml` | figure 浮动、25%–35% 百分比宽度、长正文阈值、短段反例、大字号回归；单图由 figure 控制实例宽度，按图框角色 34%/60% 非等宽并排 figure：默认上下、宽屏 Flex 增强、等高居中图像区，内部 img 等比 | Kindle App / Kindle Previewer / Readest / Apple Books / Thorium（新增尺寸场景均待复测） |
-| 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、手写体 float 下沉首字、居中插图、摘录、大字号回归 | Readest / Kindle Previewer / Apple Books / Thorium |
+| 英文小说正文 | `Text/18-english-fiction.xhtml` | 英文短章标题、首段无缩进、后续段缩进、`::first-letter` 首字、手写体 float 下沉首字、居中插图、摘录、大字号回归；T09 的 fiction-en 局部候选已按 SHA 在 Apple Books / Readest / Kindle Previewer 实测，默认 demo 构建和 Thorium 仍需独立验证，见 [`2026-09-27-style-presets.md`](../../docs/final/reader-evidence/2026-09-27-style-presets.md) | Readest / Kindle Previewer / Apple Books / Thorium |
 | 边框与阴影便签 | `Text/19-border-shadow-notes.xhtml` | solid/dashed/double/left-rule、box-shadow、inset、斜角感、SVG 花边实验、长条投影、不规则边缘、手剪纸边框 fallback | Readest / Kindle Previewer / Apple Books / Thorium |
 | 章节头图设置 | `Text/20-chapter-head-image.xhtml` | 小型头图、满栏横幅头图、真实 h1、kicker/副标题、35% 单书 fallback、40% 复测增强类、大字号不裁切、横向不溢出 | Kindle Previewer / Apple Books / Thorium |
 | 文白 / 原译对照 | `Text/21-classical-modern.xhtml` | 条目级 section、局部目录、样本式双文本段落、默认上下、短组 40em 以上双 float 增强；文白默认 38/58、原译接近 48/48、原文较长 58/38，单书可后加载覆盖；长组 `.parallel-stack-pair` 上下并允许分页、轻量回目录链接；必测字号 1/3/4/5/6/7，日夜模式，默认/Publisher Font/Bookerly 或 Original 字体；失败态必须上下，不能半宽错位 | Kindle Previewer / Kindle 设备 KFX / Kindle App / Apple Books / Readest / Thorium |
@@ -29,7 +29,7 @@
 | 着重号比较：body 真竖排（待测） | `Text/25-text-emphasis-vertical.xhtml` | `body.page-vrl` 真竖排中复现原生两种 position、`ruby-position: over` 主样本与 `under` 风险对照，记录圆点位置、行距和降级 | Apple Books / Reeden / Kindle Previewer / Thorium |
 | 横排语调标记兼容 fallback（v6，待测） | `Text/26-prosody-fallback.xhtml` | A 为 semantic `ruby.prosody`（真实 `rt` 的 `△/▽`、标准 `ruby-position: under` + WebKit legacy）；B 为真实 HTML 双层 `inline-table/table-row/table-cell`，底层标记是 `span` 文本而非 generated content；覆盖单字符、多字符连续、标点旁和行末换行附近，使用 `aria-hidden` 与邻近说明保持可访问语义 | Apple Books / Reeden / Kindle Previewer / Thorium |
 | 横排块级独立章首页（待测） | `Text/28-chapter-opening-block.xhtml` | 生产书反向提炼：同一 `h1` 内两个 block span，章次与章名不依赖相邻元素 margin；标题组 `margin:25% 5% 0 0`；左下 `5.5em auto` body background 只写在共享 CSS，XHTML 无 inline style 和饰图 `<img>`；根、body、frame 的 100%/90% 高度与分页约束 | Kindle Previewer / Readest / Reeden / Apple Books |
-| 诗歌、分节与长行（待测） | `Text/29-poetry.xhtml` | `.poetry` / `.stanza` 中自造短诗、多节、长行自然折行和分页压力；不得把普通 `p` 自动转换为诗行，也不对长诗整体禁分页 | Apple Books / Thorium / Kindle Previewer |
+| 诗歌、分节与长行 | `Text/29-poetry.xhtml` | `.poetry` / `.stanza` 中自造短诗、多节、长行自然折行和分页压力；T09 的 poetry-cn 局部候选已按 SHA 在 Apple Books / Readest / Kindle Previewer 实测；Thorium、默认 demo 构建与更长诗歌跨页仍待验证。不得把普通 `p` 自动转换为诗行，也不对长诗整体禁分页。证据见 [`2026-09-27-style-presets.md`](../../docs/final/reader-evidence/2026-09-27-style-presets.md) | Apple Books / Thorium / Kindle Previewer / Readest |
 | 书信与落款（待测） | `Text/30-letter.xhtml` | `.letter` 中称谓、长正文、祝语、署名和日期保持源序；长信自然跨页，边线可丢失 | Apple Books / Thorium / Kindle Previewer |
 | 访谈与对白（待测） | `Text/31-dialogue.xhtml` | `.dialog` / `.dialog-speaker` 覆盖短轮次和长回答；发言者真实文本存在，移除 CSS 后顺序仍可读 | Apple Books / Thorium / Readest |
 

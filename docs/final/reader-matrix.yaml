@@ -179,11 +179,101 @@ retest_priorities:
     focus: "在临时授权素材工作区构建正文自由+局部字体、直接 body 锁定、原字体/子集字体和双版本对照；记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的码位、cmap、实际字形和用户字体切换表现。"
   - rank: 6
     case: 29-poetry
-    readers: [ibooks_macos, thorium, kindle_previewer]
-    focus: "用带 SHA 的扩展 demo 检查短诗、多节、长行折行、长诗跨页、普通前言和用户大字号；catalog 或 preset 应用报告不能代替视觉验收。"
+    readers: [thorium]
+    focus: "T09 的精确本地 poetry-cn 候选已在 Apple Books、Readest、Kindle Previewer 检查；这些结果不外推到默认 demo 或其他 artifact。仍需在 Thorium 实测，并复核未来构建。"
 
 expectations:
   # status: pass | warn | fail | na
+  - reader: ibooks_macos
+    case: 01-basic-cjk
+    status: pass
+    reader_version: "9.0 (6655)"
+    profile: "macOS Apple Books；Light/Original；默认字体并检查自定义宋体主题；字号默认与 +1"
+    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    failed_page: none
+    issue: "精确候选导入后普通中文正文、段落与图片可见；默认和增大一级字号均可读，深色外观及自定义宋体主题检查未见裁切。"
+    action: "本记录仅适用于所列 plain-cn 候选 SHA；检查后恢复 Light/Original 与默认字号。"
+    workaround: "无；不据此推断其他 demo 构建或阅读器。"
+  - reader: readest
+    case: 01-basic-cjk
+    status: pass
+    reader_version: "0.12.10 (20260922.053953)"
+    profile: "macOS Readest；本地导入 plain-cn 候选；默认阅读主题与字号"
+    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    failed_page: none
+    issue: "从精确本地路径导入成功；跳转普通中文正文后标题、段落、引用和图片可见。该候选与基础 demo 共用 EPUB identity，Readest 复用同一书库条目，故记录同时受同 UUID 去重/缓存行为限制。"
+    action: "确认只适用于本次选取并成功导入的候选；若需证明未来导入器身份隔离，再以不改变生产 identity 的独立 fixture 补测。"
+    workaround: "无；不要把本条当作同 UUID 重导入行为的独立验证。"
+  - reader: kindle_previewer
+    case: 01-basic-cjk
+    status: pass
+    reader_version: "4 (About UI 未显示次版本号)"
+    profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
+    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    failed_page: none
+    issue: "精确候选转换完成并跳转普通中文正文；字号 4 与 12 抽查均未见裁切。"
+    action: "检查后恢复字号 4；转换成功与 GUI 页面显示分开核验。"
+    workaround: "无；结果只适用于所列候选与 portrait profile。"
+  - reader: ibooks_macos
+    case: 29-poetry
+    status: pass
+    reader_version: "9.0 (6655)"
+    profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
+    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    failed_page: none
+    issue: "目录跳转到诗歌页后，多节间距和长行自然折行可见；增大一级字号后仍可重排，无可见裁切。"
+    action: "检查后恢复默认字号；结论不外推到默认 demo、Thorium 或更长诗歌。"
+    workaround: "无。"
+  - reader: readest
+    case: 29-poetry
+    status: pass
+    reader_version: "0.12.10 (20260922.053953)"
+    profile: "macOS Readest；默认 16 与增大至 22 字号；冷退出后重新打开"
+    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    failed_page: none
+    issue: "诗题、说明、多节与长行均显示；字号增加后内容自然从 1 页重排到 2 页，无可见裁切；冷启动后仍可重新打开并显示目标章。候选与基础 demo 共用 EPUB identity，书库条目可能去重。"
+    action: "检查后恢复字号 16；只对本次候选和冷启动过程成立，不据此推断其他 identity/cache 情况。"
+    workaround: "无。"
+  - reader: kindle_previewer
+    case: 29-poetry
+    status: pass
+    reader_version: "4 (About UI 未显示次版本号)"
+    profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
+    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    failed_page: none
+    issue: "转换完成并在目录跳转到诗歌页；多节分隔可见，字号 12 下长行自然折行并继续到后续诗节，无可见裁切。"
+    action: "检查后恢复字号 4；转换成功与 GUI 显示分别核验。"
+    workaround: "无；Thorium 与更长诗歌仍待测。"
+  - reader: ibooks_macos
+    case: 18-english-fiction
+    status: pass
+    reader_version: "9.0 (6655)"
+    profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
+    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    failed_page: none
+    issue: "英文章题、放大首字、手写体浮动首字、章首及行内插图和图注均可见；字号 +1 后正文自然重排，无可见碰撞或裁切。"
+    action: "检查后恢复默认字号与 Light/Original；不外推到其他字族或 artifact。"
+    workaround: "无。"
+  - reader: readest
+    case: 18-english-fiction
+    status: pass
+    reader_version: "0.12.10 (20260922.053953)"
+    profile: "macOS Readest；本地导入后跳转目录目标页；退出并冷启动复核"
+    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    failed_page: none
+    issue: "英文章首插图、T 首字、手写体浮动 A、正文与行内图注均显示；冷退出再启动后仍能打开并显示该章。与基础 demo 共用 EPUB identity，书库条目可能去重。"
+    action: "冷启动复核成功；本次没有在 Readest 单独做大字号测试。"
+    workaround: "无；字号回归由 Apple Books 与 Kindle Previewer 本轮覆盖。"
+  - reader: kindle_previewer
+    case: 18-english-fiction
+    status: pass
+    reader_version: "4 (About UI 未显示次版本号)"
+    profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
+    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    failed_page: none
+    issue: "转换完成并跳转英文小说正文；T 首字与浮动手写体 A 可见，正文自然环绕；字号 12 抽查无可见裁切。"
+    action: "检查后恢复字号 4；转换成功与 GUI 显示分别核验。"
+    workaround: "无；结果仅适用于所列候选与 portrait profile。"
   - reader: kindle_previewer
     case: 00-cover-metadata
     status: warn
@@ -524,9 +614,6 @@ untested_cases:
   - case: 00-title-page
     fixture: templates/epub-style-demo/OEBPS/Text/00-title.xhtml
     note: "封面式标题页；尚未实测。"
-  - case: 01-basic-cjk
-    fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
-    note: "普通中文正文基线；尚未实测。"
   - case: 02-ruby-standard-footnote
     fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
     readers: [koreader]
@@ -567,9 +654,6 @@ untested_cases:
   - case: 28-chapter-opening-block
     fixture: templates/epub-style-demo/OEBPS/Text/28-chapter-opening-block.xhtml
     note: "待验证假设（从主库提交 402ee73 语义同步）：横排章首页由同一 h1 内的两个 block span 构成；标题组保留 25% 顶部余量和 5% 右安全区；左下 5.5em auto 饰图仅由共享 poster.css 的 body background 绘制，XHTML 无 inline style 与真实饰图 img。精确同步验证产物为 templates/epub-style-demo/dist/epub-style-demo-20260901-chapter-opening-block-sync.epub#sha256=435188966fe8166d7486df86832ce7acaef1d94a4b02d64bf544d0139a74fdd2；XML 与 ZIP 完整性已通过，Kindle 顶部留白、Readest 背景绘制、Reeden 块级标题间距和 Apple Books 分页仍需对该产物独立实测，不继承生产书或主库旧构建的 pass。"
-  - case: 29-poetry
-    fixture: templates/epub-style-demo/OEBPS/Text/29-poetry.xhtml
-    note: "新增自造诗歌 fixture；默认/大字号、窄屏长行折行、多节间距和长诗跨页均待真实阅读器实测。"
   - case: 30-letter
     fixture: templates/epub-style-demo/OEBPS/Text/30-letter.xhtml
     note: "新增自造书信 fixture；称谓、长正文分页、祝语与署名顺序待真实阅读器实测。"
