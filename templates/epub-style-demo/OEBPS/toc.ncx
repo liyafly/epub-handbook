@@ -7,7 +7,7 @@
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
   <docTitle>
-    <text>EPUB Style Demo – Chapter/Emphasis/Prosody Compat v6</text>
+    <text>EPUB Style Demo – Style Recipes v7</text>
   </docTitle>
   <navMap>
     <navPoint id="navpoint-1" playOrder="1">
@@ -109,6 +109,18 @@
     <navPoint id="navpoint-chapter-opening-block" playOrder="25">
       <navLabel><text>横排块级独立章首页</text></navLabel>
       <content src="Text/28-chapter-opening-block.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-poetry" playOrder="26">
+      <navLabel><text>诗歌与分节</text></navLabel>
+      <content src="Text/29-poetry.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-letter" playOrder="27">
+      <navLabel><text>书信与落款</text></navLabel>
+      <content src="Text/30-letter.xhtml"/>
+    </navPoint>
+    <navPoint id="navpoint-dialogue" playOrder="28">
+      <navLabel><text>访谈与对白</text></navLabel>
+      <content src="Text/31-dialogue.xhtml"/>
     </navPoint>
   </navMap>
 </ncx>

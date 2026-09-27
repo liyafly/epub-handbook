@@ -40,6 +40,9 @@ templates/epub-style-demo/dist/epub-style-demo.epub
 22. `25-text-emphasis-vertical.xhtml`：body 真竖排着重号对照。
 23. `26-prosody-fallback.xhtml`：横排 `△/▽` 语调标记对照；A 使用 `ruby.prosody` 的真实 `rt`，B 使用真实 HTML 双层 `inline-table/table-row/table-cell`，覆盖单字符、多字符连续、标点旁和行末换行附近，且 B 不依赖 generated content。
 24. `28-chapter-opening-block.xhtml`：生产书反向提炼的横排块级独立章首页；章次与章名在同一 `h1` 中作两个 block span，标题组以 `25%` 上边距和 `5%` 右安全区靠右；背景色、左下饰图与 `5.5em auto` 尺寸只写在 `poster.css` 的 body modifier，XHTML 无 inline style、无真实饰图 `<img>`，专门观察 Kindle 顶部留白、Readest body 背景绘制与 Reeden 块级标题间距。
+25. `29-poetry.xhtml`：自造短诗、多节、长行折行与长诗分页样例；仅对已存在的 `.poetry` / `.stanza` 结构生效。
+26. `30-letter.xhtml`：自造书信，含称谓、长段正文、祝语、署名和日期；长信可自然跨页。
+27. `31-dialogue.xhtml`：自造短对白与长回答；发言者由真实文本标识，不靠颜色。
 
 退役对照页放在 `retired/`，不进入默认 OPF/nav/toc：`03b-poster-fullbleed.xhtml`、`06-multi-legacy-note-fallback.xhtml`、`11-chapter-opening.xhtml`、`12-literary-fiction.xhtml`、`13-duokan-rich-fallback.xhtml`。这些页面只保留历史对照价值；新增规则优先补活跃页或场景指南。
 
@@ -49,7 +52,7 @@ OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Prev
 > `<meta property="ibooks:specified-fonts">true</meta>`，整书按锁定模式处理。
 > 真实书籍应全书统一自由或锁定模式，见 `docs/final/SPEC-实现约束.md` §8。
 
-完整覆盖关系见 `SCENE_MATRIX.md`。
+完整覆盖关系见 [`SCENE_MATRIX.md`](SCENE_MATRIX.md)。按页面角色查源码、定位 class、查看依赖和降级建议，可从 [可复用版式配方](GALLERY.md) 开始。
 
 新增 fixture 不继承任何外部书籍或旧构建产物的 `pass`。构建后仍须在目标阅读器、目标字号和目标字体设置下实测，再回写阅读器矩阵。
 

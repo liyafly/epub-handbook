@@ -6,11 +6,11 @@
          prefix="rendition: http://www.idpf.org/vocab/rendition/# ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">urn:uuid:3905affa-a810-4759-91f8-a1d8520f8a6a</dc:identifier>
-    <dc:title>EPUB Style Demo – Chapter/Emphasis/Prosody Compat v6</dc:title>
+    <dc:title>EPUB Style Demo – Style Recipes v7</dc:title>
     <dc:creator>EPUB Handbook</dc:creator>
     <dc:language>zh-CN</dc:language>
-    <dc:date>2026-05-23</dc:date>
-    <meta property="dcterms:modified">2026-08-28T14:08:45Z</meta>
+    <dc:date>2026-09-27</dc:date>
+    <meta property="dcterms:modified">2026-09-27T00:00:00Z</meta>
     <meta property="rendition:layout">reflowable</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
@@ -59,6 +59,9 @@
     <item id="text-emphasis-vertical" href="Text/25-text-emphasis-vertical.xhtml" media-type="application/xhtml+xml"/>
     <item id="prosody-fallback" href="Text/26-prosody-fallback.xhtml" media-type="application/xhtml+xml"/>
     <item id="chapter-opening-block" href="Text/28-chapter-opening-block.xhtml" media-type="application/xhtml+xml"/>
+    <item id="poetry" href="Text/29-poetry.xhtml" media-type="application/xhtml+xml"/>
+    <item id="letter" href="Text/30-letter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="dialogue" href="Text/31-dialogue.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
 
   <spine toc="ncx" page-progression-direction="ltr">
@@ -87,5 +90,8 @@
     <itemref idref="text-emphasis-vertical"/>
     <itemref idref="prosody-fallback"/>
     <itemref idref="chapter-opening-block"/>
+    <itemref idref="poetry"/>
+    <itemref idref="letter"/>
+    <itemref idref="dialogue"/>
   </spine>
 </package>
