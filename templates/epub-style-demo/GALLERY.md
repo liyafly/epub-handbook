@@ -11,7 +11,7 @@ epub run epub.style.demo.maintain catalog=true query=poetry
 epub capabilities --id epub.typography.optimize
 
 epub run epub.typography.optimize --input "$BASE" --output "$CANDIDATE" --dry-run --json \
-  preset=literary-cn 'scope_paths=["OEBPS/Text/29-poetry.xhtml"]'
+  preset=poetry-cn 'scope_paths=["OEBPS/Text/29-poetry.xhtml"]'
 ```
 
 确认 dry-run 报告中的目标文件、CSS 动作和字体模式后，再对相同 `$BASE` 与新路径实跑；运行全项 redline、导航审计和人工 diff review。局部预设只向选中的 spine 页追加独立 CSS，不改正文或共享样式。诗歌、书信、对白等角色 class 必须已存在；预设不会自动把普通段落转换成角色结构。
@@ -55,7 +55,7 @@ epub run epub.typography.optimize --input "$BASE" --output "$CANDIDATE" --dry-ru
 ### 5. 诗歌
 
 - **源码和定位：** [`29-poetry.xhtml`](OEBPS/Text/29-poetry.xhtml)，容器 `.poetry`、各节 `.stanza`；短诗定位 `#poem-short`，长行定位 `#poem-long-line`。
-- **样式层：** `literary.css` 的 `.poetry .stanza`；每节使用真实段落和 `<br />` 表达原始诗行。
+- **样式层：** `poetry-cn` 预设的 `literary.css`；每节使用真实段落和 `<br />` 表达原始诗行。
 - **试用范围：** `OEBPS/Text/29-poetry.xhtml`。对照普通前置正文仍保持常规段落排版。
 - **限制和降级：** 只有原稿已确定分行/分节时才使用；长行应自然折行，长诗不能整体禁止分页。不要把普通 `p` 自动重排成诗行。
 - **阅读器状态：** 新增页面，待默认字号、大字号、窄屏和跨页实测。

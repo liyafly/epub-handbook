@@ -1,0 +1,15 @@
+{
+  "name": "poetry-cn",
+  "version": "1",
+  "description": "中文诗歌：保留既有诗行与分节、自然折行、跨页不断锁",
+  "layers": [
+    "fonts.css",
+    "base.css",
+    "notes.css",
+    "effects.css",
+    "literary.css",
+    "media.css"
+  ],
+  "base_font_chain": "font-st",
+  "notes": "建议只作用于已标记 poetry/stanza 角色的页面；不重排普通段落，长诗允许自然分页，待阅读器实测"
+}

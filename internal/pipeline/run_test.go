@@ -198,7 +198,7 @@ func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	if err != nil || embeddedPresets.ExitCode != ExitOK {
 		t.Fatalf("embedded preset catalog exit=%d err=%v", embeddedPresets.ExitCode, err)
 	}
-	if embeddedPresets.Envelope.Facts["epub.style.demo.maintain.resourceSource"] != "embedded" || embeddedPresets.Envelope.Facts["epub.style.demo.maintain.presetCount"] != 4 {
+	if embeddedPresets.Envelope.Facts["epub.style.demo.maintain.resourceSource"] != "embedded" || embeddedPresets.Envelope.Facts["epub.style.demo.maintain.presetCount"] != 5 {
 		t.Fatalf("embedded preset catalog facts = %+v", embeddedPresets.Envelope.Facts)
 	}
 
