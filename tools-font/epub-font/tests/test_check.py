@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from fontTools.ttLib import TTFont
 
 from epub_font import check, subset
 from tests import synth
@@ -34,8 +35,8 @@ ol.n { list-style-type: cjk-decimal; }
 PLACEHOLDER = synth.build_glyf_font(variable=False)
 
 
-def make_epub(chapter: str = CHAPTER_DTD, fonts: dict | None = None, **kwargs) -> bytes:
-    return synth.build_epub(fonts or {"OEBPS/Fonts/st-all.ttf": PLACEHOLDER}, chapter=chapter, css=CSS, **kwargs)
+def make_epub(chapter: str = CHAPTER_DTD, fonts: dict | None = None, css: str = CSS, **kwargs) -> bytes:
+    return synth.build_epub(fonts or {"OEBPS/Fonts/st-all.ttf": PLACEHOLDER}, chapter=chapter, css=css, **kwargs)
 
 
 def required(epub: bytes) -> check.Harvest:
@@ -160,3 +161,49 @@ def test_agrees_with_subset_tool(tmp_path):
     missing = {m["char"] for m in check_report["fonts"][0]["missing"]}
     assert missing and missing <= not_in_master
     assert check_report["fonts"][0]["noInk"] == [] and check_report["fonts"][0]["missingSequences"] == []
+
+
+@pytest.mark.parametrize(("style", "markers"), [
+    ("cjk-decimal", "〇一二三四五六七八九、"),
+    ("cjk-ideographic", "零一二三四五六七八九十百千万、"),
+    ("simp-chinese-informal", "零一二三四五六七八九十百千万、"),
+    ("trad-chinese-informal", "零一二三四五六七八九十百千萬、"),
+])
+def test_generated_cjk_list_markers_survive_font_subsetting(tmp_path, style, markers):
+    chapter = CHAPTER_DTD.replace('<ol class="n">', '<ol class="n" start="10000">')
+    css = CSS.replace("list-style-type: cjk-decimal;", f"list-style-type: {style};")
+    source_without_font = make_epub(chapter=chapter, css=css)
+    source_harvest = required(source_without_font)
+    assert set(markers) <= set(source_harvest.chars)
+
+    source_font = font_covering(source_harvest)
+    source = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": source_font}, chapter=chapter, css=css)
+    source_path = tmp_path / "source.epub"
+    source_path.write_bytes(source)
+
+    before_code, before_report = run_cli(
+        tmp_path, source, "--font", "OEBPS/Fonts/st-all.ttf"
+    )
+    assert before_code == 0, before_report
+    assert before_report["fonts"][0]["missing"] == []
+
+    candidate = tmp_path / "candidate.epub"
+    assert subset.main([str(source_path), "--out", str(candidate)]) == 0
+    assert source_path.read_bytes() == source
+    subset_report = json.loads(subset.report_path(candidate).read_text(encoding="utf-8"))
+    assert subset_report["ok"]
+
+    after_code, after_report = run_cli(
+        tmp_path, candidate.read_bytes(), "--font", "OEBPS/Fonts/st-all.ttf"
+    )
+    assert after_code == 0, after_report
+    assert after_report["fonts"][0]["missing"] == []
+
+    with zipfile.ZipFile(source_path) as before, zipfile.ZipFile(candidate) as after:
+        assert [item.filename for item in before.infolist()] == [item.filename for item in after.infolist()]
+        for item in before.infolist():
+            if item.filename != "OEBPS/Fonts/st-all.ttf":
+                assert before.read(item) == after.read(item), item.filename
+        output_font = TTFont(io.BytesIO(after.read("OEBPS/Fonts/st-all.ttf")))
+        output_cmap = output_font.getBestCmap() or {}
+        assert {ord(ch) for ch in markers} <= set(output_cmap)
