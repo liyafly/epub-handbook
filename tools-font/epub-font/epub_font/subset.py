@@ -23,7 +23,8 @@ import fontTools
 from . import epubtext, fontops
 
 CONFIG_KEYS = {"version", "fonts"}
-FONT_KEYS = {"target", "master", "variation", "extraText"}
+FONT_KEYS = {"target", "master", "variation", "extraText", "action"}
+FONT_ACTIONS = {"subset", "preserve"}
 
 
 class UsageError(Exception):
@@ -57,6 +58,11 @@ def _load_config(path: Path) -> dict:
         target = job.get("target")
         if not isinstance(target, str) or not target or target.startswith("/"):
             raise UsageError(f"fonts[{index}].target must be a ZIP path such as OEBPS/Fonts/st-all.ttf")
+        action = job.get("action", "subset")
+        if not isinstance(action, str) or action not in FONT_ACTIONS:
+            raise UsageError(f"fonts[{index}].action must be one of {sorted(FONT_ACTIONS)}")
+        if action == "preserve" and any(key in job for key in ("master", "variation", "extraText")):
+            raise UsageError(f"fonts[{index}].action 'preserve' cannot be combined with subset options")
         if target in seen:
             raise UsageError(f"fonts[{index}].target {target} is listed twice")
         seen.add(target)
@@ -94,7 +100,34 @@ def _read_master(job: dict, config_dir: Path, zf: zipfile.ZipFile) -> tuple[byte
     return zf.read(job["target"]), f"epub:{job['target']}"
 
 
-def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config_dir: Path) -> dict:
+def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) -> dict:
+    facts = fontops.font_facts(original_font)
+    fontops.check_target_format(target, facts.outline)
+    digest = fontops.sha256(original_bytes)
+    return {
+        "target": target,
+        "manifestId": item.item_id,
+        "mediaType": item.media_type,
+        "action": "preserve",
+        "reason": "math-table",
+        "master": {"source": f"epub:{target}", "sha256": digest, "bytes": len(original_bytes),
+                   "glyphs": facts.glyph_count, "outline": facts.outline, "axes": facts.axes},
+        "variation": {"mode": "preserve", "axes": {}},
+        "original": {"sha256": digest, "bytes": len(original_bytes)},
+        "output": {"sha256": digest, "bytes": len(original_bytes), "glyphs": facts.glyph_count,
+                   "outline": facts.outline, "flavor": facts.flavor, "axes": facts.axes, "tables": facts.tables},
+        "requiredCodepoints": None,
+        "notInMaster": None,
+        "notInMasterCount": None,
+        "checks": {"preserved-bytes": {"ok": True, "sha256": digest}},
+        "ok": True,
+        "warnings": [],
+        "_bytes": original_bytes,
+    }
+
+
+def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config_dir: Path,
+                 automatic: bool = False) -> dict:
     target = job["target"]
     if target not in zf.namelist():
         raise UsageError(f"{target} is not in the EPUB (only existing font entries can be replaced)")
@@ -103,13 +136,24 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
         raise UsageError(f"{target} has no OPF manifest item")
     if target in book.encrypted_paths:
         raise UsageError(f"{target} is listed in META-INF/encryption.xml; stop (encrypted/obfuscated fonts are not handled)")
+    original_bytes = zf.read(target)
+    original_font = fontops.load_font(original_bytes, f"epub:{target}")
+    original_is_math = "MATH" in original_font
+    action = job.get("action", "subset")
+    if action == "preserve":
+        if not original_is_math:
+            raise fontops.FontJobError(f"{target}: action 'preserve' requires an OpenType MATH table")
+        return _preserve_math_job(target, item, original_bytes, original_font)
+    if automatic and original_is_math:
+        return _preserve_math_job(target, item, original_bytes, original_font)
+    if original_is_math:
+        raise fontops.FontJobError(f"{target}: has an OpenType MATH table; use action 'preserve' to keep the complete math font")
+
     spec = fontops.parse_variation(job.get("variation"))
     master_bytes, master_label = _read_master(job, config_dir, zf)
-    original_bytes = zf.read(target)
-
     master_font = fontops.load_font(master_bytes, master_label)
     if "MATH" in master_font:
-        raise fontops.FontJobError(f"{master_label}: has an OpenType MATH table; keep the complete math font (handbook §4.6 step 4)")
+        raise fontops.FontJobError(f"{master_label}: has an OpenType MATH table; use action 'preserve' to keep the complete math font")
     master = fontops.font_facts(master_font)
     if "variation" not in job and master.axes:
         raise fontops.FontJobError(
@@ -133,6 +177,7 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
         "target": target,
         "manifestId": item.item_id,
         "mediaType": item.media_type,
+        "action": "subset",
         "master": {"source": master_label, "sha256": fontops.sha256(master_bytes), "bytes": len(master_bytes),
                    "glyphs": master.glyph_count, "outline": master.outline, "axes": master.axes},
         "variation": {"mode": spec.mode, "axes": spec.axes or {}},
@@ -201,10 +246,12 @@ def run(args) -> int:
                 raise UsageError("the EPUB has no manifest fonts")
             config = {"version": 1, "fonts": [{"target": item.path} for item in manifest_fonts]}
             config_dir = epub.parent
+            automatic = True
         else:
             config_dir = config_path.parent
+            automatic = False
         try:
-            results = [_process_job(job, book, zf, config_dir) for job in config["fonts"]]
+            results = [_process_job(job, book, zf, config_dir, automatic) for job in config["fonts"]]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 
@@ -235,7 +282,12 @@ def run(args) -> int:
     for result in results:
         status = "OK" if result["ok"] else "FAIL"
         failed = [name for name, check in result["checks"].items() if not check["ok"]]
-        print(f"[{status}] {result['target']} mode={result['variation']['mode']} "
+        operation = f"action={result['action']}"
+        if result["action"] == "subset":
+            operation += f" mode={result['variation']['mode']}"
+        else:
+            operation += f" reason={result['reason']}"
+        print(f"[{status}] {result['target']} {operation} "
               f"{result['original']['bytes']} -> {result['output']['bytes']} bytes, "
               f"glyphs {result['master']['glyphs']} -> {result['output']['glyphs']}"
               + (f", failed: {', '.join(failed)}" if failed else ""))

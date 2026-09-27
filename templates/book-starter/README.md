@@ -38,6 +38,8 @@ uv tool install --editable tools-font/epub-font
 
 若母版放在 EPUB 外部，可在书根放 `fonts.json`，`master` 路径相对该配置文件。
 
+自动字体处理会完整保留带 OpenType `MATH` 表的数学字体；若配置 `fonts.json`，对这类字体写 `action: "preserve"`，普通字体默认仍执行子集化。加密/混淆或损坏的字体不会因保留设置而放行。
+
 ## 进阶排版
 
 默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。手工切换 CSS 层不等同于完整套用一个 preset：预设有多个分层文件以及对应的 manifest/head 引用；对已有 EPUB，请用 `epub.typography.optimize` 生成候选并审核报告。

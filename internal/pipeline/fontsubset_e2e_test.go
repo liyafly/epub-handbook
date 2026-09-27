@@ -45,6 +45,9 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.font.subset.changedFonts"]; fmt.Sprint(got) != "[OEBPS/Fonts/full.ttf]" {
 		t.Fatalf("changedFonts = %#v", got)
 	}
+	if got := outcome.Envelope.Facts["epub.font.subset.fontEntries"]; fmt.Sprint(got) != "[OEBPS/Fonts/full.ttf OEBPS/Fonts/math.otf]" {
+		t.Fatalf("fontEntries = %#v", got)
+	}
 	var sawSubset, sawAudit, sawRedline bool
 	for _, event := range outcome.Envelope.Events {
 		switch event.Step {
@@ -60,19 +63,15 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 		t.Fatalf("events=%+v, want subset, nav audit, and redline completion", outcome.Envelope.Events)
 	}
 
-	sourceBytes, err := os.ReadFile(input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(sourceBytes, []byte("FULL FONT")) {
+	if !bytes.Equal(readFontSubsetEntry(t, input, "OEBPS/Fonts/full.ttf"), []byte("FULL FONT")) ||
+		!bytes.Equal(readFontSubsetEntry(t, input, "OEBPS/Fonts/math.otf"), []byte("FULL MATH FONT")) {
 		t.Fatal("font capability changed the complete-font source")
 	}
-	outputBytes, err := os.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(outputBytes, []byte("SUBSET FONT")) {
+	if !bytes.Equal(readFontSubsetEntry(t, output, "OEBPS/Fonts/full.ttf"), []byte("SUBSET FONT")) {
 		t.Fatal("output does not contain the provider's subset font")
+	}
+	if !bytes.Equal(readFontSubsetEntry(t, output, "OEBPS/Fonts/math.otf"), []byte("FULL MATH FONT")) {
+		t.Fatal("output did not preserve the complete math font")
 	}
 
 	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "font_subset", "basic.report.json")
@@ -207,6 +206,35 @@ func quoteFontSubsetShell(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
+func readFontSubsetEntry(t *testing.T, epubPath, name string) []byte {
+	t.Helper()
+	archive, err := zip.OpenReader(epubPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archive.Close()
+	for _, entry := range archive.File {
+		if entry.Name != name {
+			continue
+		}
+		reader, err := entry.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, readErr := io.ReadAll(reader)
+		closeErr := reader.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		return data
+	}
+	t.Fatalf("EPUB entry %q not found", name)
+	return nil
+}
+
 func writeFontSubsetEPUB(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "font-source.epub")
@@ -216,10 +244,11 @@ func writeFontSubsetEPUB(t *testing.T) string {
 	}{
 		{"mimetype", []byte("application/epub+zip")},
 		{"META-INF/container.xml", []byte(`<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
-		{"OEBPS/package.opf", []byte(`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:uuid:font-subset</dc:identifier><dc:title>Font subset test</dc:title><dc:creator>Test</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-01-01T00:00:00Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="font" href="Fonts/full.ttf" media-type="application/vnd.ms-opentype"/></manifest><spine><itemref idref="chapter"/></spine></package>`)},
+		{"OEBPS/package.opf", []byte(`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:uuid:font-subset</dc:identifier><dc:title>Font subset test</dc:title><dc:creator>Test</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-01-01T00:00:00Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="font" href="Fonts/full.ttf" media-type="application/vnd.ms-opentype"/><item id="math" href="Fonts/math.otf" media-type="application/vnd.ms-opentype"/></manifest><spine><itemref idref="chapter"/></spine></package>`)},
 		{"OEBPS/nav.xhtml", []byte(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter</a></li></ol></nav></body></html>`)},
 		{"OEBPS/chapter.xhtml", []byte(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title></head><body><p>Hello.</p></body></html>`)},
 		{"OEBPS/Fonts/full.ttf", []byte("FULL FONT")},
+		{"OEBPS/Fonts/math.otf", []byte("FULL MATH FONT")},
 	}
 	f, err := os.Create(path)
 	if err != nil {

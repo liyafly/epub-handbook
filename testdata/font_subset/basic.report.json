@@ -13,7 +13,8 @@
       "OEBPS/Fonts/full.ttf"
     ],
     "epub.font.subset.fontEntries": [
-      "OEBPS/Fonts/full.ttf"
+      "OEBPS/Fonts/full.ttf",
+      "OEBPS/Fonts/math.otf"
     ],
     "epub.font.subset.provider": "epub-font",
     "epub.font.subset.providerLog": "provider did not return diagnostic output",
@@ -88,10 +89,10 @@
     "epub.package.nav.audit.status": "complete",
     "epub.package.nav.audit.summary": {
       "language": "en",
-      "manifest_items": 3,
+      "manifest_items": 4,
       "media_counts": {
         "css": 0,
-        "fonts": 1,
+        "fonts": 2,
         "images": 0,
         "other": 0,
         "xhtml": 2
@@ -99,7 +100,7 @@
       "opf": "OEBPS/package.opf",
       "package_version": "3.0",
       "spine_items": 1,
-      "zip_entries": 6
+      "zip_entries": 7
     },
     "epub.package.nav.audit.toolAvailability": {
       "epubcheck": false

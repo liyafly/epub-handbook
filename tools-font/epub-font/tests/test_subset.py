@@ -247,6 +247,10 @@ def test_cli_is_deterministic(tmp_path):
 @pytest.mark.parametrize("config_patch,epub_kwargs,message", [
     ({"fonts": [{"target": "OEBPS/Fonts/missing.ttf"}]}, {}, "is not in the EPUB"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "typo": 1}]}, {}, "unknown keys"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "unknown"}]}, {}, "action must be one of"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "action must be one of"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve", "master": "masters/serif-vf.ttf"}]}, {}, "cannot be combined with subset options"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve"}]}, {}, "requires an OpenType MATH table"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice"),
     ({"version": 2}, {}, "version must be 1"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "master": "masters/math.ttf"}]}, {}, "MATH"),
@@ -305,6 +309,117 @@ def test_no_config_subsets_every_static_font(tmp_path):
     epub.write_bytes(synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_STATIC}))
     code, report = run_subset(epub, None, tmp_path / "new.epub")
     assert code == 0 and [font["target"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
+
+
+def test_no_config_preserves_math_font_and_reports_hashes(tmp_path):
+    math_font = synth.build_math_font()
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({"OEBPS/Fonts/math.ttf": math_font}))
+    source_sha = fontops.sha256(epub.read_bytes())
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, None, output)
+
+    assert code == 0, report
+    assert report["ok"]
+    result, = report["fonts"]
+    assert result["target"] == "OEBPS/Fonts/math.ttf"
+    assert result["action"] == "preserve" and result["reason"] == "math-table"
+    assert result["original"]["sha256"] == result["output"]["sha256"]
+    assert result["original"]["sha256"] == fontops.sha256(math_font)
+    assert fontops.sha256(epub.read_bytes()) == source_sha
+    with zipfile.ZipFile(epub) as before, zipfile.ZipFile(output) as after:
+        assert after.read("OEBPS/Fonts/math.ttf") == math_font
+        for info in before.infolist():
+            if info.filename != "OEBPS/Fonts/math.ttf":
+                assert after.read(info) == before.read(info), info.filename
+
+
+def test_no_config_preserves_math_and_subsets_regular_fonts(tmp_path):
+    math_font = synth.build_math_font()
+    regular_font = GLYF_STATIC
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({
+        "OEBPS/Fonts/math.ttf": math_font,
+        "OEBPS/Fonts/st-all.ttf": regular_font,
+    }))
+    source_sha = fontops.sha256(epub.read_bytes())
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, None, output)
+
+    assert code == 0, report
+    results = {result["target"]: result for result in report["fonts"]}
+    assert results["OEBPS/Fonts/math.ttf"]["action"] == "preserve"
+    assert results["OEBPS/Fonts/math.ttf"]["reason"] == "math-table"
+    assert results["OEBPS/Fonts/math.ttf"]["original"]["sha256"] == results["OEBPS/Fonts/math.ttf"]["output"]["sha256"]
+    assert results["OEBPS/Fonts/st-all.ttf"]["action"] == "subset"
+    assert results["OEBPS/Fonts/st-all.ttf"]["original"]["sha256"] != results["OEBPS/Fonts/st-all.ttf"]["output"]["sha256"]
+    assert fontops.sha256(epub.read_bytes()) == source_sha
+    with zipfile.ZipFile(output) as after:
+        assert after.read("OEBPS/Fonts/math.ttf") == math_font
+        assert after.read("OEBPS/Fonts/st-all.ttf") != regular_font
+
+
+def test_explicit_preserve_action_accepts_math_font(tmp_path):
+    math_font = synth.build_math_font()
+    config = {"version": 1, "fonts": [{"target": "OEBPS/Fonts/math.ttf", "action": "preserve"}]}
+    epub, config_path = write_inputs(tmp_path, config, synth.build_epub({"OEBPS/Fonts/math.ttf": math_font}))
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 0, report
+    assert report["fonts"][0]["action"] == "preserve"
+    assert report["fonts"][0]["reason"] == "math-table"
+    with zipfile.ZipFile(output) as after:
+        assert after.read("OEBPS/Fonts/math.ttf") == math_font
+
+
+@pytest.mark.parametrize("action", [None, "subset"])
+def test_configured_subset_still_refuses_math_font(tmp_path, capsys, action):
+    math_font = synth.build_math_font()
+    job = {"target": "OEBPS/Fonts/math.ttf"}
+    if action is not None:
+        job["action"] = action
+    config = {"version": 1, "fonts": [job]}
+    epub, config_path = write_inputs(tmp_path, config, synth.build_epub({"OEBPS/Fonts/math.ttf": math_font}))
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 2 and report is None
+    assert "MATH table" in capsys.readouterr().err
+    assert not output.exists() and not subset.report_path(output).exists()
+
+
+def test_auto_mode_does_not_preserve_encrypted_math_font(tmp_path, capsys):
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({"OEBPS/Fonts/math.ttf": synth.build_math_font()},
+                                      encrypted=("OEBPS/Fonts/math.ttf",)))
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, None, output)
+
+    assert code == 2 and report is None
+    assert "encryption.xml" in capsys.readouterr().err
+    assert not output.exists() and not subset.report_path(output).exists()
+
+
+@pytest.mark.parametrize("target,font_bytes,message", [
+    ("OEBPS/Fonts/math.ttf", b"not a font", "cannot parse font"),
+    ("OEBPS/Fonts/math.eot", synth.build_math_font(), "unsupported font extension"),
+])
+def test_auto_math_preserve_still_rejects_bad_or_unsupported_fonts(tmp_path, capsys, target, font_bytes, message):
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({target: font_bytes}))
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, None, output)
+
+    assert code == 2 and report is None
+    assert message in capsys.readouterr().err
+    assert not output.exists() and not subset.report_path(output).exists()
 
 
 def test_variable_font_needs_explicit_mode(tmp_path, capsys):
