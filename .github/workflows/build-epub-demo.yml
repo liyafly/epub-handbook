@@ -14,6 +14,7 @@ on:
       - '.markdownlint-cli2.jsonc'
       - 'go.mod'
       - 'go.sum'
+      - 'embed.go'
       - 'cmd/**'
       - 'internal/**'
       - 'tools-font/**'
@@ -44,6 +45,7 @@ on:
       - '.markdownlint-cli2.jsonc'
       - 'go.mod'
       - 'go.sum'
+      - 'embed.go'
       - 'cmd/**'
       - 'internal/**'
       - 'tools-font/**'
@@ -129,6 +131,28 @@ jobs:
           go run ./cmd/epub run epub.style.demo.maintain --input "$epub" --json
           go run ./cmd/epub run epub.notes.popup.normalize --input "$epub" --json
 
+      - name: Build and validate scoped style preset candidates
+        shell: bash
+        run: |
+          demo_epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
+          candidates="$RUNNER_TEMP/style-preset-candidates"
+          mkdir -p "$candidates"
+          while IFS=: read -r preset scope; do
+            candidate="$candidates/$preset.epub"
+            scope_arg="scope_paths=[\"$scope\"]"
+            go run ./cmd/epub run epub.typography.optimize \
+              --input "$demo_epub" --output "$candidate" --json \
+              "preset=$preset" "$scope_arg" >/dev/null
+            go run ./cmd/epub redline --check all --json "$demo_epub" "$candidate" >/dev/null
+            go run ./cmd/epub run epub.package.nav.audit --input "$candidate" --json >/dev/null
+            go run ./cmd/epub run epub.notes.popup.normalize --input "$candidate" --json >/dev/null
+            go run ./cmd/epub run epub.style.demo.maintain --input "$candidate" --json >/dev/null
+          done <<'EOF'
+          plain-cn:OEBPS/Text/01-body.xhtml
+          poetry-cn:OEBPS/Text/29-poetry.xhtml
+          fiction-en:OEBPS/Text/18-english-fiction.xhtml
+          EOF
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -161,6 +185,13 @@ jobs:
             exit 1
           fi
           echo "EPUBCheck: 通过（退出码 0）"
+
+      - name: EPUBCheck scoped style preset candidates
+        run: |
+          for candidate in "$RUNNER_TEMP"/style-preset-candidates/*.epub; do
+            test -s "$candidate"
+            java -jar "$EPUBCHECK_JAR" "$candidate" --mode epub --profile default
+          done
 
       - name: Build & EPUBCheck cleanup demo books
         run: |
