@@ -122,6 +122,26 @@ func TestRewriteStylesheetLinksIgnoresScript(t *testing.T) {
 	}
 }
 
+func TestRewriteStylesheetLinksIgnoresCDATA(t *testing.T) {
+	text := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>T</title><![CDATA[<link rel="stylesheet" href="example.css"/></head>]]></head><body><p>Body</p></body></html>`
+	got, warnings, err := rewriteStylesheetLinks(text, "OEBPS/Text/a.xhtml", []string{"OEBPS/Styles/base.css"})
+	if err != nil {
+		t.Fatalf("rewriteStylesheetLinks: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+	if !strings.Contains(got, `<![CDATA[<link rel="stylesheet" href="example.css"/></head>]]>`) {
+		t.Fatalf("CDATA content was changed:\n%s", got)
+	}
+	if strings.Count(got, `href="../Styles/base.css"`) != 1 {
+		t.Fatalf("real head did not receive exactly one replacement link:\n%s", got)
+	}
+	if strings.Index(got, `href="../Styles/base.css"`) > strings.LastIndex(got, `</head>`) {
+		t.Fatalf("replacement link was inserted after the real head:\n%s", got)
+	}
+}
+
 // TestRewriteStylesheetLinksTruncationWarns 覆盖截断路径：文档尾部有一段
 // 无法闭合的注释，扫描器必须放弃其后内容并报告偏移；真实 </head>（在截断
 // 点之前）照常生效，截断点之后的孤立 <link> 不得被删除。
@@ -156,5 +176,96 @@ func TestRewriteStylesheetLinksTruncationWarns(t *testing.T) {
 	newLink := `<link rel="stylesheet" type="text/css" href="../Styles/base.css"/>`
 	if !strings.Contains(got[:len(got)-len(orphanTail)], newLink) {
 		t.Fatalf("截断点之前的真实 </head> 应正常插入新链接:\n%s", got)
+	}
+}
+
+func TestRewriteStylesheetLinksMinifiedXHTML(t *testing.T) {
+	text := `<?xml version="1.0"?><xhtml:html xmlns:xhtml="http://www.w3.org/1999/xhtml"><xhtml:head><xhtml:title>T</xhtml:title><xhtml:meta name='viewport' content='width=device-width'/><xhtml:link rel='alternate stylesheet' href='old.css'/></xhtml:head><xhtml:body><xhtml:p>正文</xhtml:p></xhtml:body></xhtml:html>`
+	bodyStart := strings.Index(text, "<xhtml:body>")
+	body := text[bodyStart:]
+
+	got, warnings, err := rewriteStylesheetLinks(text, "OEBPS/Text/chapter.xhtml", []string{"OEBPS/Styles/base.css"})
+	if err != nil {
+		t.Fatalf("rewriteStylesheetLinks: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+	if strings.Contains(got, "old.css") {
+		t.Fatalf("old stylesheet link remains:\n%s", got)
+	}
+	if !strings.Contains(got, `<xhtml:link rel="stylesheet" type="text/css" href="../Styles/base.css"/>`) {
+		t.Fatalf("missing replacement stylesheet link:\n%s", got)
+	}
+	if !strings.Contains(got, `<xhtml:title>T</xhtml:title><xhtml:meta name='viewport' content='width=device-width'/>`) {
+		t.Fatalf("adjacent title/meta markup was changed:\n%s", got)
+	}
+	if !strings.HasSuffix(got, body) {
+		t.Fatalf("body bytes changed:\n got: %s\nwant: %s", got[strings.Index(got, "<xhtml:body>"):], body)
+	}
+}
+
+func TestRewriteStylesheetLinksInlineNeighborsAndEscapedHref(t *testing.T) {
+	text := `<html><head><title>T</title><link rel='stylesheet' href='one.css'/><meta name="author" content="A &amp; B"/><link rel="stylesheet" href="two.css"/></head><body><p>Body</p></body></html>`
+	got, warnings, err := rewriteStylesheetLinks(text, "OEBPS/Text/a.xhtml", []string{"OEBPS/Styles/a & b.css"})
+	if err != nil {
+		t.Fatalf("rewriteStylesheetLinks: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+	if strings.Contains(got, "one.css") || strings.Contains(got, "two.css") {
+		t.Fatalf("old stylesheet links remain:\n%s", got)
+	}
+	if !strings.Contains(got, `href="../Styles/a%20%26%20b.css"`) {
+		t.Fatalf("generated href is not URI-escaped:\n%s", got)
+	}
+	if !strings.Contains(got, `<title>T</title><meta name="author" content="A &amp; B"/>`) {
+		t.Fatalf("same-line title/meta markup was changed:\n%s", got)
+	}
+	if !strings.HasSuffix(got, `<body><p>Body</p></body></html>`) {
+		t.Fatalf("body markup changed:\n%s", got)
+	}
+	again, warnings, err := rewriteStylesheetLinks(got, "OEBPS/Text/a.xhtml", []string{"OEBPS/Styles/a & b.css"})
+	if err != nil || len(warnings) != 0 || again != got {
+		t.Fatalf("minified rewrite is not idempotent: err=%v warnings=%v\nfirst=%s\nsecond=%s", err, warnings, got, again)
+	}
+}
+
+func TestRewriteStylesheetLinksCRLFAndRepeatedApplication(t *testing.T) {
+	text := "<html>\r\n" +
+		"  <head>\r\n" +
+		"    <title>T</title>\r\n" +
+		"    <link rel=\"stylesheet\" href=\"old.css\"/>\r\n" +
+		"  </head>\r\n" +
+		"  <body><p>Body</p></body>\r\n" +
+		"</html>\r\n"
+	paths := []string{"OEBPS/Styles/base.css"}
+	first, warnings, err := rewriteStylesheetLinks(text, "OEBPS/Text/a.xhtml", paths)
+	if err != nil {
+		t.Fatalf("first rewrite: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+	if !strings.Contains(first, "\r\n    <link rel=\"stylesheet\" type=\"text/css\" href=\"../Styles/base.css\"/>\r\n") {
+		t.Fatalf("CRLF or indentation was not preserved:\n%q", first)
+	}
+	second, warnings, err := rewriteStylesheetLinks(first, "OEBPS/Text/a.xhtml", paths)
+	if err != nil {
+		t.Fatalf("second rewrite: %v", err)
+	}
+	if len(warnings) != 0 || second != first {
+		t.Fatalf("rewrite is not idempotent: warnings=%v\nfirst=%q\nsecond=%q", warnings, first, second)
+	}
+	if count := strings.Count(second, `href="../Styles/base.css"`); count != 1 {
+		t.Fatalf("stylesheet link count = %d, want 1:\n%s", count, second)
+	}
+}
+
+func TestRewriteStylesheetLinksStillRequiresExplicitHead(t *testing.T) {
+	_, _, err := rewriteStylesheetLinks(`<html><body><p>Body</p></body></html>`, "OEBPS/Text/a.xhtml", []string{"OEBPS/Styles/base.css"})
+	if err == nil || !strings.Contains(err.Error(), "XHTML has no </head>") {
+		t.Fatalf("rewrite error = %v, want missing-head error", err)
 	}
 }

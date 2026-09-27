@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -234,6 +235,121 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	if !bytes.Equal(data, want) {
 		t.Fatalf("English typography E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
 	}
+}
+
+func TestTypographyPresetMinifiedXHTMLEndToEnd(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeNewCapabilityEPUB(t)
+	before := readPipelineEPUBEntry(t, input, "OEBPS/chapter.xhtml")
+	bodyStart := bytes.Index(before, []byte("<body"))
+	bodyClose := bytes.Index(before, []byte("</body>"))
+	if bodyStart < 0 || bodyClose < bodyStart {
+		t.Fatal("fixture body is missing")
+	}
+	body := bytes.Clone(before[bodyStart : bodyClose+len("</body>")])
+	output := filepath.Join(t.TempDir(), "candidate.epub")
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.optimize",
+		InputPath:    input,
+		OutputPath:   output,
+		Args:         Args{"preset": "literary-cn"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusComplete {
+		t.Fatalf("status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	var sawTypography, sawAudit, sawRedline bool
+	for _, event := range outcome.Envelope.Events {
+		switch event.Step {
+		case "epub.typography.optimize":
+			sawTypography = event.Status == "completed"
+		case "epub.package.nav.audit":
+			sawAudit = event.Status == "completed"
+		case "redline":
+			sawRedline = event.Status == "completed" && event.Message == "0 findings"
+		}
+	}
+	if !sawTypography || !sawAudit || !sawRedline {
+		t.Fatalf("events=%+v, want typography, nav audit, and clean redline", outcome.Envelope.Events)
+	}
+	chapter := readPipelineEPUBEntry(t, output, "OEBPS/chapter.xhtml")
+	gotBodyStart := bytes.Index(chapter, []byte("<body"))
+	gotBodyClose := bytes.Index(chapter, []byte("</body>"))
+	if gotBodyStart < 0 || gotBodyClose < gotBodyStart || !bytes.Equal(chapter[gotBodyStart:gotBodyClose+len("</body>")], body) {
+		t.Fatalf("body bytes changed:\n%s", chapter)
+	}
+	for _, layer := range []string{"fonts.css", "base.css", "notes.css", "effects.css", "literary.css", "media.css"} {
+		link := []byte(`href="Styles/` + layer + `"`)
+		if count := bytes.Count(chapter, link); count != 1 {
+			t.Fatalf("stylesheet %s link count = %d, want 1:\n%s", layer, count, chapter)
+		}
+	}
+
+	if outcome.Envelope.Input == nil || outcome.Envelope.Output == nil {
+		t.Fatal("input/output artifacts missing from E2E envelope")
+	}
+	outcome.Envelope.Input.Path, outcome.Envelope.Input.SHA256 = "<fixture.epub>", ""
+	outcome.Envelope.Output.Path, outcome.Envelope.Output.SHA256 = "<candidate.epub>", ""
+	for i, command := range outcome.Envelope.NextCommands {
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(outcome.Envelope.NextCommands[i], output, "<candidate.epub>")
+	}
+	for i, event := range outcome.Envelope.Events {
+		outcome.Envelope.Events[i].Message = strings.ReplaceAll(event.Message, output, "<candidate.epub>")
+	}
+	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "typography_preset", "minified.report.json")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(goldenPath, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, want) {
+		t.Fatalf("typography preset E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+	}
+}
+
+func readPipelineEPUBEntry(t *testing.T, epubPath, target string) []byte {
+	t.Helper()
+	archive, err := zip.OpenReader(epubPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archive.Close()
+	for _, entry := range archive.File {
+		if entry.Name != target {
+			continue
+		}
+		reader, err := entry.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, readErr := io.ReadAll(reader)
+		closeErr := reader.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		return data
+	}
+	t.Fatalf("EPUB entry %q not found", target)
+	return nil
 }
 
 func TestEnglishTypographyInvalidLanguageIsUsageError(t *testing.T) {

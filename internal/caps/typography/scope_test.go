@@ -16,6 +16,7 @@ func TestScopedPresetPreservesUnselectedAndIsIdempotent(t *testing.T) {
 	files := typographyFixture("font-st chapter-head")
 	const selected = "OEBPS/Text/chapter.xhtml"
 	const untouched = "OEBPS/Text/other.xhtml"
+	files[selected] = strings.ReplaceAll(files[selected], "\n", "")
 	files[untouched] = files[selected]
 	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], "</manifest>", `<item id="other" href="Text/other.xhtml" media-type="application/xhtml+xml"/></manifest>`, 1)
 	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], "</spine>", `<itemref idref="other"/></spine>`, 1)

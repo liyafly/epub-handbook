@@ -158,7 +158,7 @@ jobs:
           go run ./cmd/epub run epub.style.demo.maintain --input "$epub" --json
           go run ./cmd/epub run epub.notes.popup.normalize --input "$epub" --json
 
-      - name: Build and validate scoped style preset candidates
+      - name: Build and validate style preset candidates
         shell: bash
         run: |
           demo_epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
@@ -179,6 +179,29 @@ jobs:
           poetry-cn:OEBPS/Text/29-poetry.xhtml
           fiction-en:OEBPS/Text/18-english-fiction.xhtml
           EOF
+          minified_input="$RUNNER_TEMP/style-preset-minified.epub"
+          python3 - "$demo_epub" "$minified_input" <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import sys
+
+          source, output = map(Path, sys.argv[1:])
+          target = "OEBPS/Text/01-body.xhtml"
+          with ZipFile(source) as src, ZipFile(output, "w") as dst:
+              for item in src.infolist():
+                  data = src.read(item.filename)
+                  if item.filename == target:
+                      marker = b"\n</head>"
+                      if marker not in data:
+                          raise SystemExit(f"expected standalone head close in {target}")
+                      data = data.replace(marker, b"</head>", 1)
+                  dst.writestr(item, data)
+          PY
+          whole_candidate="$candidates/literary-cn-minified-whole.epub"
+          go run ./cmd/epub run epub.typography.optimize \
+            --input "$minified_input" --output "$whole_candidate" --json preset=literary-cn >/dev/null
+          go run ./cmd/epub redline --check all --json "$minified_input" "$whole_candidate" >/dev/null
+          go run ./cmd/epub run epub.package.nav.audit --input "$whole_candidate" --json >/dev/null
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -213,7 +236,7 @@ jobs:
           fi
           echo "EPUBCheck: 通过（退出码 0）"
 
-      - name: EPUBCheck scoped style preset candidates
+      - name: EPUBCheck style preset candidates
         run: |
           for candidate in "$RUNNER_TEMP"/style-preset-candidates/*.epub; do
             test -s "$candidate"

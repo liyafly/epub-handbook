@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.typography.optimize",
+  "status": "complete",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "output": {
+    "path": "\u003ccandidate.epub\u003e"
+  },
+  "facts": {
+    "epub.layout.audit.actionableFindings": [],
+    "epub.layout.audit.auditStatus": "pass",
+    "epub.layout.audit.findings": [
+      {
+        "level": "info",
+        "id": "audit.0",
+        "title": "No immediate structural issue detected by harness"
+      }
+    ],
+    "epub.layout.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.layout.audit.input_kind": "existing-epub",
+    "epub.layout.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-special-layout",
+      "$epub-cleanup"
+    ],
+    "epub.layout.audit.status": "complete",
+    "epub.layout.audit.summary": {
+      "language": "en",
+      "manifest_items": 5,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 8
+    },
+    "epub.layout.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.package.nav.audit.actionableFindings": [],
+    "epub.package.nav.audit.auditStatus": "pass",
+    "epub.package.nav.audit.findings": [
+      {
+        "level": "info",
+        "id": "audit.0",
+        "title": "No immediate structural issue detected by harness"
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.package.nav.audit.input_kind": "existing-epub",
+    "epub.package.nav.audit.recommendedSkills": [
+      "$epub-audit",
+      "$epub-special-layout",
+      "$epub-cleanup"
+    ],
+    "epub.package.nav.audit.status": "complete",
+    "epub.package.nav.audit.summary": {
+      "language": "en",
+      "manifest_items": 5,
+      "media_counts": {
+        "css": 1,
+        "fonts": 0,
+        "images": 1,
+        "other": 1,
+        "xhtml": 2
+      },
+      "opf": "OEBPS/content.opf",
+      "package_version": "3.0",
+      "spine_items": 2,
+      "zip_entries": 8
+    },
+    "epub.package.nav.audit.toolAvailability": {
+      "epubcheck": false
+    },
+    "epub.typography.optimize.coverage": {
+      "coveredClasses": [],
+      "insufficientToDetermineApplicability": true,
+      "ratio": 0,
+      "threshold": 0.3,
+      "uncoveredClasses": [],
+      "usedClasses": [],
+      "warning": "样本的 spine XHTML 中没有 class token，无法用 class-token 覆盖率判断标签选择器的适用性；请核对代表性页面的元素结构"
+    },
+    "epub.typography.optimize.coverageBasis": "class-token",
+    "epub.typography.optimize.dryRun": false,
+    "epub.typography.optimize.fontMode": "free",
+    "epub.typography.optimize.fontModeAction": "preserve",
+    "epub.typography.optimize.layers": [
+      "fonts.css",
+      "base.css",
+      "notes.css",
+      "effects.css",
+      "literary.css",
+      "media.css"
+    ],
+    "epub.typography.optimize.manifestItemsAdded": 6,
+    "epub.typography.optimize.manifestItemsAddedHrefs": [
+      "Styles/fonts.css",
+      "Styles/base.css",
+      "Styles/notes.css",
+      "Styles/effects.css",
+      "Styles/literary.css",
+      "Styles/media.css"
+    ],
+    "epub.typography.optimize.notes": "视觉效果未经 reader-matrix 实测前，应用后状态标记为待实测",
+    "epub.typography.optimize.preset": "literary-cn",
+    "epub.typography.optimize.scopeFileCount": 2,
+    "epub.typography.optimize.stylesheetActions": [
+      {
+        "path": "OEBPS/Styles/fonts.css",
+        "source": "templates/style-presets/literary-cn/Styles/fonts.css",
+        "action": "add"
+      },
+      {
+        "path": "OEBPS/Styles/base.css",
+        "source": "templates/style-presets/literary-cn/Styles/base.css",
+        "action": "add"
+      },
+      {
+        "path": "OEBPS/Styles/notes.css",
+        "source": "templates/style-presets/literary-cn/Styles/notes.css",
+        "action": "add"
+      },
+      {
+        "path": "OEBPS/Styles/effects.css",
+        "source": "templates/style-presets/literary-cn/Styles/effects.css",
+        "action": "add"
+      },
+      {
+        "path": "OEBPS/Styles/literary.css",
+        "source": "templates/style-presets/literary-cn/Styles/literary.css",
+        "action": "add"
+      },
+      {
+        "path": "OEBPS/Styles/media.css",
+        "source": "templates/style-presets/literary-cn/Styles/media.css",
+        "action": "add"
+      }
+    ],
+    "epub.typography.optimize.stylesheets": 6,
+    "epub.typography.optimize.xhtmlLinkFiles": [
+      "OEBPS/nav.xhtml",
+      "OEBPS/chapter.xhtml"
+    ],
+    "epub.typography.optimize.xhtmlLinks": 2
+  },
+  "findings": [
+    {
+      "level": "warn",
+      "id": "typography.coverage-insufficient",
+      "title": "样本的 spine XHTML 中没有 class token，无法用 class-token 覆盖率判断标签选择器的适用性；请核对代表性页面的元素结构"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.layout.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.typography.optimize",
+      "status": "completed"
+    },
+    {
+      "step": "style-preset-apply",
+      "status": "completed",
+      "message": "preset=literary-cn layers=6 manifest_added=6"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    },
+    {
+      "step": "write-output",
+      "status": "completed",
+      "message": "\u003ccandidate.epub\u003e"
+    }
+  ]
+}

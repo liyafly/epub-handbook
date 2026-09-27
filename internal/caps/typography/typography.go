@@ -6,8 +6,7 @@
 //     低于阈值输出中文 warning）；
 //   - 层文件拷贝到 OPF 同级的 Styles/ 目录（存在即替换，否则新增）；
 //   - manifest ensure（unique_id style-{stem}）+ media-type 补齐；
-//   - spine 页面 stylesheet link 整行重写（LINK_RE 多行删除 + </head>
-//     前插入新链接）；
+//   - spine 页面真实 head 的直接 stylesheet link 重写，并在其关闭标签前插入；
 //   - OPF 字节区间编辑（INV-2：不整文档重序列化）；
 //   - dry-run 同样生成内存候选，由 pipeline 跳过落盘。
 //
@@ -813,18 +812,14 @@ func isStylesheetLinkAttrs(attrs string) bool {
 	return false
 }
 
-// rewriteStylesheetLinks 复刻 rewrite_stylesheet_links：删除全部
-// stylesheet link 行，再在 </head> 所在行的行首前插入新链接。
+// rewriteStylesheetLinks removes direct stylesheet links from the real XHTML
+// head and inserts the requested links before its closing tag.
 //
 // 定位与增删只发生在 xhtml.ScanRegions 认定的真实标签字节内（RegionTag）：
 // 原实现对整页文本跑正则，一段「展示旧写法」的 HTML 注释里若原样写出
 // `</head>` 或 `<link ...>`，新链接会被插进注释里、注释里的示例 <link>
 // 行也会被一起删掉 —— 那是正文/注释被误当标记，已修复。<script> 字符串
 // 字面量、CDATA 同理不参与匹配。
-//
-// 与原正则保留的行为一致：`<link>` / `</head>` 必须是所在行第一个非空白
-// 字符（对齐原 `(?m)^[ \t]*` 锚点语义），否则该次出现不参与删除/定位——
-// 这不是本次要修的缺陷，只是照抄原语义。
 //
 // 第二个返回值是告警：区域扫描遇到无法闭合的结构而截断时，截断点之后的
 // `<link>`/`</head>` 不再改写，调用方必须转成 finding，不能静默半改。
@@ -841,11 +836,15 @@ func rewriteStylesheetLinksRegions(text, xhtmlPath string, cssPaths []string, re
 			xhtmlPath, stop))
 	}
 
+	type element struct {
+		name         string
+		documentHead bool
+	}
 	type deletion struct{ start, end int }
+	stack := make([]element, 0, 16)
 	var deletes []deletion
-	headStart := -1
-	headIndent := ""
-	headFound := false
+	headCloseStart := -1
+	headName := ""
 
 	for _, r := range regions {
 		if r.Kind != xhtml.RegionTag {
@@ -853,60 +852,146 @@ func rewriteStylesheetLinksRegions(text, xhtmlPath string, cssPaths []string, re
 		}
 		tag := text[r.Start:r.End]
 		name, attrs, closing := xhtml.TagParts(tag)
-		switch {
-		case !closing && strings.EqualFold(name, "link"):
-			if !isStylesheetLinkAttrs(attrs) {
-				continue
+		if name == "" {
+			return "", warnings, presetErrf("%s: invalid tag at byte offset %d", xhtmlPath, r.Start)
+		}
+		if closing {
+			if len(stack) == 0 || !strings.EqualFold(stack[len(stack)-1].name, name) {
+				return "", warnings, presetErrf("%s: mismatched closing tag %q at byte offset %d", xhtmlPath, name, r.Start)
 			}
-			lineStart, _, ok := wholeLineIndent(text, r.Start)
-			if !ok {
-				continue
+			open := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if open.documentHead && headCloseStart < 0 {
+				headCloseStart = r.Start
+				headName = open.name
 			}
-			end := r.End
-			for end < len(text) && (text[end] == ' ' || text[end] == '\t') {
-				end++
-			}
-			switch {
-			case strings.HasPrefix(text[end:], "\r\n"):
-				end += 2
-			case end < len(text) && text[end] == '\n':
-				end++
-			}
-			deletes = append(deletes, deletion{start: lineStart, end: end})
-		case closing && !headFound && strings.EqualFold(name, "head"):
-			lineStart, indent, ok := wholeLineIndent(text, r.Start)
-			if !ok {
-				continue
-			}
-			headStart, headIndent, headFound = lineStart, indent, true
+			continue
+		}
+
+		if len(stack) > 0 && stack[len(stack)-1].documentHead && strings.EqualFold(xhtmlLocalName(name), "link") && isStylesheetLinkAttrs(attrs) {
+			start, end := stylesheetLinkRange(text, r.Start, r.End)
+			deletes = append(deletes, deletion{start: start, end: end})
+		}
+		if !tagIsSelfClosing(tag) {
+			isDocumentHead := strings.EqualFold(xhtmlLocalName(name), "head") &&
+				len(stack) == 1 && strings.EqualFold(xhtmlLocalName(stack[len(stack)-1].name), "html")
+			stack = append(stack, element{name: name, documentHead: isDocumentHead})
 		}
 	}
 
-	if !headFound {
+	if headCloseStart < 0 {
 		return "", warnings, presetErrf("XHTML has no </head>: %s", xhtmlPath)
+	}
+	closeLineStart, closeIndent, closeOnOwnLine := wholeLineIndent(text, headCloseStart)
+	insertAt := headCloseStart
+	indent := ""
+	lineEnding := ""
+	if closeOnOwnLine {
+		insertAt = closeLineStart
+		indent = closeIndent + "  "
+		lineEnding = lineEndingNear(text, headCloseStart)
+	}
+	linkName := xhtmlQualifiedName(headName, "link")
+	var insert strings.Builder
+	for _, cssPath := range cssPaths {
+		if lineEnding != "" {
+			insert.WriteString(indent)
+		}
+		insert.WriteString(`<` + linkName + ` rel="stylesheet" type="text/css" href="` +
+			pypath.EscapeAttribute(pypath.RelativeURI(xhtmlPath, cssPath)) + `"/>`)
+		if lineEnding != "" {
+			insert.WriteString(lineEnding)
+		}
 	}
 
 	var out strings.Builder
-	out.Grow(len(text) + 64)
+	out.Grow(len(text) + insert.Len())
 	last := 0
 	di := 0
-	for di < len(deletes) && deletes[di].start < headStart {
+	for di < len(deletes) && deletes[di].start < insertAt {
+		if deletes[di].start < last {
+			return "", warnings, presetErrf("%s: overlapping stylesheet link spans", xhtmlPath)
+		}
 		out.WriteString(text[last:deletes[di].start])
 		last = deletes[di].end
 		di++
 	}
-	out.WriteString(text[last:headStart])
-	indent := headIndent + "  "
-	for _, cssPath := range cssPaths {
-		out.WriteString(indent + `<link rel="stylesheet" type="text/css" href="` + pypath.RelativeURI(xhtmlPath, cssPath) + `"/>` + "\n")
-	}
-	last = headStart
+	out.WriteString(text[last:insertAt])
+	out.WriteString(insert.String())
+	last = insertAt
 	for ; di < len(deletes); di++ {
+		if deletes[di].start < last {
+			return "", warnings, presetErrf("%s: overlapping stylesheet link spans", xhtmlPath)
+		}
 		out.WriteString(text[last:deletes[di].start])
 		last = deletes[di].end
 	}
 	out.WriteString(text[last:])
 	return out.String(), warnings, nil
+}
+
+func xhtmlLocalName(name string) string {
+	if prefix := strings.LastIndexByte(name, ':'); prefix >= 0 {
+		return name[prefix+1:]
+	}
+	return name
+}
+
+func xhtmlQualifiedName(reference, local string) string {
+	if prefix := strings.LastIndexByte(reference, ':'); prefix >= 0 {
+		return reference[:prefix+1] + local
+	}
+	return local
+}
+
+func tagIsSelfClosing(tag string) bool {
+	if len(tag) < 3 {
+		return false
+	}
+	inner := strings.TrimRight(tag[1:len(tag)-1], " \t\r\n")
+	return strings.HasSuffix(inner, "/")
+}
+
+func stylesheetLinkRange(text string, start, end int) (int, int) {
+	lineStart, _, wholeLine := wholeLineIndent(text, start)
+	if !wholeLine {
+		return start, end
+	}
+	lineEnd := end
+	for lineEnd < len(text) && (text[lineEnd] == ' ' || text[lineEnd] == '\t') {
+		lineEnd++
+	}
+	if lineEnd < len(text) && text[lineEnd] != '\n' && text[lineEnd] != '\r' {
+		return start, end
+	}
+	switch {
+	case strings.HasPrefix(text[lineEnd:], "\r\n"):
+		lineEnd += 2
+	case lineEnd < len(text) && (text[lineEnd] == '\r' || text[lineEnd] == '\n'):
+		lineEnd++
+	}
+	return lineStart, lineEnd
+}
+
+func lineEndingNear(text string, pos int) string {
+	lineEnd := strings.IndexAny(text[pos:], "\r\n")
+	if lineEnd >= 0 {
+		lineEnd += pos
+		if strings.HasPrefix(text[lineEnd:], "\r\n") {
+			return "\r\n"
+		}
+		if text[lineEnd] == '\n' {
+			return "\n"
+		}
+		return "\r"
+	}
+	if strings.Contains(text, "\r\n") {
+		return "\r\n"
+	}
+	if strings.Contains(text, "\n") {
+		return "\n"
+	}
+	return "\n"
 }
 
 // wholeLineIndent 判断 pos 在 text 中是否是其所在行第一个非空白字符（对齐
