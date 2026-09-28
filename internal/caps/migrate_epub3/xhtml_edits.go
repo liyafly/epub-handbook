@@ -63,8 +63,15 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 	if len(langAttrs) > 1 || len(xmlLangAttrs) > 1 {
 		return "", false, fmt.Errorf("ambiguous language attributes on XHTML root at byte %d", rootTag.Span.Start)
 	}
+	epubNamespaceAttrs := matchingXHTMLAttrs(rootAttrs, "xmlns:epub")
+	if len(epubNamespaceAttrs) > 1 {
+		return "", false, convErrf("ambiguous xmlns:epub namespace attributes on XHTML root at byte %d", rootTag.Span.Start)
+	}
+	if len(epubNamespaceAttrs) == 1 && epubNamespaceAttrs[0].Value != opsURI {
+		return "", false, convErrf("unsupported xmlns:epub namespace URI %q", epubNamespaceAttrs[0].Value)
+	}
 	var addRoot []string
-	if len(matchingXHTMLAttrs(rootAttrs, "xmlns:epub")) == 0 {
+	if len(epubNamespaceAttrs) == 0 {
 		addRoot = append(addRoot, `xmlns:epub="`+escapeXHTMLAttribute(opsURI, '"')+`"`)
 	}
 	language := pyStrip(defaultLanguage)

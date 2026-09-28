@@ -511,6 +511,39 @@ func TestMigrateIgnoresFeatureTagsInComments(t *testing.T) {
 	}
 }
 
+func TestMigrateRejectsWrongEpubNamespaceURI(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
+	entries := buildLegacyFixture(legacyOptions{})
+	chapterFound := false
+	for i := range entries {
+		if entries[i].name != "OEBPS/Text/chapter.xhtml" {
+			continue
+		}
+		const languageAttr = `xml:lang="zh-CN"`
+		if !strings.Contains(entries[i].content, languageAttr) {
+			t.Fatal("legacy chapter fixture has no expected root language attribute")
+		}
+		entries[i].content = strings.Replace(entries[i].content, languageAttr,
+			languageAttr+` xmlns:epub="urn:wrong"`, 1)
+		chapterFound = true
+	}
+	if !chapterFound {
+		t.Fatal("legacy fixture has no chapter.xhtml entry")
+	}
+	writeFixtureEpub(t, fixture, entries)
+
+	if _, err := runGo(t, fixture, output, defaultParams(output)); err == nil {
+		t.Fatal("Run succeeded with an incorrect epub namespace URI")
+	} else if !strings.Contains(err.Error(), "xmlns:epub") || !strings.Contains(err.Error(), "urn:wrong") {
+		t.Fatalf("Run error = %v, want wrong xmlns:epub URI", err)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("output file exists after namespace rejection: stat err=%v", err)
+	}
+}
+
 func TestOneclickDefaultFixture(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy.epub")
