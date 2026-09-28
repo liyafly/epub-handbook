@@ -15,6 +15,7 @@ import (
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // CapabilityID 是本能力的契约 id。
@@ -37,7 +38,10 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []violation
 
-	textFiles := textFiles(b)
+	textFiles, textFilesErr := textFiles(b)
+	if textFilesErr != nil {
+		errs = append(errs, violation{fmt.Sprintf("EPUB package XHTML scan failed: %v", textFilesErr)})
+	}
 	var iconRefs []iconRef
 	foundNotes := false
 	noterefCount := 0
@@ -484,23 +488,35 @@ func subset(small, big map[string]bool) bool {
 	return true
 }
 
-// textFiles 对齐 --epub 模式的扫描面：仅 OEBPS/Text/*.xhtml（排序）。
-func textFiles(b *book.Book) []string {
+// textFiles 返回 OPF manifest 中所有 XHTML 文档的容器内路径（排序）。
+func textFiles(b *book.Book) ([]string, error) {
+	opfPath := findOPFPath(b)
+	if opfPath == "" {
+		return nil, fmt.Errorf("package document path was not found")
+	}
+	opfData, err := b.Current(opfPath)
+	if err != nil {
+		return nil, fmt.Errorf("read package document %s: %w", opfPath, err)
+	}
+	pkg, err := opf.Parse(opfPath, opfData)
+	if err != nil {
+		return nil, fmt.Errorf("parse package document %s: %w", opfPath, err)
+	}
 	var out []string
-	for _, name := range b.Names() {
-		if strings.HasPrefix(name, "OEBPS/Text/") && strings.HasSuffix(name, ".xhtml") {
-			out = append(out, name)
+	for _, item := range pkg.Manifest {
+		if (item.MediaType == "application/xhtml+xml" || item.MediaType == "text/html") && item.ArchivePath != "" && b.Has(item.ArchivePath) {
+			out = append(out, item.ArchivePath)
 		}
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
 }
 
 // findOPFPath 对齐 find_opf：container rootfile（需存在）→ OEBPS/package.opf
 // → OEBPS 下字典序第一个 *.opf。
 func findOPFPath(b *book.Book) string {
-	if raw, err := b.Current(opfContainerPath); err == nil {
-		if p, err := findRootfile(raw); err == nil && p != "" && b.Has(p) {
+	if raw, err := b.Current(opf.ContainerPath); err == nil {
+		if p, err := opf.FindOPFPath(raw); err == nil && p != "" && b.Has(p) {
 			return p
 		}
 	}
@@ -519,27 +535,6 @@ func findOPFPath(b *book.Book) string {
 		return cands[0]
 	}
 	return ""
-}
-
-const opfContainerPath = "META-INF/container.xml"
-
-// findRootfile 从 container.xml 取 rootfile@full-path。
-func findRootfile(container []byte) (string, error) {
-	doc, err := parseXHTML(container)
-	if err != nil {
-		return "", err
-	}
-	var rootfile *element
-	for _, el := range doc.elements {
-		if el.local == "rootfile" {
-			rootfile = el
-			break
-		}
-	}
-	if rootfile == nil {
-		return "", fmt.Errorf("no rootfile")
-	}
-	return rootfile.attrs["full-path"], nil
 }
 
 // pyURLSplit 对齐 urllib.parse.urlsplit 的相关投影（C0+空格首尾剥离、

@@ -210,3 +210,30 @@ func TestPopupNotesOK(t *testing.T) {
 		t.Errorf("facts = %v", facts)
 	}
 }
+
+func TestPopupScansManifestXHTMLOutsideOEBPSText(t *testing.T) {
+	files := map[string]string{
+		"META-INF/container.xml": `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf"/></rootfiles></container>`,
+		"EPUB/package.opf": `<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Fixture</dc:title></metadata>
+  <manifest><item id="chapter" href="c1.xhtml" media-type="application/xhtml+xml"/></manifest>
+  <spine><itemref idref="chapter"/></spine>
+</package>`,
+		"EPUB/c1.xhtml": popupXHTML(`<p><a epub:type="noteref" href="#missing" id="r1">1</a></p>`),
+	}
+	epub := filepath.Join(t.TempDir(), "outside-text.epub")
+	writePopupEpub(t, epub, files)
+	b, err := book.Open(epub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Facts["text_files"] != 1 || result.Facts["noterefs"] != 1 || result.Facts["violations"] == 0 {
+		t.Fatalf("facts=%#v, want one scanned XHTML, one noteref, and violations", result.Facts)
+	}
+}
