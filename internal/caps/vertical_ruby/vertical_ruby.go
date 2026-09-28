@@ -339,7 +339,7 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 			prefixValues := map[string][]string{}
 			unsupported := false
 			for _, decl := range rule.Declarations {
-				name := strings.ToLower(strings.TrimSpace(decl.Name))
+				name := decl.Property()
 				value := strings.ToLower(strings.TrimSpace(decl.Value))
 				switch name {
 				case "writing-mode":

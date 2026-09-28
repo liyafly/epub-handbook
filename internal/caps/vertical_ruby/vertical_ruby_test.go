@@ -170,6 +170,32 @@ func TestWritingModePrefixCombinationsAtRulesAndConflicts(t *testing.T) {
 	}
 }
 
+func TestWritingModePrefixWithLeadingComment(t *testing.T) {
+	css := `.one {
+  /* c */
+  writing-mode: vertical-rl;
+}`
+	b := openFixture(t, makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body/></html>`, css))
+	first, err := Run(t.Context(), b, Params{Op: OpWritingModePrefix})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Facts["editCount"] != 1 {
+		t.Fatalf("editCount=%v, want 1", first.Facts["editCount"])
+	}
+	got := string(current(t, b, cssPath))
+	if !strings.Contains(got, "-epub-writing-mode: vertical-rl;\n  /* c */\n  writing-mode: vertical-rl;") {
+		t.Fatalf("prefixes were not inserted before the leading comment:\n%s", got)
+	}
+	second, err := Run(t.Context(), b, Params{Op: OpWritingModePrefix})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Facts["editCount"] != 0 {
+		t.Fatalf("second editCount=%v, want idempotent no-op", second.Facts["editCount"])
+	}
+}
+
 func TestWritingModePrefixParseAndScopeErrorsAreAtomic(t *testing.T) {
 	input := makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body><ruby>漢<rt>かん</rt></ruby></body></html>`, `.one { writing-mode: vertical-rl; }`)
 	b := openFixture(t, input)

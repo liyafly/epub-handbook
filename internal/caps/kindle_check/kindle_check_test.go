@@ -46,6 +46,28 @@ func TestCleanFixtureHasZeroFindingsAndAllCounts(t *testing.T) {
 	}
 }
 
+func TestCommentBeforeDeclarationStillDetected(t *testing.T) {
+	files := baseFiles()
+	files["OEBPS/styles.css"] = `.note {
+  /* tilt */
+  transform: rotate(3deg);
+}
+.under {
+  /* wave */
+  text-decoration-style: wavy;
+}
+figure img {
+  /* wrap */
+  float: left;
+}`
+	result := runCheck(t, files)
+	for _, id := range []string{"kindle.css-transform-rotate", "kindle.css-styled-underline", "kindle.css-img-direct-float"} {
+		if !hasFinding(result.Findings, id) {
+			t.Errorf("missing %s for commented property declarations: %+v", id, result.Findings)
+		}
+	}
+}
+
 func TestFindingRulesAndLevels(t *testing.T) {
 	tests := []struct {
 		name  string

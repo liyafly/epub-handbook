@@ -692,7 +692,7 @@ func collectEmbeddedFontFamilies(data []byte, sheet *css.Stylesheet, out map[str
 			continue
 		}
 		for _, decl := range rule.Declarations {
-			if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") ||
+			if decl.Property() != "font-family" ||
 				decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
 				continue
 			}
@@ -721,7 +721,7 @@ func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet, embeddedFa
 			continue
 		}
 		for _, decl := range rule.Declarations {
-			if !strings.EqualFold(strings.TrimSpace(decl.Name), "font-family") {
+			if decl.Property() != "font-family" {
 				continue
 			}
 			if decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {

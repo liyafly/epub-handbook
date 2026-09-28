@@ -127,6 +127,12 @@ type Declaration struct {
 	HasSemicolon  bool
 }
 
+// Property returns the normalized CSS property name without leading comments.
+// Name and NameSpan remain an exact projection of the source bytes.
+func (d Declaration) Property() string {
+	return strings.ToLower(strings.TrimSpace(StripComments(d.Name)))
+}
+
 // Decl is retained as a concise compatibility name for Declaration.
 type Decl = Declaration
 

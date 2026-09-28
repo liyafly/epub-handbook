@@ -57,7 +57,7 @@ func collectCSSReferences(text string) ([]resourceReference, error) {
 			continue
 		}
 		for _, decl := range rule.Declarations {
-			if strings.EqualFold(decl.Name, "src") {
+			if decl.Property() == "src" {
 				sources = append(sources, fontSource{span: decl.ValueSpan, hasLocal: hasLocalSource(sheet.Tokens, decl.ValueSpan)})
 			}
 		}

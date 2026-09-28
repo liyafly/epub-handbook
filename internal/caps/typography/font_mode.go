@@ -215,7 +215,8 @@ func bodyBindingsSheet(sheet *css.Stylesheet, bookClasses map[string]bool) (dire
 			continue
 		}
 		for _, decl := range rule.Declarations {
-			if !strings.EqualFold(decl.Name, "font-family") && !strings.EqualFold(decl.Name, "font") && !strings.EqualFold(decl.Name, "all") {
+			property := decl.Property()
+			if property != "font-family" && property != "font" && property != "all" {
 				continue
 			}
 			for selector := range strings.SplitSeq(css.StripComments(rule.Selector), ",") {
@@ -322,7 +323,7 @@ func selectorClasses(s string) []string {
 }
 
 func checkStableBinding(sheet *css.Stylesheet, rule css.Rule, decl css.Declaration) error {
-	if rule.InAtRule || strings.EqualFold(decl.Name, "all") {
+	if rule.InAtRule || decl.Property() == "all" {
 		return fmt.Errorf("conditional or reset body font binding requires explicit review")
 	}
 	for _, token := range sheet.Tokens {

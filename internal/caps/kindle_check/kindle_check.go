@@ -259,7 +259,7 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 		styleSeen, underlineBeforeStyle := false, false
 		floatSide := ""
 		for _, decl := range rule.Declarations {
-			name := strings.ToLower(strings.TrimSpace(decl.Name))
+			name := decl.Property()
 			value := strings.ToLower(strings.TrimSpace(cssscan.StripComments(decl.Value)))
 			switch name {
 			case "transform", "-webkit-transform":
@@ -390,7 +390,7 @@ func resourcePath(item opf.ManifestItem) string {
 
 func hasDeclaration(declarations []cssscan.Declaration, name string) bool {
 	for _, declaration := range declarations {
-		if strings.EqualFold(strings.TrimSpace(declaration.Name), name) {
+		if strings.EqualFold(declaration.Property(), name) {
 			return true
 		}
 	}

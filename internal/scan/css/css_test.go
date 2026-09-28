@@ -135,6 +135,16 @@ func TestParseRejectsMalformedInput(t *testing.T) {
 	}
 }
 
+func TestDeclarationPropertyStripsLeadingComment(t *testing.T) {
+	sheet, err := Parse([]byte(".x { /* keep */ TeXt-DeCoRaTiOn-StYlE : wavy; }"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sheet.Rules[0].Declarations[0].Property(); got != "text-decoration-style" {
+		t.Fatalf("Property()=%q, want normalized property name", got)
+	}
+}
+
 func TestScanReferencesStrictURLFunctionName(t *testing.T) {
 	refs, err := ScanReferences([]byte(`a { background: url (image.png); }`))
 	if err != nil {
