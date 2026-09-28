@@ -182,12 +182,6 @@ unzip -tqq work/book-a/after/cleaned.epub
 epub run epub.package.nav.audit --input work/book-a/after/cleaned.epub --json
 epub run epub.notes.popup.normalize --input work/book-a/after/cleaned.epub --json
 epub redline --check all \
-  --allow-list '*/nav.xhtml' \
-  work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub
-
-epub redline --check all \
-  --allow-list '*/nav.xhtml' --allow-list '*/toc.ncx' \
   work/book-a/before/source.epub \
   work/book-a/after/cleaned.epub
 ```
