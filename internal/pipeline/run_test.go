@@ -667,14 +667,13 @@ func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
 	}
 }
 
-func TestNormalizeNextCommandUsesFlagFirstOrder(t *testing.T) {
+func TestNormalizeHasNoPlaceholderRedlineNextCommand(t *testing.T) {
 	c := Contract{ID: "epub.structure.normalize"}
 	c.Execution.Output = ExecOutputSingle
 	opts := Options{InputPath: "source book.epub", OutputPath: "candidate book.epub"}
 	got := nextCommands(c, opts, nil, true)
-	want := "epub redline --check all --path-map '<normalize-envelope.json>' 'source book.epub' 'candidate book.epub'"
-	if len(got) != 1 || got[0] != want {
-		t.Fatalf("nextCommands = %q, want [%q]", got, want)
+	if len(got) != 0 {
+		t.Fatalf("nextCommands = %q, want no redline command with an unspecified path map", got)
 	}
 }
 

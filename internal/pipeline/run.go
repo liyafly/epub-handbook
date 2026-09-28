@@ -686,9 +686,9 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		if !needsWrite {
 			return nil
 		}
-		command := "epub run " + id + " --input " + report.ShellQuote(placeholder(opts.InputPath, "<reviewed-input>"))
+		command := "epub run " + id + " --input " + report.ShellQuote(fallbackPath(opts.InputPath, "input.epub"))
 		if contract.Execution.Output != ExecOutputMulti {
-			command += " --output " + report.ShellQuote(placeholder(opts.OutputPath, "<out.epub>"))
+			command += " --output " + report.ShellQuote(fallbackPath(opts.OutputPath, "out.epub"))
 		}
 		command += " --json"
 		args := maps.Clone(userArgs)
@@ -696,7 +696,7 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 			args = Args{}
 		}
 		if contract.Execution.Output == ExecOutputMulti && args["output_dir"] == "" {
-			args["output_dir"] = "<out-dir>"
+			args["output_dir"] = "out-dir"
 		}
 		for _, key := range slices.Sorted(maps.Keys(args)) {
 			if key == "input" || key == "output" || key == "dry_run" {
@@ -710,15 +710,11 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 	case "epub.package.nav.audit":
 		out = append(out,
 			"epub run epub.layout.audit --input "+report.ShellQuote(opts.InputPath))
-	case "epub.structure.normalize":
-		out = append(out, "epub redline --check all --path-map "+report.ShellQuote("<normalize-envelope.json>")+" "+
-			report.ShellQuote(placeholder(opts.InputPath, "<before.epub>"))+" "+
-			report.ShellQuote(placeholder(opts.OutputPath, "<after.epub>")))
 	}
 	return out
 }
 
-func placeholder(vals ...string) string {
+func fallbackPath(vals ...string) string {
 	for _, v := range vals {
 		if v != "" {
 			return v

@@ -67,6 +67,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.literary.structure.format --input \u003cfixture.epub\u003e --output '\u003cout.epub\u003e' --json 'assignments=[{\"path\":\"OEBPS/Text/01-body.xhtml\",\"tag\":\"blockquote\",\"index\":0,\"class\":\"epigraph\"}]' stylesheet=OEBPS/Styles/literary.css"
+    "epub run epub.literary.structure.format --input fixture.epub --output out.epub --json 'assignments=[{\"path\":\"OEBPS/Text/01-body.xhtml\",\"tag\":\"blockquote\",\"index\":0,\"class\":\"epigraph\"}]' stylesheet=OEBPS/Styles/literary.css"
   ]
 }

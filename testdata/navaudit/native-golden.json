@@ -80,16 +80,13 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.package.nav.audit --input <fixture.epub> --json",
-    "epub run epub.layout.audit --input <fixture.epub> --json",
-    "epub run epub.notes.popup.normalize --input <fixture.epub> --dry-run --json",
-    "epub redline --check all <before.epub> <after.epub>",
-    "epub run epub.structure.normalize --input <fixture.epub> --output work/after/step-0-normalized.epub --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input <fixture.epub> --dry-run --json",
-    "epub run epub.package.migrate.epub3 --input <fixture.epub> --output work/after/step-1-epub3.epub --json",
-    "epub run epub.text.content.analyze --input <fixture.epub> --json",
-    "epub run epub.font.coverage.analyze --input <fixture.epub> --json",
-    "epub capabilities --json",
-    "# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."
+    "epub run epub.package.nav.audit --input fixture.epub --json",
+    "epub run epub.layout.audit --input fixture.epub --json",
+    "epub run epub.notes.popup.normalize --input fixture.epub --dry-run --json",
+    "epub run epub.structure.normalize --input fixture.epub --dry-run --json",
+    "epub run epub.package.migrate.epub3 --input fixture.epub --dry-run --json",
+    "epub run epub.text.content.analyze --input fixture.epub --json",
+    "epub run epub.font.coverage.analyze --input fixture.epub --json",
+    "epub capabilities --json"
   ]
 }

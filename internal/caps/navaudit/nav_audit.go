@@ -258,7 +258,6 @@ func (ins *inspector) inspect(ctx context.Context) {
 	ins.addCommand("epub run epub.package.nav.audit --input " + q + " --json")
 	ins.addCommand("epub run epub.layout.audit --input " + q + " --json")
 	ins.addCommand("epub run epub.notes.popup.normalize --input " + q + " --dry-run --json")
-	ins.addCommand("epub redline --check all <before.epub> <after.epub>")
 
 	ins.summary.ZipEntries = len(ins.b.Names())
 
@@ -292,7 +291,6 @@ func (ins *inspector) inspect(ctx context.Context) {
 		ins.addCommand("epubcheck " + q)
 	} else {
 		ins.tools.Values["epubcheck"] = false
-		ins.addCommand("# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable.")
 	}
 	ins.applyWorkflowMode()
 }
@@ -346,7 +344,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 			"", "filename-obfuscation")
 		ins.addSkill("epub-cleanup", "warn")
 		ins.addCommand("epub run epub.structure.normalize --input " + q +
-			" --output work/after/step-0-normalized.epub --dry-run --json")
+			" --dry-run --json")
 	}
 
 	// 版本与迁移。
@@ -359,8 +357,6 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		ins.addSkill("epub-cleanup", "warn")
 		ins.addSkill("epub-audit", "warn")
 		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q + " --dry-run --json")
-		ins.addCommand("epub run epub.package.migrate.epub3 --input " + q +
-			" --output work/after/step-1-epub3.epub --json")
 	}
 
 	// 语言。

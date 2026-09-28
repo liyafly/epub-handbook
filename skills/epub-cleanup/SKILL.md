@@ -121,7 +121,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 ### 目录结构规范化
 
-前缀 `epub.structure.normalize.`：`mappings[]`（from/to）、`warnings[]`、`movedResources`、`renamedResources`、`rewrittenFiles`、`fontObfuscationResources`、`removedStaleEncryptionResources`；默认双阶段另有 `stages[]`。保存完整信封作为 path-map，不手抄映射。
+前缀 `epub.structure.normalize.`：`mappings[]`（from/to）、`warnings[]`、`movedResources`、`renamedResources`、`rewrittenFiles`、`fontObfuscationResources`、`removedStaleEncryptionResources`；默认双阶段另有 `stages[]`。`mappings[]` 是后续红线的路径映射；需要时把完整 normalize 信封作为 `--path-map`，不要手抄映射。
 
 ### EPUB3 迁移
 

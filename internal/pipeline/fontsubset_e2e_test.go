@@ -91,8 +91,8 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 	outcome.Envelope.Output.Path = "<candidate.epub>"
 	outcome.Envelope.Output.SHA256 = ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(outcome.Envelope.NextCommands[i], output, "<candidate.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(outcome.Envelope.NextCommands[i], output, "candidate.epub")
 	}
 	for i, event := range outcome.Envelope.Events {
 		outcome.Envelope.Events[i].Message = strings.ReplaceAll(event.Message, output, "<candidate.epub>")

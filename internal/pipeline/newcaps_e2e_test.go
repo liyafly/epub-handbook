@@ -129,7 +129,7 @@ func TestNotesFallbackEndToEnd(t *testing.T) {
 	outcome.Envelope.Input.Path = "<fixture.epub>"
 	outcome.Envelope.Input.SHA256 = ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
 	}
 	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
 	if err != nil {
@@ -214,7 +214,7 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	outcome.Envelope.Input.Path = "<fixture.epub>"
 	outcome.Envelope.Input.SHA256 = ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
 	}
 	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
 	if err != nil {
@@ -296,7 +296,7 @@ func TestTypographyPresetMinifiedXHTMLEndToEnd(t *testing.T) {
 	outcome.Envelope.Input.Path, outcome.Envelope.Input.SHA256 = "<fixture.epub>", ""
 	outcome.Envelope.Output.Path, outcome.Envelope.Output.SHA256 = "<candidate.epub>", ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
 		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(outcome.Envelope.NextCommands[i], output, "<candidate.epub>")
 	}
 	for i, event := range outcome.Envelope.Events {
@@ -404,7 +404,7 @@ func TestVerticalRubyEndToEndAndRedline(t *testing.T) {
 	outcome.Envelope.Input.Path = "<fixture.epub>"
 	outcome.Envelope.Input.SHA256 = ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
 	}
 	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
 	if err != nil {
@@ -668,7 +668,7 @@ func TestLiteraryStructureEndToEndAndRedline(t *testing.T) {
 	outcome.Envelope.Input.Path = "<fixture.epub>"
 	outcome.Envelope.Input.SHA256 = ""
 	for i, command := range outcome.Envelope.NextCommands {
-		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "<fixture.epub>")
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
 	}
 	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
 	if err != nil {

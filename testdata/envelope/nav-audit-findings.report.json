@@ -4220,10 +4220,8 @@
   "nextCommands": [
     "epub run epub.layout.audit --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
     "epub run epub.notes.popup.normalize --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --dry-run --json",
-    "epub redline --check all <before.epub> <after.epub>",
     "epub run epub.text.content.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
     "epub run epub.font.coverage.analyze --input 'references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub' --json",
-    "epub capabilities --json",
-    "# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."
+    "epub capabilities --json"
   ]
 }

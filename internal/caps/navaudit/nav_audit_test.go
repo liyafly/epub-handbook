@@ -141,7 +141,7 @@ func normalizeFixtureCommands(commands []string, path string) []string {
 	quoted := report.ShellQuote(path)
 	out := make([]string, len(commands))
 	for i, command := range commands {
-		out[i] = strings.ReplaceAll(command, quoted, "<fixture.epub>")
+		out[i] = strings.ReplaceAll(command, quoted, "fixture.epub")
 	}
 	return out
 }
@@ -248,7 +248,6 @@ func TestNativeFixtureShape(t *testing.T) {
 		"epub run epub.package.nav.audit",
 		"epub run epub.layout.audit",
 		"epub run epub.notes.popup.normalize",
-		"epub redline --check all",
 		"epub capabilities --json",
 		"epub run epub.structure.normalize",
 		"epub run epub.package.migrate.epub3",
@@ -258,6 +257,9 @@ func TestNativeFixtureShape(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Errorf("nextCommands 缺少 %q:\n%s", want, joined)
 		}
+	}
+	if strings.Contains(joined, "epub redline --check all") {
+		t.Errorf("nav.audit must not suggest redline with unspecified before/after paths:\n%s", joined)
 	}
 }
 
@@ -813,12 +815,10 @@ func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {
 		wantCmd   string
 		noCmd     string
 	}{
-		{"missing", false,
-			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable.",
-			"epubcheck " + report.ShellQuote(path)},
+		{"missing", false, "", "epubcheck " + report.ShellQuote(path)},
 		{"present", true,
 			"epubcheck " + report.ShellQuote(path),
-			"# EPUBCheck runs in GitHub Actions; local preflight skips it when unavailable."},
+			""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b, err := book.Open(path)
@@ -838,11 +838,16 @@ func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {
 				t.Errorf("toolAvailability[epubcheck] = %v, want %v", tools["epubcheck"], tc.available)
 			}
 			joined := strings.Join(res.NextCommands, "\n")
-			if !strings.Contains(joined, tc.wantCmd) {
+			if tc.wantCmd != "" && !strings.Contains(joined, tc.wantCmd) {
 				t.Errorf("nextCommands 缺少 %q:\n%s", tc.wantCmd, joined)
 			}
-			if strings.Contains(joined, tc.noCmd) {
+			if tc.noCmd != "" && strings.Contains(joined, tc.noCmd) {
 				t.Errorf("nextCommands 不应含 %q:\n%s", tc.noCmd, joined)
+			}
+			for _, command := range res.NextCommands {
+				if strings.Contains(command, "<") || strings.HasPrefix(strings.TrimSpace(command), "#") || strings.Contains(command, "work/after") {
+					t.Errorf("nextCommand 不是可执行建议：%q", command)
+				}
 			}
 		})
 	}

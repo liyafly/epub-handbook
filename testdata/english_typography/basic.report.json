@@ -88,6 +88,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.typography.english.optimize --input \u003cfixture.epub\u003e --output '\u003cout.epub\u003e' --json"
+    "epub run epub.typography.english.optimize --input fixture.epub --output out.epub --json"
   ]
 }
