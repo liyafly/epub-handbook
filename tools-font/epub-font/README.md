@@ -36,6 +36,8 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 
 ## fonts.json
 
+书级工作区通常把完整字体母版保存在解包源中对应的 OPF 目标路径；只有母版在 EPUB 包外维护时，才用 `master` 指向该文件。两种存放方式和交付边界见[书级工作区指南](../../docs/pipeline/book-workspace.md)。
+
 ```json
 {
   "version": 1,

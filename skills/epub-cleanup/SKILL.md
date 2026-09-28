@@ -36,6 +36,8 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 
 此 capability 经 `internal/extern` 调用独立 `epub-font` provider；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
 
+在书级工作区中，完整母版保存在解包源的 OPF 目标路径；交付用书内 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。只有母版确实在 EPUB 包外维护时，才在书根 `fonts.json` 中用 `master` 指定它。
+
 ### 标准弹注
 
 标准注释转换、迁移后复核或弹注失联。先完整读 [SPEC §1](../../docs/final/SPEC-实现约束.md)，参照 [标准 fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)；多看旧版额外兼容另走 legacy skill。

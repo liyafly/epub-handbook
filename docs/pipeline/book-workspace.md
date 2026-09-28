@@ -53,11 +53,11 @@ sh '03 制作工作区/epub/build.sh'
 
 ## 字体母版与子集
 
-推荐把获准使用的完整 `.ttf` / `.otf` 母版放在解包树 `OEBPS/Fonts/`，并在 OPF manifest 与 CSS 中正常声明。若它在 manifest 中，构建脚本会自动调用 `epub.font.subset`：Go 流水线把完整字体 EPUB 交给独立的 `epub-font` provider，在临时目录生成和验证子集，最后只将变更后的字体 entry 应用到输出候选。解包源里的完整字体不会被覆盖。
+推荐把获准使用的完整 `.ttf` / `.otf` 母版放在解包树 `OEBPS/Fonts/`，即 OPF manifest 声明的目标路径，并在 OPF 与 CSS 中正常声明。若它在 manifest 中，构建脚本会自动调用 `epub.font.subset`：Go 流水线把含完整字体的源 EPUB 交给独立的 `epub-font` provider，在临时目录生成和验证子集，最后只将变更后的字体 entry 应用到输出候选。解包源里的完整字体不会被覆盖。
 
-因此每次修改正文后，构建都会从完整字体重新计算所需字形；新增加的字不依赖上次子集化产物，不会因为旧子集缺字而无法恢复。完整字体的许可和来源记入 `THIRD_PARTY.md`。自动发现模式会将带 OpenType MATH 表的字体按原字节保留，并在 provider 报告中标记 `action=preserve`、`reason=math-table` 与输入/输出 SHA；普通字体继续子集化。配置文件要显式保留数学字体时使用 `action: "preserve"`，不能把 MATH 字体交给 subset。加密/混淆、损坏或不支持的字体仍会失败。
+因此每次修改正文后，构建都会从完整字体重新计算所需字形；新增加的字不依赖上次子集化产物，不会因为旧子集缺字而无法恢复。完整字体的许可和来源记入 `THIRD_PARTY.md`。自动发现模式会将带 OpenType MATH 表的字体按原字节保留，并在 provider 报告中标记 `action=preserve`、`reason=math-table` 与输入/输出 SHA；普通字体继续子集化。配置文件要显式保留数学字体时使用 `action: "preserve"`，不能把 MATH 字体交给 subset。加密/混淆、损坏或不支持的字体仍会失败。交付 EPUB 必须由书内 `build.sh` 构建，或由 `epub.font.subset` 生成候选后通过规定检查；禁止直接把解包源树打包交付。
 
-若字体母版需要放在 EPUB 外部，可在书根创建 `fonts.json`，`master` 路径相对该配置文件；详细 schema 与可变字体选项见 [`epub-font` 文档](../../tools-font/epub-font/README.md)。无字体的书不需要安装字体 provider。需要子集化时，在手册仓库中安装：
+若字体母版按包外模式维护（而不是放在书级解包源树），可在书根创建 `fonts.json`，用 `master` 指定母版位置，路径相对该配置文件；详细 schema 与可变字体选项见 [`epub-font` 文档](../../tools-font/epub-font/README.md)。无字体的书不需要安装字体 provider。需要子集化时，在手册仓库中安装：
 
 ```sh
 uv tool install --editable tools-font/epub-font
