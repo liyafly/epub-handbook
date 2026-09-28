@@ -488,7 +488,7 @@ func subset(small, big map[string]bool) bool {
 	return true
 }
 
-// textFiles 返回 OPF manifest 中所有 XHTML 文档的容器内路径（排序）。
+// textFiles 返回 OPF spine 中所有 XHTML 文档的容器内路径（排序）。
 func textFiles(b *book.Book) ([]string, error) {
 	opfPath := findOPFPath(b)
 	if opfPath == "" {
@@ -503,10 +503,12 @@ func textFiles(b *book.Book) ([]string, error) {
 		return nil, fmt.Errorf("parse package document %s: %w", opfPath, err)
 	}
 	var out []string
-	for _, item := range pkg.Manifest {
-		if (item.MediaType == "application/xhtml+xml" || item.MediaType == "text/html") && item.ArchivePath != "" && b.Has(item.ArchivePath) {
-			out = append(out, item.ArchivePath)
+	for _, ref := range pkg.Spine {
+		item, ok := pkg.ItemByID(ref.IDRef)
+		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" || !b.Has(item.ArchivePath) {
+			continue
 		}
+		out = append(out, item.ArchivePath)
 	}
 	sort.Strings(out)
 	return out, nil
