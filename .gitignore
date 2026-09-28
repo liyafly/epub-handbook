@@ -30,3 +30,5 @@ __pycache__/
 .playwright-cli
 output/playwright
 tmp
+/epub
+/epub.exe
