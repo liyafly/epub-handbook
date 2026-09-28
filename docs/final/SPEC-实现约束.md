@@ -348,7 +348,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | --- | --- | --- |
 | 未经用户授权自动判断并修文字错误 / 通假字 / 错字 | 正文默认不可变，工具不能自行充当校对者 | 回到源头校对；若用户已有参考版并明确授权，按 §10.1.1 逐项审阅和应用 |
 | 多语言翻译 / 译文生成 | 工具不做内容生成 | 找译者 |
-| OCR 错误（重 OCR 一次） | 不在清洗范围 | 用 `epub-source-intake` 重做 |
+| OCR 错误（重 OCR 一次） | 不在清洗范围 | 外部 OCR 重做 source，再用 `epub-source-intake` 盘点 |
 | 去图片水印 / 删 DRM | 法律风险 | 找原版授权 |
 | 加批注 / 书签 / 高亮 | 不是制作方范畴 | 用阅读器自带功能 |
 | 强制改 dc:identifier / dc:title | 核心 metadata 红线 | 重新规划 source |
@@ -360,7 +360,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 #### 适配性判断
 
-跑 `epub run epub.layout.audit --input work/before/source.epub --json`，看 findings：
+跑 `epub run epub.layout.audit --input "$CUR" --json`，看 findings：
 
 - 找到的问题多在「能做」清单：适合走清洗流水线。
 - 找到的问题多在「不能做」清单：不要走，回到源头。

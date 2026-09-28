@@ -5,7 +5,7 @@
 
 ## 怎么用本目录
 
-1. 跑 `epub run epub.layout.audit --input work/before/source.epub --json`。
+1. 跑 `epub run epub.layout.audit --input "$CUR" --json`。
 2. 对照本目录的「特征」找匹配模式。
 3. 按推荐 skill 顺序执行。
 4. 每步后跑 `epub redline --check all` + diff 工具确认。
@@ -16,7 +16,7 @@
 
 判断：不属于清洗范畴；OCR 是另一条链路。
 
-推荐：用 `epub-source-intake` 重新 OCR / source 化，再回到本流水线。
+推荐：由外部 OCR 重做 source，再用 `epub-source-intake` 盘点，之后回到本流水线。
 
 ## 模式 B：出版社旧版 EPUB 2 -> EPUB 3 升级
 
@@ -100,8 +100,7 @@ format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 ## 通用建议
 
 - 永远不要并行执行多个 skill。
-- 遇到红线立即停。
-- 每步产出 `after/step-N.epub`，结果不满意可回滚。
+- 按 cleanup-flow 主线 S5→S6 循环；候选未通过红线时丢弃，`CUR` 保持不变。
 
 ## OCR-style 脏 epub 识别
 特征：
@@ -113,8 +112,8 @@ format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 判定：
 
 ```sh
-epub run epub.layout.audit --input work/before/source.epub --json \
+epub run epub.layout.audit --input "$CUR" --json \
   | jq '.findings[] | select(.detail == "ocr-residual")'
 ```
 
-如果检测到，建议回到 `epub-source-intake`，重新 OCR 后再清洗。
+如果检测到，先用外部 OCR 重做 source，再用 `epub-source-intake` 盘点后清洗。

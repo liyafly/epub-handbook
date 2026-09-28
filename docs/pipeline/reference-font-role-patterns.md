@@ -102,7 +102,7 @@ type-meta
 
 建议顺序：
 
-1. 先按 [cleanup-flow.md](cleanup-flow.md) 的按序能力入口清洗，拿到 `epub.layout.audit` 精排建议报告。
+1. 先按 [cleanup-flow.md](cleanup-flow.md) 主线 S4 取得 `epub.layout.audit` 精排建议报告。
 2. 列出书内已有 class 与 element 用法。
 3. 将标题、引文、注释、强调、metadata 映射到角色类。
 4. 每次只改一类，跑文本红线 gate。

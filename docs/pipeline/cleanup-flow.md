@@ -23,7 +23,7 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 | S2 规范化（可选） | ① 加 `--dry-run` 跑 `epub run epub.structure.normalize --input "$CUR" --output "$W/after/s2.epub" --json > "$W/s2-dry.json"`；② 审映射；③ 去掉 `--dry-run` 实跑，输出存 `$W/s2-normalize.json`；④ `CUR="$W/after/s2.epub"` | s2.epub、s2-normalize.json | 映射逐条看过；实跑 exit 0 | 不需要就在制作说明写跳过理由 |
 | S3 EPUB3 迁移（EPUB2 或缺 nav 时） | 先 `--dry-run`，再 `epub run epub.package.migrate.epub3 --input "$CUR" --output "$W/after/s3.epub" --json > "$W/s3.json"`；`CUR="$W/after/s3.epub"` | s3.epub | exit 0，S6 通过 | 读 findings，不覆盖重试 |
 | S4 审计（只读） | `epub.layout.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze` 各跑一次 `--input "$CUR" --json` | s4-*.json | 只生成报告 | 字体 provider 缺失 → 记"无字体覆盖结论"，继续 |
-| S5 修改（每次只做一项） | 模型读 S4 报告和书的实际文件，按 `cleanup-patterns.md` 选一个能力，dry-run 后写出 `$W/after/s5-<n>.epub` | s5-n.epub | 紧接着跑 S6 并通过，才 `CUR=` 它 | 丢弃该候选，CUR 不变 |
+| S5 修改（每次只做一项） | 按 `cleanup-patterns.md` 判定模式，再在 [skills/README 技能索引](../../skills/README.md#技能索引)选择该 skill 下一个 capability；dry-run 后写出 `$W/after/s5-<n>.epub` | s5-n.epub | 紧接着跑 S6 并通过，才 `CUR=` 它 | 丢弃该候选，CUR 不变 |
 | S5f 字体（可选） | `epub run epub.font.subset --input "$CUR" --output "$W/after/s5-font.epub" --json [font_config=fonts.json]` | s5-font.epub 与 capability envelope；provider 临时报告位于系统临时目录，命令结束时删除 | exit 0，检查通过的 manifest 字体 entry 写入候选；全项 redline 再确认非字体内容不变 | 失败不应用字体编辑；检查 provider finding、完整字体母版和 `THIRD_PARTY.md` 许可记录 |
 | S6 红线（**每次写出后都跑**） | `epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" <新候选>` | 终端输出 | exit 0 | 不删 gate、不放宽 allow-list；丢弃该候选 |
 | S7 复检 | 对 `$CUR` 再跑 S1 的 nav.audit | json | error 为 0，或逐条写明授权/豁免 | 回到 S5 |
