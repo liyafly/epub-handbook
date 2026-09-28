@@ -496,8 +496,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	// 红线在内存态上校验，error finding / 校验器错误把状态降为 failed、退出码
 	// 1，但**不阻止**下面唯一的一次落盘：metadata.edit / merge / cover.replace
 	// / migrate.epub3 的契约红线（metadata / spine / cover）本就会被自身的预期
-	// 变更触发，输出必须保留供人工 diff review（handoff §0 决策 2、
-	// cleanup-flow.md「写出型能力自带内置红线 gate」）。
+	// 变更触发，输出保留供人工 diff review。error finding 令退出码为 1（架构 SPEC §8.5）。
 	// 落盘只被 DRM preflight、runner 错误、未实现能力、目标 stage 失败阻断。
 	// noBook 能力没有 Book 可比对（当前契约 redLines 均为空）；
 	// 若未来声明红线，需要为无 Book 场景另行设计，不得静默跳过。

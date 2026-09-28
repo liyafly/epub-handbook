@@ -41,14 +41,14 @@
 2. **S1** 预检：`epub run epub.package.nav.audit --input <input.epub> --json`，区分 DRM/损坏阻断与可修复结构问题。
 3. **S2** 目录混乱、文件名混淆或需稳定 diff 时，运行 `epub run epub.structure.normalize --input <input.epub> --output <normalized.epub> --dry-run --json`。人工审查“目录格式化 → 按 manifest id 反混淆”两阶段映射后实跑，原样保存 JSON 信封；不需要规范化则记录跳过理由。
 4. **S3–S5** 以最新候选为输入，检查 EPUB3 迁移需求，再用 `epub-audit` 审查并分派必要专项能力；不为完成流程重复迁移或套用无关排版。
-5. **S6** `epub redline --check all --path-map <normalize-envelope.json> <before.epub> <after.epub>`；无改名时省略 `--path-map`。信封中的 `facts["epub.structure.normalize.mappings"]` 可直接读取，详见 `docs/pipeline/cleanup-flow.md` §1.5。随后用 Calibre Editor 或 VS Code 做人工 diff review。
+5. **S6** `epub redline --check all --path-map <normalize-envelope.json> <before.epub> <after.epub>`；无改名时省略 `--path-map`。信封中的 `facts["epub.structure.normalize.mappings"]` 可直接读取，详见 `docs/pipeline/cleanup-flow.md` 主线 S2/S6。随后用 Calibre Editor 或 VS Code 做人工 diff review。
 6. **S8–S9** 在书根 `制作说明.md` 记录输入/输出 SHA、迁移或跳过理由、红线、diff review、阅读器实测及待办。中间报告放 `03 制作工作区/.pipeline/` 并忽略；被 gate 引用的映射或决策不得提前删除。
 
 完整命令与通过条件见 `docs/pipeline/cleanup-flow.md`。
 
 一次性清洗通过并确定可维护候选后，后续维护转为书级 Git 解包源：新书可从仓库根运行 `sh templates/book-starter/new-book.sh work-epub/<book>`；解包源保存在 `03 制作工作区/epub/`，完整字体跟随源树维护。构建用 `03 制作工作区/epub/build.sh`，经导航审计和全项 redline 后覆盖唯一的 `03 制作工作区/dist/book.epub`；临时过程放 `.pipeline/` 并忽略。规则与既有 EPUB 接入详见 `docs/pipeline/book-workspace.md`。
 
-正文校订必须有明确授权，并走 SPEC §10.1.1 与 `docs/pipeline/cleanup-flow.md` §7.1；**不得删除正文不变 gate、伪造通过或用宽泛 allow-list 掩盖**。含文决策放 `02 校对材料/正文校订/`；其他机器输入按需放 `02 校对材料/`，跨书可复用且脱敏的判断才放 `records/typeset-decisions.jsonl`。
+正文校订必须有明确授权，并走 SPEC §10.1.1 与 `docs/pipeline/cleanup-flow.md` 附录 A；**不得删除正文不变 gate、伪造通过或用宽泛 allow-list 掩盖**。含文决策放 `02 校对材料/正文校订/`；其他机器输入按需放 `02 校对材料/`，跨书可复用且脱敏的判断才放 `records/typeset-decisions.jsonl`。
 
 加密默认停止，不提供 DRM 解密。目标不存在的 stale encryption 引用可由工具移除；真实资源仅在工具确认标准字体 obfuscation 且获明确授权时单独处理，不猜测未知算法。失败候选保留供分析，不发布、不自动回滚用户改动。
 

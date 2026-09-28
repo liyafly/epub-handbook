@@ -30,7 +30,7 @@ Calibre 自带的「Compare to another book」提供字符级 HTML / CSS diff、
 6. 图片差异：双击图片节点弹出像素 + 尺寸 + 体积 overlay。
 7. 字体 / 音频等二进制：Calibre 只显示「内容不同」，要核对 SHA-256 走精细路径。
 
-完成后把结论写入书根 `制作说明.md`，按 [cleanup-flow.md §16](cleanup-flow.md) 的标准模板组织。
+完成后把结论写入书根 `制作说明.md`，按 [cleanup-flow.md 附录 E](cleanup-flow.md) 的标准模板组织。
 
 ## 精细路径：VS Code + `unzip`
 
