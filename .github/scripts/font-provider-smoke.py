@@ -347,6 +347,30 @@ def check_gate_failure(
     return {"invokedAgainstFull": True, "realCheckPassed": True, "distSHA256Preserved": old_sha}
 
 
+def validate_synth_nav_audit(epub_bin: Path, env: dict[str, str], root: Path) -> dict:
+    synthetic = root / "provider-synthetic.epub"
+    synthetic.write_bytes(SYNTH.build_epub({
+        "OEBPS/Fonts/st-all.ttf": SYNTH.build_font_for(" "),
+        "OEBPS/Fonts/st-all-semibold.ttf": SYNTH.build_font_for(" "),
+        "OEBPS/Fonts/kt.otf": SYNTH.build_font_for(" "),
+    }))
+    result = subprocess.run(
+        [str(epub_bin.resolve()), "run", "epub.package.nav.audit", "--input", str(synthetic), "--json"],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"synthetic provider EPUB nav audit failed: {result.stdout}{result.stderr}")
+    report = json.loads(result.stdout)
+    findings = report.get("findings", [])
+    errors = [item for item in findings if item.get("level") == "error"]
+    if errors:
+        raise RuntimeError(f"synthetic provider EPUB has nav audit errors: {errors}")
+    return {"errorFindings": 0, "findingCount": len(findings)}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--epub-bin", required=True, type=Path)
@@ -361,6 +385,7 @@ def main() -> int:
     book_dir = root / "合成字体书"
     env = dict(os.environ)
     env["EPUB_BIN"] = str(args.epub_bin.resolve())
+    synth_nav = validate_synth_nav_audit(args.epub_bin, env, root)
 
     epub_dir, full_font, math_font = prepare_book(book_dir, env)
     dist = dist_epub(book_dir)
@@ -492,6 +517,7 @@ def main() -> int:
         },
         "failurePreservedDistSHA256": stable_sha,
         "independentCheckGate": independent_gate,
+        "syntheticNavAudit": synth_nav,
         "failedScenarios": ["independent-coverage-check", "provider-missing", "corrupt-font", "cancelled-provider"],
         "goRacePackages": ["internal/book", "internal/extern", "internal/pipeline", "internal/zipfs"],
     }

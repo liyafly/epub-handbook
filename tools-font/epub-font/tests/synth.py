@@ -8,7 +8,9 @@ Variable fonts have one axis wght 200..900 (default 400) and a STAT table.
 from __future__ import annotations
 
 import io
+import struct
 import zipfile
+import zlib
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.misc.psCharStrings import T2CharString
@@ -17,6 +19,7 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib.tables.TupleVariation import TupleVariation
 
 UVS_SELECTOR = 0xE0100
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 CMAP = {
     0x20: "space",
     0x41: "A",
@@ -206,6 +209,23 @@ h1 { font-weight: 600; }
 .note::after { content: "\\3010注\\3011"; }
 /* "注释里的字不应收集" */
 """
+
+
+def _png_chunk(kind: bytes, data: bytes) -> bytes:
+    checksum = struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    return struct.pack(">I", len(data)) + kind + data + checksum
+
+
+def _tiny_png() -> bytes:
+    header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+    return (
+        PNG_SIGNATURE
+        + _png_chunk(b"IHDR", header)
+        + _png_chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\x00"))
+        + _png_chunk(b"IEND", b"")
+    )
+
+
 CONTAINER = """<?xml version="1.0" encoding="utf-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
 <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
@@ -230,6 +250,7 @@ def build_epub(fonts: dict, encrypted: tuple = (), extra_manifest: str = "",
 <item id="ch1" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/>
 <item id="css" href="Styles/fonts.css" media-type="text/css"/>
 <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+<item id="image-x" href="Images/x.png" media-type="image/png"/>
 {''.join(items)}{extra_manifest}
 </manifest>
 <spine toc="ncx"><itemref idref="ch1"/></spine>
@@ -246,6 +267,7 @@ def build_epub(fonts: dict, encrypted: tuple = (), extra_manifest: str = "",
             "OEBPS/Text/nav.xhtml": NAV,
             "OEBPS/Text/chapter.xhtml": chapter if chapter is not None else CHAPTER.format(uvs=chr(UVS_SELECTOR)),
             "OEBPS/Styles/fonts.css": css if css is not None else CSS,
+            "OEBPS/Images/x.png": _tiny_png(),
         }
         if encrypted:
             refs = "".join(
@@ -256,8 +278,9 @@ def build_epub(fonts: dict, encrypted: tuple = (), extra_manifest: str = "",
                 '<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container" '
                 f'xmlns:enc="http://www.w3.org/2001/04/xmlenc#">{refs}</encryption>'
             )
-        for name, text in entries.items():
-            zf.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), text.encode("utf-8"),
+        for name, content in entries.items():
+            data = content if isinstance(content, bytes) else content.encode("utf-8")
+            zf.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), data,
                         compress_type=zipfile.ZIP_DEFLATED)
         for name, data in sorted(fonts.items()):
             zf.writestr(zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0)), data, compress_type=zipfile.ZIP_DEFLATED)

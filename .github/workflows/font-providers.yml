@@ -7,8 +7,11 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
+      - 'testdata/**'
       - 'cmd/**'
       - 'internal/**'
+      - 'embed.go'
+      - 'contracts/**'
       - 'tools-font/**'
       - 'templates/book-starter/**'
       - '.github/scripts/font-provider-smoke.py'
@@ -17,8 +20,11 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
+      - 'testdata/**'
       - 'cmd/**'
       - 'internal/**'
+      - 'embed.go'
+      - 'contracts/**'
       - 'tools-font/**'
       - 'templates/book-starter/**'
       - '.github/scripts/font-provider-smoke.py'

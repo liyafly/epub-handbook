@@ -225,6 +225,13 @@ def test_default_checks_every_manifest_font(tmp_path):
     assert [font["font"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
 
 
+def test_synthetic_epub_contains_manifested_image_resource():
+    with zipfile.ZipFile(io.BytesIO(synth.build_epub({}))) as archive:
+        opf = archive.read("OEBPS/content.opf").decode("utf-8")
+        assert 'href="Images/x.png" media-type="image/png"' in opf
+        assert archive.read("OEBPS/Images/x.png").startswith(b"\x89PNG\r\n\x1a\n")
+
+
 def test_is_independent_of_the_subset_code():
     source = Path(check.__file__).read_text(encoding="utf-8")
     assert "epubtext" not in source.split('"""', 2)[2] and "fontops" not in source.split('"""', 2)[2]
