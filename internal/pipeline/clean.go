@@ -84,6 +84,12 @@ type cleanRedlineSummary struct {
 // outputs are chained in memory; without approval only per-book JSON reports
 // are published, and approved runs write one final candidate per book.
 func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
+	return cleanWithReportWriter(ctx, opts, func(ctx context.Context, path string, data []byte) error {
+		return zipfs.WriteNewFileContext(ctx, path, data, 0o644)
+	})
+}
+
+func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport func(context.Context, string, []byte) error) (CleanBatchResult, error) {
 	if strings.TrimSpace(opts.InputPath) == "" {
 		return CleanBatchResult{}, &UsageError{Err: errors.New("epub clean requires an input EPUB or directory")}
 	}
@@ -193,7 +199,7 @@ func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
 		}
 		data, marshalErr := MarshalEnvelope(bookResult.Envelope)
 		if marshalErr == nil {
-			marshalErr = zipfs.WriteNewFileContext(context.WithoutCancel(ctx), bookResult.ReportPath, data, 0o644)
+			marshalErr = writeReport(context.WithoutCancel(ctx), bookResult.ReportPath, data)
 		}
 		if marshalErr != nil {
 			bookResult.Err = fmt.Errorf("write summary report %s: %w", bookResult.ReportPath, marshalErr)
@@ -203,6 +209,14 @@ func Clean(ctx context.Context, opts CleanOptions) (CleanBatchResult, error) {
 				Level: "error", ID: "clean.report-write-failed", Title: "Failed to write clean summary report",
 				Detail: bookResult.Err.Error(), Location: bookResult.ReportPath,
 			})
+			if bookResult.Envelope.Facts["pipeline.artifactDisposition"] == "approved" {
+				bookResult.Envelope.Facts["pipeline.artifactDisposition"] = "approved-report-missing"
+			}
+			if blockers, ok := bookResult.Envelope.Facts["pipeline.blockers"].([]string); ok {
+				blockers = append(blockers, "clean.report-write-failed")
+				slices.Sort(blockers)
+				bookResult.Envelope.Facts["pipeline.blockers"] = slices.Compact(blockers)
+			}
 		}
 		if bookResult.ExitCode != ExitOK {
 			batch.ExitCode = ExitFailed
@@ -768,6 +782,13 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		"epub.clean.steps":    stepSummaries,
 		"epub.clean.redline":  redlineSummary,
 	}
+	candidateSteps := make([]string, 0)
+	for _, step := range stepSummaries {
+		if step.InputState != step.OutputState {
+			candidateSteps = append(candidateSteps, step.Name)
+		}
+	}
+	facts["epub.clean.candidateSteps"] = candidateSteps
 	selectedSteps := make([]string, 0, len(steps))
 	for _, step := range steps {
 		selectedSteps = append(selectedSteps, step.name)

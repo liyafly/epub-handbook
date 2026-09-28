@@ -3,6 +3,7 @@ package pipeline
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json/v2"
 	"errors"
 	"os"
@@ -456,6 +457,70 @@ func TestCleanFailedRunRetainsOnlyExplicitReviewCandidate(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outputDir, "in.epub")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("failed run wrote an approved EPUB: %v", err)
+	}
+}
+
+func TestCleanReviewCandidateListsSteps(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir,
+		Steps: []string{"normalize", "typography"}, Preset: "missing-preset", Scope: []string{"all"},
+		Approve: true, RetainReviewCandidate: true, Jobs: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want one failed book with a review-only candidate", result)
+	}
+	bookResult := result.Books[0]
+	if got, ok := bookResult.Envelope.Facts["epub.clean.candidateSteps"].([]string); !ok || !slices.Equal(got, []string{"normalize"}) {
+		t.Fatalf("candidateSteps=%#v, want [normalize]", bookResult.Envelope.Facts["epub.clean.candidateSteps"])
+	}
+}
+
+func TestCleanReportWriteFailureMarksApprovedReportMissing(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	outputPath := filepath.Join(outputDir, "in.epub")
+	reportPath := filepath.Join(outputDir, "in.clean.json")
+	result, err := cleanWithReportWriter(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir, Steps: []string{"normalize"}, Approve: true, Jobs: 1,
+	}, func(_ context.Context, path string, _ []byte) error {
+		if path != reportPath {
+			t.Fatalf("report writer path=%q, want %q", path, reportPath)
+		}
+		if _, err := os.Stat(outputPath); err != nil {
+			t.Fatalf("approved EPUB must exist when the later report write fails: %v", err)
+		}
+		return errors.New("forced report write failure")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want a failed book after report write error", result)
+	}
+	bookResult := result.Books[0]
+	if bookResult.Envelope.Status != report.StatusFailed {
+		t.Fatalf("book status=%q, want failed", bookResult.Envelope.Status)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "approved-report-missing" {
+		t.Fatalf("artifact disposition=%v, want approved-report-missing", got)
+	}
+	if !hasFindingID(bookResult.Envelope.Findings, "clean.report-write-failed") {
+		t.Fatalf("report write finding missing: %+v", bookResult.Envelope.Findings)
+	}
+	books := result.Envelope.Facts["epub.clean.books"].([]report.CleanBookSummary)
+	if len(books) != 1 || books[0].ArtifactDisposition != "approved-report-missing" {
+		t.Fatalf("batch summary=%+v, want approved-report-missing", books)
+	}
+	if _, err := os.Stat(outputPath); err != nil {
+		t.Fatalf("approved EPUB was not preserved: %v", err)
+	}
+	if _, err := os.Stat(reportPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("report path should remain absent after simulated failure: %v", err)
 	}
 }
 

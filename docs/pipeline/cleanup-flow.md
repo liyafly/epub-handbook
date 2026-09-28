@@ -111,7 +111,7 @@ epub clean "$BOOKS" --out "$W/clean-preview" --json
 
 步骤候选在同一个 Book session 的内存态中串联；成功步骤产生 `step:<name>` 状态，失败步骤的 fork 不进入后续阶段。各步摘要用 `inputState`、`outputState` 和 `changedEntries` 表示状态流转与 entry 差异，失败步骤的 `outputState` 仍是其输入状态。中间态不是 ZIP 文件，因此不生成中间 ZIP SHA；逐书 envelope 的 `input.sha256` 是原始输入 SHA，`output.sha256` 只在最终候选实际写出后记录。未批准预演用 `facts["epub.clean.previewState"]` 标出当前内存态，不提供伪造的 preview ZIP SHA。随后对最终状态重新运行 nav audit 和全项红线。每本书写一个 `<书名>.clean.json` 信封；批次 `--json` 还会在 stdout 返回含逐书状态、路径和 findings 的 `epub.clean` 信封。若运行了 normalize，逐书报告的 `facts["epub.clean.normalize.mappings"]` 可直接作为后续 `epub redline --path-map` 的映射信封。未批准时状态为 `planned`；批准并通过时为 `complete`。成功退出码为 0；阻断、步骤失败或末次审计/红线失败会标为 `failed` 并返回 1。
 
-带 `--approve` 时，最后一个成功步骤产生的候选只有在末次审计和全项红线通过后才写入输入书籍的相对目录下同名 EPUB；步骤中间态不写入磁盘。若步骤或检查失败，候选默认不写出。只有同时指定 `--retain-review-candidate`，且已有完整候选并完成最终红线尝试时，才另存为 `<书名>.review-only.epub`；外层状态仍为 `failed`，不能把它作为通过版本。报告 facts 中 `pipeline.artifactDisposition` 和 `pipeline.blockers` 说明候选资格与阻断项：`planned` 表示未发布的审计计划或内存预演，`approved` 表示通过 gate 并已写出，`review-only` 表示失败后按显式选项留存，`withheld` 表示候选被阻断且未留存，`none` 表示没有候选。已有报告或候选路径不会覆盖；目录输入的 `--out` 必须在输入目录之外。flags-first 写法可用 `epub clean --out DIR [其他 flags] INPUT`，把输入放在 flags 后面。
+带 `--approve` 时，最后一个成功步骤产生的候选只有在末次审计和全项红线通过后才写入输入书籍的相对目录下同名 EPUB；步骤中间态不写入磁盘。若步骤或检查失败，候选默认不写出。只有同时指定 `--retain-review-candidate`，且至少有一个变换步骤成功提交到 Book session 并完成最终红线尝试时，才另存为 `<书名>.review-only.epub`；外层状态仍为 `failed`，不能把它作为通过版本。`facts["epub.clean.candidateSteps"]` 按执行顺序列出实际进入候选的成功变换步骤，不包含失败步骤的 fork。报告 facts 中 `pipeline.artifactDisposition` 和 `pipeline.blockers` 说明候选资格与阻断项：`planned` 表示未发布的审计计划或内存预演，`approved` 表示通过 gate 并已写出且汇总报告已写入，`approved-report-missing` 表示通过 gate 的 EPUB 已写出、但随后汇总报告写入失败，`review-only` 表示失败后按显式选项留存，`withheld` 表示候选被阻断且未留存，`none` 表示没有候选。已有报告或候选路径不会覆盖；目录输入的 `--out` 必须在输入目录之外。flags-first 写法可用 `epub clean --out DIR [其他 flags] INPUT`，把输入放在 flags 后面。
 
 `epub clean` 不替代 S8 人工 diff review、S9 制作说明或真实阅读器验收。只有报告与候选对应的 SHA、finding 和 diff 都审过，且相关阅读器实测完成后，才记录书级结论。
 
@@ -159,8 +159,8 @@ epub redline --check all \
 
 | 能力 / 命令 | 做什么 | 何时运行 |
 | --- | --- | --- |
-| `epub clean INPUT --out DIR [--steps …] [--approve] [--jobs N]` | 按默认顺序批量运行预检、规范化、EPUB3 迁移、CSS 与排版步骤；逐书写汇总，批准且红线通过时写最终候选 | 单书或多书需要重复同一确定性步骤时；细节见附录 B |
-| 按序清洗序列（见 [cleanup-flow.md](cleanup-flow.md)） | 保留 before 基线、结构审计、结构规范化、EPUB3 迁移、CSS / 排版精排、redline 校验 | 单书清洗的默认顺序 |
+| `epub clean INPUT --out DIR [--steps …] [--approve] [--jobs N]` | 默认只审计并逐书写汇总；使用 `--steps` 选择规范化、EPUB3 迁移、CSS 或排版变换，批准且红线通过时写最终候选 | 单书或多书需要重复同一确定性步骤时；细节见附录 B |
+| 按序清洗序列（见 [cleanup-flow.md](cleanup-flow.md)） | 保留 before 基线、结构审计、结构规范化、EPUB3 迁移、CSS / 排版精排、redline 校验 | 显式选择变换时的推荐顺序 |
 | `epub run epub.package.nav.audit` | 检查 ZIP / mimetype / container / OPF / manifest / spine / XML / CSS url / DRM 标记，并给出结构 findings | 拿到一本 EPUB 后第一步 |
 | `epub run epub.structure.normalize` | 可选：先格式化目录，再按 OPF manifest id 反混淆；inspect 非 dry-run 会写未修改副本 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `epub run epub.package.migrate.epub3 --dry-run` | 生成 EPUB3 迁移计划，仍需检查具体 findings | 排除 DRM/损坏阻断后，先审查计划 |
