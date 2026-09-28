@@ -16,6 +16,21 @@ func TestScanXHTMLSpanTreeContextHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestScanSpanTreeContextHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	root, err := ScanSpanTreeContext(ctx, []byte(`<html/>`))
+	if root != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled XML scan = root %v, err %v; want nil and context.Canceled", root, err)
+	}
+}
+
+func TestScanSpanTreeContextRejectsUndefinedEntity(t *testing.T) {
+	if _, err := ScanSpanTreeContext(t.Context(), []byte(`<html><body>&nbsp;</body></html>`)); err == nil {
+		t.Fatal("strict XML scan accepted an undefined named entity")
+	}
+}
+
 // spanText 按区间切回原文，用于断言 INV-2 的无损字节区间契约。
 func spanText(data []byte, s Span) string { return string(data[s.Start:s.End]) }
 

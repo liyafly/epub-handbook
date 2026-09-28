@@ -265,7 +265,15 @@ func (n *SpanNode) AttrIndex(spaceURI, local string) int {
 // ET.fromstring：注释 / PI / DOCTYPE 丢弃、实体解码、EOL 归一；
 // 声明的非 UTF-8 编码先转换为 UTF-8。
 func ScanSpanTree(data []byte) (*SpanNode, error) {
-	return scanSpanTreeContext(context.Background(), data, nil)
+	return ScanSpanTreeContext(context.Background(), data)
+}
+
+// ScanSpanTreeContext 是 ScanSpanTree 的可取消版本。
+func ScanSpanTreeContext(ctx context.Context, data []byte) (*SpanNode, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return scanSpanTreeContext(ctx, data, nil)
 }
 
 // ScanXHTMLSpanTree additionally accepts the named character references from

@@ -568,6 +568,7 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 	textChars, imageRefs := 0, 0
 	manifestMedia := make(map[string]map[string]struct{}, len(pkg.Manifest))
 	manifestXHTML := make(map[string]struct{}, len(pkg.Manifest))
+	spineXHTML := make(map[string]struct{}, len(pkg.Spine))
 	for _, item := range pkg.Manifest {
 		if item.ArchivePath == "" {
 			continue
@@ -580,6 +581,13 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			manifestXHTML[item.ArchivePath] = struct{}{}
 		}
 	}
+	for _, ref := range pkg.Spine {
+		item, ok := pkg.ItemByID(ref.IDRef)
+		if ok && item.ArchivePath != "" && strings.EqualFold(item.MediaType, "application/xhtml+xml") {
+			spineXHTML[item.ArchivePath] = struct{}{}
+		}
+	}
+	strictChecked := make(map[string]struct{}, len(spineXHTML))
 	documents := make([]xhtmlDocument, 0, len(manifestXHTML))
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
@@ -596,6 +604,18 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 				ins.addSkill("epub-audit", "error")
 			}
 			continue
+		}
+		if _, inSpine := spineXHTML[item.ArchivePath]; inSpine {
+			if _, checked := strictChecked[item.ArchivePath]; !checked {
+				strictChecked[item.ArchivePath] = struct{}{}
+				if _, strictErr := opf.ScanSpanTreeContext(ctx, raw); strictErr != nil {
+					if ctx.Err() != nil {
+						return
+					}
+					ins.addFinding("error", "Spine XHTML is not well-formed XML: "+strictErr.Error(), item.ArchivePath, "xhtml-not-well-formed")
+					ins.addSkill("epub-audit", "error")
+				}
+			}
 		}
 		root, scanErr := opf.ScanXHTMLSpanTreeContext(ctx, raw)
 		if scanErr != nil {

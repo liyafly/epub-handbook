@@ -768,6 +768,22 @@ func TestXHTMLParseFailureIsAnAuditError(t *testing.T) {
 	}
 }
 
+func TestNavAuditFlagsUndefinedEntity(t *testing.T) {
+	path := writeNativeFixture(t)
+	broken := filepath.Join(t.TempDir(), "undefined-entity.epub")
+	rewriteZipEntry(t, path, broken, "OEBPS/Text/ch?apter.xhtml", func(data []byte) []byte {
+		return bytes.Replace(data, []byte("这是 Go 原生 nav.audit fixture。"), []byte("这是 &nbsp; Go 原生 nav.audit fixture。"), 1)
+	})
+	res := runNativeAudit(t, broken)
+	if res.Status != report.StatusFailed || res.Facts["auditStatus"] != "fail" {
+		t.Fatalf("audit status = %q/%v, want failed/fail", res.Status, res.Facts["auditStatus"])
+	}
+	finding := requireFindingKind(t, res, "xhtml-not-well-formed")
+	if finding.Location != "OEBPS/Text/ch?apter.xhtml" {
+		t.Errorf("finding location = %q", finding.Location)
+	}
+}
+
 // TestToolAvailabilityFollowsInjectedProbe 把 PATH 依赖从 golden 里隔离出来：
 // toolAvailability 与 epubcheck 相关的 nextCommands 只由注入的探测器决定。
 func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {
