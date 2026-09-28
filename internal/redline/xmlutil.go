@@ -4,6 +4,9 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/liyafly/epub-handbook/internal/editset"
+	xhtmlscan "github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // sanitizeXML 复刻 validate_text_invariance.sanitize_xml：
@@ -22,6 +25,10 @@ func sanitizeXML(data []byte) string {
 		i += size
 	}
 	text := b.String()
+	entityEdits := xhtmlscan.XHTML11EntityEdits("xhtml", text)
+	if normalized, err := editset.Apply("xhtml", []byte(text), entityEdits); err == nil {
+		text = string(normalized)
+	}
 	text = doctypeRe.ReplaceAllString(text, "")
 	return strings.ReplaceAll(text, "&nbsp;", "&#160;")
 }

@@ -13,10 +13,12 @@ import (
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
+	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
+	xhtmlscan "github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // auditFinding 是检查项的内部累积形态：level, message[, path[, kind]]。
@@ -608,7 +610,13 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 		if _, inSpine := spineXHTML[item.ArchivePath]; inSpine {
 			if _, checked := strictChecked[item.ArchivePath]; !checked {
 				strictChecked[item.ArchivePath] = struct{}{}
-				if _, strictErr := opf.ScanSpanTreeContext(ctx, raw); strictErr != nil {
+				strictInput, editErr := editset.Apply(item.ArchivePath, raw,
+					xhtmlscan.XHTML11EntityEdits(item.ArchivePath, string(raw)))
+				strictErr := editErr
+				if strictErr == nil {
+					_, strictErr = opf.ScanSpanTreeContext(ctx, strictInput)
+				}
+				if strictErr != nil {
 					if ctx.Err() != nil {
 						return
 					}

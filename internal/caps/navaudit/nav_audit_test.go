@@ -784,6 +784,25 @@ func TestNavAuditFlagsUndefinedEntity(t *testing.T) {
 	}
 }
 
+func TestNavAuditAcceptsEntitiesDeclaredByXHTML11Doctype(t *testing.T) {
+	path := writeNativeFixture(t)
+	withDTD := filepath.Join(t.TempDir(), "xhtml11-entities.epub")
+	doctype := `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">`
+	rewriteZipEntry(t, path, withDTD, "OEBPS/Text/ch?apter.xhtml", func(data []byte) []byte {
+		data = bytes.Replace(data,
+			[]byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+			[]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+doctype), 1)
+		return bytes.Replace(data, []byte("这是 Go 原生 nav.audit fixture。"),
+			[]byte("这是&nbsp;Go 原生&mdash; nav.audit fixture。"), 1)
+	})
+	res := runNativeAudit(t, withDTD)
+	for _, finding := range res.Findings {
+		if finding.Detail == "xhtml-not-well-formed" {
+			t.Fatalf("XHTML 1.1 DTD entities should be resolved for strict parsing: %+v", finding)
+		}
+	}
+}
+
 // TestToolAvailabilityFollowsInjectedProbe 把 PATH 依赖从 golden 里隔离出来：
 // toolAvailability 与 epubcheck 相关的 nextCommands 只由注入的探测器决定。
 func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {

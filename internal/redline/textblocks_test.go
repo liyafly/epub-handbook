@@ -51,6 +51,20 @@ func TestExtractTextBlocksIncludesInlineDescendants(t *testing.T) {
 	}
 }
 
+func TestExtractTextBlocksAcceptsXHTML11DeclaredEntities(t *testing.T) {
+	doc := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><body><p>这是&nbsp;旧书&mdash;正文。</p></body></html>`
+	got, err := ExtractTextBlocks([]byte(doc), "legacy.xhtml")
+	if err != nil {
+		t.Fatalf("ExtractTextBlocks: %v", err)
+	}
+	want := []string{"这是 旧书—正文。"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("blocks=%q, want %q", got, want)
+	}
+}
+
 // TestCheckTextSeesInlineWrappedEdits 是上一条的端到端对照：取文范围收窄时，
 // 下面每一种改动都会让 text 红线静默放行。
 func TestCheckTextSeesInlineWrappedEdits(t *testing.T) {
