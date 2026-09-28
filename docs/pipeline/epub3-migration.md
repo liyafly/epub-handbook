@@ -4,7 +4,7 @@
 > 执行入口：`epub run epub.package.migrate.epub3`（结构规范化：`epub run epub.structure.normalize`）
 > 对应 skill：`$epub-cleanup`
 
-新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页为保留流水线内部结构的可读性，仍以 `work/book-a/` 表示流水线工作目录；新项目实际应指向 `work-epub/<book>/03 制作工作区/.pipeline/`。
+新书级项目先按 [一书一 Git 工作区](book-workspace.md) 建立目录。本页的 `$W` 表示该书 `03 制作工作区/.pipeline/`，`$CUR` 表示当前已通过红线的候选；执行顺序以 cleanup-flow 主线为准。
 
 ## 适用范围
 
@@ -42,7 +42,7 @@ epub run epub.package.migrate.epub3 \
 
 完整步骤见 [cleanup-flow.md](cleanup-flow.md) S3。
 
-输出 EPUB 位于 `work/book-a/after/cleaned.epub`，包含：
+cleanup-flow 主线中的 S3 产物（`$W/after/s3.epub`）包含：
 
 - EPUB3 `package version="3.0"`。
 - `dcterms:modified`。
@@ -61,25 +61,7 @@ epub run epub.package.migrate.epub3 \
 
 ## 可选结构规范化
 
-内部目录混乱、文件名明显混淆或需要稳定 diff 时，先生成 dry-run 报告：
-
-```sh
-epub run epub.structure.normalize \
-  --input /path/to/input.epub \
-  --output work/book-a-normalize-review/after/step-0-normalized.epub \
-  --dry-run --json > work/book-a-normalize-review/reports/normalize-dry-run.json
-```
-
-检查报告的两个阶段后，在新的输出路径显式实跑：
-
-```sh
-epub run epub.structure.normalize \
-  --input /path/to/input.epub \
-  --output work/book-a-normalized/after/step-0-normalized.epub \
-  --json > work/book-a-normalized/reports/normalize.json
-```
-
-实跑不接受隐式确认：必须先 review `--dry-run` 报告。每次运行使用新的输出路径，避免覆盖 before 基线和旧报告。
+结构规范化属于 cleanup-flow 主线 S2；执行与映射审查见 [cleanup-flow.md 主线 S2](cleanup-flow.md#主线)。
 
 ## 字体策略
 
@@ -103,8 +85,8 @@ CSS 清洗只做保守修补（分号、装饰行、已知旧字体链）；去�
 
 ```sh
 epub redline --check all \
-  work/book-a/intermediate/step-1-epub3.epub \
-  work/book-a/after/final.epub
+  [--path-map "$W/s2-normalize.json"] \
+  "$W/before/source.epub" "$W/after/s3.epub"
 ```
 
 ## 可选合集卷封与版权页精排
@@ -113,9 +95,9 @@ epub redline --check all \
 
 ```sh
 epub run epub.alite.convert \
-  --input work/book-a/after/final.epub \
-  --output work/book-a/after/final-anthology.epub \
-  --json expect_volumes=<N> > work/book-a/reports/anthology-refinement.json
+  --input "$CUR" \
+  --output "$W/after/s5-<n>.epub" \
+  --json expect_volumes=<N> > "$W/s5-<n>.json"
 ```
 
 该能力把单图卷封转换为 A-lite `contain` 背景并保留 `<img class="poster-fallback">`，避免裁图或空白页；版权信息页只增加紧凑排版容器和 class，不改书名、作者、ISBN 或链接文字。`expect_volumes` 用来阻止漏识别时继续交付。
@@ -171,19 +153,18 @@ Sigil 的旧式 `section[epub:type="footnotes"]` 若包含多条 `aside#footnote
 
 ```sh
 epub redline --check all \
-  work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub
+  [--path-map "$W/s2-normalize.json"] \
+  "$W/before/source.epub" "$W/after/s3.epub"
 ```
 
 ## 验证
 
 ```sh
-unzip -tqq work/book-a/after/cleaned.epub
-epub run epub.package.nav.audit --input work/book-a/after/cleaned.epub --json
-epub run epub.notes.popup.normalize --input work/book-a/after/cleaned.epub --json
-epub redline --check all \
-  work/book-a/before/source.epub \
-  work/book-a/after/cleaned.epub
+unzip -tqq "$W/after/s3.epub"
+epub run epub.package.nav.audit --input "$W/after/s3.epub" --json
+epub run epub.notes.popup.normalize --input "$W/after/s3.epub" --json
+epub redline --check all [--path-map "$W/s2-normalize.json"] \
+  "$W/before/source.epub" "$W/after/s3.epub"
 ```
 
 正文文本 gate 是硬门禁。若转换触发它，流水线立即停止，不把该产物当作可交付结果。
@@ -191,11 +172,11 @@ epub redline --check all \
 Kindle Previewer 可选：
 
 ```sh
-mkdir -p work/book-a/after/kindle-preview-output
+mkdir -p "$W/after/kindle-preview-output"
 '/Applications/Kindle Previewer 3.app/Contents/MacOS/Kindle Previewer 3' \
-  work/book-a/after/cleaned.epub \
+  "$W/after/s3.epub" \
   -convert -qualitychecks \
-  -output work/book-a/after/kindle-preview-output \
+  -output "$W/after/kindle-preview-output" \
   -locale zh
 ```
 
@@ -212,7 +193,7 @@ mkdir -p work/book-a/after/kindle-preview-output
 
 - 输入 SHA-256。
 - 转换计数，例如 nav 条目数、弹注数量、CSS 链接数量。
-- 输出文件角色，例如 `work/after/cleaned.epub`。
+- 输出文件角色，例如 `$W/after/s3.epub`。
 - 工具版本和错误/质量问题数量。
 
 不要提交：
@@ -224,13 +205,4 @@ mkdir -p work/book-a/after/kindle-preview-output
 
 ## 底层变换器入口
 
-需要直接触发底层转换时（上层仍须先完成 before 备份、结构审计和审计记录），运行：
-
-```sh
-epub run epub.package.migrate.epub3 \
-  --input work/before/source.epub \
-  --output work/after/cleaned.epub \
-  --json > work/after/cleaned.report.json
-```
-
-实现按 package、navigation、XHTML、notes 与转换编排拆为该能力的内部阶段。
+迁移能力的执行、前置条件与输出位置见 [cleanup-flow.md 主线 S3](cleanup-flow.md#主线)。
