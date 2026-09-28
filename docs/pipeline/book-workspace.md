@@ -67,7 +67,7 @@ provider 缺失或子集检查失败会使这次构建失败，原有 dist 不�
 
 ## 已有 EPUB 的一次性接入
 
-已有 EPUB 仍按 [`cleanup-flow.md`](cleanup-flow.md) 做底本冻结、预检、必要的结构规范化、迁移判断、全项红线和人工 diff review。解包前先核对 `META-INF/container.xml` 指向的 OPF 路径和 ZIP 目录：`EPUB/`、`EPUB/OPS/` 或根目录 OPF 等非 `OEBPS/` 布局，不能直接使用本页的 starter `build.sh`；它会报告缺少 `OEBPS/`。`epub.structure.normalize` 的路径规范化也不承诺把所有源树转换成 OEBPS。遇到非 OEBPS 书籍时，保留并验证该书现有可用的构建路径，不要为了适配模板脚本未经审查就重命名目录。只有确认最终候选符合本页 OEBPS 骨架且构建验证通过后，才把它解包到 `03 制作工作区/epub/`，把原始 EPUB 放进 `01 源文件/` 并记录 SHA，然后提交书级基线。后续局部修改直接维护解包源并运行已验证的构建命令；只有再次执行有意的清洗、迁移或授权校订时，才重跑对应的专项审查，不需要每次编辑都重复完整接入流程。
+已有 EPUB 仍按 [`cleanup-flow.md`](cleanup-flow.md) 做底本冻结、预检、必要的结构规范化、迁移判断、全项红线和人工 diff review。S0 时即把原始 EPUB 放进 `01 源文件/` 并记录 SHA。解包前先核对 `META-INF/container.xml` 指向的 OPF 路径和 ZIP 目录：`EPUB/`、`EPUB/OPS/` 或根目录 OPF 等非 `OEBPS/` 布局，不能直接使用本页的 starter `build.sh`；它会报告缺少 `OEBPS/`。`epub.structure.normalize` 的路径规范化也不承诺把所有源树转换成 OEBPS。遇到非 OEBPS 书籍时，保留并验证该书现有可用的构建路径，不要为了适配模板脚本未经审查就重命名目录。只有确认最终候选符合本页 OEBPS 骨架且构建验证通过后，才把它解包到 `03 制作工作区/epub/` 并提交书级基线。后续局部修改直接维护解包源并运行已验证的构建命令；只有再次执行有意的清洗、迁移或授权校订时，才重跑对应的专项审查，不需要每次编辑都重复完整接入流程。
 
 对任意合法 EPUB 源树进行通用打包仍是后续功能；本页没有实现新的解包器或通用打包入口。
 

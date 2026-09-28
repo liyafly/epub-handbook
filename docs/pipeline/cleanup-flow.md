@@ -8,7 +8,9 @@
 ```sh
 BOOK_ROOT='work-epub/<book>'
 W="$BOOK_ROOT/03 制作工作区/.pipeline"
-mkdir -p "$W/before" "$W/after"
+SOURCE_EPUB='<原 EPUB 路径>'
+SOURCE_NAME='<原文件名.epub>'
+mkdir -p "$BOOK_ROOT/01 源文件" "$W/before" "$W/after"
 CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线的候选"
 ```
 
@@ -16,7 +18,7 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 
 | 步 | 命令 | 产物 | 通过条件 | 失败时 |
 | --- | --- | --- | --- | --- |
-| S0 冻结 | `cp <源.epub> "$W/before/source.epub" && shasum -a 256 "$W/before/source.epub"` | source.epub | SHA 写进 `制作说明.md` | — |
+| S0 冻结 | `cp "$SOURCE_EPUB" "$BOOK_ROOT/01 源文件/$SOURCE_NAME" && cp "$SOURCE_EPUB" "$W/before/source.epub" && shasum -a 256 "$BOOK_ROOT/01 源文件/$SOURCE_NAME" "$W/before/source.epub"` | `01 源文件/$SOURCE_NAME`、`source.epub` | 两个 SHA 一致，并写进 `制作说明.md` | — |
 | S1 预检 | `epub run epub.package.nav.audit --input "$CUR" --json > "$W/s1-audit.json"` | s1-audit.json | 无 DRM/损坏类 error | DRM、未知加密、ZIP 损坏 → **停止**，报告用户 |
 | S2 规范化（可选） | ① 加 `--dry-run` 跑 `epub run epub.structure.normalize --input "$CUR" --output "$W/after/s2.epub" --json > "$W/s2-dry.json"`；② 审映射；③ 去掉 `--dry-run` 实跑，输出存 `$W/s2-normalize.json`；④ `CUR="$W/after/s2.epub"` | s2.epub、s2-normalize.json | 映射逐条看过；实跑 exit 0 | 不需要就在制作说明写跳过理由 |
 | S3 EPUB3 迁移（EPUB2 或缺 nav 时） | 先 `--dry-run`，再 `epub run epub.package.migrate.epub3 --input "$CUR" --output "$W/after/s3.epub" --json > "$W/s3.json"`；`CUR="$W/after/s3.epub"` | s3.epub | exit 0，S6 通过 | 读 findings，不覆盖重试 |
