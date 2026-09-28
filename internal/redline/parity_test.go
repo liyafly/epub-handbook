@@ -95,6 +95,55 @@ func baseEntries() []zipEntry {
 	}
 }
 
+func epub2NoNavEntries(t *testing.T) []zipEntry {
+	t.Helper()
+	entries := baseEntries()
+	out := make([]zipEntry, 0, len(entries)-1)
+	for _, entry := range entries {
+		switch entry.name {
+		case "OEBPS/nav.xhtml":
+			continue
+		case "OEBPS/content.opf":
+			opf := string(entry.content)
+			for _, old := range []string{
+				`version="3.0"`,
+				"    <item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>\n",
+				"    <itemref idref=\"nav\" linear=\"no\"/>\n",
+			} {
+				if !strings.Contains(opf, old) {
+					t.Fatalf("fixture OPF missing %q", old)
+				}
+			}
+			opf = strings.Replace(opf, `version="3.0"`, `version="2.0"`, 1)
+			opf = strings.Replace(opf, "    <item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>\n", "", 1)
+			opf = strings.Replace(opf, "    <itemref idref=\"nav\" linear=\"no\"/>\n", "", 1)
+			entry.content = []byte(opf)
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func migratedEPUB2Entries(t *testing.T) []zipEntry {
+	t.Helper()
+	entries := baseEntries()
+	for i := range entries {
+		if entries[i].name != "OEBPS/content.opf" {
+			continue
+		}
+		opf := string(entries[i].content)
+		old := "<spine>\n    <itemref idref=\"nav\" linear=\"no\"/>\n    <itemref idref=\"c1\"/>\n  </spine>"
+		new := "<spine>\n    <itemref idref=\"c1\"/>\n    <itemref idref=\"nav\" linear=\"no\"/>\n  </spine>"
+		if !strings.Contains(opf, old) {
+			t.Fatalf("fixture OPF missing migration spine %q", old)
+		}
+		entries[i].content = []byte(strings.Replace(opf, old, new, 1))
+		return entries
+	}
+	t.Fatal("fixture has no package OPF")
+	return nil
+}
+
 // editEntry 返回一份 baseEntries 副本，其中 name 对应的 entry 内容被 fn 改写。
 // 找不到 name 时 t.Fatal —— fixture 改了名而用例悄悄什么都没测是最坏结果。
 func editEntry(t *testing.T, name string, fn func([]byte) []byte) []zipEntry {
@@ -185,6 +234,45 @@ func TestRedlineIdenticalPasses(t *testing.T) {
 	if len(rep.Lines) != 1 || rep.Lines[0] != passLine {
 		t.Errorf("报告 = %q, want [%q]", rep.Lines, passLine)
 	}
+}
+
+func TestRedlineAllowsAddedNavDocumentForEPUB2Migration(t *testing.T) {
+	before, after := pair(t, epub2NoNavEntries(t), migratedEPUB2Entries(t))
+	rep, text := compare(t, before, after, "all", Options{})
+	wantCode(t, rep, text, 0)
+	wantNoLine(t, rep, text, "text: added XHTML file:")
+}
+
+func TestRedlineRejectsAddedNonNavXHTML(t *testing.T) {
+	after := baseEntries()
+	after = append(after, zipEntry{name: "OEBPS/notes.xhtml", content: []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body><p>notes</p></body></html>`)})
+	for i := range after {
+		if after[i].name == "OEBPS/content.opf" {
+			after[i].content = bytes.Replace(after[i].content,
+				[]byte(`  </manifest>`),
+				[]byte("    <item id=\"notes\" href=\"notes.xhtml\" media-type=\"application/xhtml+xml\"/>\n  </manifest>"), 1)
+		}
+	}
+	beforePath, afterPath := pair(t, baseEntries(), after)
+	rep, text := compare(t, beforePath, afterPath, "text", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "text: added XHTML file: OEBPS/notes.xhtml")
+}
+
+func TestRedlineRejectsSecondNavWhenBeforeHasNav(t *testing.T) {
+	after := baseEntries()
+	after = append(after, zipEntry{name: "OEBPS/nav2.xhtml", content: []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body><nav/></body></html>`)})
+	for i := range after {
+		if after[i].name == "OEBPS/content.opf" {
+			after[i].content = bytes.Replace(after[i].content,
+				[]byte(`  </manifest>`),
+				[]byte("    <item id=\"nav2\" href=\"nav2.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>\n  </manifest>"), 1)
+		}
+	}
+	beforePath, afterPath := pair(t, baseEntries(), after)
+	rep, text := compare(t, beforePath, afterPath, "text", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "text: added XHTML file: OEBPS/nav2.xhtml")
 }
 
 func TestCompareFilesRejectsDuplicateEntryNames(t *testing.T) {

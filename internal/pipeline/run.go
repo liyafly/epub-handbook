@@ -511,8 +511,9 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 			before = redline.CurrentState(stageInput)
 		}
 		redlineFindings, err := redline.Check(before, redline.CurrentState(b), redLines, redline.Options{
-			PathMap:              renames,
-			AllowList:            []string{"*/nav.xhtml", "*/toc.ncx"},
+			PathMap: renames,
+			// Migration repairs malformed fragment quoting in legacy toc.ncx src attributes.
+			AllowList:            []string{"*/toc.ncx"},
 			AllowFontObfuscation: runArgs.Bool("allow_font_obfuscation"),
 		})
 		if readErr := b.ReadError(); readErr != nil {

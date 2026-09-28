@@ -125,7 +125,10 @@ func (textCheck) Check(before, after State, o Options) ([]Finding, error) {
 	}
 	var added []string
 	for _, name := range xhtmlNames(after) {
-		if !expectedAfter[name] && !skipped(name, o.AllowList) {
+		if expectedAfter[name] || skipped(name, o.AllowList) {
+			continue
+		}
+		if !isMigrationNavAddition(before, after, name) {
 			added = append(added, name)
 		}
 	}
@@ -134,6 +137,43 @@ func (textCheck) Check(before, after State, o Options) ([]Finding, error) {
 		out = append(out, Finding{CheckText, fmt.Sprintf("text: added XHTML file: %s", name), false})
 	}
 	return out, nil
+}
+
+// isMigrationNavAddition recognizes only the one nav document introduced when
+// migrating a package that had no nav item. Other added XHTML remains a text
+// redline finding.
+func isMigrationNavAddition(before, after State, name string) bool {
+	beforePackage, err := opfFor(before)
+	if err != nil {
+		return false
+	}
+	afterPackage, err := opfFor(after)
+	if err != nil {
+		return false
+	}
+	beforeNavCount := 0
+	for _, item := range beforePackage.Manifest {
+		if opf.HasNavProps(item.Properties) {
+			beforeNavCount++
+		}
+	}
+	if beforeNavCount != 0 {
+		return false
+	}
+	afterNavCount := 0
+	for _, item := range afterPackage.Manifest {
+		if !opf.HasNavProps(item.Properties) {
+			continue
+		}
+		afterNavCount++
+		if afterNavCount > 1 {
+			return false
+		}
+		if item.MediaType != "application/xhtml+xml" || item.ArchivePath != name {
+			return false
+		}
+	}
+	return afterNavCount == 1
 }
 
 // ---- anchors ----

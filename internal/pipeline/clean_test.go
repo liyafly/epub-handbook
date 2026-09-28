@@ -119,6 +119,36 @@ func TestCleanDryRunWritesOnlyPerBookSummary(t *testing.T) {
 	}
 }
 
+func TestCleanApprovesEPUB2Migration(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "legacy.epub")
+	if err := os.WriteFile(input, epub2NoNavFixtureBytes(t), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input,
+		OutputDir: filepath.Join(t.TempDir(), "out"),
+		Steps:     []string{"migrate"},
+		Approve:   true,
+		Jobs:      1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitOK || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want one approved successful book", result)
+	}
+	bookResult := result.Books[0]
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "approved" {
+		t.Fatalf("artifact disposition=%v, want approved; findings=%+v", got, bookResult.Envelope.Findings)
+	}
+	if bookResult.OutputPath == "" {
+		t.Fatal("approved migration did not publish its output path")
+	}
+	if _, err := os.Stat(bookResult.OutputPath); err != nil {
+		t.Fatalf("approved migration output is unavailable: %v", err)
+	}
+}
+
 func TestCleanSharesSessionAcrossSelectedSteps(t *testing.T) {
 	input := buildEpubWithOPF(t)
 	result, err := Clean(t.Context(), CleanOptions{

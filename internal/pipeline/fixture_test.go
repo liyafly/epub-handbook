@@ -3,8 +3,10 @@ package pipeline
 import (
 	"archive/zip"
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,4 +43,60 @@ func buildEpubWithOPF(t testing.TB) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func epub2NoNavFixtureBytes(t testing.TB) []byte {
+	t.Helper()
+	original := epubFixtureBytes(t)
+	reader, err := zip.NewReader(bytes.NewReader(original), int64(len(original)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, file := range reader.File {
+		if file.Name == "OEBPS/nav.xhtml" {
+			continue
+		}
+		input, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(input)
+		closeErr := input.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if file.Name == "OEBPS/content.opf" {
+			opf := string(content)
+			for _, expected := range []string{
+				`version="3.0"`,
+				`<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`,
+				`<itemref idref="nav"/>`,
+			} {
+				if !strings.Contains(opf, expected) {
+					t.Fatalf("fixture OPF missing %q", expected)
+				}
+			}
+			opf = strings.Replace(opf, `version="3.0"`, `version="2.0"`, 1)
+			opf = strings.Replace(opf, `<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`, "", 1)
+			opf = strings.Replace(opf, `<itemref idref="nav"/>`, "", 1)
+			content = []byte(opf)
+		}
+		header := file.FileHeader
+		entryWriter, err := writer.CreateHeader(&header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entryWriter.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return output.Bytes()
 }
