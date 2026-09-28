@@ -636,7 +636,10 @@ func (a *Archive) writePlans(ctx context.Context, output io.Writer, plans []Plan
 			}
 			continue
 		}
-		h := &zip.FileHeader{Name: p.Name, Modified: fixedTime()}
+		h := &zip.FileHeader{Name: p.Name}
+		if p.Name != "mimetype" {
+			h.Modified = fixedTime()
+		}
 		if p.Method == MethodStore {
 			h.Method = zip.Store
 		} else {

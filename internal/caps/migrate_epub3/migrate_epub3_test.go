@@ -659,6 +659,44 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	}
 }
 
+func TestMigrationLeavesGeneratedNavOutOfSpine(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{}))
+	if _, err := runGo(t, fixture, output, defaultParams(output)); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	zr := openZip(t, output)
+	root, err := parseXMLTree(zipRead(t, zr, "OEBPS/content.opf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := root.childByTag(opfURI, "manifest")
+	if manifest == nil {
+		t.Fatal("output OPF has no manifest")
+	}
+	var navID string
+	for _, item := range manifest.childrenByTag(opfURI, "item") {
+		if containsString(pySplitWS(item.attrOr("properties", "")), "nav") {
+			navID = item.attrOr("id", "")
+		}
+	}
+	if navID == "" {
+		t.Fatal("output OPF has no navigation item")
+	}
+	spine := root.childByTag(opfURI, "spine")
+	if spine == nil {
+		t.Fatal("output OPF has no spine")
+	}
+	for _, ref := range spine.childrenByTag(opfURI, "itemref") {
+		if ref.attrOr("idref", "") == navID {
+			t.Fatalf("generated nav item %q must not be added to the reading order", navID)
+		}
+	}
+}
+
 func TestLockedModeCase(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy-locked.epub")

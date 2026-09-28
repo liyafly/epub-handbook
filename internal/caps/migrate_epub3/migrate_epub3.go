@@ -857,7 +857,7 @@ func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionR
 			navID = uniqueID(root, "nav")
 		}
 		navItem.setAttr("", "id", navID)
-		return ensureNavInSpine(root, navID)
+		return nil
 	}
 
 	entries, err := ncxEntries(files, root, opfDir, rep)
@@ -873,32 +873,10 @@ func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionR
 	navHref := uniqueHref(files, opfDir, "nav.xhtml")
 	navZip := normJoin(opfDir, navHref)
 	files.write(navZip, buildNavXHTML(root, entries))
-	navItem, err := addManifestItem(root, rep, "nav", navHref, "application/xhtml+xml", "nav")
-	if err != nil {
-		return err
-	}
-	if err := ensureNavInSpine(root, navItem.attrOr("id", "")); err != nil {
+	if _, err := addManifestItem(root, rep, "nav", navHref, "application/xhtml+xml", "nav"); err != nil {
 		return err
 	}
 	rep.NavEntries = navCount(entries)
-	return nil
-}
-
-// ensureNavInSpine 逐行复刻 core.ensure_nav_in_spine。
-func ensureNavInSpine(root *xmlElem, navID string) error {
-	spine := root.childByTag(opfURI, "spine")
-	if spine == nil {
-		return convErrf("OPF missing spine")
-	}
-	for _, ref := range spine.childrenByTag(opfURI, "itemref") {
-		if v, ok := ref.getAttr("idref"); ok && v == navID {
-			return nil
-		}
-	}
-	spine.appendChild(newElem(opfURI, "itemref",
-		xmlAttr{name: "idref", value: navID},
-		xmlAttr{name: "linear", value: "no"},
-	))
 	return nil
 }
 

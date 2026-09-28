@@ -273,6 +273,8 @@ def legacy_epub2_files() -> dict[str, bytes]:
   <body>
     <h1>第二章 河岸</h1>
     <p>河岸边空着一张长椅。&nbsp;风吹过树梢&mdash;水面亮了起来。</p>
+    <p>旅人沿河读到一段旧记<a id="w2"></a><a href="#m2"><sup>[2]</sup></a>，继续向前。</p>
+    <p class="note"><a id="m2"></a><a href="#w2">[2]</a> 河岸边的石阶通向旧码头。</p>
   </body>
 </html>
 '''

@@ -189,6 +189,31 @@ func TestWriteBytesAndOpenBytes(t *testing.T) {
 	}
 }
 
+func TestRewrittenMimetypeHasNoExtraFields(t *testing.T) {
+	in, err := OpenBytesContext(t.Context(), "mimetype-extra.epub", buildInputZip(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+
+	output, err := in.WriteBytesContext(t.Context(), []Plan{{
+		Name:    "mimetype",
+		Source:  mustLookup(t, in, "mimetype"),
+		Content: []byte("application/epub+zip"),
+		Method:  MethodStore,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err := zip.NewReader(bytes.NewReader(output), int64(len(output)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(archive.File[0].Extra); got != 0 {
+		t.Fatalf("rewritten mimetype has %d ZIP extra-field bytes; EPUB OCF forbids them", got)
+	}
+}
+
 // TestPassthroughOnSampleBook 用仓库里 49MB 的样本书做透传 I/O 实测：
 // 只改一个小 XHTML，断言其余全部 entry 字节级一致，并报告搬运量。
 // 这是 W0 完成判据「800MB → 几 MB」的实测凭据（go-rewrite-handoff.md §4）。
