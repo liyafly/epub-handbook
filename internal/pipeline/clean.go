@@ -6,6 +6,7 @@ import (
 	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,6 +16,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 	"github.com/liyafly/epub-handbook/internal/zipfs"
 )
 
@@ -370,6 +372,73 @@ func cleanStepDefinitions() []cleanStepDefinition {
 	}
 }
 
+func resolveCleanScope(ctx context.Context, current *book.Book, requested []string, normalizeReport []byte) ([]string, error) {
+	pathMap := map[string]string{}
+	if len(normalizeReport) > 0 {
+		var err error
+		pathMap, err = redline.LoadPathMap(normalizeReport)
+		if err != nil {
+			return nil, fmt.Errorf("read normalize path map for --scope: %w", err)
+		}
+	}
+	candidates, err := cleanSpineXHTMLPaths(ctx, current)
+	if err != nil {
+		return nil, err
+	}
+	resolved := make([]string, 0, len(requested))
+	for _, path := range requested {
+		if slices.Contains(candidates, path) {
+			resolved = append(resolved, path)
+			continue
+		}
+		mapped := redline.MappedPath(pathMap, path)
+		if slices.Contains(candidates, mapped) {
+			resolved = append(resolved, mapped)
+			continue
+		}
+		candidateList := strings.Join(candidates, ", ")
+		if candidateList == "" {
+			candidateList = "(none)"
+		}
+		return nil, fmt.Errorf("--scope path %q is not a spine XHTML in the current candidate; available spine XHTML paths: %s", path, candidateList)
+	}
+	return resolved, nil
+}
+
+func cleanSpineXHTMLPaths(ctx context.Context, current *book.Book) ([]string, error) {
+	container, err := current.CurrentContext(ctx, opf.ContainerPath)
+	if err != nil {
+		return nil, fmt.Errorf("read container.xml for --scope: %w", err)
+	}
+	opfPath, err := opf.FindOPFPath(container)
+	if err != nil {
+		return nil, fmt.Errorf("resolve package document for --scope: %w", err)
+	}
+	opfData, err := current.CurrentContext(ctx, opfPath)
+	if err != nil {
+		return nil, fmt.Errorf("read package document for --scope: %w", err)
+	}
+	pkg, err := opf.Parse(opfPath, opfData)
+	if err != nil {
+		return nil, fmt.Errorf("parse package document for --scope: %w", err)
+	}
+	manifest := make(map[string]opf.ManifestItem, len(pkg.Manifest))
+	for _, item := range pkg.Manifest {
+		manifest[item.ID] = item
+	}
+	paths := make([]string, 0, len(pkg.Spine))
+	for _, ref := range pkg.Spine {
+		item, ok := manifest[ref.IDRef]
+		if !ok || item.MediaType != "application/xhtml+xml" || item.ArchivePath == "" || !current.Has(item.ArchivePath) {
+			continue
+		}
+		if !slices.Contains(paths, item.ArchivePath) {
+			paths = append(paths, item.ArchivePath)
+		}
+	}
+	return paths, nil
+}
+
 func discoverCleanInputs(ctx context.Context, inputPath string, inputIsDir bool) ([]cleanInput, error) {
 	if !inputIsDir {
 		return []cleanInput{{path: inputPath, relative: filepath.Base(inputPath)}}, nil
@@ -538,11 +607,37 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		inputState := session.stateID
 		checkpoint := session.current
 		candidate := session.BeginStep()
+		args := maps.Clone(step.args)
+		var scopeErr error
+		if step.name == "typography" && !slices.Contains(opts.Scope, "all") {
+			var scope []string
+			scope, scopeErr = resolveCleanScope(ctx, session.current, opts.Scope, session.normalizeReport)
+			if scopeErr == nil {
+				var encoded []byte
+				encoded, scopeErr = jsonv2.Marshal(scope)
+				if scopeErr == nil {
+					args["scope_paths"] = string(encoded)
+				}
+			}
+		}
 		runOptions := Options{
 			RepoRoot: opts.RepoRoot, CapabilityID: step.capability,
-			InputPath: input.path, Args: step.args,
+			InputPath: input.path, Args: args,
 		}
-		outcome, runErr := runWithBook(ctx, runOptions, candidate, checkpoint)
+		var outcome Outcome
+		var runErr error
+		if scopeErr != nil {
+			runErr = scopeErr
+			outcome.Envelope = report.Envelope{
+				Status: report.StatusFailed,
+				Findings: []report.Finding{{
+					Level: "error", ID: "typography.scope-path-invalid", Title: "Typography scope path is not in the normalized spine",
+					Detail: scopeErr.Error(), Location: step.capability,
+				}},
+			}
+		} else {
+			outcome, runErr = runWithBook(ctx, runOptions, candidate, checkpoint)
+		}
 		changedEntries, changesErr := session.ModifiedEntries(candidate)
 		if changesErr != nil {
 			runErr = errors.Join(runErr, fmt.Errorf("compare in-memory step changes: %w", changesErr))

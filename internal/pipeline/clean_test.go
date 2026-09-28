@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json/v2"
 	"errors"
@@ -251,6 +252,104 @@ func TestCleanBatchPlannedOrCompleteHasZeroExitCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCleanScopeFollowsNormalizeMappings(t *testing.T) {
+	for _, scope := range []string{"OEBPS/xhtml/ch1.xhtml", "OEBPS/Text/ch1.xhtml"} {
+		t.Run(scope, func(t *testing.T) {
+			input := filepath.Join(t.TempDir(), "scope.epub")
+			if err := os.WriteFile(input, nonstandardScopeFixtureBytes(t), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			result, err := Clean(t.Context(), CleanOptions{
+				InputPath: input,
+				OutputDir: filepath.Join(t.TempDir(), "out"),
+				Steps:     []string{"normalize", "typography"},
+				Preset:    "literary-cn",
+				Scope:     []string{scope},
+				Jobs:      1,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.ExitCode != ExitOK || len(result.Books) != 1 {
+				t.Fatalf("exit=%d books=%+v, want one successful planned book", result.ExitCode, result.Books)
+			}
+			steps := result.Books[0].Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
+			var typography *cleanStepSummary
+			for i := range steps {
+				if steps[i].Name == "typography" {
+					typography = &steps[i]
+					break
+				}
+			}
+			if typography == nil {
+				t.Fatal("clean report has no typography step")
+			}
+			if !slices.Contains(typography.ChangedEntries, "OEBPS/Text/ch1.xhtml") {
+				t.Fatalf("typography changed entries=%v, want normalized spine path OEBPS/Text/ch1.xhtml", typography.ChangedEntries)
+			}
+		})
+	}
+}
+
+func TestCleanScopeReportsCurrentSpineCandidates(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "scope.epub")
+	if err := os.WriteFile(input, nonstandardScopeFixtureBytes(t), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input,
+		OutputDir: filepath.Join(t.TempDir(), "out"),
+		Steps:     []string{"normalize", "typography"},
+		Preset:    "literary-cn",
+		Scope:     []string{"OEBPS/missing.xhtml"},
+		Jobs:      1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 {
+		t.Fatalf("exit=%d books=%+v, want one failed book", result.ExitCode, result.Books)
+	}
+	if err := result.Books[0].Err; err == nil || !strings.Contains(err.Error(), "OEBPS/Text/ch1.xhtml") {
+		t.Fatalf("scope error=%v, want current spine candidate OEBPS/Text/ch1.xhtml", err)
+	}
+}
+
+func nonstandardScopeFixtureBytes(t testing.TB) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	create := func(name, content string, method uint16) {
+		t.Helper()
+		header := &zip.FileHeader{Name: name, Method: method}
+		writer, err := w.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writer.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	create("mimetype", "application/epub+zip", zip.Store)
+	create("META-INF/container.xml", `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`, zip.Deflate)
+	create("OEBPS/content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bid" xml:lang="zh-CN">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bid">urn:uuid:12345678-1234-1234-1234-1234567890ab</dc:identifier><dc:title>Scope Test</dc:title><dc:language>zh-CN</dc:language><meta property="dcterms:modified">2026-01-01T00:00:00Z</meta></metadata>
+  <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="c1" href="xhtml/ch1.xhtml" media-type="application/xhtml+xml"/><item id="css" href="css/main.css" media-type="text/css"/></manifest>
+  <spine><itemref idref="c1"/></spine>
+</package>`, zip.Deflate)
+	create("OEBPS/nav.xhtml", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN"><head><title>目录</title></head><body><nav epub:type="toc" id="toc"><ol><li><a href="xhtml/ch1.xhtml">第一章</a></li></ol></nav></body></html>`, zip.Deflate)
+	create("OEBPS/xhtml/ch1.xhtml", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN"><head><title>第一章</title><link rel="stylesheet" type="text/css" href="../css/main.css"/></head><body><h1>第一章</h1><p>这是正文。</p></body></html>`, zip.Deflate)
+	create("OEBPS/css/main.css", "p { text-indent: 2em; }\n", zip.Deflate)
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }
 
 func TestCleanStepSummaryPreservesFailedRedlineResult(t *testing.T) {

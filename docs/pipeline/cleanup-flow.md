@@ -91,7 +91,7 @@ epub redline --check metadata,spine,cover,drm,anchors \
 
 ### 批量预览与候选输出
 
-`epub clean` 可对单本 EPUB 或目录中的 `.epub` 文件按统一步骤运行；目录递归扫描，忽略非 EPUB 文件，并按路径排序。默认不执行变换，只审计并生成逐书 `planned` 报告。使用 `--steps` 明确选择 `normalize,migrate,css,typography` 中的步骤，顺序必须保持不变。选择 `typography` 时还必须同时指定 `--preset NAME` 和 `--scope all` 或一个/多个精确的 EPUB 内 spine XHTML 路径；`all` 表示整书预设替换。`--jobs` 默认为 1，设为大于 0 的整数可并行处理不同书目。
+`epub clean` 可对单本 EPUB 或目录中的 `.epub` 文件按统一步骤运行；目录递归扫描，忽略非 EPUB 文件，并按路径排序。默认不执行变换，只审计并生成逐书 `planned` 报告。使用 `--steps` 明确选择 `normalize,migrate,css,typography` 中的步骤，顺序必须保持不变。选择 `typography` 时还必须同时指定 `--preset NAME` 和 `--scope all` 或一个/多个精确的 EPUB 内 spine XHTML 路径；路径以输入书为准，若前序 `normalize` 移动了章节，`clean` 会按本次映射定位当前路径，输入路径和规范化后的路径均可填写。无匹配时报告当前 spine XHTML 候选路径。`all` 表示整书预设替换。`--jobs` 默认为 1，设为大于 0 的整数可并行处理不同书目。
 
 ```sh
 # 默认只审计并生成计划；只写每本书的 JSON 汇总，不变换书稿。
