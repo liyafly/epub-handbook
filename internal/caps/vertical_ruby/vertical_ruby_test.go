@@ -57,7 +57,7 @@ func TestRubyRPPartialComplexAndPrefixedStructures(t *testing.T) {
 		`<ruby><x:rt>prefixed rt</x:rt></ruby>` +
 		`<ruby>安<rt>あん</rt></ruby></body></html>`
 	b := openFixture(t, makeFixture(t, chapter, ""))
-	result, err := Run(context.Background(), b, Params{Op: OpRubyRP})
+	result, err := Run(t.Context(), b, Params{Op: OpRubyRP})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +75,53 @@ func TestRubyRPPartialComplexAndPrefixedStructures(t *testing.T) {
 	}
 	if strings.Contains(got, `<ruby>複<rp>`) || strings.Contains(got, `<x:ruby><rp>`) {
 		t.Fatalf("complex or prefixed Ruby was modified: %s", got)
+	}
+}
+
+func TestRubyRPSkipsEmptyTextRT(t *testing.T) {
+	chapter := `<html xmlns="http://www.w3.org/1999/xhtml"><body>` +
+		`<ruby>重<rt></rt></ruby><ruby>点<rt> </rt></ruby><ruby>音<rt>おと</rt></ruby>` +
+		`</body></html>`
+	b := openFixture(t, makeFixture(t, chapter, ""))
+	result, err := Run(t.Context(), b, Params{Op: OpRubyRP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Facts["editCount"] != 2 {
+		t.Fatalf("editCount=%v, want only the non-empty Ruby repaired", result.Facts["editCount"])
+	}
+	emptyWarnings := 0
+	for _, finding := range result.Findings {
+		if finding.ID == "vertical.ruby-empty-rt" {
+			emptyWarnings++
+		}
+	}
+	if emptyWarnings != 2 {
+		t.Fatalf("empty rt warnings=%d, findings=%+v; want 2", emptyWarnings, result.Findings)
+	}
+	got := string(current(t, b, rubyPath))
+	want := `<html xmlns="http://www.w3.org/1999/xhtml"><body><ruby>重<rt></rt></ruby><ruby>点<rt> </rt></ruby><ruby>音<rp>（</rp><rt>おと</rt><rp>）</rp></ruby></body></html>`
+	if got != want {
+		t.Fatalf("Ruby output = %s\nwant       = %s", got, want)
+	}
+}
+
+func TestRubyRPSkipsEmphasisSymbolRT(t *testing.T) {
+	chapter := `<html xmlns="http://www.w3.org/1999/xhtml"><body>` +
+		`<ruby>重<rt> ●○◎△▽・﹅﹆ </rt></ruby><ruby>読<rt>●かな</rt></ruby>` +
+		`</body></html>`
+	b := openFixture(t, makeFixture(t, chapter, ""))
+	result, err := Run(t.Context(), b, Params{Op: OpRubyRP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Facts["editCount"] != 2 || !findingHasID(result.Findings, "vertical.ruby-emphasis") {
+		t.Fatalf("facts=%#v findings=%+v, want one emphasis skip and one annotated Ruby edit", result.Facts, result.Findings)
+	}
+	got := string(current(t, b, rubyPath))
+	want := strings.Replace(chapter, `<rt>●かな</rt>`, `<rp>（</rp><rt>●かな</rt><rp>）</rp>`, 1)
+	if got != want {
+		t.Fatalf("Ruby output = %s\nwant       = %s", got, want)
 	}
 }
 

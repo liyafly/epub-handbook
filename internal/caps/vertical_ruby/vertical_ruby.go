@@ -23,6 +23,7 @@ const CapabilityID = "epub.vertical.ruby.optimize"
 const (
 	OpRubyRP            = "ruby-rp"
 	OpWritingModePrefix = "writing-mode-prefix"
+	rubyEmphasisSymbols = "●○◎△▽・﹅﹆"
 )
 
 // Params selects one mechanical fix and an optional exact resource scope.
@@ -240,6 +241,12 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 					badRT = true
 					break
 				}
+				if len(rt.Kids) == 0 && strings.TrimSpace(rt.IterText()) == "" {
+					findings = append(findings, rubyFinding("warn", "vertical.ruby-empty-rt", "Empty Ruby text element was skipped", "rt has no non-whitespace text or child elements", file.path))
+					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "empty-rt"})
+					badRT = true
+					break
+				}
 			}
 			if badRT {
 				continue
@@ -261,6 +268,11 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 				}
 				continue
 			}
+			if slices.ContainsFunc(rts, func(rt *opf.SpanNode) bool { return isRubyEmphasisText(rt.IterText()) }) {
+				findings = append(findings, rubyFinding("warn", "vertical.ruby-emphasis", "Ruby emphasis symbols were skipped", "rt contains only emphasis symbols, not pronunciation text", file.path))
+				skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "emphasis-rt"})
+				continue
+			}
 			for _, rt := range rts {
 				edits = append(edits,
 					editset.Insert(file.path, int64(rt.Open.Start), []byte("<rp>"+p.RPOpen+"</rp>")),
@@ -271,6 +283,19 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 		}
 	}
 	return edits, planned, skipped, findings, filesScanned, nil
+}
+
+func isRubyEmphasisText(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	for _, r := range text {
+		if !strings.ContainsRune(rubyEmphasisSymbols, r) {
+			return false
+		}
+	}
+	return true
 }
 
 func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []plannedEdit, []skippedEdit, []report.Finding, int, error) {

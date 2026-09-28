@@ -67,7 +67,7 @@ epub redline --check all "before.epub" "candidate.epub"
 epub run epub.vertical.ruby.optimize --input "before.epub" --dry-run --json op=writing-mode-prefix
 ```
 
-Ruby 包含 `rtc`、嵌套 Ruby、自闭合 `rt`、已有不完整 `rp` 或带命名空间前缀时会跳过并报告；标准 writing-mode 值不受支持、厂商前缀冲突或 CSS 无法解析时也不会猜测。一次运行发现任何 error 时整批零写入。涉及弹注另跑 popup validator。
+Ruby 包含 `rtc`、嵌套 Ruby、带命名空间前缀或已有不完整 `rp` 时会跳过并报告；自闭合 `rt`、空白且无子元素的 `rt` 报 `vertical.ruby-empty-rt`，只有 `●○◎△▽・﹅﹆` 着重号符号的 `rt` 报 `vertical.ruby-emphasis`，都不会补括号。标准 writing-mode 值不受支持、厂商前缀冲突或 CSS 无法解析时也不会猜测。一次运行发现任何 error 时整批零写入。涉及弹注另跑 popup validator。
 
 ### 旧版弹注 fallback
 
@@ -95,7 +95,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 竖排与 Ruby
 
-审阅 `facts["epub.vertical.ruby.optimize.op"]`、`plannedEdits`、`skipped`、`filesScanned` 和 `editCount`。静态扫描/红线不验证排版引擎的实际文字方向或 Ruby 行高；必须分别报告源码结构、内容边界与目标阅读器结果。
+审阅 `facts["epub.vertical.ruby.optimize.op"]`、`plannedEdits`、`skipped`、`filesScanned` 和 `editCount`；`vertical.ruby-empty-rt` 与 `vertical.ruby-emphasis` 表示该 Ruby 不会生成括号 fallback。静态扫描/红线不验证排版引擎的实际文字方向或 Ruby 行高；必须分别报告源码结构、内容边界与目标阅读器结果。
 
 ### 旧版弹注 fallback
 
