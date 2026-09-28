@@ -293,6 +293,30 @@ jobs:
                 java -jar "$EPUBCHECK_JAR" "$epub" --mode epub --profile default || { echo "FAIL: $epub" >&2; exit 1; } ;;
             esac
           done
+          go run ./cmd/epub redline --check all \
+            templates/cleanup-demo-books/dist/city-field-notes-before.epub \
+            templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
+          go run ./cmd/epub redline --check all \
+            templates/cleanup-demo-books/dist/paper-garden-before.epub \
+            templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
+          trap_report="$RUNNER_TEMP/redline-trap-redline.txt"
+          if go run ./cmd/epub redline --check all \
+            templates/cleanup-demo-books/dist/redline-trap-before.epub \
+            templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub \
+            >"$trap_report" 2>&1; then
+            echo "redline-trap unexpectedly passed" >&2
+            cat "$trap_report" >&2
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 1 ] || ! grep -q '^text: modified ' "$trap_report"; then
+              echo "redline-trap failed for an unexpected reason (exit $status)" >&2
+              cat "$trap_report" >&2
+              exit 1
+            fi
+            cat "$trap_report"
+            echo "redline-trap: expected text redline failure (exit 1)"
+          fi
           legacy_before=templates/cleanup-demo-books/dist/legacy-epub2-before.epub
           legacy_migrated="$RUNNER_TEMP/legacy-epub2-migrated.epub"
           legacy_normalized="$RUNNER_TEMP/legacy-epub2-normalized.epub"
