@@ -332,6 +332,15 @@ def _chars_from_file(path: Path) -> Harvest:
 
 
 def run(args) -> int:
+    try:
+        return _run(args)
+    except CheckError:
+        raise
+    except (zipfile.BadZipFile, OSError, KeyError) as exc:
+        raise CheckError(str(exc)) from exc
+
+
+def _run(args) -> int:
     epub = Path(args.epub)
     if not epub.is_file():
         raise CheckError(f"{epub} is not a file")

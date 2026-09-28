@@ -131,6 +131,19 @@ def test_usage_errors(tmp_path, capsys, args, kwargs, message):
     assert code == 2 and message in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(("epub_data", "args", "message"), [
+    (b"not a ZIP archive", (), "File is not a zip file"),
+    (None, ("--font-file", "missing.ttf"), "missing.ttf"),
+    (None, ("--chars-file", "missing.txt"), "missing.txt"),
+])
+def test_input_errors_are_user_facing_exit_two(tmp_path, capsys, epub_data, args, message):
+    code, _ = run_cli(tmp_path, make_epub() if epub_data is None else epub_data, *args)
+    stderr = capsys.readouterr().err
+    assert code == 2 and message in stderr
+    assert stderr.startswith("error:")
+    assert "Traceback" not in stderr
+
+
 def test_default_checks_every_manifest_font(tmp_path):
     code, report = run_cli(tmp_path, make_epub())
     assert [font["font"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
