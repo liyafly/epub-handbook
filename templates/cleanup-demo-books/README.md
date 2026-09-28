@@ -12,6 +12,7 @@
 | `paper-garden` | 诗段、Ruby、blockquote、竖排增强 | 文本不变，红线应通过 |
 | `loop-auto-fix` | 多轮 loop 正向演示：章节根元素故意漏语言属性 | 审计应检出 `missing-html-lang`（auto_fixable），正文不变 |
 | `redline-trap` | 故意改写正文的反例 | 红线应失败 |
+| `legacy-epub2` | EPUB2/NCX、XHTML 1.1 DTD 与命名实体、普通文本尾注、EPUB2 封面元数据、GB18030 和 Latin-1 CSS 资源 | normalize 原样保留两份旧编码 CSS；修复 G13/G15/G23/G24 后，migrate 与全项 redline 应通过，迁移后的 XHTML 应为良构 |
 
 ## 生成
 
@@ -61,3 +62,9 @@ epub run epub.package.nav.audit \
 ```
 
 Go CLI 没有多轮自动 loop 命令：报告中应出现 `missing-html-lang` finding（`auto_fixable: true`）。修复按 [清洗流水线](../../docs/pipeline/cleanup-flow.md) 的固定顺序逐能力执行，最后用 `epub redline --check all` 验证正文不变。
+
+## EPUB2 与旧编码回归样本
+
+`legacy-epub2-before.epub` 是一份自造的 EPUB2 输入：目录依赖 NCX 且没有 nav，章节使用 XHTML 1.1 DOCTYPE 和 `&nbsp;`、`&mdash;`，普通 `[1]` 尾注链接到单独的 `notes.xhtml`，封面通过 `<meta name="cover">` 指向 `Images/cover.jpg`。正文使用 `book.css`，另保留未引用的 `legacy.css`（GB18030）与 `latin1.css`（Latin-1）资源，用于验证 normalize 遍历 ZIP 内样式资源时保持原字节。
+
+修复 G14 后，`epub.structure.normalize` 对没有待改 URL 的两份 CSS 应保持逐字节不变。修复 G13、G15、G23、G24 后，EPUB3 迁移应仅因补入 nav 产生已限定的红线差异，保留封面对应关系与尾注正文，并输出可由 XML 解析器读取的 XHTML；全项 redline 应通过。旧编码 CSS 不在 OPF manifest 中，因此 EPUBCheck 不会把它们当作活动样式表解析；CI 会同时检查原始样本和修复后的 EPUB3 候选。

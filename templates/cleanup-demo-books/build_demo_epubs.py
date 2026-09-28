@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import struct
@@ -15,6 +16,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent  # 模板自包含：以本文件所在目录为根
 OUT_DIR = ROOT / "dist"
 FIXED_ZIP_TIME = (2026, 5, 27, 0, 0, 0)
+LEGACY_COVER_JPEG_B64 = (
+  "/9j/4AAQSkZJRgABAQAASABIAAD/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAA"
+  "AAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKB"
+  "kaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZn"
+  "aGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT"
+  "1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcI"
+  "CQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAV"
+  "YnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ4eXqD"
+  "hIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl"
+  "5ufo6erx8vP09fb3+Pn6/9sAQwACAgICAgIEAgIEBgQEBAYIBgYGBggKCAgICAgKDAoKCgoKCgwM"
+  "DAwMDAwMDg4ODg4OEBAQEBASEhISEhISEhIS/9sAQwEDAwMFBAUIBAQIEw0LDRMTExMTExMTExMT"
+  "ExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMT/90ABAAB/9oADAMBAAIRAxEA"
+  "PwD4/ooor6s+PP/Z"
+)
 
 
 @dataclass(frozen=True)
@@ -227,6 +242,103 @@ def files_for(spec: EpubSpec) -> dict[str, bytes]:
   for chapter in spec.chapters:
     files[f"OEBPS/Text/{chapter.file_name}"] = chapter_xhtml(spec, chapter).encode("utf-8")
   return files
+
+
+def legacy_epub2_files() -> dict[str, bytes]:
+  xhtml_doctype = (
+    '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
+    '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">'
+  )
+  chapter1 = f'''<?xml version="1.0" encoding="UTF-8"?>
+{xhtml_doctype}
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
+  <head>
+    <title>第一章 旧站台</title>
+    <link rel="stylesheet" type="text/css" href="../Styles/book.css"/>
+  </head>
+  <body>
+    <h1>第一章 旧站台</h1>
+    <p>清晨的站台留着一盏灯。&nbsp;远处传来列车声&mdash;很轻。</p>
+    <p>旅人记下路线<a id="w1"></a><a href="notes.xhtml#m1"><sup>[1]</sup></a>，随后合上笔记。</p>
+  </body>
+</html>
+'''
+  chapter2 = f'''<?xml version="1.0" encoding="UTF-8"?>
+{xhtml_doctype}
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
+  <head>
+    <title>第二章 河岸</title>
+    <link rel="stylesheet" type="text/css" href="../Styles/book.css"/>
+  </head>
+  <body>
+    <h1>第二章 河岸</h1>
+    <p>河岸边空着一张长椅。&nbsp;风吹过树梢&mdash;水面亮了起来。</p>
+  </body>
+</html>
+'''
+  notes = f'''<?xml version="1.0" encoding="UTF-8"?>
+{xhtml_doctype}
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
+  <head><title>注释</title></head>
+  <body>
+    <h1>注释</h1>
+    <p><a id="m1" href="ch1.xhtml#w1">[1]</a> 注文</p>
+  </body>
+</html>
+'''
+  package = '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="book-id">urn:uuid:00000000-0000-4000-8000-000000000001</dc:identifier>
+    <dc:title>旧站台札记</dc:title>
+    <dc:creator>epub-handbook demo</dc:creator>
+    <dc:language>zh-CN</dc:language>
+    <meta name="cover" content="cover-img"/>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="ch1" href="Text/ch1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch2" href="Text/ch2.xhtml" media-type="application/xhtml+xml"/>
+    <item id="notes" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
+    <item id="book-css" href="Styles/book.css" media-type="text/css"/>
+    <item id="cover-img" href="Images/cover.jpg" media-type="image/jpeg"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="ch1"/>
+    <itemref idref="ch2"/>
+    <itemref idref="notes"/>
+  </spine>
+</package>
+'''
+  ncx = '''<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:00000000-0000-4000-8000-000000000001"/></head>
+  <docTitle><text>旧站台札记</text></docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel><text>第一章 旧站台</text></navLabel><content src="Text/ch1.xhtml"/>
+    </navPoint>
+    <navPoint id="navPoint-2" playOrder="2">
+      <navLabel><text>第二章 河岸</text></navLabel><content src="Text/ch2.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>
+'''
+  gb18030_css = '@charset "GB18030";\n/* 中文注释：旧编码样式 */\nbody { line-height: 1.8; }\n'.encode("gb18030")
+  latin1_css = '@charset "ISO-8859-1";\n/* café */\nbody { font-family: serif; }\n'.encode("latin-1")
+  book_css = 'body { margin: 0 7%; line-height: 1.8; font-family: serif; }\nh1 { text-align: center; }\n'.encode("utf-8")
+  return {
+    "META-INF/container.xml": container_xml().encode("utf-8"),
+    "OEBPS/package.opf": package.encode("utf-8"),
+    "OEBPS/toc.ncx": ncx.encode("utf-8"),
+    "OEBPS/Text/ch1.xhtml": chapter1.encode("utf-8"),
+    "OEBPS/Text/ch2.xhtml": chapter2.encode("utf-8"),
+    "OEBPS/Text/notes.xhtml": notes.encode("utf-8"),
+    "OEBPS/Styles/legacy.css": gb18030_css,
+    "OEBPS/Styles/latin1.css": latin1_css,
+    "OEBPS/Styles/book.css": book_css,
+    "OEBPS/Images/cover.jpg": base64.b64decode(LEGACY_COVER_JPEG_B64),
+  }
 
 
 def png_chunk(kind: bytes, data: bytes) -> bytes:
@@ -640,6 +752,10 @@ def main() -> int:
     write_epub(output, files_for(spec))
     built.append({"slug": spec.slug, "variant": spec.variant, "path": str(output.relative_to(ROOT))})
     print(output.relative_to(ROOT))
+  legacy_output = OUT_DIR / "legacy-epub2-before.epub"
+  write_epub(legacy_output, legacy_epub2_files())
+  built.append({"slug": "legacy-epub2", "variant": "before", "path": str(legacy_output.relative_to(ROOT))})
+  print(legacy_output.relative_to(ROOT))
   manifest = OUT_DIR / "manifest.json"
   manifest.write_text(json.dumps({"generated": built}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
   return 0
