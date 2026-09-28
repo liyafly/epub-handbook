@@ -11,7 +11,7 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 
 发行版中的 `epub.style.demo.maintain catalog=true` 可离线使用内嵌目录；`epub.style.demo.maintain --input <book.epub>` 需要仓库 checkout，或设置 `EPUB_HANDBOOK_ROOT` 指向仓库根目录。
 
-截至 2026-09-27，当前发布版本为 [`v0.4.2`](https://github.com/liyafly/epub-handbook/releases/tag/v0.4.2)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 二进制、安装说明及 `SHA256SUMS`。二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。后续版本见 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases)。
+截至 2026-09-28，当前发布版本为 [`v0.4.6`](https://github.com/liyafly/epub-handbook/releases/tag/v0.4.6)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 二进制、安装说明及 `SHA256SUMS`。二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。后续版本见 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases)。
 
 ## 我想……
 
