@@ -368,7 +368,7 @@ func resolveTarget(root *opf.SpanNode, assignment Assignment) (*opf.SpanNode, in
 	}
 	index := 0
 	for _, node := range root.Walk() {
-		if node.Name.Local != assignment.Tag {
+		if node.Name.Space != opf.XHTMLURI || node.Name.Local != assignment.Tag {
 			continue
 		}
 		if index == *assignment.Index {

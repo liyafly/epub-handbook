@@ -284,6 +284,12 @@ func init() {
 			if hasID == hasTag {
 				return report.Result{}, usageErrorf("每个 assignment 必须且只能提供 id 或 tag")
 			}
+			if hasID && assignment.Index != nil {
+				return report.Result{}, usageErrorf("使用 id 定位时不能提供 index")
+			}
+			if hasTag && assignment.Index == nil {
+				return report.Result{}, usageErrorf("使用 tag 定位时必须提供 index")
+			}
 		}
 		return literarystructure.Run(ctx, b, literarystructure.Params{
 			Assignments: assignments,

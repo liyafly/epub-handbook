@@ -869,6 +869,8 @@ func TestLiteraryStructureAssignmentsValidationUsesUsageExit(t *testing.T) {
 		"[]",
 		`[{"path":"OEBPS/Text/01-body.xhtml","id":"target","tag":"blockquote","class":"epigraph"}]`,
 		`[{"path":"OEBPS/Text/01-body.xhtml","class":"epigraph"}]`,
+		`[{"path":"OEBPS/Text/01-body.xhtml","tag":"blockquote","class":"epigraph"}]`,
+		`[{"path":"OEBPS/Text/01-body.xhtml","id":"target","index":0,"class":"epigraph"}]`,
 	} {
 		outcome, err := Run(t.Context(), Options{
 			CapabilityID: "epub.literary.structure.format",

@@ -78,6 +78,25 @@ func TestRunFindsTagIndexInDocumentOrder(t *testing.T) {
 	}
 }
 
+func TestRunTagIndexDoesNotMatchSVGElements(t *testing.T) {
+	chapter := literaryXHTML(`<svg xmlns="http://www.w3.org/2000/svg"><a id="svg-link">SVG link</a></svg>`)
+	b := openLiteraryFixture(t, literaryFixture(t, chapter, true))
+	index := 0
+	result, err := Run(t.Context(), b, Params{Assignments: []Assignment{{
+		Path: testXHTMLPath, Tag: "a", Index: &index, Class: "dialog",
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(literaryCurrent(t, b))
+	if result.Facts["editCount"] != 0 || !findingHasID(result.Findings, "literary.target-not-found") {
+		t.Fatalf("facts=%#v findings=%+v, want SVG anchor excluded", result.Facts, result.Findings)
+	}
+	if strings.Contains(got, `id="svg-link" class=`) {
+		t.Fatalf("SVG anchor received a literary class: %s", got)
+	}
+}
+
 func TestRunCombinesClassesForOneElementInAssignmentOrder(t *testing.T) {
 	chapter := literaryXHTML(`<p id="target" class="x">text</p>`)
 	b := openLiteraryFixture(t, literaryFixture(t, chapter, true))
