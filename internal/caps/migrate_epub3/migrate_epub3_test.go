@@ -475,6 +475,42 @@ func TestApplyOPFTreeEditsRejectsTextWithCDATA(t *testing.T) {
 	}
 }
 
+func TestMigrateIgnoresFeatureTagsInComments(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
+		chapterNoteMarkup: `<!-- <svg> <math> <script> -->`,
+	}))
+	if _, err := runGo(t, fixture, output, defaultParams(output)); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	zr := openZip(t, output)
+	root, err := parseXMLTree(zipRead(t, zr, "OEBPS/content.opf"))
+	if err != nil {
+		t.Fatalf("parse output OPF: %v", err)
+	}
+	manifest := root.childByTag(opfURI, "manifest")
+	for _, item := range manifest.childrenByTag(opfURI, "item") {
+		href := item.attrOr("href", "")
+		properties := pySplitWS(item.attrOr("properties", ""))
+		switch href {
+		case "Text/chapter.xhtml":
+			if len(properties) != 0 {
+				t.Errorf("comment-only feature tags added manifest properties: %v", properties)
+			}
+		case "Text/cover.xhtml":
+			if !containsString(properties, "svg") {
+				t.Error("real SVG element did not add the svg manifest property")
+			}
+			if containsString(properties, "mathml") || containsString(properties, "scripted") {
+				t.Errorf("cover has unexpected feature properties: %v", properties)
+			}
+		}
+	}
+}
+
 func TestOneclickDefaultFixture(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy.epub")

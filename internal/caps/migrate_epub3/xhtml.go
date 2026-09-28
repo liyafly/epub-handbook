@@ -106,13 +106,17 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 				changed = true
 			}
 		}
-		if pyPatterns["svgCheck"].hasMatch(text) && addProps(item, "svg") {
+		hasSVG, hasMathML, hasScript, err := xhtmlFeatureTags(text)
+		if err != nil {
+			return false, convErrf("%s: cannot scan XHTML feature tags: %v", zipPath, err)
+		}
+		if hasSVG && addProps(item, "svg") {
 			rep.ManifestItemsUpdated++
 		}
-		if pyPatterns["mathCheck"].hasMatch(text) && addProps(item, "mathml") {
+		if hasMathML && addProps(item, "mathml") {
 			rep.ManifestItemsUpdated++
 		}
-		if pyPatterns["scriptCheck"].hasMatch(text) && addProps(item, "scripted") {
+		if hasScript && addProps(item, "scripted") {
 			rep.ManifestItemsUpdated++
 		}
 		if changed {
@@ -121,6 +125,28 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 		}
 	}
 	return defaultNoteIconUsed, nil
+}
+
+func xhtmlFeatureTags(text string) (svg, mathml, scripted bool, err error) {
+	regions, stop := xhtml.ScanRegions(text)
+	if stop != xhtml.ScanComplete {
+		return false, false, false, fmt.Errorf("markup scan stopped at byte offset %d", stop)
+	}
+	for _, region := range regions {
+		name, closing, valid := regionTagNameAndClosing(text, region)
+		if !valid || closing {
+			continue
+		}
+		switch {
+		case sameLocalName(name, "svg"):
+			svg = true
+		case sameLocalName(name, "math"):
+			mathml = true
+		case sameLocalName(name, "script"):
+			scripted = true
+		}
+	}
+	return svg, mathml, scripted, nil
 }
 
 func xhtmlSourceIsUTF8(data []byte) bool {

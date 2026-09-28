@@ -84,9 +84,6 @@ func buildPatterns() map[string]*pyRegexp {
 	def("noteMarkerSup", `<sup(?P<attrs>\s[^>]*)?>(?P<content>\s*<a\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bnoteref-icon\b)[^>]*>.*?</a>\s*)</sup>`, true, true)
 	def("hrBeforeNotes", `\s*<hr\b[^>]*/?>\s*$`, true, true)
 	// 属性标记检查（re.I）。
-	def("svgCheck", `<(?:svg|svg:svg)\b`, true, false)
-	def("mathCheck", `<(?:math|m:math)\b`, true, false)
-	def("scriptCheck", `<script\b`, true, false)
 	// duokan 归一（无 re.I）。
 	def("duokanAside", `<aside\s+epub:type="footnote"(?![^>]*\brole=)`, false, false)
 	// has_body_font_locked 的声明检查（re.I）。
