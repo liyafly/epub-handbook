@@ -81,7 +81,9 @@ find "$SRC_DIR" -exec touch -h -t 198001010000 {} +
 (
 	cd "$SRC_DIR"
 	zip -X -0 "$FULL_EPUB" mimetype >/dev/null
-	find META-INF OEBPS -type f | LC_ALL=C sort | zip -X -9 "$FULL_EPUB" -@ >/dev/null
+	find META-INF OEBPS -type f \
+		! -name '.*' ! -name Thumbs.db ! -name '*~' ! -path '*/.*/*' |
+		LC_ALL=C sort | zip -X -9 "$FULL_EPUB" -@ >/dev/null
 )
 
 HAS_FONTS=false
