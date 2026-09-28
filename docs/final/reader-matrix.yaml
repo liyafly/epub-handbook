@@ -189,93 +189,93 @@ expectations:
   # status: pass | warn | fail | na
   - reader: ibooks_macos
     case: 01-basic-cjk
-    status: pass
+    status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认字体并检查自定义宋体主题；字号默认与 +1"
-    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
     failed_page: none
-    issue: "精确候选导入后普通中文正文、段落与图片可见；默认和增大一级字号均可读，深色外观及自定义宋体主题检查未见裁切。"
-    action: "本记录仅适用于所列 plain-cn 候选 SHA；检查后恢复 Light/Original 与默认字号。"
+    issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；不据此推断其他 demo 构建或阅读器。"
   - reader: readest
     case: 01-basic-cjk
-    status: pass
+    status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入 plain-cn 候选；默认阅读主题与字号"
-    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
     failed_page: none
-    issue: "从精确本地路径导入成功；跳转普通中文正文后标题、段落、引用和图片可见。该候选与基础 demo 共用 EPUB identity，Readest 复用同一书库条目，故记录同时受同 UUID 去重/缓存行为限制。"
-    action: "确认只适用于本次选取并成功导入的候选；若需证明未来导入器身份隔离，再以不改变生产 identity 的独立 fixture 补测。"
+    issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
+    action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无；不要把本条当作同 UUID 重导入行为的独立验证。"
   - reader: kindle_previewer
     case: 01-basic-cjk
-    status: pass
-    reader_version: "4 (About UI 未显示次版本号)"
+    status: warn
+    reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: "T09 local candidate plain-cn.epub#sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
     failed_page: none
-    issue: "精确候选转换完成并跳转普通中文正文；字号 4 与 12 抽查均未见裁切。"
-    action: "检查后恢复字号 4；转换成功与 GUI 页面显示分开核验。"
+    issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；结果只适用于所列候选与 portrait profile。"
   - reader: ibooks_macos
     case: 29-poetry
-    status: pass
+    status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
-    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
     failed_page: none
-    issue: "目录跳转到诗歌页后，多节间距和长行自然折行可见；增大一级字号后仍可重排，无可见裁切。"
-    action: "检查后恢复默认字号；结论不外推到默认 demo、Thorium 或更长诗歌。"
+    issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无。"
   - reader: readest
     case: 29-poetry
-    status: pass
+    status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；默认 16 与增大至 22 字号；冷退出后重新打开"
-    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
     failed_page: none
-    issue: "诗题、说明、多节与长行均显示；字号增加后内容自然从 1 页重排到 2 页，无可见裁切；冷启动后仍可重新打开并显示目标章。候选与基础 demo 共用 EPUB identity，书库条目可能去重。"
-    action: "检查后恢复字号 16；只对本次候选和冷启动过程成立，不据此推断其他 identity/cache 情况。"
+    issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
+    action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无。"
   - reader: kindle_previewer
     case: 29-poetry
-    status: pass
-    reader_version: "4 (About UI 未显示次版本号)"
+    status: warn
+    reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: "T09 local candidate poetry-cn.epub#sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
     failed_page: none
-    issue: "转换完成并在目录跳转到诗歌页；多节分隔可见，字号 12 下长行自然折行并继续到后续诗节，无可见裁切。"
-    action: "检查后恢复字号 4；转换成功与 GUI 显示分别核验。"
+    issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；Thorium 与更长诗歌仍待测。"
   - reader: ibooks_macos
     case: 18-english-fiction
-    status: pass
+    status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
-    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
     failed_page: none
-    issue: "英文章题、放大首字、手写体浮动首字、章首及行内插图和图注均可见；字号 +1 后正文自然重排，无可见碰撞或裁切。"
-    action: "检查后恢复默认字号与 Light/Original；不外推到其他字族或 artifact。"
+    issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无。"
   - reader: readest
     case: 18-english-fiction
-    status: pass
+    status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入后跳转目录目标页；退出并冷启动复核"
-    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
     failed_page: none
-    issue: "英文章首插图、T 首字、手写体浮动 A、正文与行内图注均显示；冷退出再启动后仍能打开并显示该章。与基础 demo 共用 EPUB identity，书库条目可能去重。"
-    action: "冷启动复核成功；本次没有在 Readest 单独做大字号测试。"
+    issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
+    action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无；字号回归由 Apple Books 与 Kindle Previewer 本轮覆盖。"
   - reader: kindle_previewer
     case: 18-english-fiction
-    status: pass
-    reader_version: "4 (About UI 未显示次版本号)"
+    status: warn
+    reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: "T09 local candidate fiction-en.epub#sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef"
+    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
     failed_page: none
-    issue: "转换完成并跳转英文小说正文；T 首字与浮动手写体 A 可见，正文自然环绕；字号 12 抽查无可见裁切。"
-    action: "检查后恢复字号 4；转换成功与 GUI 显示分别核验。"
+    issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
+    action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；结果仅适用于所列候选与 portrait profile。"
   - reader: kindle_previewer
     case: 00-cover-metadata
@@ -355,45 +355,45 @@ expectations:
     workaround: "不得把本书结论外推为所有 Readest 版本通用；其他书与版本仍需逐 artifact 实测。"
   - reader: ibooks_macos
     case: external-production-v3-1-long-math-table
-    status: pass
+    status: warn
     reader_version: "8.5 (6570)"
     profile: "默认字号、放大一级、再放大一级"
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "真实 rowspan=4/3 的分组在默认字号与放大一级保持连续；再放大一级时阅读器允许拆栏或分页，但行序与分组关系未错位。"
-    action: "保留真实 rowspan 和紧凑单元格；不为极大字号强压整表，也不把允许分页误判为失败。"
+    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
+    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
     workaround: "此 pass 只覆盖该 artifact 的表格结构；其他数据表仍需按实际列数、公式长度和字号复测。"
   - reader: readest
     case: external-production-v3-1-long-math-table
-    status: pass
+    status: warn
     reader_version: "0.11.20 (20260720.043916)"
     profile: "字号 26–27"
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "表内 MathML 为 0.88em 时两条长公式右端截断；只在该表作用域内调为 0.78em 后，7 行公式完整留在固定公式列内。"
-    action: "保持 rowspan、列宽和 table 外壳不变，只给表内 MathML 留相对字号余量；撤回 max-content、横向滚动与 overflow:hidden 候选。"
+    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
+    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
     workaround: "0.78em 是该书实测值，不是通用常量；新书从较大相对字号开始逐级复测，直到目标字号不截断。"
   - reader: kindle_previewer
     case: external-production-v3-1-long-math-table
-    status: pass
+    status: warn
     reader_version: "3.106"
     profile: "表格分类；Kindle 电子书阅读器"
     font_size: 10
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "7 行数据表、rowspan=4/3 分组和公式列均完成转换，未出现行序、分组或公式编号错配。"
-    action: "保留真实表格语义与紧凑公式列；最终 Kindle 实机仍列为交付前抽查项。"
+    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
+    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
     workaround: "Previewer pass 不等于所有 Kindle 设备通过；实机异常时按设备与字号另记 artifact。"
   - reader: kindle_previewer
     case: external-production-v3-1-image-sizing
-    status: pass
+    status: warn
     reader_version: "3.106"
     profile: "Kindle 电子书阅读器；Publisher Font"
     font_size: 4
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "移除通用修复图 width:100% 对单图百分比宽度的覆盖，并按源图框比例设置两组并排容器后，抽查图未再撑满页面，并排关系与图题未错位。"
-    action: "通用图片规则只限制 max-width/height；展示宽度留给 figure 或单图作用域，并排比例按源图框而不是后期视觉缩放确定。"
+    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
+    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
     workaround: "该 pass 只覆盖本次抽查图；其他宽高比与大字号仍需单独复测。"
   - reader: duokan
     case: 05-duokan-fallback

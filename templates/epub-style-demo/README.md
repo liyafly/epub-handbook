@@ -58,6 +58,10 @@ OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Prev
 
 新增 fixture 不继承任何外部书籍或旧构建产物的 `pass`。构建后仍须在目标阅读器、目标字号和目标字体设置下实测，再回写阅读器矩阵。
 
+### 阅读器测试副本的 identity
+
+Apple Books、Readest 等会按 EPUB identity 复用书库条目。每个「候选 EPUB × 阅读器」组合都先复制为临时测试副本，再只在副本中修改 OPF `unique-identifier` 指向的 `dc:identifier`：用 RFC 4122 URL namespace 的 UUIDv5，对 `urn:sha256:<候选 SHA-256>#reader=<reader id>` 确定性生成一个 `urn:uuid:` 值。按 EPUB 要求重新打包（`mimetype` 必须位于首项且不压缩），记录测试副本 SHA-256；生产候选的 identity 不改。截图或日志应关联阅读器完整版本、profile 和测试副本 SHA。没有可复核截图或日志的结果记为 `warn`，不记 `pass`。
+
 ## 验证建议
 
 - Apple Books：重点看嵌入样式、Ruby、弹注和 A-lite 分页。
