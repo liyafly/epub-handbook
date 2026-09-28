@@ -14,6 +14,7 @@ _epub_reference/
 demo-epub/
 demo-fxl/
 templates/**/dist/
+templates/**/.pipeline/
 
 # 书级工作区；每个子目录可以是独立本地 Git，不进入手册主仓库。
 work-epub/
