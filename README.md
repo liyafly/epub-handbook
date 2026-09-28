@@ -40,11 +40,14 @@ EPUB_BIN=/tmp/epub sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
 
 ```sh
 go run ./cmd/epub run epub.package.nav.audit --input input.epub --json
-go run ./cmd/epub run epub.structure.normalize --input input.epub --output normalized.epub --dry-run --json
-# 人工 review dry-run 报告后去掉 --dry-run 实跑
-go run ./cmd/epub run epub.package.migrate.epub3 --input normalized.epub --output migrated.epub --dry-run --json
-# 同样 review 后实跑，再按需 css.layering.optimize / typography.optimize
-go run ./cmd/epub redline --check all input.epub migrated.epub
+go run ./cmd/epub run epub.structure.normalize --input input.epub --output normalized.epub --dry-run --json > normalize-dry.json
+# 审查 dry-run 的映射后实跑，保存路径映射 envelope
+go run ./cmd/epub run epub.structure.normalize --input input.epub --output normalized.epub --json > normalize.json
+go run ./cmd/epub run epub.package.migrate.epub3 --input normalized.epub --output migrated.epub --dry-run --json > migrate-dry.json
+# 审查迁移计划后实跑
+go run ./cmd/epub run epub.package.migrate.epub3 --input normalized.epub --output migrated.epub --json > migrate.json
+go run ./cmd/epub redline --check all --path-map normalize.json input.epub migrated.epub
+# normalize 没有改名时，省略 --path-map normalize.json
 ```
 
 不要在唯一原件上直接修改；需要人工批准的结构规范化、正文红线和 diff review
