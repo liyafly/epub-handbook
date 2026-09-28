@@ -62,22 +62,9 @@ EPUB_BIN=/tmp/epub sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
 
 ### C. 我有一本别人做的 EPUB，想修 / 清洗它
 
-首次接入仍要冻结底本、识别风险并审查候选，但无需为每一步保存一份 EPUB。先做只读预览：
+单本现成 EPUB 的主入口是[清洗流水线](../pipeline/cleanup-flow.md)主线 S0–S6：冻结原件并预检，按需规范化或迁移，读取审计报告后选择一个已授权 capability；每次写出候选后都跑 S6 全项红线并做人工 diff review。无关步骤跳过，完整命令和通过条件以 runbook 为准。
 
-```sh
-epub clean /path/to/别人的.epub --out /path/to/clean-preview --json
-```
-
-依据预览选实际需要的步骤，再单独审查变换计划；迁移、CSS 清理等只用一条明确步骤链：
-
-```sh
-epub clean /path/to/别人的.epub --out /path/to/clean-plan \
-  --steps normalize,migrate,css --json
-```
-
-计划确认后，使用相同范围加 `--approve` 生成唯一最终候选。正文排版还需明确 preset 和范围；不要为了“走完整流程”重复迁移或运行无关能力。候选通过 redline 和人工 diff review 后，按[一书一 Git 工作区](../pipeline/book-workspace.md)接入解包源；后续普通修改只需编辑源文件并运行书内 `build.sh`。
-
-临时计划和中间报告放在 `03 制作工作区/.pipeline/`，最终候选另行审核；不保留按步骤生成的 EPUB 堆。完整参数和红线见[清洗流水线](../pipeline/cleanup-flow.md)。
+多本同类 EPUB 批处理时，可使用 runbook [附录 B](../pipeline/cleanup-flow.md#附录-b-批量处理) 的 `epub clean`。默认只审计并生成计划；审查计划后再明确选择步骤，只有批准且末次审计和全项红线通过才写出候选。批处理不替代单本逐项审阅、人工 diff review 和阅读器验收。
 
 ---
 
