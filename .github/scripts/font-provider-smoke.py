@@ -378,11 +378,10 @@ def main() -> int:
         (book_dir / "03 制作工作区" / ".pipeline" / "font-subset.json").read_text(encoding="utf-8")
     )
     if not any(
-        item.get("id") == "capability.run-failed"
-        and "install the epub-font provider" in item.get("detail", "")
+        item.get("id") == "font-subset.provider-missing"
         for item in missing_report.get("findings", [])
     ):
-        raise RuntimeError("missing-provider failure did not preserve its public diagnostic")
+        raise RuntimeError("missing-provider failure did not preserve its structured finding")
 
     original_font = full_font.read_bytes()
     try:

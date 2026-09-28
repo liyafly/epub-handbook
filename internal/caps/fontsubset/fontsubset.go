@@ -132,6 +132,9 @@ type Params struct {
 // the pipeline writes the final EPUB once after the complete redline gate.
 func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
+	if err := ctx.Err(); err != nil {
+		return res, err
+	}
 	input := b.InputPath()
 	if input == "" {
 		return failure(&res, "font-subset.input-missing", "font subset requires an EPUB file input")
@@ -142,6 +145,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	manifestFontItems, err := manifestFonts(ctx, b)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return res, err
+		}
 		return failure(&res, "font-subset.manifest-invalid", err.Error())
 	}
 	if len(manifestFontItems) == 0 {
@@ -216,10 +222,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	for _, fontPath := range fontPaths {
 		original, err := b.CurrentContext(ctx, fontPath)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return res, err
+			}
 			return failure(&res, "font-subset.input-font-missing", fmt.Sprintf("%s: %v", fontPath, err))
 		}
 		subset, err := candidate.OriginalContext(ctx, fontPath)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return res, err
+			}
 			return failure(&res, "font-subset.output-font-missing", fmt.Sprintf("%s: %v", fontPath, err))
 		}
 		if bytes.Equal(original, subset) {
@@ -627,5 +639,5 @@ func failure(res *report.Result, id, detail string) (report.Result, error) {
 	res.Findings = append(res.Findings, report.Finding{
 		Level: "error", ID: id, Title: "Font subsetting failed", Detail: detail,
 	})
-	return *res, errors.New(detail)
+	return *res, nil
 }

@@ -120,6 +120,34 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 	}
 }
 
+func TestFontSubsetProviderMissingKeepsStructuredFinding(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeFontSubsetEPUB(t)
+	output := filepath.Join(t.TempDir(), "missing-provider.epub")
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.font.subset",
+		InputPath:    input,
+		OutputPath:   output,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed {
+		t.Fatalf("status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	var sawProviderMissing, sawGenericFailure bool
+	for _, finding := range outcome.Envelope.Findings {
+		sawProviderMissing = sawProviderMissing || finding.ID == "font-subset.provider-missing"
+		sawGenericFailure = sawGenericFailure || finding.ID == "capability.run-failed"
+	}
+	if !sawProviderMissing || sawGenericFailure {
+		t.Fatalf("findings=%+v, want provider-missing and no generic run-failed finding", outcome.Envelope.Findings)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("output stat error=%v, want no output file", err)
+	}
+}
+
 func writeFontSubsetProvider(t *testing.T, testBinary, path string) {
 	t.Helper()
 	script := "#!/bin/sh\nif [ \"$#\" -lt 4 ] || [ \"$1\" != subset ]; then exit 2; fi\n" +

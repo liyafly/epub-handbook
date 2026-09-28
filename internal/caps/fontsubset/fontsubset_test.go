@@ -100,9 +100,9 @@ func TestRunProviderFailureLeavesBookUnchanged(t *testing.T) {
 	b, _ := openFontBook(t)
 	defer b.Close()
 
-	_, err := Run(t.Context(), b, Params{ToolPath: provider})
-	if err == nil {
-		t.Fatal("Run() succeeded with a failing provider")
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 || result.Findings[0].ID != "font-subset.check-failed" {
+		t.Fatalf("Run() = result %+v, error %v; want structured provider failure", result, err)
 	}
 	font, readErr := b.Current("OEBPS/Fonts/full.ttf")
 	if readErr != nil {
@@ -142,7 +142,7 @@ func TestRunRejectsInvalidProviderReportsWithoutApplyingCandidate(t *testing.T) 
 			defer b.Close()
 
 			result, err := Run(t.Context(), b, Params{ToolPath: provider})
-			if err == nil || result.Status != "failed" {
+			if err != nil || result.Status != "failed" {
 				t.Fatalf("Run() = status %q, error %v; want failed report validation", result.Status, err)
 			}
 			if len(result.Findings) == 0 || result.Findings[0].ID != "font-subset.report-invalid" {
