@@ -59,7 +59,8 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 	exit 1
 fi
 rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/font-check.json" \
-	"$PIPELINE_DIR/font-check.log" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt"
+	"$PIPELINE_DIR/font-check.log" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt" \
+	"$PIPELINE_DIR/previous-dist-redline.txt"
 BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
 cleanup() {
 	rm -rf "$BUILD_TMP"
@@ -117,6 +118,13 @@ fi
 
 run_check "$PIPELINE_DIR/nav-audit.json" run epub.package.nav.audit --input "$FINAL_EPUB" --json
 run_check "$PIPELINE_DIR/redline.txt" redline --check all "$FULL_EPUB" "$FINAL_EPUB"
+
+if [ -f "$OUTPUT" ]; then
+	printf 'INFO comparing candidate with previous dist (review only; does not block): %s\n' "$OUTPUT"
+	"$EPUB_BIN" redline --check all "$OUTPUT" "$FINAL_EPUB" \
+		>"$PIPELINE_DIR/previous-dist-redline.txt" 2>&1 || true
+	cat "$PIPELINE_DIR/previous-dist-redline.txt"
+fi
 
 # BUILD_TMP is under PIPELINE_DIR, on the same volume as DIST_DIR. Rename only
 # after every check succeeds so a failed build preserves the last good EPUB.
