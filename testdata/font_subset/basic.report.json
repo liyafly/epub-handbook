@@ -80,100 +80,19 @@
       ],
       "warnings": []
     },
-    "epub.package.nav.audit.actionableFindings": [
-      {
-        "kind": "missing-html-lang",
-        "file": "OEBPS/nav.xhtml",
-        "locator": {
-          "selector": "html"
-        },
-        "params": {
-          "value": "en"
-        },
-        "lane": "tag",
-        "autoFixable": true,
-        "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
-      },
-      {
-        "kind": "missing-html-lang",
-        "file": "OEBPS/chapter.xhtml",
-        "locator": {
-          "selector": "html"
-        },
-        "params": {
-          "value": "en"
-        },
-        "lane": "tag",
-        "autoFixable": true,
-        "confidence": "high",
-        "evidence": "\u003chtml\u003e root element missing lang/xml:lang"
-      }
-    ],
-    "epub.package.nav.audit.auditStatus": "warn",
-    "epub.package.nav.audit.findings": [
-      {
-        "level": "warn",
-        "id": "audit.0",
-        "title": "Kindle/legacy delivery should keep toc.ncx and spine toc=\"ncx\""
-      },
-      {
-        "level": "warn",
-        "id": "audit.1",
-        "title": "Cover should have properties=\"cover-image\" and legacy meta name=\"cover\""
-      },
-      {
-        "level": "warn",
-        "id": "audit.2",
-        "title": "Actionable issue detected: missing-html-lang",
-        "detail": "missing-html-lang",
-        "location": "OEBPS/nav.xhtml"
-      },
-      {
-        "level": "warn",
-        "id": "audit.3",
-        "title": "Actionable issue detected: missing-html-lang",
-        "detail": "missing-html-lang",
-        "location": "OEBPS/chapter.xhtml"
-      }
-    ],
     "epub.package.nav.audit.findingsByLevel": {
       "error": 0,
       "warn": 4,
       "info": 0
     },
-    "epub.package.nav.audit.input_kind": "existing-epub",
-    "epub.package.nav.audit.recommendedSkills": [
-      "$epub-audit",
-      "$epub-reader-verify",
-      "$epub-special-layout"
-    ],
-    "epub.package.nav.audit.status": "complete",
-    "epub.package.nav.audit.summary": {
-      "language": "en",
-      "manifest_items": 4,
-      "media_counts": {
-        "css": 0,
-        "fonts": 2,
-        "images": 0,
-        "other": 0,
-        "xhtml": 2
-      },
-      "opf": "OEBPS/package.opf",
-      "package_version": "3.0",
-      "spine_items": 1,
-      "zip_entries": 7
-    },
-    "epub.package.nav.audit.toolAvailability": {
-      "epubcheck": false
-    }
+    "epub.package.nav.audit.status": "complete"
   },
   "findings": [
     {
       "level": "info",
       "id": "upstream.diagnostics",
       "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
-      "detail": "see facts[\"epub.package.nav.audit.findings\"]",
+      "detail": "see facts[\"epub.package.nav.audit.findingsByLevel\"]",
       "location": "epub.package.nav.audit"
     },
     {

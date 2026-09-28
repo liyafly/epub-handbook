@@ -6,7 +6,6 @@
     "path": "\u003cfixture.epub\u003e"
   },
   "facts": {
-    "dry_run": true,
     "epub.kindle.compatibility.check.checks": [
       "kindle.ncx-missing",
       "kindle.cover-image-missing",
@@ -46,47 +45,16 @@
     "epub.kindle.compatibility.check.cssFilesScanned": 1,
     "epub.kindle.compatibility.check.staticOnly": true,
     "epub.kindle.compatibility.check.xhtmlFilesScanned": 2,
-    "epub.package.nav.audit.actionableFindings": [],
-    "epub.package.nav.audit.auditStatus": "pass",
-    "epub.package.nav.audit.findings": [
-      {
-        "level": "info",
-        "id": "audit.0",
-        "title": "No immediate structural issue detected by harness"
-      }
-    ],
     "epub.package.nav.audit.findingsByLevel": {
       "error": 0,
       "warn": 0,
       "info": 1
     },
-    "epub.package.nav.audit.input_kind": "existing-epub",
-    "epub.package.nav.audit.recommendedSkills": [
-      "$epub-audit",
-      "$epub-special-layout",
-      "$epub-cleanup"
-    ],
     "epub.package.nav.audit.status": "complete",
-    "epub.package.nav.audit.summary": {
-      "language": "en",
-      "manifest_items": 5,
-      "media_counts": {
-        "css": 1,
-        "fonts": 0,
-        "images": 1,
-        "other": 1,
-        "xhtml": 2
-      },
-      "opf": "OEBPS/content.opf",
-      "package_version": "3.0",
-      "spine_items": 2,
-      "zip_entries": 8
-    },
-    "epub.package.nav.audit.toolAvailability": {
-      "epubcheck": false
-    },
-    "modified_entries": []
+    "pipeline.dryRun": true,
+    "pipeline.modifiedEntries": []
   },
+  "findings": [],
   "events": [
     {
       "step": "epub.package.nav.audit",

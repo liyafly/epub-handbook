@@ -9,5 +9,5 @@
   "redLines": ["text", "anchors"],
   "permissions": {"requiresWriteAccess": true, "network": "none"},
   "execution": {"input": "epub", "output": "single"},
-  "requires": ["epub.layout.audit"]
+  "requires": ["epub.package.nav.audit"]
 }

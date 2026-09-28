@@ -320,7 +320,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	up := Upstream{}
 	renames := map[string]string{}
 	var events []report.Event
-	var findings []report.Finding
+	findings := make([]report.Finding, 0)
 	var facts = map[string]any{}
 	failed := false
 	// cancelled 与 failed 是两回事：failed 说的是"工具坏了 / 书有问题"，
@@ -357,7 +357,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	// 链语义：chain 的最后一个元素是目标 capability，其余是 requires 上游。
 	// 上游只是诊断（当前全部为只读审计），其 Status / error findings 不得阻断
 	// 目标 stage，否则任何不完美的真书都无法 normalize / migrate。上游诊断
-	// 结果落入 facts["<id>.status"] / facts["<id>.findings"]，信封 findings 只
+	// 结果落入 facts["<id>.status"] / facts["<id>.findingsByLevel"]，信封 findings 只
 	// 追加一条 info 摘要（SPEC §8.5：信封中的 error finding 会强制退出码 1）。
 	// 仍然阻断的情形：runner 返回 Go error（工具坏了 ≠ 书有问题）、链上任一
 	// 能力没有 Go 实现。
@@ -444,9 +444,6 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 			if i < last {
 				events, findings = appendUpstreamDiagnostics(events, findings, facts, step, result)
 				events = append(events, result.Events...)
-				for k, v := range result.Facts {
-					facts[step+"."+k] = v
-				}
 				mergeRenames(renames, result.Renames)
 				up[c.ID] = result
 				continue
@@ -635,7 +632,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	}
 
 	if opts.DryRun {
-		facts["dry_run"] = true
+		facts["pipeline.dryRun"] = true
 		if b != nil { // noBook 源树模式没有 Book，无修改 entry 可报
 			// ModifiedNames 无改动时返回 nil，直接放进 facts 就序列化成 null；
 			// 这是个数组形状的 fact，空时必须是 []。
@@ -643,7 +640,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 			if names == nil {
 				names = []string{}
 			}
-			facts["modified_entries"] = names
+			facts["pipeline.modifiedEntries"] = names
 		}
 	}
 
@@ -935,34 +932,39 @@ func appendRedlineFindings(dst []report.Finding, src []redline.Finding) []report
 }
 
 // appendUpstreamDiagnostics 把上游（requires）stage 的结果记为非阻断诊断：
-// Status 与完整 findings 进 facts，信封只得到一条 info 摘要与 completed 事件。
+// Status 与 findingsByLevel 进 facts，信封只得到一条 info 摘要与 completed 事件。
 func appendUpstreamDiagnostics(events []report.Event, findings []report.Finding, facts map[string]any, step string, result report.Result) ([]report.Event, []report.Finding) {
-	errN, warnN := 0, 0
+	levels := upstreamFindingsByLevel{}
 	for _, f := range result.Findings {
 		switch f.Level {
 		case "error":
-			errN++
+			levels.Error++
 		case "warn":
-			warnN++
+			levels.Warn++
+		case "info":
+			levels.Info++
 		}
 	}
-	upstreamFindings := result.Findings
-	if upstreamFindings == nil {
-		upstreamFindings = []report.Finding{}
-	}
 	facts[step+".status"] = result.Status
-	facts[step+".findings"] = upstreamFindings
+	facts[step+".findingsByLevel"] = levels
+	errN, warnN := levels.Error, levels.Warn
 	events = append(events, report.Event{Step: step, Status: "completed",
 		Message: fmt.Sprintf("diagnostic: %d error, %d warn", errN, warnN)})
 	if errN+warnN > 0 {
 		findings = append(findings, report.Finding{
 			Level: "info", ID: "upstream.diagnostics",
 			Title:    fmt.Sprintf("%s reported %d error / %d warn findings (diagnostic, not blocking)", step, errN, warnN),
-			Detail:   fmt.Sprintf("see facts[%q]", step+".findings"),
+			Detail:   fmt.Sprintf("see facts[%q]", step+".findingsByLevel"),
 			Location: step,
 		})
 	}
 	return events, findings
+}
+
+type upstreamFindingsByLevel struct {
+	Error int `json:"error"`
+	Warn  int `json:"warn"`
+	Info  int `json:"info"`
 }
 
 func hasErrorFinding(findings []report.Finding) bool {

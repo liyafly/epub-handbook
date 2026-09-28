@@ -53,7 +53,7 @@ type Envelope struct {
 	Input         *Artifact      `json:"input,omitempty"`
 	Output        *Artifact      `json:"output,omitempty"`
 	Facts         map[string]any `json:"facts,omitempty"`
-	Findings      []Finding      `json:"findings,omitempty"`
+	Findings      []Finding      `json:"findings"`
 	Events        []Event        `json:"events,omitempty"`
 	NextCommands  []string       `json:"nextCommands,omitempty"`
 }
@@ -184,6 +184,19 @@ type V1RunReport struct {
 // MarshalLegacy 以 Python `json.dumps(v, ensure_ascii=False, indent=2)` 的
 // 形状序列化：UTF-8 原样输出、两空格缩进、不转义 <>&、键按结构体声明序。
 func MarshalLegacy(v any) ([]byte, error) {
+	switch envelope := v.(type) {
+	case Envelope:
+		if envelope.Findings == nil {
+			envelope.Findings = []Finding{}
+		}
+		v = envelope
+	case *Envelope:
+		if envelope != nil && envelope.Findings == nil {
+			copy := *envelope
+			copy.Findings = []Finding{}
+			v = copy
+		}
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

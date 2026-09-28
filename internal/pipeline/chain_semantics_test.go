@@ -59,17 +59,11 @@ func TestRunRealBookNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
 	if !hasEvent(env.Events, "epub.structure.normalize", "completed") {
 		t.Fatalf("target stage did not run to completion: %#v", env.Events)
 	}
-	upFindings, ok := env.Facts["epub.package.nav.audit.findings"].([]report.Finding)
+	upFindings, ok := env.Facts["epub.package.nav.audit.findingsByLevel"].(upstreamFindingsByLevel)
 	if !ok {
-		t.Fatalf("facts[epub.package.nav.audit.findings] = %#v", env.Facts["epub.package.nav.audit.findings"])
+		t.Fatalf("facts[epub.package.nav.audit.findingsByLevel] = %#v", env.Facts["epub.package.nav.audit.findingsByLevel"])
 	}
-	errN := 0
-	for _, f := range upFindings {
-		if f.Level == "error" {
-			errN++
-		}
-	}
-	if errN == 0 {
+	if upFindings.Error == 0 {
 		t.Errorf("expected ≥1 error-level nav.audit finding on the reference book, got %#v", upFindings)
 	}
 	if !hasFindingID(env.Findings, "upstream.diagnostics") {

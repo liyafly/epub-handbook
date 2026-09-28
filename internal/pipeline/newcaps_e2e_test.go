@@ -98,11 +98,14 @@ func TestNotesFallbackEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.notes.legacy-fallback.editCount"]; got != 3 {
 		t.Fatalf("editCount=%#v, want 3", got)
 	}
-	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.violations"]; got != 0 {
-		t.Fatalf("popup violations=%#v, want 0", got)
+	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.status"]; got != report.StatusComplete {
+		t.Fatalf("popup status=%#v, want complete", got)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/chapter.xhtml"}) {
-		t.Fatalf("modified_entries=%#v", got)
+	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.findingsByLevel"]; got != (upstreamFindingsByLevel{}) {
+		t.Fatalf("popup findingsByLevel=%#v, want zero counts", got)
+	}
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/chapter.xhtml"}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
 	}
 	var sawFallback, sawPopup, sawRedline bool
 	for _, event := range outcome.Envelope.Events {
@@ -170,8 +173,8 @@ func TestNotesFallbackRejectsInvalidPopupUpstream(t *testing.T) {
 	}) {
 		t.Fatalf("missing upstream-not-clean finding: %+v", outcome.Envelope.Findings)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; len(got.([]string)) != 0 {
-		t.Fatalf("modified_entries=%#v, want []", got)
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; len(got.([]string)) != 0 {
+		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
 	}
 }
 
@@ -192,10 +195,10 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 3 {
 		t.Fatalf("editCount=%#v, want 3", got)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{
 		"OEBPS/Text/english-1.xhtml", "OEBPS/Text/english-2.xhtml", "OEBPS/Text/english-3.xhtml",
 	}) {
-		t.Fatalf("modified_entries=%#v", got)
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
 	}
 	var sawCJK, sawOPFLanguage bool
 	for _, finding := range outcome.Envelope.Findings {
@@ -383,8 +386,8 @@ func TestVerticalRubyEndToEndAndRedline(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.vertical.ruby.optimize.editCount"]; got != 2 {
 		t.Fatalf("editCount=%#v, want two insertions for the ruby-rp pair", got)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{"OEBPS/chapter.xhtml"}) {
-		t.Fatalf("modified_entries=%#v", got)
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{"OEBPS/chapter.xhtml"}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
 	}
 	var redlineComplete bool
 	for _, event := range outcome.Envelope.Events {
@@ -647,8 +650,8 @@ func TestLiteraryStructureEndToEndAndRedline(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.literary.structure.format.editCount"]; got != 2 {
 		t.Fatalf("editCount=%#v, want class and stylesheet-link edits", got)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/01-body.xhtml"}) {
-		t.Fatalf("modified_entries=%#v", got)
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/01-body.xhtml"}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
 	}
 	var redlinePassed bool
 	for _, event := range outcome.Envelope.Events {
@@ -707,8 +710,8 @@ func TestLiteraryStructureRejectsInvalidClassWithoutChanges(t *testing.T) {
 	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed || !hasFindingID(outcome.Envelope.Findings, "literary.class-not-allowed") {
 		t.Fatalf("status=%q exit=%d findings=%+v, want class-not-allowed / exit 1", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
 	}
-	if got := outcome.Envelope.Facts["modified_entries"]; len(got.([]string)) != 0 {
-		t.Fatalf("modified_entries=%#v, want []", got)
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; len(got.([]string)) != 0 {
+		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
 	}
 	if got := outcome.Envelope.Facts["epub.literary.structure.format.editCount"]; got != 0 {
 		t.Fatalf("editCount=%#v, want 0", got)

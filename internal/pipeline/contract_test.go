@@ -107,11 +107,17 @@ func TestRunExecutesFullChainAndExposesUpstream(t *testing.T) {
 	if strings.Join(order, "") != "cba" {
 		t.Fatalf("execution order = %q, want cba", order)
 	}
-	if got := outcome.Envelope.Facts["test.run.c.value"]; got != "from-c" {
-		t.Errorf("aggregated c fact = %v", got)
+	if got := outcome.Envelope.Facts["test.run.c.status"]; got != report.StatusComplete {
+		t.Errorf("aggregated c status = %v", got)
 	}
-	if got := outcome.Envelope.Facts["test.run.b.value"]; got != "from-b" {
-		t.Errorf("aggregated b fact = %v", got)
+	if got := outcome.Envelope.Facts["test.run.c.findingsByLevel"]; got != (upstreamFindingsByLevel{}) {
+		t.Errorf("aggregated c findingsByLevel = %#v", got)
+	}
+	if _, ok := outcome.Envelope.Facts["test.run.c.value"]; ok {
+		t.Errorf("full upstream c facts should not be exposed: %#v", outcome.Envelope.Facts)
+	}
+	if _, ok := outcome.Envelope.Facts["test.run.b.value"]; ok {
+		t.Errorf("full upstream b facts should not be exposed: %#v", outcome.Envelope.Facts)
 	}
 	if got := outcome.Envelope.Facts["test.run.a.value"]; got != "from-a" {
 		t.Errorf("aggregated a fact = %v", got)
@@ -291,21 +297,12 @@ func assertUpstreamDiagnostics(t *testing.T, env report.Envelope, id, wantStatus
 	if got := env.Facts[id+".status"]; got != wantStatus {
 		t.Errorf("facts[%s.status] = %v, want %s", id, got, wantStatus)
 	}
-	upFindings, ok := env.Facts[id+".findings"].([]report.Finding)
+	upFindings, ok := env.Facts[id+".findingsByLevel"].(upstreamFindingsByLevel)
 	if !ok {
-		t.Fatalf("facts[%s.findings] = %#v, want []report.Finding", id, env.Facts[id+".findings"])
+		t.Fatalf("facts[%s.findingsByLevel] = %#v, want upstreamFindingsByLevel", id, env.Facts[id+".findingsByLevel"])
 	}
-	gotErr, gotWarn := 0, 0
-	for _, f := range upFindings {
-		switch f.Level {
-		case "error":
-			gotErr++
-		case "warn":
-			gotWarn++
-		}
-	}
-	if gotErr != wantErr || gotWarn != wantWarn {
-		t.Errorf("facts[%s.findings] = %d error / %d warn, want %d / %d", id, gotErr, gotWarn, wantErr, wantWarn)
+	if upFindings.Error != wantErr || upFindings.Warn != wantWarn {
+		t.Errorf("facts[%s.findingsByLevel] = %d error / %d warn, want %d / %d", id, upFindings.Error, upFindings.Warn, wantErr, wantWarn)
 	}
 	for _, f := range env.Findings {
 		if f.Level == "error" {

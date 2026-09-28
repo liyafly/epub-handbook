@@ -1,9 +1,30 @@
 package report
 
 import (
+	jsonv2 "encoding/json/v2"
 	"strings"
 	"testing"
 )
+
+func TestEnvelopeSerializesEmptyFindingsArray(t *testing.T) {
+	data, err := jsonv2.Marshal(Envelope{Findings: []Finding{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"findings":[]`) {
+		t.Fatalf("empty findings serialized as %s, want an explicit []", data)
+	}
+}
+
+func TestMarshalLegacyNormalizesNilEnvelopeFindings(t *testing.T) {
+	data, err := MarshalLegacy(Envelope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"findings": []`) {
+		t.Fatalf("nil findings serialized as %s, want an explicit []", data)
+	}
+}
 
 func TestMarshalLegacyPythonShape(t *testing.T) {
 	type inner struct {

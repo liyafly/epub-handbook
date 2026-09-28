@@ -120,6 +120,47 @@ func TestRunNavAuditEndToEnd(t *testing.T) {
 	}
 }
 
+func TestRunFactsUsePipelineNamespaceAndCompactUpstream(t *testing.T) {
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.image.layout.optimize",
+		InputPath:    buildSampleEpub(t),
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := outcome.Envelope.Facts["pipeline.dryRun"]; got != true {
+		t.Fatalf("pipeline.dryRun=%v, want true", got)
+	}
+	if _, ok := outcome.Envelope.Facts["dry_run"]; ok {
+		t.Fatalf("legacy dry_run fact remains: %#v", outcome.Envelope.Facts)
+	}
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
+	}
+	if _, ok := outcome.Envelope.Facts["modified_entries"]; ok {
+		t.Fatalf("legacy modified_entries fact remains: %#v", outcome.Envelope.Facts)
+	}
+	if _, ok := outcome.Envelope.Facts["epub.package.nav.audit.status"]; !ok {
+		t.Fatalf("compact upstream status missing: %#v", outcome.Envelope.Facts)
+	}
+	if _, ok := outcome.Envelope.Facts["epub.package.nav.audit.findingsByLevel"]; !ok {
+		t.Fatalf("compact upstream findingsByLevel missing: %#v", outcome.Envelope.Facts)
+	}
+	for key := range outcome.Envelope.Facts {
+		if strings.HasPrefix(key, "epub.layout.audit.") {
+			t.Fatalf("legacy audit alias ran as a duplicate upstream: %s", key)
+		}
+		if strings.HasPrefix(key, "epub.package.nav.audit.") &&
+			key != "epub.package.nav.audit.status" && key != "epub.package.nav.audit.findingsByLevel" {
+			t.Fatalf("unexpected full upstream fact %s", key)
+		}
+	}
+	if !Implemented("epub.layout.audit") {
+		t.Fatal("epub.layout.audit compatibility alias is not registered")
+	}
+}
+
 func TestRunNavAuditFailsOnBrokenXHTMLResource(t *testing.T) {
 	source := buildSampleEpub(t)
 	broken := filepath.Join(t.TempDir(), "broken-reference.epub")

@@ -6,7 +6,6 @@
     "path": "\u003cfixture.epub\u003e"
   },
   "facts": {
-    "dry_run": true,
     "epub.notes.legacy-fallback.editCount": 3,
     "epub.notes.legacy-fallback.filesScanned": 2,
     "epub.notes.legacy-fallback.plannedEdits": [
@@ -35,53 +34,24 @@
         "reason": "no-noteref"
       }
     ],
-    "epub.notes.popup.normalize.findings": [],
-    "epub.notes.popup.normalize.noterefs": 1,
+    "epub.notes.popup.normalize.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 0
+    },
     "epub.notes.popup.normalize.status": "complete",
-    "epub.notes.popup.normalize.text_files": 1,
-    "epub.notes.popup.normalize.violations": 0,
-    "epub.package.nav.audit.actionableFindings": [],
-    "epub.package.nav.audit.auditStatus": "pass",
-    "epub.package.nav.audit.findings": [
-      {
-        "level": "info",
-        "id": "audit.0",
-        "title": "No immediate structural issue detected by harness"
-      }
-    ],
     "epub.package.nav.audit.findingsByLevel": {
       "error": 0,
       "warn": 0,
       "info": 1
     },
-    "epub.package.nav.audit.input_kind": "existing-epub",
-    "epub.package.nav.audit.recommendedSkills": [
-      "$epub-audit",
-      "$epub-cleanup"
-    ],
     "epub.package.nav.audit.status": "complete",
-    "epub.package.nav.audit.summary": {
-      "language": "zh-CN",
-      "manifest_items": 6,
-      "media_counts": {
-        "css": 1,
-        "fonts": 0,
-        "images": 2,
-        "other": 1,
-        "xhtml": 2
-      },
-      "opf": "OEBPS/content.opf",
-      "package_version": "3.0",
-      "spine_items": 2,
-      "zip_entries": 9
-    },
-    "epub.package.nav.audit.toolAvailability": {
-      "epubcheck": false
-    },
-    "modified_entries": [
+    "pipeline.dryRun": true,
+    "pipeline.modifiedEntries": [
       "OEBPS/Text/chapter.xhtml"
     ]
   },
+  "findings": [],
   "events": [
     {
       "step": "drm-preflight",
