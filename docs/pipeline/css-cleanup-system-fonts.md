@@ -1,8 +1,8 @@
 # CSS 清洗与系统字体链
 
-> 状态：流程文档；用于在 EPUB3 基线上收口重复 CSS、旧字体声明和互不交叠的局部样式。
+> 状态：流程文档；用于在 EPUB3 基线上修补旧字体声明并检查局部样式。
 
-本页的 `work/book-a/` 是流水线内部路径简写。新书级项目应将它置于 `work-epub/<book>/03 制作工作区/.pipeline/`，见 [一书一 Git 工作区](book-workspace.md)。
+本页的 `$CUR` 与 `$W` 沿用 [cleanup-flow.md](cleanup-flow.md) 主线的当前候选和流水线工作目录。
 
 ## 适用范围
 
@@ -14,46 +14,34 @@
 
 ```sh
 epub run epub.css.layering.optimize \
-  --input work/book-a/intermediate/step-1-epub3.epub \
-  --output work/book-a/after/final.epub \
-  --json > work/book-a/reports/css-cleanup.json
+  --input "$CUR" \
+  --output "$W/after/s5-<n>.epub" \
+  --json > "$W/s5-<n>.json"
 ```
 
-该能力只做可复用且可验证的变换：
-
-- 合并完全重复 CSS；
-- 将结构相同、少量属性不同的样式拆成公共层和 override；
-- 将旧式宋体、黑体、楷体声明替换为四段以内的系统优先字体链；
-- 同步 XHTML `<link>` 和 OPF CSS manifest。
-
-作用域归并（把互不交叠的局部 CSS 改写为 `body.css-local-*` 并合并到一个 `clean-scoped-local.css`）在 Go 实现里出于 lossless 安全**已停用**：`merge_scoped_local_css=true` 不做任何归并，只在报告里追加一条说明该请求被拒绝的 warning，`scopedLocalStylesheetsMerged` 与 `scopeClassesAdded` 恒为 `0`。需要按层拆写时人工处理。
+CSS 清洗只做保守修补（分号、装饰行、已知旧字体链）；去重、分层、scoped merge 已停用。
 
 ## 验证
 
 每次写出后至少运行：
 
 ```sh
-unzip -tqq work/book-a/after/final.epub
-epub run epub.package.nav.audit \
-  --input work/book-a/after/final.epub \
-  --json
-epub run epub.notes.popup.normalize \
-  --input work/book-a/after/final.epub \
-  --json
-epub redline --check all \
-  work/book-a/intermediate/step-1-epub3.epub \
-  work/book-a/after/final.epub
+unzip -tqq "$W/after/s5-<n>.epub"
+epub run epub.package.nav.audit --input "$W/after/s5-<n>.epub" --json
+epub run epub.notes.popup.normalize --input "$W/after/s5-<n>.epub" --json
+epub redline --check all [--path-map "$W/s2-normalize.json"] \
+  "$W/before/source.epub" "$W/after/s5-<n>.epub"
 ```
 
 继续核对：
 
 - OPF 和 `nav.xhtml` 能被 `xmllint` 解析；
 - CSS link 不断链，OPF manifest 与 ZIP 内 CSS 数量一致；
-- 归一化后不再存在重复 CSS；
+- 对去重、分层或 scoped merge 的需求单独记录并人工处理；
 - 图片、字体等二进制资源没有意外变化；
 - 在 Calibre Editor 或 VS Code 做五层 diff review；
 - 至少跑一个目标转换器或阅读器侧检查，并记录版本与日志摘要。
 
 ## 排版取舍
 
-系统优先版适合作为第一阶段交付：正文宋体链、标题黑体链和语义角色字体彼此有层级，包体较小，也便于跨阅读器比较。嵌入字体应作为独立第二阶段：先确定哪些角色真正需要设计字体或生僻字补字，再做子集、manifest 和阅读器复测。
+系统优先版可通过人工 CSS 建立正文、标题和语义角色字体层级。嵌入字体应作为独立第二阶段：先确定哪些角色真正需要设计字体或生僻字补字，再做子集、manifest 和阅读器复测。
