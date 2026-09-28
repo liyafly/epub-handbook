@@ -38,6 +38,7 @@ trap 'exit 1' HUP INT TERM
 mkdir -p "$SRC"
 cp -R "$ROOT/mimetype" "$ROOT/META-INF" "$ROOT/OEBPS" "$SRC"/
 find "$SRC" -name .DS_Store -delete
+find "$SRC" -type f -exec chmod 0644 {} +
 find "$SRC" -exec touch -h -t 198001010000 {} +
 (
   cd "$SRC"

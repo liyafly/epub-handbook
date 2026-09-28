@@ -76,6 +76,7 @@ FONT_CONFIG="$BOOK_DIR/fonts.json"
 mkdir -p "$SRC_DIR"
 cp -R "$EPUB_DIR/mimetype" "$EPUB_DIR/META-INF" "$EPUB_DIR/OEBPS" "$SRC_DIR"/
 find "$SRC_DIR" -name .DS_Store -delete
+find "$SRC_DIR" -type f -exec chmod 0644 {} +
 find "$SRC_DIR" -exec touch -h -t 198001010000 {} +
 (
 	cd "$SRC_DIR"
