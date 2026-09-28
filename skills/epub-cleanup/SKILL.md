@@ -11,7 +11,7 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体�
 
 ### 目录结构规范化
 
-只处理内部资源路径：先 format 保留文件名并归类目录，再 deobfuscate 按 manifest id 改名。正文和字体字节不变；包迁移另走 migrator。预检与写入保护见根 AGENTS。
+只处理内部资源路径：先 format 保留文件名并归类目录，再 deobfuscate 按 manifest id 改名。正文和字体字节不变；包迁移使用 `epub.package.migrate.epub3`。预检与写入保护见根 AGENTS。
 
 ### EPUB3 迁移
 
@@ -40,7 +40,7 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 
 ### 标准弹注
 
-标准注释转换、迁移后复核或弹注失联。先完整读 [SPEC §1](../../docs/final/SPEC-实现约束.md)，参照 [标准 fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)；多看旧版额外兼容另走 legacy skill。
+标准注释转换、迁移后复核或弹注失联。先完整读 [SPEC §1](../../docs/final/SPEC-实现约束.md)，参照 [标准 fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)；多看旧版额外兼容另走 `epub-special-layout`。
 
 ## 调什么
 
@@ -117,7 +117,7 @@ preset 为 `literary-cn`（默认）、`academic-cn`、`classical-annotated-cn`�
 epub run epub.notes.popup.normalize --input "book.epub" --json
 ```
 
-已授权 EPUB3 迁移时，用 migrator 转换经识别的 plain/Sigil/Duokan 结构；它还会改 package/nav/shell，并非“仅弹注”写工具。仅授权弹注时人工修改对应资源，不借此扩大到全书迁移。修改后再跑本命令和全项 redline。
+已授权 EPUB3 迁移时，用 `epub.package.migrate.epub3` 转换经识别的 plain/Sigil/Duokan 结构；它还会改 package/nav/shell，并非“仅弹注”写工具。仅授权弹注时人工修改对应资源，不借此扩大到全书迁移。修改后再跑本命令和全项 redline。
 
 ## 返回怎么读
 

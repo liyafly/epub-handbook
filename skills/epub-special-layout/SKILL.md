@@ -23,7 +23,7 @@ description: 处理英文排版、文学结构、竖排与 Ruby、多看旧版�
 
 ### 旧版弹注 fallback
 
-目标包含 Duokan legacy 才使用。先读 [SPEC §1](../../docs/final/SPEC-实现约束.md) 与 [兼容 fixture](../../templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml)；非标准结构先交 popup skill。
+目标包含 Duokan legacy 才使用。先读 [SPEC §1](../../docs/final/SPEC-实现约束.md) 与 [兼容 fixture](../../templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml)；非标准结构先运行 `epub.notes.popup.normalize`。
 
 ## 调什么
 
@@ -39,7 +39,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 可显式传 `lang=en-GB`，或传 `scope_paths='["OEBPS/Text/chapter.xhtml"]'` 限定 spine XHTML；路径须精确匹配 spine 项。省略 scope 且 OPF `dc:language` 主语言与目标语言不同时，能力不扫描页面也不写入，返回 `english.opf-language-differs-requires-scope`；只有明确选择页面后才继续。OPF 语言匹配时，无语言页面若没有 Unicode 字母文本或 CJK 比例达到阈值会跳过。显式 scope 中已有其他主语言则报 error，且整本零编辑。审阅 `plannedEdits[{path,action,value}]`、`skipped[{path,reason}]`、`filesScanned` 与 `editCount`；`lang-mismatch` 表示不猜测两种声明中的哪一个正确，显式 scope 下的 `opf-language-differs` 仅提示，能力不改 OPF。
 
-涉及弹注时加 popup validator，涉及 demo 时走 demo skill；
+涉及弹注时加 `epub.notes.popup.normalize`，涉及 demo 时走 `epub-reader-verify`；
 
 ### 文学结构精排
 
@@ -67,11 +67,11 @@ epub redline --check all "before.epub" "candidate.epub"
 epub run epub.vertical.ruby.optimize --input "before.epub" --dry-run --json op=writing-mode-prefix
 ```
 
-Ruby 包含 `rtc`、嵌套 Ruby、带命名空间前缀或已有不完整 `rp` 时会跳过并报告；自闭合 `rt`、空白且无子元素的 `rt` 报 `vertical.ruby-empty-rt`，只有 `●○◎△▽・﹅﹆` 着重号符号的 `rt` 报 `vertical.ruby-emphasis`，都不会补括号。标准 writing-mode 值不受支持、厂商前缀冲突或 CSS 无法解析时也不会猜测。一次运行发现任何 error 时整批零写入。涉及弹注另跑 popup validator。
+Ruby 包含 `rtc`、嵌套 Ruby、带命名空间前缀或已有不完整 `rp` 时会跳过并报告；自闭合 `rt`、空白且无子元素的 `rt` 报 `vertical.ruby-empty-rt`，只有 `●○◎△▽・﹅﹆` 着重号符号的 `rt` 报 `vertical.ruby-emphasis`，都不会补括号。标准 writing-mode 值不受支持、厂商前缀冲突或 CSS 无法解析时也不会猜测。一次运行发现任何 error 时整批零写入。涉及弹注另跑 `epub.notes.popup.normalize`。
 
 ### 旧版弹注 fallback
 
-先用 popup validator 检查标准 grouped footnote；`standardViolations` 排除 Duokan legacy class 缺失项。若它为 0，legacy fallback 可补齐部分缺失的 Duokan class；若大于 0，fallback 会拒绝写入。写入能力会自动运行同一上游校验。审阅 dry-run 计划后，写到新候选：
+先用 `epub.notes.popup.normalize` 检查标准 grouped footnote；`standardViolations` 排除 Duokan legacy class 缺失项。若它为 0，legacy fallback 可补齐部分缺失的 Duokan class；若大于 0，fallback 会拒绝写入。写入能力会自动运行同一上游校验。审阅 dry-run 计划后，写到新候选：
 
 ```sh
 epub run epub.notes.popup.normalize --input "before.epub" --json
@@ -107,7 +107,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 - 声明可靠的 lang/xml:lang，用短 serif 链；未验证断字时左对齐，不强制 justify。小说首段无缩进、后续约 1.2–1.5em、少段距；非虚构看层级，诗剧保留行与 speaker。
 - 真实文本优先；首字装饰用 ::first-letter，旧 span/drop cap 必须复核朗读、复制和大字号。嵌入字体要有设计/覆盖/平台理由，不为英文排版默认嵌字。
-- 居中插图为默认；需要环绕才转 image skill。保留原文、引号、拼写、诗行与锚点。
+- 居中插图为默认；需要环绕才转 `epub.image.layout.optimize` 分析。保留原文、引号、拼写、诗行与锚点。
 - 选章首和连续正文做候选比较，覆盖窄屏与大字号；交付目标包含 Kindle、Readest、Apple Books 时分别实测，缺项明确标注。
 
 ### 文学结构精排
@@ -137,7 +137,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 - `notes-fallback.upstream-not-clean`：检查 popup 的 `standardViolations`，先独立修复标准弹注错误，再重跑 fallback。
 - `notes-fallback.scope-not-in-spine`：改正范围路径；`notes-fallback.no-notes` 是 info，表示选中范围没有 noteref、无需写入。
-- `notes-fallback.unsupported-encoding`、`notes-fallback.parse-failed`、`notes-fallback.multiple-lists`、`notes-fallback.noteref-without-icon`、`notes-fallback.content-class-on-li`、`notes-fallback.unsafe-attribute`：先人工修复对应文件结构或属性，再重跑 popup validator 与 fallback。
+- `notes-fallback.unsupported-encoding`、`notes-fallback.parse-failed`、`notes-fallback.multiple-lists`、`notes-fallback.noteref-without-icon`、`notes-fallback.content-class-on-li`、`notes-fallback.unsafe-attribute`：先人工修复对应文件结构或属性，再重跑 `epub.notes.popup.normalize` 与 fallback。
 - `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 范围和 popup 计数，不接受部分 class 变更。
 - 标准属性/中性类保留；anchor 加 duokan-footnote 且内含图标；ol.footnote-list 加 duokan-footnote-content；li.footnote-item 仅加 duokan-footnote-item，不把 content 类放 li。
 - 同文件一个 aside/ol，noteref 指向唯一 li，◎ backlink 返回原 trigger；不得复制可见 note list、display:none 隐藏正文或用 JS。

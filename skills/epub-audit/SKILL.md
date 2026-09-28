@@ -19,15 +19,15 @@ description: 只读审查已有 EPUB：包结构与导航、排版风险、文�
 
 ### 文本角色分析
 
-需要确定性逐块证据辅助语义判断时使用。字体缺字用 coverage skill，确认角色后的结构调整用 literary skill。
+需要确定性逐块证据辅助语义判断时使用。字体缺字用 `epub.font.coverage.analyze`，确认角色后的结构调整用 `epub-special-layout`（`epub.literary.structure.format`）。
 
 ### 图片版式分析
 
-图片过小、裁切、环绕或图注异常时。改前读 [SPEC §5.1、§5.6、§5.10.1](../../docs/final/SPEC-实现约束.md)；章首图转 literary skill，全页封面式布局转 A-lite，换封面文件用 package operator。
+图片过小、裁切、环绕或图注异常时。改前读 [SPEC §5.1、§5.6、§5.10.1](../../docs/final/SPEC-实现约束.md)；章首图转 `epub-special-layout`（`epub.literary.structure.format`），全页封面式布局转 A-lite，换封面文件用 `epub-package-ops`。
 
 ### 字体覆盖分析
 
-先区分“字体没有字形”与“有字形但回退未到达”。字体链修改交 typography skill，角色不明先 content analyzer。按 [SPEC §4、§8](../../docs/final/SPEC-实现约束.md) 判断覆盖边界；CLI 自动调用已配置 provider，但发行包不自带它，缺失时不能宣称检测完成。
+先区分“字体没有字形”与“有字形但回退未到达”。字体链修改交 `epub-cleanup`（`epub.typography.optimize`），角色不明先用 `epub.text.content.analyze`。按 [SPEC §4、§8](../../docs/final/SPEC-实现约束.md) 判断覆盖边界；CLI 自动调用已配置 provider，但发行包不自带它，缺失时不能宣称检测完成。
 
 ## 调什么
 
@@ -106,7 +106,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 ### 包结构与导航
 
 - DRM/未知加密、不可读 ZIP/container/OPF 按根 AGENTS 停止；可修复的版本、properties、导航诊断可进入对应修复，再验证产物，不要求把所有输入错误先手工清零。
-- 路径混淆 → structure normalizer；EPUB2/legacy → migrator；注释 → popup skill；包合并/拆分/换封面 → package operator。不要因需要审计就自动执行写操作。
+- 路径混淆 → `epub-cleanup`（`epub.structure.normalize`）；EPUB2/legacy → `epub-cleanup`（`epub.package.migrate.epub3`）；注释 → `epub.notes.popup.normalize`；包合并/拆分/换封面 → `epub-package-ops`。不要因需要审计就自动执行写操作。
 - 不删除 spine 页面来掩盖错误，不猜 `dc:language`，不批量删除字体 metadata 或未识别资源。CSS 字体断链保留声明与 `local()`，不猜替代字体；非字体断链须修复。
 - 检查唯一 nav、spine 顺序、引用 fragment、MathML/SVG properties 和封面声明；Kindle/legacy 交付保留 NCX。目录层次问题按需读 [文集导航](../../docs/how-to/anthology-navigation.md)。
 - 修复保持现有 id 与 mixed-content 正文，不能依靠浏览器 HTML 容错。新增/删除资源同步 manifest、spine 和导航的实际依赖；有授权删除时记录精确清单及红线差异。

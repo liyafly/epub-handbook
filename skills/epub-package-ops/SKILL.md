@@ -71,4 +71,4 @@ epub redline --check all "before.epub" "candidate.epub"
 - 使用 body.fullpage + section.fullframe；背景放 poster modifier，不放 shell；按 SPEC 保持 box-sizing、无骨架 padding、正确 overflow 与 writing-mode 前缀。完整 CSS 复用 fixture，不在 skill 再维护一套参数。
 - 单图卷封保留 poster-fallback 原图，背景 contain，不能 cover 裁边或拉伸；已有叠字必须仍是真文本。
 - 规则进 poster.css，只同步实际资源引用；不转 FXL，不用 absolute/vh/vw/padding-ratio 替代方案。
-- 红线后仍检查窄屏、大字号和目标阅读器，特别关注裁切、空白、文字丢失；实测规则变化走 demo skill。
+- 红线后仍检查窄屏、大字号和目标阅读器，特别关注裁切、空白、文字丢失；实测规则变化走 `epub-reader-verify`。

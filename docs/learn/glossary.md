@@ -77,7 +77,7 @@
 
 ## V
 
-- **Validator**：校验器。本仓有 demo validator（`epub run epub.style.demo.maintain`）、popup validator（`epub run epub.notes.popup.normalize`）和红线校验 `epub redline`。
+- **Validator**：校验器。本仓有 `epub.style.demo.maintain`、`epub.notes.popup.normalize` 等校验能力，以及红线命令 `epub redline`。
 
 ## X
 

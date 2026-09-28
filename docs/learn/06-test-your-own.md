@@ -42,7 +42,7 @@ cp work/source.epub work/source-copy.epub
 - 期望：所有文件 unchanged。
 - 如果 Calibre 报差异：说明拷贝过程中改动了文件，重新拷贝。
 
-## 4. 调用 layout-auditor 看 findings
+## 4. 调用 epub-audit 看 findings
 
 ```text
 请使用 epub-audit 审稿 work/source.epub
