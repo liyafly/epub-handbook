@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-09-27
+updated_at: 2026-09-28
 owner: epub-handbook
 
 lanes:
@@ -84,6 +84,9 @@ cases:
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
   - id: 18-english-fiction
     title: 英文小说正文（含手写体下沉首字）
+    fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
+  - id: 18-english-fiction-emphasis
+    title: 英文小说 `<em>` 语义强调与斜体
     fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
   - id: 19-border-shadow-notes
     title: 边框与阴影便签
@@ -611,6 +614,9 @@ expectations:
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:
+  - case: 18-english-fiction-emphasis
+    fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
+    note: "新增英文 `<em>` 语义强调样例；fiction-en 候选保持英文斜体且不加中文着重号，真实阅读器验证待执行。"
   - case: 00-title-page
     fixture: templates/epub-style-demo/OEBPS/Text/00-title.xhtml
     note: "封面式标题页；尚未实测。"

@@ -41,6 +41,7 @@
 .parallel-return { clear: both; margin-top: .7em; text-indent: 0; }
 
 .english-fiction { line-height: 1.62; }
+.english-fiction em { font-style: italic; text-emphasis: none; -webkit-text-emphasis: none; }
 .english-fiction h1,
 .english-fiction h2,
 .english-fiction h3,

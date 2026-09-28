@@ -192,6 +192,13 @@ jobs:
       - name: Build and validate style preset candidates
         shell: bash
         run: |
+          if grep -nE '^em \{.*text-emphasis: filled' templates/style-presets/fiction-en/Styles/base.css; then
+            echo "English fiction preset must not apply CJK emphasis marks to em." >&2
+            exit 1
+          fi
+          grep -qx 'em { font-style: italic; }' templates/style-presets/fiction-en/Styles/base.css
+          grep -qx '.english-fiction em { font-style: italic; text-emphasis: none; -webkit-text-emphasis: none; }' templates/style-presets/fiction-en/Styles/literary.css
+          grep -q '<em>' templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
           demo_epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)
           candidates="$RUNNER_TEMP/style-preset-candidates"
           mkdir -p "$candidates"
