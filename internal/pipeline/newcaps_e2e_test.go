@@ -538,7 +538,12 @@ func TestVerticalRubyEndToEndAndRedline(t *testing.T) {
 
 func TestVerticalRubyInvalidParametersAreUsageErrors(t *testing.T) {
 	input := writeVerticalRubyEPUB(t)
-	for _, args := range []Args{{}, {"op": "unknown"}, {"op": "ruby-rp", "rp_open": "<"}} {
+	for _, args := range []Args{
+		{},
+		{"op": "unknown"},
+		{"op": "ruby-rp", "rp_open": "<"},
+		{"op": "ruby-rp", "rp_open": "\x01"},
+	} {
 		outcome, err := Run(t.Context(), Options{
 			CapabilityID: "epub.vertical.ruby.optimize",
 			InputPath:    input,

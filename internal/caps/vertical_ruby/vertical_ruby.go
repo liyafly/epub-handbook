@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
@@ -531,11 +532,18 @@ func descendant(node *opf.SpanNode, local string) *opf.SpanNode {
 // ValidRPToken reports whether value is one safe, non-space rune suitable for
 // literal text inside an rp element.
 func ValidRPToken(value string) bool {
-	runes := []rune(value)
-	if len(runes) != 1 || unicode.IsSpace(runes[0]) {
+	if !utf8.ValidString(value) {
 		return false
 	}
-	switch runes[0] {
+	runes := []rune(value)
+	if len(runes) != 1 {
+		return false
+	}
+	r := runes[0]
+	if unicode.IsSpace(r) || unicode.IsControl(r) || r == 0xFFFE || r == 0xFFFF || r >= 0xD800 && r <= 0xDFFF {
+		return false
+	}
+	switch r {
 	case '<', '>', '&', '"', '\'':
 		return false
 	default:

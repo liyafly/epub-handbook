@@ -151,6 +151,14 @@ func TestRubyRPBracketOverrideAndAtomicScopeError(t *testing.T) {
 	}
 }
 
+func TestValidRPTokenRejectsXMLInvalidCharacters(t *testing.T) {
+	for _, value := range []string{"\x01", "\uFFFE", "\uFFFF", string([]byte{0xED, 0xA0, 0x80})} {
+		if ValidRPToken(value) {
+			t.Errorf("ValidRPToken(%q) = true, want false", value)
+		}
+	}
+}
+
 func TestRubyRPParseErrorAppliesNoEdits(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
