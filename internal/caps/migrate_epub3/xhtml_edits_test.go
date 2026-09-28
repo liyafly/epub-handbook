@@ -1,6 +1,8 @@
 package migrateepub3
 
 import (
+	"encoding/xml"
+	"io"
 	"strings"
 	"testing"
 )
@@ -78,6 +80,45 @@ func TestNormalizeXHTMLShellAndStylesheetInsertionsAreIdempotent(t *testing.T) {
 func TestNormalizeXHTMLShellRejectsTruncatedMarkup(t *testing.T) {
 	if _, _, err := normalizeXHTMLShell(`<html><head><!-- unfinished`, "en"); err == nil {
 		t.Fatal("expected truncated XHTML to be rejected")
+	}
+}
+
+func TestMigrateConvertsNamedEntitiesWhenDroppingDTD(t *testing.T) {
+	source := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "xhtml11.dtd" [<!ENTITY nbsp "&#160;"><!ENTITY mdash "&#8212;">]>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head><title>Keep &mdash;</title><style>p::after{content:'&nbsp;'}</style></head><body title="A&nbsp;B &mdash;">Fish &nbsp;chips &mdash;&semi;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
+</html>`
+	want := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
+<head><title>Keep &#8212;</title><style>p::after{content:'&#160;'}</style><meta charset="utf-8"/></head><body title="A&#160;B &#8212;">Fish &#160;chips &#8212;&#59;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
+</html>`
+	got, changed, err := normalizeXHTMLShell(source, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("expected shell and entity edits")
+	}
+	if got != want {
+		t.Fatalf("migrate output changed unexpected bytes:\n got %q\nwant %q", got, want)
+	}
+	decoder := xml.NewDecoder(strings.NewReader(got))
+	decoder.Strict = true
+	for {
+		if _, err := decoder.Token(); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatalf("migrated XHTML is not well-formed XML: %v", err)
+		}
+	}
+}
+
+func TestNormalizeXHTMLShellRejectsUnknownNamedEntity(t *testing.T) {
+	source := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head><body>&notAnXHTMLEntity;</body></html>`
+	if _, _, err := normalizeXHTMLShell(source, "en"); err == nil {
+		t.Fatal("expected unknown named entity to be rejected")
 	}
 }
 

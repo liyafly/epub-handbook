@@ -9,6 +9,9 @@ import (
 func describeRegions(text string, regions []Region) []string {
 	parts := make([]string, 0, len(regions))
 	for _, r := range regions {
+		if r.Kind == RegionText {
+			continue
+		}
 		kind := "tag"
 		switch r.Kind {
 		case RegionStyle:
@@ -19,6 +22,40 @@ func describeRegions(text string, regions []Region) []string {
 		parts = append(parts, kind+":"+text[r.Start:r.End])
 	}
 	return parts
+}
+
+func TestScanRegionsReportsTextWithoutCommentsOrCDATA(t *testing.T) {
+	text := `prefix &amp;<!-- &nbsp; --><![CDATA[&nbsp;]]><?pi &nbsp;?><!DOCTYPE html [<!ENTITY x "&nbsp;">]><root title="&nbsp;">body &mdash;<script>const x = "&nbsp;";</script><style>p::after{content:"&nbsp;"}</style>end</root>`
+	regions, stop := ScanRegions(text)
+	if stop != ScanComplete {
+		t.Fatalf("ScanRegions stopped at %d", stop)
+	}
+	var textRanges, styleRanges []string
+	var rootTag string
+	for _, region := range regions {
+		value := text[region.Start:region.End]
+		switch region.Kind {
+		case RegionText:
+			textRanges = append(textRanges, value)
+		case RegionStyle:
+			styleRanges = append(styleRanges, value)
+		case RegionTag:
+			if strings.HasPrefix(value, `<root `) {
+				rootTag = value
+			}
+		}
+	}
+	wantText := []string{"prefix &amp;", "body &mdash;", `const x = "&nbsp;";`, "end"}
+	if strings.Join(textRanges, "|") != strings.Join(wantText, "|") {
+		t.Fatalf("text ranges = %q, want %q", textRanges, wantText)
+	}
+	if len(styleRanges) != 1 || styleRanges[0] != `p::after{content:"&nbsp;"}` {
+		t.Fatalf("style ranges = %q", styleRanges)
+	}
+	attrs, ok := TagAttrs(rootTag)
+	if !ok || len(attrs) != 1 || rootTag[attrs[0].ValueSpan.Start:attrs[0].ValueSpan.End] != "&nbsp;" {
+		t.Fatalf("root attributes not reported: %+v", attrs)
+	}
 }
 
 func TestScanRegions(t *testing.T) {
@@ -71,7 +108,7 @@ func TestScanRegions(t *testing.T) {
 			5,
 		},
 		{
-			// <script> 内容整段跳过，其中的 </style> 不结束任何东西。
+			// <script> 内容作为文本区间返回，其中的 </style> 不结束任何东西。
 			"script containing style close tag",
 			`<script>var s = "</style>";</script><br/>`,
 			[]string{`tag:<script>`, `tag:</script>`, `tag:<br/>`},

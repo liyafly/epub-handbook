@@ -20,6 +20,8 @@ const (
 	// RegionStylesheetPI 是 <?xml-stylesheet …?> 处理指令的完整字节区间
 	// （含首尾 <? ?>）。它不是标签：只有 href 伪属性可改写。
 	RegionStylesheetPI
+	// RegionText 是普通字符数据或 <script> 原始文本区间，不含注释、CDATA、PI 或声明。
+	RegionText
 )
 
 type Region struct {
@@ -30,9 +32,9 @@ type Region struct {
 // ScanComplete 表示 ScanRegions 扫完了整份文档（没有截断）。
 const ScanComplete = -1
 
-// ScanRegions 前向单遍扫描，按出现顺序返回文档里的标签区域、
-// <style> 内容区域与 xml-stylesheet 处理指令区域。其它字节（正文、注释、
-// CDATA、其它 PI、DOCTYPE、<script> 内容）不产出区域，调用方对它们只做透传。
+// ScanRegions 前向单遍扫描，按出现顺序返回文档里的字符数据、标签区域、
+// <style> 内容区域与 xml-stylesheet 处理指令区域。注释、CDATA、其它 PI
+// 与声明不产出区域，调用方对它们只做透传。
 //
 // 第二个返回值是截断偏移：扫描完整时为 ScanComplete（-1），遇到无法闭合的
 // 结构时为「从该字节起不再扫描」的偏移。调用方必须把它转成告警，否则改名后
@@ -48,33 +50,46 @@ const ScanComplete = -1
 //     引号外的第一个 `>` 结束（属性值内的 `>` 不算）；
 //   - 其它 `<`（后接空白、数字、`&` 等）按普通字符处理；
 //   - 非自闭合的 <style>/<script> 开始标签之后，直到对应结束标签之前的
-//     字节分别记为 RegionStyle / 跳过。
+//     字节分别记为 RegionStyle / RegionText。
 //   - 未闭合的结构（缺 `-->`、`]]>`、`?>`、`>`、`</style>`）一律把剩余字节
 //     视为不可改写，并通过截断偏移上报。
 func ScanRegions(text string) ([]Region, int) {
 	var regions []Region
 	i := 0
+	textStart := 0
+	appendText := func(start, end int) {
+		if start < end {
+			regions = append(regions, Region{Kind: RegionText, Span: Span{Start: start, End: end}})
+		}
+	}
 	for i < len(text) {
 		lt := strings.IndexByte(text[i:], '<')
 		if lt < 0 {
+			appendText(textStart, len(text))
+			textStart = len(text)
 			break
 		}
 		lt += i
 		rest := text[lt:]
 		switch {
 		case strings.HasPrefix(rest, "<!--"):
+			appendText(textStart, lt)
 			end := regionCommentEnd(rest)
 			if end < 0 {
 				return regions, lt
 			}
 			i = lt + end
+			textStart = i
 		case strings.HasPrefix(rest, "<![CDATA["):
+			appendText(textStart, lt)
 			end := strings.Index(rest[9:], "]]>")
 			if end < 0 {
 				return regions, lt
 			}
 			i = lt + 9 + end + 3
+			textStart = i
 		case strings.HasPrefix(rest, "<?"):
+			appendText(textStart, lt)
 			end := strings.Index(rest[2:], "?>")
 			if end < 0 {
 				return regions, lt
@@ -84,19 +99,24 @@ func ScanRegions(text string) ([]Region, int) {
 				regions = append(regions, Region{Kind: RegionStylesheetPI, Span: Span{Start: lt, End: piEnd}})
 			}
 			i = piEnd
+			textStart = i
 		case strings.HasPrefix(rest, "<!"):
+			appendText(textStart, lt)
 			end := findRegionDeclClose(text, lt+2)
 			if end < 0 {
 				return regions, lt
 			}
 			i = end + 1
+			textStart = i
 		case len(rest) > 1 && (isRegionNameStartByte(rest[1]) || rest[1] == '/'):
+			appendText(textStart, lt)
 			end := findRegionTagClose(text, lt+1)
 			if end < 0 {
 				return regions, lt
 			}
 			regions = append(regions, Region{Kind: RegionTag, Span: Span{Start: lt, End: end + 1}})
 			i = end + 1
+			textStart = i
 			if rest[1] == '/' || text[end-1] == '/' {
 				continue
 			}
@@ -115,17 +135,21 @@ func ScanRegions(text string) ([]Region, int) {
 					regions = append(regions, Region{Kind: RegionStyle, Span: Span{Start: i, End: close}})
 				}
 				i = close
+				textStart = i
 			case strings.EqualFold(localName, "script"):
 				close := indexFoldCloseTag(text, i, "</"+name)
 				if close < 0 {
 					return regions, i
 				}
+				appendText(i, close)
 				i = close
+				textStart = i
 			}
 		default:
 			i = lt + 1
 		}
 	}
+	appendText(textStart, len(text))
 	return regions, ScanComplete
 }
 

@@ -14,11 +14,32 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 	if truncated != xhtmlscan.ScanComplete {
 		return "", false, fmt.Errorf("XHTML markup scan stopped at byte %d", truncated)
 	}
-	var edits []editset.Edit
 	rootTag, headOpen, headClose := xhtmlShellTags(text, regions)
 	if rootTag == nil {
 		return text, false, nil
 	}
+	entityEdits, err := xhtmlNamedEntityEdits(text, regions)
+	if err != nil {
+		return "", false, err
+	}
+	entitiesChanged := false
+	if len(entityEdits) > 0 {
+		text, entitiesChanged, err = applyXHTMLEdits(text, entityEdits)
+		if err != nil {
+			return "", false, err
+		}
+		if entitiesChanged {
+			regions, truncated = xhtmlscan.ScanRegions(text)
+			if truncated != xhtmlscan.ScanComplete {
+				return "", false, fmt.Errorf("XHTML markup scan stopped at byte %d after entity conversion", truncated)
+			}
+			rootTag, headOpen, headClose = xhtmlShellTags(text, regions)
+			if rootTag == nil {
+				return "", false, convErrf("XHTML root disappeared after named entity conversion")
+			}
+		}
+	}
+	var edits []editset.Edit
 
 	doctype, hasDoctype, err := xhtmlDoctypeSpan(text)
 	if err != nil {
@@ -123,7 +144,100 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 		return "", false, err
 	}
 	edits = append(edits, bigEdits...)
-	return applyXHTMLEdits(text, edits)
+	result, shellChanged, err := applyXHTMLEdits(text, edits)
+	return result, entitiesChanged || shellChanged, err
+}
+
+func xhtmlNamedEntityEdits(text string, regions []xhtmlscan.Region) ([]editset.Edit, error) {
+	var edits []editset.Edit
+	for _, region := range regions {
+		switch region.Kind {
+		case xhtmlscan.RegionText, xhtmlscan.RegionStyle:
+			if err := appendXHTMLNamedEntityEdits(text, region.Start, region.End, &edits); err != nil {
+				return nil, err
+			}
+		case xhtmlscan.RegionTag:
+			tag := text[region.Start:region.End]
+			attrs, ok := xhtmlscan.TagAttrs(tag)
+			if !ok {
+				if strings.Contains(tag, "&") {
+					return nil, convErrf("malformed XHTML tag with entity reference at byte %d", region.Start)
+				}
+				continue
+			}
+			for _, attr := range attrs {
+				start := region.Start + attr.ValueSpan.Start
+				end := region.Start + attr.ValueSpan.End
+				if err := appendXHTMLNamedEntityEdits(text, start, end, &edits); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return edits, nil
+}
+
+func appendXHTMLNamedEntityEdits(text string, start, end int, edits *[]editset.Edit) error {
+	for start < end {
+		prefix, afterAmp, found := strings.Cut(text[start:end], "&")
+		if !found {
+			return nil
+		}
+		amp := start + len(prefix)
+		name, _, found := strings.Cut(afterAmp, ";")
+		if !found {
+			return convErrf("unterminated XHTML entity reference at byte %d", amp)
+		}
+		entityEnd := amp + len(name) + 2
+		if name == "" {
+			return convErrf("malformed XHTML named entity %q at byte %d", text[amp:entityEnd], amp)
+		}
+		if name[0] == '#' {
+			start = entityEnd
+			continue
+		}
+		if isPredefinedXMLEntity(name) {
+			start = entityEnd
+			continue
+		}
+		if !isHTMLNamedEntityName(name) {
+			return convErrf("malformed XHTML named entity %q at byte %d", text[amp:entityEnd], amp)
+		}
+		entity := text[amp:entityEnd]
+		decoded := html.UnescapeString(entity)
+		// UnescapeString also accepts some semicolonless prefixes; a leftover
+		// semicolon means the full name was not recognized. `semi` itself maps to `;`.
+		if decoded == entity || (name != "semi" && strings.HasSuffix(decoded, ";")) {
+			return convErrf("unknown XHTML named entity %s at byte %d", entity, amp)
+		}
+		var replacement strings.Builder
+		for _, r := range decoded {
+			fmt.Fprintf(&replacement, "&#%d;", r)
+		}
+		*edits = append(*edits, editset.Replace("xhtml", int64(amp), int64(entityEnd-amp), []byte(replacement.String())))
+		start = entityEnd
+	}
+	return nil
+}
+
+func isPredefinedXMLEntity(name string) bool {
+	switch name {
+	case "amp", "lt", "gt", "quot", "apos":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHTMLNamedEntityName(name string) bool {
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (i > 0 && c >= '0' && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return len(name) > 0
 }
 
 func ensureStylesheetLink(text, href string) (string, bool, error) {
