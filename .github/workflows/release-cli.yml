@@ -20,7 +20,7 @@ jobs:
     name: Go build, tests, vet, and guards
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Verify changelog heading for tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -32,7 +32,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -82,14 +82,14 @@ jobs:
             binary: epub
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
@@ -134,7 +134,7 @@ jobs:
           TARGET_GOARCH: ${{ matrix.goarch }}
         run: bash .github/scripts/release-smoke.sh "$GITHUB_WORKSPACE/dist/$BINARY_NAME" "$RELEASE_VERSION" "$TARGET_GOOS" "$TARGET_GOARCH"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: epub-release-${{ matrix.goos }}-${{ matrix.goarch }}
           path: release-artifacts/*.tar.gz
@@ -149,9 +149,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: epub-release-*
           path: dist

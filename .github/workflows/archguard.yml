@@ -16,14 +16,14 @@ jobs:
     name: archguard (架构守卫)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # 下面那步要 `git diff <base> HEAD`。默认的浅克隆里 base commit
           # 根本不存在，diff 直接失败、grep 拿到空输入，于是"触碰守卫"的
           # 警告永远不会触发 —— SPEC §5.1.1 的三件牙齿之一形同虚设。
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true

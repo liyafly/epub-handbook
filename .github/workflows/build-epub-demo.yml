@@ -71,10 +71,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -242,7 +242,7 @@ jobs:
           go run ./cmd/epub run epub.package.nav.audit --input "$whole_candidate" --json >/dev/null
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -349,7 +349,7 @@ jobs:
           java -jar "$EPUBCHECK_JAR" "$legacy_migrated" --mode epub --profile default
 
       - name: Upload EPUB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: epub-style-demo-${{ github.sha }}
           path: templates/epub-style-demo/dist/*.epub
@@ -358,7 +358,7 @@ jobs:
 
       - name: Upload EPUBCheck report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: epubcheck-report-${{ github.sha }}
           path: templates/epub-style-demo/dist/*.epub.epubcheck.xml
