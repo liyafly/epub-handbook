@@ -25,14 +25,14 @@
    sh '03 制作工作区/epub/build.sh'
    ```
 
-4. 交付文件固定为 `03 制作工作区/dist/book.epub`。导航审计和全项 redline 通过后才覆盖；失败时保留上一版。临时 EPUB 会在构建结束时清理；当前报告固定保存在忽略目录 `.pipeline/`，每次构建先清掉上次报告，不会累积。
+4. 交付文件固定为 `03 制作工作区/dist/book.epub`。有字体时，构建先子集化，再用独立的 `epub-font check --against FULL.epub` 检查字形覆盖没有退化；随后运行导航审计和全项 redline。所有检查通过后才覆盖，失败时保留上一版。临时 EPUB 会在构建结束时清理；当前报告固定保存在忽略目录 `.pipeline/`，每次构建先清掉上次报告，不会累积。
 5. 交付时在 `制作说明.md` 记录源提交、产物 SHA-256 和真实阅读器实测。没有在目标阅读器中打开验证时，状态保持“待验证”。
 
 ## 字体
 
 获准使用的完整 `.ttf` / `.otf` 母版放在 `03 制作工作区/epub/OEBPS/Fonts/` 的 manifest 目标路径，登记到 OPF manifest 和 CSS，并与解包源一起提交。构建会从完整母版为当前正文生成子集；新增字后会重新计算，不会把唯一字体母版替换成子集。字体来源和许可记入 `THIRD_PARTY.md`。解包源树不是交付物，禁止直接打包它；交付 EPUB 必须经过书内 `build.sh` 或 `epub.font.subset` 的候选与检查流程。
 
-书中没有字体时不需要字体 provider。含字体时，需要安装 `epub-font` provider，且 `epub` CLI 必须提供 `epub.font.subset` 能力。可在手册仓库根目录安装 provider：
+书中没有字体时不需要字体 provider。含字体时，需要安装 `epub-font` provider 并让 `epub-font` 命令可在 PATH 中找到，且 `epub` CLI 必须提供 `epub.font.subset` 能力。可在手册仓库根目录安装 provider：
 
 ```sh
 uv tool install --editable tools-font/epub-font

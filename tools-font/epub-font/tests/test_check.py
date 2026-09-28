@@ -98,6 +98,82 @@ def test_missing_char_is_reported_with_location(tmp_path):
     assert missing["U+201C “"]["first"] == "css"
 
 
+def test_against_reports_coverage_lost_from_full_font(tmp_path):
+    source = make_epub()
+    harvest = required(source)
+    full = tmp_path / "full.epub"
+    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest)}))
+    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest, drop="“")})
+
+    code, report = run_cli(tmp_path, candidate, "--against", str(full))
+
+    assert code == 1
+    assert report["mode"] == "against" and report["against"]["sha256"]
+    font = report["fonts"][0]
+    assert not font["coverageOk"] and not font["ok"]
+    assert font["against"]["regressions"] == [{
+        "kind": "missing",
+        "char": "U+201C “",
+        "count": font["missing"][0]["count"],
+        "first": font["missing"][0]["first"],
+    }]
+
+
+def test_against_allows_a_gap_already_present_in_full(tmp_path):
+    harvest = required(make_epub())
+    missing_font = font_covering(harvest, drop="“")
+    full = tmp_path / "full.epub"
+    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": missing_font}))
+    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": missing_font})
+
+    code, report = run_cli(tmp_path, candidate, "--against", str(full))
+
+    assert code == 0 and report["ok"]
+    font = report["fonts"][0]
+    assert not font["coverageOk"]
+    assert font["missing"] and font["against"]["regressions"] == []
+
+
+@pytest.mark.parametrize("candidate_font,kind", [
+    ("no-ink", "noInk"),
+    ("no-uvs", "missingSequences"),
+])
+def test_against_detects_outline_and_variation_sequence_regressions(tmp_path, candidate_font, kind):
+    harvest = required(make_epub())
+    full = tmp_path / "full.epub"
+    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest)}))
+    if candidate_font == "no-ink":
+        degraded = font_covering(harvest, empty="中")
+    else:
+        degraded = font_covering(harvest, uvs=False)
+    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": degraded})
+
+    code, report = run_cli(tmp_path, candidate, "--against", str(full))
+
+    assert code == 1
+    assert any(item["kind"] == kind for item in report["fonts"][0]["against"]["regressions"])
+
+
+def test_against_rejects_different_font_manifest_paths(tmp_path, capsys):
+    full = tmp_path / "full.epub"
+    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/original.ttf": PLACEHOLDER}))
+
+    code, report = run_cli(tmp_path, make_epub(), "--against", str(full))
+
+    assert code == 2 and report is None
+    assert "font manifest paths differ" in capsys.readouterr().err
+
+
+def test_against_rejects_external_font_files(tmp_path, capsys):
+    full = tmp_path / "full.epub"
+    full.write_bytes(make_epub())
+
+    code, report = run_cli(tmp_path, make_epub(), "--against", str(full), "--font-file", "master.ttf")
+
+    assert code == 2 and report is None
+    assert "cannot be used with --against" in capsys.readouterr().err
+
+
 def test_glyph_without_outline_is_reported(tmp_path):
     font = font_covering(required(make_epub()), empty="中")
     code, report = run_cli(tmp_path, make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font}), "--font", "OEBPS/Fonts/st-all.ttf")

@@ -298,6 +298,55 @@ def cancel_build(book_dir: Path, env: dict[str, str], root: Path, log_path: Path
         return process.wait(timeout=15)
 
 
+def check_gate_failure(
+    book_dir: Path,
+    dist: Path,
+    env: dict[str, str],
+    root: Path,
+    old_sha: str,
+    log_path: Path,
+) -> dict:
+    provider = shutil.which("epub-font", path=env.get("PATH"))
+    if provider is None:
+        raise RuntimeError("epub-font is not available on PATH for the independent gate smoke")
+    marker = root / "independent-check-arguments.txt"
+    wrapper_dir = root / "check-failure-bin"
+    wrapper_dir.mkdir(parents=True, exist_ok=True)
+    wrapper = wrapper_dir / "epub-font"
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        f"REAL_PROVIDER={shlex.quote(provider)}\n"
+        f"MARKER={shlex.quote(str(marker))}\n"
+        'if [ "${1-}" = check ]; then\n'
+        '  printf \'%s\\n\' "$*" > "$MARKER"\n'
+        '  "$REAL_PROVIDER" "$@"\n'
+        '  status=$?\n'
+        '  if [ "$status" -ne 0 ]; then exit "$status"; fi\n'
+        "  echo 'simulated independent coverage regression' >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        'exec "$REAL_PROVIDER" "$@"\n',
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    check_env = dict(env)
+    check_env["PATH"] = str(wrapper_dir) + os.pathsep + env.get("PATH", "")
+    run_build(book_dir, check_env, log_path, success=False)
+    assert_failed_build_preserves(book_dir, dist, old_sha, log_path)
+
+    arguments = marker.read_text(encoding="utf-8")
+    if "check" not in arguments or "--against" not in arguments or "full-font.epub" not in arguments:
+        raise RuntimeError(f"build did not call the independent checker against FULL: {arguments}")
+    log = log_path.read_text(encoding="utf-8")
+    if "FAIL epub-font check --against FULL" not in log or "simulated independent coverage regression" not in log:
+        raise RuntimeError(f"build did not surface the independent check failure; see {log_path}")
+    report_path = book_dir / "03 制作工作区" / ".pipeline" / "font-check.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if report.get("mode") != "against" or not report.get("ok"):
+        raise RuntimeError(f"the real differential check did not pass before simulated failure: {report}")
+    return {"invokedAgainstFull": True, "realCheckPassed": True, "distSHA256Preserved": old_sha}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--epub-bin", required=True, type=Path)
@@ -370,6 +419,14 @@ def main() -> int:
         raise RuntimeError("the second book build changed one of the full-font source masters")
 
     stable_sha = second_sha
+    independent_gate = check_gate_failure(
+        book_dir,
+        dist,
+        env,
+        root,
+        stable_sha,
+        root / "independent-check-failure.log",
+    )
     missing_env = dict(env)
     missing_env["PATH"] = "/usr/bin:/bin"
     run_build(book_dir, missing_env, root / "provider-missing.log", success=False)
@@ -434,7 +491,8 @@ def main() -> int:
             "noInk": 0,
         },
         "failurePreservedDistSHA256": stable_sha,
-        "failedScenarios": ["provider-missing", "corrupt-font", "cancelled-provider"],
+        "independentCheckGate": independent_gate,
+        "failedScenarios": ["independent-coverage-check", "provider-missing", "corrupt-font", "cancelled-provider"],
         "goRacePackages": ["internal/book", "internal/extern", "internal/pipeline", "internal/zipfs"],
     }
     (root / "result.json").write_text(

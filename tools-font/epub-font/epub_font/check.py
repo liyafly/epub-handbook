@@ -2,6 +2,7 @@
 
     epub-font check BOOK.epub [--font OEBPS/Fonts/st-all.ttf ...]
     epub-font check BOOK.epub
+    epub-font check NEW.epub --against FULL.epub
     epub-font check BOOK.epub --font-file /path/master.ttf --chars-file rare.txt
     ... [--json REPORT.json]
 
@@ -16,7 +17,9 @@ Per font it reports:
   noInk             characters mapped to a glyph without any outline (except spaces/format chars)
   missingSequences  IVS/SVS sequences used in the text but absent from cmap format 14
   optionalMissing   format characters (ZWSP, ZWJ, soft hyphen, BOM ...) readers handle without a glyph
-Exit codes: 0 = every font complete; 1 = something missing; 2 = bad input.
+With --against, only coverage lost relative to the same font in FULL.epub fails;
+pre-existing gaps remain visible in the report. Exit codes: 0 = complete (or no
+regression); 1 = something missing (or new coverage loss); 2 = bad input.
 """
 
 from __future__ import annotations
@@ -325,6 +328,21 @@ def check_font(data: bytes, name: str, harvest: Harvest) -> dict:
     }
 
 
+def _uncovered(result: dict) -> dict[tuple[str, str], dict]:
+    uncovered = {}
+    for key in ("missing", "noInk", "missingSequences"):
+        label = "sequence" if key == "missingSequences" else "char"
+        for item in result[key]:
+            uncovered[(label, item[label])] = {"kind": key, **item}
+    return uncovered
+
+
+def _regressions(full: dict, new: dict) -> list[dict]:
+    full_uncovered = _uncovered(full)
+    new_uncovered = _uncovered(new)
+    return [issue for key, issue in new_uncovered.items() if key not in full_uncovered]
+
+
 def _chars_from_file(path: Path) -> Harvest:
     harvest = Harvest()
     harvest.add(path.read_text(encoding="utf-8").replace("\n", "").replace("\r", "").replace("\t", ""), path.name)
@@ -344,6 +362,12 @@ def _run(args) -> int:
     epub = Path(args.epub)
     if not epub.is_file():
         raise CheckError(f"{epub} is not a file")
+    against = Path(args.against) if args.against else None
+    if against and args.font_file:
+        raise CheckError("--font-file cannot be used with --against; compare embedded manifest fonts")
+    if against and not against.is_file():
+        raise CheckError(f"{against} is not a file")
+
     with zipfile.ZipFile(epub) as zf:
         items, harvest = harvest_book(zf)
         if args.chars_file:
@@ -352,12 +376,46 @@ def _run(args) -> int:
         targets = list(dict.fromkeys(manifest_fonts if not args.font and not args.font_file else (args.font or [])))
         encrypted = _encrypted(zf)
         results = []
-        for target in targets:
-            if target not in manifest_fonts or target not in zf.namelist():
-                raise CheckError(f"{target} is not a font in the manifest; manifest fonts: {manifest_fonts}")
-            if target in encrypted:
-                raise CheckError(f"{target} is obfuscated (META-INF/encryption.xml); check the clear master with --font-file")
-            results.append(check_font(zf.read(target), target, harvest))
+        against_sha256 = None
+        if against:
+            with zipfile.ZipFile(against) as full_zf:
+                full_items, _ = harvest_book(full_zf)
+                full_fonts = [p for p, media in full_items if p.lower().endswith(FONT_EXTENSIONS) or "font" in media]
+                if set(full_fonts) != set(manifest_fonts):
+                    raise CheckError(
+                        "font manifest paths differ between NEW and FULL: "
+                        f"NEW={sorted(manifest_fonts)}, FULL={sorted(full_fonts)}"
+                    )
+                full_names = set(full_zf.namelist())
+                full_encrypted = _encrypted(full_zf)
+                for target in targets:
+                    if target not in manifest_fonts or target not in zf.namelist():
+                        raise CheckError(f"{target} is not a font in NEW's manifest; manifest fonts: {manifest_fonts}")
+                    if target not in full_names:
+                        raise CheckError(f"{target} is in FULL's font manifest but missing from the EPUB")
+                    if target in encrypted or target in full_encrypted:
+                        raise CheckError(
+                            f"{target} is obfuscated (META-INF/encryption.xml); cannot compare embedded fonts"
+                        )
+                    candidate = check_font(zf.read(target), target, harvest)
+                    baseline = check_font(full_zf.read(target), target, harvest)
+                    regressions = _regressions(baseline, candidate)
+                    candidate["coverageOk"] = candidate["ok"]
+                    candidate["against"] = {
+                        "sha256": baseline["sha256"],
+                        "regressions": regressions,
+                        "ok": not regressions,
+                    }
+                    candidate["ok"] = not regressions
+                    results.append(candidate)
+            against_sha256 = hashlib.sha256(against.read_bytes()).hexdigest()
+        else:
+            for target in targets:
+                if target not in manifest_fonts or target not in zf.namelist():
+                    raise CheckError(f"{target} is not a font in the manifest; manifest fonts: {manifest_fonts}")
+                if target in encrypted:
+                    raise CheckError(f"{target} is obfuscated (META-INF/encryption.xml); check the clear master with --font-file")
+                results.append(check_font(zf.read(target), target, harvest))
     for path in args.font_file or []:
         results.append(check_font(Path(path).read_bytes(), str(path), harvest))
     if not results:
@@ -373,15 +431,27 @@ def _run(args) -> int:
         "fonts": results,
         "ok": all(r["ok"] for r in results),
     }
+    if against:
+        report["mode"] = "against"
+        report["against"] = {"path": str(against), "sha256": against_sha256}
     if args.json:
         Path(args.json).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"scope={report['scope']} required chars={report['requiredChars']} sequences={report['requiredSequences']}")
     for warning in harvest.warnings:
         print(f"  warning: {warning}")
     for r in results:
-        print(f"[{'OK' if r['ok'] else 'INCOMPLETE'}] {r['font']} glyphs={r['glyphs']} "
+        status = ("OK" if r["ok"] else "REGRESSION") if against else ("OK" if r["ok"] else "INCOMPLETE")
+        suffix = f" regressions={len(r['against']['regressions'])}" if against else ""
+        print(f"[{status}] {r['font']} glyphs={r['glyphs']} "
               f"missing={len(r['missing'])} noInk={len(r['noInk'])} missingSequences={len(r['missingSequences'])} "
-              f"optionalMissing={len(r['optionalMissing'])}")
+              f"optionalMissing={len(r['optionalMissing'])}{suffix}")
+        if against:
+            for item in r["against"]["regressions"][:20]:
+                what = item.get("char") or item.get("sequence")
+                print(f"  regression: {item['kind']} {what} x{item['count']} (first in {item['first']})")
+            if len(r["against"]["regressions"]) > 20:
+                print(f"  regression: ... {len(r['against']['regressions']) - 20} more (see --json)")
+            continue
         for key in ("missing", "noInk", "missingSequences"):
             for item in r[key][:20]:
                 what = item.get("char") or item.get("sequence")
@@ -397,6 +467,11 @@ def main(argv=None) -> int:
     parser.add_argument("--font", action="append", help="font path inside the EPUB (repeatable)")
     parser.add_argument("--font-file", action="append", help="font file outside the EPUB (repeatable)")
     parser.add_argument("--chars-file", help="UTF-8 file listing the required characters instead of the whole book")
+    parser.add_argument(
+        "--against",
+        metavar="FULL_EPUB",
+        help="fail only when NEW loses coverage from the same font in FULL",
+    )
     parser.add_argument("--json", help="write the full report here")
     args = parser.parse_args(argv)
     try:

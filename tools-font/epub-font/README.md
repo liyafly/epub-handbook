@@ -25,6 +25,7 @@ uv run pytest -q          # 离线测试，使用合成字体，不需要下载
 ```sh
 epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
 epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json]
+epub-font check NEW.epub --against FULL.epub [--json REPORT.json]
 ```
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
@@ -32,7 +33,9 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 - 省略 `--config` 时自动处理 OPF manifest 中的全部字体。提供 `--config` 时，`fonts.json` 只覆盖列出的字体；manifest 中未列出的字体也会自动处理。自动处理会按原字节保留带 OpenType `MATH` 表的字体、子集化静态字体；可变字体仍须在配置中指定 `variation.mode`。
 - 配置中的字体默认执行 `action: "subset"`。只有确认目标含 `MATH` 表时，才可写 `action: "preserve"`；provider 会记录保留原因及输入/输出 SHA。加密/混淆、损坏和不支持格式仍会失败。
 - `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
+- `check --against FULL.epub` 用 NEW 的字符清单检查两边同一 manifest 路径的字体，只把 NEW 相对 FULL 新出现的 `missing`、`noInk` 或 `missingSequences` 判为子集回归。原有缺失仍保留在字体检查结果中；每个字体的 `against.regressions` 列出新增项，`coverageOk` 表示 NEW 的绝对覆盖状态，顶层 `ok` 表示没有新增回归。两边字体 manifest 路径必须一致，不能与 `--font-file` 混用。
 - `subset` 退出码：`0` 全部检查通过并写出 EPUB；`1` 字体核验失败（报告已写，EPUB 不写）；`2` 输入/配置错误或不支持的字体（报告与 EPUB 均不写）。`check` 退出码：`0` 全覆盖；`1` 有缺字；`2` 输入错误。
+- `check --against` 退出码：`0` 没有新覆盖损失（即使 FULL 已有缺字）；`1` NEW 新增覆盖损失；`2` 输入错误或字体 manifest 不匹配。
 
 ## fonts.json
 
@@ -87,6 +90,7 @@ manifest 中全部 XHTML / SVG / NCX（含 nav）的文本节点，`alt` / `titl
 epub-font check BOOK.epub --font OEBPS/Fonts/st-all.ttf [--font ...]       # 指定书内字体
 epub-font check BOOK.epub                                                  # 默认检查所有 manifest 字体
 epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包外字体 + 指定字符清单
+epub-font check NEW.epub --against FULL.epub                               # 检查子集前后的覆盖损失
 ... [--json report.json]
 ```
 
@@ -97,7 +101,9 @@ epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包
 - 判定：`missing`（无 cmap 或映射到 .notdef）、`noInk`（映射到没有轮廓的字形，空格与格式字符除外）、
   `missingSequences`（文本里出现的 IVS/SVS 序列不在 cmap 14）→ 任一非空即 exit 1；
   `optionalMissing`（ZWSP、ZWJ、软连字符等格式字符）只报告不判失败。可变字体按默认实例检查字形。
+- `--against FULL.epub` 将以上三类不可用覆盖分别与 FULL 同路径字体比较，报告 NEW 新增的未覆盖字符/序列；FULL 与 NEW 都缺失的项目会显示在绝对结果中，但不算子集回归。差分模式拒绝不同字体 manifest 路径，并把新增项放在每个字体的 `against.regressions`。
 - 退出码：`0` 全量；`1` 有缺失；`2` 输入错误（字体不在 manifest、字体被混淆等）。
+- 差分模式的退出码：`0` 没有新增覆盖损失；`1` 有新增损失；`2` 输入错误或 manifest 路径不匹配。
 
 ## 已知限制
 

@@ -58,7 +58,8 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 	echo "Another build is active (or a stale lock exists): $LOCK_DIR" >&2
 	exit 1
 fi
-rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt"
+rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/font-check.json" \
+	"$PIPELINE_DIR/font-check.log" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt"
 BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
 cleanup() {
 	rm -rf "$BUILD_TMP"
@@ -92,6 +93,18 @@ if [ "$HAS_FONTS" = true ]; then
 	fi
 else
 	cp "$FULL_EPUB" "$FINAL_EPUB"
+fi
+
+if [ "$HAS_FONTS" = true ]; then
+	if epub-font check "$FINAL_EPUB" --against "$FULL_EPUB" \
+		--json "$PIPELINE_DIR/font-check.json" >"$PIPELINE_DIR/font-check.log" 2>&1; then
+		printf 'PASS epub-font check --against FULL (report: %s)\n' "${PIPELINE_DIR#"$BOOK_DIR"/}/font-check.json"
+	else
+		status=$?
+		printf 'FAIL epub-font check --against FULL (report: %s)\n' "${PIPELINE_DIR#"$BOOK_DIR"/}/font-check.json" >&2
+		cat "$PIPELINE_DIR/font-check.log" >&2
+		exit "$status"
+	fi
 fi
 
 run_check "$PIPELINE_DIR/nav-audit.json" run epub.package.nav.audit --input "$FINAL_EPUB" --json
