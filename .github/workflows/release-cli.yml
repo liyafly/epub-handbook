@@ -16,6 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify changelog heading for tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          release_version="${GITHUB_REF_NAME#v}"
+          if ! grep -Eq "^## (v?${release_version})([[:space:]]|$)" CHANGELOG.md; then
+            echo "CHANGELOG.md has no heading for ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -83,7 +93,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             release_version="${GITHUB_REF_NAME#v}"
           else
-            release_version="0.4.2-dev"
+            release_version="0.4.6-dev"
           fi
           built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           printf 'RELEASE_VERSION=%s\n' "$release_version" >> "$GITHUB_ENV"

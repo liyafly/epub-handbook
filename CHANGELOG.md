@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+## v0.4.6 - 2026-09-28
+
+### Added
+
+- **旧版 EPUB 回归样本**：补入 EPUB2、XHTML 1.1 DTD、命名实体和旧编码 CSS 样本，覆盖结构规范化、EPUB3 迁移与红线。
+- **书级字体差分门禁**：`epub-font check --against FULL.epub` 检查子集化后相对母版新增的缺字、空字形和变体序列回归；书级构建失败时保留旧 dist。
+
+### Changed
+
+- **导航、迁移与红线**：校验本地 XHTML 资源和 fragment；限定 EPUB2 封面与新增 nav 的迁移差异；修复 XHTML 命名实体和非良构输入处理。
+- **字体覆盖与诊断**：保留 CJK 列表标记字形和自动构建中的数学字体；字体 provider 失败保留结构化 finding。
+- **pipeline 与能力报告**：清理多步取消状态、normalize 后 scope 映射、上游 facts 重复和不可执行的 next command；注释后的 CSS 属性也进入 Kindle 风险检查。
+- **阅读器与模板证据**：样式预设 case 独立登记；缺少截图/日志的历史观察改为 warn；demo 与 starter 构建稳定化，CI 补齐 golden、provider 和 redline 预期。
+- **英文小说预设**：保留 `<em>` 的英文斜体语义，并加入真实页面样例。
+
+### Fixed
+
+- `5915a04` / `f8c61a0`：补齐 EPUB 内本地资源与片段目标审计。
+- `bd78fa4` / `00c698b` / `57ca3b3` / `732465e`：修复 CJK 列表字形和 MATH 字体保留、provider 结构化诊断、压缩 XHTML stylesheet link 识别。
+- **本轮 Go 修复**：保留无操作旧编码 CSS、转换 DTD 声明的命名实体、校验迁移 XHTML、识别 EPUB2 封面、只放行迁移新增 nav 与配对尾注标记，并修复 notes fallback 范围与语言镜像边界。
+
 ## v0.4.2 - 2026-09-27
 
 ### Added
@@ -22,7 +45,7 @@
 
 ### Changed
 
-- **书籍构建事务**：book-starter 和 EPUB style demo 改为固定输出名；导航审计与全项 redline 通过后才覆盖上次产物，失败时保留最近一次通过验证的 EPUB。
+- **书籍构建事务**：book-starter 改为固定输出名；导航审计与全项 redline 通过后才覆盖上次产物，失败时保留最近一次通过验证的 EPUB。
 - **书籍维护指南**：明确书级 Git 维护解包源、完整字体和制作决策；已有 EPUB 通过一次性清洗接入后，后续局部修改直接走单一构建命令。
 
 ## v0.4.0 - 2026-09-26
