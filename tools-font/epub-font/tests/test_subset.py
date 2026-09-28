@@ -486,7 +486,9 @@ def test_variable_font_needs_explicit_mode(tmp_path, capsys):
     epub.write_bytes(synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_VF}))
     out = tmp_path / "new.epub"
     code, report = run_subset(epub, None, out)
-    assert code == 2 and report is None and "variation.mode" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert code == 2 and report is None
+    assert "fonts.json" in error and "variation.mode" in error and "font_config=fonts.json" in error
     assert not out.exists() and not subset.report_path(out).exists()
 
 

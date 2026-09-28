@@ -30,11 +30,11 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体�
 维护书籍时把完整、获准使用的字体母版放进解包源并由书级 Git 保存。构建从源 EPUB 重新子集化到候选，不能把上次的子集当作新的母版：
 
 ```sh
-epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json
+epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json [font_config=fonts.json]
 epub redline --check all full-font-source.epub subset-candidate.epub
 ```
 
-此 capability 经 `internal/extern` 调用独立 `epub-font` provider；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
+此 capability 调用独立 `epub-font` provider；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
 
 在书级工作区中，完整母版保存在解包源的 OPF 目标路径；交付用书内 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。只有母版确实在 EPUB 包外维护时，才在书根 `fonts.json` 中用 `master` 指定它。
 
@@ -139,6 +139,10 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 前缀 `epub.typography.optimize.`：`preset/layers/notes`、`coverage`、`stylesheetActions[]`（add/replace/keep）、`xhtmlLinkFiles`、`manifestItemsAddedHrefs`。整书模式另有 `fontMode=free|locked` 与 `fontModeAction=preserve`，保留字体层的 action 为 `keep`。局部模式另有 `applicationMode=scoped-additive` 与 `scopePaths`。
 **coverage 是 preset 类覆盖率，不是字形覆盖率。** `typography.low-coverage` 表示结构与 preset 不匹配。
 
+### 完整字体重新子集化
+
+前缀 `epub.font.subset.`：facts 中的 `changedFonts` 列出已替换字节的字体路径；`providerReport` 保存 provider 版本、输入/输出 SHA、逐字体 SHA、字形统计、检查结果和警告。finding `font-subset.not-in-master` 是缺字警告，查看 location 和 detail 确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误。
+
 ### 标准弹注
 
 前缀 `epub.notes.popup.normalize.`：`noterefs`、`text_files`、`violations`；`error popupnotes` 的 title/location 给出文件和问题。
@@ -174,6 +178,11 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 - 设计字体/少量补字使用专用角色；局部子集不可拿来锁全书。C1-body 须按 CSS 继承覆盖全部角色用字和标点；保留 generic fallback，不靠重复嵌入字体解决回退。
 - 字体声明进 fonts.css，正文节奏进 base.css；注释结构进 notes.css。带 epub namespace 的选择器须正确声明 namespace。
 - 自由版与锁定版从同一内容基线派生，允许差异与 modified 时间规则按 SPEC §8；红线和字体覆盖都通过后，仍需大字号/窄屏阅读器验收。
+
+### 完整字体重新子集化
+
+- `font-subset.provider-missing` 表示需安装 `epub-font` provider；`font-subset.not-in-master` 表示母版缺少所需字形，确认声明的 fallback 覆盖这些字符。若收到 `font-subset.stale-input`，先对未修改的源 EPUB 子集化，再运行其他会改书的步骤。
+- 审查 `facts.changedFonts` 与 `facts.providerReport`，确认替换路径、输入/输出 SHA 和每个字体的 action；无变化时也需确认 MATH 字体是否按策略保留。成功后做全项 redline。
 
 ### 标准弹注
 

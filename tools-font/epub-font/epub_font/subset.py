@@ -158,7 +158,9 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
     master = fontops.font_facts(master_font)
     if "variation" not in job and master.axes:
         raise fontops.FontJobError(
-            f'{target}: variable font; add it to --config with variation.mode ("instance" is recommended, see README)'
+            f'{target}: variable font; add it to fonts.json with variation.mode '
+            '(epub-font subset --config fonts.json or epub run epub.font.subset with '
+            'font_config=fonts.json; "instance" is recommended, see README)'
         )
     fontops.check_target_format(target, master.outline)
     limits = fontops.axis_limits(master, spec, master_label)
