@@ -2,7 +2,6 @@
 package notesfallback
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -29,9 +28,7 @@ type Params struct {
 }
 
 type spineFile struct {
-	path       string
-	itemID     string
-	properties string
+	path string
 }
 
 type plannedEdit struct {
@@ -135,7 +132,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	}
 	var findings []report.Finding
 	if p.ScopePaths != nil {
-		for _, requested := range uniqueStrings(p.ScopePaths) {
+		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
 			if _, ok := byPath[requested]; !ok {
 				findings = append(findings, report.Finding{
 					Level: "error", ID: "notes-fallback.scope-not-in-spine",
@@ -160,11 +157,11 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		if err != nil {
 			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
 		}
-		if hasUTF8BOM(data) || hasNonUTF8Declaration(data) {
+		if err := opf.EditableUTF8(data); err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "notes-fallback.unsupported-encoding",
 				Title:    "XHTML encoding cannot be edited safely",
-				Detail:   "BOM or XML declaration is not UTF-8; byte spans would not match the source",
+				Detail:   err.Error(),
 				Location: file.path,
 			})
 			continue
@@ -323,56 +320,29 @@ func hasErrorFinding(findings []report.Finding) bool {
 }
 
 func spineXHTML(pkg *opf.Package) []spineFile {
-	byID := make(map[string]opf.ManifestItem, len(pkg.Manifest))
-	for _, item := range pkg.Manifest {
-		byID[item.ID] = item
-	}
-	seen := make(map[string]bool)
-	var files []spineFile
-	for _, ref := range pkg.Spine {
-		item, ok := byID[ref.IDRef]
-		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" || seen[item.ArchivePath] {
-			continue
-		}
-		seen[item.ArchivePath] = true
-		files = append(files, spineFile{path: item.ArchivePath, itemID: item.ID, properties: item.Properties})
+	paths := opf.SpineXHTMLPaths(pkg)
+	files := make([]spineFile, 0, len(paths))
+	for _, path := range paths {
+		files = append(files, spineFile{path: path})
 	}
 	return files
 }
 
 func scopeFiles(spine []spineFile, byPath map[string]spineFile, scope []string) ([]spineFile, []skippedEdit) {
-	if scope == nil {
-		return spine, []skippedEdit{}
-	}
-	wanted := make(map[string]bool, len(scope))
-	for _, path := range uniqueStrings(scope) {
-		if _, ok := byPath[path]; ok {
-			wanted[path] = true
-		}
-	}
-	selected := make([]spineFile, 0, len(wanted))
-	skipped := []skippedEdit{}
+	paths := make([]string, 0, len(spine))
 	for _, file := range spine {
-		if wanted[file.path] {
-			selected = append(selected, file)
-			continue
-		}
-		skipped = append(skipped, skippedEdit{Path: file.path, Target: "spine-xhtml", Reason: "outside-scope"})
+		paths = append(paths, file.path)
+	}
+	selectedPaths, skippedPaths := opf.SelectScopePaths(paths, scope)
+	selected := make([]spineFile, 0, len(selectedPaths))
+	for _, path := range selectedPaths {
+		selected = append(selected, byPath[path])
+	}
+	skipped := make([]skippedEdit, 0, len(skippedPaths))
+	for _, path := range skippedPaths {
+		skipped = append(skipped, skippedEdit{Path: path, Target: "spine-xhtml", Reason: "outside-scope"})
 	}
 	return selected, skipped
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if seen[value] {
-			continue
-		}
-		seen[value] = true
-		out = append(out, value)
-	}
-	return out
 }
 
 func hasFileSkip(skipped []skippedEdit, path string) bool {
@@ -402,46 +372,4 @@ func nodeTarget(node *opf.SpanNode) string {
 		return node.Name.Local + "#" + id
 	}
 	return node.Name.Local
-}
-
-func hasUTF8BOM(data []byte) bool {
-	return bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF})
-}
-
-func hasNonUTF8Declaration(data []byte) bool {
-	if !bytes.HasPrefix(data, []byte("<?xml")) {
-		return false
-	}
-	end := bytes.Index(data, []byte("?>"))
-	if end < 0 {
-		return false
-	}
-	declaration := string(data[:end])
-	lower := strings.ToLower(declaration)
-	index := strings.Index(lower, "encoding")
-	if index < 0 {
-		return false
-	}
-	valueStart := index + len("encoding")
-	for valueStart < len(declaration) && (declaration[valueStart] == ' ' || declaration[valueStart] == '\t' || declaration[valueStart] == '\r' || declaration[valueStart] == '\n') {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || declaration[valueStart] != '=' {
-		return false
-	}
-	valueStart++
-	for valueStart < len(declaration) && (declaration[valueStart] == ' ' || declaration[valueStart] == '\t' || declaration[valueStart] == '\r' || declaration[valueStart] == '\n') {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || (declaration[valueStart] != '\'' && declaration[valueStart] != '"') {
-		return false
-	}
-	quote := declaration[valueStart]
-	valueStart++
-	valueEnd := strings.IndexByte(declaration[valueStart:], quote)
-	if valueEnd < 0 {
-		return false
-	}
-	encoding := strings.ToLower(strings.TrimSpace(declaration[valueStart : valueStart+valueEnd]))
-	return encoding != "utf-8" && encoding != "utf8"
 }

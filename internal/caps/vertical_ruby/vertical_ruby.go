@@ -3,7 +3,6 @@
 package verticalruby
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -143,7 +142,7 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 	selected, skipped := selectScope(spine, byPath, p.ScopePaths)
 	findings := []report.Finding{}
 	if p.ScopePaths != nil {
-		for _, requested := range uniqueStrings(p.ScopePaths) {
+		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
 			if _, ok := byPath[requested]; !ok {
 				findings = append(findings, report.Finding{
 					Level: "error", ID: "vertical.scope-not-in-spine",
@@ -167,11 +166,11 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 		if err != nil {
 			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
 		}
-		if hasBOM(data) || hasNonUTF8Declaration(data) {
+		if err := opf.EditableUTF8(data); err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "vertical.unsupported-encoding",
 				Title:    "XHTML encoding cannot be edited safely",
-				Detail:   "BOM or XML declaration is not UTF-8; byte spans would not match the source",
+				Detail:   err.Error(),
 				Location: file.path,
 			})
 			continue
@@ -324,7 +323,7 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 	selected, skipped := selectScope(cssFiles, byPath, p.ScopePaths)
 	findings := []report.Finding{}
 	if p.ScopePaths != nil {
-		for _, requested := range uniqueStrings(p.ScopePaths) {
+		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
 			if _, ok := byPath[requested]; !ok {
 				findings = append(findings, report.Finding{
 					Level: "error", ID: "vertical.scope-not-css-manifest-item",
@@ -438,19 +437,10 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 }
 
 func spineXHTML(pkg *opf.Package) []sourceFile {
-	byID := make(map[string]opf.ManifestItem, len(pkg.Manifest))
-	for _, item := range pkg.Manifest {
-		byID[item.ID] = item
-	}
-	seen := map[string]bool{}
-	files := []sourceFile{}
-	for _, ref := range pkg.Spine {
-		item, ok := byID[ref.IDRef]
-		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" || seen[item.ArchivePath] {
-			continue
-		}
-		seen[item.ArchivePath] = true
-		files = append(files, sourceFile{path: item.ArchivePath})
+	paths := opf.SpineXHTMLPaths(pkg)
+	files := make([]sourceFile, 0, len(paths))
+	for _, path := range paths {
+		files = append(files, sourceFile{path: path})
 	}
 	return files
 }
@@ -469,37 +459,20 @@ func manifestCSS(pkg *opf.Package) []sourceFile {
 }
 
 func selectScope(all []sourceFile, byPath map[string]sourceFile, scope []string) ([]sourceFile, []skippedEdit) {
-	if scope == nil {
-		return all, []skippedEdit{}
-	}
-	wanted := map[string]bool{}
-	for _, path := range uniqueStrings(scope) {
-		if _, ok := byPath[path]; ok {
-			wanted[path] = true
-		}
-	}
-	selected := []sourceFile{}
-	skipped := []skippedEdit{}
+	paths := make([]string, 0, len(all))
 	for _, file := range all {
-		if wanted[file.path] {
-			selected = append(selected, file)
-		} else {
-			skipped = append(skipped, skippedEdit{Path: file.path, Target: "resource", Reason: "outside-scope"})
-		}
+		paths = append(paths, file.path)
+	}
+	selectedPaths, skippedPaths := opf.SelectScopePaths(paths, scope)
+	selected := make([]sourceFile, 0, len(selectedPaths))
+	for _, path := range selectedPaths {
+		selected = append(selected, byPath[path])
+	}
+	skipped := make([]skippedEdit, 0, len(skippedPaths))
+	for _, path := range skippedPaths {
+		skipped = append(skipped, skippedEdit{Path: path, Target: "resource", Reason: "outside-scope"})
 	}
 	return selected, skipped
-}
-
-func uniqueStrings(values []string) []string {
-	seen := map[string]bool{}
-	unique := make([]string, 0, len(values))
-	for _, value := range values {
-		if !seen[value] {
-			seen[value] = true
-			unique = append(unique, value)
-		}
-	}
-	return unique
 }
 
 func rawTagName(data []byte, node *opf.SpanNode) string {
@@ -553,52 +526,6 @@ func ValidRPToken(value string) bool {
 
 func supportedWritingMode(value string) bool {
 	return slices.Contains([]string{"vertical-rl", "vertical-lr", "horizontal-tb"}, value)
-}
-
-func hasBOM(data []byte) bool {
-	return bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) ||
-		bytes.HasPrefix(data, []byte{0xFE, 0xFF}) ||
-		bytes.HasPrefix(data, []byte{0xFF, 0xFE}) ||
-		bytes.HasPrefix(data, []byte{0x00, 0x00, 0xFE, 0xFF}) ||
-		bytes.HasPrefix(data, []byte{0xFF, 0xFE, 0x00, 0x00})
-}
-
-func hasNonUTF8Declaration(data []byte) bool {
-	if !bytes.HasPrefix(data, []byte("<?xml")) {
-		return false
-	}
-	end := bytes.Index(data, []byte("?>"))
-	if end < 0 {
-		return false
-	}
-	declaration := string(data[:end])
-	lower := strings.ToLower(declaration)
-	index := strings.Index(lower, "encoding")
-	if index < 0 {
-		return false
-	}
-	valueStart := index + len("encoding")
-	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || declaration[valueStart] != '=' {
-		return false
-	}
-	valueStart++
-	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || (declaration[valueStart] != '\'' && declaration[valueStart] != '"') {
-		return false
-	}
-	quote := declaration[valueStart]
-	valueStart++
-	valueEnd := strings.IndexByte(declaration[valueStart:], quote)
-	if valueEnd < 0 {
-		return false
-	}
-	encoding := strings.ToLower(strings.TrimSpace(declaration[valueStart : valueStart+valueEnd]))
-	return encoding != "utf-8" && encoding != "utf8"
 }
 
 func hasErrorFinding(findings []report.Finding) bool {

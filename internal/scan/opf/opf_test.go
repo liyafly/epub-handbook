@@ -3,6 +3,7 @@ package opf
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,91 @@ const testOPF = `<?xml version="1.0" encoding="UTF-8"?>
     <itemref idref="ch1-fb" linear="no"/>
   </spine>
 </package>`
+
+func TestSpineXHTMLItemsAndPathsPreserveSpineOrder(t *testing.T) {
+	pkg := &Package{
+		Manifest: []ManifestItem{
+			{ID: "nav", MediaType: "application/xhtml+xml", ArchivePath: "OPS/nav.xhtml", Properties: "nav"},
+			{ID: "chapter", MediaType: "application/xhtml+xml", ArchivePath: "OPS/Text/chapter.xhtml", Properties: "scripted"},
+			{ID: "alias", MediaType: "application/xhtml+xml", ArchivePath: "OPS/Text/chapter.xhtml"},
+			{ID: "legacy", MediaType: "text/html", ArchivePath: "OPS/legacy.html"},
+			{ID: "style", MediaType: "text/css", ArchivePath: "OPS/style.css"},
+			{ID: "remote", MediaType: "application/xhtml+xml"},
+		},
+		Spine: []SpineItem{
+			{IDRef: "chapter"}, {IDRef: "missing"}, {IDRef: "nav"}, {IDRef: "alias"},
+			{IDRef: "legacy"}, {IDRef: "style"}, {IDRef: "remote"},
+		},
+	}
+	want := []string{"OPS/Text/chapter.xhtml", "OPS/nav.xhtml", "OPS/legacy.html"}
+	if got := SpineXHTMLPaths(pkg); !slices.Equal(got, want) {
+		t.Fatalf("SpineXHTMLPaths = %v, want %v", got, want)
+	}
+	items := SpineXHTMLItems(pkg)
+	if len(items) != len(want) || items[0].ID != "chapter" || items[0].Properties != "scripted" {
+		t.Fatalf("SpineXHTMLItems = %#v, want spine-order items with manifest metadata", items)
+	}
+}
+
+func TestUniqueStringsPreservesFirstOccurrence(t *testing.T) {
+	if got, want := UniqueStrings([]string{"a", "b", "a", "c", "b"}), []string{"a", "b", "c"}; !slices.Equal(got, want) {
+		t.Fatalf("UniqueStrings = %v, want %v", got, want)
+	}
+	if got := UniqueStrings(nil); got == nil || len(got) != 0 {
+		t.Fatalf("UniqueStrings(nil) = %#v, want non-nil empty slice", got)
+	}
+}
+
+func TestSelectScopePathsPreservesSourceOrderAndNilSemantics(t *testing.T) {
+	all := []string{"a.xhtml", "b.xhtml", "c.xhtml"}
+	tests := []struct {
+		name         string
+		scope        []string
+		wantSelected []string
+		wantSkipped  []string
+	}{
+		{name: "nil selects all", scope: nil, wantSelected: all, wantSkipped: []string{}},
+		{name: "empty selects none", scope: []string{}, wantSelected: []string{}, wantSkipped: all},
+		{name: "deduplicates and retains source order", scope: []string{"c.xhtml", "missing.xhtml", "a.xhtml", "c.xhtml"}, wantSelected: []string{"a.xhtml", "c.xhtml"}, wantSkipped: []string{"b.xhtml"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			selected, skipped := SelectScopePaths(all, tt.scope)
+			if !slices.Equal(selected, tt.wantSelected) || !slices.Equal(skipped, tt.wantSkipped) {
+				t.Fatalf("SelectScopePaths = (%v, %v), want (%v, %v)", selected, skipped, tt.wantSelected, tt.wantSkipped)
+			}
+		})
+	}
+}
+
+func TestEditableUTF8(t *testing.T) {
+	valid := []byte(`<?xml version="1.0" encoding="UTF-8"?><html/>`)
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+	}{
+		{name: "no declaration", data: []byte(`<html/>`)},
+		{name: "UTF-8 declaration", data: valid},
+		{name: "UTF-8 BOM", data: append([]byte{0xEF, 0xBB, 0xBF}, valid...), wantErr: true},
+		{name: "UTF-16BE BOM", data: append([]byte{0xFE, 0xFF}, valid...), wantErr: true},
+		{name: "UTF-16LE BOM", data: append([]byte{0xFF, 0xFE}, valid...), wantErr: true},
+		{name: "UTF-32BE BOM", data: append([]byte{0x00, 0x00, 0xFE, 0xFF}, valid...), wantErr: true},
+		{name: "UTF-32LE BOM", data: append([]byte{0xFF, 0xFE, 0x00, 0x00}, valid...), wantErr: true},
+		{name: "non-UTF-8 declaration", data: []byte(`<?xml version="1.0" encoding="UTF-16"?><html/>`), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := EditableUTF8(tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("EditableUTF8 error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if err != nil && err.Error() != "BOM or XML declaration is not UTF-8; byte spans would not match the source" {
+				t.Fatalf("EditableUTF8 error = %q", err)
+			}
+		})
+	}
+}
 
 func TestFindOPFPath(t *testing.T) {
 	tests := []struct {

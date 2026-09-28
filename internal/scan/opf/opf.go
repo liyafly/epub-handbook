@@ -4,6 +4,7 @@
 package opf
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -67,6 +68,132 @@ type Package struct {
 	MetadataTitles []string            `json:"metadataTitles"`
 	Metadata       map[string][]string `json:"metadata"`
 	Metas          []MetaValue         `json:"metas"`
+}
+
+// SpineXHTMLItems returns unique XHTML resources in spine order.
+func SpineXHTMLItems(pkg *Package) []ManifestItem {
+	byID := make(map[string]ManifestItem, len(pkg.Manifest))
+	for _, item := range pkg.Manifest {
+		byID[item.ID] = item
+	}
+	seen := make(map[string]struct{})
+	items := make([]ManifestItem, 0, len(pkg.Spine))
+	for _, ref := range pkg.Spine {
+		item, ok := byID[ref.IDRef]
+		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" {
+			continue
+		}
+		if _, ok := seen[item.ArchivePath]; ok {
+			continue
+		}
+		seen[item.ArchivePath] = struct{}{}
+		items = append(items, item)
+	}
+	return items
+}
+
+// SpineXHTMLPaths returns unique XHTML archive paths in spine order.
+func SpineXHTMLPaths(pkg *Package) []string {
+	items := SpineXHTMLItems(pkg)
+	paths := make([]string, 0, len(items))
+	for _, item := range items {
+		paths = append(paths, item.ArchivePath)
+	}
+	return paths
+}
+
+// UniqueStrings removes duplicate values while preserving their first occurrence.
+func UniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	unique := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		unique = append(unique, value)
+	}
+	return unique
+}
+
+// SelectScopePaths partitions all paths in source order. A nil scope selects
+// every path; a non-nil empty scope selects none.
+func SelectScopePaths(all, scope []string) (selected, skipped []string) {
+	if scope == nil {
+		return all, []string{}
+	}
+	wanted := make(map[string]struct{}, len(scope))
+	for _, path := range UniqueStrings(scope) {
+		wanted[path] = struct{}{}
+	}
+	selected = make([]string, 0, len(wanted))
+	skipped = make([]string, 0, len(all))
+	for _, path := range all {
+		if _, ok := wanted[path]; ok {
+			selected = append(selected, path)
+			continue
+		}
+		skipped = append(skipped, path)
+	}
+	return selected, skipped
+}
+
+// EditableUTF8 reports whether byte offsets can safely edit an XHTML source.
+func EditableUTF8(data []byte) error {
+	if hasBOM(data) || hasNonUTF8Declaration(data) {
+		return errors.New("BOM or XML declaration is not UTF-8; byte spans would not match the source")
+	}
+	return nil
+}
+
+func hasBOM(data []byte) bool {
+	return bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) ||
+		bytes.HasPrefix(data, []byte{0xFE, 0xFF}) ||
+		bytes.HasPrefix(data, []byte{0xFF, 0xFE}) ||
+		bytes.HasPrefix(data, []byte{0x00, 0x00, 0xFE, 0xFF}) ||
+		bytes.HasPrefix(data, []byte{0xFF, 0xFE, 0x00, 0x00})
+}
+
+func hasNonUTF8Declaration(data []byte) bool {
+	if !bytes.HasPrefix(data, []byte("<?xml")) {
+		return false
+	}
+	declarationBytes, _, ok := bytes.Cut(data, []byte("?>"))
+	if !ok {
+		return false
+	}
+	declaration := string(declarationBytes)
+	lower := strings.ToLower(declaration)
+	index := strings.Index(lower, "encoding")
+	if index < 0 {
+		return false
+	}
+	valueStart := index + len("encoding")
+	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
+		valueStart++
+	}
+	if valueStart >= len(declaration) || declaration[valueStart] != '=' {
+		return false
+	}
+	valueStart++
+	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
+		valueStart++
+	}
+	if valueStart >= len(declaration) || (declaration[valueStart] != '\'' && declaration[valueStart] != '"') {
+		return false
+	}
+	quote := declaration[valueStart]
+	valueStart++
+	encoding, _, ok := strings.Cut(declaration[valueStart:], string(quote))
+	if !ok {
+		return false
+	}
+	encoding = strings.ToLower(strings.TrimSpace(encoding))
+	return encoding != "utf-8" && encoding != "utf8"
+}
+
+func isXMLSpace(value byte) bool {
+	return value == ' ' || value == '\t' || value == '\r' || value == '\n'
 }
 
 // LocalName 返回限定名（{ns}local 或 prefix:local）的 local 部分。

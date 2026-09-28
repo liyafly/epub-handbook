@@ -219,6 +219,20 @@ func TestLegacyFallbackRejectsUpstreamCoverageMismatch(t *testing.T) {
 	}
 }
 
+func TestLegacyFallbackRejectsUTF16BOM(t *testing.T) {
+	files := notesFiles(fixtureXHTML)
+	files[noteXHTMLPath] = string([]byte{0xFF, 0xFE}) + fixtureXHTML
+	b := openNotesBook(t, files)
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusFailed || result.Facts["editCount"] != 0 || len(b.ModifiedNames()) != 0 || !hasFinding(result.Findings, "notes-fallback.unsupported-encoding") {
+		t.Fatalf("result=%+v modified=%v", result, b.ModifiedNames())
+	}
+}
+
 func notesFiles(xhtml string) map[string]string {
 	return map[string]string{
 		"META-INF/container.xml": `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,

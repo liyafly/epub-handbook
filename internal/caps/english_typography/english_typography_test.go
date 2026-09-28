@@ -278,6 +278,7 @@ func TestEnglishTypographyScopeAndAtomicEncodingFailure(t *testing.T) {
 		id    string
 	}{
 		{name: "UTF-8 BOM", xhtml: "\uFEFF" + englishNoLangPage("English words"), id: "english.unsupported-encoding"},
+		{name: "UTF-16 BOM", xhtml: string([]byte{0xFF, 0xFE}) + englishNoLangPage("English words"), id: "english.unsupported-encoding"},
 		{name: "declared UTF-16", xhtml: `<?xml version="1.0" encoding="UTF-16"?><html xmlns="http://www.w3.org/1999/xhtml"><body>English words</body></html>`, id: "english.unsupported-encoding"},
 		{name: "malformed XML", xhtml: `<html xmlns="http://www.w3.org/1999/xhtml"><body>English words`, id: "english.parse-failed"},
 	} {

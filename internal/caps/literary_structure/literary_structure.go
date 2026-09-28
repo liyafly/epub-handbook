@@ -3,7 +3,6 @@
 package literarystructure
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -150,10 +149,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if readErr != nil {
 				return report.Result{}, fmt.Errorf("read %s: %w", assignment.Path, readErr)
 			}
-			if hasBOM(data) || hasNonUTF8Declaration(data) {
+			if encodingErr := opf.EditableUTF8(data); encodingErr != nil {
 				findings = append(findings, assignmentFinding(
 					"literary.unsupported-encoding", "XHTML encoding cannot be edited safely",
-					"BOM or XML declaration is not UTF-8; byte spans would not match the source", assignment.Path,
+					encodingErr.Error(), assignment.Path,
 				))
 				continue
 			}
@@ -334,19 +333,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 }
 
 func spineXHTML(pkg *opf.Package) []sourceFile {
-	byID := make(map[string]opf.ManifestItem, len(pkg.Manifest))
-	for _, item := range pkg.Manifest {
-		byID[item.ID] = item
-	}
-	seen := map[string]bool{}
-	files := []sourceFile{}
-	for _, ref := range pkg.Spine {
-		item, ok := byID[ref.IDRef]
-		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" || seen[item.ArchivePath] {
-			continue
-		}
-		seen[item.ArchivePath] = true
-		files = append(files, sourceFile{path: item.ArchivePath})
+	paths := opf.SpineXHTMLPaths(pkg)
+	files := make([]sourceFile, 0, len(paths))
+	for _, path := range paths {
+		files = append(files, sourceFile{path: path})
 	}
 	return files
 }
@@ -439,54 +429,6 @@ func containsClassToken(value, token string) bool {
 	}
 	return false
 }
-
-func hasBOM(data []byte) bool {
-	return bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) ||
-		bytes.HasPrefix(data, []byte{0xFE, 0xFF}) ||
-		bytes.HasPrefix(data, []byte{0xFF, 0xFE}) ||
-		bytes.HasPrefix(data, []byte{0x00, 0x00, 0xFE, 0xFF}) ||
-		bytes.HasPrefix(data, []byte{0xFF, 0xFE, 0x00, 0x00})
-}
-
-func hasNonUTF8Declaration(data []byte) bool {
-	if !bytes.HasPrefix(data, []byte("<?xml")) {
-		return false
-	}
-	end := bytes.Index(data, []byte("?>"))
-	if end < 0 {
-		return false
-	}
-	declaration := string(data[:end])
-	lower := strings.ToLower(declaration)
-	index := strings.Index(lower, "encoding")
-	if index < 0 {
-		return false
-	}
-	valueStart := index + len("encoding")
-	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || declaration[valueStart] != '=' {
-		return false
-	}
-	valueStart++
-	for valueStart < len(declaration) && isXMLSpace(declaration[valueStart]) {
-		valueStart++
-	}
-	if valueStart >= len(declaration) || (declaration[valueStart] != '\'' && declaration[valueStart] != '"') {
-		return false
-	}
-	quote := declaration[valueStart]
-	valueStart++
-	valueEnd := strings.IndexByte(declaration[valueStart:], quote)
-	if valueEnd < 0 {
-		return false
-	}
-	encoding := strings.ToLower(strings.TrimSpace(declaration[valueStart : valueStart+valueEnd]))
-	return encoding != "utf-8" && encoding != "utf8"
-}
-
-func isXMLSpace(b byte) bool { return b == ' ' || b == '\t' || b == '\r' || b == '\n' }
 
 func assignmentFinding(id, title, detail, path string) report.Finding {
 	return report.Finding{Level: "error", ID: id, Title: title, Detail: detail, Location: path}
