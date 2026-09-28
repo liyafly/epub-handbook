@@ -338,13 +338,13 @@ func (coverCheck) Check(before, after State, o Options) ([]Finding, error) {
 	return nil, nil
 }
 
-// coverPath 复刻 cover_path：第一个 properties 含 cover-image 的 manifest 项。
+// coverPath 解析 EPUB3 properties 或 EPUB2 meta 中声明的封面路径。
 func coverPath(s State) (string, error) {
 	pkg, err := opfFor(s)
 	if err != nil {
 		return "", err
 	}
-	item, ok := pkg.CoverItem()
+	item, ok := pkg.CoverImageItem()
 	if !ok || item.Href == "" {
 		return "", nil
 	}

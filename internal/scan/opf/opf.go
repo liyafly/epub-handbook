@@ -277,6 +277,23 @@ func (p *Package) CoverItem() (ManifestItem, bool) {
 	return ManifestItem{}, false
 }
 
+// CoverImageItem 返回 properties 含 cover-image 的项目，或 EPUB2 meta 声明的图片封面。
+func (p *Package) CoverImageItem() (ManifestItem, bool) {
+	if item, ok := p.CoverItem(); ok {
+		return item, true
+	}
+	for _, meta := range p.Metas {
+		if meta.Name != "cover" {
+			continue
+		}
+		item, ok := p.ItemByID(meta.Content)
+		if ok && strings.HasPrefix(item.MediaType, "image/") {
+			return item, true
+		}
+	}
+	return ManifestItem{}, false
+}
+
 // NCXItem 返回第一个 NCX 项（media-type 或 id 判定）。
 func (p *Package) NCXItem() (ManifestItem, bool) {
 	for _, it := range p.Manifest {

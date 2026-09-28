@@ -175,6 +175,18 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestCoverImageItemFallsBackToEPUB2Meta(t *testing.T) {
+	legacyOPF := strings.Replace(testOPF, ` properties="cover-image"`, "", 1)
+	pkg, err := Parse("OEBPS/package.opf", []byte(legacyOPF))
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+	cover, ok := pkg.CoverImageItem()
+	if !ok || cover.ID != "cover-img" || cover.MediaType != "image/png" || cover.ArchivePath != "OEBPS/Images/cover art.png" {
+		t.Fatalf("CoverImageItem = %+v, %v", cover, ok)
+	}
+}
+
 func TestParseEmptyPackageHasNonNilCollections(t *testing.T) {
 	pkg, err := Parse("package.opf", []byte(`<package xmlns="http://www.idpf.org/2007/opf" version="2.0"/>`))
 	if err != nil {

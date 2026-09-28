@@ -365,6 +365,37 @@ func TestRedlineCoverMissingFromZipDetected(t *testing.T) {
 	wantLine(t, rep, text, "cover: cover-image missing from zip:")
 }
 
+func TestRedlineCoverAcceptsEPUB2MetaToCoverImageProperty(t *testing.T) {
+	beforeEntries := editEntry(t, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(` properties="cover-image"`), nil, 1)
+	})
+	before, after := pair(t, beforeEntries, baseEntries())
+	rep, text := compare(t, before, after, "cover", Options{})
+	wantCode(t, rep, text, 0)
+	wantNoLine(t, rep, text, "cover:")
+}
+
+func TestRedlineCoverDetectsChangedEPUB2Cover(t *testing.T) {
+	beforeEntries := editEntry(t, "OEBPS/content.opf", func(data []byte) []byte {
+		data = bytes.Replace(data, []byte(`content="cover-image"`), []byte(`content="legacy-cover"`), 1)
+		return bytes.Replace(data,
+			[]byte(`<item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>`),
+			[]byte(`<item id="legacy-cover" href="Images/a.jpg" media-type="image/jpeg"/>`), 1)
+	})
+	afterEntries := editEntry(t, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(`href="Images/cover.png"`), []byte(`href="Images/b.jpg"`), 1)
+	})
+	beforeEntries = append(beforeEntries, zipEntry{name: "OEBPS/Images/a.jpg", content: []byte("legacy cover")})
+	afterEntries = append(afterEntries, zipEntry{name: "OEBPS/Images/b.jpg", content: []byte("new cover")})
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "cover", Options{})
+	wantCode(t, rep, text, 1)
+	line := wantLine(t, rep, text, "cover: cover-image path changed:")
+	if !strings.Contains(line, `OEBPS/Images/a.jpg`) || !strings.Contains(line, `OEBPS/Images/b.jpg`) {
+		t.Errorf("封面路径变化未同时点名 before/after: %q", line)
+	}
+}
+
 // TestRedlineCoverPathMessageUsesMappedPath 钉住封面红线消息里的**左值**。
 //
 // 判据用的是映射后的 before 路径（MappedPath），消息此前却打印未映射的
