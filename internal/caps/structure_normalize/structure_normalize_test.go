@@ -974,3 +974,153 @@ func TestStageSlicesSerializeAsArrays(t *testing.T) {
 		t.Error("fixture 未产生空的阶段切片，本测试无法验证空数组形状")
 	}
 }
+
+type rawFixtureEntry struct {
+	name string
+	data []byte
+}
+
+func buildNormalizeEncodingFixture(t *testing.T, path, stylePath string, css, extraXHTML []byte, withImage bool) {
+	t.Helper()
+
+	styleHref := "../" + stylePath
+	imageOPFItem := ""
+	imageChapter := ""
+	if withImage {
+		imageOPFItem = `<item id="image" href="img.png" media-type="image/png"/>`
+		imageChapter = `<img src="../img.png" alt="sample"/>`
+	}
+	chapter := `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title><link rel="stylesheet" href="` + styleHref + `"/></head><body>` + imageChapter + `</body></html>
+`
+	mislabelItem := ""
+	if extraXHTML != nil {
+		mislabelItem = `<item id="mislabel" href="Text/mislabel.xhtml" media-type="application/xhtml+xml"/>`
+	}
+	opf := `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:test:encoding</dc:identifier><dc:title>Encoding</dc:title><dc:language>en</dc:language></metadata>
+  <manifest>
+    <item id="nav" href="Text/nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="chapter" href="Text/ch1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="style" href="` + stylePath + `" media-type="text/css"/>
+    ` + imageOPFItem + mislabelItem + `
+  </manifest>
+  <spine><itemref idref="chapter"/></spine>
+</package>
+`
+	nav := `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Navigation</title></head><body><nav><ol><li><a href="ch1.xhtml">Chapter</a></li></ol></nav></body></html>
+`
+	entries := []rawFixtureEntry{
+		{name: "mimetype", data: []byte("application/epub+zip")},
+		{name: "META-INF/container.xml", data: []byte(`<?xml version="1.0" encoding="UTF-8"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)},
+		{name: "OEBPS/content.opf", data: []byte(opf)},
+		{name: "OEBPS/Text/nav.xhtml", data: []byte(nav)},
+		{name: "OEBPS/Text/ch1.xhtml", data: []byte(chapter)},
+		{name: "OEBPS/" + stylePath, data: css},
+	}
+	if withImage {
+		entries = append(entries, rawFixtureEntry{name: "OEBPS/img.png", data: []byte("image")})
+	}
+	if extraXHTML != nil {
+		entries = append(entries, rawFixtureEntry{name: "OEBPS/Text/mislabel.xhtml", data: extraXHTML})
+	}
+
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, entry := range entries {
+		method := uint16(zip.Deflate)
+		if entry.name == "mimetype" {
+			method = zip.Store
+		}
+		fw, err := w.CreateHeader(&zip.FileHeader{Name: entry.name, Method: method})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(entry.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNormalizeLeavesUnreferencedUTF16BECSSUntouched(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "utf16be.epub")
+	cssText := "p { color: red; }\n"
+	css := append([]byte{0xFE, 0xFF}, encodeUTF16Units(cssText, true, false)...)
+	buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", css, nil, false)
+
+	output := filepath.Join(dir, "out.epub")
+	res, err := runGo(t, fixture, output, ModeNormalize, false)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if facts := factsOf(t, res); facts.RewrittenFiles != 0 {
+		t.Fatalf("无引用改写时 rewrittenFiles 应为 0，实际 %d", facts.RewrittenFiles)
+	}
+	if got := zipRead(t, openZip(t, output), "OEBPS/Styles/style.css"); !bytes.Equal(got, css) {
+		t.Fatalf("未引用的 UTF-16BE CSS 应逐字节保留:\n got % x\nwant % x", got, css)
+	}
+}
+
+func TestNormalizeRefusesLossyLegacyDecode(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "lossy.epub")
+	css := []byte("/* caf\xe9 */ p { background: url(img.png); } /* \x80 \xff */\n")
+	buildNormalizeEncodingFixture(t, fixture, "style.css", css, nil, true)
+
+	output := filepath.Join(dir, "out.epub")
+	if _, err := runGo(t, fixture, output, ModeNormalize, false); !errors.Is(err, ErrStructureTool) {
+		t.Fatalf("有损 legacy 解码且 URL 需要改写时应拒绝，got %v", err)
+	}
+	if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("拒绝改写后不应生成输出，stat error=%v", err)
+	}
+}
+
+func TestNormalizeKeepsUTF16BEByteOrderWhenRewritingURL(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "utf16be-ref.epub")
+	cssText := "p { background: url(img.png); }\n"
+	css := append([]byte{0xFE, 0xFF}, encodeUTF16Units(cssText, true, false)...)
+	buildNormalizeEncodingFixture(t, fixture, "style.css", css, nil, true)
+
+	output := filepath.Join(dir, "out.epub")
+	if _, err := runGo(t, fixture, output, ModeNormalize, false); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	wantText := "p { background: url(../Images/img.png); }\n"
+	want := append([]byte{0xFE, 0xFF}, encodeUTF16Units(wantText, true, false)...)
+	if got := zipRead(t, openZip(t, output), "OEBPS/Styles/style.css"); !bytes.Equal(got, want) {
+		t.Fatalf("UTF-16BE CSS 应只改写 URL 并保留字节序/BOM:\n got % x\nwant % x", got, want)
+	}
+}
+
+func TestNormalizeMislabeledEncodingUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "mislabeled.epub")
+	mislabel := []byte(`<?xml version="1.0" encoding="UTF-16"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title></head><body><p>ab</p></body></html>`)
+	if len(mislabel)%2 != 0 {
+		mislabel = []byte(strings.Replace(string(mislabel), "<p>ab</p>", "<p>abc</p>", 1))
+	}
+	buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", []byte("p { color: red; }\n"), mislabel, false)
+
+	output := filepath.Join(dir, "out.epub")
+	res, err := runGo(t, fixture, output, ModeNormalize, false)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if facts := factsOf(t, res); facts.RewrittenFiles != 0 {
+		t.Fatalf("无引用改写时 rewrittenFiles 应为 0，实际 %d", facts.RewrittenFiles)
+	}
+	if got := zipRead(t, openZip(t, output), "OEBPS/Text/mislabel.xhtml"); !bytes.Equal(got, mislabel) {
+		t.Fatalf("误标记的 UTF-8 XHTML 应逐字节保留:\n got % x\nwant % x", got, mislabel)
+	}
+}

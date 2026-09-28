@@ -890,9 +890,20 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 				} else {
 					rewritten = rewriteMarkupReferences(text, oldPath, newPath, rw)
 				}
-				updated, err = encodeText(rewritten, enc)
-				if err != nil {
-					return nil, nil, nil, err
+				if rewritten != text {
+					if hasIntroducedReplacementRune(currentBytes, text, enc) {
+						return nil, nil, nil, toolErrf("%s: refusing rewrite after lossy text decoding", oldPath)
+					}
+					if !isUTF8Encoding(enc) {
+						roundTrip, roundTripErr := encodeText(text, enc, currentBytes)
+						if roundTripErr != nil || !bytes.Equal(roundTrip, currentBytes) {
+							return nil, nil, nil, toolErrf("%s: refusing rewrite because source encoding does not round-trip losslessly", oldPath)
+						}
+					}
+					updated, err = encodeText(rewritten, enc, currentBytes)
+					if err != nil {
+						return nil, nil, nil, err
+					}
 				}
 			}
 		}

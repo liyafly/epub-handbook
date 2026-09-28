@@ -605,10 +605,26 @@ func decodeText(data []byte, label string) (string, string, error) {
 	add("gb18030")
 	for _, enc := range candidates {
 		if text, ok := tryDecodeText(data, enc); ok {
-			return text, enc, nil
+			return text, decodedTextEncoding(data, enc), nil
 		}
 	}
 	return "", "", toolErrf("%s: cannot decode text resource as UTF or GB18030", label)
+}
+
+func decodedTextEncoding(data []byte, enc string) string {
+	switch strings.ToLower(enc) {
+	case "utf-16":
+		if bytes.HasPrefix(data, []byte{0xFE, 0xFF}) {
+			return "utf-16be"
+		}
+		return "utf-16le"
+	case "utf-16le":
+		return "utf-16le"
+	case "utf-16be":
+		return "utf-16be"
+	default:
+		return enc
+	}
 }
 
 func tryDecodeText(data []byte, enc string) (string, bool) {
@@ -643,9 +659,9 @@ func tryDecodeText(data []byte, enc string) (string, bool) {
 		}
 		return decodeUTF16Units(body, bigEndian)
 	case "utf-16le":
-		return decodeUTF16Units(data, false)
+		return decodeUTF16Units(bytes.TrimPrefix(data, []byte{0xFF, 0xFE}), false)
 	case "utf-16be":
-		return decodeUTF16Units(data, true)
+		return decodeUTF16Units(bytes.TrimPrefix(data, []byte{0xFE, 0xFF}), true)
 	case "gb18030":
 		out, err := simplifiedchinese.GB18030.NewDecoder().Bytes(data)
 		if err != nil {
@@ -665,8 +681,8 @@ func tryDecodeText(data []byte, enc string) (string, bool) {
 	}
 }
 
-// encodeText 复刻 str.encode：utf-16 输出 BOM + little-endian。
-func encodeText(text, enc string) ([]byte, error) {
+// encodeText 依据源字节保留 UTF BOM，并按解码后的字节序编码 UTF-16。
+func encodeText(text, enc string, original []byte) ([]byte, error) {
 	switch strings.ToLower(enc) {
 	case "utf-8", "utf8":
 		return []byte(text), nil
@@ -678,13 +694,31 @@ func encodeText(text, enc string) ([]byte, error) {
 		}
 		return []byte(text), nil
 	case "utf-8-sig":
-		return append([]byte{0xEF, 0xBB, 0xBF}, text...), nil
+		out := []byte(text)
+		if bytes.HasPrefix(original, []byte{0xEF, 0xBB, 0xBF}) {
+			out = append([]byte{0xEF, 0xBB, 0xBF}, out...)
+		}
+		return out, nil
 	case "utf-16":
-		return encodeUTF16Units(text, false, true), nil
-	case "utf-16le":
+		if bytes.HasPrefix(original, []byte{0xFE, 0xFF}) {
+			return encodeUTF16Units(text, true, true), nil
+		}
+		if bytes.HasPrefix(original, []byte{0xFF, 0xFE}) {
+			return encodeUTF16Units(text, false, true), nil
+		}
 		return encodeUTF16Units(text, false, false), nil
+	case "utf-16le":
+		out := encodeUTF16Units(text, false, false)
+		if bytes.HasPrefix(original, []byte{0xFF, 0xFE}) {
+			out = append([]byte{0xFF, 0xFE}, out...)
+		}
+		return out, nil
 	case "utf-16be":
-		return encodeUTF16Units(text, true, false), nil
+		out := encodeUTF16Units(text, true, false)
+		if bytes.HasPrefix(original, []byte{0xFE, 0xFF}) {
+			out = append([]byte{0xFE, 0xFF}, out...)
+		}
+		return out, nil
 	case "gb18030":
 		return simplifiedchinese.GB18030.NewEncoder().Bytes([]byte(text))
 	default:
@@ -694,6 +728,23 @@ func encodeText(text, enc string) ([]byte, error) {
 		}
 		return e.NewEncoder().Bytes([]byte(text))
 	}
+}
+
+func isUTF8Encoding(enc string) bool {
+	switch strings.ToLower(enc) {
+	case "utf-8", "utf8", "utf-8-sig":
+		return true
+	default:
+		return false
+	}
+}
+
+func hasIntroducedReplacementRune(original []byte, text, enc string) bool {
+	if !strings.ContainsRune(text, '\uFFFD') {
+		return false
+	}
+	replacement, err := encodeText("\uFFFD", enc, nil)
+	return err != nil || !bytes.Contains(original, replacement)
 }
 
 func lookupEncoding(name string) (encoding.Encoding, error) {
