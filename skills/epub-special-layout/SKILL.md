@@ -39,7 +39,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 可显式传 `lang=en-GB`，或传 `scope_paths='["OEBPS/Text/chapter.xhtml"]'` 限定 spine XHTML；路径须精确匹配 spine 项。省略 scope 且 OPF `dc:language` 主语言与目标语言不同时，能力不扫描页面也不写入，返回 `english.opf-language-differs-requires-scope`；只有明确选择页面后才继续。OPF 语言匹配时，无语言页面若没有 Unicode 字母文本或 CJK 比例达到阈值会跳过。显式 scope 中已有其他主语言则报 error，且整本零编辑。审阅 `plannedEdits[{path,action,value}]`、`skipped[{path,reason}]`、`filesScanned` 与 `editCount`；`lang-mismatch` 表示不猜测两种声明中的哪一个正确，显式 scope 下的 `opf-language-differs` 仅提示，能力不改 OPF。
 
-涉及弹注时加 `epub.notes.popup.normalize`，涉及 demo 时走 `epub-reader-verify`；
+涉及弹注时加 `epub.notes.popup.normalize`，涉及 demo 时走 `epub-reader-verify`；按对应 capability 的报告结果和 reader evidence 记录验收状态。
 
 ### 文学结构精排
 

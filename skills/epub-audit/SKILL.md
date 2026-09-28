@@ -93,7 +93,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 ### 图片版式分析
 
 前缀 `epub.image.layout.optimize.`：`imageFindings[]` 给出 file、selector、image、scene、finding、candidates；`warningList` 是扫描缺口；`findings/warnings` 是计数。
-候选类别包括 lone-image-no-figure、caption-detached、float-width-risk、missing-alt、chapter-head-image-candidate、fullpage-image-alite-candidate。计数不等于错误数，也不是批量改写清单；
+候选类别包括 lone-image-no-figure、caption-detached、float-width-risk、missing-alt、chapter-head-image-candidate、fullpage-image-alite-candidate。计数不等于错误数，也不是批量改写清单；须逐项核对位置和证据，再决定是否采取已授权的修改。
 
 ### 字体覆盖分析
 
