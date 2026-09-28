@@ -94,6 +94,7 @@ go run ./cmd/epub run epub.typography.optimize --input before.epub --output samp
 
 架构是面向 Windows、macOS、Linux 的 Go 单一公开 CLI（`cmd/epub` + `internal/`），
 架构规则由 `internal/archguard/` 的守卫测试强制。旧的主程序 Python、Swift/GUI 执行层已按迁移计划删除；
+`templates/cleanup-demo-books/build_demo_epubs.py` 是需要 Python 3 的 fixture 生成器，只用于生成仓库的自造清洗样本，不属于用户执行面。
 `tools-font/` 保留两个独立安装、不会打包进发行包的 Python provider：
 
 - `epub.font.coverage.analyze` 调用 coverage detector，分析嵌入字体覆盖和字体链风险。在仓库 checkout 中使用该能力前，于 `tools-font/coverage-detector/` 执行 `uv sync`；缺少 `uv` 时能力会以带明确提示的 failed 结果失败。

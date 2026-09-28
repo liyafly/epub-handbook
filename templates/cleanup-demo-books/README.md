@@ -22,7 +22,9 @@ bash templates/cleanup-demo-books/build.sh
 
 输出在 `templates/cleanup-demo-books/dist/`。如果脚本逻辑变化，需要重新生成并本地验证这些 demo EPUB。
 
-`dist/` 里的 `.epub` 和 `manifest.json` 都是可再生文件；不要提交生成产物，只提交 `src/`、`build.sh`、测试或说明文档的变化。
+`dist/` 里的 `.epub` 和 `manifest.json` 都是可再生文件；不要提交生成产物。提交改动应落在对应的样本源目录（如 `city-field-notes/`、`paper-garden/`）、`build_demo_epubs.py`、`build.sh`、测试或说明文档中。
+
+`build.sh` 调用 `build_demo_epubs.py` 生成 fixture，因此构建这些样本需要 Python 3。该生成器是测试辅助工具，不属于用户 EPUB 执行面。
 
 ## 验证
 

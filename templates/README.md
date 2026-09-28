@@ -14,6 +14,6 @@
 ## 使用原则
 
 - 模板用于显示验证、清洗演示和 starter 复现，不承载下游技术架构。
-- 模板不依赖外部包，默认只使用 shell 和系统 `zip`。
+- 模板构建入口默认使用 shell 和系统 `zip`。例外是 `cleanup-demo-books`：`build.sh` 调用 Python 3 fixture 生成器，生成自造 EPUB 测试样本；它不属于用户 EPUB 执行面。
 - 生成的 `.epub` 产物默认放在模板自己的 `dist/` 目录。
 - 新增样式规则时，优先补一个可打开的模板页面，再把稳定结论写回手册或 skill。

@@ -22,7 +22,7 @@
 | EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出；`epub clean` 的多步处理共享源 archive，步骤间不生成中间 ZIP。 |
 | 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell/link 与弹注转换按目标范围写入，弹注匹配要求真实标签边界。 |
 | 字体工具 | `coverage-detector` 为 `epub.font.coverage.analyze` 提供只读覆盖分析，在 `tools-font/coverage-detector/` 用 `uv sync` 安装；缺少 `uv` 时该能力明确失败。`epub-font` 为 `epub.font.subset` 提供字体子集化，在仓库根目录用 `uv tool install --editable tools-font/epub-font` 安装；书籍含字体而 provider 缺失或验证失败时构建失败并保留既有 dist。两者均由 `internal/extern` 调用且不进入 CLI 发行包。 |
-| 遗留执行面 | Python 执行脚本与 parity harness 已移除；`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
+| 遗留执行面 | 面向用户的 Python 执行脚本与 parity harness 已移除；`templates/cleanup-demo-books/build_demo_epubs.py` 仅作为生成测试 fixture 的 Python 3 辅助工具保留，不属于 CLI 执行面。`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
 | 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选默认不保留，显式 `--retain-review-candidate` 时只写 `.review-only.epub`。 |
 | 取消 | 取消用 `status=cancelled` 和 exit 1 表示；取消的事务不写出，不能将其伪装成一般书稿错误。 |
 
