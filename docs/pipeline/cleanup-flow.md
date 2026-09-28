@@ -62,14 +62,14 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 
 ### 写出与验证
 
-只生成新候选，不覆盖现版或参考版。正文变化已获授权，因此 `--check text` 与 `--check all` 会如实失败，不能声称“全量红线通过”。非文本红线必须以生成差异和决策 artifact 时冻结的现版为 `EDITORIAL_BASE`；它通常就是前文的 `REDLINE_BASE`，若从结构规范化前的源文件比较，则继续传入对应 `--path-map`：
+只生成新候选，不覆盖现版或参考版。正文变化已获授权，因此 `--check text` 与 `--check all` 会如实失败，不能声称“全量红线通过”。非文本红线必须以生成差异和决策 artifact 时冻结的现版为 `EDITORIAL_BASE`；冻结后的现版路径如下。若它早于结构规范化，再传入对应映射：
 
 ```sh
-EDITORIAL_BASE="$REDLINE_BASE"  # 必须与差异报告中的现版 artifact 身份一致
+EDITORIAL_BASE="$CUR"  # 生成差异时冻结的现版
 epub redline --check metadata,spine,cover,drm,anchors \
   "$EDITORIAL_BASE" \
-  work/after/editorial-candidate.epub
-# 若 EDITORIAL_BASE 早于结构规范化，追加：--path-map work/step-0-normalize.json
+  "$W/after/editorial-candidate.epub"
+# 若 EDITORIAL_BASE 早于结构规范化，追加：--path-map "$W/s2-normalize.json"
 ```
 
 同时必须证明：
