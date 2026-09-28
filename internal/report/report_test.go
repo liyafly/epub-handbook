@@ -52,3 +52,34 @@ func TestPyFloat(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanBatchEnvelopeMixedCancelled(t *testing.T) {
+	cases := []struct {
+		name     string
+		statuses []string
+		want     string
+	}{
+		{name: "complete and cancelled", statuses: []string{StatusComplete, StatusCancelled}, want: StatusCancelled},
+		{name: "planned and cancelled", statuses: []string{StatusPlanned, StatusCancelled}, want: StatusCancelled},
+		{name: "complete and failed", statuses: []string{StatusComplete, StatusFailed}, want: StatusFailed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			books := make([]CleanBookSummary, 0, len(tc.statuses))
+			for _, status := range tc.statuses {
+				exitCode := 0
+				if status == StatusFailed {
+					exitCode = 1
+				}
+				books = append(books, CleanBookSummary{
+					InputPath: status,
+					Status:    status,
+					ExitCode:  exitCode,
+				})
+			}
+			if got := CleanBatchEnvelope(books).Status; got != tc.want {
+				t.Fatalf("batch status=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}

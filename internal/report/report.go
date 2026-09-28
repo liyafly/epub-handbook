@@ -76,18 +76,19 @@ func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
 	if len(books) == 0 {
 		status = StatusFailed
 	}
-	allCancelled := len(books) > 0
+	hasCancelled := false
+	hasFailed := false
 	allComplete := len(books) > 0
 	allPlanned := len(books) > 0
 	for _, book := range books {
-		allCancelled = allCancelled && book.Status == StatusCancelled
+		hasCancelled = hasCancelled || book.Status == StatusCancelled
+		hasFailed = hasFailed || book.Status == StatusFailed
 		allComplete = allComplete && book.Status == StatusComplete
 		allPlanned = allPlanned && book.Status == StatusPlanned
-		if book.Status == StatusFailed {
-			status = StatusFailed
-		}
 	}
-	if allCancelled {
+	if hasFailed {
+		status = StatusFailed
+	} else if hasCancelled {
 		status = StatusCancelled
 	} else if allComplete {
 		status = StatusComplete

@@ -226,6 +226,33 @@ func TestCleanDefaultDryRunOnlyAudits(t *testing.T) {
 	}
 }
 
+func TestCleanBatchPlannedOrCompleteHasZeroExitCode(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		approve    bool
+		wantStatus string
+	}{
+		{name: "planned", wantStatus: report.StatusPlanned},
+		{name: "complete", approve: true, wantStatus: report.StatusComplete},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := Clean(t.Context(), CleanOptions{
+				InputPath: buildEpubWithOPF(t),
+				OutputDir: filepath.Join(t.TempDir(), "out"),
+				Steps:     []string{"normalize"},
+				Approve:   tc.approve,
+				Jobs:      1,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Envelope.Status != tc.wantStatus || result.ExitCode != ExitOK {
+				t.Fatalf("batch status=%q exit=%d, want %q / 0", result.Envelope.Status, result.ExitCode, tc.wantStatus)
+			}
+		})
+	}
+}
+
 func TestCleanStepSummaryPreservesFailedRedlineResult(t *testing.T) {
 	env := report.Envelope{
 		Events:   []report.Event{{Step: "redline", Status: "failed", Message: "1 finding"}},
