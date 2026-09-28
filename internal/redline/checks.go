@@ -87,11 +87,12 @@ func (textCheck) Check(before, after State, o Options) ([]Finding, error) {
 		if err != nil {
 			return nil, inputErr("%s", err.Error())
 		}
-		beforeBlocks, err := ExtractTextBlocks(beforeRaw, fmt.Sprintf("%s:%s", before.Path(), name))
-		if err != nil {
-			return nil, inputErr("%s", err.Error())
-		}
-		afterBlocks, err := ExtractTextBlocks(afterRaw, fmt.Sprintf("%s:%s", after.Path(), afterName))
+		beforeBlocks, afterBlocks, err := ExtractTextBlocksWithLegacyNoterefPairing(
+			beforeRaw,
+			afterRaw,
+			fmt.Sprintf("%s:%s", before.Path(), name),
+			fmt.Sprintf("%s:%s", after.Path(), afterName),
+		)
 		if err != nil {
 			return nil, inputErr("%s", err.Error())
 		}

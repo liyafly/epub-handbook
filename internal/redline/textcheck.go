@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -64,11 +65,24 @@ func isNoteControl(name string, attrs []xml.Attr) bool {
 	return false
 }
 
+func isNoterefControl(name string, attrs []xml.Attr) bool {
+	if name != "a" {
+		return false
+	}
+	for _, attr := range attrs {
+		if attr.Name.Local == "type" && slices.Contains(strings.Fields(attr.Value), "noteref") {
+			return true
+		}
+	}
+	return false
+}
+
 // textFrame 是流式提取中的一个打开元素。
 type textFrame struct {
 	name       string
 	collecting bool // 是否处于可收集文本的上下文
 	isBlock    bool
+	legacyMark bool // 与 after 中 noteref 配对的旧式 [N] 锚点
 	blockChild bool // 打开期间出现过块级后代
 	buf        strings.Builder
 }
@@ -87,6 +101,28 @@ type textFrame struct {
 // 甚至不产出块，可以被整段删掉而红线无感）。并回时必须是**未归一化**的原始
 // 字节：normalizeText 只在块产出时对拼好的整串做一次，与 oracle 一致。
 func ExtractTextBlocks(content []byte, label string) ([]string, error) {
+	return extractTextBlocks(content, label, nil)
+}
+
+// ExtractTextBlocksWithLegacyNoterefPairing compares a migration pair while
+// excluding only legacy [N] links that can be paired to one after noteref.
+func ExtractTextBlocksWithLegacyNoterefPairing(before, after []byte, beforeLabel, afterLabel string) ([]string, []string, error) {
+	targets, err := noterefTargets(after, afterLabel)
+	if err != nil {
+		return nil, nil, err
+	}
+	beforeBlocks, err := extractTextBlocks(before, beforeLabel, targets)
+	if err != nil {
+		return nil, nil, err
+	}
+	afterBlocks, err := ExtractTextBlocks(after, afterLabel)
+	if err != nil {
+		return nil, nil, err
+	}
+	return beforeBlocks, afterBlocks, nil
+}
+
+func extractTextBlocks(content []byte, label string, targets map[string]int) ([]string, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
@@ -109,10 +145,16 @@ func ExtractTextBlocks(content []byte, label string) ([]string, error) {
 			name := t.Name.Local
 			parentCollecting := len(stack) == 0 || stack[len(stack)-1].collecting
 			collecting := parentCollecting && !ignoredTextTags[name] && !isNoteControl(name, t.Attr)
+			legacyMark := false
+			if targets != nil && name == "a" && !isNoteControl(name, t.Attr) {
+				id, href := anchorIDAndHref(t.Attr)
+				legacyMark = hasUniqueNoterefTarget(id, href, targets)
+			}
 			fr := &textFrame{
 				name:       name,
 				collecting: collecting,
 				isBlock:    blockTags[name],
+				legacyMark: legacyMark,
 			}
 			if fr.isBlock && len(stack) > 0 {
 				// 所有尚在打开的祖先都获得了块级后代。
@@ -131,6 +173,9 @@ func ExtractTextBlocks(content []byte, label string) ([]string, error) {
 			}
 			fr := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
+			if fr.legacyMark && isBracketedNoteNumber(fr.buf.String()) {
+				fr.buf.Reset()
+			}
 			if fr.isBlock && !fr.blockChild {
 				if text := normalizeText(fr.buf.String()); text != "" {
 					blocks = append(blocks, text)
@@ -146,6 +191,101 @@ func ExtractTextBlocks(content []byte, label string) ([]string, error) {
 		}
 	}
 	return blocks, nil
+}
+
+func noterefTargets(content []byte, label string) (map[string]int, error) {
+	cleaned := sanitizeXML(content)
+	d := xml.NewDecoder(strings.NewReader(cleaned))
+	d.Strict = true
+	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+		return input, nil
+	}
+	targets := make(map[string]int)
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s: XML parse failed: %w", label, err)
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok || !isNoterefControl(start.Name.Local, start.Attr) {
+			continue
+		}
+		id, href := anchorIDAndHref(start.Attr)
+		for _, key := range noterefTargetKeys(id, href) {
+			targets[key]++
+		}
+	}
+	return targets, nil
+}
+
+func anchorIDAndHref(attrs []xml.Attr) (string, string) {
+	var id, href string
+	for _, attr := range attrs {
+		switch attr.Name.Local {
+		case "id":
+			id = attr.Value
+		case "href":
+			href = attr.Value
+		}
+	}
+	return id, href
+}
+
+func noterefTargetKeys(id, href string) []string {
+	var keys []string
+	if id != "" {
+		keys = append(keys, "id:"+id)
+	}
+	href = strings.TrimSpace(href)
+	if href != "" {
+		keys = append(keys, "href:"+href)
+		if strings.HasPrefix(href, "#") && len(href) > 1 {
+			keys = append(keys, "local-fragment:"+href[1:])
+		}
+	}
+	return keys
+}
+
+func hasUniqueNoterefTarget(id, href string, targets map[string]int) bool {
+	keys := noterefTargetKeys(id, href)
+	matched := false
+	for _, key := range keys {
+		if count := targets[key]; count > 1 {
+			return false
+		}
+		if targets[key] == 1 {
+			matched = true
+		}
+	}
+	if !matched {
+		if _, fragment, found := strings.Cut(href, "#"); found && fragment != "" {
+			for _, key := range []string{"local-fragment:" + fragment, "id:" + fragment} {
+				if targets[key] > 1 {
+					return false
+				}
+				if targets[key] == 1 {
+					matched = true
+				}
+			}
+		}
+	}
+	return matched
+}
+
+func isBracketedNoteNumber(value string) bool {
+	value = normalizeText(value)
+	if len(value) < 3 || value[0] != '[' || value[len(value)-1] != ']' {
+		return false
+	}
+	for _, char := range value[1 : len(value)-1] {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // BlockHashes 复刻 block_hashes：每块 SHA-256 十六进制。
