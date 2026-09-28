@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -17,6 +18,42 @@ const (
 	testXHTMLPath = "OEBPS/Text/chapter.xhtml"
 	testCSSPath   = "OEBPS/Styles/literary.css"
 )
+
+func TestLiteraryGoldenRedline(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(root, "testdata", "literary_structure", "basic.before.xhtml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(filepath.Join(root, "testdata", "literary_structure", "basic.after.xhtml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := openLiteraryFixture(t, literaryFixture(t, string(before), true))
+	result, err := Run(t.Context(), b, Params{Assignments: []Assignment{{
+		Path: testXHTMLPath, ID: "quote", Class: "epigraph",
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Facts["editCount"] != 1 {
+		t.Fatalf("editCount=%v, want one class insertion", result.Facts["editCount"])
+	}
+	if got := literaryCurrent(t, b); !bytes.Equal(got, after) {
+		t.Fatalf("XHTML differs from golden\n--- got ---\n%s\n--- want ---\n%s", got, after)
+	}
+	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
+		[]string{redline.CheckText, redline.CheckAnchors}, redline.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("text and anchor redlines should pass, got %+v", findings)
+	}
+}
 
 func TestClassVocabularyIsExactAndDocumentBound(t *testing.T) {
 	want := []string{

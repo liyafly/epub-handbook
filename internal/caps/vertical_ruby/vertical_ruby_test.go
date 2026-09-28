@@ -12,11 +12,52 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
 const rubyPath = "OEBPS/Text/chapter.xhtml"
 const cssPath = "OEBPS/Styles/vertical.css"
+
+func TestRubyRPGoldenRedline(t *testing.T) {
+	root := repoRoot(t)
+	before, err := os.ReadFile(filepath.Join(root, "testdata", "vertical_ruby", "basic.before.xhtml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(filepath.Join(root, "testdata", "vertical_ruby", "basic.after.xhtml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := openFixture(t, makeFixture(t, string(before), ""))
+	result, err := Run(t.Context(), b, Params{Op: OpRubyRP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Facts["editCount"] != 2 {
+		t.Fatalf("editCount=%v, want two rp insertions", result.Facts["editCount"])
+	}
+	if got := current(t, b, rubyPath); !bytes.Equal(got, after) {
+		t.Fatalf("XHTML differs from golden\n--- got ---\n%s\n--- want ---\n%s", got, after)
+	}
+	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
+		[]string{redline.CheckText, redline.CheckAnchors}, redline.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("text and anchor redlines should pass, got %+v", findings)
+	}
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
 
 func TestRubyRPFillsEveryDirectRTAndIsIdempotent(t *testing.T) {
 	input := makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body><p><ruby>漢<rt>かん</rt>字<rt>じ</rt></ruby></p></body></html>`, "")

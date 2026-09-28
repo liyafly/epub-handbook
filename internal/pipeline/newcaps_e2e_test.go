@@ -461,6 +461,34 @@ func readPipelineEPUBEntry(t *testing.T, epubPath, target string) []byte {
 	return nil
 }
 
+func readPipelineEPUBEntryBytes(t *testing.T, data []byte, target string) []byte {
+	t.Helper()
+	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range archive.File {
+		if entry.Name != target {
+			continue
+		}
+		reader, err := entry.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(reader)
+		closeErr := reader.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		return content
+	}
+	t.Fatalf("EPUB entry %q not found", target)
+	return nil
+}
+
 func TestEnglishTypographyInvalidLanguageIsUsageError(t *testing.T) {
 	input := writeEnglishTypographyEPUB(t)
 	outcome, err := Run(t.Context(), Options{
@@ -533,6 +561,84 @@ func TestVerticalRubyEndToEndAndRedline(t *testing.T) {
 	}
 	if !bytes.Equal(data, want) {
 		t.Fatalf("vertical Ruby E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+	}
+}
+
+func TestVerticalWritingModePrefixEndToEnd(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeVerticalRubyEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID:  "epub.vertical.ruby.optimize",
+		InputPath:     input,
+		CaptureOutput: true,
+		Args:          Args{"op": "writing-mode-prefix"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusComplete || len(outcome.OutputBytes) == 0 {
+		t.Fatalf("status=%q exit=%d outputBytes=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, len(outcome.OutputBytes), outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.vertical.ruby.optimize.editCount"]; got != 1 {
+		t.Fatalf("editCount=%#v, want one declaration edit with both prefixes", got)
+	}
+	if got := outcome.Envelope.Facts["epub.vertical.ruby.optimize.filesScanned"]; got != 1 {
+		t.Fatalf("filesScanned=%#v, want one manifest CSS file", got)
+	}
+	css := readPipelineEPUBEntryBytes(t, outcome.OutputBytes, "OEBPS/vertical.css")
+	wantCSS := []byte("-webkit-writing-mode: vertical-rl; -epub-writing-mode: vertical-rl; writing-mode: vertical-rl;")
+	if !bytes.Contains(css, wantCSS) {
+		t.Fatalf("writing-mode prefixes missing from captured candidate: %s", css)
+	}
+	var redlinePassed bool
+	for _, event := range outcome.Envelope.Events {
+		if event.Step == "redline" {
+			redlinePassed = event.Status == "completed" && event.Message == "0 findings"
+		}
+	}
+	if !redlinePassed {
+		t.Fatalf("events=%+v, want clean redline", outcome.Envelope.Events)
+	}
+	second, err := Run(t.Context(), Options{
+		CapabilityID: "epub.vertical.ruby.optimize",
+		InputPath:    "<candidate.epub>",
+		InputBytes:   outcome.OutputBytes,
+		DryRun:       true,
+		Args:         Args{"op": "writing-mode-prefix"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ExitCode != ExitOK || second.Envelope.Facts["epub.vertical.ruby.optimize.editCount"] != 0 {
+		t.Fatalf("second run exit=%d facts=%#v, want idempotent no-op", second.ExitCode, second.Envelope.Facts)
+	}
+
+	if outcome.Envelope.Input == nil {
+		t.Fatal("input artifact missing from E2E envelope")
+	}
+	outcome.Envelope.Input.Path = "<fixture.epub>"
+	outcome.Envelope.Input.SHA256 = ""
+	for i, command := range outcome.Envelope.NextCommands {
+		outcome.Envelope.NextCommands[i] = strings.ReplaceAll(command, input, "fixture.epub")
+	}
+	data, err := json.MarshalIndent(outcome.Envelope, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, '\n')
+	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "vertical_ruby", "writing-mode.report.json")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.WriteFile(goldenPath, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, want) {
+		t.Fatalf("writing-mode E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
 	}
 }
 
