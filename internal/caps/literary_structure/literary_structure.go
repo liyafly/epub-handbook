@@ -29,7 +29,7 @@ type Assignment struct {
 }
 
 // Params contains the explicit assignment list and an optional manifest CSS
-// path to link from each XHTML file that receives a new class.
+// path to link from each XHTML file with a valid assignment target.
 type Params struct {
 	Assignments []Assignment
 	Stylesheet  string
@@ -220,11 +220,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 
 	edits := []editset.Edit{}
 	planned := []plannedEdit{}
-	modifiedPaths := []string{}
-	modifiedSeen := map[string]bool{}
+	assignmentPaths := []string{}
+	assignmentPathSeen := map[string]bool{}
 	for _, plan := range plans {
 		if err := ctx.Err(); err != nil {
 			return report.Result{}, err
+		}
+		if !assignmentPathSeen[plan.path] {
+			assignmentPathSeen[plan.path] = true
+			assignmentPaths = append(assignmentPaths, plan.path)
 		}
 		file := files[plan.path]
 		classValue, _ := plan.node.AttrByLocal("", "class")
@@ -268,14 +272,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		planned = append(planned, plannedEdit{
 			Path: plan.path, Target: plan.target, Action: "add-class", Value: strings.Join(newClasses, " "),
 		})
-		if !modifiedSeen[plan.path] {
-			modifiedSeen[plan.path] = true
-			modifiedPaths = append(modifiedPaths, plan.path)
-		}
 	}
 
 	if p.Stylesheet != "" && manifestCSS[p.Stylesheet] {
-		for _, path := range modifiedPaths {
+		for _, path := range assignmentPaths {
 			if err := ctx.Err(); err != nil {
 				return report.Result{}, err
 			}

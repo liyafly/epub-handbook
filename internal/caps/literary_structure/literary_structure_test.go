@@ -208,6 +208,30 @@ func TestRunLinksStylesheetOnlyWhenMissing(t *testing.T) {
 	})
 }
 
+func TestRunLinksStylesheetWhenClassAlreadyPresent(t *testing.T) {
+	chapter := literaryXHTML(`<p id="target" class="epigraph">text</p>`)
+	b := openLiteraryFixture(t, literaryFixture(t, chapter, true))
+	params := Params{
+		Assignments: []Assignment{{Path: testXHTMLPath, ID: "target", Class: "epigraph"}},
+		Stylesheet:  testCSSPath,
+	}
+	first, err := Run(t.Context(), b, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(literaryCurrent(t, b))
+	if first.Facts["editCount"] != 1 || !strings.Contains(got, `<link rel="stylesheet" type="text/css" href="../Styles/literary.css"/>`) {
+		t.Fatalf("facts=%#v XHTML=%s, want stylesheet-only edit when class is already present", first.Facts, got)
+	}
+	second, err := Run(t.Context(), b, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Facts["editCount"] != 0 || !findingHasID(second.Findings, "literary.stylesheet-already-linked") {
+		t.Fatalf("second facts=%#v findings=%+v, want idempotent linked-stylesheet no-op", second.Facts, second.Findings)
+	}
+}
+
 func TestRunRejectsUnknownStylesheetAndForbiddenHeadTargetAtomically(t *testing.T) {
 	t.Run("stylesheet outside manifest", func(t *testing.T) {
 		b := openLiteraryFixture(t, literaryFixture(t, literaryXHTML(`<p id="target">text</p>`), true))
