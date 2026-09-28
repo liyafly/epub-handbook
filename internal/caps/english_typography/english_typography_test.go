@@ -110,6 +110,34 @@ func TestEnglishTypographyMirrorsExistingXMLLang(t *testing.T) {
 	}
 }
 
+func TestEnglishTypographySkipsUnsafeExistingLang(t *testing.T) {
+	xhtml := `<html xmlns="http://www.w3.org/1999/xhtml" lang="en-&quot;x"><body>English words</body></html>`
+	b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: xhtml}}, "en")
+	defer b.Close()
+	original, err := b.Original(englishPagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Run(t.Context(), b, Params{Lang: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := b.Current(englishPagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusComplete || result.Facts["editCount"] != 0 || !bytes.Equal(current, original) {
+		t.Fatalf("status=%q facts=%#v changed=%v", result.Status, result.Facts, !bytes.Equal(current, original))
+	}
+	if !hasFinding(result.Findings, "english.invalid-existing-lang") {
+		t.Fatalf("missing invalid-existing-lang warning: %+v", result.Findings)
+	}
+	skipped, ok := result.Facts["skipped"].([]skippedFile)
+	if !ok || !slices.Contains(skipped, skippedFile{Path: englishPagePath, Reason: "invalid-existing-lang"}) {
+		t.Fatalf("skipped=%#v, want invalid-existing-lang", result.Facts["skipped"])
+	}
+}
+
 func TestEnglishTypographySkipsOrRejectsOtherLanguage(t *testing.T) {
 	xhtml := `<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN"><body>中文内容</body></html>`
 	t.Run("implicit scope skips", func(t *testing.T) {

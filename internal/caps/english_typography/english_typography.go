@@ -218,6 +218,16 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 				existing = xmlLang
 				missingName = " lang=\""
 			}
+			if !ValidLang(existing) {
+				findings = append(findings, report.Finding{
+					Level: "warn", ID: "english.invalid-existing-lang",
+					Title:    "Existing language declaration cannot be mirrored safely",
+					Detail:   fmt.Sprintf("existing language %q is invalid; left unchanged", existing),
+					Location: file.path,
+				})
+				skipped = append(skipped, skippedFile{Path: file.path, Reason: "invalid-existing-lang"})
+				continue
+			}
 			if primaryLang(existing) != primaryLang(lang) {
 				findings, skipped = appendLanguageConflict(findings, skipped, file.path, existing, lang, scope != nil)
 				continue
