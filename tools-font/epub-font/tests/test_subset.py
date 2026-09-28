@@ -311,6 +311,65 @@ def test_no_config_subsets_every_static_font(tmp_path):
     assert code == 0 and [font["target"] for font in report["fonts"]] == ["OEBPS/Fonts/st-all.ttf"]
 
 
+def test_config_only_overrides_listed_fonts(tmp_path):
+    targets = ("OEBPS/Fonts/regular.ttf", "OEBPS/Fonts/alternate.ttf")
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({target: GLYF_STATIC for target in targets}))
+    config = {"version": 1, "fonts": [{"target": targets[0]}]}
+    config_path = tmp_path / "fonts.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 0, report
+    results = {font["target"]: font for font in report["fonts"]}
+    assert set(results) == set(targets)
+    assert all(result["output"]["sha256"] != result["original"]["sha256"] for result in results.values())
+    with zipfile.ZipFile(output) as candidate:
+        assert all(candidate.read(target) != GLYF_STATIC for target in targets)
+
+
+def test_config_automatically_preserves_unlisted_math_font(tmp_path):
+    regular_target = "OEBPS/Fonts/regular.ttf"
+    math_target = "OEBPS/Fonts/math.ttf"
+    math_font = synth.build_math_font()
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({regular_target: GLYF_STATIC, math_target: math_font}))
+    config = {"version": 1, "fonts": [{"target": regular_target}]}
+    config_path = tmp_path / "fonts.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 0, report
+    results = {font["target"]: font for font in report["fonts"]}
+    assert set(results) == {regular_target, math_target}
+    assert results[math_target]["action"] == "preserve"
+    assert results[math_target]["reason"] == "math-table"
+    assert results[math_target]["output"]["sha256"] == results[math_target]["original"]["sha256"]
+    with zipfile.ZipFile(output) as candidate:
+        assert candidate.read(math_target) == math_font
+
+
+def test_config_automatically_rejects_unlisted_variable_font(tmp_path, capsys):
+    regular_target = "OEBPS/Fonts/regular.ttf"
+    variable_target = "OEBPS/Fonts/variable.ttf"
+    epub = tmp_path / "book.epub"
+    epub.write_bytes(synth.build_epub({regular_target: GLYF_STATIC, variable_target: GLYF_VF}))
+    config = {"version": 1, "fonts": [{"target": regular_target}]}
+    config_path = tmp_path / "fonts.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 2 and report is None
+    assert "variation.mode" in capsys.readouterr().err
+    assert not output.exists() and not subset.report_path(output).exists()
+
+
 def test_no_config_preserves_math_font_and_reports_hashes(tmp_path):
     math_font = synth.build_math_font()
     epub = tmp_path / "book.epub"

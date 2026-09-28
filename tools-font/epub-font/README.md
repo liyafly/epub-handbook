@@ -29,7 +29,7 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
 - Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（schema v1）、EPUB 与字体 SHA、字体 manifest 身份和逐项检查。私有临时报告随后清理；已校验的版本、SHA、字形统计、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
-- 省略 `--config` 时自动处理 OPF manifest 中的全部字体：带 OpenType `MATH` 表的字体按原字节保留，其余字体继续子集化；可变字体仍须在配置中指定模式。
+- 省略 `--config` 时自动处理 OPF manifest 中的全部字体。提供 `--config` 时，`fonts.json` 只覆盖列出的字体；manifest 中未列出的字体也会自动处理。自动处理会按原字节保留带 OpenType `MATH` 表的字体、子集化静态字体；可变字体仍须在配置中指定 `variation.mode`。
 - 配置中的字体默认执行 `action: "subset"`。只有确认目标含 `MATH` 表时，才可写 `action: "preserve"`；provider 会记录保留原因及输入/输出 SHA。加密/混淆、损坏和不支持格式仍会失败。
 - `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
 - `subset` 退出码：`0` 全部检查通过并写出 EPUB；`1` 字体核验失败（报告已写，EPUB 不写）；`2` 输入/配置错误或不支持的字体（报告与 EPUB 均不写）。`check` 退出码：`0` 全覆盖；`1` 有缺字；`2` 输入错误。

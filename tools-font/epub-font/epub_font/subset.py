@@ -1,4 +1,4 @@
-"""Command line: subset the fonts listed in a config for one EPUB.
+"""Command line: subset every manifest font, applying per-font config overrides.
 
     epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
 
@@ -238,21 +238,30 @@ def run(args) -> int:
             book = epubtext.read_book_text(zf)
         except epubtext.EpubError as exc:
             raise UsageError(str(exc)) from exc
+        manifest_fonts = [
+            item for item in book.items
+            if item.path.lower().endswith(tuple(fontops.FLAVOR_BY_EXT)) or "font" in item.media_type.lower()
+        ]
         if config is None:
-            manifest_fonts = [
-                item for item in book.items
-                if item.path.lower().endswith(tuple(fontops.FLAVOR_BY_EXT)) or "font" in item.media_type.lower()
-            ]
             if not manifest_fonts:
                 raise UsageError("the EPUB has no manifest fonts")
-            config = {"version": 1, "fonts": [{"target": item.path} for item in manifest_fonts]}
+            jobs = [{"target": item.path} for item in manifest_fonts]
             config_dir = epub.parent
-            automatic = True
+            automatic_targets = {job["target"] for job in jobs}
         else:
             config_dir = config_path.parent
-            automatic = False
+            jobs = list(config["fonts"])
+            configured_targets = {job["target"] for job in jobs}
+            automatic_jobs = [
+                {"target": item.path} for item in manifest_fonts if item.path not in configured_targets
+            ]
+            jobs.extend(automatic_jobs)
+            automatic_targets = {job["target"] for job in automatic_jobs}
         try:
-            results = [_process_job(job, book, zf, config_dir, automatic) for job in config["fonts"]]
+            results = [
+                _process_job(job, book, zf, config_dir, job["target"] in automatic_targets)
+                for job in jobs
+            ]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 
