@@ -48,7 +48,7 @@ func TestEnglishTypographyGoldenRedlineAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Run(t.Context(), b, Params{Lang: "en"})
+	result, err := Run(t.Context(), b, Params{Lang: "en", ScopePaths: []string{englishPagePath}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestEnglishTypographyGoldenRedlineAndIdempotent(t *testing.T) {
 	if len(findings) != 0 {
 		t.Fatalf("text and anchor redlines should pass, got %+v", findings)
 	}
-	second, err := Run(t.Context(), b, Params{Lang: "en"})
+	second, err := Run(t.Context(), b, Params{Lang: "en", ScopePaths: []string{englishPagePath}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestEnglishTypographySkipsUnsafeExistingLang(t *testing.T) {
 func TestEnglishTypographySkipsOrRejectsOtherLanguage(t *testing.T) {
 	xhtml := `<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN"><body>中文内容</body></html>`
 	t.Run("implicit scope skips", func(t *testing.T) {
-		b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: xhtml}}, "zh-CN")
+		b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: xhtml}}, "en")
 		defer b.Close()
 		result, err := Run(t.Context(), b, Params{Lang: "en"})
 		if err != nil {
@@ -162,6 +162,45 @@ func TestEnglishTypographySkipsOrRejectsOtherLanguage(t *testing.T) {
 			t.Fatalf("result=%+v modified=%v", result, b.ModifiedNames())
 		}
 	})
+}
+
+func TestEnglishTypographySkipsPagesWithoutLetters(t *testing.T) {
+	xhtml := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>封面</title></head><body><img alt="封面"/></body></html>`
+	b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: xhtml}}, "en")
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{Lang: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusComplete || result.Facts["editCount"] != 0 || len(b.ModifiedNames()) != 0 {
+		t.Fatalf("result=%+v modified=%v", result, b.ModifiedNames())
+	}
+	if !hasFinding(result.Findings, "english.skipped-no-text") {
+		t.Fatalf("missing skipped-no-text info: %+v", result.Findings)
+	}
+	skipped, ok := result.Facts["skipped"].([]skippedFile)
+	if !ok || !slices.Contains(skipped, skippedFile{Path: englishPagePath, Reason: "no-letter-text"}) {
+		t.Fatalf("skipped=%#v, want no-letter-text", result.Facts["skipped"])
+	}
+}
+
+func TestEnglishTypographyRequiresScopeWhenOPFLanguageDiffers(t *testing.T) {
+	pages := []englishPage{
+		{Path: "OEBPS/Text/cover.xhtml", XHTML: `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>封面</title></head><body><img alt="封面"/></body></html>`},
+		{Path: englishPagePath, XHTML: englishNoLangPage("English words remain here.")},
+	}
+	b := openEnglishBook(t, pages, "zh-CN")
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{Lang: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusComplete || result.Facts["editCount"] != 0 || result.Facts["filesScanned"] != 0 || len(b.ModifiedNames()) != 0 {
+		t.Fatalf("result=%+v modified=%v", result, b.ModifiedNames())
+	}
+	if len(result.Findings) != 1 || result.Findings[0].ID != "english.opf-language-differs-requires-scope" || result.Findings[0].Level != "info" {
+		t.Fatalf("findings=%+v, want only the requires-scope info", result.Findings)
+	}
 }
 
 func TestEnglishTypographyMismatchSkipsOneFileAndContinues(t *testing.T) {
@@ -185,7 +224,7 @@ func TestEnglishTypographyMismatchSkipsOneFileAndContinues(t *testing.T) {
 
 func TestEnglishTypographyCJKAndBodyLanguageSkips(t *testing.T) {
 	t.Run("CJK ratio", func(t *testing.T) {
-		b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: englishNoLangPage("汉字假名한국語 words")}}, "zh-CN")
+		b := openEnglishBook(t, []englishPage{{Path: englishPagePath, XHTML: englishNoLangPage("汉字假名한국語 words")}}, "en")
 		defer b.Close()
 		result, err := Run(t.Context(), b, Params{Lang: "en"})
 		if err != nil {

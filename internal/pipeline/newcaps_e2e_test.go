@@ -219,21 +219,18 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
 		t.Fatalf("status=%q exit=%d findings=%+v, want planned / 0", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
 	}
-	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 3 {
-		t.Fatalf("editCount=%#v, want 3", got)
+	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 0 {
+		t.Fatalf("editCount=%#v, want 0 until scope is explicit", got)
 	}
-	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{
-		"OEBPS/Text/english-1.xhtml", "OEBPS/Text/english-2.xhtml", "OEBPS/Text/english-3.xhtml",
-	}) {
-		t.Fatalf("pipeline.modifiedEntries=%#v", got)
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; len(got.([]string)) != 0 {
+		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
 	}
-	var sawCJK, sawOPFLanguage bool
+	var sawScopeRequirement bool
 	for _, finding := range outcome.Envelope.Findings {
-		sawCJK = sawCJK || finding.ID == "english.skipped-cjk-text"
-		sawOPFLanguage = sawOPFLanguage || finding.ID == "english.opf-language-differs"
+		sawScopeRequirement = sawScopeRequirement || finding.ID == "english.opf-language-differs-requires-scope"
 	}
-	if !sawCJK || !sawOPFLanguage {
-		t.Fatalf("expected CJK skip and OPF language info findings, got %+v", outcome.Envelope.Findings)
+	if !sawScopeRequirement {
+		t.Fatalf("expected OPF language scope requirement finding, got %+v", outcome.Envelope.Findings)
 	}
 	if outcome.Envelope.Input == nil {
 		t.Fatal("input artifact missing from E2E envelope")
@@ -264,6 +261,43 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	}
 	if !bytes.Equal(data, want) {
 		t.Fatalf("English typography E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+	}
+}
+
+func TestEnglishTypographyScopeOverridesOPFLanguageGate(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeEnglishTypographyEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.english.optimize",
+		InputPath:    input,
+		DryRun:       true,
+		Args: Args{
+			"scope_paths": `["OEBPS/Text/english-1.xhtml","OEBPS/Text/english-2.xhtml","OEBPS/Text/english-3.xhtml"]`,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("status=%q exit=%d findings=%+v, want planned / 0", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 3 {
+		t.Fatalf("editCount=%#v, want 3", got)
+	}
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{
+		"OEBPS/Text/english-1.xhtml", "OEBPS/Text/english-2.xhtml", "OEBPS/Text/english-3.xhtml",
+	}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
+	}
+	if !slices.ContainsFunc(outcome.Envelope.Findings, func(finding report.Finding) bool {
+		return finding.ID == "english.opf-language-differs"
+	}) {
+		t.Fatalf("missing scoped OPF-language diagnostic: %+v", outcome.Envelope.Findings)
+	}
+	if slices.ContainsFunc(outcome.Envelope.Findings, func(finding report.Finding) bool {
+		return finding.ID == "english.opf-language-differs-requires-scope"
+	}) {
+		t.Fatalf("explicit scope should bypass requires-scope info: %+v", outcome.Envelope.Findings)
 	}
 }
 

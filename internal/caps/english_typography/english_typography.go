@@ -115,6 +115,15 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 	}
 	selected, skipped := scopeFiles(spine, byPath, scope)
 	findings := []report.Finding{}
+	if scope == nil && opfLanguageDiffers(pkg.Metadata["language"], lang) {
+		findings = append(findings, report.Finding{
+			Level: "info", ID: "english.opf-language-differs-requires-scope",
+			Title:    "OPF language differs from the requested XHTML language; explicit scope is required",
+			Detail:   fmt.Sprintf("dc:language=%q; requested primary language=%q; provide scope_paths to select pages", pkg.Metadata["language"], primaryLang(lang)),
+			Location: opfPath,
+		})
+		return nil, []plannedEdit{}, skipped, findings, 0, nil
+	}
 	if scope != nil {
 		for _, requested := range uniqueStrings(scope) {
 			if _, ok := byPath[requested]; !ok {
@@ -248,15 +257,28 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 			skipped = append(skipped, skippedFile{Path: file.path, Reason: "declared-on-body"})
 			continue
 		}
-		if scope == nil && body != nil && cjkLetterRatio(body.IterText()) >= cjkSkipRatio {
-			findings = append(findings, report.Finding{
-				Level: "info", ID: "english.skipped-cjk-text",
-				Title:    "Undeclared-language page contains substantial CJK text",
-				Detail:   fmt.Sprintf("CJK-to-letter ratio is at least %.1f; left unchanged", cjkSkipRatio),
-				Location: file.path,
-			})
-			skipped = append(skipped, skippedFile{Path: file.path, Reason: "cjk-text"})
-			continue
+		if scope == nil && body != nil {
+			cjkRatio, letters := cjkLetterRatio(body.IterText())
+			if letters == 0 {
+				findings = append(findings, report.Finding{
+					Level: "info", ID: "english.skipped-no-text",
+					Title:    "Undeclared-language page contains no letters",
+					Detail:   "body has no Unicode letters; left unchanged",
+					Location: file.path,
+				})
+				skipped = append(skipped, skippedFile{Path: file.path, Reason: "no-letter-text"})
+				continue
+			}
+			if cjkRatio >= cjkSkipRatio {
+				findings = append(findings, report.Finding{
+					Level: "info", ID: "english.skipped-cjk-text",
+					Title:    "Undeclared-language page contains substantial CJK text",
+					Detail:   fmt.Sprintf("CJK-to-letter ratio is at least %.1f; left unchanged", cjkSkipRatio),
+					Location: file.path,
+				})
+				skipped = append(skipped, skippedFile{Path: file.path, Reason: "cjk-text"})
+				continue
+			}
 		}
 		insert := ` lang="` + lang + `" xml:lang="` + lang + `"`
 		edits = append(edits, editset.Insert(file.path, int64(root.Open.End-1), []byte(insert)))
@@ -333,7 +355,7 @@ func bodyHasLanguage(body *opf.SpanNode) bool {
 	return hasLang || hasXMLLang
 }
 
-func cjkLetterRatio(text string) float64 {
+func cjkLetterRatio(text string) (float64, int) {
 	letters := 0
 	cjk := 0
 	for _, r := range text {
@@ -346,9 +368,9 @@ func cjkLetterRatio(text string) float64 {
 		}
 	}
 	if letters == 0 {
-		return 0
+		return 0, 0
 	}
-	return float64(cjk) / float64(letters)
+	return float64(cjk) / float64(letters), letters
 }
 
 func hasErrorFinding(findings []report.Finding) bool {

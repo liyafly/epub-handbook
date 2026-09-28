@@ -12,37 +12,12 @@
       "info": 0
     },
     "epub.package.nav.audit.status": "complete",
-    "epub.typography.english.optimize.editCount": 3,
-    "epub.typography.english.optimize.filesScanned": 4,
-    "epub.typography.english.optimize.plannedEdits": [
-      {
-        "path": "OEBPS/Text/english-1.xhtml",
-        "action": "add-lang",
-        "value": "en"
-      },
-      {
-        "path": "OEBPS/Text/english-2.xhtml",
-        "action": "add-lang",
-        "value": "en"
-      },
-      {
-        "path": "OEBPS/Text/english-3.xhtml",
-        "action": "add-lang",
-        "value": "en"
-      }
-    ],
-    "epub.typography.english.optimize.skipped": [
-      {
-        "path": "OEBPS/Text/copyright.xhtml",
-        "reason": "cjk-text"
-      }
-    ],
+    "epub.typography.english.optimize.editCount": 0,
+    "epub.typography.english.optimize.filesScanned": 0,
+    "epub.typography.english.optimize.plannedEdits": [],
+    "epub.typography.english.optimize.skipped": [],
     "pipeline.dryRun": true,
-    "pipeline.modifiedEntries": [
-      "OEBPS/Text/english-1.xhtml",
-      "OEBPS/Text/english-2.xhtml",
-      "OEBPS/Text/english-3.xhtml"
-    ]
+    "pipeline.modifiedEntries": []
   },
   "findings": [
     {
@@ -54,17 +29,10 @@
     },
     {
       "level": "info",
-      "id": "english.opf-language-differs",
-      "title": "OPF language differs from the requested XHTML language",
-      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"",
+      "id": "english.opf-language-differs-requires-scope",
+      "title": "OPF language differs from the requested XHTML language; explicit scope is required",
+      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"; provide scope_paths to select pages",
       "location": "OEBPS/content.opf"
-    },
-    {
-      "level": "info",
-      "id": "english.skipped-cjk-text",
-      "title": "Undeclared-language page contains substantial CJK text",
-      "detail": "CJK-to-letter ratio is at least 0.2; left unchanged",
-      "location": "OEBPS/Text/copyright.xhtml"
     }
   ],
   "events": [
