@@ -197,7 +197,7 @@ func init() {
 		violations := -1
 		noterefs := -1
 		if result, ok := up[notesfallback.UpstreamID]; ok {
-			if count, ok := result.Facts["violations"].(int); ok {
+			if count, ok := result.Facts["standardViolations"].(int); ok {
 				violations = count
 			}
 			if count, ok := result.Facts["noterefs"].(int); ok {

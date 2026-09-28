@@ -45,6 +45,7 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	var iconRefs []iconRef
 	foundNotes := false
 	noterefCount := 0
+	duokanViolations := 0
 
 	for _, fp := range textFiles {
 		raw, err := b.Current(fp)
@@ -163,6 +164,7 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 					duokanMode = true
 				}
 			}
+			duokanErrorsBefore := len(errs)
 			if duokanMode {
 				if !classTokens(noteList).contains("duokan-footnote-content") {
 					errs = append(errs, violation{fmt.Sprintf("%s: Duokan fallback requires ol.duokan-footnote-content", fp)})
@@ -181,6 +183,7 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 					}
 				}
 			}
+			duokanViolations += len(errs) - duokanErrorsBefore
 		}
 	}
 
@@ -198,9 +201,10 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 		}
 	}
 	res.Facts = map[string]any{
-		"noterefs":   noterefCount,
-		"violations": len(errs),
-		"text_files": len(textFiles),
+		"noterefs":           noterefCount,
+		"violations":         len(errs),
+		"standardViolations": len(errs) - duokanViolations,
+		"text_files":         len(textFiles),
 	}
 	return res, nil
 }

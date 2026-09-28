@@ -83,7 +83,7 @@ func TestKindleCompatibilityCheckEndToEnd(t *testing.T) {
 
 func TestNotesFallbackEndToEnd(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	input := writeNotesFallbackEPUB(t, false)
+	input := writeNotesFallbackEPUB(t, false, false)
 	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.notes.legacy-fallback",
 		InputPath:    input,
@@ -154,9 +154,54 @@ func TestNotesFallbackEndToEnd(t *testing.T) {
 	}
 }
 
+func TestNotesFallbackCompletesPartialDuokanClasses(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeNotesFallbackEPUB(t, false, true)
+	dryRun, err := Run(t.Context(), Options{
+		CapabilityID: "epub.notes.legacy-fallback",
+		InputPath:    input,
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dryRun.ExitCode != ExitOK || dryRun.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("dry-run status=%q exit=%d findings=%+v, want planned / 0", dryRun.Envelope.Status, dryRun.ExitCode, dryRun.Envelope.Findings)
+	}
+	if got := dryRun.Envelope.Facts["epub.notes.legacy-fallback.editCount"]; got != 2 {
+		t.Fatalf("dry-run editCount=%#v, want only ol/li class additions", got)
+	}
+	if got := dryRun.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/chapter.xhtml"}) {
+		t.Fatalf("dry-run modifiedEntries=%#v", got)
+	}
+
+	captured, err := Run(t.Context(), Options{
+		CapabilityID:  "epub.notes.legacy-fallback",
+		InputPath:     input,
+		CaptureOutput: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.ExitCode != ExitOK || captured.Envelope.Status != report.StatusComplete || len(captured.OutputBytes) == 0 {
+		t.Fatalf("capture status=%q exit=%d outputBytes=%d findings=%+v", captured.Envelope.Status, captured.ExitCode, len(captured.OutputBytes), captured.Envelope.Findings)
+	}
+	validated, err := Run(t.Context(), Options{
+		CapabilityID: "epub.notes.popup.normalize",
+		InputPath:    "partial-duokan-output.epub",
+		InputBytes:   captured.OutputBytes,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validated.ExitCode != ExitOK || validated.Envelope.Status != report.StatusComplete || validated.Envelope.Facts["epub.notes.popup.normalize.violations"] != 0 {
+		t.Fatalf("popup output validation status=%q exit=%d facts=%#v findings=%+v", validated.Envelope.Status, validated.ExitCode, validated.Envelope.Facts, validated.Envelope.Findings)
+	}
+}
+
 func TestNotesFallbackRejectsInvalidPopupUpstream(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	input := writeNotesFallbackEPUB(t, true)
+	input := writeNotesFallbackEPUB(t, true, false)
 	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.notes.legacy-fallback",
 		InputPath:    input,
@@ -594,11 +639,14 @@ func writeNewCapabilityEPUB(t *testing.T) string {
 	return input
 }
 
-func writeNotesFallbackEPUB(t *testing.T, missingBacklink bool) string {
+func writeNotesFallbackEPUB(t *testing.T, missingBacklink, partialDuokan bool) string {
 	t.Helper()
 	chapter := `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN"><head><title>Chapter</title></head><body><p id="p1">正文<a id="nr1" epub:type="noteref" role="doc-noteref" class="noteref-icon" href="#n1"><img src="../Icons/note.png" alt="注"/></a>继续。</p><aside epub:type="footnote" role="doc-footnote"><ol class="footnote-list"><li class="footnote-item" id="n1">注<a epub:type="backlink" role="doc-backlink" href="#nr1">↩</a></li></ol></aside></body></html>`
 	if missingBacklink {
 		chapter = strings.Replace(chapter, `href="#nr1">↩`, `href="#missing">↩`, 1)
+	}
+	if partialDuokan {
+		chapter = strings.Replace(chapter, `class="noteref-icon"`, `class="noteref-icon duokan-footnote"`, 1)
 	}
 	entries := map[string]string{
 		"META-INF/container.xml":   `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,

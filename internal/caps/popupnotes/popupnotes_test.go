@@ -189,7 +189,7 @@ func TestPopupNotesErrors(t *testing.T) {
 		t.Errorf("错误措辞不一致:\n--- want ---\n%s\n--- got ---\n%s",
 			strings.Join(want, "\n"), strings.Join(titles, "\n"))
 	}
-	if facts["violations"] != len(want) || facts["noterefs"] != 4 || facts["text_files"] != 4 {
+	if facts["violations"] != len(want) || facts["standardViolations"] != len(want) || facts["noterefs"] != 4 || facts["text_files"] != 4 {
 		t.Errorf("facts = %v", facts)
 	}
 }
@@ -206,8 +206,24 @@ func TestPopupNotesOK(t *testing.T) {
 	if len(titles) != 0 {
 		t.Fatalf("不应有 error findings: %v", titles)
 	}
-	if facts["violations"] != 0 || facts["noterefs"] != 1 || facts["text_files"] != 1 {
+	if facts["violations"] != 0 || facts["standardViolations"] != 0 || facts["noterefs"] != 1 || facts["text_files"] != 1 {
 		t.Errorf("facts = %v", facts)
+	}
+}
+
+func TestPopupNotesSeparatesStandardAndDuokanViolations(t *testing.T) {
+	files := validFixture()
+	files["OEBPS/Text/valid.xhtml"] = strings.Replace(
+		files["OEBPS/Text/valid.xhtml"],
+		`class="noteref-icon"`,
+		`class="noteref-icon duokan-footnote"`,
+		1,
+	)
+	epub := filepath.Join(t.TempDir(), "partial-duokan.epub")
+	writePopupEpub(t, epub, files)
+	status, _, facts := runGoPopup(t, epub)
+	if status != "failed" || facts["violations"] != 2 || facts["standardViolations"] != 0 {
+		t.Fatalf("status=%q facts=%#v, want two Duokan-only violations and zero standard violations", status, facts)
 	}
 }
 
@@ -233,7 +249,7 @@ func TestPopupScansManifestXHTMLOutsideOEBPSText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Facts["text_files"] != 1 || result.Facts["noterefs"] != 1 || result.Facts["violations"] == 0 {
+	if result.Facts["text_files"] != 1 || result.Facts["noterefs"] != 1 || result.Facts["violations"] == 0 || result.Facts["standardViolations"] == 0 {
 		t.Fatalf("facts=%#v, want one scanned XHTML, one noteref, and violations", result.Facts)
 	}
 }
