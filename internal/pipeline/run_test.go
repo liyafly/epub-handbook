@@ -373,6 +373,46 @@ func TestEPUBHandbookRootOverridesEmbeddedResources(t *testing.T) {
 	}
 }
 
+func TestFontCoverageHonorsEpubHandbookRoot(t *testing.T) {
+	t.Setenv("EPUB_HANDBOOK_ROOT", "")
+	root, err := FindRepoRoot()
+	if err != nil || root == "" {
+		t.Fatalf("FindRepoRoot() = %q, %v; want repository root", root, err)
+	}
+	externalDir := t.TempDir()
+	uvDir := t.TempDir()
+	toolRoot := filepath.Join(root, "tools-font", "coverage-detector")
+	workingDirFile := filepath.Join(t.TempDir(), "uv-working-directory")
+	detectorJSON := `{"schema_version":"1.0","summary":{"by_profile_risk":{"kindle-pessimistic":{"ok":1,"risk":0,"fail":0}},"unresolved_runs":0}}`
+	uvScript := "#!/bin/sh\nprintf '%s' \"$PWD\" > \"$UV_CWD_FILE\"\nprintf '%s' \"$FAKE_DETECTOR_STDOUT\"\n"
+	if err := os.WriteFile(filepath.Join(uvDir, "uv"), []byte(uvScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EPUB_HANDBOOK_ROOT", root)
+	t.Setenv("UV_CWD_FILE", workingDirFile)
+	t.Setenv("FAKE_DETECTOR_STDOUT", detectorJSON)
+	t.Setenv("PATH", uvDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Chdir(externalDir)
+
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.font.coverage.analyze",
+		InputPath:    buildSampleEpub(t),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusComplete {
+		t.Fatalf("status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	got, err := os.ReadFile(workingDirFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != toolRoot {
+		t.Fatalf("uv working directory = %q, want %q", got, toolRoot)
+	}
+}
+
 func TestTypographyUsesEmbeddedPresetOutsideRepository(t *testing.T) {
 	t.Setenv("EPUB_HANDBOOK_ROOT", "")
 	input := buildTypographySampleEpub(t)

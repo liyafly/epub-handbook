@@ -221,7 +221,7 @@ func findRepoRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("fontcoverage: 未找到 tools-font/coverage-detector")
+			return "", errors.New("fontcoverage: 未找到 tools-font/coverage-detector；请设置 EPUB_HANDBOOK_ROOT 指向 epub-handbook 仓库根目录")
 		}
 		dir = parent
 	}

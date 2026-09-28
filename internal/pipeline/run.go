@@ -269,13 +269,17 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	// 先复制兼容性的 KEY=VALUE，再由正式全局 flag 最终覆盖保留键，避免
 	// 用户参数伪造 pipeline 的输入、输出或事务模式。
 	userArgs := maps.Clone(opts.Args)
-	runArgs := make(Args, len(opts.Args)+3)
+	runArgs := make(Args, len(opts.Args)+4)
 	for k, v := range opts.Args {
 		runArgs[k] = v
 	}
 	runArgs["input"] = opts.InputPath
 	runArgs["output"] = opts.OutputPath
 	runArgs["dry_run"] = strconv.FormatBool(opts.DryRun)
+	delete(runArgs, fontCoverageToolRootArg)
+	if root != "" {
+		runArgs[fontCoverageToolRootArg] = filepath.Join(root, "tools-font", "coverage-detector")
+	}
 	if sourceInputCap {
 		// sourceInput 能力：解析后的绝对输入路径（目录或文件）。
 		if abs, err := filepath.Abs(opts.InputPath); err == nil {

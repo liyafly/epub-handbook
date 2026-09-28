@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -134,5 +135,13 @@ func TestRunFailsWhenDetectorReturnsNonJSON(t *testing.T) {
 	}
 	if res.Status != report.StatusFailed || len(res.Findings) != 1 || res.Findings[0].ID != "fontcoverage.adapter" {
 		t.Errorf("status=%s findings=%+v", res.Status, res.Findings)
+	}
+}
+
+func TestFindRepoRootErrorMentionsEpubHandbookRoot(t *testing.T) {
+	t.Setenv("EPUB_HANDBOOK_ROOT", "")
+	t.Chdir(t.TempDir())
+	if _, err := findRepoRoot(); err == nil || !strings.Contains(err.Error(), "EPUB_HANDBOOK_ROOT") {
+		t.Fatalf("findRepoRoot() error = %v, want guidance to set EPUB_HANDBOOK_ROOT", err)
 	}
 }

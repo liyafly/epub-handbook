@@ -45,6 +45,7 @@ type Args map[string]string
 const embeddedPresetsArg = "__pipeline_embedded_presets"
 const embeddedDemoArg = "__pipeline_embedded_demo"
 const presetCatalogDirArg = "__pipeline_preset_catalog_dir"
+const fontCoverageToolRootArg = "__pipeline_font_coverage_tool_root"
 
 // Get 返回参数值，缺省为空串。
 func (a Args) Get(k string) string { return a[k] }
@@ -182,7 +183,10 @@ func init() {
 		if profile == "" {
 			profile = "kindle-pessimistic"
 		}
-		return fontcoverage.Run(ctx, b, fontcoverage.Params{Profile: profile})
+		return fontcoverage.Run(ctx, b, fontcoverage.Params{
+			Profile:  profile,
+			ToolRoot: args.Get(fontCoverageToolRootArg),
+		})
 	})
 	register("epub.font.subset", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
 		return fontsubset.Run(ctx, b, fontsubset.Params{FontConfig: args.Get("font_config")})
