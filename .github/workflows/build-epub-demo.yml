@@ -249,7 +249,8 @@ jobs:
 
       - name: Install EPUBCheck
         run: |
-          curl -L -o epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+          curl -fL -o epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+          echo "74a59af8602bf59b1d04266a450d9cdcb5986e36d825adc403cde0d95e88c9e8  epubcheck.zip" | sha256sum -c
           unzip -q epubcheck.zip -d "$RUNNER_TEMP/epubcheck"
           echo "EPUBCHECK_JAR=$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar" >> "$GITHUB_ENV"
 

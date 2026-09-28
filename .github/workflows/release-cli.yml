@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - '.github/workflows/release-cli.yml'
+      - '.github/scripts/release-smoke.sh'
+      - 'embed.go'
+      - 'cmd/epub/**'
   workflow_dispatch:
 
 permissions:
@@ -164,7 +170,7 @@ jobs:
           (cd dist && sha256sum "epub_v${version}_"*.tar.gz > SHA256SUMS)
           sed "s/@VERSION@/${version}/g" docs/release/README.md > dist/README.md
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
