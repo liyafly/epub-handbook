@@ -50,7 +50,7 @@ maintain 均只读，无 `--output`。catalog=true 从真实 spine 生成场景�
 
 ### Kindle 兼容检查
 
-读取 `facts.epub.kindle.compatibility.check.checks` 的检查顺序、`counts` 的逐项命中数、`cssFilesScanned` / `xhtmlFilesScanned` 的扫描范围和 `staticOnly=true`。这是只读 validator，不返回 `plannedEdits` 或 `skipped`。finding 前缀为 `kindle.`；error 会令状态 `failed`，warn/info 不会单独阻断。转换日志另记文件、错误码、资源路径、工具/版本、产物 SHA。转换成功、Previewer 展示、App/设备验收是三种不同证据。
+读取 `facts["epub.kindle.compatibility.check.checks"]` 的检查顺序、`counts` 的逐项命中数、`cssFilesScanned` / `xhtmlFilesScanned` 的扫描范围和 `staticOnly=true`。这是只读 validator，不返回 `plannedEdits` 或 `skipped`。finding 前缀为 `kindle.`；error 会令状态 `failed`，warn/info 不会单独阻断。转换日志另记文件、错误码、资源路径、工具/版本、产物 SHA。转换成功、Previewer 展示、App/设备验收是三种不同证据。
 
 ### 版式 demo 与证据
 

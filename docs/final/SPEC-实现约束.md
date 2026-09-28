@@ -327,20 +327,20 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 | 问题模式 | 主路径 skill | 自动化程度 |
 | --- | --- | --- |
-| 大量内联 `style="..."` -> 抽到外联 CSS | `epub-cleanup` | 高 |
-| 标准 footnote 缺 `epub:type`、缺 `aria-describedby` -> 补齐 | `epub-cleanup` | 高 |
-| 多看 / 旧版阅读器需要弹注 fallback | `epub-special-layout` | 高 |
-| OPF manifest 缺 `properties="svg" / "mathml"` | `epub-audit` | 高 |
-| nav.xhtml 缺失 / 结构破损 | `epub-audit` | 中 |
-| toc.ncx 与 nav.xhtml 不同步 | `epub-audit` | 高 |
-| 字体策略不规范 | `epub-cleanup` | 中 |
-| 中英混排排版不稳 | `epub-cleanup` | 高 |
-| 英文小说首字下沉 / 字体策略 | `epub-special-layout` | 中 |
-| 图文环绕用不稳定布局 | `epub-audit` | 中 |
-| Ruby 注音不规范 | `epub-special-layout` | 高 |
-| Kindle Enhanced Typesetting 转换失败 | `epub-reader-verify` | 中 |
-| 文学结构混在一起 | `epub-special-layout` | 中 |
-| 普通 epub 加 A-lite 增强 | `epub-package-ops` | 中 |
+| 大量内联 `style="..."` -> 抽到外联 CSS | `epub-cleanup` | 人工（CLI 不抽取内联样式） |
+| 标准 footnote 缺 `epub:type` -> 迁移时补齐已识别结构；ARIA 关联需人工核对 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中 |
+| 多看 / 旧版阅读器需要弹注 fallback | `epub-special-layout`（`epub.notes.legacy-fallback`） | 标准弹注检查后可补已识别 legacy class；交互仍需阅读器实测 |
+| OPF manifest 缺 `properties="svg" / "mathml"` | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移时标记已识别特性） |
+| nav.xhtml 缺失 / 结构破损 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（可识别输入由迁移生成；其他结构人工修复） |
+| toc.ncx 与 nav.xhtml 不同步 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移按可识别 NCX 生成 nav；其他结构人工修复） |
+| 字体策略不规范 | `epub-cleanup`（`epub.typography.optimize`） | 中 |
+| 中英混排排版不稳 | `epub-cleanup`（`epub.typography.optimize`） | 高 |
+| 英文小说首字下沉 / 字体策略 | `epub-special-layout`（`epub.typography.english.optimize`） | 只读检出；语言声明可修补，drop cap 与字体排版人工决定 |
+| 图文环绕用不稳定布局 | `epub-audit`（`epub.image.layout.optimize`） | 只读检出，人工修复 |
+| Ruby 注音不规范 | `epub-special-layout`（`epub.vertical.ruby.optimize`） | 高 |
+| Kindle Enhanced Typesetting 转换失败 | `epub-reader-verify`（`epub.kindle.compatibility.check`） | 只读静态检查；转换器与阅读器问题需人工验证 |
+| 文学结构混在一起 | `epub-special-layout`（`epub.literary.structure.format`） | 中（角色须人工确认） |
+| 普通 epub 加 A-lite 增强 | `epub-package-ops`（`epub.alite.convert`） | 中 |
 
 #### 不能做
 

@@ -123,7 +123,7 @@ grep -E "media-type=\"image/webp\"" OEBPS/package.opf && echo "WebP MIME still i
 epub run epub.package.nav.audit --input <artifact.epub> --json
 ```
 
-### 3.6 图片转化工具建议
+### 6.1 图片转化工具建议
 
 本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure。
 这些工具不由 CLI 探测或调用；需要自行确认已安装、运行后回到 EPUB 层复核：

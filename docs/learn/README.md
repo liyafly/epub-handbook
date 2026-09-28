@@ -46,8 +46,11 @@ sh templates/book-starter/new-book.sh work-epub/my-book
 #    - 编辑 work-epub/my-book/03 制作工作区/epub/OEBPS/package.opf
 #    - 编辑 work-epub/my-book/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml
 
-# 3. 构建 + 体检，成功后覆盖唯一的 dist/book.epub
-sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
+# 3. 编译书级构建所需的 CLI
+go build -o /tmp/epub ./cmd/epub
+
+# 4. 构建 + 体检，成功后覆盖唯一的 dist/book.epub
+EPUB_BIN=/tmp/epub sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
 ```
 
 解包源和完整字体母版由书级 Git 维护；临时 EPUB 放进 `.pipeline/`，失败时保留上一份通过检查的
