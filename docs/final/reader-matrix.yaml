@@ -88,6 +88,15 @@ cases:
   - id: 18-english-fiction-emphasis
     title: 英文小说 `<em>` 语义强调与斜体
     fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
+  - id: preset-plain-cn@01-body
+    title: plain-cn 局部预设：普通正文
+    fixture: "templates/epub-style-demo/OEBPS/Text/01-body.xhtml; preset=plain-cn; scope=OEBPS/Text/01-body.xhtml"
+  - id: preset-poetry-cn@29-poetry
+    title: poetry-cn 局部预设：诗歌
+    fixture: "templates/epub-style-demo/OEBPS/Text/29-poetry.xhtml; preset=poetry-cn; scope=OEBPS/Text/29-poetry.xhtml"
+  - id: preset-fiction-en@18-english-fiction
+    title: fiction-en 局部预设：英文小说
+    fixture: "templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml; preset=fiction-en; scope=OEBPS/Text/18-english-fiction.xhtml"
   - id: 19-border-shadow-notes
     title: 边框与阴影便签
     fixture: templates/epub-style-demo/OEBPS/Text/19-border-shadow-notes.xhtml
@@ -182,13 +191,13 @@ retest_priorities:
     focus: "在临时授权素材工作区构建正文自由+局部字体、直接 body 锁定、原字体/子集字体和双版本对照；记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的码位、cmap、实际字形和用户字体切换表现。"
   - rank: 6
     case: 29-poetry
-    readers: [thorium]
-    focus: "T09 的精确本地 poetry-cn 候选已在 Apple Books、Readest、Kindle Previewer 检查；这些结果不外推到默认 demo 或其他 artifact。仍需在 Thorium 实测，并复核未来构建。"
+    readers: [ibooks_macos, thorium, kindle_previewer]
+    focus: "局部 poetry-cn 的历史观察因原候选无法定位且缺少截图/日志已降为 warn；默认 demo 尚未验收。用本次精确构建产物的独立 identity 副本复测并记录 SHA 与证据。"
 
 expectations:
   # status: pass | warn | fail | na
   - reader: ibooks_macos
-    case: 01-basic-cjk
+    case: preset-plain-cn@01-body
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认字体并检查自定义宋体主题；字号默认与 +1"
@@ -198,7 +207,7 @@ expectations:
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；不据此推断其他 demo 构建或阅读器。"
   - reader: readest
-    case: 01-basic-cjk
+    case: preset-plain-cn@01-body
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入 plain-cn 候选；默认阅读主题与字号"
@@ -208,7 +217,7 @@ expectations:
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无；不要把本条当作同 UUID 重导入行为的独立验证。"
   - reader: kindle_previewer
-    case: 01-basic-cjk
+    case: preset-plain-cn@01-body
     status: warn
     reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
@@ -218,7 +227,7 @@ expectations:
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；结果只适用于所列候选与 portrait profile。"
   - reader: ibooks_macos
-    case: 29-poetry
+    case: preset-poetry-cn@29-poetry
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
@@ -228,7 +237,7 @@ expectations:
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无。"
   - reader: readest
-    case: 29-poetry
+    case: preset-poetry-cn@29-poetry
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；默认 16 与增大至 22 字号；冷退出后重新打开"
@@ -238,7 +247,7 @@ expectations:
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无。"
   - reader: kindle_previewer
-    case: 29-poetry
+    case: preset-poetry-cn@29-poetry
     status: warn
     reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
@@ -248,7 +257,7 @@ expectations:
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无；Thorium 与更长诗歌仍待测。"
   - reader: ibooks_macos
-    case: 18-english-fiction
+    case: preset-fiction-en@18-english-fiction
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
@@ -258,7 +267,7 @@ expectations:
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
     workaround: "无。"
   - reader: readest
-    case: 18-english-fiction
+    case: preset-fiction-en@18-english-fiction
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入后跳转目录目标页；退出并冷启动复核"
@@ -268,7 +277,7 @@ expectations:
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
     workaround: "无；字号回归由 Apple Books 与 Kindle Previewer 本轮覆盖。"
   - reader: kindle_previewer
-    case: 18-english-fiction
+    case: preset-fiction-en@18-english-fiction
     status: warn
     reader_version: "4.0.1"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
@@ -614,6 +623,12 @@ expectations:
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:
+  - case: 01-basic-cjk
+    fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
+    note: "默认 Style Demo 普通正文；局部 plain-cn 候选的历史观察单独记为 warn，不外推到默认样式。"
+  - case: 29-poetry
+    fixture: templates/epub-style-demo/OEBPS/Text/29-poetry.xhtml
+    note: "默认 Style Demo 诗歌场景；局部 poetry-cn 候选的历史观察单独记为 warn，不外推到默认样式。"
   - case: 18-english-fiction-emphasis
     fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
     note: "新增英文 `<em>` 语义强调样例；fiction-en 候选保持英文斜体且不加中文着重号，真实阅读器验证待执行。"
