@@ -190,7 +190,7 @@ epub redline --check all \
 - DRM：无
 - 包结构检查：N error / N warning
 
-## 1. harness findings
+## 1. 审计结果
 
 - ...
 
@@ -200,16 +200,16 @@ epub redline --check all \
 
 ## 3. 清洗步骤
 
-### Step 1: <skill name>
+### S5-<n>: <capability-id>
 
-- dry-run 输出：`step-1.dry-run.json`
+- dry-run 输出：`s5-<n>-dry.json`
 - 文本红线：pass
-- 中间产物：`after/step-1.epub`
+- 中间产物：`$W/after/s5-<n>.epub`
 
 ## 4. 完整红线校验
 
 ```sh
-epub redline --check all <redline-base.epub> after/cleaned.epub
+epub redline --check all "$W/before/source.epub" "$W/after/s5-<n>.epub"
 ```
 
 ## 5. Diff 概览
@@ -220,10 +220,6 @@ epub redline --check all <redline-base.epub> after/cleaned.epub
 - 资源：N add / delete / modified
 - 元数据：core unchanged
 
-## 6. 可信度评估
-
-- 红线触发数：0
-- 结论：自动通过
 ````
 
 ## 附录 F 回滚与错误恢复
@@ -231,17 +227,16 @@ epub redline --check all <redline-base.epub> after/cleaned.epub
 每个成功写出的中间 EPUB 都作为回滚锚点，文件名统一使用 s*.epub：
 
 ```text
-work/after/
-├── s3-epub3.epub
-├── s5-1-css-layering.epub
-├── s5-2-popup-footnote.epub
-└── s9-cleaned.epub
+"$W/after/"
+├── s3.epub
+├── s5-1.epub
+└── s5-2.epub
 ```
 
 回滚时从上一个已通过红线的候选生成新文件，不覆盖原始输入或已有锚点：
 
 ```sh
-cp work/after/s5-1-css-layering.epub work/after/s9-restored.epub
+cp "$W/after/s5-1.epub" "$W/after/s9-restored.epub"
 ```
 
 失败的候选保留供分析，但不更新 CUR。恢复时从 CUR 指向的上一个成功候选继续，重新运行失败步骤并再次通过红线后再更新 CUR。流水线状态以 CUR、报告和制作说明中的 SHA-256 为准。
