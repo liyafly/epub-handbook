@@ -20,11 +20,11 @@ const (
 	UpstreamID   = "epub.notes.popup.normalize"
 )
 
-// Params contains the upstream standard-note validator result and optional
-// exact spine-XHTML scope. A negative upstream violation count means the
-// required validator result was missing.
+// Params contains upstream standard-note counts and an optional exact
+// spine-XHTML scope. A negative upstream count means the required fact is missing.
 type Params struct {
 	UpstreamViolations int
+	UpstreamNoterefs   int
 	ScopePaths         []string
 }
 
@@ -129,6 +129,10 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		byPath[file.path] = file
 	}
 	selected, skipped := scopeFiles(spine, byPath, p.ScopePaths)
+	selectedByPath := make(map[string]bool, len(selected))
+	for _, file := range selected {
+		selectedByPath[file.path] = true
+	}
 	var findings []report.Finding
 	if p.ScopePaths != nil {
 		for _, requested := range uniqueStrings(p.ScopePaths) {
@@ -147,7 +151,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	planned := []plannedEdit{}
 	filesScanned := 0
 	noterefCount := 0
-	for _, file := range selected {
+	for _, file := range spine {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, nil, filesScanned, err
 		}
@@ -188,10 +192,16 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		}
 		noterefCount += len(noterefs)
 		if len(noterefs) == 0 {
+			if !selectedByPath[file.path] {
+				continue
+			}
 			if hasFileSkip(skipped, file.path) {
 				continue
 			}
 			skipped = append(skipped, skippedEdit{Path: file.path, Target: "notes", Reason: "no-noteref"})
+			continue
+		}
+		if !selectedByPath[file.path] {
 			continue
 		}
 		if len(lists) > 1 {
@@ -241,6 +251,14 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 				}
 			}
 		}
+	}
+	if p.UpstreamNoterefs != noterefCount {
+		findings = append(findings, report.Finding{
+			Level: "error", ID: "notes-fallback.upstream-coverage-mismatch",
+			Title:    "Popup validator and fallback disagree on spine noteref coverage",
+			Detail:   fmt.Sprintf("%s reported %d noterefs; fallback counted %d", UpstreamID, p.UpstreamNoterefs, noterefCount),
+			Location: opfPath,
+		})
 	}
 	if noterefCount == 0 && !hasErrorFinding(findings) {
 		location := opfPath

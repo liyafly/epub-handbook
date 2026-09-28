@@ -51,7 +51,7 @@ func TestLegacyFallbackGoldenRedlineAndIdempotent(t *testing.T) {
 	b := openNotesBook(t, files)
 	defer b.Close()
 
-	first, err := Run(t.Context(), b, Params{UpstreamViolations: 0})
+	first, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestLegacyFallbackGoldenRedlineAndIdempotent(t *testing.T) {
 		t.Fatalf("all redlines should pass, got %+v", findings)
 	}
 
-	second, err := Run(t.Context(), b, Params{UpstreamViolations: 0})
+	second, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestLegacyFallbackAddsOnlyMissingClasses(t *testing.T) {
 	partial = strings.Replace(partial, `class="footnote-item"`, `class="footnote-item duokan-footnote-item"`, 1)
 	b := openNotesBook(t, notesFiles(partial))
 	defer b.Close()
-	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0})
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,17 +115,18 @@ func TestLegacyFallbackParseAndStructuralErrorsApplyNoEdits(t *testing.T) {
 		name  string
 		xhtml string
 		id    string
+		notes int
 	}{
-		{name: "malformed unquoted class", xhtml: strings.Replace(fixtureXHTML, `class="noteref-icon"`, `class=noteref-icon`, 1), id: "notes-fallback.parse-failed"},
-		{name: "multiple note lists", xhtml: strings.Replace(fixtureXHTML, `</ol>`, `</ol><ol class="footnote-list"><li class="footnote-item" id="n2">另一条</li></ol>`, 1), id: "notes-fallback.multiple-lists"},
-		{name: "noteref without icon", xhtml: strings.Replace(fixtureXHTML, `<img src="../Icons/note.png" alt="注"/>`, ``, 1), id: "notes-fallback.noteref-without-icon"},
-		{name: "content class on li", xhtml: strings.Replace(fixtureXHTML, `class="footnote-item"`, `class="footnote-item duokan-footnote-content"`, 1), id: "notes-fallback.content-class-on-li"},
+		{name: "malformed unquoted class", xhtml: strings.Replace(fixtureXHTML, `class="noteref-icon"`, `class=noteref-icon`, 1), id: "notes-fallback.parse-failed", notes: 0},
+		{name: "multiple note lists", xhtml: strings.Replace(fixtureXHTML, `</ol>`, `</ol><ol class="footnote-list"><li class="footnote-item" id="n2">另一条</li></ol>`, 1), id: "notes-fallback.multiple-lists", notes: 1},
+		{name: "noteref without icon", xhtml: strings.Replace(fixtureXHTML, `<img src="../Icons/note.png" alt="注"/>`, ``, 1), id: "notes-fallback.noteref-without-icon", notes: 1},
+		{name: "content class on li", xhtml: strings.Replace(fixtureXHTML, `class="footnote-item"`, `class="footnote-item duokan-footnote-content"`, 1), id: "notes-fallback.content-class-on-li", notes: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := openNotesBook(t, notesFiles(tt.xhtml))
 			defer b.Close()
-			result, err := Run(t.Context(), b, Params{UpstreamViolations: 0})
+			result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: tt.notes})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -151,7 +152,7 @@ func TestLegacyFallbackScopeAndNoNotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, ScopePaths: []string{noteXHTMLPath}})
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 2, ScopePaths: []string{noteXHTMLPath}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +171,7 @@ func TestLegacyFallbackScopeAndNoNotes(t *testing.T) {
 	noNotes = noNotes[:strings.Index(noNotes, "    <aside")] + "  </body>\n</html>\n"
 	b2 := openNotesBook(t, notesFiles(noNotes))
 	defer b2.Close()
-	noNoteResult, err := Run(t.Context(), b2, Params{UpstreamViolations: 0})
+	noNoteResult, err := Run(t.Context(), b2, Params{UpstreamViolations: 0, UpstreamNoterefs: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,9 +186,9 @@ func TestLegacyFallbackRejectsBadUpstreamAndScope(t *testing.T) {
 		p    Params
 		id   string
 	}{
-		{name: "upstream violations", p: Params{UpstreamViolations: 2}, id: "notes-fallback.upstream-not-clean"},
-		{name: "upstream missing", p: Params{UpstreamViolations: -1}, id: "notes-fallback.upstream-not-clean"},
-		{name: "scope outside spine", p: Params{UpstreamViolations: 0, ScopePaths: []string{"OEBPS/Text/other.xhtml"}}, id: "notes-fallback.scope-not-in-spine"},
+		{name: "upstream violations", p: Params{UpstreamViolations: 2, UpstreamNoterefs: 1}, id: "notes-fallback.upstream-not-clean"},
+		{name: "upstream missing", p: Params{UpstreamViolations: -1, UpstreamNoterefs: -1}, id: "notes-fallback.upstream-not-clean"},
+		{name: "scope outside spine", p: Params{UpstreamViolations: 0, UpstreamNoterefs: 1, ScopePaths: []string{"OEBPS/Text/other.xhtml"}}, id: "notes-fallback.scope-not-in-spine"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			b := openNotesBook(t, notesFiles(fixtureXHTML))
@@ -200,6 +201,21 @@ func TestLegacyFallbackRejectsBadUpstreamAndScope(t *testing.T) {
 				t.Fatalf("result=%+v modified=%v", result, b.ModifiedNames())
 			}
 		})
+	}
+}
+
+func TestLegacyFallbackRejectsUpstreamCoverageMismatch(t *testing.T) {
+	b := openNotesBook(t, notesFiles(fixtureXHTML))
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusFailed || len(b.ModifiedNames()) != 0 {
+		t.Fatalf("result=%+v modified=%v, want failure without edits", result, b.ModifiedNames())
+	}
+	if !hasFinding(result.Findings, "notes-fallback.upstream-coverage-mismatch") {
+		t.Fatalf("missing upstream coverage mismatch: %+v", result.Findings)
 	}
 }
 

@@ -195,9 +195,13 @@ func init() {
 	})
 	register("epub.notes.legacy-fallback", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		violations := -1
+		noterefs := -1
 		if result, ok := up[notesfallback.UpstreamID]; ok {
 			if count, ok := result.Facts["violations"].(int); ok {
 				violations = count
+			}
+			if count, ok := result.Facts["noterefs"].(int); ok {
+				noterefs = count
 			}
 		}
 		var scope []string
@@ -211,7 +215,7 @@ func init() {
 				}
 			}
 		}
-		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, ScopePaths: scope})
+		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, UpstreamNoterefs: noterefs, ScopePaths: scope})
 	})
 	register("epub.typography.english.optimize", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
 		lang, ok := args["lang"]

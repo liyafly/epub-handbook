@@ -178,6 +178,33 @@ func TestNotesFallbackRejectsInvalidPopupUpstream(t *testing.T) {
 	}
 }
 
+func TestNotesFallbackRejectsUnscannedManifestXHTML(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeNotesFallbackOutsideTextEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.notes.legacy-fallback",
+		InputPath:    input,
+		DryRun:       true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed {
+		t.Fatalf("status=%q exit=%d facts=%#v findings=%+v, want failed / 1", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Facts, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.status"]; got != report.StatusFailed {
+		t.Fatalf("popup status=%#v, want failed", got)
+	}
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; len(got.([]string)) != 0 {
+		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
+	}
+	if !slices.ContainsFunc(outcome.Envelope.Findings, func(finding report.Finding) bool {
+		return finding.ID == "notes-fallback.upstream-not-clean"
+	}) {
+		t.Fatalf("missing upstream-not-clean finding: %+v", outcome.Envelope.Findings)
+	}
+}
+
 func TestEnglishTypographyEndToEnd(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	input := writeEnglishTypographyEPUB(t)
@@ -576,6 +603,41 @@ func writeNotesFallbackEPUB(t *testing.T, missingBacklink bool) string {
 		t.Fatal(err)
 	}
 	input := filepath.Join(t.TempDir(), "notes-fallback.epub")
+	if err := os.WriteFile(input, archive.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return input
+}
+
+func writeNotesFallbackOutsideTextEPUB(t *testing.T) string {
+	t.Helper()
+	entries := map[string]string{
+		"META-INF/container.xml": `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf"/></rootfiles></container>`,
+		"EPUB/package.opf":       `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="uid"><metadata><dc:identifier id="uid">urn:uuid:outside-text</dc:identifier><dc:title>Outside text fixture</dc:title><dc:language>zh-CN</dc:language></metadata><manifest><item id="chapter" href="c1.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`,
+		"EPUB/c1.xhtml":          `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Chapter</title></head><body><p><a epub:type="noteref" href="#missing" id="r1">1</a></p></body></html>`,
+	}
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	mimetype, err := writer.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mimetype.Write([]byte("application/epub+zip")); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range entries {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(t.TempDir(), "outside-text.epub")
 	if err := os.WriteFile(input, archive.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
