@@ -27,14 +27,6 @@ work/
 __pycache__/
 *.pyc
 
-# SwiftPM / Tuist / Xcode generated state
-swift/.build/
-swift/.swiftpm/
-gui/*.xcodeproj/
-gui/*.xcworkspace/
-gui/Tuist/Dependencies/
-gui/DerivedData/
-gui/Derived/
 .playwright-cli
 output/playwright
 tmp

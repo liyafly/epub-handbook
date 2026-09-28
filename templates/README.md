@@ -10,7 +10,6 @@
 | `cleanup-demo-books` | 自造 before / after 清洗样本，用于红线 gate 和 diff review | `bash templates/cleanup-demo-books/build.sh` |
 | `book-starter` | 一键创建带书根维护说明的独立书级 Git 工作区 | `sh templates/book-starter/new-book.sh work-epub/<book>` |
 | `style-presets` | 可复用 CSS 风格预设 | 不单独打包 |
-| `fixtures-tiny` | 手工扩展用极简 fixture 槽位 | 按子目录自建 |
 
 ## 使用原则
 
