@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/editset"
 )
 
 func TestRunReplacesOnlyManifestFontInMemory(t *testing.T) {
@@ -130,6 +131,30 @@ func TestRunSupportsRelativeInputPath(t *testing.T) {
 	defer b.Close()
 	if _, err := Run(t.Context(), b, Params{ToolPath: provider}); err != nil {
 		t.Fatalf("Run() with relative input path: %v", err)
+	}
+}
+
+func TestRunRejectsModifiedBookState(t *testing.T) {
+	b, _ := openFontBook(t)
+	defer b.Close()
+	chapter, err := b.Current("OEBPS/Text/chapter.xhtml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := bytes.Replace(chapter, []byte("正文"), []byte("正文新增"), 1)
+	if bytes.Equal(updated, chapter) {
+		t.Fatal("test fixture does not contain the expected chapter text")
+	}
+	if err := b.Apply([]editset.Edit{editset.Replace(
+		"OEBPS/Text/chapter.xhtml", 0, int64(len(chapter)), updated,
+	)}); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Run(t.Context(), b, Params{})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.stale-input" {
+		t.Fatalf("Run() = result %+v, error %v; want stale-input finding", result, err)
 	}
 }
 

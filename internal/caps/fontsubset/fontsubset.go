@@ -135,6 +135,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return res, err
 	}
+	if len(b.ModifiedNames()) > 0 {
+		return failure(&res, "font-subset.stale-input", "font subsetting requires the unmodified input EPUB; run it before applying in-memory edits")
+	}
 	input := b.InputPath()
 	if input == "" {
 		return failure(&res, "font-subset.input-missing", "font subset requires an EPUB file input")
