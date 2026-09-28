@@ -152,6 +152,37 @@ jobs:
           epub_count=$(find "$book/03 制作工作区" -type f -name '*.epub' | wc -l | tr -d ' ')
           test "$epub_count" = 1
 
+      - name: Verify deterministic EPUB builds
+        shell: bash
+        run: |
+          demo_a="$RUNNER_TEMP/style demo a"
+          demo_b="$RUNNER_TEMP/style demo b"
+          cp -R templates/epub-style-demo "$demo_a"
+          cp -R templates/epub-style-demo "$demo_b"
+          touch -t 198101010000 "$demo_b/OEBPS/Text/01-body.xhtml"
+          sh "$demo_a/build.sh"
+          sh "$demo_b/build.sh"
+          demo_sha_a=$(sha256sum "$demo_a/dist/epub-style-demo.epub" | cut -d ' ' -f 1)
+          demo_sha_b=$(sha256sum "$demo_b/dist/epub-style-demo.epub" | cut -d ' ' -f 1)
+          demo_sha_source=$(sha256sum templates/epub-style-demo/dist/epub-style-demo.epub | cut -d ' ' -f 1)
+          test "$demo_sha_a" = "$demo_sha_b"
+          test "$demo_sha_a" = "$demo_sha_source"
+          printf 'Deterministic style demo SHA256=%s\n' "$demo_sha_a"
+
+          starter="$RUNNER_TEMP/book starter reproducibility seed"
+          book_a="$RUNNER_TEMP/book starter reproducibility a"
+          book_b="$RUNNER_TEMP/book starter reproducibility b"
+          sh templates/book-starter/new-book.sh "$starter"
+          cp -R "$starter" "$book_a"
+          cp -R "$starter" "$book_b"
+          touch -t 198101010000 "$book_b/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_a/03 制作工作区/epub/build.sh"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_b/03 制作工作区/epub/build.sh"
+          book_sha_a=$(sha256sum "$book_a/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
+          book_sha_b=$(sha256sum "$book_b/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
+          test "$book_sha_a" = "$book_sha_b"
+          printf 'Deterministic book starter SHA256=%s\n' "$book_sha_a"
+
       - name: Validate demo artifact with epub CLI
         run: |
           epub=$(ls templates/epub-style-demo/dist/*.epub | head -n 1)

@@ -27,6 +27,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 BUILD_TMP=$(mktemp -d "$OUT_DIR/.epub-style-demo.XXXXXX")
 TMP="$BUILD_TMP/epub-style-demo.epub"
+SRC="$BUILD_TMP/src"
 cleanup() {
 	rm -rf "$BUILD_TMP"
 	rmdir "$LOCK_DIR" 2>/dev/null || true
@@ -34,10 +35,14 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
+mkdir -p "$SRC"
+cp -R "$ROOT/mimetype" "$ROOT/META-INF" "$ROOT/OEBPS" "$SRC"/
+find "$SRC" -name .DS_Store -delete
+find "$SRC" -exec touch -h -t 198001010000 {} +
 (
-  cd "$ROOT"
+  cd "$SRC"
   zip -X -0 "$TMP" mimetype >/dev/null
-  zip -X -r -9 "$TMP" META-INF OEBPS >/dev/null
+  find META-INF OEBPS -type f | LC_ALL=C sort | zip -X -9 "$TMP" -@ >/dev/null
 )
 
 mv -f "$TMP" "$OUT"

@@ -14,6 +14,8 @@ sh templates/epub-style-demo/build.sh
 templates/epub-style-demo/dist/epub-style-demo.epub
 ```
 
+构建前会在临时目录复制源树、统一文件时间戳并按固定路径顺序打包。同一源提交在相同 `zip` 版本下会得到相同 SHA-256；不同 `zip` 版本之间不承诺字节级一致。
+
 ## 样本页
 
 1. `00-title.xhtml`：封面式标题页。

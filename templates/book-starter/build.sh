@@ -70,12 +70,17 @@ trap 'exit 1' HUP INT TERM
 
 FULL_EPUB="$BUILD_TMP/full-font.epub"
 FINAL_EPUB="$BUILD_TMP/final.epub"
+SRC_DIR="$BUILD_TMP/src"
 FONT_CONFIG="$BOOK_DIR/fonts.json"
 
+mkdir -p "$SRC_DIR"
+cp -R "$EPUB_DIR/mimetype" "$EPUB_DIR/META-INF" "$EPUB_DIR/OEBPS" "$SRC_DIR"/
+find "$SRC_DIR" -name .DS_Store -delete
+find "$SRC_DIR" -exec touch -h -t 198001010000 {} +
 (
-	cd "$EPUB_DIR"
+	cd "$SRC_DIR"
 	zip -X -0 "$FULL_EPUB" mimetype >/dev/null
-	zip -X -r -9 "$FULL_EPUB" META-INF OEBPS -x '*/.DS_Store' >/dev/null
+	find META-INF OEBPS -type f | LC_ALL=C sort | zip -X -9 "$FULL_EPUB" -@ >/dev/null
 )
 
 HAS_FONTS=false
