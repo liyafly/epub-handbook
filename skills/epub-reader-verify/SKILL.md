@@ -21,20 +21,15 @@ Kindle 交付前，或 Previewer/App 与其他阅读器不同。规则按 [SPEC]
 
 ### Kindle 兼容检查
 
-`epub.kindle.compatibility.check` 是只读静态检查；输出不代表 Kindle Previewer、App 或设备验收。按以下顺序采集、审阅和复查：
+`epub.kindle.compatibility.check` 是只读静态检查；输出不代表 Kindle Previewer、App 或设备验收。运行检查并审阅返回：
 
 ```sh
-# 1. 生成只读检查报告
-epub run epub.kindle.compatibility.check --input "book.epub" --dry-run --json > "kindle-plan.json"
-# 2. 审阅所有 Kindle finding 及计数
-python3 -c 'import json; r=json.load(open("kindle-plan.json")); print(json.dumps({"findings":r.get("findings",[]),"counts":r.get("facts",{}).get("epub.kindle.compatibility.check.counts",{})}, ensure_ascii=False, indent=2))'
-# 3. 对确认后的输入重新运行只读扫描；本能力不写出 EPUB
-epub run epub.kindle.compatibility.check --input "book.epub" --json > "kindle-final.json"
-# 4. 若另有已授权修复候选，验证内容边界
-epub redline --check all "book.epub" "candidate.epub"
+# 1. 扫描并读取 JSON 信封
+epub run epub.kindle.compatibility.check --input "book.epub" --json
+# 2. 阅读 findings[] 与 facts["epub.kindle.compatibility.check.counts"]
 ```
 
-前两次扫描均为只读，不会生成 `plannedEdits`；审阅时按 finding ID 选择对应专项并遵守授权。第 4 步只适用于已存在的候选，不把静态报告当成修改许可。实测前确认本机转换器版本、实际输出与日志路径，按 [demo README](../../templates/epub-style-demo/README.md) 选择验证场景。
+该能力只读，不生成 `plannedEdits` 或 EPUB 候选。按 finding ID 选择对应专项并遵守授权；若另有已授权修复候选，再对该候选运行全项 redline。实测前确认本机转换器版本、实际输出与日志路径，按 [demo README](../../templates/epub-style-demo/README.md) 选择验证场景。
 
 ### 版式 demo 与证据
 

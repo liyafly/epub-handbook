@@ -112,6 +112,10 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 文学结构精排
 
+- `literary.class-not-allowed`：从 SPEC §7 或文白指南确认词表；能力不会替用户推断新角色。
+- `literary.path-not-in-spine`、`literary.target-not-found`、`literary.target-ambiguous`、`literary.target-forbidden`：核对精确 spine 路径和 id 或 XHTML tag/index；修正重复 id 或选择不在 head、html 根之外的正文目标，不扩大到相似元素。
+- `literary.unsafe-attribute`、`literary.unsupported-encoding`、`literary.parse-failed`、`literary.no-head`：对应文件不能安全编辑，先修复属性、编码或结构，再重跑；error 会令整批零写入。
+- `literary.stylesheet-not-in-manifest`：改用 OPF manifest 中的 CSS 路径；`literary.already-has-class` 与 `literary.stylesheet-already-linked` 是已满足项，按 no-op 处理。
 - 先以普通章首、连续正文、诗/信件或文白复杂页建立一致样例，再推广可复用类；通过字号、间距、对齐和少量装饰形成层次，不重新设计原书。
 - 章首保留真实 h1，装饰图用 figure；版权页保留真文本和信息顺序，不猜补书目事实；不将普通章首自动转换 A-lite。
 - 文白先按源序上下；短组宽屏可增强浮动，长组/窄屏允许分页，不用 table/flex/grid 承载正文对照。具体比例和类名复用指南，不另造体系。
@@ -120,6 +124,10 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 竖排与 Ruby
 
+- `vertical.scope-not-in-spine`、`vertical.scope-not-css-manifest-item`：将 `scope_paths` 改为精确 spine XHTML 或 manifest CSS 路径。
+- `vertical.unsupported-encoding`、`vertical.xhtml-parse-failed`、`vertical.css-parse-failed`：输入无法安全扫描；修复编码或标记语法，再重跑，不接受部分计划。
+- `vertical.ruby-has-rp` 表示 fallback 已齐全；`vertical.ruby-partial-rp`、`vertical.ruby-complex`、`vertical.ruby-prefixed`、`vertical.ruby-empty-rt`、`vertical.ruby-emphasis` 表示跳过并需按源结构判断，不要强行补括号。
+- `vertical.writing-mode-unsupported-value`：只支持 `vertical-rl`、`vertical-lr`、`horizontal-tb` 且不带 `!important`；`vertical.prefix-conflict`：先人工解决标准与厂商前缀值冲突，再重跑。
 - 整页正文用 body.page-vrl 与 .vrl-section，vertical-rl 带标准/WebKit/EPUB 前缀；text-orientation: mixed，不强制所有 Latin 直立。样式归 vertical.css，不能混用 poster shell。
 - Ruby 保留一份注音：`<ruby>漢<rp>（</rp><rt>かん</rt><rp>）</rp></ruby>`。已有有效 rt 不重复复制；inline Ruby 和 .has-ruby 行距兜底归 base.css。
 - text-combine-upright 只用于短数字/标记并经目标阅读器验证；不用图片、固定页高或 absolute positioning 替代真实文字。
@@ -127,6 +135,10 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 旧版弹注 fallback
 
+- `notes-fallback.upstream-not-clean`：检查 popup 的 `standardViolations`，先独立修复标准弹注错误，再重跑 fallback。
+- `notes-fallback.scope-not-in-spine`：改正范围路径；`notes-fallback.no-notes` 是 info，表示选中范围没有 noteref、无需写入。
+- `notes-fallback.unsupported-encoding`、`notes-fallback.parse-failed`、`notes-fallback.multiple-lists`、`notes-fallback.noteref-without-icon`、`notes-fallback.content-class-on-li`、`notes-fallback.unsafe-attribute`：先人工修复对应文件结构或属性，再重跑 popup validator 与 fallback。
+- `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 范围和 popup 计数，不接受部分 class 变更。
 - 标准属性/中性类保留；anchor 加 duokan-footnote 且内含图标；ol.footnote-list 加 duokan-footnote-content；li.footnote-item 仅加 duokan-footnote-item，不把 content 类放 li。
 - 同文件一个 aside/ol，noteref 指向唯一 li，◎ backlink 返回原 trigger；不得复制可见 note list、display:none 隐藏正文或用 JS。
 - 保留现有图标 src/alt，缺少才复用项目资源并同步 manifest。样式并入活动 notes.css，分隔线只留一套，不影响普通上标。
