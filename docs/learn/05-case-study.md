@@ -4,6 +4,8 @@
 
 ## 先生成样本
 
+构建需要 Python 3。
+
 ```sh
 bash templates/cleanup-demo-books/build.sh
 ```
@@ -33,16 +35,18 @@ CSS 拆分的关键原则：**拆，不是叠。** 不是把旧 CSS 复制四份
 epub redline before.epub after.epub
 ```
 
-这条命令检查以下几个维度，任何一个不通过都视为红线触发：
+检查项定义见 [SPEC §10.5](../final/SPEC-实现约束.md)。默认 `--check all` 包含 text、metadata、spine、cover、drm、anchors 六项。
 
 | 维度 | 检查方式 | 为什么是红线 |
 | --- | --- | --- |
-| 文本内容 | 提取所有 XHTML 的文本节点，做归一化比较 | 清洗不能改正文一个字 |
-| 元素存在性 | 比对 before/after 的元素标签序列 | 不能增删段落、标题、注释文本 |
-| spine 顺序 | 比较两个 OPF 的 `<spine>` 子元素顺序 | 阅读顺序不能改变 |
-| 核心 metadata | 比较 dc:identifier、dc:title、dc:creator、dc:language | 书的基本身份不能变 |
+| text | 比较所有 XHTML 文本节点 | 清洗不能改正文一个字 |
+| metadata | 比较核心 OPF 元数据 | 书的基本身份不能变 |
+| spine | 比较两个 OPF 的 `<spine>` 子元素顺序 | 阅读顺序不能改变 |
+| cover | 检查封面资源红线 | 不擅自改变封面 |
+| drm | 检查加密与资源可读性 | DRM 或损坏输入停止处理 |
+| anchors | 比较章节锚点 id | 保持外部链接与阅读器进度 |
 
-它不检查的内容：CSS 属性值变化、文件名变化、目录结构变化——这些属于黄线（允许改但需人工确认）或绿线（格式化噪声）。
+改名须用 `--path-map` 提供映射，否则 text/anchors 会报删除/新增。CSS 属性值变化、文件名变化、目录结构变化需结合外部 diff 人工审阅。
 
 ### 用外部 diff 工具看五层变化
 

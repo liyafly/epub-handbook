@@ -16,6 +16,8 @@
 
 ## 生成
 
+构建需要 Python 3。
+
 ```sh
 bash templates/cleanup-demo-books/build.sh
 ```

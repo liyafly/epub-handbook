@@ -142,7 +142,7 @@ done < <(find "$BOOKS" -type f -iname '*.epub' -print0)
 
 ## 附录 C 自造 demo 自检
 
-自造 demo 的构建与验证见 [cleanup-demo-books README](../../templates/cleanup-demo-books/README.md)。
+自造 demo 的构建与验证见 [cleanup-demo-books README](../../templates/cleanup-demo-books/README.md)；运行其中的 build.sh 需要 Python 3。
 
 ## 附录 E 制作说明模板
 
