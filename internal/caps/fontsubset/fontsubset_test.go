@@ -184,6 +184,41 @@ func TestRunRejectsInvalidProviderReportsWithoutApplyingCandidate(t *testing.T) 
 	}
 }
 
+func TestRunRejectsProviderReportOmittingManifestFont(t *testing.T) {
+	provider := makeProvider(t, omittingFontProviderPython)
+	input := filepath.Join(t.TempDir(), "source.epub")
+	if err := os.WriteFile(input, fontFixtureWithSecondFont(t), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.unhandled-font" {
+		t.Fatalf("Run() = status %q, findings %+v, error %v; want unhandled-font failure", result.Status, result.Findings, err)
+	}
+	if result.Findings[0].Location != "OEBPS/Fonts/second.ttf" &&
+		!strings.Contains(result.Findings[0].Detail, "OEBPS/Fonts/second.ttf") {
+		t.Fatalf("unhandled-font finding = %+v, want the omitted font path", result.Findings[0])
+	}
+	for path, want := range map[string][]byte{
+		"OEBPS/Fonts/full.ttf":   []byte("FULL FONT"),
+		"OEBPS/Fonts/second.ttf": []byte("SECOND FONT"),
+	} {
+		got, readErr := b.Current(path)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s changed after omitted-font failure: got %q, want %q", path, got, want)
+		}
+	}
+}
+
 func TestRunProviderCancellationReturnsCancelledErrorWithoutApplyingCandidate(t *testing.T) {
 	provider := makeProvider(t, "import time; time.sleep(30)")
 	b, _ := openFontBook(t)
@@ -271,6 +306,46 @@ if mode == "wrong-output-sha":
 report_path.write_text(json.dumps(report), encoding="utf-8")
 `
 
+const omittingFontProviderPython = `
+import hashlib, json, sys, zipfile
+from pathlib import Path
+source = Path(sys.argv[2])
+output = Path(sys.argv[sys.argv.index("--out") + 1])
+target = "OEBPS/Fonts/full.ttf"
+with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
+    for entry in src.infolist():
+        dst.writestr(entry, src.read(entry))
+source_bytes = source.read_bytes()
+font = zipfile.ZipFile(source).read(target)
+sha = lambda data: hashlib.sha256(data).hexdigest()
+report = {
+    "schemaVersion": 1,
+    "tool": "epub-font subset",
+    "providerVersion": "test-1.0",
+    "fontTools": "4.test",
+    "input": {"path": str(source), "sha256": sha(source_bytes)},
+    "config": None,
+    "charset": {"total": 2, "bySource": {"text": 2}},
+    "fonts": [{
+        "target": target, "manifestId": "font", "mediaType": "application/vnd.ms-opentype",
+        "action": "subset",
+        "master": {"source": "epub:" + target, "sha256": sha(font), "bytes": len(font),
+                   "glyphs": 12, "outline": "glyf", "axes": []},
+        "variation": {"mode": "keep", "axes": {}},
+        "original": {"sha256": sha(font), "bytes": len(font)},
+        "output": {"sha256": sha(font), "bytes": len(font), "glyphs": 12,
+                   "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},
+        "requiredCodepoints": 2, "notInMaster": [], "notInMasterCount": 0,
+        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 2}},
+        "ok": True,
+        "warnings": []
+    }],
+    "ok": True,
+    "output": {"path": str(output), "sha256": sha(output.read_bytes()), "warnings": []}
+}
+output.with_name(output.stem + ".font-report.json").write_text(json.dumps(report), encoding="utf-8")
+`
+
 func makeProvider(t *testing.T, pythonBody string) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
@@ -318,16 +393,34 @@ func openFontBook(t *testing.T) (*book.Book, string) {
 }
 
 func fontFixture(t *testing.T) []byte {
+	return makeFontFixture(t, false)
+}
+
+func fontFixtureWithSecondFont(t *testing.T) []byte {
+	return makeFontFixture(t, true)
+}
+
+func makeFontFixture(t *testing.T, includeSecondFont bool) []byte {
 	t.Helper()
+	opf := `<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="font" href="Fonts/full.ttf" media-type="application/vnd.ms-opentype"/><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`
+	if includeSecondFont {
+		opf = strings.Replace(opf, `<item id="font"`, `<item id="second-font" href="Fonts/second.ttf" media-type="application/vnd.ms-opentype"/><item id="font"`, 1)
+	}
 	files := []struct {
 		name string
 		data []byte
 	}{
 		{"mimetype", []byte("application/epub+zip")},
 		{"META-INF/container.xml", []byte(`<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/package.opf"/></rootfiles></container>`)},
-		{"OEBPS/package.opf", []byte(`<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="font" href="Fonts/full.ttf" media-type="application/vnd.ms-opentype"/><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`)},
+		{"OEBPS/package.opf", []byte(opf)},
 		{"OEBPS/Fonts/full.ttf", []byte("FULL FONT")},
 		{"OEBPS/Text/chapter.xhtml", []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body><p>正文</p></body></html>`)},
+	}
+	if includeSecondFont {
+		files = append(files, struct {
+			name string
+			data []byte
+		}{"OEBPS/Fonts/second.ttf", []byte("SECOND FONT")})
 	}
 	var output bytes.Buffer
 	writer := zip.NewWriter(&output)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **`epub-font` 1.1.0**：`fonts.json` 只覆盖明确列出的字体；未列出的 manifest 字体也会按自动规则处理，包括自动保留 MATH 字体。Go capability 现在拒绝 provider 漏报 manifest 字体的报告。
+
 ## v0.4.6 - 2026-09-28
 
 ### Added

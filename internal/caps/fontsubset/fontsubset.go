@@ -200,6 +200,37 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		return failure(&res, "font-subset.report-invalid", err.Error())
 	}
+	var reportedTargets struct {
+		Fonts []struct {
+			Target string `json:"target"`
+		} `json:"fonts"`
+	}
+	if err := json.Unmarshal(providerReportBytes, &reportedTargets); err != nil {
+		return failure(&res, "font-subset.report-invalid", fmt.Sprintf("decode provider report: %v", err))
+	}
+	manifestPaths := make(map[string]struct{}, len(manifestFontItems))
+	for _, item := range manifestFontItems {
+		manifestPaths[item.ArchivePath] = struct{}{}
+	}
+	reportedFonts := make(map[string]struct{}, len(reportedTargets.Fonts))
+	for _, font := range reportedTargets.Fonts {
+		if _, ok := manifestPaths[font.Target]; !ok {
+			return failure(&res, "font-subset.report-invalid", fmt.Sprintf("provider report target %q is not a current manifest font", font.Target))
+		}
+		if _, duplicate := reportedFonts[font.Target]; duplicate {
+			return failure(&res, "font-subset.report-invalid", fmt.Sprintf("provider report repeats font target %q", font.Target))
+		}
+		reportedFonts[font.Target] = struct{}{}
+	}
+	unhandledFonts := make([]string, 0)
+	for _, item := range manifestFontItems {
+		if _, ok := reportedFonts[item.ArchivePath]; !ok {
+			unhandledFonts = append(unhandledFonts, item.ArchivePath)
+		}
+	}
+	if len(unhandledFonts) > 0 {
+		return failure(&res, "font-subset.unhandled-font", strings.Join(unhandledFonts, ", "))
+	}
 
 	candidate, err := book.OpenContext(ctx, candidatePath)
 	if err != nil {
@@ -345,7 +376,7 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 	if err := validateWarningList("output.warnings", providerReport.Output.Warnings); err != nil {
 		return providerReportSummary{}, nil, err
 	}
-	if len(providerReport.Fonts) == 0 || len(providerReport.Fonts) > len(manifestFontItems) {
+	if len(providerReport.Fonts) != len(manifestFontItems) {
 		return providerReportSummary{}, nil, fmt.Errorf("provider report fonts count %d does not match manifest scope", len(providerReport.Fonts))
 	}
 
