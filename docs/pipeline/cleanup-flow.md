@@ -5,6 +5,8 @@
 
 ## 变量（每本书先设一次）
 
+书级工作区不存在时先 `git init "$BOOK_ROOT"`，并在书级 `.gitignore` 写入 `03 制作工作区/.pipeline/` 与 `03 制作工作区/dist/`。
+
 ```sh
 BOOK_ROOT='work-epub/<book>'
 W="$BOOK_ROOT/03 制作工作区/.pipeline"
