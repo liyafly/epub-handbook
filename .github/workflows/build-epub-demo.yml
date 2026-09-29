@@ -1,5 +1,8 @@
 name: Build EPUB Demo
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
@@ -87,7 +90,7 @@ jobs:
 
       - name: Lint Markdown
         run: |
-          npm install -g markdownlint-cli2
+          npm install -g markdownlint-cli2@0.23.3
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
             'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
             'THIRD_PARTY.md' 'contracts/**/*.md' \
