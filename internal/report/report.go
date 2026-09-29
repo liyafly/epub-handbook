@@ -127,8 +127,14 @@ func CleanBatchEnvelope(books []CleanBookSummary, notStarted []string) Envelope 
 		if book.ExitCode == 0 {
 			continue
 		}
+		findingID := "clean.book-failed"
+		title := "EPUB clean failed for book"
+		if book.Status == StatusCancelled {
+			findingID = "clean.book-cancelled"
+			title = "EPUB clean was cancelled"
+		}
 		envelope.Findings = append(envelope.Findings, Finding{
-			Level: "error", ID: "clean.book-failed", Title: "EPUB clean failed for book",
+			Level: "error", ID: findingID, Title: title,
 			Detail: book.Error, Location: book.InputPath,
 		})
 	}

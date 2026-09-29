@@ -470,7 +470,17 @@ func TestCleanCancelledBatchEnvelopeGolden(t *testing.T) {
 		InputPath:  filepath.Join(root, "testdata", "cancelled.epub"),
 		ReportPath: filepath.Join(root, "out", "cancelled.clean.json"),
 	}, report.Envelope{SchemaVersion: "2", Capability: cleanCapabilityID},
-		"clean.book-cancelled", "EPUB clean was cancelled", context.Canceled)
+		"clean.book-cancelled", "EPUB clean was cancelled", context.Canceled, CleanOptions{}, nil)
+	cancelledDisposition, ok := cancelled.Envelope.Facts["pipeline.artifactDisposition"].(string)
+	if !ok || cancelledDisposition != "none" {
+		t.Fatalf("cancelled artifactDisposition=%#v, want none", cancelled.Envelope.Facts["pipeline.artifactDisposition"])
+	}
+	if got := cancelled.Envelope.Facts["epub.clean.approved"]; got != false {
+		t.Fatalf("cancelled approved fact=%v, want false", got)
+	}
+	if got, ok := cancelled.Envelope.Facts["pipeline.blockers"].([]string); !ok || !slices.Equal(got, []string{"clean.book-cancelled"}) {
+		t.Fatalf("cancelled blockers=%#v, want [clean.book-cancelled]", cancelled.Envelope.Facts["pipeline.blockers"])
+	}
 	if len(cancelled.Envelope.Events) != 1 || cancelled.Envelope.Events[0].Status != "failed" || cancelled.Envelope.Events[0].Message != "cancelled: context canceled" {
 		t.Fatalf("per-book cancellation event=%+v, want a schema-valid failed event with cancellation detail", cancelled.Envelope.Events)
 	}
@@ -485,7 +495,7 @@ func TestCleanCancelledBatchEnvelopeGolden(t *testing.T) {
 	batch := report.CleanBatchEnvelope([]report.CleanBookSummary{
 		{
 			InputPath: cancelled.InputPath, ReportPath: cancelled.ReportPath,
-			ArtifactDisposition: "", Status: cancelled.Envelope.Status,
+			ArtifactDisposition: cancelledDisposition, Status: cancelled.Envelope.Status,
 			ExitCode: cancelled.ExitCode, Error: errorString(cancelled.Err),
 			Findings: nonNilCleanFindings(cancelled.Envelope.Findings),
 		},
@@ -504,9 +514,14 @@ func TestCleanCancelledBatchEnvelopeGolden(t *testing.T) {
 	if got != string(want) {
 		t.Fatalf("cancelled batch differs from golden %s\n--- got ---\n%s\n--- want ---\n%s", goldenPath, got, want)
 	}
+	for _, summary := range batch.Facts["epub.clean.books"].([]report.CleanBookSummary) {
+		if summary.ArtifactDisposition == "" {
+			t.Fatalf("cancelled batch has an empty artifact disposition: %+v", summary)
+		}
+	}
 }
 
-func TestCleanInvalidEPUBStillWritesFailureSummary(t *testing.T) {
+func TestCleanUnreadableInputReportsNoneDisposition(t *testing.T) {
 	input := filepath.Join(t.TempDir(), "broken.epub")
 	if err := os.WriteFile(input, []byte("not a zip file"), 0o644); err != nil {
 		t.Fatal(err)
@@ -523,11 +538,54 @@ func TestCleanInvalidEPUBStillWritesFailureSummary(t *testing.T) {
 	if bookResult.Envelope.Status != report.StatusFailed || bookResult.ReportPath == "" {
 		t.Fatalf("book result=%+v", bookResult)
 	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "none" {
+		t.Fatalf("artifactDisposition=%v, want none", got)
+	}
+	if got := bookResult.Envelope.Facts["epub.clean.approved"]; got != false {
+		t.Fatalf("approved fact=%v, want false", got)
+	}
+	if got, ok := bookResult.Envelope.Facts["pipeline.blockers"].([]string); !ok || !slices.Equal(got, []string{"clean.input-read-failed"}) {
+		t.Fatalf("blockers=%#v, want [clean.input-read-failed]", bookResult.Envelope.Facts["pipeline.blockers"])
+	}
+	if got, ok := bookResult.Envelope.Facts["pipeline.selectedSteps"].([]string); !ok || !slices.Equal(got, []string{"normalize"}) {
+		t.Fatalf("selectedSteps=%#v, want [normalize]", bookResult.Envelope.Facts["pipeline.selectedSteps"])
+	}
 	if _, err := os.Stat(bookResult.ReportPath); err != nil {
 		t.Fatalf("failure report missing: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(outputDir, "broken.epub")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("failed input produced an EPUB: %v", err)
+	}
+}
+
+func TestCleanCancelledBeforeStartReportsCancelled(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	defer cancel()
+	steps := cleanStepDefinitions()
+	bookResult := cleanOneBook(ctx, CleanOptions{Approve: true}, cleanInput{
+		path: input, relative: filepath.Base(input),
+	}, false, outputDir, steps)
+	if bookResult.Envelope.Status != report.StatusCancelled {
+		t.Fatalf("status=%q, want cancelled", bookResult.Envelope.Status)
+	}
+	if !hasFindingID(bookResult.Envelope.Findings, "clean.book-cancelled") || hasFindingID(bookResult.Envelope.Findings, "clean.input-read-failed") {
+		t.Fatalf("findings=%+v, want clean.book-cancelled and no input-read failure", bookResult.Envelope.Findings)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "none" {
+		t.Fatalf("artifactDisposition=%v, want none", got)
+	}
+	if got := bookResult.Envelope.Facts["epub.clean.approved"]; got != true {
+		t.Fatalf("approved fact=%v, want true", got)
+	}
+	wantSteps := []string{"normalize", "migrate", "css"}
+	if got, ok := bookResult.Envelope.Facts["pipeline.selectedSteps"].([]string); !ok || !slices.Equal(got, wantSteps) {
+		t.Fatalf("selectedSteps=%#v, want %v", bookResult.Envelope.Facts["pipeline.selectedSteps"], wantSteps)
+	}
+	if got, ok := bookResult.Envelope.Facts["pipeline.blockers"].([]string); !ok || !slices.Equal(got, []string{"clean.book-cancelled"}) {
+		t.Fatalf("blockers=%#v, want [clean.book-cancelled]", bookResult.Envelope.Facts["pipeline.blockers"])
 	}
 }
 

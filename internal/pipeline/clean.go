@@ -405,12 +405,12 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		if inputSHA, hashErr := book.FileSHA256Context(ctx, input.path); hashErr == nil {
 			env.Input = &report.Artifact{Path: input.path, SHA256: inputSHA}
 		}
-		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to read input EPUB", err)
+		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to read input EPUB", err, opts, steps)
 	}
 	defer original.Close()
 	inputSHA, err := original.InputSHA256Context(ctx)
 	if err != nil {
-		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to hash input EPUB", err)
+		return cleanBookFailure(result, env, "clean.input-read-failed", "Unable to hash input EPUB", err, opts, steps)
 	}
 	env.Input = &report.Artifact{Path: input.path, SHA256: inputSHA}
 	session := newCleanSession(original)
@@ -559,6 +559,11 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		status = report.StatusFailed
 		if cancelled || errors.Is(failure, context.Canceled) || errors.Is(failure, context.DeadlineExceeded) || ctx.Err() != nil {
 			status = report.StatusCancelled
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				failure = ctxErr
+			} else if !errors.Is(failure, context.Canceled) && !errors.Is(failure, context.DeadlineExceeded) {
+				failure = context.Canceled
+			}
 			allEvents = append(allEvents, report.Event{Step: "clean", Status: "failed", Message: "cancelled: " + failure.Error()})
 		}
 		findingID := "clean.book-failed"
@@ -741,13 +746,25 @@ func cleanStepRedline(env report.Envelope) *cleanRedlineSummary {
 	return redline
 }
 
-func cleanBookFailure(result CleanBookResult, env report.Envelope, id, title string, err error) CleanBookResult {
+func cleanBookFailure(result CleanBookResult, env report.Envelope, id, title string, err error, opts CleanOptions, steps []cleanStepDefinition) CleanBookResult {
 	env.Status = report.StatusFailed
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		env.Status = report.StatusCancelled
+		id = "clean.book-cancelled"
+		title = "EPUB clean was cancelled"
 		env.Events = append(env.Events, report.Event{Step: "clean", Status: "failed", Message: "cancelled: " + err.Error()})
 	}
 	env.Findings = []report.Finding{{Level: "error", ID: id, Title: title, Detail: err.Error(), Location: result.InputPath}}
+	selectedSteps := make([]string, 0, len(steps))
+	for _, step := range steps {
+		selectedSteps = append(selectedSteps, step.name)
+	}
+	env.Facts = map[string]any{
+		"epub.clean.approved":          opts.Approve,
+		"pipeline.artifactDisposition": "none",
+		"pipeline.blockers":            []string{id},
+		"pipeline.selectedSteps":       selectedSteps,
+	}
 	result.Envelope = env
 	result.Err = err
 	result.ExitCode = ExitFailed

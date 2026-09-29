@@ -8,7 +8,7 @@
       {
         "inputPath": "<repo>/testdata/cancelled.epub",
         "reportPath": "<repo>/out/cancelled.clean.json",
-        "artifactDisposition": "",
+        "artifactDisposition": "none",
         "status": "cancelled",
         "exitCode": 1,
         "error": "context canceled",
@@ -35,8 +35,8 @@
   "findings": [
     {
       "level": "error",
-      "id": "clean.book-failed",
-      "title": "EPUB clean failed for book",
+      "id": "clean.book-cancelled",
+      "title": "EPUB clean was cancelled",
       "detail": "context canceled",
       "location": "<repo>/testdata/cancelled.epub"
     }
