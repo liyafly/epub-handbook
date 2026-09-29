@@ -3,7 +3,6 @@ package pipeline
 import (
 	"cmp"
 	"context"
-	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"maps"
@@ -11,27 +10,21 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
-	"github.com/liyafly/epub-handbook/internal/scan/opf"
 	"github.com/liyafly/epub-handbook/internal/zipfs"
 )
 
 const cleanCapabilityID = "epub.clean"
 
 type CleanOptions struct {
-	RepoRoot              string
-	InputPath             string
-	OutputDir             string
-	Steps                 []string
-	Preset                string
-	Scope                 []string
-	Approve               bool
-	RetainReviewCandidate bool
-	Jobs                  int
+	RepoRoot  string
+	InputPath string
+	OutputDir string
+	Steps     []string
+	Approve   bool
 }
 
 type CleanBookResult struct {
@@ -44,9 +37,10 @@ type CleanBookResult struct {
 }
 
 type CleanBatchResult struct {
-	Books    []CleanBookResult
-	Envelope report.Envelope
-	ExitCode int
+	Books      []CleanBookResult
+	NotStarted []string
+	Envelope   report.Envelope
+	ExitCode   int
 }
 
 type cleanInput struct {
@@ -96,21 +90,12 @@ func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport f
 	if strings.TrimSpace(opts.OutputDir) == "" {
 		return CleanBatchResult{}, &UsageError{Err: errors.New("epub clean requires --out DIR")}
 	}
-	if opts.Jobs < 0 {
-		return CleanBatchResult{}, &UsageError{Err: errors.New("--jobs must be a positive integer")}
-	}
-	if opts.Jobs == 0 {
-		opts.Jobs = 1
-	}
-	steps, err := normalizeCleanSteps(opts.Steps, opts.Preset, opts.Scope)
+	steps, err := normalizeCleanSteps(opts.Steps)
 	if err != nil {
 		return CleanBatchResult{}, &UsageError{Err: err}
 	}
 	if opts.Approve && len(steps) == 0 {
 		return CleanBatchResult{}, &UsageError{Err: errors.New("--approve requires at least one transform step")}
-	}
-	if opts.RetainReviewCandidate && !opts.Approve {
-		return CleanBatchResult{}, &UsageError{Err: errors.New("--retain-review-candidate requires --approve")}
 	}
 	if err := ctx.Err(); err != nil {
 		return CleanBatchResult{}, err
@@ -161,40 +146,22 @@ func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport f
 			return CleanBatchResult{}, err
 		}
 	}
-	if err := preflightCleanOutputs(inputs, inputPath, inputIsDir, outputDir, opts.Approve, opts.RetainReviewCandidate); err != nil {
+	if err := preflightCleanOutputs(inputs, inputPath, inputIsDir, outputDir, opts.Approve); err != nil {
 		return CleanBatchResult{}, err
 	}
 
-	jobs := opts.Jobs
-	if jobs > len(inputs) {
-		jobs = len(inputs)
-	}
-	work := make(chan cleanInput, len(inputs))
-	results := make(chan CleanBookResult, len(inputs))
-	for _, input := range inputs {
-		work <- input
-	}
-	close(work)
-	var workers sync.WaitGroup
-	for range jobs {
-		workers.Go(func() {
-			for input := range work {
-				results <- cleanOneBook(ctx, opts, input, inputIsDir, outputDir, steps)
+	batch := CleanBatchResult{Books: make([]CleanBookResult, 0, len(inputs)), NotStarted: []string{}, ExitCode: ExitOK}
+	for index, input := range inputs {
+		if err := ctx.Err(); err != nil {
+			for _, unstarted := range inputs[index:] {
+				batch.NotStarted = append(batch.NotStarted, unstarted.path)
 			}
-		})
-	}
-	workers.Wait()
-	close(results)
-
-	bookResults := make([]CleanBookResult, 0, len(inputs))
-	for result := range results {
-		bookResults = append(bookResults, result)
-	}
-	slices.SortFunc(bookResults, func(a, b CleanBookResult) int { return cmp.Compare(a.InputPath, b.InputPath) })
-	batch := CleanBatchResult{Books: bookResults, ExitCode: ExitOK}
-	for index := range batch.Books {
-		bookResult := &batch.Books[index]
+			batch.ExitCode = ExitFailed
+			break
+		}
+		bookResult := cleanOneBook(ctx, opts, input, inputIsDir, outputDir, steps)
 		if bookResult.Envelope.Status == "" {
+			batch.Books = append(batch.Books, bookResult)
 			continue
 		}
 		data, marshalErr := MarshalEnvelope(bookResult.Envelope)
@@ -209,9 +176,6 @@ func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport f
 				Level: "error", ID: "clean.report-write-failed", Title: "Failed to write clean summary report",
 				Detail: bookResult.Err.Error(), Location: bookResult.ReportPath,
 			})
-			if bookResult.Envelope.Facts["pipeline.artifactDisposition"] == "approved" {
-				bookResult.Envelope.Facts["pipeline.artifactDisposition"] = "approved-report-missing"
-			}
 			if blockers, ok := bookResult.Envelope.Facts["pipeline.blockers"].([]string); ok {
 				blockers = append(blockers, "clean.report-write-failed")
 				slices.Sort(blockers)
@@ -221,6 +185,7 @@ func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport f
 		if bookResult.ExitCode != ExitOK {
 			batch.ExitCode = ExitFailed
 		}
+		batch.Books = append(batch.Books, bookResult)
 	}
 	bookSummaries := make([]report.CleanBookSummary, 0, len(batch.Books))
 	for _, bookResult := range batch.Books {
@@ -232,7 +197,7 @@ func cleanWithReportWriter(ctx context.Context, opts CleanOptions, writeReport f
 			Error: errorString(bookResult.Err), Findings: nonNilCleanFindings(bookResult.Envelope.Findings),
 		})
 	}
-	batch.Envelope = report.CleanBatchEnvelope(bookSummaries)
+	batch.Envelope = report.CleanBatchEnvelope(bookSummaries, batch.NotStarted)
 	return batch, nil
 }
 
@@ -302,12 +267,9 @@ func resolveProspectivePath(path string) (string, error) {
 	}
 }
 
-func normalizeCleanSteps(requested []string, preset string, scope []string) ([]cleanStepDefinition, error) {
+func normalizeCleanSteps(requested []string) ([]cleanStepDefinition, error) {
 	all := cleanStepDefinitions()
 	if requested == nil {
-		if preset != "" || len(scope) > 0 {
-			return nil, errors.New("--preset and --scope require the typography step")
-		}
 		return []cleanStepDefinition{}, nil
 	}
 	if len(requested) == 0 {
@@ -322,57 +284,13 @@ func normalizeCleanSteps(requested []string, preset string, scope []string) ([]c
 	for _, name := range requested {
 		index, ok := byName[name]
 		if !ok {
-			return nil, fmt.Errorf("unknown clean step %q (choose normalize,migrate,css,typography)", name)
+			return nil, fmt.Errorf("unknown clean step %q (choose normalize,migrate,css)", name)
 		}
 		if index <= previous {
-			return nil, errors.New("--steps must be unique and in this order: normalize,migrate,css,typography")
+			return nil, errors.New("--steps must be unique and in this order: normalize,migrate,css")
 		}
 		selected = append(selected, all[index])
 		previous = index
-	}
-	typographySelected := slices.ContainsFunc(selected, func(step cleanStepDefinition) bool { return step.name == "typography" })
-	if !typographySelected {
-		if preset != "" || len(scope) > 0 {
-			return nil, errors.New("--preset and --scope require --steps typography")
-		}
-		return selected, nil
-	}
-	if strings.TrimSpace(preset) == "" {
-		return nil, errors.New("the typography step requires an explicit --preset")
-	}
-	if len(scope) == 0 {
-		return nil, errors.New("the typography step requires --scope all or one or more exact spine XHTML paths")
-	}
-	allScope := slices.Contains(scope, "all")
-	if allScope && len(scope) != 1 {
-		return nil, errors.New("--scope all cannot be combined with individual paths")
-	}
-	seenScope := make(map[string]struct{}, len(scope))
-	for _, path := range scope {
-		if path == "all" {
-			continue
-		}
-		if strings.TrimSpace(path) == "" || path == "." || filepath.IsAbs(path) || strings.ContainsRune(path, '\\') ||
-			filepath.ToSlash(filepath.Clean(filepath.FromSlash(path))) != path || strings.HasPrefix(path, "../") || path == ".." {
-			return nil, fmt.Errorf("--scope requires exact relative EPUB paths using forward slashes: %q", path)
-		}
-		if _, exists := seenScope[path]; exists {
-			return nil, fmt.Errorf("duplicate --scope path %q", path)
-		}
-		seenScope[path] = struct{}{}
-	}
-	for index := range selected {
-		if selected[index].name != "typography" {
-			continue
-		}
-		selected[index].args["preset"] = strings.TrimSpace(preset)
-		if !allScope {
-			encodedScope, err := jsonv2.Marshal(scope)
-			if err != nil {
-				return nil, fmt.Errorf("encode --scope: %w", err)
-			}
-			selected[index].args["scope_paths"] = string(encodedScope)
-		}
 	}
 	return selected, nil
 }
@@ -382,75 +300,7 @@ func cleanStepDefinitions() []cleanStepDefinition {
 		{name: "normalize", capability: "epub.structure.normalize", args: Args{"mode": "normalize"}},
 		{name: "migrate", capability: "epub.package.migrate.epub3", args: Args{}},
 		{name: "css", capability: "epub.css.layering.optimize", args: Args{}},
-		{name: "typography", capability: "epub.typography.optimize", args: Args{}},
 	}
-}
-
-func resolveCleanScope(ctx context.Context, current *book.Book, requested []string, normalizeReport []byte) ([]string, error) {
-	pathMap := map[string]string{}
-	if len(normalizeReport) > 0 {
-		var err error
-		pathMap, err = redline.LoadPathMap(normalizeReport)
-		if err != nil {
-			return nil, fmt.Errorf("read normalize path map for --scope: %w", err)
-		}
-	}
-	candidates, err := cleanSpineXHTMLPaths(ctx, current)
-	if err != nil {
-		return nil, err
-	}
-	resolved := make([]string, 0, len(requested))
-	for _, path := range requested {
-		if slices.Contains(candidates, path) {
-			resolved = append(resolved, path)
-			continue
-		}
-		mapped := redline.MappedPath(pathMap, path)
-		if slices.Contains(candidates, mapped) {
-			resolved = append(resolved, mapped)
-			continue
-		}
-		candidateList := strings.Join(candidates, ", ")
-		if candidateList == "" {
-			candidateList = "(none)"
-		}
-		return nil, fmt.Errorf("--scope path %q is not a spine XHTML in the current candidate; available spine XHTML paths: %s", path, candidateList)
-	}
-	return resolved, nil
-}
-
-func cleanSpineXHTMLPaths(ctx context.Context, current *book.Book) ([]string, error) {
-	container, err := current.CurrentContext(ctx, opf.ContainerPath)
-	if err != nil {
-		return nil, fmt.Errorf("read container.xml for --scope: %w", err)
-	}
-	opfPath, err := opf.FindOPFPath(container)
-	if err != nil {
-		return nil, fmt.Errorf("resolve package document for --scope: %w", err)
-	}
-	opfData, err := current.CurrentContext(ctx, opfPath)
-	if err != nil {
-		return nil, fmt.Errorf("read package document for --scope: %w", err)
-	}
-	pkg, err := opf.Parse(opfPath, opfData)
-	if err != nil {
-		return nil, fmt.Errorf("parse package document for --scope: %w", err)
-	}
-	manifest := make(map[string]opf.ManifestItem, len(pkg.Manifest))
-	for _, item := range pkg.Manifest {
-		manifest[item.ID] = item
-	}
-	paths := make([]string, 0, len(pkg.Spine))
-	for _, ref := range pkg.Spine {
-		item, ok := manifest[ref.IDRef]
-		if !ok || item.MediaType != "application/xhtml+xml" || item.ArchivePath == "" || !current.Has(item.ArchivePath) {
-			continue
-		}
-		if !slices.Contains(paths, item.ArchivePath) {
-			paths = append(paths, item.ArchivePath)
-		}
-	}
-	return paths, nil
 }
 
 func discoverCleanInputs(ctx context.Context, inputPath string, inputIsDir bool) ([]cleanInput, error) {
@@ -489,7 +339,7 @@ func discoverCleanInputs(ctx context.Context, inputPath string, inputIsDir bool)
 	return inputs, nil
 }
 
-func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir bool, outputDir string, approve, retainReviewCandidate bool) error {
+func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir bool, outputDir string, approve bool) error {
 	if info, err := os.Stat(outputDir); err == nil && !info.IsDir() {
 		return &UsageError{Err: fmt.Errorf("--out is not a directory: %s", outputDir)}
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -507,9 +357,6 @@ func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir boo
 		}
 		if approve {
 			paths := []struct{ path, label string }{{outputPath, "approved EPUB output"}}
-			if retainReviewCandidate {
-				paths = append(paths, struct{ path, label string }{cleanReviewOutputPath(outputPath), "review-only EPUB output"})
-			}
 			for _, candidate := range paths {
 				path := candidate.path
 				if previous, exists := planned[path]; exists {
@@ -532,11 +379,6 @@ func preflightCleanOutputs(inputs []cleanInput, inputPath string, inputIsDir boo
 		}
 	}
 	return nil
-}
-
-func cleanReviewOutputPath(outputPath string) string {
-	extension := filepath.Ext(outputPath)
-	return strings.TrimSuffix(outputPath, extension) + ".review-only" + extension
 }
 
 func cleanOutputPaths(input cleanInput, inputIsDir bool, outputDir string) (outputPath, reportPath string) {
@@ -622,36 +464,11 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		checkpoint := session.current
 		candidate := session.BeginStep()
 		args := maps.Clone(step.args)
-		var scopeErr error
-		if step.name == "typography" && !slices.Contains(opts.Scope, "all") {
-			var scope []string
-			scope, scopeErr = resolveCleanScope(ctx, session.current, opts.Scope, session.normalizeReport)
-			if scopeErr == nil {
-				var encoded []byte
-				encoded, scopeErr = jsonv2.Marshal(scope)
-				if scopeErr == nil {
-					args["scope_paths"] = string(encoded)
-				}
-			}
-		}
 		runOptions := Options{
 			RepoRoot: opts.RepoRoot, CapabilityID: step.capability,
 			InputPath: input.path, Args: args,
 		}
-		var outcome Outcome
-		var runErr error
-		if scopeErr != nil {
-			runErr = scopeErr
-			outcome.Envelope = report.Envelope{
-				Status: report.StatusFailed,
-				Findings: []report.Finding{{
-					Level: "error", ID: "typography.scope-path-invalid", Title: "Typography scope path is not in the normalized spine",
-					Detail: scopeErr.Error(), Location: step.capability,
-				}},
-			}
-		} else {
-			outcome, runErr = runWithBook(ctx, runOptions, candidate, checkpoint)
-		}
+		outcome, runErr := runWithBook(ctx, runOptions, candidate, checkpoint)
 		changedEntries, changesErr := session.ModifiedEntries(candidate)
 		if changesErr != nil {
 			runErr = errors.Join(runErr, fmt.Errorf("compare in-memory step changes: %w", changesErr))
@@ -721,7 +538,6 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		allEvents = append(allEvents, redlineSummary.Events...)
 	}
 
-	reviewCandidateWritten := false
 	if opts.Approve && failure == nil && redlineAttempted && session.hasCandidate && ctx.Err() == nil {
 		if writeErr := session.current.WriteToContext(ctx, outputPath); writeErr != nil {
 			failure = errors.Join(failure, fmt.Errorf("write approved candidate: %w", writeErr))
@@ -735,22 +551,6 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 			}
 		}
 	}
-	if opts.RetainReviewCandidate && failure != nil && redlineAttempted && session.hasCandidate && ctx.Err() == nil {
-		reviewPath := cleanReviewOutputPath(outputPath)
-		if writeErr := session.current.WriteToContext(ctx, reviewPath); writeErr != nil {
-			failure = errors.Join(failure, fmt.Errorf("write review-only candidate: %w", writeErr))
-		} else {
-			result.OutputPath = reviewPath
-			env.Output = &report.Artifact{Path: reviewPath}
-			if outputSHA, hashErr := book.FileSHA256ContextLimit(ctx, reviewPath, 4<<30); hashErr == nil {
-				env.Output.SHA256 = outputSHA
-			} else {
-				allFindings = append(allFindings, report.Finding{Level: "warn", ID: "clean.output-sha256-unavailable", Title: "Output SHA-256 unavailable", Detail: hashErr.Error(), Location: reviewPath})
-			}
-			reviewCandidateWritten = true
-		}
-	}
-
 	status := report.StatusPlanned
 	if opts.Approve {
 		status = report.StatusComplete
@@ -796,8 +596,6 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 	facts["pipeline.selectedSteps"] = selectedSteps
 	artifactDisposition := "none"
 	switch {
-	case reviewCandidateWritten:
-		artifactDisposition = "review-only"
 	case env.Output != nil:
 		artifactDisposition = "approved"
 	case status == report.StatusPlanned && !session.hasCandidate:

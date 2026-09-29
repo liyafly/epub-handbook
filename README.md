@@ -53,13 +53,11 @@ go run ./cmd/epub redline --check all --path-map normalize.json input.epub migra
 不要在唯一原件上直接修改；需要人工批准的结构规范化、正文红线和 diff review
 仍会保留。完整说明见 [清洗流程](docs/pipeline/cleanup-flow.md)。
 
-批量检查可用 `epub clean`。默认只做审计并生成逐书计划，不自动迁移或套用样式；结构步骤用 `--steps` 明确选择。若选择 `typography`，还必须明确 `--preset` 和 `--scope all` 或一个/多个 EPUB 内 spine XHTML 路径。只有步骤、末次审计和全项红线均通过时，`--approve` 才写出候选；失败候选只有再加 `--retain-review-candidate` 才会以 `.review-only.epub` 保存。机器调用可加 `--json` 获取批次信封。
+批量检查可用 `epub clean`。默认只做审计并生成逐书计划，不自动迁移或套用样式；结构步骤用 `--steps normalize,migrate,css` 明确选择。目录按路径顺序串行处理。只有步骤、末次审计和全项红线均通过时，`--approve` 才写出候选。取消时，已开始的书保留逐书报告；未开始的路径列在批次信封的 `facts.epub.clean.notStarted`。机器调用可加 `--json` 获取批次信封。
 
 ```sh
 epub clean "$BOOKS" --out "$W/clean-preview" --json
 epub clean "$BOOKS" --out "$W/clean-candidates" --steps normalize,migrate --approve
-epub clean "$BOOKS" --out "$W/typography-preview" --steps typography \
-  --preset literary-cn --scope all
 ```
 
 ### 查一个具体问题

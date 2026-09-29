@@ -71,10 +71,13 @@ type CleanBookSummary struct {
 }
 
 // CleanBatchEnvelope 汇总逐书 clean 结果，不改变每本书单独保存的信封。
-func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
+func CleanBatchEnvelope(books []CleanBookSummary, notStarted []string) Envelope {
 	status := StatusPlanned
 	if len(books) == 0 {
 		status = StatusFailed
+	}
+	if len(notStarted) > 0 {
+		status = StatusCancelled
 	}
 	hasCancelled := false
 	hasFailed := false
@@ -88,7 +91,7 @@ func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
 	}
 	if hasFailed {
 		status = StatusFailed
-	} else if hasCancelled {
+	} else if hasCancelled || len(notStarted) > 0 {
 		status = StatusCancelled
 	} else if allComplete {
 		status = StatusComplete
@@ -106,6 +109,9 @@ func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
 		Findings: []Finding{},
 		Events:   []Event{},
 	}
+	if len(notStarted) > 0 {
+		envelope.Facts["epub.clean.notStarted"] = notStarted
+	}
 	for _, book := range books {
 		eventStatus := "completed"
 		if book.Status == StatusCancelled {
@@ -122,6 +128,12 @@ func CleanBatchEnvelope(books []CleanBookSummary) Envelope {
 		envelope.Findings = append(envelope.Findings, Finding{
 			Level: "error", ID: "clean.book-failed", Title: "EPUB clean failed for book",
 			Detail: book.Error, Location: book.InputPath,
+		})
+	}
+	if len(notStarted) > 0 {
+		envelope.Findings = append(envelope.Findings, Finding{
+			Level: "error", ID: "clean.batch-cancelled", Title: "EPUB clean batch was cancelled",
+			Detail: strconv.Itoa(len(notStarted)) + " book(s) were not started",
 		})
 	}
 	return envelope

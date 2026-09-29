@@ -53,14 +53,10 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 epub clean "before.epub" --out "clean-preview"
 
 # 明确选择结构步骤；审查后才加 --approve 写出候选
-epub clean "books/" --out "clean-approved" --steps normalize,migrate,css --approve --jobs 2
-
-# typography 必须明确预设及范围
-epub clean "before.epub" --out "type-preview" --steps typography \
-  --preset literary-cn --scope OEBPS/Text/chapter.xhtml
+epub clean "books/" --out "clean-approved" --steps normalize,migrate,css --approve
 ```
 
-`--steps` 可按既定顺序选择步骤；`typography` 要同时给 `--preset` 和 `--scope all` 或精确 spine XHTML 路径。`--approve` 只在步骤、末次审计和全项红线通过后写出候选。失败候选默认不保留；显式加 `--retain-review-candidate` 才另存为 `.review-only.epub`，报告仍为 `failed`。`--json` 将批次信封写到 stdout，日志和错误写到 stderr。`--jobs` 必须大于 0。目录输入递归查找 EPUB，输出目录须在输入目录外；已有产物不会覆盖。完整状态、报告字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
+`--steps` 只接受按序的 `normalize,migrate,css`。`epub clean` 不编排排版能力；需要排版时，对单本书单独运行 `epub run epub.typography.optimize` 并审阅其报告。`--approve` 只在步骤、末次审计和全项红线通过后写出候选。目录输入递归查找 EPUB，按路径顺序串行处理；取消时只为已开始的书写逐书报告，其余路径列在批次信封的 `facts.epub.clean.notStarted`。`--json` 将批次信封写到 stdout，日志和错误写到 stderr。输出目录须在输入目录外；已有产物不会覆盖。完整状态、报告字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
 
 ### 目录结构规范化
 

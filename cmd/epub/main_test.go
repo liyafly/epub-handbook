@@ -392,14 +392,14 @@ func TestRunCleanAcceptsInputBeforeAndAfterFlags(t *testing.T) {
 func TestRunCleanRejectsMissingAndDuplicateFlags(t *testing.T) {
 	for _, args := range [][]string{
 		{}, {"some.epub"}, {"--out", "out"}, {"input.epub", "--out", "out", "--out", "again"},
-		{"input.epub", "--out", "out", "--jobs", "0"},
+		{"input.epub", "--out", "out", "--steps", "typography"},
 	} {
 		if code := runClean(args); code != 3 {
 			t.Errorf("runClean(%q) exit=%d, want 3", args, code)
 		}
 	}
-	if err := rejectDuplicateCleanFlags([]string{"--scope", "a.xhtml", "--scope", "b.xhtml"}); err != nil {
-		t.Fatalf("repeatable --scope rejected: %v", err)
+	if err := rejectDuplicateCleanFlags([]string{"--steps", "normalize", "--steps", "css"}); err == nil {
+		t.Fatal("duplicate --steps was accepted")
 	}
 }
 
@@ -432,7 +432,7 @@ func TestRunCleanJSONWritesOnlyBatchEnvelopeToStdout(t *testing.T) {
 
 func TestRunCleanJSONUsageErrorReturnsEnvelope(t *testing.T) {
 	code, stdout, stderr := captureRunFunc(t, func() int {
-		return runClean([]string{"input.epub", "--out", "out", "--steps", "typography", "--preset", "literary-cn", "--json"})
+		return runClean([]string{"input.epub", "--out", "out", "--steps", "typography", "--json"})
 	})
 	if code != 3 || stderr == "" {
 		t.Fatalf("exit=%d stderr=%q, want usage error", code, stderr)

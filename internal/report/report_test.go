@@ -98,7 +98,7 @@ func TestCleanBatchEnvelopeMixedCancelled(t *testing.T) {
 					ExitCode:  exitCode,
 				})
 			}
-			if got := CleanBatchEnvelope(books).Status; got != tc.want {
+			if got := CleanBatchEnvelope(books, nil).Status; got != tc.want {
 				t.Fatalf("batch status=%q, want %q", got, tc.want)
 			}
 		})

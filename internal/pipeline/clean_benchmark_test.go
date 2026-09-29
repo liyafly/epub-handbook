@@ -19,10 +19,10 @@ func BenchmarkCleanPipelineTextBook(b *testing.B) {
 	b.SetBytes(cleanBenchmarkTextBytes)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := range b.N {
-		outputDir := filepath.Join(root, fmt.Sprintf("out-%d", i))
+	for iteration := 0; b.Loop(); iteration++ {
+		outputDir := filepath.Join(root, fmt.Sprintf("out-%d", iteration))
 		_, err := Clean(b.Context(), CleanOptions{
-			InputPath: input, OutputDir: outputDir, Steps: []string{"normalize"}, Jobs: 1,
+			InputPath: input, OutputDir: outputDir, Steps: []string{"normalize"},
 		})
 		if err != nil {
 			b.Fatal(err)

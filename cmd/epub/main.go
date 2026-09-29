@@ -62,10 +62,8 @@ func usage(w *os.File) {
 用法:
   epub run <capability-id> [--input PATH] [--output PATH] [--dry-run] [--json]
             [KEY=VALUE...]
-  epub clean <in.epub | 目录> --out DIR [--steps normalize,migrate,css,typography]
-             [--preset NAME --scope all|EPUB/PATH ...] [--approve]
-             [--retain-review-candidate] [--jobs N] [--json]
-            （默认只审计；typography 必须显式指定预设与范围）
+  epub clean <in.epub | 目录> --out DIR [--steps normalize,migrate,css] [--approve] [--json]
+            （默认只审计；目录按路径顺序串行处理）
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub version [--json]          显示版本、commit、构建时间与目标平台
   epub redline [--check TEXT,...|all]
@@ -93,13 +91,8 @@ func runClean(argv []string) int {
 	fs := flag.NewFlagSet("epub clean", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	outputDir := fs.String("out", "", "输出目录")
-	stepsValue := fs.String("steps", "", "步骤：normalize,migrate,css,typography")
-	preset := fs.String("preset", "", "typography 步骤使用的显式样式预设")
-	var scopes stringSliceFlag
-	fs.Var(&scopes, "scope", "typography 的 EPUB 内 spine XHTML 路径；重复指定，或用 all")
+	stepsValue := fs.String("steps", "", "步骤：normalize,migrate,css")
 	approve := fs.Bool("approve", false, "仅在全部步骤、复检和红线通过后写出候选 EPUB")
-	retainReview := fs.Bool("retain-review-candidate", false, "失败时将候选另存为 .review-only.epub 供人工审阅")
-	jobs := fs.Int("jobs", 1, "并行处理书目数")
 	jsonOutput := fs.Bool("json", false, "将批次信封 JSON 写到 stdout")
 	if err := fs.Parse(flagArgs); err != nil {
 		if jsonRequested {
@@ -108,9 +101,6 @@ func runClean(argv []string) int {
 		return pipeline.ExitUsage
 	}
 	jsonRequested = jsonRequested || *jsonOutput
-	if *jobs < 1 {
-		return cleanUsageError(jsonRequested, errors.New("--jobs must be a positive integer"))
-	}
 	if input == "" {
 		if fs.NArg() != 1 {
 			return cleanUsageError(jsonRequested, errors.New("provide one input EPUB or directory"))
@@ -133,8 +123,7 @@ func runClean(argv []string) int {
 	ctx, stop := runCtx()
 	defer stop()
 	result, err := pipeline.Clean(ctx, pipeline.CleanOptions{
-		InputPath: input, OutputDir: *outputDir, Steps: steps, Preset: *preset,
-		Scope: []string(scopes), Approve: *approve, RetainReviewCandidate: *retainReview, Jobs: *jobs,
+		InputPath: input, OutputDir: *outputDir, Steps: steps, Approve: *approve,
 	})
 	if err != nil {
 		if jsonRequested {
@@ -199,17 +188,16 @@ func formatCleanBatchSummary(result pipeline.CleanBatchResult) string {
 }
 
 func rejectDuplicateCleanFlags(argv []string) error {
-	names := []string{"out", "steps", "jobs", "approve", "preset", "retain-review-candidate", "json"}
+	names := []string{"out", "steps", "approve", "json"}
 	counts := map[string]int{
-		"out": 0, "steps": 0, "jobs": 0, "approve": 0,
-		"preset": 0, "retain-review-candidate": 0, "json": 0,
+		"out": 0, "steps": 0, "approve": 0, "json": 0,
 	}
 	for index := 0; index < len(argv); index++ {
 		arg := argv[index]
 		for _, name := range names {
 			if arg == "-"+name || arg == "--"+name {
 				counts[name]++
-				if name != "approve" && name != "retain-review-candidate" && name != "json" && index+1 < len(argv) {
+				if name != "approve" && name != "json" && index+1 < len(argv) {
 					index++
 				}
 				break
@@ -225,15 +213,6 @@ func rejectDuplicateCleanFlags(argv []string) error {
 			return fmt.Errorf("duplicate flag: --%s", name)
 		}
 	}
-	return nil
-}
-
-type stringSliceFlag []string
-
-func (values *stringSliceFlag) String() string { return strings.Join(*values, ",") }
-
-func (values *stringSliceFlag) Set(value string) error {
-	*values = append(*values, value)
 	return nil
 }
 
