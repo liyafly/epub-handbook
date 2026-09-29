@@ -42,10 +42,6 @@ type skippedEdit struct {
 	Reason string `json:"reason"`
 }
 
-type sourceFile struct {
-	path string
-}
-
 // Run performs exactly one of the two supported source-span transformations.
 // All resources are scanned before edits are applied, and any error finding
 // cancels the complete edit set.
@@ -120,12 +116,16 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 	if err != nil {
 		return nil, nil, nil, nil, 0, err
 	}
-	spine := spineXHTML(pkg)
-	byPath := make(map[string]sourceFile, len(spine))
-	for _, file := range spine {
-		byPath[file.path] = file
+	spine := opf.SpineXHTMLPaths(pkg)
+	byPath := make(map[string]struct{}, len(spine))
+	for _, path := range spine {
+		byPath[path] = struct{}{}
 	}
-	selected, skipped := selectScope(spine, byPath, p.ScopePaths)
+	selected, skippedPaths := opf.SelectScopePaths(spine, p.ScopePaths)
+	skipped := make([]skippedEdit, 0, len(skippedPaths))
+	for _, path := range skippedPaths {
+		skipped = append(skipped, skippedEdit{Path: path, Target: "resource", Reason: "outside-scope"})
+	}
 	findings := []report.Finding{}
 	if p.ScopePaths != nil {
 		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
@@ -143,21 +143,21 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 	edits := []editset.Edit{}
 	planned := []plannedEdit{}
 	filesScanned := 0
-	for _, file := range selected {
+	for _, path := range selected {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, nil, filesScanned, err
 		}
 		filesScanned++
-		data, err := b.CurrentContext(ctx, file.path)
+		data, err := b.CurrentContext(ctx, path)
 		if err != nil {
-			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
+			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", path, err)
 		}
 		if err := opf.EditableUTF8(data); err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "vertical.unsupported-encoding",
 				Title:    "XHTML encoding cannot be edited safely",
 				Detail:   err.Error(),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -166,7 +166,7 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "vertical.xhtml-parse-failed",
 				Title:  "XHTML cannot be parsed for Ruby fallback",
-				Detail: err.Error(), Location: file.path,
+				Detail: err.Error(), Location: path,
 			})
 			continue
 		}
@@ -183,18 +183,18 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 			}
 			nested := descendant(ruby, "ruby")
 			if nested != nil || descendant(ruby, "rtc") != nil {
-				findings = append(findings, rubyFinding("warn", "vertical.ruby-complex", "Complex Ruby structure was skipped", "rtc and nested ruby structures need manual review", file.path))
+				findings = append(findings, rubyFinding("warn", "vertical.ruby-complex", "Complex Ruby structure was skipped", "rtc and nested ruby structures need manual review", path))
 				for _, child := range ruby.Walk() {
 					if child != ruby && child.Name.Local == "ruby" {
 						blockedNested[child] = true
 					}
 				}
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "complex-ruby"})
+				skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "complex-ruby"})
 				continue
 			}
 			if rawTagName(data, ruby) != "ruby" {
-				findings = append(findings, rubyFinding("warn", "vertical.ruby-prefixed", "Prefixed Ruby element was skipped", "the source tag name is namespace-prefixed", file.path))
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "prefixed-ruby"})
+				findings = append(findings, rubyFinding("warn", "vertical.ruby-prefixed", "Prefixed Ruby element was skipped", "the source tag name is namespace-prefixed", path))
+				skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "prefixed-ruby"})
 				continue
 			}
 			rts := []*opf.SpanNode{}
@@ -210,26 +210,26 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 				}
 			}
 			if len(rts) == 0 {
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "no-direct-rt"})
+				skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "no-direct-rt"})
 				continue
 			}
 			badRT := false
 			for _, rt := range rts {
 				if rawTagName(data, rt) != "rt" {
-					findings = append(findings, rubyFinding("warn", "vertical.ruby-prefixed", "Prefixed Ruby text element was skipped", "the source rt tag name is namespace-prefixed", file.path))
-					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "prefixed-rt"})
+					findings = append(findings, rubyFinding("warn", "vertical.ruby-prefixed", "Prefixed Ruby text element was skipped", "the source rt tag name is namespace-prefixed", path))
+					skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "prefixed-rt"})
 					badRT = true
 					break
 				}
 				if rt.SelfClose || rt.Close.IsZero() {
-					findings = append(findings, rubyFinding("warn", "vertical.ruby-empty-rt", "Empty Ruby text element was skipped", "self-closing rt has no insertion point for a closing rp", file.path))
-					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "empty-rt"})
+					findings = append(findings, rubyFinding("warn", "vertical.ruby-empty-rt", "Empty Ruby text element was skipped", "self-closing rt has no insertion point for a closing rp", path))
+					skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "empty-rt"})
 					badRT = true
 					break
 				}
 				if len(rt.Kids) == 0 && strings.TrimSpace(rt.IterText()) == "" {
-					findings = append(findings, rubyFinding("warn", "vertical.ruby-empty-rt", "Empty Ruby text element was skipped", "rt has no non-whitespace text or child elements", file.path))
-					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "empty-rt"})
+					findings = append(findings, rubyFinding("warn", "vertical.ruby-empty-rt", "Empty Ruby text element was skipped", "rt has no non-whitespace text or child elements", path))
+					skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "empty-rt"})
 					badRT = true
 					break
 				}
@@ -246,26 +246,26 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 					}
 				}
 				if complete {
-					findings = append(findings, rubyFinding("info", "vertical.ruby-has-rp", "Ruby already has fallback brackets", "all direct rt elements are flanked by rp elements", file.path))
-					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "already-has-rp"})
+					findings = append(findings, rubyFinding("info", "vertical.ruby-has-rp", "Ruby already has fallback brackets", "all direct rt elements are flanked by rp elements", path))
+					skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "already-has-rp"})
 				} else {
-					findings = append(findings, rubyFinding("warn", "vertical.ruby-partial-rp", "Partial Ruby fallback was skipped", "existing rp elements do not flank every direct rt", file.path))
-					skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "partial-rp"})
+					findings = append(findings, rubyFinding("warn", "vertical.ruby-partial-rp", "Partial Ruby fallback was skipped", "existing rp elements do not flank every direct rt", path))
+					skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "partial-rp"})
 				}
 				continue
 			}
 			if slices.ContainsFunc(rts, func(rt *opf.SpanNode) bool { return isRubyEmphasisText(rt.IterText()) }) {
-				findings = append(findings, rubyFinding("warn", "vertical.ruby-emphasis", "Ruby emphasis symbols were skipped", "rt contains only emphasis symbols, not pronunciation text", file.path))
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: rubyIndex + 1, Reason: "emphasis-rt"})
+				findings = append(findings, rubyFinding("warn", "vertical.ruby-emphasis", "Ruby emphasis symbols were skipped", "rt contains only emphasis symbols, not pronunciation text", path))
+				skipped = append(skipped, skippedEdit{Path: path, Target: rubyIndex + 1, Reason: "emphasis-rt"})
 				continue
 			}
 			for _, rt := range rts {
 				edits = append(edits,
-					editset.Insert(file.path, int64(rt.Open.Start), []byte("<rp>（</rp>")),
-					editset.Insert(file.path, int64(rt.Close.End), []byte("<rp>）</rp>")),
+					editset.Insert(path, int64(rt.Open.Start), []byte("<rp>（</rp>")),
+					editset.Insert(path, int64(rt.Close.End), []byte("<rp>）</rp>")),
 				)
 			}
-			planned = append(planned, plannedEdit{Path: file.path, Action: "insert-rp", Target: rubyIndex + 1})
+			planned = append(planned, plannedEdit{Path: path, Action: "insert-rp", Target: rubyIndex + 1})
 		}
 	}
 	return edits, planned, skipped, findings, filesScanned, nil
@@ -302,11 +302,15 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 		return nil, nil, nil, nil, 0, err
 	}
 	cssFiles := manifestCSS(pkg)
-	byPath := make(map[string]sourceFile, len(cssFiles))
-	for _, file := range cssFiles {
-		byPath[file.path] = file
+	byPath := make(map[string]struct{}, len(cssFiles))
+	for _, path := range cssFiles {
+		byPath[path] = struct{}{}
 	}
-	selected, skipped := selectScope(cssFiles, byPath, p.ScopePaths)
+	selected, skippedPaths := opf.SelectScopePaths(cssFiles, p.ScopePaths)
+	skipped := make([]skippedEdit, 0, len(skippedPaths))
+	for _, path := range skippedPaths {
+		skipped = append(skipped, skippedEdit{Path: path, Target: "resource", Reason: "outside-scope"})
+	}
 	findings := []report.Finding{}
 	if p.ScopePaths != nil {
 		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
@@ -324,21 +328,21 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 	edits := []editset.Edit{}
 	planned := []plannedEdit{}
 	filesScanned := 0
-	for _, file := range selected {
+	for _, path := range selected {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, nil, filesScanned, err
 		}
 		filesScanned++
-		data, err := b.CurrentContext(ctx, file.path)
+		data, err := b.CurrentContext(ctx, path)
 		if err != nil {
-			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
+			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", path, err)
 		}
 		sheet, err := css.Parse(data)
 		if err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "vertical.css-parse-failed",
 				Title:  "CSS cannot be parsed for writing-mode prefixes",
-				Detail: err.Error(), Location: file.path,
+				Detail: err.Error(), Location: path,
 			})
 			continue
 		}
@@ -367,8 +371,8 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 			}
 			target := strings.TrimSpace(rule.Selector)
 			if unsupported {
-				findings = append(findings, cssFinding("vertical.writing-mode-unsupported-value", "Unsupported writing-mode value was skipped", "only vertical-rl, vertical-lr, and horizontal-tb without !important are supported", file.path))
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: target, Reason: "unsupported-writing-mode"})
+				findings = append(findings, cssFinding("vertical.writing-mode-unsupported-value", "Unsupported writing-mode value was skipped", "only vertical-rl, vertical-lr, and horizontal-tb without !important are supported", path))
+				skipped = append(skipped, skippedEdit{Path: path, Target: target, Reason: "unsupported-writing-mode"})
 				continue
 			}
 			value := standard[0].PropertyValue()
@@ -387,14 +391,14 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 				}
 			}
 			if conflict {
-				findings = append(findings, cssFinding("vertical.prefix-conflict", "Writing-mode declarations conflict", "the rule contains a standard or prefixed writing-mode value that differs from the selected standard value", file.path))
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: target, Reason: "prefix-conflict"})
+				findings = append(findings, cssFinding("vertical.prefix-conflict", "Writing-mode declarations conflict", "the rule contains a standard or prefixed writing-mode value that differs from the selected standard value", path))
+				skipped = append(skipped, skippedEdit{Path: path, Target: target, Reason: "prefix-conflict"})
 				continue
 			}
 			needWebkit := len(prefixValues["-webkit-writing-mode"]) == 0
 			needEPUB := len(prefixValues["-epub-writing-mode"]) == 0
 			if !needWebkit && !needEPUB {
-				skipped = append(skipped, skippedEdit{Path: file.path, Target: target, Reason: "already-prefixed"})
+				skipped = append(skipped, skippedEdit{Path: path, Target: target, Reason: "already-prefixed"})
 				continue
 			}
 			decl := standard[0]
@@ -415,50 +419,24 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 				insertion.WriteByte(';')
 				insertion.Write(indent)
 			}
-			edits = append(edits, editset.Insert(file.path, int64(decl.NameSpan.Start), []byte(insertion.String())))
-			planned = append(planned, plannedEdit{Path: file.path, Action: "insert-prefix", Target: target})
+			edits = append(edits, editset.Insert(path, int64(decl.NameSpan.Start), []byte(insertion.String())))
+			planned = append(planned, plannedEdit{Path: path, Action: "insert-prefix", Target: target})
 		}
 	}
 	return edits, planned, skipped, findings, filesScanned, nil
 }
 
-func spineXHTML(pkg *opf.Package) []sourceFile {
-	paths := opf.SpineXHTMLPaths(pkg)
-	files := make([]sourceFile, 0, len(paths))
-	for _, path := range paths {
-		files = append(files, sourceFile{path: path})
-	}
-	return files
-}
-
-func manifestCSS(pkg *opf.Package) []sourceFile {
+func manifestCSS(pkg *opf.Package) []string {
 	seen := map[string]bool{}
-	files := []sourceFile{}
+	paths := []string{}
 	for _, item := range pkg.Manifest {
 		if item.MediaType != "text/css" || item.ArchivePath == "" || seen[item.ArchivePath] {
 			continue
 		}
 		seen[item.ArchivePath] = true
-		files = append(files, sourceFile{path: item.ArchivePath})
+		paths = append(paths, item.ArchivePath)
 	}
-	return files
-}
-
-func selectScope(all []sourceFile, byPath map[string]sourceFile, scope []string) ([]sourceFile, []skippedEdit) {
-	paths := make([]string, 0, len(all))
-	for _, file := range all {
-		paths = append(paths, file.path)
-	}
-	selectedPaths, skippedPaths := opf.SelectScopePaths(paths, scope)
-	selected := make([]sourceFile, 0, len(selectedPaths))
-	for _, path := range selectedPaths {
-		selected = append(selected, byPath[path])
-	}
-	skipped := make([]skippedEdit, 0, len(skippedPaths))
-	for _, path := range skippedPaths {
-		skipped = append(skipped, skippedEdit{Path: path, Target: "resource", Reason: "outside-scope"})
-	}
-	return selected, skipped
+	return paths
 }
 
 func rawTagName(data []byte, node *opf.SpanNode) string {
