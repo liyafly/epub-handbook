@@ -153,6 +153,22 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		return failure(&res, "font-subset.manifest-invalid", err.Error())
 	}
+	manifestPaths := make(map[string]struct{}, len(manifestFontItems))
+	for _, item := range manifestFontItems {
+		manifestPaths[item.ArchivePath] = struct{}{}
+	}
+	unmanifestedFonts := make([]string, 0)
+	for _, name := range b.OriginalNames() {
+		if !isFont(name, "") {
+			continue
+		}
+		if _, ok := manifestPaths[name]; !ok {
+			unmanifestedFonts = append(unmanifestedFonts, name)
+		}
+	}
+	if len(unmanifestedFonts) > 0 {
+		return failure(&res, "font-subset.unmanifested-font", strings.Join(unmanifestedFonts, ", "))
+	}
 	if len(manifestFontItems) == 0 {
 		return failure(&res, "font-subset.no-fonts", "the EPUB has no manifest fonts to subset")
 	}
@@ -207,10 +223,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	if err := json.Unmarshal(providerReportBytes, &reportedTargets); err != nil {
 		return failure(&res, "font-subset.report-invalid", fmt.Sprintf("decode provider report: %v", err))
-	}
-	manifestPaths := make(map[string]struct{}, len(manifestFontItems))
-	for _, item := range manifestFontItems {
-		manifestPaths[item.ArchivePath] = struct{}{}
 	}
 	reportedFonts := make(map[string]struct{}, len(reportedTargets.Fonts))
 	for _, font := range reportedTargets.Fonts {

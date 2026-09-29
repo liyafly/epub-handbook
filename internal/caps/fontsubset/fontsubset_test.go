@@ -219,6 +219,34 @@ func TestRunRejectsProviderReportOmittingManifestFont(t *testing.T) {
 	}
 }
 
+func TestRunRejectsUnmanifestedFontEntry(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "source.epub")
+	if err := os.WriteFile(input, fontFixtureWithUnmanifestedFont(t), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: filepath.Join(t.TempDir(), "missing-provider")})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.unmanifested-font" {
+		t.Fatalf("Run() = status %q, findings %+v, error %v; want unmanifested-font failure", result.Status, result.Findings, err)
+	}
+	if !strings.Contains(result.Findings[0].Detail, "OEBPS/Fonts/unlisted-master.ttf") {
+		t.Fatalf("unmanifested-font finding = %+v, want the unlisted font path", result.Findings[0])
+	}
+	got, err := b.Current("OEBPS/Fonts/unlisted-master.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, []byte("UNLISTED MASTER")) {
+		t.Fatalf("unmanifested font changed: got %q", got)
+	}
+}
+
 func TestRunProviderCancellationReturnsCancelledErrorWithoutApplyingCandidate(t *testing.T) {
 	provider := makeProvider(t, "import time; time.sleep(30)")
 	b, _ := openFontBook(t)
@@ -393,14 +421,18 @@ func openFontBook(t *testing.T) (*book.Book, string) {
 }
 
 func fontFixture(t *testing.T) []byte {
-	return makeFontFixture(t, false)
+	return makeFontFixture(t, false, false)
 }
 
 func fontFixtureWithSecondFont(t *testing.T) []byte {
-	return makeFontFixture(t, true)
+	return makeFontFixture(t, true, false)
 }
 
-func makeFontFixture(t *testing.T, includeSecondFont bool) []byte {
+func fontFixtureWithUnmanifestedFont(t *testing.T) []byte {
+	return makeFontFixture(t, false, true)
+}
+
+func makeFontFixture(t *testing.T, includeSecondFont, includeUnmanifestedFont bool) []byte {
 	t.Helper()
 	opf := `<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="font" href="Fonts/full.ttf" media-type="application/vnd.ms-opentype"/><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`
 	if includeSecondFont {
@@ -421,6 +453,12 @@ func makeFontFixture(t *testing.T, includeSecondFont bool) []byte {
 			name string
 			data []byte
 		}{"OEBPS/Fonts/second.ttf", []byte("SECOND FONT")})
+	}
+	if includeUnmanifestedFont {
+		files = append(files, struct {
+			name string
+			data []byte
+		}{"OEBPS/Fonts/unlisted-master.ttf", []byte("UNLISTED MASTER")})
 	}
 	var output bytes.Buffer
 	writer := zip.NewWriter(&output)
