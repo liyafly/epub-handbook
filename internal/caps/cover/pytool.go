@@ -8,15 +8,6 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
 )
 
-type urlParts struct{ scheme, netloc, path, query, fragment string }
-
-func pyURLSplit(raw string) urlParts {
-	p := pypath.URLSplit(raw)
-	return urlParts{p.Scheme, p.Netloc, p.Path, p.Query, p.Fragment}
-}
-
-func pyIsExternalURI(uri string) bool { return pypath.IsExternalURI(uri) }
-
 func validateArchivePath(name, label string) (string, error) {
 	value, err := pypath.ValidateArchivePath(name, label)
 	if err != nil {
@@ -31,19 +22,6 @@ func resolveRelativePath(baseFile, uriPath string) (string, error) {
 		return "", toolErrf("%v", err)
 	}
 	return value, nil
-}
-
-func pyDirname(p string) string { return pypath.Dirname(p) }
-
-func pySplitExt(p string) (string, string) { return pypath.SplitExt(p) }
-func pathExt(p string) string              { return pypath.PathExt(p) }
-
-// pathJoin 复刻 posixpath.join(dir, rel)。
-func pathJoin(a, b string) string {
-	if a == "" {
-		return b
-	}
-	return a + "/" + b
 }
 
 func splitProps(value string) []string { return pypath.SplitProps(value) }

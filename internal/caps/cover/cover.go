@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -71,7 +72,7 @@ func failedResult(msg string) (report.Result, error) {
 
 // mediaTypeForCover 复刻 cover.media_type_for_cover。
 func mediaTypeForCover(coverPath string) string {
-	ext := strings.ToLower(pathExt(coverPath))
+	ext := strings.ToLower(pypath.PathExt(coverPath))
 	if ext == ".jpeg" {
 		return "image/jpeg"
 	}
@@ -165,8 +166,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	coverID := coverItemID(manifestNode, metaNode)
-	opfDir := pyDirname(pkg.opfPath)
-	ext := strings.ToLower(pathExt(p.Cover))
+	opfDir := pypath.Dirname(pkg.opfPath)
+	ext := strings.ToLower(pypath.PathExt(p.Cover))
 	if ext == "" {
 		ext = ".jpg"
 	}
@@ -174,7 +175,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		ext = ".jpg"
 	}
 	newRelHref := "Images/cover" + ext
-	newArchivePath, err := validateArchivePath(pathJoin(opfDir, newRelHref), "cover output")
+	newArchivePath, err := validateArchivePath(pypath.Join(opfDir, newRelHref), "cover output")
 	if err != nil {
 		return refused(err)
 	}
@@ -208,8 +209,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		props := splitProps(itemAttr(item, "properties"))
 		if itemID == coverID {
 			coverItem = item
-			if href != "" && !pyIsExternalURI(href) {
-				oldPath, rerr := resolveRelativePath(pkg.opfPath, pyURLSplit(href).path)
+			if href != "" && !pypath.IsExternalURI(href) {
+				oldPath, rerr := resolveRelativePath(pkg.opfPath, pypath.URLSplit(href).Path)
 				if rerr != nil {
 					return failedResult(rerr.Error())
 				}
@@ -220,8 +221,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		lowerHref := strings.ToLower(href)
 		if containsStr(props, "cover-image") ||
 			(strings.Contains(lowerHref, "cover") && hasSuffixAny(lowerHref, ".jpg", ".jpeg", ".png", ".webp", ".gif")) {
-			if href != "" && !pyIsExternalURI(href) {
-				oldPath, rerr := resolveRelativePath(pkg.opfPath, pyURLSplit(href).path)
+			if href != "" && !pypath.IsExternalURI(href) {
+				oldPath, rerr := resolveRelativePath(pkg.opfPath, pypath.URLSplit(href).Path)
 				if rerr != nil {
 					return failedResult(rerr.Error())
 				}

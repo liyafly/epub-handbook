@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 )
 
 // regionsFixturePathMap 构造一个统一的改名映射：chapter.xhtml 里对
@@ -101,12 +103,30 @@ func TestRewriteURIKeepsSpellingWhenTargetUnchanged(t *testing.T) {
 	knownFiles["OEBPS/Fonts/My Font.ttf"] = true
 	const doc = "OEBPS/Text/chapter.xhtml"
 	for _, uri := range []string{"../Images/插图.jpg", "./ch2.xhtml#n1", "../Fonts/My Font.ttf"} {
-		if got := rewriteURI(uri, doc, doc, pathMap, knownFiles); got != uri {
+		if got := pypath.RewriteURI(uri, doc, doc, pathMap, knownFiles, nil); got != uri {
 			t.Errorf("rewriteURI(%q) = %q, want original spelling", uri, got)
 		}
 	}
-	if got := rewriteURI("../Images/old.png", doc, doc, pathMap, knownFiles); got != "../Images/new.png" {
+	if got := pypath.RewriteURI("../Images/old.png", doc, doc, pathMap, knownFiles, nil); got != "../Images/new.png" {
 		t.Errorf("moved target rewrite = %q, want ../Images/new.png", got)
+	}
+}
+
+func TestRewriteRootedHrefWarnsAndStaysUnchanged(t *testing.T) {
+	pathMap, knownFiles := regionsFixturePathMap()
+	const doc = "OEBPS/Text/chapter.xhtml"
+	const input = `<a href="/Images/old.png">cover</a>`
+	var warnings []string
+	warn := func(format string, args ...any) { warnings = append(warnings, fmt.Sprintf(format, args...)) }
+	got, err := rewriteMarkupReferences(input, doc, doc, pathMap, knownFiles, warn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != input {
+		t.Fatalf("rooted href rewrite = %q, want unchanged %q", got, input)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "/Images/old.png") {
+		t.Fatalf("warnings = %q, want one warning naming the rooted href", warnings)
 	}
 }
 

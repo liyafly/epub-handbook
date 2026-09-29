@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
@@ -19,7 +20,7 @@ import (
 // 里未转义的示例 SVG 片段仍会被改写 —— 那是作者正文。
 // warnf 可以为 nil（老调用点与测试）；区域扫描截断时上报文件名与偏移。
 func resizeSVGCoverPages(data []byte, documentPath, coverPath string, width, height int, warnf func(string, ...any)) []byte {
-	if !markupExtensions[strings.ToLower(pathExt(documentPath))] {
+	if !markupExtensions[strings.ToLower(pypath.PathExt(documentPath))] {
 		return data
 	}
 	if !utf8.Valid(data) {
@@ -219,10 +220,10 @@ func asciiLower(s string) string {
 
 // uriTargetsArchive 复刻 core.uri_targets_archive。
 func uriTargetsArchive(uri, documentPath, targetPath string) bool {
-	if uri == "" || pyIsExternalURI(uri) {
+	if uri == "" || pypath.IsExternalURI(uri) {
 		return false
 	}
-	path := pyURLSplit(uri).path
+	path := pypath.URLSplit(uri).Path
 	if path == "" {
 		return false
 	}

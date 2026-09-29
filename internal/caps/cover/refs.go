@@ -13,109 +13,11 @@ import (
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
-// rewriteURI 复刻 core.rewrite_uri（静默失败）。
-func rewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	if uri == "" || strings.HasPrefix(uri, "#") || pyIsExternalURI(uri) {
-		return uri
-	}
-	parts := pyURLSplit(uri)
-	if parts.path == "" {
-		return uri
-	}
-	oldTarget, err := resolveRelativePath(oldDocument, parts.path)
-	if err != nil {
-		return uri
-	}
-	if !knownFiles[oldTarget] {
-		return uri
-	}
-	target := oldTarget
-	if mapped, ok := pathMap[oldTarget]; ok {
-		target = mapped
-	}
-	if resolved, err := resolveRelativePath(newDocument, parts.path); err == nil && resolved == target {
-		return uri
-	}
-	newPath := relativeURI(newDocument, target)
-	return pyURLUnsplitPath(newPath, parts.query, parts.fragment)
-}
-
-// pyQuote 复刻 quote(value, safe="/:@-._~")。
-func pyQuote(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9',
-			c == '-', c == '.', c == '_', c == '~', c == '/', c == ':', c == '@':
-			b.WriteByte(c)
-		default:
-			const hex = "0123456789ABCDEF"
-			b.WriteByte('%')
-			b.WriteByte(hex[c>>4])
-			b.WriteByte(hex[c&0xF])
-		}
-	}
-	return b.String()
-}
-
-// pyRelPath 复刻 posixpath.relpath 的段级计算。
-func pyRelPath(target, base string) string {
-	startList := splitSegments(base)
-	pathList := splitSegments(target)
-	i := 0
-	for i < len(startList) && i < len(pathList) && startList[i] == pathList[i] {
-		i++
-	}
-	rel := make([]string, 0, len(startList)-i+len(pathList)-i)
-	for k := 0; k < len(startList)-i; k++ {
-		rel = append(rel, "..")
-	}
-	rel = append(rel, pathList[i:]...)
-	if len(rel) == 0 {
-		return "."
-	}
-	return strings.Join(rel, "/")
-}
-
-func splitSegments(p string) []string {
-	var out []string
-	for _, seg := range strings.Split(p, "/") {
-		if seg != "" {
-			out = append(out, seg)
-		}
-	}
-	return out
-}
-
-// relativeURI 复刻 core.relative_uri。
-func relativeURI(fromArchivePath, toArchivePath string) string {
-	base := pyDirname(fromArchivePath)
-	rel := toArchivePath
-	if base != "" {
-		rel = pyRelPath(toArchivePath, base)
-	}
-	return pyQuote(rel)
-}
-
-// pyURLUnsplitPath 复刻 urlunsplit(("", "", path, query, fragment))。
-func pyURLUnsplitPath(pathPart, query, fragment string) string {
-	out := pathPart
-	if query != "" {
-		out += "?" + query
-	}
-	if fragment != "" {
-		out += "#" + fragment
-	}
-	return out
-}
-
 // rewriteMarkupReferences delegates region and tag scanning to scan/xhtml while
 // retaining this capability's URI resolution and CSS/entity escaping adapters.
 func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	rewriteURIValue := func(uri string) string {
-		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	}
 	rewriteCSSValue := func(raw, document string, quote byte, rewrite func(string) string) (string, error) {
 		if strings.Contains(raw, "&") {
@@ -143,21 +45,16 @@ func rewriteCSSWithEntityMap(raw, path string, quote byte, rewrite func(string) 
 	if len(edits) == 0 {
 		return raw, nil
 	}
-	mapped := make([]editset.Edit, 0, len(edits))
-	for _, edit := range edits {
-		start := int(edit.Offset)
-		end := start + int(edit.Length)
-		if start < 0 || end < start || end >= len(rawOff) {
-			return "", fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
-		}
-		replacement := string(edit.Replacement)
+	mapped, err := css.MapEntityDecodedEdits(path, []byte(raw), rawOff, edits, func(replacement string) string {
 		if quote == 0 {
 			replacement = pypath.EscapeText(replacement)
 		} else {
 			replacement = attrEscapeFor(quote, replacement)
 		}
-		rawStart, rawEnd := rawOff[start], rawOff[end]
-		mapped = append(mapped, editset.Replace(path, int64(rawStart), int64(rawEnd-rawStart), []byte(replacement)))
+		return replacement
+	})
+	if err != nil {
+		return "", err
 	}
 	updated, err := editset.Apply(path, []byte(raw), mapped)
 	if err != nil {
@@ -178,9 +75,9 @@ func hasAttrName(names []string, candidate string) bool {
 // rewriteCSSOnly 只做 CSS url()/@import 重写（不含 srcset / URI 属性），
 // 用于 <style> 元素内容与 style="…" 属性值——这两处都已经确定是 CSS 语义，
 // 不需要也不应该再跑属性名匹配。
-func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
+func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	edits, err := css.ReferenceEdits(oldDocument, []byte(text), func(uri string) string {
-		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	})
 	if err != nil {
 		return "", toolErrf("%s: CSS reference scan: %v", oldDocument, err)
@@ -194,7 +91,7 @@ func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]st
 // （XHTML/NCX/OPF 同族标记文件）改用区域感知重写，避免字符数据里的转义
 // 示例文本被当成标记误改（见上方 rewriteMarkupReferences 注释）。
 func transformResource(data []byte, oldPath, newPath string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) ([]byte, error) {
-	ext := strings.ToLower(pathExt(oldPath))
+	ext := strings.ToLower(pypath.PathExt(oldPath))
 	if ext != ".css" && !markupExtensions[ext] {
 		return data, nil
 	}
@@ -204,7 +101,7 @@ func transformResource(data []byte, oldPath, newPath string, pathMap map[string]
 	var updated string
 	var err error
 	if ext == ".css" {
-		updated, err = rewriteCSSOnly(string(data), oldPath, newPath, pathMap, knownFiles)
+		updated, err = rewriteCSSOnly(string(data), oldPath, newPath, pathMap, knownFiles, warn)
 	} else {
 		updated, err = rewriteMarkupReferences(string(data), oldPath, newPath, pathMap, knownFiles, warn)
 	}
