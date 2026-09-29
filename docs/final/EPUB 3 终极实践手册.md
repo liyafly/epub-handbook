@@ -1133,7 +1133,7 @@ figcaption {
 > 作为候选，但仍须用自己的图片和目标字号复测。精确范围见 `reader-matrix.yaml` 的
 > `external-production-v3-1-image-sizing`。脱敏最小复现已加入
 > `templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml`；它是新的待复测 fixture，
-> 不继承外部 artifact 的 `pass`。
+> 不继承外部 artifact 的 `pass`。对应矩阵记录已因缺截图/日志降为 warn，不作为当前通过证据。
 
 ---
 
@@ -1308,7 +1308,8 @@ HTML table 是经过目标版本实测后的保守布局，不是“Kindle 100% 
 `reader-matrix.yaml` 的 `external-production-v3-1-long-math-table`。其后的构建已有新
 SHA，除非重新实测，不继承本条 `pass`。脱敏最小复现已加入
 `templates/epub-style-demo/OEBPS/Text/16-math.xhtml`，当前在矩阵中仍为 `warn`，等待
-Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。
+Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应矩阵记录已因缺截图/日志
+降为 warn，不作为当前通过证据。
 
 不支持 MathML 的目标阅读器需要文本公式或图片公式 fallback；不要把复杂公式只保存在不可读的截图里。
 

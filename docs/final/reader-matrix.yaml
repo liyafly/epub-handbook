@@ -369,9 +369,9 @@ expectations:
     profile: "默认字号、放大一级、再放大一级"
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
-    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
-    workaround: "此 pass 只覆盖该 artifact 的表格结构；其他数据表仍需按实际列数、公式长度和字号复测。"
+    issue: "历史观察（无截图/日志，2026-09-28 降为 warn）：真实 rowspan=4/3 的分组在默认字号与放大一级保持连续；再放大一级时阅读器允许拆栏或分页，但行序与分组关系未错位。"
+    action: "保留真实 rowspan 和紧凑单元格；不为极大字号强压整表，也不把允许分页误判为失败。"
+    workaround: "该观察只覆盖该 artifact 的表格结构；其他数据表仍需按实际列数、公式长度和字号复测。"
   - reader: readest
     case: external-production-v3-1-long-math-table
     status: warn
@@ -379,8 +379,8 @@ expectations:
     profile: "字号 26–27"
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
-    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
+    issue: "历史观察（无截图/日志，2026-09-28 降为 warn）：表内 MathML 为 0.88em 时两条长公式右端截断；只在该表作用域内调为 0.78em 后，7 行公式完整留在固定公式列内。"
+    action: "保持 rowspan、列宽和 table 外壳不变，只给表内 MathML 留相对字号余量；撤回 max-content、横向滚动与 overflow:hidden 候选。"
     workaround: "0.78em 是该书实测值，不是通用常量；新书从较大相对字号开始逐级复测，直到目标字号不截断。"
   - reader: kindle_previewer
     case: external-production-v3-1-long-math-table
@@ -390,9 +390,9 @@ expectations:
     font_size: 10
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
-    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
-    workaround: "Previewer pass 不等于所有 Kindle 设备通过；实机异常时按设备与字号另记 artifact。"
+    issue: "历史观察（无截图/日志，2026-09-28 降为 warn）：7 行数据表、rowspan=4/3 分组和公式列均完成转换，未出现行序、分组或公式编号错配。"
+    action: "保留真实表格语义与紧凑公式列；最终 Kindle 实机仍列为交付前抽查项。"
+    workaround: "该 Previewer 观察不等于所有 Kindle 设备通过；实机异常时按设备与字号另记 artifact。"
   - reader: kindle_previewer
     case: external-production-v3-1-image-sizing
     status: warn
@@ -401,9 +401,9 @@ expectations:
     font_size: 4
     artifact: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
     failed_page: none
-    issue: "历史阅读器观察有文字描述，但仓库没有对应截图或日志；该外部样本文件也未随仓库保存，无法复核记录中的实际页面，因此降为 warn。"
-    action: "重新取得同 SHA 的授权样本，按阅读器 evidence 流程保存可脱敏截图或日志后再评估。"
-    workaround: "该 pass 只覆盖本次抽查图；其他宽高比与大字号仍需单独复测。"
+    issue: "历史观察（无截图/日志，2026-09-28 降为 warn）：移除通用修复图 width:100% 对单图百分比宽度的覆盖，并按源图框比例设置两组并排容器后，抽查图未再撑满页面，并排关系与图题未错位。"
+    action: "通用图片规则只限制 max-width/height；展示宽度留给 figure 或单图作用域，并排比例按源图框而不是后期视觉缩放确定。"
+    workaround: "该观察只覆盖本次抽查图；其他宽高比与大字号仍需单独复测。"
   - reader: duokan
     case: 05-duokan-fallback
     status: warn

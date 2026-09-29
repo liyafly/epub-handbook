@@ -99,7 +99,8 @@ Apple Books 8.5 与 Kindle Previewer 3.106 保持稳定。这里可复用的是�
 固定变量、按目标字号逐级测”的方法，`0.78em` 不是跨书常量。精确 SHA 与范围见
 `reader-matrix.yaml` 的 `external-production-v3-1-long-math-table`。仓库内的脱敏最小
 复现位于 `templates/epub-style-demo/OEBPS/Text/16-math.xhtml`；它使用独立候选字号，
-在目标阅读器复测前仍只是一条 `warn` fixture。
+在目标阅读器复测前仍只是一条 `warn` fixture。对应矩阵记录已因缺截图/日志降为 warn，
+不作为当前通过证据。
 
 ## 4. 包声明与降级
 
