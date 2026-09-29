@@ -298,7 +298,7 @@ def cancel_build(book_dir: Path, env: dict[str, str], root: Path, log_path: Path
         return process.wait(timeout=15)
 
 
-def check_gate_failure(
+def independent_coverage_regression(
     book_dir: Path,
     dist: Path,
     env: dict[str, str],
@@ -306,45 +306,33 @@ def check_gate_failure(
     old_sha: str,
     log_path: Path,
 ) -> dict:
-    provider = shutil.which("epub-font", path=env.get("PATH"))
-    if provider is None:
-        raise RuntimeError("epub-font is not available on PATH for the independent gate smoke")
-    marker = root / "independent-check-arguments.txt"
-    wrapper_dir = root / "check-failure-bin"
-    wrapper_dir.mkdir(parents=True, exist_ok=True)
-    wrapper = wrapper_dir / "epub-font"
-    wrapper.write_text(
-        "#!/bin/sh\n"
-        f"REAL_PROVIDER={shlex.quote(provider)}\n"
-        f"MARKER={shlex.quote(str(marker))}\n"
-        'if [ "${1-}" = check ]; then\n'
-        '  printf \'%s\\n\' "$*" > "$MARKER"\n'
-        '  "$REAL_PROVIDER" "$@"\n'
-        '  status=$?\n'
-        '  if [ "$status" -ne 0 ]; then exit "$status"; fi\n'
-        "  echo 'simulated independent coverage regression' >&2\n"
-        "  exit 1\n"
-        "fi\n"
-        'exec "$REAL_PROVIDER" "$@"\n',
+    shim_dir = root / "collector-regression-shim"
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    (shim_dir / "sitecustomize.py").write_text(
+        "from epub_font import epubtext\n"
+        "_original_all_chars = epubtext.BookText.all_chars\n"
+        "def _omit_new_character(book):\n"
+        "    return _original_all_chars(book) - {'新'}\n"
+        "epubtext.BookText.all_chars = _omit_new_character\n",
         encoding="utf-8",
     )
-    wrapper.chmod(0o755)
-    check_env = dict(env)
-    check_env["PATH"] = str(wrapper_dir) + os.pathsep + env.get("PATH", "")
-    run_build(book_dir, check_env, log_path, success=False)
+    regression_env = dict(env)
+    regression_env["PYTHONPATH"] = str(shim_dir) + os.pathsep + regression_env.get("PYTHONPATH", "")
+    run_build(book_dir, regression_env, log_path, success=False)
     assert_failed_build_preserves(book_dir, dist, old_sha, log_path)
 
-    arguments = marker.read_text(encoding="utf-8")
-    if "check" not in arguments or "--against" not in arguments or "full-font.epub" not in arguments:
-        raise RuntimeError(f"build did not call the independent checker against FULL: {arguments}")
     log = log_path.read_text(encoding="utf-8")
-    if "FAIL epub-font check --against FULL" not in log or "simulated independent coverage regression" not in log:
-        raise RuntimeError(f"build did not surface the independent check failure; see {log_path}")
-    report_path = book_dir / "03 制作工作区" / ".pipeline" / "font-check.json"
+    if "FAIL epub.font.subset" not in log or "independent-coverage" not in log:
+        raise RuntimeError(f"build did not report the detected independent coverage regression; see {log_path}")
+    report_path = book_dir / "03 制作工作区" / ".pipeline" / "font-subset.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    if report.get("mode") != "against" or not report.get("ok"):
-        raise RuntimeError(f"the real differential check did not pass before simulated failure: {report}")
-    return {"invokedAgainstFull": True, "realCheckPassed": True, "distSHA256Preserved": old_sha}
+    finding = next(
+        (item for item in report.get("findings", []) if item.get("id") == "font-subset.check-failed"),
+        None,
+    )
+    if finding is None or "independent-coverage" not in finding.get("detail", ""):
+        raise RuntimeError(f"provider failure did not preserve font-subset.check-failed details: {report}")
+    return {"finding": finding, "distSHA256Preserved": old_sha}
 
 
 def validate_synth_nav_audit(epub_bin: Path, env: dict[str, str], root: Path) -> dict:
@@ -444,7 +432,7 @@ def main() -> int:
         raise RuntimeError("the second book build changed one of the full-font source masters")
 
     stable_sha = second_sha
-    independent_gate = check_gate_failure(
+    independent_regression = independent_coverage_regression(
         book_dir,
         dist,
         env,
@@ -516,9 +504,9 @@ def main() -> int:
             "noInk": 0,
         },
         "failurePreservedDistSHA256": stable_sha,
-        "independentCheckGate": independent_gate,
+        "independentCoverageRegression": independent_regression,
         "syntheticNavAudit": synth_nav,
-        "failedScenarios": ["independent-coverage-check", "provider-missing", "corrupt-font", "cancelled-provider"],
+        "failedScenarios": ["independent-coverage-regression-detected", "provider-missing", "corrupt-font", "cancelled-provider"],
         "goRacePackages": ["internal/book", "internal/extern", "internal/pipeline", "internal/zipfs"],
     }
     (root / "result.json").write_text(

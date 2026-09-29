@@ -21,7 +21,7 @@ from pathlib import Path
 
 import fontTools
 
-from . import epubtext, fontops
+from . import check, epubtext, fontops
 
 CONFIG_KEYS = {"version", "fonts"}
 FONT_KEYS = {"target", "variation", "extraText"}
@@ -111,6 +111,14 @@ def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) 
     }
 
 
+def _independent_coverage(zf: zipfile.ZipFile, target: str, source_bytes: bytes, output_bytes: bytes) -> dict:
+    _, harvest = check.harvest_book(zf)
+    source = check.check_font(source_bytes, target, harvest)
+    output = check.check_font(output_bytes, target, harvest)
+    regressions = check._regressions(source, output)
+    return {"ok": not regressions, "regressions": regressions[:200]}
+
+
 def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dict:
     target = job["target"]
     if target not in zf.namelist():
@@ -126,6 +134,10 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
     deprecated_preserve = job.get("action") == "preserve"
     if original_is_math:
         result = _preserve_math_job(target, item, original_bytes, original_font)
+        result["checks"]["independent-coverage"] = _independent_coverage(
+            zf, target, original_bytes, original_bytes
+        )
+        result["ok"] = all(check_result["ok"] for check_result in result["checks"].values())
         if deprecated_preserve:
             result["warnings"].append(f"{target}: configuration key action is deprecated and was ignored")
         return result
@@ -155,6 +167,7 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
     out_font = fontops.load_font(out_bytes, f"{target} (output)")
     out = fontops.font_facts(out_font)
     checks, not_in_master = fontops.verify(source_facts, out, required, spec, limits, target, out_font, source_shapes)
+    checks["independent-coverage"] = _independent_coverage(zf, target, original_bytes, out_bytes)
     if not_in_master:
         warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
     return {

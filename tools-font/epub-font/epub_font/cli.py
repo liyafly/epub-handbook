@@ -2,7 +2,6 @@
 
     epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
     epub-font check  BOOK.epub [--font PATH_IN_EPUB ...] [--font-file FILE --chars-file FILE] [--json REPORT]
-    epub-font check  NEW.epub --against FULL.epub [--json REPORT]
 """
 
 from __future__ import annotations

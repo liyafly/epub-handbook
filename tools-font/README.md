@@ -14,7 +14,7 @@
 报 `coverage detector could not be started: <原因>`，而不是伪装成"跑完且干净退出"。
 被 Ctrl-C 或 deadline 打断时透传取消语义（`status: cancelled`），不会被误判成工具故障。
 
-覆盖分析的字符清单会跳过 U+0300 以下字符（包含 ASCII）、U+2000–U+2E7F 通用标点区间，且不收 CSS 生成字符；它适合判断字体链与阅读器风险，不能证明嵌入字体“全量”覆盖。全量校验使用独立 CLI `epub-font check`，默认检查全部 manifest 字体；书级构建额外用 `epub-font check NEW.epub --against FULL.epub` 核对子集前后的字形覆盖损失。
+覆盖分析的字符清单会跳过 U+0300 以下字符（包含 ASCII）、U+2000–U+2E7F 通用标点区间，且不收 CSS 生成字符；它适合判断字体链与阅读器风险，不能证明嵌入字体“全量”覆盖。全量校验使用独立 CLI `epub-font check`，默认检查全部 manifest 字体；子集 provider 另用独立收集器比较源字体与输出字体，阻断子集引入的覆盖损失。
 
 ## font-preview.html
 

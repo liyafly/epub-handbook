@@ -34,7 +34,7 @@ epub run epub.font.subset --input full-font-source.epub --output subset-candidat
 epub redline --check all full-font-source.epub subset-candidate.epub
 ```
 
-此 capability 调用独立 `epub-font` provider；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
+此 capability 调用独立 `epub-font` provider，并使用另一套字符收集器对照完整源字体与子集结果，拦截新增缺字、空字形和 IVS/SVS 损失；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止且不写候选 EPUB。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
 
 在书级工作区中，完整字体保存在解包源的 OPF 目标路径；`fonts.json` 只配置当前 EPUB 内的 manifest 字体。交付用书内 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。
 

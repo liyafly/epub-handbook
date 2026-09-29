@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import io
 import json
 import zipfile
@@ -108,80 +109,17 @@ def test_missing_char_is_reported_with_location(tmp_path):
     assert missing["U+201C “"]["first"] == "css"
 
 
-def test_against_reports_coverage_lost_from_full_font(tmp_path):
-    source = make_epub()
-    harvest = required(source)
+def test_check_cli_rejects_removed_against_mode(tmp_path):
+    epub = tmp_path / "book.epub"
+    font = font_covering(required(make_epub()))
+    epub.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font}))
     full = tmp_path / "full.epub"
-    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest)}))
-    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest, drop="“")})
+    full.write_bytes(epub.read_bytes())
 
-    code, report = run_cli(tmp_path, candidate, "--against", str(full))
+    with pytest.raises(SystemExit) as exit_info:
+        check.main([str(epub), "--against", str(full)])
 
-    assert code == 1
-    assert report["mode"] == "against" and report["against"]["sha256"]
-    font = report["fonts"][0]
-    assert not font["coverageOk"] and not font["ok"]
-    assert font["against"]["regressions"] == [{
-        "kind": "missing",
-        "char": "U+201C “",
-        "count": font["missing"][0]["count"],
-        "first": font["missing"][0]["first"],
-    }]
-
-
-def test_against_allows_a_gap_already_present_in_full(tmp_path):
-    harvest = required(make_epub())
-    missing_font = font_covering(harvest, drop="“")
-    full = tmp_path / "full.epub"
-    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": missing_font}))
-    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": missing_font})
-
-    code, report = run_cli(tmp_path, candidate, "--against", str(full))
-
-    assert code == 0 and report["ok"]
-    font = report["fonts"][0]
-    assert not font["coverageOk"]
-    assert font["missing"] and font["against"]["regressions"] == []
-
-
-@pytest.mark.parametrize("candidate_font,kind", [
-    ("no-ink", "noInk"),
-    ("no-uvs", "missingSequences"),
-])
-def test_against_detects_outline_and_variation_sequence_regressions(tmp_path, candidate_font, kind):
-    harvest = required(make_epub())
-    full = tmp_path / "full.epub"
-    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font_covering(harvest)}))
-    if candidate_font == "no-ink":
-        degraded = font_covering(harvest, empty="中")
-    else:
-        degraded = font_covering(harvest, uvs=False)
-    candidate = make_epub(fonts={"OEBPS/Fonts/st-all.ttf": degraded})
-
-    code, report = run_cli(tmp_path, candidate, "--against", str(full))
-
-    assert code == 1
-    assert any(item["kind"] == kind for item in report["fonts"][0]["against"]["regressions"])
-
-
-def test_against_rejects_different_font_manifest_paths(tmp_path, capsys):
-    full = tmp_path / "full.epub"
-    full.write_bytes(make_epub(fonts={"OEBPS/Fonts/original.ttf": PLACEHOLDER}))
-
-    code, report = run_cli(tmp_path, make_epub(), "--against", str(full))
-
-    assert code == 2 and report is None
-    assert "font manifest paths differ" in capsys.readouterr().err
-
-
-def test_against_rejects_external_font_files(tmp_path, capsys):
-    full = tmp_path / "full.epub"
-    full.write_bytes(make_epub())
-
-    code, report = run_cli(tmp_path, make_epub(), "--against", str(full), "--font-file", "master.ttf")
-
-    assert code == 2 and report is None
-    assert "cannot be used with --against" in capsys.readouterr().err
+    assert exit_info.value.code == 2
 
 
 def test_glyph_without_outline_is_reported(tmp_path):
@@ -257,9 +195,16 @@ def test_synthetic_epub_contains_manifested_image_resource():
         assert archive.read("OEBPS/Images/x.png").startswith(b"\x89PNG\r\n\x1a\n")
 
 
-def test_is_independent_of_the_subset_code():
+def test_check_module_does_not_import_subset_collectors():
     source = Path(check.__file__).read_text(encoding="utf-8")
-    assert "epubtext" not in source.split('"""', 2)[2] and "fontops" not in source.split('"""', 2)[2]
+    tree = ast.parse(source)
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".", 1)[0])
+    assert not imported & {"epubtext", "fontops"}
 
 
 def test_agrees_with_subset_tool(tmp_path):

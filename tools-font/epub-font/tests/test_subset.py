@@ -221,6 +221,27 @@ def test_cli_is_deterministic(tmp_path):
     assert hashes[0] == hashes[1]
 
 
+def test_subset_fails_when_collector_misses_char(tmp_path, monkeypatch):
+    epub, config = write_inputs(tmp_path, GOOD_CONFIG)
+    output = tmp_path / "candidate.epub"
+    original_all_chars = epubtext.BookText.all_chars
+
+    def omit_documented_character(book):
+        return original_all_chars(book) - {"文"}
+
+    monkeypatch.setattr(epubtext.BookText, "all_chars", omit_documented_character)
+
+    code, report = run_subset(epub, config, output)
+
+    assert code == 1
+    assert report is not None and not report["ok"]
+    regular = report["fonts"][0]
+    independent = regular["checks"]["independent-coverage"]
+    assert not independent["ok"]
+    assert any(issue.get("char") == "U+6587 文" for issue in independent["regressions"])
+    assert not output.exists()
+
+
 def test_cli_rejects_external_master_config_field(tmp_path, capsys):
     removed_key = "mas" + "ter"
     config = {
