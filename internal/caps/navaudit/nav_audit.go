@@ -480,11 +480,11 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 				ins.addFinding("warn", "CSS url() uses escapes; target not verified", item.Href+" -> "+target, "css-reference-escaped")
 				continue
 			}
-			clean = unquotePct(clean)
+			clean = pypath.Unquote(clean)
 			if clean == "" {
 				continue
 			}
-			abs := joinArchivePath(parentDir(item.ArchivePath), clean)
+			abs := pypath.NormJoin(pypath.Dirname(item.ArchivePath), clean)
 			if hasEntry(ins.b, abs) {
 				if _, ok := manifestPaths[abs]; !ok {
 					ins.addFinding("error", "CSS url() target missing from OPF manifest",
@@ -753,81 +753,6 @@ func max2(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func parentDir(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-func joinArchivePath(base, rel string) string {
-	return normJoin(base, rel)
-}
-
-// normJoin 对齐 epub_lib.norm_join（去 fragment 后 posixpath.normpath(join)）。
-func normJoin(base, href string) string {
-	clean := href
-	if i := strings.IndexByte(clean, '#'); i >= 0 {
-		clean = clean[:i]
-	}
-	p := base
-	if p == "" {
-		p = "."
-	}
-	joined := p + "/" + clean
-	return normalizeArchivePath(joined)
-}
-
-func normalizeArchivePath(p string) string {
-	parts := strings.Split(p, "/")
-	var out []string
-	for _, part := range parts {
-		switch part {
-		case "", ".":
-			continue
-		case "..":
-			if len(out) > 0 {
-				out = out[:len(out)-1]
-			}
-		default:
-			out = append(out, part)
-		}
-	}
-	return strings.Join(out, "/")
-}
-
-func unquotePct(s string) string {
-	if !strings.Contains(s, "%") {
-		return s
-	}
-	var b strings.Builder
-	for i := 0; i < len(s); {
-		if s[i] == '%' && i+2 < len(s) {
-			h, l := unhexByte(s[i+1]), unhexByte(s[i+2])
-			if h >= 0 && l >= 0 {
-				b.WriteByte(byte(h<<4 | l))
-				i += 3
-				continue
-			}
-		}
-		b.WriteByte(s[i])
-		i++
-	}
-	return b.String()
-}
-
-func unhexByte(c byte) int {
-	switch {
-	case c >= '0' && c <= '9':
-		return int(c - '0')
-	case c >= 'a' && c <= 'f':
-		return int(c-'a') + 10
-	case c >= 'A' && c <= 'F':
-		return int(c-'A') + 10
-	}
-	return -1
 }
 
 func isExternalURL(uri string) bool {
