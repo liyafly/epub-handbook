@@ -280,7 +280,10 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 
 func (i *inspector) checkSpineXHTML() (int, error) {
 	filesScanned := 0
-	for _, item := range spineXHTMLItems(i.pkg) {
+	for _, item := range opf.SpineXHTMLItems(i.pkg) {
+		if item.MediaType != "application/xhtml+xml" {
+			continue
+		}
 		if err := i.ctx.Err(); err != nil {
 			return filesScanned, err
 		}
@@ -301,24 +304,6 @@ func (i *inspector) checkSpineXHTML() (int, error) {
 		}
 	}
 	return filesScanned, nil
-}
-
-func spineXHTMLItems(pkg *opf.Package) []opf.ManifestItem {
-	byID := make(map[string]opf.ManifestItem, len(pkg.Manifest))
-	for _, item := range pkg.Manifest {
-		byID[item.ID] = item
-	}
-	seen := make(map[string]bool)
-	var out []opf.ManifestItem
-	for _, ref := range pkg.Spine {
-		item, ok := byID[ref.IDRef]
-		if !ok || item.MediaType != "application/xhtml+xml" || item.ArchivePath == "" || seen[item.ArchivePath] {
-			continue
-		}
-		seen[item.ArchivePath] = true
-		out = append(out, item)
-	}
-	return out
 }
 
 func hasProperty(properties, token string) bool {
