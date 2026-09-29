@@ -332,7 +332,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 多看 / 旧版阅读器需要弹注 fallback | `epub-special-layout`（`epub.notes.legacy-fallback`） | 标准弹注检查后可补已识别 legacy class；交互仍需阅读器实测 |
 | OPF manifest 缺 `properties="svg" / "mathml"` | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移时标记已识别特性） |
 | nav.xhtml 缺失 / 结构破损 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（可识别输入由迁移生成；其他结构人工修复） |
-| toc.ncx 与 nav.xhtml 不同步 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移按可识别 NCX 生成 nav；其他结构人工修复） |
+| toc.ncx 与 nav.xhtml 不同步 | `epub-cleanup`（`epub.package.migrate.epub3`） | 人工（nav.audit 不比对 NCX 与 nav；migrate 只在缺 nav 时由 NCX 生成） |
 | 字体策略不规范 | `epub-cleanup`（`epub.typography.optimize`） | 中 |
 | 中英混排排版不稳 | `epub-cleanup`（`epub.typography.optimize`） | 高 |
 | 英文小说首字下沉 / 字体策略 | `epub-special-layout`（`epub.typography.english.optimize`） | 只读检出；语言声明可修补，drop cap 与字体排版人工决定 |

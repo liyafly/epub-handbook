@@ -115,7 +115,7 @@ Go 的 `encoding/xml` 尤其严重。只要不整篇重序列化，这类风险�
 **规则**：`internal/caps/**` 禁止 import `os/exec`。所有外部进程调用必须经 `internal/extern`。
 
 **为什么**：保持 stage 可组合、可测试、无进程启动开销。同时把外部工具依赖收敛到一处，
-方便统一处理"工具不存在"的降级（`magick` / `oxipng` 在很多机器上没有）。
+方便统一处理 PATH provider 不存在及 EPUBCheck 等辅助验证工具不可用时的降级。
 
 **守卫**：`archguard.TestNoExecInCaps` + `depguard` linter 配置。
 
@@ -199,7 +199,7 @@ AI 照着跑就炸，而且**失败得很晚、很难归因**。
 | `internal/editset` | 收集、排序、冲突检测、应用字节区间编辑 | 理解 XML/CSS 语义 | `caps`, `scan` |
 | `internal/redline` | 6 条红线校验器 + 注册表 | 修改 book | `pipeline`, `caps` |
 | `internal/report` | 构造并序列化 run-report | 业务判断 | 全部上层 |
-| `internal/extern` | 起 `magick`/`oxipng`/`java`/`epub-font`；工具缺失时降级 | 业务判断 | `caps` |
+| `internal/extern` | 启动 PATH 中的 `epub-font` provider；探测 `epubcheck` 可用性；工具缺失时显式降级 | 业务判断 | `caps` |
 | `internal/book` | 内存 EPUB 模型：entry 表 + 惰性内容 + 脏标记 | 碰磁盘 | 全部上层 |
 | `internal/book/pypath` | Python 侧 `urllib.parse` / `posixpath` / `xml.sax.saxutils` 的路径、URL、转义语义（纯函数，只依赖标准库） | 任何 EPUB 语义判断、任何 I/O | 全部上层（**不含** `internal/book` 自己：同层） |
 | `internal/zipfs` | `OpenRaw`/`Copy`/`CreateRaw`；唯一磁盘边界 | 理解 EPUB 语义 | `book` |
