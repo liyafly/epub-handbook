@@ -85,14 +85,14 @@ func TestNormalizeXHTMLShellRejectsTruncatedMarkup(t *testing.T) {
 
 func TestMigrateConvertsNamedEntitiesWhenDroppingDTD(t *testing.T) {
 	source := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "xhtml11.dtd" [<!ENTITY nbsp "&#160;"><!ENTITY mdash "&#8212;">]>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
-<head><title>Keep &mdash;</title><style>p::after{content:'&nbsp;'}</style></head><body title="A&nbsp;B &mdash;">Fish &nbsp;chips &mdash;&semi;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
+<head><title>Keep &mdash;</title><style>p::after{content:'&nbsp;'}</style></head><body title="A&nbsp;B &mdash;">Fish &nbsp;chips &mdash;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
 </html>`
 	want := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
-<head><title>Keep &#8212;</title><style>p::after{content:'&#160;'}</style><meta charset="utf-8"/></head><body title="A&#160;B &#8212;">Fish &#160;chips &#8212;&#59;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
+<head><title>Keep &#8212;</title><style>p::after{content:'&#160;'}</style><meta charset="utf-8"/></head><body title="A&#160;B &#8212;">Fish &#160;chips &#8212;&amp;&lt;&gt;&quot;&apos;<!-- &bogus; &nbsp; --><![CDATA[&bogus; &nbsp;]]></body>
 </html>`
 	got, changed, err := normalizeXHTMLShell(source, "en")
 	if err != nil {
@@ -119,6 +119,43 @@ func TestNormalizeXHTMLShellRejectsUnknownNamedEntity(t *testing.T) {
 	source := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head><body>&notAnXHTMLEntity;</body></html>`
 	if _, _, err := normalizeXHTMLShell(source, "en"); err == nil {
 		t.Fatal("expected unknown named entity to be rejected")
+	}
+}
+
+func TestNormalizeXHTMLShellRejectsEntitiesOutsideXMLHTMLTable(t *testing.T) {
+	for _, entity := range []string{"&check;", "&notit;"} {
+		t.Run(entity, func(t *testing.T) {
+			source := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head><body>` + entity + `</body></html>`
+			if _, _, err := normalizeXHTMLShell(source, "en"); err == nil {
+				t.Fatalf("expected unsupported entity %s to be rejected", entity)
+			}
+		})
+	}
+}
+
+func TestNormalizeXHTMLShellConvertsStyleEntitiesAndPreservesOpaqueText(t *testing.T) {
+	source := `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><title>&mdash;</title><style>p::after{content:"&mdash;"}</style></head><body><p>&mdash; &amp;nbsp;</p><!-- &mdash; --><![CDATA[&mdash;]]></body></html>`
+	got, _, err := normalizeXHTMLShell(source, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<title>&#8212;</title>`,
+		`<style>p::after{content:"&#8212;"}</style>`,
+		`<p>&#8212; &amp;nbsp;</p>`,
+		`<!-- &mdash; -->`,
+		`<![CDATA[&mdash;]]>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("normalized XHTML lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestMigrateRejectsInternalSubsetEntities(t *testing.T) {
+	source := `<!DOCTYPE html [<!ENTITY mdash "&#8212;">]><html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</title></head><body>&mdash;</body></html>`
+	if _, _, err := normalizeXHTMLShell(source, "en"); err == nil {
+		t.Fatal("expected internal entity declarations to be rejected")
 	}
 }
 

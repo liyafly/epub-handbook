@@ -1,6 +1,7 @@
 package migrateepub3
 
 import (
+	"encoding/xml"
 	"fmt"
 	"html"
 	"strings"
@@ -13,6 +14,16 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 	regions, truncated := xhtmlscan.ScanRegions(text)
 	if truncated != xhtmlscan.ScanComplete {
 		return "", false, fmt.Errorf("XHTML markup scan stopped at byte %d", truncated)
+	}
+	doctype, hasDoctype, err := xhtmlDoctypeSpan(text)
+	if err != nil {
+		return "", false, err
+	}
+	if hasDoctype {
+		declaration := text[doctype.Start:doctype.End]
+		if strings.Contains(declaration, "[") && strings.Contains(strings.ToUpper(declaration), "<!ENTITY") {
+			return "", false, convErrf("internal XHTML entity declarations are unsupported")
+		}
 	}
 	rootTag, headOpen, headClose := xhtmlShellTags(text, regions)
 	if rootTag == nil {
@@ -41,10 +52,6 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 	}
 	var edits []editset.Edit
 
-	doctype, hasDoctype, err := xhtmlDoctypeSpan(text)
-	if err != nil {
-		return "", false, err
-	}
 	const htmlDoctype = "<!DOCTYPE html>"
 	if hasDoctype {
 		if string(text[doctype.Start:doctype.End]) != htmlDoctype {
@@ -160,7 +167,7 @@ func xhtmlNamedEntityEdits(text string, regions []xhtmlscan.Region) ([]editset.E
 	for _, region := range regions {
 		switch region.Kind {
 		case xhtmlscan.RegionText, xhtmlscan.RegionStyle:
-			if err := appendXHTMLNamedEntityEdits(text, region.Start, region.End, &edits); err != nil {
+			if err := appendXMLNamedEntityEdits(text, region.Start, region.End, &edits); err != nil {
 				return nil, err
 			}
 		case xhtmlscan.RegionTag:
@@ -175,7 +182,7 @@ func xhtmlNamedEntityEdits(text string, regions []xhtmlscan.Region) ([]editset.E
 			for _, attr := range attrs {
 				start := region.Start + attr.ValueSpan.Start
 				end := region.Start + attr.ValueSpan.End
-				if err := appendXHTMLNamedEntityEdits(text, start, end, &edits); err != nil {
+				if err := appendXMLNamedEntityEdits(text, start, end, &edits); err != nil {
 					return nil, err
 				}
 			}
@@ -184,7 +191,7 @@ func xhtmlNamedEntityEdits(text string, regions []xhtmlscan.Region) ([]editset.E
 	return edits, nil
 }
 
-func appendXHTMLNamedEntityEdits(text string, start, end int, edits *[]editset.Edit) error {
+func appendXMLNamedEntityEdits(text string, start, end int, edits *[]editset.Edit) error {
 	for start < end {
 		prefix, afterAmp, found := strings.Cut(text[start:end], "&")
 		if !found {
@@ -207,14 +214,9 @@ func appendXHTMLNamedEntityEdits(text string, start, end int, edits *[]editset.E
 			start = entityEnd
 			continue
 		}
-		if !isHTMLNamedEntityName(name) {
-			return convErrf("malformed XHTML named entity %q at byte %d", text[amp:entityEnd], amp)
-		}
 		entity := text[amp:entityEnd]
-		decoded := html.UnescapeString(entity)
-		// UnescapeString also accepts some semicolonless prefixes; a leftover
-		// semicolon means the full name was not recognized. `semi` itself maps to `;`.
-		if decoded == entity || (name != "semi" && strings.HasSuffix(decoded, ";")) {
+		decoded, ok := xml.HTMLEntity[name]
+		if !ok {
 			return convErrf("unknown XHTML named entity %s at byte %d", entity, amp)
 		}
 		var replacement strings.Builder
@@ -234,17 +236,6 @@ func isPredefinedXMLEntity(name string) bool {
 	default:
 		return false
 	}
-}
-
-func isHTMLNamedEntityName(name string) bool {
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (i > 0 && c >= '0' && c <= '9') {
-			continue
-		}
-		return false
-	}
-	return len(name) > 0
 }
 
 func ensureStylesheetLink(text, href string) (string, bool, error) {

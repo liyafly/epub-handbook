@@ -8,17 +8,17 @@ package navaudit
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
-	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 	cssscan "github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
-	xhtmlscan "github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
 // auditFinding 是检查项的内部累积形态：level, message[, path[, kind]]。
@@ -606,11 +606,11 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 		if _, inSpine := spineXHTML[item.ArchivePath]; inSpine {
 			if _, checked := strictChecked[item.ArchivePath]; !checked {
 				strictChecked[item.ArchivePath] = struct{}{}
-				strictInput, editErr := editset.Apply(item.ArchivePath, raw,
-					xhtmlscan.XHTML11EntityEdits(item.ArchivePath, string(raw)))
-				strictErr := editErr
-				if strictErr == nil {
-					_, strictErr = opf.ScanSpanTreeContext(ctx, strictInput)
+				var strictErr error
+				if pkg.Version == "2.0" && isXHTML1Doctype(raw) {
+					_, strictErr = opf.ScanXHTMLSpanTreeContext(ctx, raw)
+				} else {
+					_, strictErr = opf.ScanSpanTreeContext(ctx, raw)
 				}
 				if strictErr != nil {
 					if ctx.Err() != nil {
@@ -674,6 +674,30 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 	}
 	ins.checkXHTMLFragments(ctx, documents, manifestXHTML)
 	ins.summaryOCRCounters(textChars, imageRefs)
+}
+
+func isXHTML1Doctype(data []byte) bool {
+	d := xml.NewDecoder(strings.NewReader(string(data)))
+	d.Strict = false
+	d.Entity = xml.HTMLEntity
+	d.CharsetReader = func(_ string, input io.Reader) (io.Reader, error) {
+		return input, nil
+	}
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return false
+		}
+		directive, ok := token.(xml.Directive)
+		if !ok {
+			continue
+		}
+		value := strings.ToLower(string(directive))
+		return strings.Contains(value, "xhtml 1.0") ||
+			strings.Contains(value, "xhtml 1.1") ||
+			strings.Contains(value, "/xhtml1.0") ||
+			strings.Contains(value, "/xhtml1.1")
+	}
 }
 
 func (ins *inspector) summaryOCRCounters(textChars, imageRefs int) {

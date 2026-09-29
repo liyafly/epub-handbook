@@ -884,7 +884,6 @@ func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionR
 func sanitizeNCXText(data []byte, rep *conversionReport) string {
 	text := utf8ReplaceDecode(data)
 	text, _ = pyPatterns["doctype"].subTemplate(text, "", 1)
-	text = strings.ReplaceAll(text, "&nbsp;", "&#160;")
 	fixed, count := pyPatterns["ncxSrcFix"].subTemplate(text, `\1\2\3\5\4`, 0)
 	if count > 0 {
 		rep.Warnings = append(rep.Warnings, fmt.Sprintf("fixed malformed NCX content src fragment quoting: %d", count))

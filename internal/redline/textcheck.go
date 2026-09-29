@@ -130,6 +130,7 @@ func extractTextBlocks(content []byte, label string, targets map[string]int, exc
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
+	d.Entity = xml.HTMLEntity
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		return input, nil
 	}
@@ -204,6 +205,7 @@ func noterefTargets(content []byte, label string) (map[string]int, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
+	d.Entity = xml.HTMLEntity
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		return input, nil
 	}
@@ -309,6 +311,7 @@ func ExtractAnchorIDs(content []byte, label string) (map[string]bool, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
+	d.Entity = xml.HTMLEntity
 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		return input, nil
 	}
