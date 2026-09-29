@@ -14,7 +14,7 @@ sh templates/epub-style-demo/build.sh
 templates/epub-style-demo/dist/epub-style-demo.epub
 ```
 
-构建前会在临时目录复制源树、统一文件时间戳并按固定路径顺序打包。同一源提交在相同 `zip` 版本下会得到相同 SHA-256；不同 `zip` 版本之间不承诺字节级一致。
+构建前会在临时目录复制源树、统一文件时间戳并按固定路径顺序打包。同一源提交、同一平台且 `zip -v` 显示相同构建时会得到相同 SHA-256；跨平台或 zip 构建不同不承诺字节级一致。macOS 系统 zip 不会为非 ASCII 条目名设置 UTF-8 标志，EPUB 条目名请使用 ASCII。
 
 ## 样本页
 

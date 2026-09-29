@@ -6,6 +6,8 @@
 
 当前可重建候选来自源提交 `1133ba0253aaf892fc0b55d8f739a6f8c305f341`，先运行 `sh templates/epub-style-demo/build.sh`，再对指定页运行 `epub.typography.optimize`：
 
+2026-09-29 GitHub Actions `Build EPUB Demo` run `36588470704` 输出：`Deterministic style demo SHA256=f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c`。这是 CI 构建散列，不是阅读器验收证据。
+
 | 候选 | scope | 基础 demo SHA-256 | 候选 SHA-256 |
 |---|---|---|---|
 | `plain-cn` | `OEBPS/Text/01-body.xhtml` | `0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc` | `3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5` |
