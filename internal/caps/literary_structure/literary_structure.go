@@ -47,10 +47,6 @@ type skippedEdit struct {
 	Reason string `json:"reason"`
 }
 
-type sourceFile struct {
-	path string
-}
-
 type parsedXHTML struct {
 	data []byte
 	root *opf.SpanNode
@@ -94,10 +90,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return report.Result{}, err
 	}
 
-	spine := spineXHTML(pkg)
-	byPath := make(map[string]sourceFile, len(spine))
-	for _, file := range spine {
-		byPath[file.path] = file
+	spine := opf.SpineXHTMLPaths(pkg)
+	byPath := make(map[string]struct{}, len(spine))
+	for _, path := range spine {
+		byPath[path] = struct{}{}
 	}
 	manifestCSS := make(map[string]bool)
 	for _, item := range pkg.Manifest {
@@ -330,15 +326,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		},
 		Findings: findings,
 	}, nil
-}
-
-func spineXHTML(pkg *opf.Package) []sourceFile {
-	paths := opf.SpineXHTMLPaths(pkg)
-	files := make([]sourceFile, 0, len(paths))
-	for _, path := range paths {
-		files = append(files, sourceFile{path: path})
-	}
-	return files
 }
 
 func resolveTarget(root *opf.SpanNode, assignment Assignment) (*opf.SpanNode, int, bool) {
