@@ -7,7 +7,6 @@
     },
     {
       "target": "OEBPS/Fonts/st-all-semibold.otf",
-      "master": "../masters/SourceHanSerifSC-VF.otf.woff2",
       "variation": {"mode": "instance", "axes": {"wght": 600}}
     }
   ]

@@ -35,7 +35,7 @@
       "parameters": {
         "font_config": {
           "type": "string",
-          "description": "可选 epub-font fonts.json 路径；master 路径相对配置文件所在目录。"
+          "description": "可选 epub-font fonts.json 路径；配置目标必须是当前 EPUB 内的 manifest 字体。"
         },
         "allow_font_obfuscation": {
           "type": "boolean",

@@ -96,6 +96,21 @@ func TestRunReplacesOnlyManifestFontInMemory(t *testing.T) {
 	}
 }
 
+func TestRunAcceptsLegacySourceFontMetadata(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "legacy-source-font")
+	provider := makeReportingProvider(t)
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != "complete" {
+		t.Fatalf("status = %q, want complete for legacy report metadata", result.Status)
+	}
+}
+
 func TestRunProviderFailureLeavesBookUnchanged(t *testing.T) {
 	provider := makeFailingProvider(t)
 	b, _ := openFontBook(t)
@@ -299,9 +314,9 @@ report = {
     "fonts": [{
         "target": target, "manifestId": "font", "mediaType": "application/vnd.ms-opentype",
         "action": "subset",
-        "master": {"source": "epub:" + target, "sha256": sha(source_font), "bytes": len(source_font),
+        "sourceFont": {"source": "epub:" + target, "sha256": sha(source_font), "bytes": len(source_font),
                    "glyphs": 12, "outline": "glyf", "axes": []},
-        "variation": {"mode": "keep", "axes": {}},
+        "variation": {"mode": "instance", "axes": {}},
         "original": {"sha256": sha(source_font), "bytes": len(source_font)},
         "output": {"sha256": sha(output_font), "bytes": len(output_font), "glyphs": 11,
                    "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},
@@ -331,6 +346,9 @@ if mode == "wrong-media-type":
     report["fonts"][0]["mediaType"] = "application/xhtml+xml"
 if mode == "wrong-output-sha":
     report["output"]["sha256"] = "0" * 64
+if mode == "legacy-source-font":
+    font = report["fonts"][0]
+    font["master"] = font.pop("sourceFont")
 report_path.write_text(json.dumps(report), encoding="utf-8")
 `
 
@@ -357,9 +375,9 @@ report = {
     "fonts": [{
         "target": target, "manifestId": "font", "mediaType": "application/vnd.ms-opentype",
         "action": "subset",
-        "master": {"source": "epub:" + target, "sha256": sha(font), "bytes": len(font),
+        "sourceFont": {"source": "epub:" + target, "sha256": sha(font), "bytes": len(font),
                    "glyphs": 12, "outline": "glyf", "axes": []},
-        "variation": {"mode": "keep", "axes": {}},
+        "variation": {"mode": "instance", "axes": {}},
         "original": {"sha256": sha(font), "bytes": len(font)},
         "output": {"sha256": sha(font), "bytes": len(font), "glyphs": 12,
                    "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},

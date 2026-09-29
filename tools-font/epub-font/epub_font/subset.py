@@ -24,8 +24,8 @@ import fontTools
 from . import epubtext, fontops
 
 CONFIG_KEYS = {"version", "fonts"}
-FONT_KEYS = {"target", "master", "variation", "extraText", "action"}
-FONT_ACTIONS = {"subset", "preserve"}
+FONT_KEYS = {"target", "variation", "extraText"}
+DEPRECATED_FONT_KEYS = {"action"}
 
 
 class UsageError(Exception):
@@ -53,22 +53,17 @@ def _load_config(path: Path) -> dict:
     for index, job in enumerate(fonts):
         if not isinstance(job, dict):
             raise UsageError(f"fonts[{index}] must be an object")
-        unknown = set(job) - FONT_KEYS
+        unknown = set(job) - FONT_KEYS - DEPRECATED_FONT_KEYS
         if unknown:
             raise UsageError(f"fonts[{index}] has unknown keys: {sorted(unknown)}")
         target = job.get("target")
         if not isinstance(target, str) or not target or target.startswith("/"):
             raise UsageError(f"fonts[{index}].target must be a ZIP path such as OEBPS/Fonts/st-all.ttf")
-        action = job.get("action", "subset")
-        if not isinstance(action, str) or action not in FONT_ACTIONS:
-            raise UsageError(f"fonts[{index}].action must be one of {sorted(FONT_ACTIONS)}")
-        if action == "preserve" and any(key in job for key in ("master", "variation", "extraText")):
-            raise UsageError(f"fonts[{index}].action 'preserve' cannot be combined with subset options")
+        if "action" in job and job["action"] != "preserve":
+            raise UsageError(f"fonts[{index}].action is deprecated; only the legacy value 'preserve' is accepted")
         if target in seen:
             raise UsageError(f"fonts[{index}].target {target} is listed twice")
         seen.add(target)
-        if "master" in job and (not isinstance(job["master"], str) or not job["master"]):
-            raise UsageError(f"fonts[{index}].master must be a file path")
         if "extraText" in job and not isinstance(job["extraText"], str):
             raise UsageError(f"fonts[{index}].extraText must be a string")
     return config
@@ -90,17 +85,6 @@ def _check_output_paths(epub: Path, out_epub: Path) -> None:
         raise UsageError(f"report {report} already exists; choose a new output path")
 
 
-def _read_master(job: dict, config_dir: Path, zf: zipfile.ZipFile) -> tuple[bytes, str]:
-    if "master" in job:
-        path = Path(job["master"])
-        if not path.is_absolute():
-            path = config_dir / path
-        if not path.is_file():
-            raise UsageError(f"master font {path} is not a regular file")
-        return path.read_bytes(), str(path)
-    return zf.read(job["target"]), f"epub:{job['target']}"
-
-
 def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) -> dict:
     facts = fontops.font_facts(original_font)
     fontops.check_target_format(target, facts.outline)
@@ -111,8 +95,8 @@ def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) 
         "mediaType": item.media_type,
         "action": "preserve",
         "reason": "math-table",
-        "master": {"source": f"epub:{target}", "sha256": digest, "bytes": len(original_bytes),
-                   "glyphs": facts.glyph_count, "outline": facts.outline, "axes": facts.axes},
+        "sourceFont": {"source": f"epub:{target}", "sha256": digest, "bytes": len(original_bytes),
+                       "glyphs": facts.glyph_count, "outline": facts.outline, "axes": facts.axes},
         "variation": {"mode": "preserve", "axes": {}},
         "original": {"sha256": digest, "bytes": len(original_bytes)},
         "output": {"sha256": digest, "bytes": len(original_bytes), "glyphs": facts.glyph_count,
@@ -127,8 +111,7 @@ def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) 
     }
 
 
-def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config_dir: Path,
-                 automatic: bool = False) -> dict:
+def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dict:
     target = job["target"]
     if target not in zf.namelist():
         raise UsageError(f"{target} is not in the EPUB (only existing font entries can be replaced)")
@@ -140,40 +123,38 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
     original_bytes = zf.read(target)
     original_font = fontops.load_font(original_bytes, f"epub:{target}")
     original_is_math = "MATH" in original_font
-    action = job.get("action", "subset")
-    if action == "preserve":
-        if not original_is_math:
-            raise fontops.FontJobError(f"{target}: action 'preserve' requires an OpenType MATH table")
-        return _preserve_math_job(target, item, original_bytes, original_font)
-    if automatic and original_is_math:
-        return _preserve_math_job(target, item, original_bytes, original_font)
+    deprecated_preserve = job.get("action") == "preserve"
     if original_is_math:
-        raise fontops.FontJobError(f"{target}: has an OpenType MATH table; use action 'preserve' to keep the complete math font")
+        result = _preserve_math_job(target, item, original_bytes, original_font)
+        if deprecated_preserve:
+            result["warnings"].append(f"{target}: configuration key action is deprecated and was ignored")
+        return result
 
     spec = fontops.parse_variation(job.get("variation"))
-    master_bytes, master_label = _read_master(job, config_dir, zf)
-    master_font = fontops.load_font(master_bytes, master_label)
-    if "MATH" in master_font:
-        raise fontops.FontJobError(f"{master_label}: has an OpenType MATH table; use action 'preserve' to keep the complete math font")
-    master = fontops.font_facts(master_font)
-    if "variation" not in job and master.axes:
+    source_font_bytes = original_bytes
+    source_font_label = f"epub:{target}"
+    source_font = original_font
+    source_facts = fontops.font_facts(source_font)
+    if "variation" not in job and source_facts.axes:
         raise fontops.FontJobError(
             f'{target}: variable font; add it to fonts.json with variation.mode '
             '(epub-font subset --config fonts.json or epub run epub.font.subset with '
             'font_config=fonts.json; "instance" is recommended, see README)'
         )
-    fontops.check_target_format(target, master.outline)
-    limits = fontops.axis_limits(master, spec, master_label)
+    fontops.check_target_format(target, source_facts.outline)
+    limits = fontops.axis_limits(source_facts, spec, source_font_label)
 
     required = {ord(ch) for ch in book.all_chars() | set(job.get("extraText", ""))}
-    location = fontops.target_location(master, spec, limits)
-    master_shapes = fontops.glyph_shapes(master_font, master.cmap, sorted(required), location)
+    location = fontops.target_location(source_facts, spec, limits)
+    source_shapes = fontops.glyph_shapes(source_font, source_facts.cmap, sorted(required), location)
     flavor = fontops.FLAVOR_BY_EXT[fontops.target_extension(target)]
-    out_bytes, warnings = fontops.make_subset(master_font, required, spec, limits, flavor, target)
+    out_bytes, warnings = fontops.make_subset(source_font, required, spec, limits, flavor, target)
+    if deprecated_preserve:
+        warnings.append(f"{target}: configuration key action is deprecated and was ignored")
 
     out_font = fontops.load_font(out_bytes, f"{target} (output)")
     out = fontops.font_facts(out_font)
-    checks, not_in_master = fontops.verify(master, out, required, spec, limits, target, out_font, master_shapes)
+    checks, not_in_master = fontops.verify(source_facts, out, required, spec, limits, target, out_font, source_shapes)
     if not_in_master:
         warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
     return {
@@ -181,9 +162,10 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile, config
         "manifestId": item.item_id,
         "mediaType": item.media_type,
         "action": "subset",
-        "master": {"source": master_label, "sha256": fontops.sha256(master_bytes), "bytes": len(master_bytes),
-                   "glyphs": master.glyph_count, "outline": master.outline, "axes": master.axes},
-        "variation": {"mode": spec.mode, "axes": spec.axes or {}},
+        "sourceFont": {"source": source_font_label, "sha256": fontops.sha256(source_font_bytes),
+                       "bytes": len(source_font_bytes), "glyphs": source_facts.glyph_count,
+                       "outline": source_facts.outline, "axes": source_facts.axes},
+        "variation": {"mode": spec.mode or "static", "axes": spec.axes or {}},
         "original": {"sha256": fontops.sha256(original_bytes), "bytes": len(original_bytes)},
         "output": {"sha256": fontops.sha256(out_bytes), "bytes": len(out_bytes), "glyphs": out.glyph_count,
                    "outline": out.outline, "flavor": out.flavor, "axes": out.axes, "tables": out.tables},
@@ -248,22 +230,15 @@ def run(args) -> int:
             if not manifest_fonts:
                 raise UsageError("the EPUB has no manifest fonts")
             jobs = [{"target": item.path} for item in manifest_fonts]
-            config_dir = epub.parent
-            automatic_targets = {job["target"] for job in jobs}
         else:
-            config_dir = config_path.parent
             jobs = list(config["fonts"])
             configured_targets = {job["target"] for job in jobs}
             automatic_jobs = [
                 {"target": item.path} for item in manifest_fonts if item.path not in configured_targets
             ]
             jobs.extend(automatic_jobs)
-            automatic_targets = {job["target"] for job in automatic_jobs}
         try:
-            results = [
-                _process_job(job, book, zf, config_dir, job["target"] in automatic_targets)
-                for job in jobs
-            ]
+            results = [_process_job(job, book, zf) for job in jobs]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 
@@ -303,7 +278,7 @@ def run(args) -> int:
             operation += f" reason={result['reason']}"
         print(f"[{status}] {result['target']} {operation} "
               f"{result['original']['bytes']} -> {result['output']['bytes']} bytes, "
-              f"glyphs {result['master']['glyphs']} -> {result['output']['glyphs']}"
+              f"glyphs {result['sourceFont']['glyphs']} -> {result['output']['glyphs']}"
               + (f", failed: {', '.join(failed)}" if failed else ""))
         for warning in result["warnings"]:
             print(f"  warning: {warning}")

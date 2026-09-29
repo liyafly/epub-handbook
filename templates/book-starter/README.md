@@ -40,9 +40,7 @@
 uv tool install --editable tools-font/epub-font
 ```
 
-若采用包外母版模式（母版不放在解包源树中），可在书根放 `fonts.json`，用 `master` 指定母版，路径相对该配置文件。
-
-自动字体处理会完整保留带 OpenType `MATH` 表的数学字体；若配置 `fonts.json`，对这类字体写 `action: "preserve"`，普通字体默认仍执行子集化。加密/混淆或损坏的字体不会因保留设置而放行。
+自动字体处理会完整保留带 OpenType `MATH` 表的数学字体，无需在 `fonts.json` 中声明保留。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示；可变字体只接受 `variation.mode: "instance"`。加密/混淆或损坏的字体不会因保留设置而放行。
 
 ## 进阶排版
 

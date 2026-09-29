@@ -18,8 +18,8 @@ GLYF_VF = synth.build_glyf_font(variable=True)
 GLYF_STATIC = synth.build_glyf_font(variable=False)
 CFF2_VF = synth.build_cff2_font()
 BOOK_FONTS = {
-    "OEBPS/Fonts/st-all.ttf": GLYF_STATIC,          # placeholder bytes, replaced from the VF master
-    "OEBPS/Fonts/st-all-semibold.ttf": GLYF_STATIC,
+    "OEBPS/Fonts/st-all.ttf": GLYF_VF,
+    "OEBPS/Fonts/st-all-semibold.ttf": GLYF_VF,
     "OEBPS/Fonts/kt.otf": CFF2_VF,                  # already-embedded CFF2 VF, subset in place
 }
 
@@ -30,10 +30,10 @@ def book_chars(epub_bytes: bytes) -> set:
 
 
 def run_job(master: bytes, target: str, variation: dict | None, text: str, shapes_at: dict | None = None):
-    font = fontops.load_font(master, "master")
+    font = fontops.load_font(master, "source font")
     facts = fontops.font_facts(font)
     spec = fontops.parse_variation(variation)
-    limits = fontops.axis_limits(facts, spec, "master")
+    limits = fontops.axis_limits(facts, spec, "source font")
     required = {ord(c) for c in text}
     location = fontops.target_location(facts, spec, limits) if shapes_at is None else shapes_at
     master_shapes = fontops.glyph_shapes(font, facts.cmap, sorted(required), location)
@@ -76,14 +76,6 @@ def test_css_strings_decodes_escapes():
 TEXT = "中\U000E0100、「A 文"   # not 字 (U+5B57): it must be dropped
 
 
-def test_keep_variable_glyf():
-    data, out, checks, warnings = run_job(GLYF_VF, "x.ttf", {"mode": "keep"}, TEXT)
-    assert all(c["ok"] for c in checks.values()), checks
-    assert "fvar" in out and "gvar" in out
-    assert "uni5B57" not in out.getGlyphOrder()
-    assert any("still a variable font" in w for w in warnings)
-
-
 def test_instance_glyf_pins_weight_and_keeps_vert_and_uvs():
     data, out, checks, _ = run_job(GLYF_VF, "x.ttf", {"mode": "instance", "axes": {"wght": 700}}, TEXT)
     assert all(c["ok"] for c in checks.values()), checks
@@ -115,27 +107,20 @@ def test_outline_check_compares_every_mapped_glyph():
     assert checks["outlines"]["ok"] and checks["outlines"]["compared"] == 6   # 中 、 「 A space 文
 
 
-def test_limit_keeps_range():
-    _, out, checks, _ = run_job(GLYF_VF, "x.ttf", {"mode": "limit", "axes": {"wght": [400, 700]}}, TEXT)
-    assert checks["variation"]["ok"], checks["variation"]
-    axis = out["fvar"].axes[0]
-    assert (axis.minValue, axis.maxValue) == (400, 700)
-
-
 def test_cff2_instance_downgrades_to_cff():
     _, out, checks, _ = run_job(CFF2_VF, "x.otf", {"mode": "instance", "axes": {"wght": 600}}, TEXT)
     assert all(c["ok"] for c in checks.values()), checks
     assert "CFF " in out and "CFF2" not in out and "fvar" not in out
 
 
-def test_cff2_keep_and_woff2_flavor():
-    _, out, checks, _ = run_job(CFF2_VF, "x.woff2", None, TEXT)
+def test_cff2_instance_and_woff2_flavor():
+    _, out, checks, _ = run_job(CFF2_VF, "x.woff2", {"mode": "instance"}, TEXT)
     assert all(c["ok"] for c in checks.values()), checks
-    assert out.flavor == "woff2" and "CFF2" in out and "fvar" in out
+    assert out.flavor == "woff2" and "CFF " in out and "CFF2" not in out and "fvar" not in out
 
 
 def test_uvs_dropped_when_selector_not_in_text():
-    _, out, checks, _ = run_job(GLYF_VF, "x.ttf", None, "中、")
+    _, out, checks, _ = run_job(GLYF_STATIC, "x.ttf", None, "中、")
     assert checks["uvs-sequences"]["wanted"] == 0
     assert fontops.uvs_pairs(out) == set()
 
@@ -146,19 +131,16 @@ def test_same_input_same_bytes():
     assert first == second
 
 
-@pytest.mark.parametrize("master,variation,message", [
+@pytest.mark.parametrize("font_data,variation,message", [
     (GLYF_STATIC, {"mode": "instance", "axes": {"wght": 400}}, "needs a variable font"),
     (GLYF_VF, {"mode": "instance", "axes": {"wdth": 100}}, "unknown axes"),
     (GLYF_VF, {"mode": "instance", "axes": {"wght": 1000}}, "outside"),
-    (GLYF_VF, {"mode": "limit", "axes": {"wght": [700, 400]}}, "must satisfy"),
-    (GLYF_VF, {"mode": "limit", "axes": {}}, "at least one axis"),
-    (GLYF_VF, {"mode": "keep", "axes": {"wght": 400}}, "takes no axes"),
-    (GLYF_VF, {"mode": "bogus"}, "must be one of"),
+    (GLYF_VF, {"mode": "bogus"}, "must be 'instance'"),
 ])
-def test_bad_variation_config(master, variation, message):
+def test_bad_variation_config(font_data, variation, message):
     with pytest.raises(fontops.FontJobError, match=message):
-        font = fontops.load_font(master, "master")
-        fontops.axis_limits(fontops.font_facts(font), fontops.parse_variation(variation), "master")
+        font = fontops.load_font(font_data, "source font")
+        fontops.axis_limits(fontops.font_facts(font), fontops.parse_variation(variation), "source font")
 
 
 def test_format_mismatch_and_collections():
@@ -177,9 +159,6 @@ def test_format_mismatch_and_collections():
 def write_inputs(tmp_path: Path, config: dict, epub: bytes | None = None) -> tuple[Path, Path]:
     epub_path = tmp_path / "book.epub"
     epub_path.write_bytes(epub if epub is not None else synth.build_epub(BOOK_FONTS))
-    (tmp_path / "masters").mkdir(exist_ok=True)
-    (tmp_path / "masters" / "serif-vf.ttf").write_bytes(GLYF_VF)
-    (tmp_path / "masters" / "math.ttf").write_bytes(synth.build_math_font())
     config_path = tmp_path / "fonts.json"
     config_path.write_text(json.dumps(config), encoding="utf-8")
     return epub_path, config_path
@@ -195,11 +174,9 @@ def run_subset(epub: Path, config: Path | None, out: Path) -> tuple[int, dict | 
 GOOD_CONFIG = {
     "version": 1,
     "fonts": [
-        {"target": "OEBPS/Fonts/st-all.ttf", "master": "masters/serif-vf.ttf",
-         "variation": {"mode": "instance", "axes": {"wght": 400}}},
-        {"target": "OEBPS/Fonts/st-all-semibold.ttf", "master": "masters/serif-vf.ttf",
-         "variation": {"mode": "instance", "axes": {"wght": 600}}},
-        {"target": "OEBPS/Fonts/kt.otf", "variation": {"mode": "keep"}, "extraText": "字"},
+        {"target": "OEBPS/Fonts/st-all.ttf", "variation": {"mode": "instance", "axes": {"wght": 400}}},
+        {"target": "OEBPS/Fonts/st-all-semibold.ttf", "variation": {"mode": "instance", "axes": {"wght": 600}}},
+        {"target": "OEBPS/Fonts/kt.otf", "variation": {"mode": "instance"}, "extraText": "字"},
     ],
 }
 
@@ -212,7 +189,7 @@ def test_cli_end_to_end(tmp_path, capsys):
     assert report["ok"] and report["output"]["warnings"] == []
     assert [f["target"] for f in report["fonts"]] == [f["target"] for f in GOOD_CONFIG["fonts"]]
     kt = report["fonts"][2]
-    assert kt["master"]["source"] == "epub:OEBPS/Fonts/kt.otf" and kt["output"]["axes"]
+    assert kt["sourceFont"]["source"] == "epub:OEBPS/Fonts/kt.otf" and kt["output"]["axes"] == []
 
     with zipfile.ZipFile(epub) as before, zipfile.ZipFile(candidate) as after:
         assert [i.filename for i in before.infolist()] == [i.filename for i in after.infolist()]
@@ -229,8 +206,8 @@ def test_cli_end_to_end(tmp_path, capsys):
         semibold = TTFont(io.BytesIO(after.read("OEBPS/Fonts/st-all-semibold.ttf")))
         kt_font = TTFont(io.BytesIO(after.read("OEBPS/Fonts/kt.otf")))
     assert semibold["OS/2"].usWeightClass == 600
-    assert "uni5B57" in kt_font.getGlyphOrder()   # extraText
-    assert "uni5B57" not in semibold.getGlyphOrder()
+    assert ord("字") in kt_font.getBestCmap()   # extraText
+    assert ord("字") not in semibold.getBestCmap()
 
 
 def test_cli_is_deterministic(tmp_path):
@@ -244,18 +221,54 @@ def test_cli_is_deterministic(tmp_path):
     assert hashes[0] == hashes[1]
 
 
+def test_cli_rejects_external_master_config_field(tmp_path, capsys):
+    removed_key = "mas" + "ter"
+    config = {
+        "version": 1,
+        "fonts": [{"target": "OEBPS/Fonts/st-all.ttf", removed_key: "outside.ttf"}],
+    }
+    epub, config_path = write_inputs(tmp_path, config)
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 2 and report is None
+    assert "unknown keys" in capsys.readouterr().err
+    assert not output.exists() and not subset.report_path(output).exists()
+
+
+def test_deprecated_preserve_action_is_a_noop_for_regular_font(tmp_path, capsys):
+    config = {"version": 1, "fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve"}]}
+    regular = synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_STATIC})
+    epub, config_path = write_inputs(tmp_path, config, regular)
+    output = tmp_path / "new.epub"
+
+    code, report = run_subset(epub, config_path, output)
+
+    assert code == 0, report
+    assert report["fonts"][0]["action"] == "subset"
+    assert report["fonts"][0]["original"]["sha256"] != report["fonts"][0]["output"]["sha256"]
+    assert "deprecated" in capsys.readouterr().out
+    with zipfile.ZipFile(output) as candidate:
+        assert candidate.read("OEBPS/Fonts/st-all.ttf") != GLYF_STATIC
+
+
+@pytest.mark.parametrize("variation", [
+    {"mode": "k" + "eep"},
+    {"mode": "lim" + "it", "axes": {"wght": [400, 700]}},
+])
+def test_removed_variable_font_modes_are_rejected(variation):
+    with pytest.raises(fontops.FontJobError, match="must be 'instance'"):
+        fontops.parse_variation(variation)
+
+
 @pytest.mark.parametrize("config_patch,epub_kwargs,message", [
     ({"fonts": [{"target": "OEBPS/Fonts/missing.ttf"}]}, {}, "is not in the EPUB"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "typo": 1}]}, {}, "unknown keys"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "unknown"}]}, {}, "action must be one of"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "action must be one of"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve", "master": "masters/serif-vf.ttf"}]}, {}, "cannot be combined with subset options"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve"}]}, {}, "requires an OpenType MATH table"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "subset"}]}, {}, "only the legacy value 'preserve'"),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "only the legacy value 'preserve'"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice"),
     ({"version": 2}, {}, "version must be 1"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "master": "masters/math.ttf"}]}, {}, "MATH"),
-    ({"fonts": [{"target": "OEBPS/Fonts/kt.otf", "master": "masters/serif-vf.ttf",
-                  "variation": {"mode": "keep"}}]}, {}, "needs CFF"),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}]}, {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "encryption.xml"),
 ])
 def test_cli_refuses_bad_input(tmp_path, capsys, config_patch, epub_kwargs, message):
@@ -431,25 +444,28 @@ def test_explicit_preserve_action_accepts_math_font(tmp_path):
     assert code == 0, report
     assert report["fonts"][0]["action"] == "preserve"
     assert report["fonts"][0]["reason"] == "math-table"
+    assert any("deprecated" in warning for warning in report["fonts"][0]["warnings"])
     with zipfile.ZipFile(output) as after:
         assert after.read("OEBPS/Fonts/math.ttf") == math_font
 
 
-@pytest.mark.parametrize("action", [None, "subset"])
-def test_configured_subset_still_refuses_math_font(tmp_path, capsys, action):
+@pytest.mark.parametrize("deprecated_action", [None, "preserve"])
+def test_configured_math_font_is_automatically_preserved(tmp_path, deprecated_action):
     math_font = synth.build_math_font()
     job = {"target": "OEBPS/Fonts/math.ttf"}
-    if action is not None:
-        job["action"] = action
+    if deprecated_action is not None:
+        job["action"] = deprecated_action
     config = {"version": 1, "fonts": [job]}
     epub, config_path = write_inputs(tmp_path, config, synth.build_epub({"OEBPS/Fonts/math.ttf": math_font}))
     output = tmp_path / "new.epub"
 
     code, report = run_subset(epub, config_path, output)
 
-    assert code == 2 and report is None
-    assert "MATH table" in capsys.readouterr().err
-    assert not output.exists() and not subset.report_path(output).exists()
+    assert code == 0, report
+    assert report["fonts"][0]["action"] == "preserve"
+    assert report["fonts"][0]["output"]["sha256"] == report["fonts"][0]["original"]["sha256"]
+    with zipfile.ZipFile(output) as candidate:
+        assert candidate.read("OEBPS/Fonts/math.ttf") == math_font
 
 
 def test_auto_mode_does_not_preserve_encrypted_math_font(tmp_path, capsys):
@@ -498,12 +514,11 @@ REAL_FONT = os.environ.get("EPUB_FONT_REAL_FONT")
 
 
 @pytest.mark.skipif(not REAL_FONT, reason="set EPUB_FONT_REAL_FONT=/path/to/CJK-VF.ttf|.otf to run")
-@pytest.mark.parametrize("variation", [None, {"mode": "instance", "axes": {"wght": 600}}])
-def test_real_variable_font(variation):
+def test_real_variable_font():
     master = Path(REAL_FONT).read_bytes()
     target = "real" + (".otf" if master[:4] == b"OTTO" else ".ttf")
     text = "".join(epubtext.BASELINE_TEXT) + "永和九年岁在癸丑暮春之初会于会稽山阴之兰亭修禊事也"
-    data, out, checks, _ = run_job(master, target, variation, text)
+    data, out, checks, _ = run_job(master, target, {"mode": "instance", "axes": {"wght": 600}}, text)
     assert all(c["ok"] for c in checks.values()), checks
     assert len(data) < len(master) / 10
 

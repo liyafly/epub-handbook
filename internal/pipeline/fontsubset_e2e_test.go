@@ -288,7 +288,7 @@ func fontSubsetReportEntry(target, manifestID, action, reason string, original, 
 	var requiredCodepoints *int
 	var notInMasterCount *int
 	warnings := []string{}
-	variation := map[string]any{"mode": "keep", "axes": map[string]any{}}
+	variation := map[string]any{"mode": "instance", "axes": map[string]any{}}
 	if action == "subset" {
 		required := 2
 		count := missingCount
@@ -307,7 +307,7 @@ func fontSubsetReportEntry(target, manifestID, action, reason string, original, 
 	return map[string]any{
 		"target": target, "manifestId": manifestID, "mediaType": "application/vnd.ms-opentype",
 		"action": action, "reason": reason,
-		"master":             map[string]any{"source": "epub:" + target, "sha256": sha(original), "bytes": len(original), "glyphs": 12, "outline": "glyf", "axes": []string{}},
+		"sourceFont":         map[string]any{"source": "epub:" + target, "sha256": sha(original), "bytes": len(original), "glyphs": 12, "outline": "glyf", "axes": []string{}},
 		"variation":          variation,
 		"original":           map[string]any{"sha256": sha(original), "bytes": len(original)},
 		"output":             map[string]any{"sha256": sha(output), "bytes": len(output), "glyphs": outputGlyphCount(action), "outline": "glyf", "flavor": nil, "axes": []string{}, "tables": []string{"cmap", "glyf"}},

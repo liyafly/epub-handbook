@@ -4,9 +4,8 @@ Order of operations (fast on 30k-65k glyph CJK masters, same result):
 1. read master facts (cmap, UVS, vertical substitutions, axes) before anything changes;
 2. subset with every OpenType feature kept, so vert/vrt2, locl, palt, ruby,
    FeatureVariations alternates etc. stay reachable;
-3. optionally instance: "instance" pins every axis (static font, the handbook
-   §4.6 default), "limit" narrows axis ranges (still variable), "keep" leaves
-   variations untouched;
+3. instance variable fonts at the configured axis location (static output, the
+   handbook §4.6 default);
 4. save with the flavor implied by the target extension and re-read the bytes
    for the checks.
 """
@@ -26,7 +25,6 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 FLAVOR_BY_EXT = {".ttf": None, ".otf": None, ".woff": "woff", ".woff2": "woff2"}
-VARIATION_MODES = ("keep", "instance", "limit")
 VERTICAL_FEATURES = ("vert", "vrt2")
 
 
@@ -36,7 +34,7 @@ class FontJobError(Exception):
 
 @dataclass
 class VariationSpec:
-    mode: str = "keep"
+    mode: str | None = None
     axes: dict | None = None
 
 
@@ -71,20 +69,18 @@ def target_extension(target: str) -> str:
 
 def parse_variation(raw) -> VariationSpec:
     if raw is None:
-        return VariationSpec("keep", {})
+        return VariationSpec()
     if not isinstance(raw, dict):
         raise FontJobError("variation must be an object")
     unknown = set(raw) - {"mode", "axes"}
     if unknown:
         raise FontJobError(f"variation has unknown keys: {sorted(unknown)}")
-    mode = raw.get("mode", "keep")
-    if mode not in VARIATION_MODES:
-        raise FontJobError(f"variation.mode must be one of {VARIATION_MODES}, got {mode!r}")
+    mode = raw.get("mode")
+    if mode != "instance":
+        raise FontJobError("variation.mode must be 'instance'")
     axes = raw.get("axes", {})
     if not isinstance(axes, dict):
         raise FontJobError("variation.axes must be an object")
-    if mode == "keep" and axes:
-        raise FontJobError("variation.mode 'keep' takes no axes")
     return VariationSpec(mode, axes)
 
 
@@ -179,8 +175,8 @@ def _number(value, what: str) -> float:
 
 
 def axis_limits(facts: FontFacts, spec: VariationSpec, label: str) -> dict | None:
-    """Translate the config into fontTools instancer limits (None = keep variations)."""
-    if spec.mode == "keep":
+    """Translate an instance config into fontTools limits; None means no VF instance."""
+    if spec.mode is None:
         return None
     if not facts.axes:
         raise FontJobError(f"{label}: variation.mode {spec.mode!r} needs a variable font, but the master has no fvar table")
@@ -192,43 +188,18 @@ def axis_limits(facts: FontFacts, spec: VariationSpec, label: str) -> dict | Non
     for tag, axis in by_tag.items():
         lo, hi = axis["min"], axis["max"]
         raw = spec.axes.get(tag)
-        if spec.mode == "instance":
-            value = axis["default"] if raw is None else _number(raw, f"axes.{tag}")
-            if not lo <= value <= hi:
-                raise FontJobError(f"{label}: axes.{tag}={value:g} is outside {lo:g}..{hi:g}")
-            limits[tag] = value
-            continue
-        if raw is None:
-            continue
-        if isinstance(raw, list) and len(raw) == 2:
-            a, b = _number(raw[0], f"axes.{tag}[0]"), _number(raw[1], f"axes.{tag}[1]")
-            if not lo <= a <= b <= hi:
-                raise FontJobError(f"{label}: axes.{tag}=[{a:g}, {b:g}] must satisfy {lo:g} <= min <= max <= {hi:g}")
-            limits[tag] = (a, b)
-        else:
-            value = _number(raw, f"axes.{tag}")
-            if not lo <= value <= hi:
-                raise FontJobError(f"{label}: axes.{tag}={value:g} is outside {lo:g}..{hi:g}")
-            limits[tag] = value
-    if spec.mode == "limit" and not limits:
-        raise FontJobError(f"{label}: variation.mode 'limit' needs at least one axis")
+        value = axis["default"] if raw is None else _number(raw, f"axes.{tag}")
+        if not lo <= value <= hi:
+            raise FontJobError(f"{label}: axes.{tag}={value:g} is outside {lo:g}..{hi:g}")
+        limits[tag] = value
     return limits
 
 
 def target_location(facts: FontFacts, spec: VariationSpec, limits: dict | None) -> dict | None:
     """Design-space location whose outlines the output's default instance must match."""
-    if spec.mode == "keep" or not facts.axes:
+    if spec.mode is None or not facts.axes:
         return None
-    location = {}
-    for axis in facts.axes:
-        want = limits.get(axis["tag"])
-        if want is None:
-            location[axis["tag"]] = axis["default"]
-        elif isinstance(want, tuple):  # "limit": the new default is the old one clamped into the range
-            location[axis["tag"]] = min(max(axis["default"], want[0]), want[1])
-        else:
-            location[axis["tag"]] = want
-    return location
+    return {axis["tag"]: limits[axis["tag"]] for axis in facts.axes}
 
 
 def glyph_shapes(font: TTFont, cmap: dict, codepoints, location: dict | None = None) -> dict:
@@ -318,8 +289,6 @@ def make_subset(master: TTFont, unicodes: set, spec: VariationSpec, limits: dict
     font = master
     if spec.mode == "instance":
         font = _instance(master, limits, label, warnings)
-    elif spec.mode == "limit":
-        font = instancer.instantiateVariableFont(master, limits)
     if axes_of(font):
         warnings.append(
             f"{label}: output is still a variable font; reader support is not verified "
@@ -369,18 +338,10 @@ def verify(master: FontFacts, out: FontFacts, required: set, spec: VariationSpec
     return checks, not_in_master
 
 
-def _close(axis: dict, bounds: tuple) -> bool:
-    """fvar stores 16.16 fixed-point values, so compare with a small tolerance."""
-    return abs(axis["min"] - bounds[0]) < 0.01 and abs(axis["max"] - bounds[1]) < 0.01
-
-
 def _check_variation(master: FontFacts, out: FontFacts, spec: VariationSpec,
                      limits: dict | None, out_font: TTFont) -> dict:
-    if spec.mode == "keep":
-        ok = out.axes == master.axes
-        if master.axes:
-            ok = ok and ("gvar" in out.tables if out.outline == "glyf" else out.outline == "CFF2")
-        return {"ok": ok, "mode": "keep", "axes": out.axes}
+    if spec.mode is None:
+        return {"ok": out.axes == master.axes, "mode": "static", "axes": out.axes}
     if spec.mode == "instance":
         detail = {"mode": "instance", "location": limits, "axesLeft": out.axes, "outline": out.outline}
         ok = not out.axes and "gvar" not in out.tables and out.outline != "CFF2"
@@ -390,17 +351,4 @@ def _check_variation(master: FontFacts, out: FontFacts, spec: VariationSpec,
             ok = ok and detail["usWeightClass"] == expected
         detail["ok"] = ok
         return detail
-    ok = True
-    by_tag = {a["tag"]: a for a in out.axes}
-    for axis in master.axes:
-        tag = axis["tag"]
-        want = limits.get(tag)
-        got = by_tag.get(tag)
-        if want is None:
-            ok = ok and got is not None and _close(got, (axis["min"], axis["max"]))
-        elif isinstance(want, tuple):
-            ok = ok and got is not None and _close(got, want)
-        else:
-            ok = ok and got is None
-    return {"ok": ok, "mode": "limit", "limits": {k: list(v) if isinstance(v, tuple) else v for k, v in limits.items()},
-            "axes": out.axes}
+    raise FontJobError(f"unsupported variation mode: {spec.mode!r}")

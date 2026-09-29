@@ -1,6 +1,6 @@
 [project]
 name = "epub-font"
-version = "1.1.0"
+version = "1.2.0"
 description = "Subset the fonts of an EPUB (static or variable) to the book's characters, and check full coverage"
 requires-python = ">=3.12"
 dependencies = [

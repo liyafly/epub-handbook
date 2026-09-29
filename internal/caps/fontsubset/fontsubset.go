@@ -69,7 +69,8 @@ type providerFontResult struct {
 	MediaType          string                     `json:"mediaType"`
 	Action             string                     `json:"action"`
 	Reason             string                     `json:"reason"`
-	Master             providerFontMeta           `json:"master"`
+	SourceFont         providerFontMeta           `json:"sourceFont"`
+	LegacyMaster       providerFontMeta           `json:"master"`
 	Original           providerFontDigest         `json:"original"`
 	Output             providerFontOutput         `json:"output"`
 	RequiredCodepoints *int                       `json:"requiredCodepoints"`
@@ -428,8 +429,14 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		if !font.OK {
 			return providerReportSummary{}, nil, fmt.Errorf("provider report marks font %q as failed", font.Target)
 		}
-		if font.Master.Source == "" || len(font.Master.Source) > 4096 || font.Master.Bytes < 0 || font.Master.Glyphs < 0 || font.Master.Outline == "" ||
-			!validSHA256(font.Master.SHA256) {
+		sourceFont := font.SourceFont
+		if sourceFont.Source == "" {
+			sourceFont = font.LegacyMaster
+		} else if font.LegacyMaster != (providerFontMeta{}) {
+			return providerReportSummary{}, nil, fmt.Errorf("provider report has duplicate source font facts for %q", font.Target)
+		}
+		if sourceFont.Source == "" || len(sourceFont.Source) > 4096 || sourceFont.Bytes < 0 || sourceFont.Glyphs < 0 || sourceFont.Outline == "" ||
+			!validSHA256(sourceFont.SHA256) {
 			return providerReportSummary{}, nil, fmt.Errorf("provider report has invalid master facts for %q", font.Target)
 		}
 		if font.Output.Bytes < 0 || font.Output.Glyphs < 0 || font.Output.Outline == "" || !validSHA256(font.Output.SHA256) {
@@ -456,7 +463,7 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		if font.Output.SHA256 != sha256Hex(outputFont) || font.Output.Bytes != int64(len(outputFont)) {
 			return providerReportSummary{}, nil, fmt.Errorf("provider output SHA-256 or size does not match %q", font.Target)
 		}
-		if strings.HasPrefix(font.Master.Source, "epub:") && font.Master.SHA256 != font.Original.SHA256 {
+		if strings.HasPrefix(sourceFont.Source, "epub:") && sourceFont.SHA256 != font.Original.SHA256 {
 			return providerReportSummary{}, nil, fmt.Errorf("embedded master SHA-256 does not match original font %q", font.Target)
 		}
 		switch font.Action {
@@ -484,9 +491,9 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		}
 		fontSummary := providerFontSummary{
 			Target: font.Target, Action: font.Action, Reason: font.Reason,
-			MasterSHA256: font.Master.SHA256, OriginalSHA256: font.Original.SHA256, OutputSHA256: font.Output.SHA256,
-			MasterBytes: font.Master.Bytes, OriginalBytes: font.Original.Bytes, OutputBytes: font.Output.Bytes,
-			MasterGlyphs: font.Master.Glyphs, OutputGlyphs: font.Output.Glyphs,
+			MasterSHA256: sourceFont.SHA256, OriginalSHA256: font.Original.SHA256, OutputSHA256: font.Output.SHA256,
+			MasterBytes: sourceFont.Bytes, OriginalBytes: font.Original.Bytes, OutputBytes: font.Output.Bytes,
+			MasterGlyphs: sourceFont.Glyphs, OutputGlyphs: font.Output.Glyphs,
 			RequiredCodepoints: font.RequiredCodepoints, NotInMaster: cloneOptionalStrings(font.NotInMaster),
 			NotInMasterCount: font.NotInMasterCount, Checks: checks, Warnings: cloneStrings(font.Warnings),
 		}

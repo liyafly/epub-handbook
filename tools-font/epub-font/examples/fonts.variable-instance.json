@@ -3,11 +3,11 @@
   "fonts": [
     {
       "target": "OEBPS/Fonts/st-all.ttf",
-      "variation": {"mode": "keep"}
+      "variation": {"mode": "instance"}
     },
     {
       "target": "OEBPS/Fonts/st-all-semibold.ttf",
-      "variation": {"mode": "limit", "axes": {"wght": [400, 700]}}
+      "variation": {"mode": "instance", "axes": {"wght": 600}}
     }
   ]
 }

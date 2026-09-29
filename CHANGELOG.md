@@ -8,10 +8,12 @@
 - `epub.package.migrate.epub3` 不再注入默认排版 CSS；删除排版开关与对应报告 facts。需要排版时改用 `epub.typography.optimize`。
 - `epub.package.migrate.epub3` 不再转换 plain/Sigil 旧尾注或注入 `note.png`；删除 `no_popup_notes` 参数与 `plainNotesConverted`、`popupNotes` facts。旧式尾注保持原文，转换需经授权后人工处理。
 - `epub redline` 不再将旧式 `[N]` 链接与迁移后的 noteref 配对豁免；旧式标记文本按普通正文比较。
+- `epub-font` 移除包外字体源路径配置和 VF `keep` / `limit` 模式；可变字体只接受 `instance`。`action` 配置字段已移除，旧 `action: "preserve"` 暂时接受一个 provider 版本并作为 no-op 忽略。
 
 ### Changed
 
 - **`epub-font` 1.1.0**：`fonts.json` 只覆盖明确列出的字体；未列出的 manifest 字体也会按自动规则处理，包括自动保留 MATH 字体。Go capability 现在拒绝 provider 漏报 manifest 字体的报告。
+- **`epub-font` 1.2.0**：字体源只能来自 EPUB 内的 manifest 目标；可变字体统一实例化，MATH 字体不再要求显式保留配置。
 
 ## v0.4.6 - 2026-09-28
 

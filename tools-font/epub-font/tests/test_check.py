@@ -265,11 +265,10 @@ def test_is_independent_of_the_subset_code():
 def test_agrees_with_subset_tool(tmp_path):
     """Two independent collectors: every char check finds missing must be in the subset report's notInMaster."""
     book = tmp_path / "book.epub"
-    book.write_bytes(make_epub())
-    (tmp_path / "master.ttf").write_bytes(synth.build_glyf_font(variable=True))
+    book.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": synth.build_glyf_font(variable=True)}))
     config = tmp_path / "fonts.json"
     config.write_text(json.dumps({"version": 1, "fonts": [
-        {"target": "OEBPS/Fonts/st-all.ttf", "master": "master.ttf", "variation": {"mode": "instance", "axes": {"wght": 400}}},
+        {"target": "OEBPS/Fonts/st-all.ttf", "variation": {"mode": "instance", "axes": {"wght": 400}}},
     ]}), encoding="utf-8")
     candidate = tmp_path / "candidate.epub"
     assert subset.main([str(book), "--config", str(config), "--out", str(candidate)]) == 0
