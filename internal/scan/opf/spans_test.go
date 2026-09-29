@@ -304,7 +304,7 @@ func TestScanSpanTreeErrors(t *testing.T) {
 	}
 }
 
-func TestScanSpanTreeUTF8BOMAndDeclaredEncoding(t *testing.T) {
+func TestScanSpanTreeUTF8BOMAndDeclaration(t *testing.T) {
 	// UTF-8 BOM 被剥离；区间相对于剥离后的文本。
 	src := "\xEF\xBB\xBF<a>x</a>"
 	root, err := ScanSpanTree([]byte(src))
@@ -314,14 +314,13 @@ func TestScanSpanTreeUTF8BOMAndDeclaredEncoding(t *testing.T) {
 	if root.Text != "x" || root.Open != (Span{Start: 0, End: 3}) {
 		t.Errorf("BOM root = %+v", root)
 	}
-	// 声明为 ISO-8859-1 的输入被转码后解析。
-	latin := []byte("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><a>caf\xe9</a>")
-	root, err = ScanSpanTree(latin)
+	utf8Source := []byte(`<?xml version="1.0" encoding="UTF-8"?><a>café</a>`)
+	root, err = ScanSpanTree(utf8Source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if root.Text != "café" {
-		t.Errorf("latin1 text = %q", root.Text)
+		t.Errorf("UTF-8 text = %q", root.Text)
 	}
 }
 

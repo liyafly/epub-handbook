@@ -128,6 +128,49 @@ func TestEditableUTF8(t *testing.T) {
 	}
 }
 
+func TestRequireUTF8(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+	}{
+		{name: "no declaration", data: []byte(`<html/>`)},
+		{name: "UTF-8 declaration", data: []byte(`<?xml version="1.0" encoding="UTF-8"?><html/>`)},
+		{name: "ASCII declaration", data: []byte(`<?xml version="1.0" encoding="ascii"?><html/>`)},
+		{name: "UTF-8 BOM", data: append([]byte{0xEF, 0xBB, 0xBF}, []byte(`<html/>`)...)},
+		{name: "UTF-16 BOM", data: []byte{0xFE, 0xFF, 0x00, '<'}, wantErr: true},
+		{name: "GB18030 declaration", data: []byte(`<?xml version="1.0" encoding="GB18030"?><html/>`), wantErr: true},
+		{name: "UTF-16 declaration on UTF-8 bytes", data: []byte(`<?xml version="1.0" encoding="UTF-16"?><html/>`), wantErr: true},
+		{name: "invalid UTF-8", data: []byte{'<', 'p', '>', 0xff, '<', '/', 'p', '>'}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := RequireUTF8("book/chapter.xhtml", tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("RequireUTF8() error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if err != nil && !strings.Contains(err.Error(), "book/chapter.xhtml") {
+				t.Errorf("RequireUTF8() error omits path: %v", err)
+			}
+		})
+	}
+}
+
+func TestParsersAcceptUTF8BOM(t *testing.T) {
+	withBOM := func(value string) []byte {
+		return append([]byte{0xEF, 0xBB, 0xBF}, []byte(value)...)
+	}
+	if got, err := FindOPFPath(withBOM(testContainer)); err != nil || got != "OEBPS/package.opf" {
+		t.Fatalf("FindOPFPath with UTF-8 BOM = (%q, %v)", got, err)
+	}
+	if _, err := Parse("OEBPS/package.opf", withBOM(testOPF)); err != nil {
+		t.Fatalf("Parse with UTF-8 BOM: %v", err)
+	}
+	if _, err := ParseEncryption(withBOM(`<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"/>`)); err != nil {
+		t.Fatalf("ParseEncryption with UTF-8 BOM: %v", err)
+	}
+}
+
 func TestFindOPFPath(t *testing.T) {
 	tests := []struct {
 		name    string

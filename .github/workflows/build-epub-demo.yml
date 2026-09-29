@@ -353,6 +353,55 @@ jobs:
           unzip -p "$legacy_before" OEBPS/Styles/latin1.css > "$RUNNER_TEMP/legacy-css-before/latin1.css"
           unzip -p "$legacy_normalized" OEBPS/Styles/latin1.css > "$RUNNER_TEMP/legacy-css-after/latin1.css"
           cmp "$RUNNER_TEMP/legacy-css-before/latin1.css" "$RUNNER_TEMP/legacy-css-after/latin1.css"
+          non_utf8_rename="$RUNNER_TEMP/legacy-epub2-gb18030-rename.epub"
+          non_utf8_output="$RUNNER_TEMP/legacy-epub2-gb18030-output.epub"
+          non_utf8_report="$RUNNER_TEMP/legacy-epub2-gb18030-report.json"
+          python3 - "$legacy_before" "$non_utf8_rename" <<'PY'
+          import copy
+          import sys
+          import zipfile
+
+          source, output = sys.argv[1:]
+          with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
+              for original in src.infolist():
+                  item = copy.copy(original)
+                  data = src.read(original.filename)
+                  if original.filename == "OEBPS/package.opf":
+                      data = data.replace(b'href="Styles/book.css"', b'href="book.css"', 1)
+                  elif original.filename == "OEBPS/Styles/book.css":
+                      item.filename = "OEBPS/book.css"
+                  elif original.filename == "OEBPS/Styles/latin1.css":
+                      data = b"/* ASCII-only variant */\nbody { font-family: serif; }\n"
+                  dst.writestr(item, data)
+          PY
+          if "$RUNNER_TEMP/epub" run epub.structure.normalize \
+            --input "$non_utf8_rename" --output "$non_utf8_output" --json \
+            > "$non_utf8_report" 2>&1; then
+            echo "normalize unexpectedly accepted a renamed book with GB18030 CSS" >&2
+            cat "$non_utf8_report" >&2
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 1 ]; then
+              echo "non-UTF-8 normalize failed with unexpected exit $status" >&2
+              cat "$non_utf8_report" >&2
+              exit 1
+            fi
+          fi
+          test ! -e "$non_utf8_output"
+          python3 - "$non_utf8_report" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as report_file:
+              report = json.load(report_file)
+          errors = [f for f in report.get("findings", []) if f.get("level") == "error"]
+          detail = " ".join(f.get("detail", "") for f in errors)
+          if report.get("status") != "failed" or not any(
+              "structure.non-utf8-text" in f.get("detail", "") for f in errors
+          ) or "OEBPS/Styles/legacy.css" not in detail or "先人工转码为 UTF-8，再重新 S0 冻结" not in detail:
+              raise SystemExit(f"GB18030 normalize did not report the expected error: {report}")
+          PY
           java -jar "$EPUBCHECK_JAR" "$legacy_migrated" --mode epub --profile default
 
       - name: Upload EPUB artifact

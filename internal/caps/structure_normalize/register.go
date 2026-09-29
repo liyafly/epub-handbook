@@ -3,7 +3,6 @@
 package structurenormalize
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -32,9 +31,6 @@ var fontExtensions = map[string]bool{
 var audioExtensions = map[string]bool{".m4a": true, ".mp3": true, ".ogg": true}
 
 var videoExtensions = map[string]bool{".m4v": true, ".mp4": true, ".webm": true}
-
-// xmlEncodingRe 复刻 XML_ENCODING_RE：从字节前缀里提取声明的编码名。
-var xmlEncodingRe = regexp.MustCompile(`(?i)encoding\s*=\s*["']([A-Za-z0-9._-]+)["']`)
 
 // attribEscaper 保留标记属性原引号时，用相应 XML 实体转义替换值。
 var attribEscaper = strings.NewReplacer(

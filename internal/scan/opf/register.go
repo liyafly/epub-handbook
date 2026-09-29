@@ -3,5 +3,5 @@ package opf
 
 import "regexp"
 
-// xmlEncodingRe 从字节前缀提取 XML 声明的编码名。
-var xmlEncodingRe = regexp.MustCompile(`(?i)encoding\s*=\s*["']([A-Za-z0-9._-]+)["']`)
+// xmlDeclarationEncoding 匹配 XML 声明中的 encoding 属性。
+var xmlDeclarationEncoding = regexp.MustCompile(`(?i)\bencoding\s*=\s*["']([^"']+)["']`)

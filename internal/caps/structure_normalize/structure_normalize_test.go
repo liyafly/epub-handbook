@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/redline"
@@ -748,7 +749,7 @@ func TestRewriteOPFUsesLosslessAttributeEdits(t *testing.T) {
 	}
 }
 
-func TestRewriteOPFDoesNotApplyUTF8SpansToTranscodedSource(t *testing.T) {
+func TestRewriteOPFRefusesNonUTF8SourceWhenRenaming(t *testing.T) {
 	prefix := []byte(`<?xml version="1.0" encoding="ISO-8859-1"?><package xmlns="http://www.idpf.org/2007/opf"><metadata><title>caf`)
 	noEditSuffix := []byte(`</title></metadata><manifest/></package>`)
 	noEdit := append(append([]byte(nil), prefix...), 0xe9)
@@ -1050,11 +1051,21 @@ func buildNormalizeEncodingFixture(t *testing.T, path, stylePath string, css, ex
 	}
 }
 
+func utf16BEFixtureBytes(text string) []byte {
+	units := utf16.Encode([]rune(text))
+	encoded := make([]byte, 0, 2+len(units)*2)
+	encoded = append(encoded, 0xFE, 0xFF)
+	for _, unit := range units {
+		encoded = append(encoded, byte(unit>>8), byte(unit))
+	}
+	return encoded
+}
+
 func TestNormalizeLeavesUnreferencedUTF16BECSSUntouched(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "utf16be.epub")
 	cssText := "p { color: red; }\n"
-	css := append([]byte{0xFE, 0xFF}, encodeUTF16Units(cssText, true, false)...)
+	css := utf16BEFixtureBytes(cssText)
 	buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", css, nil, false)
 
 	output := filepath.Join(dir, "out.epub")
@@ -1070,36 +1081,49 @@ func TestNormalizeLeavesUnreferencedUTF16BECSSUntouched(t *testing.T) {
 	}
 }
 
-func TestNormalizeRefusesLossyLegacyDecode(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "lossy.epub")
-	css := []byte("/* caf\xe9 */ p { background: url(img.png); } /* \x80 \xff */\n")
-	buildNormalizeEncodingFixture(t, fixture, "style.css", css, nil, true)
-
-	output := filepath.Join(dir, "out.epub")
-	if _, err := runGo(t, fixture, output, ModeNormalize, false); !errors.Is(err, ErrStructureTool) {
-		t.Fatalf("有损 legacy 解码且 URL 需要改写时应拒绝，got %v", err)
+func TestNormalizeRejectsNonUTF8TextsWhenRenaming(t *testing.T) {
+	gb18030XHTML := append([]byte(`<?xml version="1.0" encoding="GB18030"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>`), 0xD6, 0xD0, 0xCE, 0xC4)
+	gb18030XHTML = append(gb18030XHTML, []byte(`</title></head><body><img src="../img.png"/></body></html>`)...)
+	mislabeledUTF8XHTML := []byte(`<?xml version="1.0" encoding="UTF-16"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Title</title></head><body><img src="../img.png"/></body></html>`)
+	tests := []struct {
+		name       string
+		css        []byte
+		extraXHTML []byte
+	}{
+		{
+			name: "UTF-16 BOM",
+			css:  utf16BEFixtureBytes("p { background: url(img.png); }\n"),
+		},
+		{
+			name:       "GB18030 XML declaration",
+			css:        []byte("p { background: url(img.png); }\n"),
+			extraXHTML: gb18030XHTML,
+		},
+		{
+			name:       "UTF-16 declaration on UTF-8 bytes",
+			css:        []byte("p { background: url(img.png); }\n"),
+			extraXHTML: mislabeledUTF8XHTML,
+		},
+		{
+			name: "invalid UTF-8 byte",
+			css:  []byte{'p', ' ', '{', ' ', 0xff, '}', '\n'},
+		},
 	}
-	if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("拒绝改写后不应生成输出，stat error=%v", err)
-	}
-}
-
-func TestNormalizeKeepsUTF16BEByteOrderWhenRewritingURL(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "utf16be-ref.epub")
-	cssText := "p { background: url(img.png); }\n"
-	css := append([]byte{0xFE, 0xFF}, encodeUTF16Units(cssText, true, false)...)
-	buildNormalizeEncodingFixture(t, fixture, "style.css", css, nil, true)
-
-	output := filepath.Join(dir, "out.epub")
-	if _, err := runGo(t, fixture, output, ModeNormalize, false); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	wantText := "p { background: url(../Images/img.png); }\n"
-	want := append([]byte{0xFE, 0xFF}, encodeUTF16Units(wantText, true, false)...)
-	if got := zipRead(t, openZip(t, output), "OEBPS/Styles/style.css"); !bytes.Equal(got, want) {
-		t.Fatalf("UTF-16BE CSS 应只改写 URL 并保留字节序/BOM:\n got % x\nwant % x", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			fixture := filepath.Join(dir, "source.epub")
+			output := filepath.Join(dir, "candidate.epub")
+			buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", tt.css, tt.extraXHTML, true)
+			if _, err := runGo(t, fixture, output, ModeNormalize, false); !errors.Is(err, ErrStructureTool) {
+				t.Fatalf("non-UTF-8 text with renamed resources should fail, got %v", err)
+			} else if !strings.Contains(err.Error(), "structure.non-utf8-text") || !strings.Contains(err.Error(), "先人工转码为 UTF-8，再重新 S0 冻结") {
+				t.Fatalf("error lacks actionable encoding guidance: %v", err)
+			}
+			if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("rejected conversion must not create output, stat error=%v", err)
+			}
+		})
 	}
 }
 

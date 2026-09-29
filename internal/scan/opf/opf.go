@@ -237,6 +237,9 @@ func ResolveHref(opfPath, href string) (string, bool) {
 // FindOPFPath 从 container.xml 内容解析 OPF 路径（第一个 rootfile）。
 // 与 Python 侧一致：rootfile 必须属于 container 命名空间。
 func FindOPFPath(container []byte) (string, error) {
+	if err := RequireUTF8(ContainerPath, container); err != nil {
+		return "", err
+	}
 	d := newDecoder(container)
 	var opfPath string
 	for {
@@ -260,6 +263,9 @@ func FindOPFPath(container []byte) (string, error) {
 
 // Parse 解析 OPF 内容为只读投影。
 func Parse(opfPath string, data []byte) (*Package, error) {
+	if err := RequireUTF8(opfPath, data); err != nil {
+		return nil, err
+	}
 	d := newDecoder(data)
 	pkg := &Package{
 		Path:           opfPath,
@@ -448,6 +454,9 @@ type EncryptionRecord struct {
 
 // ParseEncryption 解析 META-INF/encryption.xml。
 func ParseEncryption(data []byte) ([]EncryptionRecord, error) {
+	if err := RequireUTF8("META-INF/encryption.xml", data); err != nil {
+		return nil, err
+	}
 	d := newDecoder(data)
 	var records []EncryptionRecord
 	inEncrypted := false

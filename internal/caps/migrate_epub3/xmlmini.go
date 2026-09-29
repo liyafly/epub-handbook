@@ -8,15 +8,12 @@
 package migrateepub3
 
 import (
-	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/ianaindex"
+	opfscan "github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // XML 命名空间常量（Python 侧 XML_URI）。
@@ -664,95 +661,13 @@ func validXMLRune(r rune) bool {
 	return r != 0 && r <= utf8.MaxRune && !(r >= 0xD800 && r <= 0xDFFF)
 }
 
-// ---- 输入编码转换 ----
+// ---- UTF-8 input ----
 
 func xmlSourceToUTF8(data []byte) (string, error) {
-	body := data
-	switch {
-	case bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}):
-		body = data[3:]
-	case bytes.HasPrefix(data, []byte{0xFF, 0xFE}):
-		s, ok := decodeUTF16Units(data[2:], false)
-		if !ok {
-			return "", errToken()
-		}
-		return s, nil
-	case bytes.HasPrefix(data, []byte{0xFE, 0xFF}):
-		s, ok := decodeUTF16Units(data[2:], true)
-		if !ok {
-			return "", errToken()
-		}
-		return s, nil
+	if err := opfscan.RequireUTF8("XML", data); err != nil {
+		return "", err
 	}
-	if m := xmlEncodingRe.FindSubmatch(body[:min(len(body), 256)]); m != nil {
-		declared := string(m[1])
-		switch strings.ToLower(declared) {
-		case "utf-8", "utf8", "ascii", "us-ascii":
-			// 直接按 UTF-8 解析。
-		default:
-			enc, err := lookupEncoding(declared)
-			if err != nil {
-				return "", &parseError{"unknown encoding: " + declared}
-			}
-			out, derr := enc.NewDecoder().Bytes(body)
-			if derr != nil {
-				return "", &parseError{"cannot decode document: " + derr.Error()}
-			}
-			body = out
-		}
-	}
-	if !utf8.Valid(body) {
-		return "", errToken()
-	}
-	return string(body), nil
-}
-
-// lookupEncoding 按编码名解析 x/text 编码（IANA / MIME 名）。
-func lookupEncoding(name string) (encoding.Encoding, error) {
-	if e, err := ianaindex.MIME.Encoding(name); err == nil && e != nil {
-		return e, nil
-	}
-	if e, err := ianaindex.IANA.Encoding(name); err == nil && e != nil {
-		return e, nil
-	}
-	return nil, fmt.Errorf("unknown encoding %q", name)
-}
-
-func decodeUTF16Units(b []byte, bigEndian bool) (string, bool) {
-	if len(b)%2 != 0 {
-		return "", false
-	}
-	var sb strings.Builder
-	for i := 0; i < len(b); i += 2 {
-		var u rune
-		if bigEndian {
-			u = rune(b[i])<<8 | rune(b[i+1])
-		} else {
-			u = rune(b[i]) | rune(b[i+1])<<8
-		}
-		switch {
-		case u >= 0xD800 && u < 0xDC00:
-			if i+4 > len(b) {
-				return "", false
-			}
-			var u2 rune
-			if bigEndian {
-				u2 = rune(b[i+2])<<8 | rune(b[i+3])
-			} else {
-				u2 = rune(b[i+2]) | rune(b[i+3])<<8
-			}
-			if u2 < 0xDC00 || u2 >= 0xE000 {
-				return "", false
-			}
-			sb.WriteRune(0x10000 + (u-0xD800)<<10 + (u2 - 0xDC00))
-			i += 2
-		case u >= 0xDC00 && u < 0xE000:
-			return "", false // 未配对的低位代理
-		default:
-			sb.WriteRune(u)
-		}
-	}
-	return sb.String(), true
+	return strings.TrimPrefix(string(data), "\uFEFF"), nil
 }
 
 // ---- posixpath 工具 ----

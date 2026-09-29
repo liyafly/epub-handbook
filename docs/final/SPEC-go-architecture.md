@@ -463,8 +463,7 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 允许清单（新增需在此登记并说明）：
 - `archive/zip`、`encoding/json`、`regexp` — stdlib
 - `golang.org/x/text` — 仅 `unicode/norm`（redline 文本归一化对齐 Python
-  `unicodedata.normalize("NFC")`）与 `encoding/ianaindex`（structure_normalize
-  的 decode_text 编码链回编）。2026-08-29 登记。
+  `unicodedata.normalize("NFC")`）。2026-08-29 登记。
 - `github.com/tdewolff/parse/v2` v2.8.16 — CSS Syntax Level 3 lexer/parser
   仅用于 CSS 语法诊断与 token/span adapter 的保守扫描；不用其序列化样式表。
   上游项目采用 MIT 许可。

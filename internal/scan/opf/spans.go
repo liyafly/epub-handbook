@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"golang.org/x/text/encoding/ianaindex"
 )
 
 // Span 是原文中的字节区间 [Start, End)。
@@ -412,36 +410,10 @@ func isASCIISpaceByte(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
-// xmlSourceToUTF8 按 BOM / XML 声明把 XML 字节转换为 UTF-8 文本
-// （对齐 expat 的声明编码处理；未知编码报错）。
+// xmlSourceToUTF8 accepts UTF-8 XML input and removes an optional UTF-8 BOM.
 func xmlSourceToUTF8(data []byte) (string, error) {
-	body := data
-	switch {
-	case bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}):
-		body = data[3:]
-	case bytes.HasPrefix(data, []byte{0xFF, 0xFE}), bytes.HasPrefix(data, []byte{0xFE, 0xFF}):
-		return "", fmt.Errorf("XML parse failed: UTF-16 input is not supported here")
+	if err := RequireUTF8("XML", data); err != nil {
+		return "", fmt.Errorf("XML parse failed: %w", err)
 	}
-	if m := xmlEncodingRe.FindSubmatch(body[:min(len(body), 256)]); m != nil {
-		declared := string(m[1])
-		switch strings.ToLower(declared) {
-		case "utf-8", "utf8", "ascii", "us-ascii":
-			// 直接按 UTF-8 解析。
-		default:
-			enc, err := ianaindex.IANA.Encoding(declared)
-			if err != nil || enc == nil {
-				if enc2, err2 := ianaindex.MIME.Encoding(declared); err2 == nil && enc2 != nil {
-					enc = enc2
-				} else {
-					return "", fmt.Errorf("XML parse failed: unknown encoding: %s", declared)
-				}
-			}
-			out, derr := enc.NewDecoder().Bytes(body)
-			if derr != nil {
-				return "", fmt.Errorf("XML parse failed: cannot decode document: %v", derr)
-			}
-			body = out
-		}
-	}
-	return string(body), nil
+	return string(bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})), nil
 }

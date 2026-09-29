@@ -49,6 +49,10 @@ func toolErrf(format string, a ...any) error {
 	return &toolError{msg: fmt.Sprintf(format, a...)}
 }
 
+func nonUTF8TextError(err error) error {
+	return toolErrf("structure.non-utf8-text: %v; 先人工转码为 UTF-8，再重新 S0 冻结", err)
+}
+
 // Mode 是运行模式，对应 Python 的四个子命令。
 type Mode string
 
@@ -226,6 +230,11 @@ func scanRewriteStage(ctx context.Context, b *book.Book, op string, dryRun bool)
 	pathMap, err := buildPathMap(resources, files, opfPath, op, &rep)
 	if err != nil {
 		return stageResult{}, err
+	}
+	if rep.MovedResources > 0 {
+		if err := requireUTF8TextResources(names, current); err != nil {
+			return stageResult{}, err
+		}
 	}
 	// transform_files → editset.Edit。
 	creates, deletes, replaces, err := transformContent(ctx, b, names, files, opfPath, encPath, pathMap, &rep)
@@ -418,19 +427,12 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 	if err != nil {
 		return "", nil, toolErrf("%v", err)
 	}
-	container, err := parseXMLTree(containerData)
+	if err := opfscan.RequireUTF8(containerPath, containerData); err != nil {
+		return "", nil, nonUTF8TextError(err)
+	}
+	opfPath, err := opfscan.FindOPFPath(containerData)
 	if err != nil {
 		return "", nil, toolErrf("%s: XML parse failed: %v", containerPath, err)
-	}
-	opfPath := ""
-	for _, e := range iterAll(container) {
-		if e.name == "rootfile" {
-			opfPath, _ = e.getAttr("full-path")
-			break
-		}
-	}
-	if opfPath == "" {
-		return "", nil, toolErrf("container.xml has no rootfile full-path")
 	}
 	opfPath, err = validateArchivePath(opfPath, "container.xml rootfile")
 	if err != nil {
@@ -443,24 +445,21 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 	if err != nil {
 		return "", nil, toolErrf("%v", err)
 	}
-	opfRoot, err := parseXMLTree(opfData)
+	if err := opfscan.RequireUTF8(opfPath, opfData); err != nil {
+		return "", nil, nonUTF8TextError(err)
+	}
+	pkg, err := opfscan.Parse(opfPath, opfData)
 	if err != nil {
 		return "", nil, toolErrf("%s: XML parse failed: %v", opfPath, err)
 	}
-	manifest := opfRoot.findChild("manifest")
-	if manifest == nil {
+	if len(pkg.Manifest) == 0 {
 		return "", nil, toolErrf("%s: OPF missing manifest", opfPath)
 	}
-	var resources []manifestResource
+	resources := make([]manifestResource, 0, len(pkg.Manifest))
 	itemIDs := map[string]bool{}
-	for _, item := range manifest.children {
-		if item.name != "item" {
-			continue
-		}
-		itemID, _ := item.getAttr("id")
-		href, _ := item.getAttr("href")
-		mediaType, ok := item.getAttr("media-type")
-		if !ok {
+	for _, item := range pkg.Manifest {
+		itemID, href, mediaType := item.ID, item.Href, item.MediaType
+		if mediaType == "" {
 			mediaType = "application/octet-stream"
 		}
 		if itemID == "" || href == "" {
@@ -500,27 +499,16 @@ func inspectEncryption(names []string, files map[string]bool, current func(strin
 	if err != nil {
 		return "", nil, toolErrf("%v", err)
 	}
-	root, err := parseXMLTree(data)
+	if err := opfscan.RequireUTF8(encPath, data); err != nil {
+		return "", nil, nonUTF8TextError(err)
+	}
+	parsed, err := opfscan.ParseEncryption(data)
 	if err != nil {
 		return "", nil, toolErrf("%s: XML parse failed: %v", encPath, err)
 	}
 	var records []encryptionRecord
-	for _, elem := range iterAll(root) {
-		if elem.name != "EncryptedData" {
-			continue
-		}
-		algorithm := ""
-		for _, d := range iterAll(elem) {
-			if d.name == "EncryptionMethod" {
-				algorithm, _ = d.getAttr("Algorithm")
-				break
-			}
-		}
-		for _, d := range iterAll(elem) {
-			if d.name != "CipherReference" {
-				continue
-			}
-			uri, _ := d.getAttr("URI")
+	for _, record := range parsed {
+		for _, uri := range record.RawTargets {
 			if uri == "" || pyIsExternalURI(uri) {
 				return "", nil, toolErrf("%s: unsupported encryption URI: %s", encPath, pyRepr(uri))
 			}
@@ -529,7 +517,7 @@ func inspectEncryption(names []string, files map[string]bool, current func(strin
 			if err != nil {
 				return "", nil, err
 			}
-			records = append(records, encryptionRecord{uri: uri, algorithm: algorithm, archivePath: target})
+			records = append(records, encryptionRecord{uri: uri, algorithm: record.Algorithm, archivePath: target})
 		}
 	}
 	return encPath, records, nil
@@ -818,11 +806,29 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 	return pathMap, nil
 }
 
+func requireUTF8TextResources(names []string, current func(string) ([]byte, error)) error {
+	for _, name := range names {
+		switch strings.ToLower(pathExt(name)) {
+		case ".css", ".xhtml", ".html", ".htm", ".svg", ".ncx", ".opf":
+		default:
+			continue
+		}
+		data, err := current(name)
+		if err != nil {
+			return toolErrf("%s: cannot read text resource: %v", name, err)
+		}
+		if err := opfscan.RequireUTF8(name, data); err != nil {
+			return nonUTF8TextError(err)
+		}
+	}
+	return nil
+}
+
 // ---- transform_files ----
 
 // transformContent 扫描并产出 editset.Edit：
 //   - OPF / encryption.xml：只编辑命中的 XML 字节区间；
-//   - CSS / 标记类：decode_text → 正则语义重写 → 原编码回编；
+//   - CSS / 标记类：路径改变时只对 UTF-8 文本执行引用重写；
 //   - 其余字节透传（不产生编辑，zipfs 原样搬运）；
 //   - 改名 = 新建 entry（携带重写后的完整内容）+ 删除旧 entry；
 //   - mimetype：Python 总是重写为规范内容并以 STORED 写出。
@@ -880,10 +886,10 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 		default:
 			ext := strings.ToLower(pathExt(oldPath))
 			if ext == ".css" || markupExtensions[ext] {
-				text, enc, derr := decodeText(currentBytes, oldPath)
-				if derr != nil {
-					return nil, nil, nil, derr
+				if rep.MovedResources == 0 {
+					break
 				}
+				text := string(currentBytes)
 				var rewritten string
 				if ext == ".css" {
 					rewritten = rewriteCSSReferences(text, oldPath, newPath, rw)
@@ -891,19 +897,7 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 					rewritten = rewriteMarkupReferences(text, oldPath, newPath, rw)
 				}
 				if rewritten != text {
-					if hasIntroducedReplacementRune(currentBytes, text, enc) {
-						return nil, nil, nil, toolErrf("%s: refusing rewrite after lossy text decoding", oldPath)
-					}
-					if !isUTF8Encoding(enc) {
-						roundTrip, roundTripErr := encodeText(text, enc, currentBytes)
-						if roundTripErr != nil || !bytes.Equal(roundTrip, currentBytes) {
-							return nil, nil, nil, toolErrf("%s: refusing rewrite because source encoding does not round-trip losslessly", oldPath)
-						}
-					}
-					updated, err = encodeText(rewritten, enc, currentBytes)
-					if err != nil {
-						return nil, nil, nil, err
-					}
+					updated = []byte(rewritten)
 				}
 			}
 		}
@@ -934,6 +928,9 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 // rewriteOPF 只编辑 OPF 中被 path_map 命中的 manifest href 与本地 href/src
 // 属性值。注释、处理指令、DOCTYPE、CDATA、属性顺序和周边字节保持不变。
 func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
+	if !hasPathChanges(rw.pathMap) {
+		return data, nil
+	}
 	source, root, baseOffset, direct, err := losslessXMLSource(opfPath, data)
 	if err != nil {
 		return nil, err
@@ -982,6 +979,15 @@ func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
 		}
 	}
 	return opfscanApply(opfPath, data, edits, direct)
+}
+
+func hasPathChanges(pathMap map[string]string) bool {
+	for source, target := range pathMap {
+		if source != target {
+			return true
+		}
+	}
+	return false
 }
 
 // rewriteEncryptionXML 更新存活 CipherReference 的 URI，删除指向缺失目标
@@ -1067,27 +1073,21 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 	return updated, true, nil
 }
 
-// losslessXMLSource returns the scanner's UTF-8 view and whether its offsets
-// map directly to the original bytes. UTF-8 BOM is a fixed three-byte prefix;
-// transcoded source is accepted only when no edits need to be applied.
+// losslessXMLSource returns the scanner's UTF-8 view and the BOM byte offset.
 func losslessXMLSource(path string, data []byte) ([]byte, *opfscan.SpanNode, int, bool, error) {
-	converted, err := xmlSourceToUTF8(data)
-	if err != nil {
-		return nil, nil, 0, false, toolErrf("%s: XML parse failed: %v", path, err)
+	if err := opfscan.RequireUTF8(path, data); err != nil {
+		return nil, nil, 0, false, nonUTF8TextError(err)
 	}
-	source := []byte(converted)
+	source := bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	root, err := opfscan.ScanSpanTree(data)
 	if err != nil {
 		return nil, nil, 0, false, toolErrf("%s: XML parse failed: %v", path, err)
 	}
-	original := data
 	baseOffset := 0
 	if bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
-		original = data[3:]
 		baseOffset = 3
 	}
-	direct := bytes.Equal(source, original)
-	return source, root, baseOffset, direct, nil
+	return source, root, baseOffset, true, nil
 }
 
 func opfAttributeEdit(path string, source []byte, baseOffset int, node *opfscan.SpanNode, name, value string) (editset.Edit, error) {
