@@ -44,6 +44,7 @@
 - 原因：workflow pin 已提交并推送；验收明确要求由用户在 GitHub UI 从 `main` 手动 dispatch，以确认发布 job 被 tag 条件跳过且日志无 Node20 annotation。此项需要用户操作。
 - 证据：本地 `actionlint`、SHA/tag 对照与输入名差分均通过；workflow 的 `publish-release` 仍由 `startsWith(github.ref, 'refs/tags/')` 条件保护。
 - 下一步：用户在 GitHub UI 手动运行 Release CLI workflow，确认 verify 与 native smoke 全绿、publish-release 被跳过且无 Node20 annotation。
+- 后续验证（2026-09-30）：以上 `blocked` 是触发前状态。当前任务已在用户授权的 GitHub 账号下通过 `gh workflow run release-cli.yml --repo liyafly/epub-handbook --ref main` 触发 `workflow_dispatch`。运行 [36606160303](https://github.com/liyafly/epub-handbook/actions/runs/36606160303) 对应 HEAD `1d9e813b6b19d3526ee3c882671869c2219fa5e0`，总体 `success`；verify 与四个平台 native smoke 全部成功，`Publish tagged release` 为 `skipped`。五个 job 的 check-run annotations 均无 Node20 警告；仅 Windows job 带有 macOS runner 容量提示。R15 的运行结果验收完成。
 
 ### R21
 - 状态：deviated
