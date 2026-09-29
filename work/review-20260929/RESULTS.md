@@ -98,3 +98,10 @@
 - 原因：D25 所指 README 清洗代码块已在 S18 中获批删除；当前 README 保留指向 cleanup-flow 的单行入口，不恢复已删命令块。D25 其余构建路径修正已完成。
 - 证据：`git show c84129de -- README.md` 显示 S18 将「修一本现成 EPUB」改为 runbook 链接；当前该节没有旧命令块。
 - 下一步：无。
+
+### 收尾检查
+
+```
+go test ok
+guards ok
+```
