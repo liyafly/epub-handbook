@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -216,7 +217,7 @@ func spineXHTMLPaths(opfData []byte) ([]string, error) {
 		if !ok || item.MediaType != "application/xhtml+xml" || item.Href == "" {
 			continue
 		}
-		paths = append(paths, normJoin(p.OPFDir(), item.Href))
+		paths = append(paths, pypath.NormJoin(p.OPFDir(), item.Href))
 	}
 	return paths, nil
 }
@@ -230,7 +231,7 @@ func manifestItemEdit(opfPath string, opfData []byte, opfDir, cssZipPath string)
 	}
 	href := cssZipPath
 	if opfDir != "" {
-		href = pyRelPath(cssZipPath, opfDir)
+		href = pypath.RelPath(cssZipPath, opfDir)
 	}
 	var manifest *opf.SpanNode
 	idSeen := map[string]bool{}
@@ -288,82 +289,6 @@ func attribEscape(v string) string {
 	v = strings.ReplaceAll(v, "<", "&lt;")
 	v = strings.ReplaceAll(v, ">", "&gt;")
 	return strings.ReplaceAll(v, `"`, "&quot;")
-}
-
-// ---- 路径工具（与 Python posixpath 对齐） ----
-
-func pyDirname(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-// normJoin 对齐 epub_lib.norm_join（去 fragment 后 join+normpath）。
-func normJoin(base, href string) string {
-	clean := href
-	if i := strings.IndexByte(clean, '#'); i >= 0 {
-		clean = clean[:i]
-	}
-	if base == "" {
-		return pyNormPath(clean)
-	}
-	return pyNormPath(base + "/" + clean)
-}
-
-func pyNormPath(p string) string {
-	parts := strings.Split(p, "/")
-	var out []string
-	for _, part := range parts {
-		switch part {
-		case "", ".":
-			continue
-		case "..":
-			if len(out) > 0 && out[len(out)-1] != ".." {
-				out = out[:len(out)-1]
-				continue
-			}
-			out = append(out, part)
-		default:
-			out = append(out, part)
-		}
-	}
-	joined := strings.Join(out, "/")
-	if strings.HasPrefix(p, "/") && !strings.HasPrefix(joined, "/") {
-		return "/" + joined
-	}
-	if joined == "" {
-		return "."
-	}
-	return joined
-}
-
-// relHref 复刻 epub_lib.rel_href。
-func relHref(fromZipPath, toZipPath string) string {
-	base := pyDirname(fromZipPath)
-	if base == "" {
-		return toZipPath
-	}
-	return pyRelPath(toZipPath, base)
-}
-
-// pyRelPath 复刻 posixpath.relpath。
-func pyRelPath(target, base string) string {
-	tParts := strings.Split(pyNormPath(target), "/")
-	bParts := strings.Split(pyNormPath(base), "/")
-	i := 0
-	for i < len(bParts) && i < len(tParts) && bParts[i] == tParts[i] {
-		i++
-	}
-	var out []string
-	for range bParts[i:] {
-		out = append(out, "..")
-	}
-	out = append(out, tParts[i:]...)
-	if len(out) == 0 {
-		return "."
-	}
-	return strings.Join(out, "/")
 }
 
 // decodeUTF8Replace 对齐 decode("utf-8", errors="replace")。

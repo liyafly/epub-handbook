@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
@@ -68,8 +69,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return report.Result{}, err
 	}
 	rep.OPF = opfPath
-	opfDir := pyDirname(opfPath)
-	cssZipPath := normJoin(opfDir, "Styles/anthology-refinement.css")
+	opfDir := pypath.Dirname(opfPath)
+	cssZipPath := pypath.NormJoin(opfDir, "Styles/anthology-refinement.css")
 
 	paths, err := spineXHTMLPaths(opfData)
 	if err != nil {
@@ -120,7 +121,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	var posterImages []posterImageLine
 	for volume, cand := range candidates {
 		vol := volume + 1
-		styleHref := relHref(cand.poster, cssZipPath)
+		styleHref := pypath.RelativePath(cand.poster, cssZipPath)
 		raw, err := b.Current(cand.poster)
 		if err != nil {
 			return report.Result{}, err
@@ -133,15 +134,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		edits = append(edits, editset.Replace(cand.poster, 0, int64(len(raw)), []byte(refined)))
 		rep.PosterPages = append(rep.PosterPages, cand.poster)
 
-		imageZipPath := normJoin(pyDirname(cand.poster), cand.imageHref)
-		posterImages = append(posterImages, posterImageLine{vol, relHref(cssZipPath, imageZipPath)})
+		imageZipPath := pypath.NormJoin(pypath.Dirname(cand.poster), cand.imageHref)
+		posterImages = append(posterImages, posterImageLine{vol, pypath.RelativePath(cssZipPath, imageZipPath)})
 
 		if cand.copyrightPath != "" {
 			cRaw, err := b.Current(cand.copyrightPath)
 			if err != nil {
 				return report.Result{}, err
 			}
-			copyrightStyleHref := relHref(cand.copyrightPath, cssZipPath)
+			copyrightStyleHref := pypath.RelativePath(cand.copyrightPath, cssZipPath)
 			cRefined, copyrightWarnings, err := refineCopyright(decodeUTF8Replace(cRaw), copyrightStyleHref)
 			if err != nil {
 				return report.Result{}, err
