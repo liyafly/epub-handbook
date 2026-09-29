@@ -15,18 +15,17 @@ func selectScope(spine, requested []string) ([]string, error) {
 	if len(requested) == 0 {
 		return nil, presetErrf("scope_paths must contain at least one spine XHTML path")
 	}
+	selected, _ := opf.SelectScopePaths(spine, requested)
+	selectedSet := make(map[string]struct{}, len(selected))
+	for _, name := range selected {
+		selectedSet[name] = struct{}{}
+	}
 	for _, name := range requested {
-		if !slices.Contains(spine, name) {
+		if _, ok := selectedSet[name]; !ok {
 			return nil, presetErrf("scope_paths target is not a spine XHTML: %q", name)
 		}
 	}
-	// Keep reading order, independent of caller order, and deduplicate.
-	selected := make([]string, 0, len(requested))
-	for _, name := range spine {
-		if slices.Contains(requested, name) && !slices.Contains(selected, name) {
-			selected = append(selected, name)
-		}
-	}
+	// SelectScopePaths keeps reading order and deduplicates caller input.
 	return selected, nil
 }
 
