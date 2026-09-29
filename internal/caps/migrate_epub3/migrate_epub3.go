@@ -14,9 +14,8 @@
 //     fix_guide_hrefs
 //  4. NCX→nav 生成（sanitize_ncx_text 坏引号修复 + nav.xhtml 模板逐字节 +
 //     landmarks），无 NCX 时 spine_entries 兜底
-//  5. CJK 排版覆盖样式注入（enhancement_css 常量照抄 + typography_roles）
-//  6. note.png 图标（优先读 skills 资产；href 按 unique_href 规则）
-//  7. update_xhtml_files 每页管线：normalize_xhtml_shell →
+//  5. note.png 图标（优先读 skills 资产；href 按 unique_href 规则）
+//  6. update_xhtml_files 每页管线：normalize_xhtml_shell →
 //     convert_plain_notes → convert_sigil_legacy_notes →
 //     normalize_duokan_notes → svg/mathml/scripted 属性标记；XHTML shell 与
 //     metadata 的变更只落在目标字节区间，不整页格式化。
@@ -59,11 +58,10 @@ func convErrf(format string, a ...any) error {
 
 const canonicalMimetype = "application/epub+zip"
 
-// Params 是 capability 参数。PopupNotes / Typography 对齐 Python 的
-// popup_notes / typography（默认开启，由注册闭包把 no_* 反转传入）。
+// Params 是 capability 参数。PopupNotes 默认开启，由注册闭包把 no_popup_notes
+// 反转传入；迁移不负责排版样式。
 type Params struct {
 	PopupNotes bool
-	Typography bool
 	DryRun     bool
 }
 
@@ -75,14 +73,13 @@ type conversionReport struct {
 	PackageVersionBefore  *string  `json:"package_version_before"`
 	NavEntries            int      `json:"nav_entries"`
 	XHTMLFilesUpdated     int      `json:"xhtml_files_updated"`
-	StylesheetLinksAdded  int      `json:"stylesheet_links_added"`
 	PlainNotesConverted   int      `json:"plain_notes_converted"`
 	DuokanNotesNormalized int      `json:"duokan_notes_normalized"`
 	ManifestItemsAdded    []string `json:"manifest_items_added"`
 	ManifestItemsUpdated  int      `json:"manifest_items_updated"`
 	MetadataUpdates       []string `json:"metadata_updates"`
-	TypographyRoles       []string `json:"typography_roles"`
 	Warnings              []string `json:"warnings"`
+	legacyBigTagPath      string
 }
 
 // workFiles 复刻 convert_epub 的 files dict：原 entry + 待写入覆盖。
@@ -145,7 +142,6 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	rep := &conversionReport{
 		ManifestItemsAdded: []string{},
 		MetadataUpdates:    []string{},
-		TypographyRoles:    []string{},
 		Warnings:           []string{},
 	}
 
@@ -188,18 +184,9 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	}
 	fixGuideHrefs(root, files, opfDir, rep)
 
-	styleHref := uniqueHref(files, opfDir, "Styles/epub3-enhancements.css")
-	styleZip := normJoin(opfDir, styleHref)
 	noteHref := defaultNoteHref(files, root, opfDir)
 	noteZip := normJoin(opfDir, noteHref)
-	if p.Typography {
-		rep.TypographyRoles = append([]string{}, typographyRoles...)
-		files.write(styleZip, []byte(enhancementCSS))
-		if _, err := addManifestItem(root, rep, "epub3-enhancements-css", styleHref, "text/css", ""); err != nil {
-			return nil, err
-		}
-	}
-	defaultNoteIconUsed, err := updateXHTMLFiles(files, root, opfPath, styleZip, noteZip, rep, p.PopupNotes, p.Typography)
+	defaultNoteIconUsed, err := updateXHTMLFiles(files, root, opfPath, noteZip, rep, p.PopupNotes)
 	if err != nil {
 		return nil, err
 	}
@@ -279,18 +266,23 @@ func buildResult(p Params, rep *conversionReport) report.Result {
 		"packageVersionBefore":  versionBefore,
 		"navEntries":            rep.NavEntries,
 		"xhtmlFilesUpdated":     rep.XHTMLFilesUpdated,
-		"stylesheetLinksAdded":  rep.StylesheetLinksAdded,
 		"plainNotesConverted":   rep.PlainNotesConverted,
 		"duokanNotesNormalized": rep.DuokanNotesNormalized,
 		"manifestItemsAdded":    rep.ManifestItemsAdded,
 		"manifestItemsUpdated":  rep.ManifestItemsUpdated,
 		"metadataUpdates":       rep.MetadataUpdates,
-		"typographyRoles":       rep.TypographyRoles,
 		"warnings":              rep.Warnings,
 		"popupNotes":            p.PopupNotes,
-		"typography":            p.Typography,
 	}
 	var findings []report.Finding
+	if rep.legacyBigTagPath != "" {
+		findings = append(findings, report.Finding{
+			Level:    "info",
+			ID:       "migrate.legacy-big-tag",
+			Title:    "Legacy <big> element preserved; review its appearance manually",
+			Location: rep.legacyBigTagPath,
+		})
+	}
 	for _, w := range rep.Warnings {
 		id := "migrate.warning"
 		if strings.HasPrefix(w, "migrate.cover-meta-not-image:") {

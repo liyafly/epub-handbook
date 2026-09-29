@@ -31,7 +31,7 @@ func xhtmlDefaultLanguage(root *xmlElem) string {
 }
 
 // updateXHTMLFiles 逐行复刻 core.update_xhtml_files。
-func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZip string, rep *conversionReport, popupNotes, typography bool) (bool, error) {
+func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, noteZip string, rep *conversionReport, popupNotes bool) (bool, error) {
 	opfDir := pyDirname(opfPath)
 	_, byZip := manifestMaps(root, opfDir)
 	keys := make([]string, 0, len(byZip))
@@ -54,21 +54,16 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath, styleZip, noteZi
 			return false, convErrf("%s: lossless XHTML migration requires UTF-8 source bytes", zipPath)
 		}
 		text := utf8ReplaceDecode(original)
+		hasLegacyBig, err := xhtmlHasLegacyBigTag(text)
+		if err != nil {
+			return false, convErrf("%s: cannot scan legacy big elements: %v", zipPath, err)
+		}
+		if hasLegacyBig && rep.legacyBigTagPath == "" {
+			rep.legacyBigTagPath = zipPath
+		}
 		text, changed, err := normalizeXHTMLShell(text, defaultLanguage)
 		if err != nil {
 			return false, convErrf("%s: cannot normalize XHTML shell: %v", zipPath, err)
-		}
-		if typography {
-			styleHref := relHref(zipPath, styleZip)
-			var linked bool
-			text, linked, err = ensureStylesheetLink(text, styleHref)
-			if err != nil {
-				return false, convErrf("%s: cannot add stylesheet link: %v", zipPath, err)
-			}
-			if linked {
-				rep.StylesheetLinksAdded++
-				changed = true
-			}
 		}
 		if popupNotes {
 			noteHref := relHref(zipPath, noteZip)

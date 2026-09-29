@@ -99,11 +99,6 @@
           "type": "boolean",
           "description": "禁用弹注转换。",
           "default": "false"
-        },
-        "no_typography": {
-          "type": "boolean",
-          "description": "禁用迁移中的排版角色处理。",
-          "default": "false"
         }
       }
     },

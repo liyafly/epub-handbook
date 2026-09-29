@@ -156,13 +156,25 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 		edits = append(edits, editset.Insert("xhtml", int64(headClose.Span.Start), []byte(strings.Join(headInsertions, ""))))
 	}
 
-	bigEdits, err := xhtmlBigTagEdits(text, regions)
-	if err != nil {
-		return "", false, err
-	}
-	edits = append(edits, bigEdits...)
 	result, shellChanged, err := applyXHTMLEdits(text, edits)
 	return result, entitiesChanged || shellChanged, err
+}
+
+func xhtmlHasLegacyBigTag(text string) (bool, error) {
+	regions, truncated := xhtmlscan.ScanRegions(text)
+	if truncated != xhtmlscan.ScanComplete {
+		return false, fmt.Errorf("XHTML markup scan stopped at byte %d", truncated)
+	}
+	for _, region := range regions {
+		if region.Kind != xhtmlscan.RegionTag {
+			continue
+		}
+		name, closing, valid := regionTagNameAndClosing(text, region)
+		if valid && !closing && sameLocalName(name, "big") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func xhtmlNamedEntityEdits(text string, regions []xhtmlscan.Region) ([]editset.Edit, error) {
@@ -239,44 +251,6 @@ func isPredefinedXMLEntity(name string) bool {
 	default:
 		return false
 	}
-}
-
-func ensureStylesheetLink(text, href string) (string, bool, error) {
-	regions, truncated := xhtmlscan.ScanRegions(text)
-	if truncated != xhtmlscan.ScanComplete {
-		return "", false, fmt.Errorf("XHTML markup scan stopped at byte %d", truncated)
-	}
-	_, headOpen, headClose := xhtmlShellTags(text, regions)
-	if headOpen == nil || headClose == nil {
-		return text, false, nil
-	}
-	for _, region := range regions {
-		if region.Kind != xhtmlscan.RegionTag || region.Span.Start < headOpen.Span.End || region.Span.End > headClose.Span.Start {
-			continue
-		}
-		tag, closing, valid := xhtmlRegionTag(text, region)
-		if !valid || closing || !sameLocalName(tag.Name, "link") {
-			continue
-		}
-		attrs, valid := xhtmlAttributes(text, tag)
-		if !valid {
-			return "", false, fmt.Errorf("malformed XHTML link tag at byte %d", tag.Span.Start)
-		}
-		hrefAttrs := matchingXHTMLAttrs(attrs, "href")
-		if len(hrefAttrs) > 1 {
-			return "", false, fmt.Errorf("ambiguous href attributes in XHTML link at byte %d", tag.Span.Start)
-		}
-		for _, attr := range hrefAttrs {
-			if html.UnescapeString(attr.Value) == href {
-				return text, false, nil
-			}
-		}
-	}
-	link := `<link href="` + escapeXHTMLAttribute(href, '"') + `" type="text/css" rel="stylesheet"/>`
-	updated, changed, err := applyXHTMLEdits(text, []editset.Edit{
-		editset.Insert("xhtml", int64(headClose.Span.Start), []byte(link)),
-	})
-	return updated, changed, err
 }
 
 func xhtmlShellTags(text string, regions []xhtmlscan.Region) (root, headOpen, headClose *xhtmlscan.Tag) {
@@ -441,59 +415,6 @@ func xhtmlInsertAttributes(path, text string, tag xhtmlscan.Tag, attributes stri
 		at--
 	}
 	return editset.Insert(path, int64(at), []byte(" "+attributes))
-}
-
-func xhtmlBigTagEdits(text string, regions []xhtmlscan.Region) ([]editset.Edit, error) {
-	var edits []editset.Edit
-	for _, region := range regions {
-		if region.Kind != xhtmlscan.RegionTag {
-			continue
-		}
-		tag, closing, valid := xhtmlRegionTag(text, region)
-		if !valid || !sameLocalName(tag.Name, "big") {
-			continue
-		}
-		nameStart := region.Span.Start + 1
-		if closing {
-			nameStart++
-		}
-		nameEnd := nameStart + len(tag.Name)
-		localStart := nameStart
-		if colon := strings.LastIndexByte(tag.Name, ':'); colon >= 0 {
-			localStart += colon + 1
-		}
-		if localStart < nameStart || nameEnd > region.Span.End {
-			return nil, fmt.Errorf("invalid big tag span at byte %d", region.Span.Start)
-		}
-		edits = append(edits, editset.Replace("xhtml", int64(localStart), int64(nameEnd-localStart), []byte("span")))
-		if closing {
-			continue
-		}
-		attrs, ok := xhtmlAttributes(text, tag)
-		if !ok {
-			return nil, fmt.Errorf("malformed XHTML big tag at byte %d", tag.Span.Start)
-		}
-		classes := matchingXHTMLAttrs(attrs, "class")
-		if len(classes) > 1 {
-			return nil, fmt.Errorf("ambiguous class attributes in XHTML big tag at byte %d", tag.Span.Start)
-		}
-		if len(classes) == 0 {
-			edits = append(edits, xhtmlInsertAttributes("xhtml", text, tag, `class="big"`))
-			continue
-		}
-		classValue := html.UnescapeString(classes[0].Value)
-		if containsString(pySplitWS(classValue), "big") {
-			continue
-		}
-		updated := classValue + " big"
-		attr := classes[0]
-		if attr.Quote == 0 {
-			edits = append(edits, editset.Replace("xhtml", int64(attr.NameSpan.Start), int64(attr.ValueSpan.End-attr.NameSpan.Start), []byte(attr.Raw+`="`+escapeXHTMLAttribute(updated, '"')+`"`)))
-		} else {
-			edits = append(edits, editset.Replace("xhtml", int64(attr.ValueSpan.Start), int64(attr.ValueSpan.End-attr.ValueSpan.Start), []byte(escapeXHTMLAttribute(updated, attr.Quote))))
-		}
-	}
-	return edits, nil
 }
 
 func applyXHTMLEdits(text string, edits []editset.Edit) (string, bool, error) {

@@ -298,7 +298,6 @@ func init() {
 	register("epub.package.migrate.epub3", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return migrateepub3.Run(ctx, b, migrateepub3.Params{
 			PopupNotes: !args.Bool("no_popup_notes"),
-			Typography: !args.Bool("no_typography"),
 			DryRun:     args.Bool("dry_run"),
 		})
 	})

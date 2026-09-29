@@ -28,7 +28,7 @@ func TestNormalizeXHTMLShellEditsOnlyTargetRegions(t *testing.T) {
 <!-- <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/> -->
 <h:meta id='keep' charset="utf-8"/>
 <![CDATA[<meta charset="utf-8"/>]]></h:head>
-<h:body><h:p><span id='large' class="big">中文</span><!-- <big>keep fake tag</big> --></h:p></h:body>
+<h:body><h:p><big id='large'>中文</big><!-- <big>keep fake tag</big> --></h:p></h:body>
 </h:html>`
 	got, changed, err := normalizeXHTMLShell(source, "en")
 	if err != nil {
@@ -45,41 +45,30 @@ func TestNormalizeXHTMLShellEditsOnlyTargetRegions(t *testing.T) {
 	}
 }
 
-func TestNormalizeXHTMLShellAndStylesheetInsertionsAreIdempotent(t *testing.T) {
-	source := `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><!-- <link href="../Styles/main.css"/> --><title>x</title></head><body>x</body></html>`
-	got, changed, err := normalizeXHTMLShell(source, "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !changed {
-		t.Fatal("expected shell edits")
-	}
-	got, linked, err := ensureStylesheetLink(got, "../Styles/main.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !linked {
-		t.Fatal("expected stylesheet link insertion despite matching text in a comment")
-	}
-	if strings.Count(got, `href="../Styles/main.css"`) != 2 {
-		t.Fatalf("expected one comment occurrence and one real link, got %q", got)
-	}
-	again, linked, err := ensureStylesheetLink(got, "../Styles/main.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if linked || again != got {
-		t.Fatalf("second stylesheet pass should be a no-op: linked=%t", linked)
-	}
-	again, changed, err = normalizeXHTMLShell(got, "en")
-	if err != nil || changed || again != got {
-		t.Fatalf("second shell pass should be a no-op: changed=%t err=%v", changed, err)
-	}
-}
-
 func TestNormalizeXHTMLShellRejectsTruncatedMarkup(t *testing.T) {
 	if _, _, err := normalizeXHTMLShell(`<html><head><!-- unfinished`, "en"); err == nil {
 		t.Fatal("expected truncated XHTML to be rejected")
+	}
+}
+
+func TestXHTMLHasLegacyBigTagIgnoresComments(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		xhtml string
+		want  bool
+	}{
+		{name: "real tag", xhtml: `<p><big>large</big></p>`, want: true},
+		{name: "comment only", xhtml: `<!-- <big>example</big> -->`, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := xhtmlHasLegacyBigTag(tc.xhtml)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("xhtmlHasLegacyBigTag() = %t, want %t", got, tc.want)
+			}
+		})
 	}
 }
 

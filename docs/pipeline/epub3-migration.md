@@ -1,6 +1,6 @@
 # EPUB3 迁移：产物与验收
 
-> 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，生成可审计工作目录，并套用项目的弹注与 CJK 文学排版基础层。
+> 状态：流程文档；用于把一本旧 EPUB/EPUB2 在本地转换为 EPUB3，并生成可审计工作目录。排版样式需通过独立 typography capability 明确选择。
 > 执行入口：`epub run epub.package.migrate.epub3`（结构规范化：`epub run epub.structure.normalize`）
 > 对应 skill：`$epub-cleanup`
 
@@ -51,11 +51,12 @@ cleanup-flow 主线中的 S3 产物（`$W/after/s3.epub`）包含：
 - 修正 `mimetype` 为 zip 第一项且 stored。
 - 修正 `guide` 中可自动识别的坏相对路径。
 - XHTML 根缺 `lang` 和 `xml:lang` 时，从 OPF `dc:language` 补入两者；不覆盖已有值，也不猜测缺失的 OPF 语言。
-- 发生 XHTML 重写时，对 XML-valid 页面使用两空格缩进的多行输出；不压缩为单行，也不改写 mixed-content 中的正文文字。无法 XML 解析的遗留页面保留原格式并继续由其他校验报告问题。
-- 新增 `Styles/epub3-enhancements.css`；该 CSS 使用 `[epub|type]` 选择器，因此在首个普通规则前声明标准 `@namespace epub`（若未来加入 `@charset` / `@import`，namespace 紧随其后并保持早于 `@font-face`）。
+- XHTML 按目标字节区间更新；未命中的格式、注释和 mixed-content 正文文字保持原样。
 - 仅在纯文本/数字上标注释标记需要图标化时新增 `Images/note.png`；已有图片 noteref 保留原图标。
 - 图片 noteref 的 `sup` 使用 `class="note-marker"`；其零行高外壳与相对上移图标只作用于脚注，避免 `sup img` 撑高正文行距。
 - 普通尾注转为同文件 grouped popup footnote。
+
+迁移保留已有的排版 CSS 和 XHTML 标签，不添加排版样式、不分派文本角色。遇到旧式 `<big>` 标签时会保留原标签，并在报告中给出人工复核提示。
 
 流水线不会替代人工 diff review 和真实阅读器复测。审计报告的 `nextCommands` 会把它们列为剩余步骤。
 
@@ -65,15 +66,15 @@ cleanup-flow 主线中的 S3 产物（`$W/after/s3.epub`）包含：
 
 ## 字体策略
 
-脚本注入的覆盖层不嵌入字体，普通正文默认保持自由模式：`body` 只接收行高、对齐等排版属性，不写 `font-family`。显式角色使用以下系统链：
+EPUB3 迁移不注入 CSS，也不更改字体链。需要显式排版时，使用 `epub.typography.optimize` 并选择预设与作用范围：
 
-- `.type-body`：`"Songti SC", "SimSun", "Noto Serif CJK SC", serif`
-- 标题：`"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`
-- 楷体类、引用、注释：`"Kaiti SC", "STKaiti", "KaiTi", serif`
+```sh
+epub run epub.typography.optimize --input "migrated.epub" --output "typography-candidate.epub" --dry-run --json preset=literary-cn
+```
 
-覆盖层还提供 `type-body`、`type-title`、`type-subtitle`、`type-quote`、`type-note`、`type-emphasis` 和 `type-meta` 角色类。后续如需内嵌字体，只替换或补充显式类；只含少数字符的局部补字子集不挂到 `body`。
+审查 dry-run 后，去掉 `--dry-run` 并保持其余选项相同，再运行红线和阅读器检查。预设的角色映射与字体链见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
 
-角色拆分和本地文学 EPUB 的脱敏分析见 [reference-font-role-patterns.md](reference-font-role-patterns.md)。
+若计划内嵌字体，先核对授权；局部补字子集不要挂到 `body`。
 
 ## CSS 清洗
 

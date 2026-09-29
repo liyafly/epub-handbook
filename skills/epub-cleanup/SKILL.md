@@ -15,7 +15,7 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体�
 
 ### EPUB3 迁移
 
-预检确认需要版本/结构迁移时；已经符合 EPUB3 且仅有局部排版问题，不重复迁移。范围包含 package metadata/properties、nav（保留 NCX）、XHTML shell、已识别注释与可选基础排版，不嵌入新字体。
+预检确认需要版本/结构迁移时；已经符合 EPUB3 且仅有局部排版问题，不重复迁移。范围包含 package metadata/properties、nav（保留 NCX）、XHTML shell 与已识别注释，不应用排版样式或嵌入新字体。遇到 `<big>` 时保留原标签并查看信息提示。
 
 ### CSS 分层与清理
 
@@ -85,7 +85,7 @@ epub run epub.package.nav.audit --input "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-按用户明确范围选择 `no_popup_notes=true` / `no_typography=true`，不要用默认值悄悄扩展为未授权排版。输出必须是新路径。
+按用户明确范围选择 `no_popup_notes=true`。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
 
 ### CSS 分层与清理
 

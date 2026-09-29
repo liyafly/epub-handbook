@@ -42,17 +42,6 @@ var imageMediaByExt = map[string]string{
 	".webp": "image/webp",
 }
 
-// typographyRoles 对齐 TYPOGRAPHY_ROLES（顺序敏感）。
-var typographyRoles = []string{
-	"type-body",
-	"type-title",
-	"type-subtitle",
-	"type-quote",
-	"type-note",
-	"type-emphasis",
-	"type-meta",
-}
-
 // guideTypeToEpub 对齐 GUIDE_TYPE_TO_EPUB。
 var guideTypeToEpub = map[string]string{
 	"cover":          "cover",

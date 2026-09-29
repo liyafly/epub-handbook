@@ -84,21 +84,15 @@ epub run epub.package.nav.audit --input input.epub --json
 
 样本包里有 `.ttf`，不代表它们可以复制到新书、demo 或仓库。分析只借鉴角色分工。需要嵌入字体时，单独核对授权和 OPF manifest。
 
-## 4. EPUB3 迁移提供的角色类
+## 4. 通过 typography capability 应用角色样式
 
-`epub run epub.package.migrate.epub3` 注入 `Styles/epub3-enhancements.css`，其中包含：
+EPUB3 迁移不会注入 CSS 或创建文本角色。确认需要角色样式后，单独运行 `epub.typography.optimize`，选择预设并限定作用范围：
 
-```text
-type-body
-type-title
-type-subtitle
-type-quote
-type-note
-type-emphasis
-type-meta
+```sh
+epub run epub.typography.optimize --input before.epub --output candidate.epub --dry-run --json preset=literary-cn
 ```
 
-转换器只提供角色 palette，不自动猜测语义。例如它不会把任意 `<b>` 改成 `.type-emphasis`，也不会把任意 `.cp` 认定为版权信息。清洗者应在人工 diff review 可见的前提下逐类分派。
+预设只提供样式规则，不自动猜测正文语义。例如它不会把任意 `<b>` 改成 `.type-emphasis`，也不会把任意 `.cp` 认定为版权信息。逐类分派仍需人工 diff review。
 
 建议顺序：
 

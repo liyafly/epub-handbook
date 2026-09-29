@@ -5,6 +5,7 @@
 ### Breaking
 
 - 删除公开 capability `epub.layout.audit`；布局与包结构诊断统一使用 `epub.package.nav.audit`，依赖链不再重复运行审计。
+- `epub.package.migrate.epub3` 不再注入默认排版 CSS；删除排版开关与对应报告 facts。需要排版时改用 `epub.typography.optimize`。
 
 ### Changed
 

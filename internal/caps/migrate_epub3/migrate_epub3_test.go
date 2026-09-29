@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -233,7 +232,7 @@ func runGo(t *testing.T, fixture, output string, p Params) (report.Result, error
 
 func defaultParams(output string) Params {
 	_ = output // 输出路径由 pipeline 落盘；本包 Params 不再携带。
-	return Params{PopupNotes: true, Typography: true}
+	return Params{PopupNotes: true}
 }
 
 func openZip(t *testing.T, path string) *zip.ReadCloser {
@@ -272,16 +271,13 @@ type resultFacts struct {
 	PackageVersionBefore  *string  `json:"packageVersionBefore"`
 	NavEntries            int      `json:"navEntries"`
 	XHTMLFilesUpdated     int      `json:"xhtmlFilesUpdated"`
-	StylesheetLinksAdded  int      `json:"stylesheetLinksAdded"`
 	PlainNotesConverted   int      `json:"plainNotesConverted"`
 	DuokanNotesNormalized int      `json:"duokanNotesNormalized"`
 	ManifestItemsAdded    []string `json:"manifestItemsAdded"`
 	ManifestItemsUpdated  int      `json:"manifestItemsUpdated"`
 	MetadataUpdates       []string `json:"metadataUpdates"`
-	TypographyRoles       []string `json:"typographyRoles"`
 	Warnings              []string `json:"warnings"`
 	PopupNotes            bool     `json:"popupNotes"`
-	Typography            bool     `json:"typography"`
 }
 
 // factsOf 经 JSON 往返读取 Result.Facts，同时保证 facts 可序列化。
@@ -555,13 +551,9 @@ func TestOneclickDefaultFixture(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	rep := factsOf(t, res)
-	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 || rep.StylesheetLinksAdded != 2 {
+	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 {
 		t.Fatalf("报告计数错误: %+v", rep)
 	}
-	if want := []string{"type-body", "type-title", "type-subtitle", "type-quote", "type-note", "type-emphasis", "type-meta"}; !reflect.DeepEqual(rep.TypographyRoles, want) {
-		t.Fatalf("typography_roles 错误: %v", rep.TypographyRoles)
-	}
-
 	zr := openZip(t, output)
 	if len(zr.File) == 0 || zr.File[0].Name != "mimetype" || zr.File[0].Method != zip.Store {
 		t.Fatal("第一个 entry 应为 STORED 的 mimetype")
@@ -590,15 +582,13 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	}
 	manifest := root.childByTag(opfURI, "manifest")
 	navCount := 0
-	hasCSS, hasNote := false, false
+	hasNote := false
 	for _, item := range manifest.childrenByTag(opfURI, "item") {
 		props := pySplitWS(item.attrOr("properties", ""))
 		if containsString(props, "nav") {
 			navCount++
 		}
 		switch item.attrOr("href", "") {
-		case "Styles/epub3-enhancements.css":
-			hasCSS = true
 		case "Images/note.png":
 			hasNote = true
 		}
@@ -613,8 +603,13 @@ func TestOneclickDefaultFixture(t *testing.T) {
 			}
 		}
 	}
-	if navCount != 1 || !hasCSS || !hasNote {
-		t.Fatalf("manifest 检查失败: nav=%d css=%t note=%t", navCount, hasCSS, hasNote)
+	if navCount != 1 || !hasNote {
+		t.Fatalf("manifest 检查失败: nav=%d note=%t", navCount, hasNote)
+	}
+	for _, item := range rep.ManifestItemsAdded {
+		if strings.HasSuffix(strings.ToLower(item), ".css") {
+			t.Fatalf("migration unexpectedly added a CSS resource: %s", item)
+		}
 	}
 	if !strings.Contains(opf, `href="Text/cover.xhtml"`) {
 		t.Fatal("guide href 应被修正为 Text/cover.xhtml")
@@ -640,7 +635,6 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
 	for _, want := range []string{
 		`xmlns:epub="http://www.idpf.org/2007/ops"`,
-		`href="../Styles/epub3-enhancements.css"`,
 		`<sup class="note-marker">`,
 		`class="noteref-icon" epub:type="noteref" role="doc-noteref"`,
 		`class="footnote-list"`,
@@ -651,11 +645,44 @@ func TestOneclickDefaultFixture(t *testing.T) {
 			t.Errorf("chapter 缺少 %q:\n%s", want, chapter)
 		}
 	}
-	enhancement := string(zipRead(t, zr, "OEBPS/Styles/epub3-enhancements.css"))
-	for _, want := range []string{".type-quote", `@namespace epub "http://www.idpf.org/2007/ops";`} {
-		if !strings.Contains(enhancement, want) {
-			t.Errorf("enhancement css 缺少 %q", want)
+	if strings.Contains(chapter, "<link") {
+		t.Fatalf("migration added an XHTML stylesheet link:\n%s", chapter)
+	}
+}
+
+func TestLegacyBigTagIsPreservedAndReported(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy-big.epub")
+	output := filepath.Join(dir, "converted-big.epub")
+	markup := `<p><big id="large">Larger text</big></p>`
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
+		minifiedChapter:   true,
+		chapterNoteMarkup: markup,
+	}))
+
+	res, err := runGo(t, fixture, output, defaultParams(output))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	chapter := string(zipRead(t, openZip(t, output), "OEBPS/Text/chapter.xhtml"))
+	if !strings.Contains(chapter, markup) || strings.Contains(chapter, `<span class="big"`) {
+		t.Fatalf("legacy big markup was not preserved:\n%s", chapter)
+	}
+	infoFindings := 0
+	for _, finding := range res.Findings {
+		if finding.ID != "migrate.legacy-big-tag" {
+			continue
 		}
+		infoFindings++
+		if finding.Level != "info" {
+			t.Errorf("migrate.legacy-big-tag level = %q, want info", finding.Level)
+		}
+		if finding.Location != "OEBPS/Text/chapter.xhtml" {
+			t.Errorf("migrate.legacy-big-tag location = %q", finding.Location)
+		}
+	}
+	if infoFindings != 1 {
+		t.Fatalf("migrate.legacy-big-tag findings = %d, want 1: %+v", infoFindings, res.Findings)
 	}
 }
 
@@ -1112,9 +1139,9 @@ func TestConversionFactsAreFormal(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	wantKeys := []string{
-		"opf", "packageVersionBefore", "navEntries", "xhtmlFilesUpdated", "stylesheetLinksAdded",
+		"opf", "packageVersionBefore", "navEntries", "xhtmlFilesUpdated",
 		"plainNotesConverted", "duokanNotesNormalized", "manifestItemsAdded", "manifestItemsUpdated",
-		"metadataUpdates", "typographyRoles", "warnings", "popupNotes", "typography",
+		"metadataUpdates", "warnings", "popupNotes",
 	}
 	for _, k := range wantKeys {
 		if _, ok := res.Facts[k]; !ok {
@@ -1128,10 +1155,10 @@ func TestConversionFactsAreFormal(t *testing.T) {
 	if rep.OPF != "OEBPS/content.opf" || rep.PackageVersionBefore == nil || *rep.PackageVersionBefore != "2.0" {
 		t.Errorf("opf/packageVersionBefore 错误: %+v", rep)
 	}
-	if !rep.PopupNotes || !rep.Typography {
+	if !rep.PopupNotes {
 		t.Errorf("开关回显错误: %+v", rep)
 	}
-	if rep.ManifestItemsAdded == nil || rep.MetadataUpdates == nil || rep.TypographyRoles == nil || rep.Warnings == nil {
+	if rep.ManifestItemsAdded == nil || rep.MetadataUpdates == nil || rep.Warnings == nil {
 		t.Errorf("列表 facts 必须是数组而非 null: %+v", rep)
 	}
 	for _, w := range rep.Warnings {
@@ -1147,28 +1174,5 @@ func TestConversionFactsAreFormal(t *testing.T) {
 	}
 	if len(res.Events) != 1 || res.Events[0].Step != "convert" || res.Events[0].Status != "completed" {
 		t.Errorf("events 错误: %+v", res.Events)
-	}
-}
-
-// TestNoTypographyDisablesRoles 锁定 no_typography 分支：typographyRoles 为空
-// 数组、开关回显为 false，其余转换计数不受影响。
-func TestNoTypographyDisablesRoles(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "legacy.epub")
-	output := filepath.Join(dir, "converted-no-typography.epub")
-	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{minifiedChapter: true}))
-
-	params := defaultParams(output)
-	params.Typography = false
-	res, err := runGo(t, fixture, output, params)
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	rep := factsOf(t, res)
-	if rep.Typography || len(rep.TypographyRoles) != 0 {
-		t.Fatalf("no_typography 下不应有 typography roles: %+v", rep)
-	}
-	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 {
-		t.Fatalf("no_typography 不应影响弹注/nav 计数: %+v", rep)
 	}
 }
