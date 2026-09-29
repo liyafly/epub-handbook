@@ -1,13 +1,13 @@
 # 典型脏 EPUB 模式目录
 
-> 状态：模式 + 推荐 skill 顺序；用作 `epub-audit` 决策的具体落地参考。
+> 状态：模式 + 候选 skill 范围；用作 `epub-audit` 决策的具体落地参考。
 > 对应 SPEC：[§10 能力清单](../final/SPEC-实现约束.md)。
 
 ## 怎么用本目录
 
 1. 跑 `epub run epub.package.nav.audit --input "$CUR" --json`。
 2. 对照本目录的「特征」找匹配模式。
-3. 按推荐 skill 顺序执行。
+3. 先按 runbook 完成 S2/S3（`epub-cleanup` 的规范化与迁移），再在 S5 从下列候选 skill 中每次选一个 capability；列表是候选范围，不是执行顺序。
 4. 每步后跑 `epub redline --check all` + diff 工具确认。
 
 ## 模式 A：网上下载的扫描书
@@ -27,7 +27,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：只有 `toc.ncx`、缺 `nav.xhtml`、大量内联样式、footnote 没有 `epub:type`。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-cleanup`
@@ -37,7 +37,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：Sigil 风格 id、字体引用断链、章节锚点不稳、manifest properties 缺失。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-cleanup`
@@ -46,7 +46,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：早期 class 命名、OPF properties 推断缺失、未使用当前 CSS 分层。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-package-ops`（可选）
@@ -55,7 +55,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：MathML、表格、代码块、术语表、注脚密集。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-special-layout`
@@ -66,7 +66,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：章节数量多、nav 层级深、可能含 Ruby、文白对照、多列布局。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-special-layout`
@@ -76,7 +76,7 @@ epub run epub.package.nav.audit --input "$CUR" --json \
 
 特征：大段英文正文、首字下沉、译注、插图。
 
-推荐 skill 顺序：
+S5 候选 skill：
 
 1. `epub-audit`
 2. `epub-special-layout`
