@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -243,22 +244,14 @@ func TestNativeFixtureShape(t *testing.T) {
 	if res.Status != report.StatusComplete {
 		t.Fatalf("status = %q, want %q", res.Status, report.StatusComplete)
 	}
-	joined := strings.Join(res.NextCommands, "\n")
-	for _, want := range []string{
-		"epub run epub.package.nav.audit",
-		"epub run epub.notes.popup.normalize",
-		"epub capabilities --json",
-		"epub run epub.structure.normalize",
-		"epub run epub.package.migrate.epub3",
-		"epub run epub.text.content.analyze",
-		"epub run epub.font.coverage.analyze",
-	} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("nextCommands 缺少 %q:\n%s", want, joined)
-		}
+	q := report.ShellQuote(path)
+	want := []string{
+		"epub run epub.structure.normalize --input " + q + " --dry-run --json",
+		"epub run epub.package.migrate.epub3 --input " + q + " --dry-run --json",
+		"epub run epub.font.coverage.analyze --input " + q + " --json",
 	}
-	if strings.Contains(joined, "epub redline --check all") {
-		t.Errorf("nav.audit must not suggest redline with unspecified before/after paths:\n%s", joined)
+	if !slices.Equal(res.NextCommands, want) {
+		t.Errorf("findings-driven nextCommands = %q, want %q", res.NextCommands, want)
 	}
 }
 

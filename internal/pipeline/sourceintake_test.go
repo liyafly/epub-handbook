@@ -208,12 +208,12 @@ func TestRunSourceIntakeDryRunHasNoNextCommands(t *testing.T) {
 	if got := outcome.Envelope.NextCommands; len(got) != 0 {
 		t.Errorf("dry-run nextCommands = %v, want none", got)
 	}
-	// 写出型能力的 dry-run 建议不受影响。形态现在来自契约的 execution 字段
-	// （而不是 Go 侧的 id 白名单），所以这里直接构造契约。
+	// 写出型能力的 dry-run 建议按输入书名生成独立输出路径。形态来自契约的
+	// execution 字段（而不是 Go 侧的 id 白名单），所以这里直接构造契约。
 	single := Contract{ID: "epub.structure.normalize"}
 	single.Execution.Input, single.Execution.Output = ExecInputEpub, ExecOutputSingle
-	if got := nextCommands(single, Options{DryRun: true}, nil, true); len(got) != 1 ||
-		!strings.Contains(got[0], "--output out.epub") {
+	if got := nextCommands(single, Options{InputPath: "source.epub", DryRun: true}, nil, true); len(got) != 1 ||
+		!strings.Contains(got[0], "--output source.normalize.epub") {
 		t.Errorf("write capability dry-run nextCommands = %v", got)
 	}
 	multi := Contract{ID: "epub.package.split"}

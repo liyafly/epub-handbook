@@ -57,7 +57,7 @@ cleanup-flow 主线中的 S3 产物（`$W/after/s3.epub`）包含：
 
 迁移保留已有的排版 CSS 和 XHTML 标签，不添加排版样式、不分派文本角色。遇到旧式 `<big>` 标签时会保留原标签，并在报告中给出人工复核提示。
 
-流水线不会替代人工 diff review 和真实阅读器复测。审计报告的 `nextCommands` 会把它们列为剩余步骤。
+人工 diff review 与阅读器复测见 [cleanup-flow S6–S9](cleanup-flow.md#主线)。
 
 ## 可选结构规范化
 

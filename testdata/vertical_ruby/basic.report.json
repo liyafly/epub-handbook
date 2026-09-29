@@ -50,6 +50,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.vertical.ruby.optimize --input fixture.epub --output out.epub --json op=ruby-rp"
+    "epub run epub.vertical.ruby.optimize --input fixture.epub --output fixture.optimize.epub --json op=ruby-rp"
   ]
 }

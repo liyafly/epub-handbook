@@ -247,10 +247,6 @@ func slicesContains(list []string, v string) bool {
 // inspect 是 inspect_path(path, "cleanup") 对 EPUB 输入的主流程。
 func (ins *inspector) inspect(ctx context.Context) {
 	q := report.ShellQuote(ins.b.InputPath())
-	// 旧 preflight / AI / refinement 入口已合并为 Go capability。保留原有
-	// 推荐顺序，但让报告中的每一项都能由当前 `epub` CLI 直接执行。
-	ins.addCommand("epub run epub.package.nav.audit --input " + q + " --json")
-	ins.addCommand("epub run epub.notes.popup.normalize --input " + q + " --dry-run --json")
 
 	ins.summary.ZipEntries = len(ins.b.Names())
 
@@ -276,8 +272,7 @@ func (ins *inspector) inspect(ctx context.Context) {
 		ins.summary.OPF = ins.opfPath
 		ins.inspectOPF(ctx)
 	}
-	ins.addCommand("epub capabilities --json")
-	// preflight 特有：epubcheck 可用性（经 extern；本机无 → 注释行占位）。
+	// 只在本机可执行 epubcheck 时，才给出对应的建议命令。
 	ins.tools.Keys = append(ins.tools.Keys, "epubcheck")
 	if ins.lookPath("epubcheck") {
 		ins.tools.Values["epubcheck"] = true
@@ -721,7 +716,6 @@ func (ins *inspector) mediaDrivenSkills(pkg *opf.Package, q string) {
 	}
 	if ins.summary.MediaCounts["xhtml"] > 0 {
 		ins.addSkill("epub-audit", "info")
-		ins.addCommand("epub run epub.text.content.analyze --input " + q + " --json")
 	}
 	if ins.summary.MediaCounts["images"] > 0 {
 		ins.addSkill("epub-audit", "info")

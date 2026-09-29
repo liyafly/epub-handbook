@@ -78,6 +78,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.notes.legacy-fallback --input fixture.epub --output out.epub --json"
+    "epub run epub.notes.legacy-fallback --input fixture.epub --output fixture.legacy-fallback.epub --json"
   ]
 }

@@ -56,6 +56,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.typography.english.optimize --input fixture.epub --output out.epub --json"
+    "epub run epub.typography.english.optimize --input fixture.epub --output fixture.optimize.epub --json"
   ]
 }

@@ -688,7 +688,11 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		}
 		command := "epub run " + id + " --input " + report.ShellQuote(fallbackPath(opts.InputPath, "input.epub"))
 		if contract.Execution.Output != ExecOutputMulti {
-			command += " --output " + report.ShellQuote(fallbackPath(opts.OutputPath, "out.epub"))
+			outputPath := opts.OutputPath
+			if outputPath == "" {
+				outputPath = defaultOutputPath(opts.InputPath, id)
+			}
+			command += " --output " + report.ShellQuote(outputPath)
 		}
 		command += " --json"
 		args := maps.Clone(userArgs)
@@ -707,6 +711,17 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		return []string{command}
 	}
 	return nil
+}
+
+func defaultOutputPath(inputPath, capabilityID string) string {
+	inputPath = fallbackPath(inputPath, "input.epub")
+	inputName := filepath.Base(inputPath)
+	inputStem := strings.TrimSuffix(inputName, filepath.Ext(inputName))
+	_, operation, found := strings.CutLast(capabilityID, ".")
+	if !found || operation == "" {
+		operation = capabilityID
+	}
+	return filepath.Join(filepath.Dir(inputPath), inputStem+"."+operation+".epub")
 }
 
 func fallbackPath(vals ...string) string {

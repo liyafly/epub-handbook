@@ -711,6 +711,29 @@ func TestNormalizeHasNoPlaceholderRedlineNextCommand(t *testing.T) {
 	}
 }
 
+func TestDryRunNextCommandDerivesOutputFromInput(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "garden.epub")
+	dir := filepath.Dir(inputPath)
+	for _, tc := range []struct {
+		capability string
+		stem       string
+	}{
+		{capability: "epub.structure.normalize", stem: "normalize"},
+		{capability: "epub.typography.optimize", stem: "optimize"},
+	} {
+		contract := Contract{ID: tc.capability}
+		contract.Execution.Output = ExecOutputSingle
+		commands := nextCommands(contract, Options{InputPath: inputPath, DryRun: true}, nil, true)
+		if len(commands) != 1 {
+			t.Fatalf("%s nextCommands = %q, want one apply command", tc.capability, commands)
+		}
+		wantOutput := filepath.Join(dir, "garden."+tc.stem+".epub")
+		if !strings.Contains(commands[0], "--output "+report.ShellQuote(wantOutput)+" --json") {
+			t.Errorf("%s command = %q, want output %q", tc.capability, commands[0], wantOutput)
+		}
+	}
+}
+
 func TestRunRejectsOutputForReadOnly(t *testing.T) {
 	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.package.nav.audit",
