@@ -3,8 +3,8 @@
 > 状态：**已由 `docs/final/SPEC-go-architecture.md` 收口；本文件仅保留前期设计背景**
 >
 > Go 重写的依赖方向、不变式、任务模板、命令面和删除顺序以
-> [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md) 为准；当前进度见
-> [`go-rewrite-handoff.md`](go-rewrite-handoff.md)。本文件与 SPEC 冲突时不得执行本文件。
+> [`docs/final/SPEC-go-architecture.md`](../../docs/final/SPEC-go-architecture.md) 为准；当前进度见
+> [`go-rewrite-handoff.md`](../../docs/pipeline/go-rewrite-handoff.md)。本文件与 SPEC 冲突时不得执行本文件。
 >
 > 决策日期：2026-08-22
 >

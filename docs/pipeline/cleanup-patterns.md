@@ -14,9 +14,14 @@
 
 特征：章节几乎全是 `<img>`，文字段落极少，体积主要来自图片。
 
-判断：不属于清洗范畴；OCR 是另一条链路。
+判定命令：
 
-推荐：由外部 OCR 重做 source，再用 `epub-source-intake` 盘点，之后回到本流水线。
+```sh
+epub run epub.package.nav.audit --input "$CUR" --json \
+  | jq '.findings[] | select(.detail == "ocr-residual")'
+```
+
+这类问题不属于清洗范畴；OCR 是另一条链路。由外部 OCR 重做 source，再用 `epub-source-intake` 盘点，之后回到本流水线。
 
 ## 模式 B：出版社旧版 EPUB 2 -> EPUB 3 升级
 
@@ -101,19 +106,3 @@ format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 
 - 永远不要并行执行多个 skill。
 - 按 cleanup-flow 主线 S5→S6 循环；候选未通过红线时丢弃，`CUR` 保持不变。
-
-## OCR-style 脏 epub 识别
-特征：
-
-- 章节几乎全是 `<img>` 引用，少量散乱文本。
-- 文本有大量 OCR 噪点。
-- 文件名常带 `scan` / `ocr` / `_p001`。
-
-判定：
-
-```sh
-epub run epub.package.nav.audit --input "$CUR" --json \
-  | jq '.findings[] | select(.detail == "ocr-residual")'
-```
-
-如果检测到，先用外部 OCR 重做 source，再用 `epub-source-intake` 盘点后清洗。

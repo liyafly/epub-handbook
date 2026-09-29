@@ -30,6 +30,25 @@
 | `scope` | string | `book` 或 `global` |
 | `reusable` | boolean | `scope: global` 时为 `true`，否则为 `false` |
 
+### Schema 示例（仅说明格式，不写入日志）
+
+```json
+{
+  "id": "dec-0001",
+  "date": "2026-06-10",
+  "source": "manual-review",
+  "book": "example",
+  "scene": "image-layout",
+  "finding": "lone-image-no-figure",
+  "context": {"selector": "div.pic > img", "readers": ["apple-books", "kindle"]},
+  "candidates": ["figure.img-left", "figure.img-right", "figure-fullwidth"],
+  "chosen": "figure.img-right",
+  "rationale": "示例决策：图注偏长时，右浮动与正文行长关系更稳。",
+  "scope": "global",
+  "reusable": true
+}
+```
+
 ## 隐私红线
 
 **禁止保存正文文本、正文摘录、受版权保护的段落或可识别的私密元数据。** `context` 只接受 `selector`、`classes`、`structure`、`reader`、`readers`、`reader_version`、`artifact`。不得写入 `text=`、`content=` 等未授权字段。

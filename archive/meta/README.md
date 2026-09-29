@@ -7,8 +7,8 @@
 本目录另保存 [2026-05-26 流水线决策快照](2026-05-26-pipeline-decisions.md)，
 只用于追溯早期取舍，不作为当前流程入口。
 
-Go CLI 重写的历史材料已拆分为[迁移期决策快照](2026-08-30-go-rewrite-decisions.md)
-与[复审日志](2026-09-go-rewrite-review-log.md)；当前接手状态仍维护在
+Go CLI 重写的历史材料包括[迁移期决策快照](2026-08-30-go-rewrite-decisions.md)、
+[复审日志](2026-09-go-rewrite-review-log.md)和[迁移期实现笔记](2026-09-go-impl-notes.md)；当前接手状态仍维护在
 [`docs/pipeline/go-rewrite-handoff.md`](../../docs/pipeline/go-rewrite-handoff.md)。
 
 ## 各桶入口

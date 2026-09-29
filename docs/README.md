@@ -27,9 +27,9 @@
 - [final/EPUB 3 HTML CSS 属性速查表.md](final/EPUB%203%20HTML%20CSS%20属性速查表.md)：属性速查表
 - [final/reader-matrix.yaml](final/reader-matrix.yaml)：阅读器兼容性实测矩阵
 
-### 进行中的迁移
+### Go 维护交接
 
-- [pipeline/go-rewrite-handoff.md](pipeline/go-rewrite-handoff.md)：Go 重写状态、已裁决事项、守卫和 W0–W5 接手顺序
+- [pipeline/go-rewrite-handoff.md](pipeline/go-rewrite-handoff.md)：当前维护状态、已裁决事项与验证入口
 
 ### 场景指南
 

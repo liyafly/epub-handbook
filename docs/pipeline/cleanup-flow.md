@@ -34,6 +34,8 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 
 `--path-map` 只在 S2 实际改过文件名时加。
 
+失败候选保留供分析但不交付；恢复时从 `CUR` 指向的最近通过红线的候选继续，不覆盖原输入或既有锚点。
+
 ## 附录 A 授权正文校订（仅用户明确授权）
 
 普通清洗仍以主线 S6 的正文不变 gate 为默认。用户明确要求按参考版校订字词、标点或空格时，切换到 [SPEC §10.1.1](../final/SPEC-实现约束.md)，不要删除 text gate，也不要用宽泛 allow-list 把差异伪装成不变。
@@ -138,53 +140,7 @@ done < <(find "$BOOKS" -type f -iname '*.epub' -print0)
 
 ## 附录 C 自造 demo 自检
 
-首轮端到端演示不依赖公版书。先生成仓库自造样本：
-
-```sh
-bash templates/cleanup-demo-books/build.sh
-```
-
-合法清洗对：
-
-```sh
-epub redline --check all \
-  templates/cleanup-demo-books/dist/city-field-notes-before.epub \
-  templates/cleanup-demo-books/dist/city-field-notes-after-clean.epub
-
-epub redline --check all \
-  templates/cleanup-demo-books/dist/paper-garden-before.epub \
-  templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
-```
-
-红线反例：
-
-```sh
-epub redline --check all \
-  templates/cleanup-demo-books/dist/redline-trap-before.epub \
-  templates/cleanup-demo-books/dist/redline-trap-after-text-changed.epub
-```
-
-前两条必须通过；反例必须失败。
-
-## 附录 D 命令速查
-
-### 能力总览
-
-| 能力 / 命令 | 做什么 | 何时运行 |
-| --- | --- | --- |
-| `epub clean INPUT --out DIR [--steps …] [--approve]` | 默认只审计并逐书写汇总；使用 `--steps` 选择规范化、EPUB3 迁移或 CSS 变换，批准且红线通过时写最终候选；目录输入串行处理 | 单书或多书需要重复同一确定性步骤时；细节见附录 B |
-| 按序清洗序列（见 [cleanup-flow.md](cleanup-flow.md)） | 保留 before 基线、结构审计、结构规范化、EPUB3 迁移、CSS / 排版精排、redline 校验 | 显式选择变换时的推荐顺序 |
-| `epub run epub.package.nav.audit` | 检查 ZIP / mimetype / container / OPF / manifest / spine / XML / CSS url / DRM 标记，并给出结构 findings | 拿到一本 EPUB 后第一步 |
-| `epub run epub.structure.normalize` | 可选：先格式化目录，再按 OPF manifest id 反混淆；inspect 非 dry-run 会写未修改副本 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
-| `epub run epub.package.migrate.epub3 --dry-run` | 生成 EPUB3 迁移计划，仍需检查具体 findings | 排除 DRM/损坏阻断后，先审查计划 |
-| `epub run epub.package.migrate.epub3` | 按确认后的计划写出新 EPUB3，报告 before/after SHA-256 和转换明细 | 计划确认后；不原地覆盖输入 |
-| `epub run epub.package.nav.audit` + `epub run epub.text.content.analyze` + `epub run epub.image.layout.optimize` + `epub run epub.font.coverage.analyze` | 精排建议组合：全局事实与阶段建议、文本结构角色、图片版式候选、字体覆盖风险 | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
-| `epub run epub.text.content.analyze` | 只读识别文本结构角色，并给出字体角色与可重排排版建议 | 精排建议后、语义 class 分派前 |
-| `epub run epub.font.coverage.analyze` | 只读调用独立字体覆盖 detector，检查 cmap、缺字、链命中和 reader profile 风险 | 字体策略确定前后；EPUB 含嵌入字体或生僻字时 |
-| `epub run epub.image.layout.optimize` | 只读扫描正文/封面等真实图片，输出布局候选与风险；排除 noteref 图标控件 | 精排建议之后；有人需要逐图选择时运行 |
-| `epub run epub.typography.optimize` | 预览 class coverage，并可写入选定预设的 CSS、OPF 声明和 XHTML link | EPUB3 基线与精排建议确认后，专项清洗前 |
-| `epub run epub.css.layering.optimize` | 保守修补分号、装饰行与已知旧字体链；自动去重、语义分层、scoped merge 均停用 | 审查具体 CSS 修改范围后 |
-| `epub run epub.alite.convert` | 把“单图卷封 + 紧邻版权页”转换为 A-lite contain 背景、原图 fallback 和紧凑版权排版 | 只在合订 EPUB 明确需要时运行 |
+自造 demo 的构建与验证见 [cleanup-demo-books README](../../templates/cleanup-demo-books/README.md)。
 
 ## 附录 E 制作说明模板
 
@@ -234,22 +190,3 @@ epub redline --check all "$W/before/source.epub" "$W/after/s5-<n>.epub"
 - 元数据：core unchanged
 
 ````
-
-## 附录 F 回滚与错误恢复
-
-每个成功写出的中间 EPUB 都作为回滚锚点，文件名统一使用 s*.epub：
-
-```text
-"$W/after/"
-├── s3.epub
-├── s5-1.epub
-└── s5-2.epub
-```
-
-回滚时从上一个已通过红线的候选生成新文件，不覆盖原始输入或已有锚点：
-
-```sh
-cp "$W/after/s5-1.epub" "$W/after/s9-restored.epub"
-```
-
-失败的候选保留供分析，但不更新 CUR。恢复时从 CUR 指向的上一个成功候选继续，重新运行失败步骤并再次通过红线后再更新 CUR。流水线状态以 CUR、报告和制作说明中的 SHA-256 为准。
