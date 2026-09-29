@@ -160,6 +160,19 @@ func TestRewriteURIKeepsSpellingWhenTargetUnchanged(t *testing.T) {
 	}
 }
 
+func TestRewriteRootedHrefWarnsAndStaysUnchanged(t *testing.T) {
+	warnings := []string{}
+	rw := &refRewriter{pathMap: map[string]string{}, files: map[string]bool{}, warnings: &warnings}
+	const input = `<a href="/Images/old.png">cover</a>`
+	got := rewriteMarkupReferences(input, "old/Text/chapter.xhtml", "new/Text/chapter.xhtml", rw)
+	if got != input {
+		t.Fatalf("rooted href rewrite = %q, want unchanged %q", got, input)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "/Images/old.png") {
+		t.Fatalf("warnings = %q, want one warning naming the rooted href", warnings)
+	}
+}
+
 func TestRewriteDecodesEntityEscapedAttributeValues(t *testing.T) {
 	warnings := []string{}
 	rw := &refRewriter{

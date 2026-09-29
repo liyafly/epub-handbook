@@ -141,30 +141,7 @@ func (rw *refRewriter) warn(format string, a ...any) {
 
 // rewriteURI 逐行复刻 rewrite_uri。
 func (rw *refRewriter) rewriteURI(uri, oldDocument, newDocument string) string {
-	if uri == "" || strings.HasPrefix(uri, "#") || pyIsExternalURI(uri) {
-		return uri
-	}
-	parts := pyURLSplit(uri)
-	if parts.path == "" {
-		return uri
-	}
-	oldTarget, err := resolveRelativePath(oldDocument, parts.path)
-	if err != nil {
-		rw.warn("%s: unsafe local reference left unchanged: %s", oldDocument, uri)
-		return uri
-	}
-	if !rw.files[oldTarget] {
-		rw.warn("%s: missing local reference left unchanged: %s", oldDocument, uri)
-		return uri
-	}
-	target := oldTarget
-	if mapped, ok := rw.pathMap[oldTarget]; ok {
-		target = mapped
-	}
-	if resolved, err := resolveRelativePath(newDocument, parts.path); err == nil && resolved == target {
-		return uri
-	}
-	return pyURLUnsplitPath(relativeURI(newDocument, target), parts.query, parts.fragment)
+	return pypath.RewriteURI(uri, oldDocument, newDocument, rw.pathMap, rw.files, rw.warn)
 }
 
 // ---- Run（SPEC §6.1 三段式：扫描 → 应用 → 报告） ----
@@ -469,10 +446,10 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 			return "", nil, toolErrf("%s: duplicate manifest id: %s", opfPath, itemID)
 		}
 		itemIDs[itemID] = true
-		if pyIsExternalURI(href) {
+		if pypath.IsExternalURI(href) {
 			continue
 		}
-		archivePath, err := resolveRelativePath(opfPath, pyURLSplit(href).path)
+		archivePath, err := resolveRelativePath(opfPath, pypath.URLSplit(href).Path)
 		if err != nil {
 			return "", nil, err
 		}
@@ -509,11 +486,11 @@ func inspectEncryption(names []string, files map[string]bool, current func(strin
 	var records []encryptionRecord
 	for _, record := range parsed {
 		for _, uri := range record.RawTargets {
-			if uri == "" || pyIsExternalURI(uri) {
+			if uri == "" || pypath.IsExternalURI(uri) {
 				return "", nil, toolErrf("%s: unsupported encryption URI: %s", encPath, pyRepr(uri))
 			}
-			parts := pyURLSplit(uri)
-			target, err := resolveRootPath(parts.path)
+			parts := pypath.URLSplit(uri)
+			target, err := resolveRootPath(parts.Path)
 			if err != nil {
 				return "", nil, err
 			}
@@ -568,7 +545,7 @@ func validateEncryption(records []encryptionRecord, resources []manifestResource
 // classifyResource 逐行复刻 classify_resource。
 func classifyResource(resource manifestResource) string {
 	mediaType := strings.ToLower(resource.mediaType)
-	ext := strings.ToLower(pathExt(resource.archivePath))
+	ext := strings.ToLower(pypath.PathExt(resource.archivePath))
 	switch {
 	case mediaType == "application/xhtml+xml" || ext == ".html" || ext == ".htm" || ext == ".xhtml":
 		return "Text"
@@ -590,13 +567,13 @@ func classifyResource(resource manifestResource) string {
 
 // deobfuscatedBasename 逐行复刻 deobfuscated_basename。
 func deobfuscatedBasename(resource manifestResource) string {
-	sourceName := pyBasename(resource.archivePath)
+	sourceName := pypath.Basename(resource.archivePath)
 	if readableFilename(sourceName) {
 		return sourceName
 	}
-	_, sourceExt := pySplitExt(sourceName)
+	_, sourceExt := pypath.SplitExt(sourceName)
 	itemName := resource.itemID
-	itemStem, itemExt := pySplitExt(itemName)
+	itemStem, itemExt := pypath.SplitExt(itemName)
 	if strings.EqualFold(itemExt, sourceExt) {
 		itemName = itemStem
 	}
@@ -605,7 +582,7 @@ func deobfuscatedBasename(resource manifestResource) string {
 	if stem, ok := cutSlimSuffix(itemName); ok {
 		slim = true
 		itemName = stem
-	} else if _, ok := cutSlimSuffix(pathStem(sourceName)); ok {
+	} else if _, ok := cutSlimSuffix(pypath.BaseStem(sourceName)); ok {
 		slim = true
 	}
 
@@ -621,7 +598,7 @@ func readableFilename(name string) bool {
 	if name == "" || len(name) > 40 || strings.Count(name, ".") > 1 {
 		return false
 	}
-	stem, _ := pySplitExt(name)
+	stem, _ := pypath.SplitExt(name)
 	if stem == "" || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") {
 		return false
 	}
@@ -689,7 +666,7 @@ func cutSlimSuffix(name string) (string, bool) {
 
 // sanitizeFilenameComponent 逐行复刻 sanitize_filename_component。
 func sanitizeFilenameComponent(value, fallbackSeed string) string {
-	decoded := pyUnquote(value)
+	decoded := pypath.Unquote(value)
 	var b strings.Builder
 	prevInvalid := false
 	for _, r := range decoded {
@@ -730,7 +707,7 @@ func collapseHyphens(s string) string {
 }
 
 func suffixPath(p string, index int) string {
-	stem, ext := pySplitExt(p)
+	stem, ext := pypath.SplitExt(p)
 	return fmt.Sprintf("%s-%d%s", stem, index, ext)
 }
 
@@ -776,18 +753,18 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 		}
 		used[name] = true
 	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 	pathMap := map[string]string{}
 	for _, source := range order {
 		resource := sourceResources[source]
 		folder := classifyResource(resource)
-		basename := pyBasename(source)
+		basename := pypath.Basename(source)
 		if op == "deobfuscate-filenames" {
 			basename = deobfuscatedBasename(resource)
 		}
-		preferred := pyJoin(opfDir, basename)
+		preferred := pypath.Join(opfDir, basename)
 		if folder != "" {
-			preferred = pyJoin(opfDir, folder, basename)
+			preferred = pypath.Join(opfDir, folder, basename)
 		}
 		target, err := allocatePath(preferred, used)
 		if err != nil {
@@ -798,7 +775,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 			continue
 		}
 		rep.MovedResources++
-		if pyBasename(target) != pyBasename(source) {
+		if pypath.Basename(target) != pypath.Basename(source) {
 			rep.RenamedResources++
 		}
 		rep.Mappings = append(rep.Mappings, mapping{From: source, To: target})
@@ -808,7 +785,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 
 func requireUTF8TextResources(names []string, current func(string) ([]byte, error)) error {
 	for _, name := range names {
-		switch strings.ToLower(pathExt(name)) {
+		switch strings.ToLower(pypath.PathExt(name)) {
 		case ".css", ".xhtml", ".html", ".htm", ".svg", ".ncx", ".opf":
 		default:
 			continue
@@ -884,7 +861,7 @@ func transformContent(ctx context.Context, b *book.Book, names []string, files m
 				updated = out
 			}
 		default:
-			ext := strings.ToLower(pathExt(oldPath))
+			ext := strings.ToLower(pypath.PathExt(oldPath))
 			if ext == ".css" || markupExtensions[ext] {
 				if rep.MovedResources == 0 {
 					break
@@ -941,24 +918,18 @@ func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
 	var edits []editset.Edit
 	for _, item := range opfscan.ManifestNodes(root) {
 		href, ok := item.AttrByLocal("", "href")
-		if !ok || href == "" || pyIsExternalURI(href) {
+		if !ok || href == "" {
 			continue
 		}
-		parts := pyURLSplit(href)
-		oldTarget, err := resolveRelativePath(opfPath, parts.path)
+		updated := rw.rewriteURI(href, opfPath, opfPath)
+		if updated == href {
+			continue
+		}
+		edit, err := opfAttributeEdit(opfPath, source, baseOffset, item, "href", updated)
 		if err != nil {
 			return nil, err
 		}
-		if target, ok := rw.pathMap[oldTarget]; ok && target != "" {
-			updated := pyURLUnsplitPath(relativeURI(opfPath, target), parts.query, parts.fragment)
-			if updated != href {
-				edit, err := opfAttributeEdit(opfPath, source, baseOffset, item, "href", updated)
-				if err != nil {
-					return nil, err
-				}
-				edits = append(edits, edit)
-			}
-		}
+		edits = append(edits, edit)
 	}
 	for _, elem := range root.Walk() {
 		if elem.Name.Local == "item" {
@@ -1008,8 +979,8 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 		if uri == "" {
 			continue
 		}
-		parts := pyURLSplit(uri)
-		oldTarget, err := resolveRootPath(parts.path)
+		parts := pypath.URLSplit(uri)
+		oldTarget, err := resolveRootPath(parts.Path)
 		if err != nil {
 			return nil, false, err
 		}
@@ -1021,7 +992,7 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 		if mapped, ok := pathMap[oldTarget]; ok {
 			target = mapped
 		}
-		updated := pyURLUnsplitPath(pyQuote(target), parts.query, parts.fragment)
+		updated := pypath.URLUnsplitPath(pypath.QuotePath(target), parts.Query, parts.Fragment)
 		if updated != uri {
 			edit, err := opfAttributeEdit(path, source, baseOffset, elem, "URI", updated)
 			if err != nil {
@@ -1171,7 +1142,7 @@ func rewriteCSSReferences(text, oldDocument, newDocument string, rw *refRewriter
 	}
 	var edits []editset.Edit
 	for _, ref := range refs {
-		if ref.DataURL || pyIsExternalURI(ref.Value) {
+		if ref.DataURL || pypath.URLSplit(ref.Value).Scheme != "" {
 			continue
 		}
 		if strings.Contains(ref.Value, `\`) {
@@ -1207,22 +1178,17 @@ func rewriteCSSReferencesWithEntityMap(raw, oldDocument, newDocument string, quo
 	if len(edits) == 0 {
 		return raw
 	}
-	mapped := make([]editset.Edit, 0, len(edits))
-	for _, edit := range edits {
-		start := int(edit.Offset)
-		end := start + int(edit.Length)
-		if start < 0 || end < start || end >= len(rawOff) {
-			rw.err = fmt.Errorf("%s: CSS reference span cannot be mapped to source text", oldDocument)
-			return raw
-		}
-		replacement := string(edit.Replacement)
+	mapped, err := css.MapEntityDecodedEdits(oldDocument, []byte(raw), rawOff, edits, func(replacement string) string {
 		if quote == 0 {
 			replacement = pypath.EscapeText(replacement)
 		} else {
 			replacement = attrEscapeFor(quote, replacement)
 		}
-		rawStart, rawEnd := rawOff[start], rawOff[end]
-		mapped = append(mapped, editset.Replace(oldDocument, int64(rawStart), int64(rawEnd-rawStart), []byte(replacement)))
+		return replacement
+	})
+	if err != nil {
+		rw.err = toolErrf("%v", err)
+		return raw
 	}
 	updated, err := editset.Apply(oldDocument, []byte(raw), mapped)
 	if err != nil {
