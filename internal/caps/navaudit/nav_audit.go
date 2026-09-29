@@ -374,15 +374,6 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		ins.addSkill("epub-audit", level)
 	}
 
-	// NCX。
-	_, hasNCX := pkg.NCXItem()
-	hasSpineToc := pkg.SpineToc != ""
-	if !hasNCX || !hasSpineToc {
-		ins.addFinding("warn", `Kindle/legacy delivery should keep toc.ncx and spine toc="ncx"`, "", "")
-		ins.addSkill("epub-reader-verify", "warn")
-		ins.addSkill("epub-audit", "warn")
-	}
-
 	// 封面。
 	_, hasCoverProp := pkg.CoverItem()
 	hasCoverMeta := false
@@ -445,7 +436,6 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 	}
 	ins.checkCSSURLs(ctx, pkg, manifestPaths)
-	ins.checkImages(ctx, pkg)
 	ins.checkXHTML(ctx, pkg)
 	ins.ocrHeuristic(pkg)
 	ins.mediaDrivenSkills(pkg, q)
@@ -521,31 +511,6 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 				ins.addSkill("epub-cleanup", "error")
 				ins.addSkill("epub-audit", "error")
 			}
-		}
-	}
-}
-
-func (ins *inspector) checkImages(ctx context.Context, pkg *opf.Package) {
-	for _, item := range pkg.Manifest {
-		if ctx.Err() != nil {
-			return
-		}
-		if item.ArchivePath == "" || !hasEntry(ins.b, item.ArchivePath) {
-			continue
-		}
-		lower := strings.ToLower(item.Href)
-		switch {
-		case strings.HasSuffix(lower, ".webp"):
-			ins.addFinding("warn", "WebP is not a Kindle main-path image format", item.Href, "")
-			ins.addSkill("epub-audit", "warn")
-			ins.addSkill("epub-reader-verify", "warn")
-		case strings.HasSuffix(lower, ".svg") && opf.HasNavProps(item.Properties) && strings.Contains(" "+item.Properties+" ", " cover-image "):
-			ins.addFinding("warn", "SVG-only cover is risky for Kindle delivery", item.Href, "")
-			ins.addSkill("epub-audit", "warn")
-			ins.addSkill("epub-reader-verify", "warn")
-		case strings.HasSuffix(lower, ".tif") || strings.HasSuffix(lower, ".tiff") || strings.HasSuffix(lower, ".gif"):
-			ins.addFinding("warn", "Convert this image to JPEG/PNG for EPUB delivery", item.Href, "")
-			ins.addSkill("epub-audit", "warn")
 		}
 	}
 }

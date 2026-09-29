@@ -46,6 +46,20 @@ func TestCleanFixtureHasZeroFindingsAndAllCounts(t *testing.T) {
 	}
 }
 
+func TestSharedPackageAndXHTMLRulesAreDelegatedToNavAudit(t *testing.T) {
+	checks := checkIDs()
+	for _, id := range []string{
+		"kindle.cover-image-missing",
+		"kindle.cover-meta-missing",
+		"kindle.mathml-properties-missing",
+		"kindle.xhtml-parse-failed",
+	} {
+		if slices.Contains(checks, id) {
+			t.Errorf("shared rule %q remains in Kindle checks: %v", id, checks)
+		}
+	}
+}
+
 func TestCommentBeforeDeclarationStillDetected(t *testing.T) {
 	files := baseFiles()
 	files["OEBPS/styles.css"] = `.note {
@@ -81,12 +95,6 @@ func TestFindingRulesAndLevels(t *testing.T) {
 		{name: "missing spine toc", id: "kindle.ncx-missing", level: "warn", edit: func(files map[string]string) {
 			replaceFixture(t, files, "OEBPS/content.opf", ` toc="ncx"`, "")
 		}},
-		{name: "missing cover item", id: "kindle.cover-image-missing", level: "warn", edit: func(files map[string]string) {
-			replaceFixture(t, files, "OEBPS/content.opf", `<item id="cover" href="cover.png" media-type="image/png" properties="cover-image"/>`, "")
-		}},
-		{name: "wrong cover metadata", id: "kindle.cover-meta-missing", level: "warn", edit: func(files map[string]string) {
-			replaceFixture(t, files, "OEBPS/content.opf", `content="cover"`, `content="chapter"`)
-		}},
 		{name: "svg cover", id: "kindle.cover-not-raster", level: "warn", edit: func(files map[string]string) {
 			replaceFixture(t, files, "OEBPS/content.opf", `href="cover.png" media-type="image/png"`, `href="cover.svg" media-type="image/svg+xml"`)
 			delete(files, "OEBPS/cover.png")
@@ -109,9 +117,6 @@ func TestFindingRulesAndLevels(t *testing.T) {
 		}},
 		{name: "non-cover svg", id: "kindle.image-svg", level: "info", edit: func(files map[string]string) {
 			addManifestImage(files, `<item id="svg" href="diagram.svg" media-type="image/svg+xml"/>`, "OEBPS/diagram.svg")
-		}},
-		{name: "mathml property missing", id: "kindle.mathml-properties-missing", level: "error", edit: func(files map[string]string) {
-			files["OEBPS/chapter.xhtml"] = strings.Replace(files["OEBPS/chapter.xhtml"], `<p id="p1">Text</p>`, `<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math>`, 1)
 		}},
 		{name: "rotating transform", id: "kindle.css-transform-rotate", level: "warn", edit: func(files map[string]string) {
 			files["OEBPS/styles.css"] = `.box { transform: rotate(3deg); }`
@@ -145,9 +150,6 @@ func TestFindingRulesAndLevels(t *testing.T) {
 			files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], `</manifest>`, `<item id="extra-style" href="extra.css" media-type="text/css"/></manifest>`, 1)
 			files["OEBPS/extra.css"] = `.rotation { transform: rotate(2deg); }`
 		}},
-		{name: "xhtml parse failure", id: "kindle.xhtml-parse-failed", level: "warn", edit: func(files map[string]string) {
-			files["OEBPS/chapter.xhtml"] = `<html><body><p>unfinished`
-		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -166,9 +168,6 @@ func TestFindingRulesAndLevels(t *testing.T) {
 			}
 			if tt.id == "kindle.css-parse-failed" && !hasFinding(result.Findings, "kindle.css-transform-rotate") {
 				t.Error("valid stylesheet was not inspected after another stylesheet failed to parse")
-			}
-			if tt.id == "kindle.mathml-properties-missing" && result.Status != report.StatusFailed {
-				t.Errorf("error finding status=%q, want failed", result.Status)
 			}
 			if tt.name == "svg cover" && hasFinding(result.Findings, "kindle.image-svg") {
 				t.Error("cover SVG should be checked as cover-not-raster, not as a non-cover SVG")
@@ -192,7 +191,7 @@ func TestNegativeRulesAndDeterministicOrder(t *testing.T) {
 	}
 	for _, id := range []string{
 		"kindle.css-transform-rotate", "kindle.css-styled-underline", "kindle.css-amzn-media-query",
-		"kindle.css-img-direct-float", "kindle.mathml-properties-missing", "kindle.css-parse-failed", "kindle.xhtml-parse-failed",
+		"kindle.css-img-direct-float", "kindle.css-parse-failed",
 	} {
 		if hasFinding(first.Findings, id) {
 			t.Errorf("valid or fallback rule produced false positive %q: %+v", id, first.Findings)
@@ -274,7 +273,6 @@ func TestFindingsFollowCheckPathAndOffsetOrder(t *testing.T) {
 	}
 	wantIDs := []string{
 		"kindle.image-webp",
-		"kindle.mathml-properties-missing",
 		"kindle.css-transform-rotate",
 		"kindle.css-transform-rotate",
 		"kindle.css-transform-rotate",

@@ -97,6 +97,15 @@ func TestNativeFixtureGolden(t *testing.T) {
 	}
 }
 
+func TestKindleCompatibilityRulesStayOutOfNavAudit(t *testing.T) {
+	res := runNativeAudit(t, writeKindleOverlapFixture(t))
+	for _, finding := range res.Findings {
+		if strings.Contains(strings.ToLower(finding.Title), "kindle") || finding.Title == "Convert this image to JPEG/PNG for EPUB delivery" {
+			t.Errorf("Kindle compatibility finding duplicated in nav.audit: %+v", finding)
+		}
+	}
+}
+
 func TestActionableMissingHTMLLangAppearsInFindings(t *testing.T) {
 	path := writeNativeFixture(t)
 	b, err := book.Open(path)
@@ -227,6 +236,26 @@ body { font-family: Native, serif; }
 		t.Fatal(err)
 	}
 	return path
+}
+
+func writeKindleOverlapFixture(t *testing.T) string {
+	t.Helper()
+	base := writeNativeFixture(t)
+	opfWithoutDuplicates := filepath.Join(t.TempDir(), "without-shared-rules.epub")
+	rewriteZipEntry(t, base, opfWithoutDuplicates, "OEBPS/content.opf", func(data []byte) []byte {
+		opf := string(data)
+		opf = strings.Replace(opf, ` toc="ncx"`, "", 1)
+		opf = strings.Replace(opf, `<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`, "", 1)
+		opf = strings.Replace(opf, ` properties="cover-image"`, "", 1)
+		opf = strings.Replace(opf, `<meta name="cover" content="cover-image"/>`, "", 1)
+		opf = strings.Replace(opf, `</manifest>`, `<item id="webp" href="Images/a.webp" media-type="image/webp"/><item id="svg-cover" href="Images/cover.svg" media-type="image/svg+xml" properties="nav cover-image"/></manifest>`, 1)
+		return []byte(opf)
+	})
+	withWebP := filepath.Join(t.TempDir(), "with-webp.epub")
+	addZipEntry(t, opfWithoutDuplicates, withWebP, "OEBPS/Images/a.webp", []byte("RIFF0000WEBP"))
+	withSVG := filepath.Join(t.TempDir(), "with-svg.epub")
+	addZipEntry(t, withWebP, withSVG, "OEBPS/Images/cover.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg"/>`))
+	return withSVG
 }
 
 // Ensure the fixture intentionally exercises all conditional command branches.

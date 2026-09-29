@@ -8,25 +8,19 @@
   "facts": {
     "epub.kindle.compatibility.check.checks": [
       "kindle.ncx-missing",
-      "kindle.cover-image-missing",
-      "kindle.cover-meta-missing",
       "kindle.cover-not-raster",
       "kindle.image-webp",
       "kindle.image-tiff",
       "kindle.image-gif",
       "kindle.image-svg",
-      "kindle.mathml-properties-missing",
       "kindle.css-transform-rotate",
       "kindle.css-styled-underline",
       "kindle.css-amzn-media-query",
       "kindle.css-img-direct-float",
       "kindle.css-unicode-range",
-      "kindle.css-parse-failed",
-      "kindle.xhtml-parse-failed"
+      "kindle.css-parse-failed"
     ],
     "epub.kindle.compatibility.check.counts": {
-      "kindle.cover-image-missing": 0,
-      "kindle.cover-meta-missing": 0,
       "kindle.cover-not-raster": 0,
       "kindle.css-amzn-media-query": 0,
       "kindle.css-img-direct-float": 0,
@@ -38,9 +32,7 @@
       "kindle.image-svg": 0,
       "kindle.image-tiff": 0,
       "kindle.image-webp": 0,
-      "kindle.mathml-properties-missing": 0,
-      "kindle.ncx-missing": 0,
-      "kindle.xhtml-parse-failed": 0
+      "kindle.ncx-missing": 0
     },
     "epub.kindle.compatibility.check.cssFilesScanned": 1,
     "epub.kindle.compatibility.check.staticOnly": true,

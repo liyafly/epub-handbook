@@ -60,11 +60,11 @@ maintain 均只读，无 `--output`。catalog=true 从真实 spine 生成场景�
 
 ### Kindle 兼容检查
 
-- `kindle.ncx-missing`：补齐 NCX manifest item 或 spine `toc`；`kindle.cover-image-missing`、`kindle.cover-meta-missing`、`kindle.cover-not-raster`：按封面规范核对 cover-image、name=cover 元数据和 JPEG/PNG 主路径。
+- `kindle.ncx-missing`：补齐 NCX manifest item 或 spine `toc`；`kindle.cover-not-raster`：按目标格式核对封面资源是否走 JPEG/PNG 主路径。cover-image 与 legacy `name=cover` 元数据由 nav.audit 报告。
 - `kindle.image-webp` 是 error，改用 JPEG/PNG 并重查；`kindle.image-tiff`、`kindle.image-gif` 要逐资源复核，GIF 另人工确认帧数；`kindle.image-svg` 检查目标格式的 raster fallback。
-- `kindle.mathml-properties-missing`：为含 MathML 的 spine item 补 `properties="mathml"`；`kindle.css-transform-rotate`：移除通用 EPUB 便签旋转；`kindle.css-styled-underline`：先声明基础 underline 再声明增强样式。
+- `kindle.css-transform-rotate`：移除通用 EPUB 便签旋转；`kindle.css-styled-underline`：先声明基础 underline 再声明增强样式。
 - `kindle.css-amzn-media-query`：移除 Kindle 专用媒体查询；`kindle.css-img-direct-float`：将 float 放在 wrapping figure；`kindle.css-unicode-range`：核对字体分配在目标 Kindle 格式中的实测结果。
-- `kindle.css-parse-failed` / `kindle.xhtml-parse-failed`：修复或人工检查对应文件后重跑。转换日志中的 warning 映射到具体资源再判断，不默认无害；没有实测不虚构 pass/fail。设备不可用时列待验项，不把静态修复当成验收完成。
+- `kindle.css-parse-failed`：修复或人工检查对应样式表后重跑。spine XHTML 的解析与 MathML properties 检查由 nav.audit 报告。转换日志中的 warning 映射到具体资源再判断，不默认无害；没有实测不虚构 pass/fail。设备不可用时列待验项，不把静态修复当成验收完成。
 - 改动交最窄专项 skill，保留 EPUB3 语义和正文；新兼容规则走 demo → 实测 → matrix → SPEC，不把私有 CSS 当关键内容唯一路径。
 
 ### 版式 demo 与证据

@@ -82,7 +82,7 @@
     },
     "epub.package.nav.audit.findingsByLevel": {
       "error": 0,
-      "warn": 4,
+      "warn": 3,
       "info": 0
     },
     "epub.package.nav.audit.status": "complete"
@@ -91,7 +91,7 @@
     {
       "level": "info",
       "id": "upstream.diagnostics",
-      "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
+      "title": "epub.package.nav.audit reported 0 error / 3 warn findings (diagnostic, not blocking)",
       "detail": "see facts[\"epub.package.nav.audit.findingsByLevel\"]",
       "location": "epub.package.nav.audit"
     },
@@ -111,7 +111,7 @@
     {
       "step": "epub.package.nav.audit",
       "status": "completed",
-      "message": "diagnostic: 0 error, 4 warn"
+      "message": "diagnostic: 0 error, 3 warn"
     },
     {
       "step": "epub.font.subset",

@@ -120,21 +120,17 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 func checkIDs() []string {
 	return []string{
 		"kindle.ncx-missing",
-		"kindle.cover-image-missing",
-		"kindle.cover-meta-missing",
 		"kindle.cover-not-raster",
 		"kindle.image-webp",
 		"kindle.image-tiff",
 		"kindle.image-gif",
 		"kindle.image-svg",
-		"kindle.mathml-properties-missing",
 		"kindle.css-transform-rotate",
 		"kindle.css-styled-underline",
 		"kindle.css-amzn-media-query",
 		"kindle.css-img-direct-float",
 		"kindle.css-unicode-range",
 		"kindle.css-parse-failed",
-		"kindle.xhtml-parse-failed",
 	}
 }
 
@@ -152,28 +148,6 @@ func (i *inspector) checkPackage() {
 	}
 
 	cover, hasCover := i.pkg.CoverItem()
-	if !hasCover {
-		i.add("warn", "kindle.cover-image-missing", "Cover image declaration is missing",
-			"no manifest item declares the cover-image property", i.opfPath, 0)
-	}
-	metaCoverFound, metaCoverMatches := false, false
-	for _, meta := range i.pkg.Metas {
-		if !strings.EqualFold(strings.TrimSpace(meta.Name), "cover") {
-			continue
-		}
-		metaCoverFound = true
-		if hasCover && meta.Content == cover.ID {
-			metaCoverMatches = true
-			break
-		}
-	}
-	if !metaCoverFound || !metaCoverMatches {
-		detail := "metadata must contain name=cover with content equal to the cover-image manifest id"
-		if metaCoverFound {
-			detail = "name=cover metadata does not point to the manifest item with cover-image"
-		}
-		i.add("warn", "kindle.cover-meta-missing", "Kindle cover metadata is missing or mismatched", detail, i.opfPath, 0)
-	}
 	if hasCover && cover.MediaType != "image/jpeg" && cover.MediaType != "image/png" {
 		i.add("warn", "kindle.cover-not-raster", "Cover image is not a supported raster format",
 			fmt.Sprintf("cover item %s has media-type %q; use image/jpeg or image/png for the Kindle main path", cover.ID, cover.MediaType), itemLocation(cover, i.opfPath), 0)
@@ -317,26 +291,13 @@ func (i *inspector) checkSpineXHTML() (int, error) {
 				return filesScanned, err
 			}
 			if errors.Is(err, book.ErrMissingEntry) {
-				i.add("warn", "kindle.xhtml-parse-failed", "Spine XHTML cannot be inspected",
-					"manifest XHTML entry is missing: "+err.Error(), item.ArchivePath, 0)
 				continue
 			}
 			return filesScanned, fmt.Errorf("kindle check read %s: %w", item.ArchivePath, err)
 		}
-		root, err := opf.ScanXHTMLSpanTree(data)
-		if err != nil {
-			i.add("warn", "kindle.xhtml-parse-failed", "Spine XHTML cannot be inspected", err.Error(), item.ArchivePath, 0)
+		if _, err := opf.ScanXHTMLSpanTree(data); err != nil {
+			// nav.audit owns parse diagnostics for spine XHTML.
 			continue
-		}
-		mathCount := 0
-		for _, node := range root.Walk() {
-			if node.Name.Local == "math" {
-				mathCount++
-			}
-		}
-		if mathCount > 0 && !hasProperty(item.Properties, "mathml") {
-			i.add("error", "kindle.mathml-properties-missing", "MathML manifest property is missing",
-				fmt.Sprintf("spine item %s contains %d math element(s) but lacks properties token mathml", item.ID, mathCount), item.ArchivePath, 0)
 		}
 	}
 	return filesScanned, nil
