@@ -97,6 +97,9 @@ jobs:
             'docs/final/**/*.md' 'docs/learn/**/*.md' \
             'docs/how-to/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
 
+      - name: Reader matrix evidence guard
+        run: sh .github/scripts/reader-matrix-guard.sh docs/final/reader-matrix.yaml
+
       - name: Architecture guards and tests
         run: |
           go build ./...

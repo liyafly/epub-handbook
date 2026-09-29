@@ -74,9 +74,12 @@
   issue: <一句话现象>
   action: <你做了什么>
   workaround: <临时回避方法（如有）>
+  screenshot: <截图路径（如有）>
+  log: <阅读器日志路径（如有）>
+  conversion_log: <转换日志路径（如有）>
 ```
 
-不允许在没有实测的情况下写 `pass`。没测过就写 `warn` + `pending-<reader>-version`。
+不允许在没有实测的情况下写 `pass`。`pass` 必须附上 `screenshot`、`log` 或 `conversion_log` 之一；没测过就写 `warn` + `pending-<reader>-version`。
 
 ## 提 issue 时
 
