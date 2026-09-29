@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
@@ -119,7 +120,7 @@ func analyzeEpub(ctx context.Context, b *book.Book) (advisorReport, error) {
 	if err != nil {
 		return advisorReport{}, err
 	}
-	opfDir := dirName(pkg.Path)
+	opfDir := pypath.Dirname(pkg.Path)
 
 	items := map[string]opf.ManifestItem{}
 	for _, it := range pkg.Manifest {
@@ -151,7 +152,7 @@ func analyzeEpub(ctx context.Context, b *book.Book) (advisorReport, error) {
 		if item.MediaType != "application/xhtml+xml" {
 			continue
 		}
-		xhtmlPath := normJoin(opfDir, item.Href)
+		xhtmlPath := pypath.NormJoin(opfDir, item.Href)
 		if !b.Has(xhtmlPath) {
 			warnings = append(warnings, "spine XHTML missing: "+xhtmlPath)
 			continue
@@ -225,7 +226,7 @@ func analyzeEpub(ctx context.Context, b *book.Book) (advisorReport, error) {
 			imageSrc := attrValue(imageElem, "src")
 			var imagePath string
 			if imageSrc != "" {
-				imagePath = normJoin(dirName(xhtmlPath), imageSrc)
+				imagePath = pypath.NormJoin(pypath.Dirname(xhtmlPath), imageSrc)
 			}
 			imageSelector := selectorFor(imageElem, body)
 
@@ -526,7 +527,7 @@ func navPaths(ctx context.Context, b *book.Book, pkg *opf.Package) (map[string]b
 	if !ok || navItem.Href == "" {
 		return chapters, covers, nil
 	}
-	navPath := normJoin(dirName(pkg.Path), navItem.Href)
+	navPath := pypath.NormJoin(pypath.Dirname(pkg.Path), navItem.Href)
 	if !b.Has(navPath) {
 		return chapters, covers, nil
 	}
@@ -538,7 +539,7 @@ func navPaths(ctx context.Context, b *book.Book, pkg *opf.Package) (map[string]b
 	if err != nil {
 		return nil, nil, err
 	}
-	navDir := dirName(navPath)
+	navDir := pypath.Dirname(navPath)
 	epubTypeKey := "{" + opf.OPSURI + "}type"
 
 	var walk func(n *ixNode)
@@ -562,7 +563,7 @@ func navPaths(ctx context.Context, b *book.Book, pkg *opf.Package) (map[string]b
 				if href == "" {
 					continue
 				}
-				target := normJoin(navDir, href)
+				target := pypath.NormJoin(navDir, href)
 				if types["toc"] {
 					chapters[target] = true
 				}
