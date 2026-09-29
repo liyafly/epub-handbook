@@ -285,6 +285,9 @@ func init() {
 		for _, assignment := range assignments {
 			hasID := assignment.ID != ""
 			hasTag := assignment.Tag != ""
+			if assignment.Index != nil && *assignment.Index < 0 {
+				return report.Result{}, usageErrorf("assignment index must be non-negative")
+			}
 			if hasID == hasTag {
 				return report.Result{}, usageErrorf("每个 assignment 必须且只能提供 id 或 tag")
 			}

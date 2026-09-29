@@ -1022,6 +1022,7 @@ func TestLiteraryStructureAssignmentsValidationUsesUsageExit(t *testing.T) {
 		`[{"path":"OEBPS/Text/01-body.xhtml","id":"target","tag":"blockquote","class":"epigraph"}]`,
 		`[{"path":"OEBPS/Text/01-body.xhtml","class":"epigraph"}]`,
 		`[{"path":"OEBPS/Text/01-body.xhtml","tag":"blockquote","class":"epigraph"}]`,
+		`[{"path":"OEBPS/Text/01-body.xhtml","tag":"p","index":-1,"class":"epigraph"}]`,
 		`[{"path":"OEBPS/Text/01-body.xhtml","id":"target","index":0,"class":"epigraph"}]`,
 	} {
 		outcome, err := Run(t.Context(), Options{
@@ -1033,6 +1034,31 @@ func TestLiteraryStructureAssignmentsValidationUsesUsageExit(t *testing.T) {
 		if err == nil || outcome.ExitCode != ExitUsage || outcome.Envelope.Status != report.StatusFailed {
 			t.Fatalf("assignments=%q outcome=%+v err=%v, want usage / exit 3", assignments, outcome, err)
 		}
+	}
+}
+
+func TestLiteraryStructureRejectsSVGIDTarget(t *testing.T) {
+	input := writeLiteraryStructureEPUBWithSVGTarget(t)
+	output := filepath.Join(t.TempDir(), "candidate.epub")
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.literary.structure.format",
+		InputPath:    input,
+		OutputPath:   output,
+		Args: Args{
+			"assignments": `[{"path":"OEBPS/Text/01-body.xhtml","id":"svg-link","class":"epigraph"}]`,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitFailed || outcome.Envelope.Status != report.StatusFailed || !hasFindingID(outcome.Envelope.Findings, "literary.target-forbidden") {
+		t.Fatalf("status=%q exit=%d findings=%+v, want target-forbidden / exit 1", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.literary.structure.format.editCount"]; got != nil && got != 0 {
+		t.Fatalf("editCount=%#v, want 0", got)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("output stat error=%v, want candidate absent", err)
 	}
 }
 
@@ -1080,4 +1106,56 @@ func writeLiteraryStructureEPUB(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return input
+}
+
+func writeLiteraryStructureEPUBWithSVGTarget(t *testing.T) string {
+	t.Helper()
+	input := writeLiteraryStructureEPUB(t)
+	source, err := zip.OpenReader(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for _, entry := range source.File {
+		reader, err := entry.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(reader)
+		closeErr := reader.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if entry.Name == "OEBPS/Text/01-body.xhtml" {
+			updated := strings.Replace(string(data), "</body>", `<svg xmlns="http://www.w3.org/2000/svg"><rect id="svg-link" width="1" height="1"/></svg></body>`, 1)
+			if updated == string(data) {
+				t.Fatal("literary fixture body close tag not found")
+			}
+			data = []byte(updated)
+		}
+		header := &zip.FileHeader{Name: entry.Name, Method: entry.Method}
+		if entry.Name == "mimetype" {
+			header.Method = zip.Store
+		}
+		member, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := member.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "literary-svg.epub")
+	if err := os.WriteFile(path, archive.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

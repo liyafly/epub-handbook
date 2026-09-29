@@ -195,7 +195,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		}
 		if forbiddenTarget(node) {
 			findings = append(findings, assignmentFinding(
-				"literary.target-forbidden", "Assignment target is in document head or is a document root",
+				"literary.target-forbidden", "Assignment target is not writable XHTML content",
 				fmt.Sprintf("target %q cannot receive literary structure classes", target), assignment.Path,
 			))
 			continue
@@ -380,7 +380,7 @@ func targetName(assignment Assignment) string {
 }
 
 func forbiddenTarget(node *opf.SpanNode) bool {
-	if node.Name.Local == "html" || node.Name.Local == "head" {
+	if node.Name.Space != opf.XHTMLURI || node.Name.Local == "html" || node.Name.Local == "head" {
 		return true
 	}
 	for parent := node.Parent; parent != nil; parent = parent.Parent {
