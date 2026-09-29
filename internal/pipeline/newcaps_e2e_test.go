@@ -1003,6 +1003,42 @@ func TestLiteraryStructureRejectsInvalidClassWithoutChanges(t *testing.T) {
 	}
 }
 
+func TestScopePathWhitespaceIsUsageError(t *testing.T) {
+	input := writeNewCapabilityEPUB(t)
+	for _, capability := range []struct {
+		id string
+		op string
+	}{
+		{id: "epub.typography.english.optimize"},
+		{id: "epub.vertical.ruby.optimize", op: "ruby-rp"},
+		{id: "epub.typography.optimize"},
+	} {
+		for _, invalid := range []struct {
+			name  string
+			paths string
+		}{
+			{name: "spaces", paths: `[" "]`},
+			{name: "empty", paths: `[""]`},
+		} {
+			t.Run(capability.id+"/"+invalid.name, func(t *testing.T) {
+				args := Args{"scope_paths": invalid.paths}
+				if capability.op != "" {
+					args["op"] = capability.op
+				}
+				outcome, err := Run(t.Context(), Options{
+					CapabilityID: capability.id,
+					InputPath:    input,
+					DryRun:       true,
+					Args:         args,
+				})
+				if err == nil || outcome.ExitCode != ExitUsage || outcome.Envelope.Status != report.StatusFailed {
+					t.Fatalf("outcome=%+v err=%v, want usage / exit 3", outcome, err)
+				}
+			})
+		}
+	}
+}
+
 func TestLiteraryStructureAssignmentsValidationUsesUsageExit(t *testing.T) {
 	input := writeLiteraryStructureEPUB(t)
 	for _, assignments := range []string{

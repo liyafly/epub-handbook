@@ -102,6 +102,23 @@ func ImplementedIDs() []string {
 	return out
 }
 
+func parseScopePaths(args Args) ([]string, error) {
+	raw, ok := args["scope_paths"]
+	if !ok {
+		return nil, nil
+	}
+	var paths []string
+	if err := json.Unmarshal([]byte(raw), &paths); err != nil || len(paths) == 0 {
+		return nil, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
+	}
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" {
+			return nil, usageErrorf("scope_paths 不能包含空路径")
+		}
+	}
+	return paths, nil
+}
+
 func init() {
 	register("epub.package.nav.audit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return navaudit.Run(ctx, b, navaudit.Params{})
@@ -153,16 +170,9 @@ func init() {
 		} else if !englishtypography.ValidLang(lang) {
 			return report.Result{}, usageErrorf("lang 必须符合 BCP 47 子集，如 en 或 en-GB")
 		}
-		var scope []string
-		if raw, ok := args["scope_paths"]; ok {
-			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
-				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
-			}
-			for _, path := range scope {
-				if strings.TrimSpace(path) == "" {
-					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
-				}
-			}
+		scope, err := parseScopePaths(args)
+		if err != nil {
+			return report.Result{}, err
 		}
 		return englishtypography.Run(ctx, b, englishtypography.Params{Lang: lang, ScopePaths: scope})
 	})
@@ -174,16 +184,9 @@ func init() {
 		if op != verticalruby.OpRubyRP && op != verticalruby.OpWritingModePrefix {
 			return report.Result{}, usageErrorf("op 必须是 ruby-rp 或 writing-mode-prefix")
 		}
-		var scope []string
-		if raw, ok := args["scope_paths"]; ok {
-			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
-				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
-			}
-			for _, path := range scope {
-				if strings.TrimSpace(path) == "" {
-					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
-				}
-			}
+		scope, err := parseScopePaths(args)
+		if err != nil {
+			return report.Result{}, err
 		}
 		return verticalruby.Run(ctx, b, verticalruby.Params{Op: op, ScopePaths: scope})
 	})
@@ -282,11 +285,9 @@ func init() {
 		})
 	})
 	register("epub.typography.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		var scope []string
-		if raw, ok := args["scope_paths"]; ok {
-			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
-				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
-			}
+		scope, err := parseScopePaths(args)
+		if err != nil {
+			return report.Result{}, err
 		}
 		preset := args.Get("preset")
 		if preset == "" {
