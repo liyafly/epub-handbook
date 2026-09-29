@@ -1,6 +1,4 @@
-// util.go 收纳 Python 语义的字符串/路径工具。
-// 说明：caps 包之间禁止互相 import，normJoin/isPySpace 等工具在本包内
-// 有意自持一份（与 image_layout 包重复），这是层级隔离的代价而非疏漏。
+// util.go 收纳 Python 语义的字符串工具。
 package contentanalyze
 
 import (
@@ -8,78 +6,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-// dirName 复刻 posixpath.dirname（Go path.Dir 对无斜杠路径返回 "."，不同）。
-func dirName(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-// normJoin 复刻 epub_lib.norm_join：剥 #fragment 后 posixpath.join + normpath。
-// 与 opf.ResolveHref 不同：这里不做百分号解码（Python 侧同样不解码）。
-func normJoin(base, href string) string {
-	clean := href
-	if i := strings.IndexByte(clean, '#'); i >= 0 {
-		clean = clean[:i]
-	}
-	var joined string
-	switch {
-	case strings.HasPrefix(clean, "/"):
-		joined = clean // posixpath.join：绝对分量直接替换
-	case base == "":
-		joined = clean
-	default:
-		joined = strings.TrimSuffix(base, "/") + "/" + clean
-	}
-	return normPath(joined)
-}
-
-// normPath 复刻 posixpath.normpath：折叠 "."/".." 与重复斜杠，
-// 保留恰好两个前导斜杠的 POSIX 特例，根路径的 ".." 直接丢弃。
-func normPath(p string) string {
-	if p == "" {
-		return "."
-	}
-	rooted := false
-	doubleSlash := false
-	if strings.HasPrefix(p, "//") && !strings.HasPrefix(p, "///") {
-		doubleSlash = true
-	} else if strings.HasPrefix(p, "/") {
-		rooted = true
-	}
-	p = strings.TrimLeft(p, "/")
-	var out []string
-	for _, part := range strings.Split(p, "/") {
-		switch part {
-		case "", ".":
-		case "..":
-			if len(out) > 0 && out[len(out)-1] != ".." {
-				out = out[:len(out)-1]
-			} else if !rooted && !doubleSlash {
-				out = append(out, "..")
-			}
-		default:
-			out = append(out, part)
-		}
-	}
-	joined := strings.Join(out, "/")
-	switch {
-	case doubleSlash:
-		return "//" + joined
-	case rooted:
-		if joined == "" {
-			return "/"
-		}
-		return "/" + joined
-	default:
-		if joined == "" {
-			return "."
-		}
-		return joined
-	}
-}
 
 // isPySpace 覆盖 Python str.isspace / 正则 \s 的全集：
 // unicode.White_Space + \x1c-\x1f。

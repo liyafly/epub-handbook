@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
@@ -275,14 +276,14 @@ func spineDocuments(ctx context.Context, b *book.Book) ([]spineDoc, []sourceErro
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read EPUB package: %w", err)
 	}
-	opfDir := dirName(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 	byID := map[string]string{}
 	for _, item := range pkg.Manifest {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
 		if item.ID != "" && item.Href != "" {
-			byID[item.ID] = normJoin(opfDir, item.Href)
+			byID[item.ID] = pypath.NormJoin(opfDir, item.Href)
 		}
 	}
 	var docs []spineDoc
