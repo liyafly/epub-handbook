@@ -772,7 +772,7 @@ func compareRedline(before, after, check string, allowList []string, pathMapFile
 		}
 		m, err := redline.LoadPathMap(raw)
 		if err != nil {
-			message := err.Error()
+			message := redline.InputErrorText(err)
 			return redlineOutcome{
 				Envelope: redlineEnvelope(before, after, check, []string{message}, []report.Finding{{
 					Level: "error", ID: "redline.input.0", Title: "Invalid --path-map", Detail: message,
@@ -829,6 +829,8 @@ func redlineEnvelope(before, after, check string, lines []string, findings []rep
 	if lines == nil {
 		lines = []string{}
 	}
+	input := redlineArtifactReference(before)
+	output := redlineArtifactReference(after)
 	status := report.StatusComplete
 	for _, finding := range findings {
 		if finding.Level == "error" {
@@ -840,6 +842,8 @@ func redlineEnvelope(before, after, check string, lines []string, findings []rep
 		SchemaVersion: "2",
 		Capability:    "epub.redline",
 		Status:        status,
+		Input:         input,
+		Output:        output,
 		Facts: map[string]any{
 			"epub.redline.check":  check,
 			"epub.redline.before": before,
@@ -848,6 +852,14 @@ func redlineEnvelope(before, after, check string, lines []string, findings []rep
 		},
 		Findings: findings,
 	}
+}
+
+func redlineArtifactReference(path string) *report.Artifact {
+	artifact := &report.Artifact{Path: path}
+	if sum, err := book.FileSHA256Context(context.Background(), path); err == nil {
+		artifact.SHA256 = sum
+	}
+	return artifact
 }
 
 func writeRedlineLines(lines []string) {

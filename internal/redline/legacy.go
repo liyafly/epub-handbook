@@ -148,23 +148,23 @@ func renderReport(rep runReport, o Options) []string {
 func CompareFiles(beforePath, afterPath string, checkArg string, o Options) (Report, error) {
 	checks, err := resolveChecks(splitCheckArg(checkArg))
 	if err != nil {
-		return inputFailure("input error: " + err.Error()), nil
+		return inputFailure("input error: " + InputErrorText(err)), nil
 	}
 	before, err := openState(beforePath)
 	if err != nil {
-		return inputFailure("input error: " + err.Error()), nil
+		return inputFailure("input error: " + InputErrorText(err)), nil
 	}
 	defer before.Close()
 	after, err := openState(afterPath)
 	if err != nil {
-		return inputFailure("input error: " + err.Error()), nil
+		return inputFailure("input error: " + InputErrorText(err)), nil
 	}
 	defer after.Close()
 
 	rep, err := runChecks(before, after, checks, o)
 	if err != nil {
 		if isErrInput(err) {
-			return inputFailure("input error: " + inputErrorText(err)), nil
+			return inputFailure("input error: " + InputErrorText(err)), nil
 		}
 		return Report{}, err
 	}
@@ -337,7 +337,8 @@ func contains(list []string, want string) bool {
 
 func isErrInput(err error) bool { return errors.Is(err, ErrInput) }
 
-func inputErrorText(err error) string {
+// InputErrorText removes the stable ErrInput type prefix for user-facing messages.
+func InputErrorText(err error) string {
 	msg := err.Error()
 	const prefix = "redline: input error: "
 	return strings.TrimPrefix(msg, prefix)

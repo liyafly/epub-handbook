@@ -3,6 +3,8 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	jsonv2 "encoding/json/v2"
 	"io"
@@ -118,6 +120,73 @@ func TestRunRedlineJSONPassAndFail(t *testing.T) {
 				t.Fatalf("envelope facts/findings = %#v / %#v", env.Facts, env.Findings)
 			}
 		})
+	}
+}
+
+func TestRedlineJSONInputErrorHasSinglePrefix(t *testing.T) {
+	dir := t.TempDir()
+	before := filepath.Join(dir, "before.epub")
+	missingAfter := filepath.Join(dir, "missing-after.epub")
+	writeRedlineFixture(t, before, "same text")
+
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return runRedline([]string{"--check", "all", "--json", before, missingAfter})
+	})
+	if code != 3 {
+		t.Fatalf("exit = %d, want 3; stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("JSON mode wrote legacy text to stderr: %s", stderr)
+	}
+	if strings.Contains(stdout, "redline: input error") {
+		t.Fatalf("input error has duplicate prefix: %s", stdout)
+	}
+	var env report.Envelope
+	if err := json.Unmarshal([]byte(stdout), &env); err != nil {
+		t.Fatalf("stdout is not a JSON envelope: %v\n%s", err, stdout)
+	}
+	if len(env.Findings) != 1 || !strings.Contains(env.Findings[0].Title, "input error: input not found") {
+		t.Fatalf("input error finding = %+v", env.Findings)
+	}
+	if env.Input == nil || env.Input.Path != before || env.Input.SHA256 == "" {
+		t.Fatalf("input artifact = %+v, want readable input path and SHA-256", env.Input)
+	}
+	if env.Output == nil || env.Output.Path != missingAfter || env.Output.SHA256 != "" {
+		t.Fatalf("output artifact = %+v, want missing path without SHA-256", env.Output)
+	}
+}
+
+func TestRedlineEnvelopeRecordsArtifactSHA(t *testing.T) {
+	dir := t.TempDir()
+	before := filepath.Join(dir, "before.epub")
+	after := filepath.Join(dir, "after.epub")
+	writeRedlineFixture(t, before, "same text")
+	writeRedlineFixture(t, after, "same text")
+
+	code, stdout, stderr := captureRunFunc(t, func() int {
+		return runRedline([]string{"--check", "all", "--json", before, after})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%q stdout=%s", code, stderr, stdout)
+	}
+	var env report.Envelope
+	if err := json.Unmarshal([]byte(stdout), &env); err != nil {
+		t.Fatalf("stdout is not a JSON envelope: %v\n%s", err, stdout)
+	}
+	wantSHA := func(path string) string {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		return hex.EncodeToString(sum[:])
+	}
+	if env.Input == nil || env.Input.Path != before || env.Input.SHA256 != wantSHA(before) {
+		t.Fatalf("input artifact = %+v, want path and SHA-256", env.Input)
+	}
+	if env.Output == nil || env.Output.Path != after || env.Output.SHA256 != wantSHA(after) {
+		t.Fatalf("output artifact = %+v, want path and SHA-256", env.Output)
 	}
 }
 
