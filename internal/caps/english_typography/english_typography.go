@@ -27,10 +27,6 @@ type Params struct {
 	ScopePaths []string
 }
 
-type spineFile struct {
-	path string
-}
-
 type plannedEdit struct {
 	Path   string `json:"path"`
 	Action string `json:"action"`
@@ -107,12 +103,16 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 	if err != nil {
 		return nil, nil, nil, nil, 0, err
 	}
-	spine := spineXHTML(pkg)
-	byPath := make(map[string]spineFile, len(spine))
-	for _, file := range spine {
-		byPath[file.path] = file
+	spine := opf.SpineXHTMLPaths(pkg)
+	byPath := make(map[string]struct{}, len(spine))
+	for _, path := range spine {
+		byPath[path] = struct{}{}
 	}
-	selected, skipped := scopeFiles(spine, byPath, scope)
+	selected, skippedPaths := opf.SelectScopePaths(spine, scope)
+	skipped := make([]skippedFile, 0, len(skippedPaths))
+	for _, path := range skippedPaths {
+		skipped = append(skipped, skippedFile{Path: path, Reason: "outside-scope"})
+	}
 	findings := []report.Finding{}
 	if scope == nil && opfLanguageDiffers(pkg.Metadata["language"], lang) {
 		findings = append(findings, report.Finding{
@@ -147,21 +147,21 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 	var edits []editset.Edit
 	planned := []plannedEdit{}
 	filesScanned := 0
-	for _, file := range selected {
+	for _, path := range selected {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, nil, filesScanned, err
 		}
 		filesScanned++
-		data, err := b.CurrentContext(ctx, file.path)
+		data, err := b.CurrentContext(ctx, path)
 		if err != nil {
-			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
+			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", path, err)
 		}
 		if err := opf.EditableUTF8(data); err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "english.unsupported-encoding",
 				Title:    "XHTML encoding cannot be edited safely",
 				Detail:   err.Error(),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -171,7 +171,7 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 				Level: "error", ID: "english.parse-failed",
 				Title:    "XHTML cannot be parsed for language declarations",
 				Detail:   err.Error(),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -180,7 +180,7 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 				Level: "error", ID: "english.parse-failed",
 				Title:    "XHTML root is not html",
 				Detail:   fmt.Sprintf("root element is %q", root.Name.Local),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -189,7 +189,7 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 				Level: "error", ID: "english.self-closing-html",
 				Title:    "Self-closing html root cannot receive language attributes safely",
 				Detail:   "the document root is a self-closing html element",
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -201,22 +201,22 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 					Level: "warn", ID: "english.lang-mismatch",
 					Title:    "html lang and xml:lang disagree",
 					Detail:   fmt.Sprintf("lang=%q; xml:lang=%q; left unchanged", htmlLang, xmlLang),
-					Location: file.path,
+					Location: path,
 				})
-				skipped = append(skipped, skippedFile{Path: file.path, Reason: "lang-mismatch"})
+				skipped = append(skipped, skippedFile{Path: path, Reason: "lang-mismatch"})
 				continue
 			}
 			if primaryLang(htmlLang) != primaryLang(lang) {
-				findings, skipped = appendLanguageConflict(findings, skipped, file.path, htmlLang, lang, scope != nil)
+				findings, skipped = appendLanguageConflict(findings, skipped, path, htmlLang, lang, scope != nil)
 				continue
 			}
 			findings = append(findings, report.Finding{
 				Level: "info", ID: "english.already-declared",
 				Title:    "Language is already declared on html",
 				Detail:   fmt.Sprintf("html lang and xml:lang both use primary language %q", primaryLang(lang)),
-				Location: file.path,
+				Location: path,
 			})
-			skipped = append(skipped, skippedFile{Path: file.path, Reason: "already-declared"})
+			skipped = append(skipped, skippedFile{Path: path, Reason: "already-declared"})
 			continue
 		}
 		if hasLang || hasXMLLang {
@@ -231,18 +231,18 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 					Level: "warn", ID: "english.invalid-existing-lang",
 					Title:    "Existing language declaration cannot be mirrored safely",
 					Detail:   fmt.Sprintf("existing language %q is invalid; left unchanged", existing),
-					Location: file.path,
+					Location: path,
 				})
-				skipped = append(skipped, skippedFile{Path: file.path, Reason: "invalid-existing-lang"})
+				skipped = append(skipped, skippedFile{Path: path, Reason: "invalid-existing-lang"})
 				continue
 			}
 			if primaryLang(existing) != primaryLang(lang) {
-				findings, skipped = appendLanguageConflict(findings, skipped, file.path, existing, lang, scope != nil)
+				findings, skipped = appendLanguageConflict(findings, skipped, path, existing, lang, scope != nil)
 				continue
 			}
 			insert := missingName + existing + `"`
-			edits = append(edits, editset.Insert(file.path, int64(root.Open.End-1), []byte(insert)))
-			planned = append(planned, plannedEdit{Path: file.path, Action: "mirror-lang", Value: existing})
+			edits = append(edits, editset.Insert(path, int64(root.Open.End-1), []byte(insert)))
+			planned = append(planned, plannedEdit{Path: path, Action: "mirror-lang", Value: existing})
 			continue
 		}
 		body := bodyNode(root)
@@ -251,9 +251,9 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 				Level: "info", ID: "english.declared-on-body",
 				Title:    "Language is declared on body",
 				Detail:   "html has no language declaration; body is left unchanged",
-				Location: file.path,
+				Location: path,
 			})
-			skipped = append(skipped, skippedFile{Path: file.path, Reason: "declared-on-body"})
+			skipped = append(skipped, skippedFile{Path: path, Reason: "declared-on-body"})
 			continue
 		}
 		if scope == nil && body != nil {
@@ -263,9 +263,9 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 					Level: "info", ID: "english.skipped-no-text",
 					Title:    "Undeclared-language page contains no letters",
 					Detail:   "body has no Unicode letters; left unchanged",
-					Location: file.path,
+					Location: path,
 				})
-				skipped = append(skipped, skippedFile{Path: file.path, Reason: "no-letter-text"})
+				skipped = append(skipped, skippedFile{Path: path, Reason: "no-letter-text"})
 				continue
 			}
 			if cjkRatio >= cjkSkipRatio {
@@ -273,15 +273,15 @@ func scanPhase(ctx context.Context, b *book.Book, lang string, scope []string) (
 					Level: "info", ID: "english.skipped-cjk-text",
 					Title:    "Undeclared-language page contains substantial CJK text",
 					Detail:   fmt.Sprintf("CJK-to-letter ratio is at least %.1f; left unchanged", cjkSkipRatio),
-					Location: file.path,
+					Location: path,
 				})
-				skipped = append(skipped, skippedFile{Path: file.path, Reason: "cjk-text"})
+				skipped = append(skipped, skippedFile{Path: path, Reason: "cjk-text"})
 				continue
 			}
 		}
 		insert := ` lang="` + lang + `" xml:lang="` + lang + `"`
-		edits = append(edits, editset.Insert(file.path, int64(root.Open.End-1), []byte(insert)))
-		planned = append(planned, plannedEdit{Path: file.path, Action: "add-lang", Value: lang})
+		edits = append(edits, editset.Insert(path, int64(root.Open.End-1), []byte(insert)))
+		planned = append(planned, plannedEdit{Path: path, Action: "add-lang", Value: lang})
 	}
 
 	slices.SortFunc(findings, func(a, b report.Finding) int {
@@ -374,30 +374,4 @@ func cjkLetterRatio(text string) (float64, int) {
 
 func hasErrorFinding(findings []report.Finding) bool {
 	return slices.ContainsFunc(findings, func(finding report.Finding) bool { return finding.Level == "error" })
-}
-
-func spineXHTML(pkg *opf.Package) []spineFile {
-	paths := opf.SpineXHTMLPaths(pkg)
-	files := make([]spineFile, 0, len(paths))
-	for _, path := range paths {
-		files = append(files, spineFile{path: path})
-	}
-	return files
-}
-
-func scopeFiles(spine []spineFile, byPath map[string]spineFile, scope []string) ([]spineFile, []skippedFile) {
-	paths := make([]string, 0, len(spine))
-	for _, file := range spine {
-		paths = append(paths, file.path)
-	}
-	selectedPaths, skippedPaths := opf.SelectScopePaths(paths, scope)
-	selected := make([]spineFile, 0, len(selectedPaths))
-	for _, path := range selectedPaths {
-		selected = append(selected, byPath[path])
-	}
-	skipped := make([]skippedFile, 0, len(skippedPaths))
-	for _, path := range skippedPaths {
-		skipped = append(skipped, skippedFile{Path: path, Reason: "outside-scope"})
-	}
-	return selected, skipped
 }
