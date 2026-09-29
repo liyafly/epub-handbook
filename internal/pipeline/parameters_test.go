@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -48,6 +49,50 @@ func TestParameterCatalogCoversExactlyTheCapabilities(t *testing.T) {
 	}
 	if _, err := DescribeCapabilities(root, "no.such.capability"); err == nil {
 		t.Fatal("unknown filter accepted")
+	}
+}
+
+func TestParameterCatalogMatchesQ21Selections(t *testing.T) {
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	infos, err := DescribeCapabilities(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantParameters := map[string]map[string]bool{
+		"epub.package.nav.audit":      {},
+		"epub.text.content.analyze":   {"include_snippets": true},
+		"epub.css.layering.optimize":  {"allow_font_obfuscation": true},
+		"epub.notes.legacy-fallback":  {"allow_font_obfuscation": true},
+		"epub.vertical.ruby.optimize": {"allow_font_obfuscation": true, "op": true, "scope_paths": true},
+		"epub.structure.normalize":    {"allow_font_obfuscation": true, "mode": true},
+	}
+	for _, info := range infos {
+		if want, ok := wantParameters[info.ID]; ok {
+			remaining := maps.Clone(want)
+			for key := range info.Parameters {
+				if !remaining[key] {
+					t.Errorf("%s exposes unexpected parameter %q", info.ID, key)
+				}
+				delete(remaining, key)
+			}
+			if len(remaining) != 0 {
+				t.Errorf("%s misses parameters %v", info.ID, remaining)
+			}
+		}
+		_, hasFontFlag := info.Parameters["allow_font_obfuscation"]
+		wantFontFlag := info.Execution.Output != ExecOutputNone
+		if hasFontFlag != wantFontFlag {
+			t.Errorf("%s allow_font_obfuscation=%v, want %v for output=%s", info.ID, hasFontFlag, wantFontFlag, info.Execution.Output)
+		}
+		if info.ID == "epub.structure.normalize" {
+			mode := info.Parameters["mode"]
+			if !slices.Contains(mode.Enum, "inspect") {
+				t.Error("structure normalization no longer offers inspect mode")
+			}
+		}
 	}
 }
 

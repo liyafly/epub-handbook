@@ -92,7 +92,7 @@ epub run epub.css.layering.optimize --input "before.epub" --output "candidate.ep
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-不要请求 `merge_scoped_local_css=true`：该语义归并已因 lossless 安全停用，只产生 warning，不会改 link/body class。
+此能力仅执行已有的字节区间 CSS 清理，不提供 scoped stylesheet 合并。
 
 ### 中文字体与正文节奏
 

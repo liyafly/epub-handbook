@@ -66,36 +66,3 @@ const (
 	verseLineMax = 24
 	visibleMax   = 200
 )
-
-// markdown / plain 源的正则（对齐 analyze 源码里的字面模式）。
-var (
-	// `^(#{1,6})\s+(.+)$`
-	mdHeadingRe = regexp.MustCompile(`^(#{1,6})[` + pySpaceClass + `](.+)$`)
-	// `^\s*(?:[-+*]|\d+[.)])\s+`；\d 用 \p{Nd} 复刻 Python 的 Unicode 语义。
-	mdListRe = regexp.MustCompile(`^[` + pySpaceClass + `]*(?:[-+*]|\p{Nd}+[.)])[` + pySpaceClass + `]+`)
-	// `\n\s*\n`
-	plainSplitRe = regexp.MustCompile(`\n[` + pySpaceClass + `]*\n`)
-)
-
-// namedHTMLRefs 是 loose-HTML 字符引用解码表（Python 用 html.unescape 的
-// 2500 项 HTML5 全集；此处收录中文电子书常见的子集，属已知近似）。
-var namedHTMLRefs = map[string]string{
-	"amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'",
-	"nbsp": " ", "ensp": " ", "emsp": " ", "thinsp": " ",
-	"copy": "©", "reg": "®", "trade": "™", "sect": "§", "para": "¶",
-	"deg": "°", "plusmn": "±", "times": "×", "divide": "÷", "middot": "·",
-	"bull": "•", "dagger": "†", "Dagger": "‡", "permil": "‰",
-	"ldquo": "“", "rdquo": "”", "lsquo": "‘", "rsquo": "’",
-	"sbquo": "‚", "bdquo": "„", "laquo": "«", "raquo": "»",
-	"mdash": "—", "ndash": "–", "hellip": "…",
-	"frac12": "½", "frac14": "¼", "frac34": "¾", "sup2": "²", "sup3": "³",
-	"euro": "€", "pound": "£", "yen": "¥", "cent": "¢",
-	"lrm": "‎", "rlm": "‏", "zwnj": "‌", "zwj": "‍", "shy": "­",
-}
-
-// legacyHTMLRefs 是 HTML5 允许省略分号的 legacy 命名引用子集。
-var legacyHTMLRefs = map[string]bool{
-	"AMP": true, "LT": true, "GT": true, "QUOT": true,
-	"amp": true, "lt": true, "gt": true, "quot": true,
-	"nbsp": true, "copy": true, "reg": true,
-}

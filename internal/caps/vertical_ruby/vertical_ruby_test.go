@@ -166,11 +166,11 @@ func TestRubyRPSkipsEmphasisSymbolRT(t *testing.T) {
 	}
 }
 
-func TestRubyRPBracketOverrideAndAtomicScopeError(t *testing.T) {
+func TestRubyRPScopeErrorIsAtomic(t *testing.T) {
 	input := makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body><ruby>漢<rt>かん</rt></ruby></body></html>`, "")
 	b := openFixture(t, input)
 	before := current(t, b, rubyPath)
-	failed, err := Run(context.Background(), b, Params{Op: OpRubyRP, ScopePaths: []string{rubyPath, "OEBPS/Text/missing.xhtml"}, RPOpen: "[", RPClose: "]"})
+	failed, err := Run(t.Context(), b, Params{Op: OpRubyRP, ScopePaths: []string{rubyPath, "OEBPS/Text/missing.xhtml"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,23 +180,12 @@ func TestRubyRPBracketOverrideAndAtomicScopeError(t *testing.T) {
 	if !bytes.Equal(current(t, b, rubyPath), before) {
 		t.Fatal("scope error applied a partial Ruby edit")
 	}
-	good, err := Run(context.Background(), b, Params{Op: OpRubyRP, RPOpen: "[", RPClose: "]"})
+	good, err := Run(t.Context(), b, Params{Op: OpRubyRP})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if good.Facts["editCount"] != 2 || !strings.Contains(string(current(t, b, rubyPath)), `<rp>[</rp><rt>かん</rt><rp>]</rp>`) {
-		t.Fatalf("custom bracket result=%s facts=%#v", current(t, b, rubyPath), good.Facts)
-	}
-	if ValidRPToken("<") || ValidRPToken(" ") || ValidRPToken("xy") || !ValidRPToken("[") {
-		t.Fatal("ValidRPToken did not enforce the documented one-rune safe-token rule")
-	}
-}
-
-func TestValidRPTokenRejectsXMLInvalidCharacters(t *testing.T) {
-	for _, value := range []string{"\x01", "\uFFFE", "\uFFFF", string([]byte{0xED, 0xA0, 0x80})} {
-		if ValidRPToken(value) {
-			t.Errorf("ValidRPToken(%q) = true, want false", value)
-		}
+	if good.Facts["editCount"] != 2 || !strings.Contains(string(current(t, b, rubyPath)), `<rp>（</rp><rt>かん</rt><rp>）</rp>`) {
+		t.Fatalf("fixed bracket result=%s facts=%#v", current(t, b, rubyPath), good.Facts)
 	}
 }
 

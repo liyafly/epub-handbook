@@ -109,8 +109,6 @@ func init() {
 	register("epub.text.content.analyze", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return contentanalyze.Run(ctx, b, contentanalyze.Params{
 			IncludeSnippets: args.Bool("include_snippets"),
-			SourceName:      args.Get("source_name"),
-			SourceContent:   args.Get("source_content"),
 		})
 	})
 	register("epub.image.layout.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -146,18 +144,7 @@ func init() {
 				noterefs = count
 			}
 		}
-		var scope []string
-		if raw, ok := args["scope_paths"]; ok {
-			if err := json.Unmarshal([]byte(raw), &scope); err != nil || len(scope) == 0 {
-				return report.Result{}, usageErrorf("scope_paths 必须是非空 JSON 字符串数组")
-			}
-			for _, path := range scope {
-				if path == "" {
-					return report.Result{}, usageErrorf("scope_paths 不能包含空路径")
-				}
-			}
-		}
-		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, UpstreamNoterefs: noterefs, ScopePaths: scope})
+		return notesfallback.Run(ctx, b, notesfallback.Params{UpstreamViolations: violations, UpstreamNoterefs: noterefs})
 	})
 	register("epub.typography.english.optimize", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
 		lang, ok := args["lang"]
@@ -198,18 +185,7 @@ func init() {
 				}
 			}
 		}
-		rpOpen := args.Get("rp_open")
-		if _, ok := args["rp_open"]; !ok {
-			rpOpen = "（"
-		}
-		rpClose := args.Get("rp_close")
-		if _, ok := args["rp_close"]; !ok {
-			rpClose = "）"
-		}
-		if !verticalruby.ValidRPToken(rpOpen) || !verticalruby.ValidRPToken(rpClose) {
-			return report.Result{}, usageErrorf("rp_open 和 rp_close 必须各是一个非空白且不含 < > & 引号的字符")
-		}
-		return verticalruby.Run(ctx, b, verticalruby.Params{Op: op, ScopePaths: scope, RPOpen: rpOpen, RPClose: rpClose})
+		return verticalruby.Run(ctx, b, verticalruby.Params{Op: op, ScopePaths: scope})
 	})
 	register("epub.literary.structure.format", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
 		raw, ok := args["assignments"]
@@ -302,8 +278,7 @@ func init() {
 	})
 	register("epub.css.layering.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return csscleanup.Run(ctx, b, csscleanup.Params{
-			Output:              args.Get("output"),
-			MergeScopedLocalCSS: args.Bool("merge_scoped_local_css"),
+			Output: args.Get("output"),
 		})
 	})
 	register("epub.typography.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

@@ -31,11 +31,6 @@ type Params struct {
 	// IncludeSnippets 在 blockList 每块附带头 160 码点本地文本预览
 	// （include_snippets=true；隐私默认关闭，报告不得直接入库）。
 	IncludeSnippets bool
-	// SourceName / SourceContent 非空时直接分析该文本源（非 EPUB），
-	// 按文件名后缀分派 xhtml / loose-html / markdown / plain。
-	// 输入是 EPUB 时保持两者为零值，只走 spine XHTML 路径。
-	SourceName    string
-	SourceContent string
 }
 
 // sourceError 对齐 report["errors"] 元素键序：source, message。
@@ -104,26 +99,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
-	if p.SourceName != "" {
-		return runSource(ctx, p)
-	}
 	return runEpub(ctx, b, p)
-}
-
-// runSource 走 analyze_source 分派（markdown / plain / loose-html / xhtml）。
-func runSource(ctx context.Context, p Params) (report.Result, error) {
-	if err := ctx.Err(); err != nil {
-		return report.Result{}, err
-	}
-	blocks, err := AnalyzeSource(ctx, p.SourceName, p.SourceContent, p.IncludeSnippets)
-	if err != nil {
-		return report.Result{}, err
-	}
-	rep := buildReport(p.SourceName, blocks, nil)
-	if err := ctx.Err(); err != nil {
-		return report.Result{}, err
-	}
-	return assemble(rep, p), nil
 }
 
 // runEpub 走 EPUB spine XHTML 路径（含 encryption.xml 拒绝）。

@@ -162,7 +162,7 @@ func TestLegacyFallbackParseAndStructuralErrorsApplyNoEdits(t *testing.T) {
 	}
 }
 
-func TestLegacyFallbackScopeAndNoNotes(t *testing.T) {
+func TestLegacyFallbackProcessesWholeSpineAndHandlesNoNotes(t *testing.T) {
 	files := notesFiles(fixtureXHTML)
 	second := strings.Replace(fixtureOPF, `</manifest>`, `<item id="chapter2" href="Text/second.xhtml" media-type="application/xhtml+xml"/></manifest>`, 1)
 	second = strings.Replace(second, `</spine>`, `<itemref idref="chapter2"/></spine>`, 1)
@@ -174,19 +174,19 @@ func TestLegacyFallbackScopeAndNoNotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 2, ScopePaths: []string{noteXHTMLPath}})
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Facts["editCount"] != 3 || !slices.Equal(b.ModifiedNames(), []string{noteXHTMLPath}) {
-		t.Fatalf("scope result facts=%#v modified=%v", result.Facts, b.ModifiedNames())
+	if result.Facts["editCount"] != 6 || !slices.Equal(b.ModifiedNames(), []string{noteXHTMLPath, "OEBPS/Text/second.xhtml"}) {
+		t.Fatalf("whole-spine result facts=%#v modified=%v", result.Facts, b.ModifiedNames())
 	}
 	currentSecond, err := b.Current("OEBPS/Text/second.xhtml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(originalSecond, currentSecond) {
-		t.Fatal("out-of-scope note XHTML changed")
+	if bytes.Equal(originalSecond, currentSecond) {
+		t.Fatal("whole-spine processing left the second note XHTML unchanged")
 	}
 
 	noNotes := strings.Replace(fixtureXHTML, fixtureXHTML[strings.Index(fixtureXHTML, "    <p id=\"p1\">"):strings.Index(fixtureXHTML, "    <aside")], "    <p id=\"p1\">正文。</p>\n", 1)
@@ -202,7 +202,7 @@ func TestLegacyFallbackScopeAndNoNotes(t *testing.T) {
 	}
 }
 
-func TestLegacyFallbackRejectsBadUpstreamAndScope(t *testing.T) {
+func TestLegacyFallbackRejectsBadUpstream(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		p    Params
@@ -210,7 +210,6 @@ func TestLegacyFallbackRejectsBadUpstreamAndScope(t *testing.T) {
 	}{
 		{name: "upstream violations", p: Params{UpstreamViolations: 2, UpstreamNoterefs: 1}, id: "notes-fallback.upstream-not-clean"},
 		{name: "upstream missing", p: Params{UpstreamViolations: -1, UpstreamNoterefs: -1}, id: "notes-fallback.upstream-not-clean"},
-		{name: "scope outside spine", p: Params{UpstreamViolations: 0, UpstreamNoterefs: 1, ScopePaths: []string{"OEBPS/Text/other.xhtml"}}, id: "notes-fallback.scope-not-in-spine"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			b := openNotesBook(t, notesFiles(fixtureXHTML))

@@ -1,32 +1,18 @@
 {
   "schemaVersion": "2",
-  "commonParameters": {
-    "allow_font_obfuscation": {
-      "type": "boolean",
-      "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
-      "default": "false"
-    }
-  },
+  "commonParameters": {},
   "capabilities": {
     "epub.package.nav.audit": {
       "description": "只读审计导航、包结构和兼容性风险。",
       "parameters": {}
     },
     "epub.text.content.analyze": {
-      "description": "只读正文分析；可选对照源文本。",
+      "description": "只读 EPUB 正文分析。",
       "parameters": {
         "include_snippets": {
           "type": "boolean",
           "description": "在报告中包含正文片段。",
           "default": "false"
-        },
-        "source_name": {
-          "type": "string",
-          "description": "源文本名称。"
-        },
-        "source_content": {
-          "type": "string",
-          "description": "作为对照的源文本内容，不是文件路径。"
         }
       }
     },
@@ -50,6 +36,11 @@
         "font_config": {
           "type": "string",
           "description": "可选 epub-font fonts.json 路径；master 路径相对配置文件所在目录。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -94,14 +85,20 @@
     },
     "epub.package.migrate.epub3": {
       "description": "生成 EPUB3 候选；保留 plain/Sigil 旧尾注文本，仅规范化 Duokan 标记，并报告迁移差异。",
-      "parameters": {}
+      "parameters": {
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
+        }
+      }
     },
     "epub.css.layering.optimize": {
       "description": "按字节区间清理 CSS；不支持自动 dedup/factor/prune/selector 全面重写。",
       "parameters": {
-        "merge_scoped_local_css": {
+        "allow_font_obfuscation": {
           "type": "boolean",
-          "description": "保留的兼容参数；当前合并动作禁用，true 会报告跳过，不修改 scoped CSS。",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
           "default": "false"
         }
       }
@@ -122,6 +119,11 @@
         "scope_paths": {
           "type": "json-string-array",
           "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；仅追加自包含 CSS，保留原链接与共享样式。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -136,6 +138,11 @@
         "title": {
           "type": "string",
           "description": "显式替换合并标题；省略保留首卷标题。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -152,6 +159,11 @@
           "type": "string",
           "description": "不得已存在的输出目录；dry-run 也必须指定。",
           "required": true
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -162,6 +174,11 @@
           "type": "string",
           "description": "元数据修改 JSON 对象文本（不是文件路径）。",
           "required": true
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -172,6 +189,11 @@
           "type": "string",
           "description": "替换封面图片文件路径。",
           "required": true
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -188,6 +210,11 @@
             "deobfuscate",
             "normalize"
           ]
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -198,6 +225,11 @@
           "type": "integer",
           "description": "预期卷数。",
           "minimum": 1
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -216,15 +248,21 @@
         "stylesheet": {
           "type": "string",
           "description": "为命中目标的 XHTML 补齐到该样式表的 link（含 class 已存在的文件）。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
     "epub.notes.legacy-fallback": {
       "description": "在已通过 popup 校验的标准 grouped footnote 上只叠加多看 legacy class；不复制注释、不改图标、manifest 与 CSS。",
       "parameters": {
-        "scope_paths": {
-          "type": "json-string-array",
-          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；省略则处理全部含注释的 spine XHTML。"
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -239,6 +277,11 @@
         "scope_paths": {
           "type": "json-string-array",
           "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；OPF 主语言与参数不同时必须提供；省略时只在 OPF 语言一致时扫描全书。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     },
@@ -255,15 +298,10 @@
           "type": "json-string-array",
           "description": "非空 JSON 数组；ruby-rp 时为精确的 spine XHTML 路径，writing-mode-prefix 时为精确的 manifest CSS 路径。省略则扫描全部对应资源。"
         },
-        "rp_open": {
-          "type": "string",
-          "description": "ruby-rp 插入的左括号，必须是一个安全的非空白字符。",
-          "default": "（"
-        },
-        "rp_close": {
-          "type": "string",
-          "description": "ruby-rp 插入的右括号，必须是一个安全的非空白字符。",
-          "default": "）"
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
         }
       }
     }

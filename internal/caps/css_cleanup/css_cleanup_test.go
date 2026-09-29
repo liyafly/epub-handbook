@@ -170,14 +170,14 @@ func readZipData(t *testing.T, path string) map[string][]byte {
 	return out
 }
 
-func mustRun(t *testing.T, input, output string, mergeScoped bool) cleanupReport {
+func mustRun(t *testing.T, input, output string) cleanupReport {
 	t.Helper()
 	b, err := book.Open(input)
 	if err != nil {
 		t.Fatalf("book.Open: %v", err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{Output: output, MergeScopedLocalCSS: mergeScoped})
+	res, err := Run(t.Context(), b, Params{Output: output})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -191,6 +191,9 @@ func mustRun(t *testing.T, input, output string, mergeScoped bool) cleanupReport
 // 以此锁定每个正式 facts 键都被实际发出。
 func reportFromFacts(t *testing.T, facts map[string]any) cleanupReport {
 	t.Helper()
+	if len(facts) != 14 {
+		t.Fatalf("facts 键数=%d，存在未登记的输出键: %#v", len(facts), facts)
+	}
 	intFact := func(key string) int {
 		v, ok := facts[key].(int)
 		if !ok {
@@ -217,22 +220,20 @@ func reportFromFacts(t *testing.T, facts map[string]any) cleanupReport {
 		t.Fatalf("facts[\"warnings\"] 缺失或不是 []string: %#v", facts["warnings"])
 	}
 	return cleanupReport{
-		OPF:                          strFact("opf"),
-		CSSFilesBefore:               intFact("cssFilesBefore"),
-		CSSFilesAfter:                intFact("cssFilesAfter"),
-		FactoredStylesheets:          intFact("factoredStylesheets"),
-		DuplicateStylesheetsRemoved:  intFact("duplicateStylesheetsRemoved"),
-		OverridesCreated:             intFact("overridesCreated"),
-		FontDeclarationsRewritten:    intFact("fontDeclarationsRewritten"),
-		XHTMLFilesUpdated:            intFact("xhtmlFilesUpdated"),
-		CSSManifestItemsRemoved:      intFact("cssManifestItemsRemoved"),
-		CSSManifestItemsAdded:        intFact("cssManifestItemsAdded"),
-		ScopedLocalStylesheetsMerged: intFact("scopedLocalStylesheetsMerged"),
-		ScopeClassesAdded:            intFact("scopeClassesAdded"),
-		SemanticFactoringDisabled:    boolFact("semanticFactoringDisabled"),
-		ScopedMergeDisabled:          boolFact("scopedMergeDisabled"),
-		DuplicateDeduplication:       strFact("duplicateDeduplication"),
-		Warnings:                     warnings,
+		OPF:                         strFact("opf"),
+		CSSFilesBefore:              intFact("cssFilesBefore"),
+		CSSFilesAfter:               intFact("cssFilesAfter"),
+		FactoredStylesheets:         intFact("factoredStylesheets"),
+		DuplicateStylesheetsRemoved: intFact("duplicateStylesheetsRemoved"),
+		OverridesCreated:            intFact("overridesCreated"),
+		FontDeclarationsRewritten:   intFact("fontDeclarationsRewritten"),
+		XHTMLFilesUpdated:           intFact("xhtmlFilesUpdated"),
+		CSSManifestItemsRemoved:     intFact("cssManifestItemsRemoved"),
+		CSSManifestItemsAdded:       intFact("cssManifestItemsAdded"),
+		SemanticFactoringDisabled:   boolFact("semanticFactoringDisabled"),
+		ScopedMergeDisabled:         boolFact("scopedMergeDisabled"),
+		DuplicateDeduplication:      strFact("duplicateDeduplication"),
+		Warnings:                    warnings,
 	}
 }
 
@@ -244,16 +245,14 @@ func TestCSSCleanupFixture(t *testing.T) {
 	output := filepath.Join(dir, "cleaned.epub")
 	buildFixtureEpub(t, source, cssCleanupFixtureFiles())
 
-	rep := mustRun(t, source, output, true)
+	rep := mustRun(t, source, output)
 	if rep.CSSFilesBefore != 6 || rep.FactoredStylesheets != 0 ||
-		rep.DuplicateStylesheetsRemoved != 0 || rep.ScopedLocalStylesheetsMerged != 0 ||
-		rep.ScopeClassesAdded != 0 {
+		rep.DuplicateStylesheetsRemoved != 0 {
 		t.Fatalf("报告计数不符: %+v", rep)
 	}
 	if rep.OverridesCreated != 0 || rep.FontDeclarationsRewritten != 9 ||
 		rep.XHTMLFilesUpdated != 0 || rep.CSSManifestItemsRemoved != 0 ||
-		rep.CSSManifestItemsAdded != 0 || rep.CSSFilesAfter != 6 || len(rep.Warnings) != 1 ||
-		!strings.Contains(rep.Warnings[0], "disabled for lossless safety") {
+		rep.CSSManifestItemsAdded != 0 || rep.CSSFilesAfter != 6 || len(rep.Warnings) != 0 {
 		t.Fatalf("报告计数不符: %+v", rep)
 	}
 	if !rep.SemanticFactoringDisabled || !rep.ScopedMergeDisabled || rep.DuplicateDeduplication != "disabled" {
@@ -331,12 +330,11 @@ func TestCSSCleanupFixture(t *testing.T) {
 		}
 	}
 
-	// 幂等：对输出再跑一遍，报告仍只说明 requested scoped merge was skipped。
+	// 幂等：对输出再跑一遍，CSS 内容与归档结构保持稳定。
 	secondOutput := filepath.Join(dir, "cleaned-again.epub")
-	second := mustRun(t, output, secondOutput, true)
+	second := mustRun(t, output, secondOutput)
 	if second.CSSFilesBefore != 6 || second.CSSFilesAfter != 6 ||
-		second.FactoredStylesheets != 0 || second.ScopedLocalStylesheetsMerged != 0 ||
-		len(second.Warnings) != 1 {
+		second.FactoredStylesheets != 0 || len(second.Warnings) != 0 {
 		t.Fatalf("第二次运行计数不符: %+v", second)
 	}
 	secondFiles := readZipData(t, secondOutput)
@@ -356,85 +354,6 @@ func TestCSSCleanupFixture(t *testing.T) {
 	}
 }
 
-// TestMergeScopedLocalCSSOnlyWarns pins the sole observable effect of
-// MergeScopedLocalCSS now that the scoped-local-merge implementation has
-// been deleted as dead code: a warning when requested, and nothing else.
-// The fixture gives every chapter its own private, non-shared stylesheet
-// (style0002/0004/0006.css), i.e. exactly the shape the old scoped-merge
-// algorithm would have picked as a merge candidate, so "nothing merged"
-// here is provably the disabled-safety path and not an accident of the
-// fixture having no candidates.
-func TestMergeScopedLocalCSSOnlyWarns(t *testing.T) {
-	dir := t.TempDir()
-	source := filepath.Join(dir, "source.epub")
-	buildFixtureEpub(t, source, cssCleanupFixtureFiles())
-
-	cases := []struct {
-		name  string
-		merge bool
-	}{
-		{"true", true},
-		{"false", false},
-	}
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			output := filepath.Join(t.TempDir(), "out.epub")
-			b, err := book.Open(source)
-			if err != nil {
-				t.Fatalf("book.Open: %v", err)
-			}
-			defer b.Close()
-			res, err := Run(t.Context(), b, Params{Output: output, MergeScopedLocalCSS: tc.merge})
-			if err != nil {
-				t.Fatalf("Run: %v", err)
-			}
-			if err := b.WriteToContext(t.Context(), output); err != nil {
-				t.Fatalf("WriteTo: %v", err)
-			}
-
-			if got, ok := res.Facts["mergeScopedLocalCss"].(bool); !ok || got != tc.merge {
-				t.Fatalf("facts[mergeScopedLocalCss]=%#v, want echoed %v", res.Facts["mergeScopedLocalCss"], tc.merge)
-			}
-			warnings, ok := res.Facts["warnings"].([]string)
-			if !ok {
-				t.Fatalf("facts[warnings] missing or wrong type: %#v", res.Facts["warnings"])
-			}
-			hasDisabledWarning := slices.Contains(warnings, scopedMergeDisabledWarning)
-			if tc.merge && (!hasDisabledWarning || len(warnings) != 1) {
-				t.Fatalf("merge=true must produce exactly the disabled-merge warning: %v", warnings)
-			}
-			if !tc.merge && hasDisabledWarning {
-				t.Fatalf("merge=false must not produce the disabled-merge warning: %v", warnings)
-			}
-
-			if got := res.Facts["scopedLocalStylesheetsMerged"]; got != 0 {
-				t.Fatalf("scopedLocalStylesheetsMerged=%v, want 0", got)
-			}
-			if got := res.Facts["scopeClassesAdded"]; got != 0 {
-				t.Fatalf("scopeClassesAdded=%v, want 0", got)
-			}
-			if got, ok := res.Facts["scopedMergeDisabled"].(bool); !ok || !got {
-				t.Fatalf("scopedMergeDisabled=%#v, want true regardless of the input flag", res.Facts["scopedMergeDisabled"])
-			}
-
-			// No scoped-merge artifact must ever be produced, and every
-			// private per-chapter stylesheet/link/body must be untouched.
-			files := readZipData(t, output)
-			if _, ok := files["OEBPS/Styles/clean-scoped-local.css"]; ok {
-				t.Fatal("scoped-merge output file must never be generated")
-			}
-			chapter1 := string(files["OEBPS/Text/chapter1.xhtml"])
-			if strings.Contains(chapter1, "css-local-") || strings.Contains(chapter1, `class="`) {
-				t.Fatalf("body must not gain a scope class: %s", chapter1)
-			}
-			if !strings.Contains(chapter1, `href="../Styles/style0002.css"`) {
-				t.Fatalf("private stylesheet link must be left untouched: %s", chapter1)
-			}
-		})
-	}
-}
-
 func TestCleanupAcceptsAtRulesWithoutReserialization(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "at-rules.epub")
@@ -450,7 +369,7 @@ func TestCleanupAcceptsAtRulesWithoutReserialization(t *testing.T) {
 	files["OEBPS/Styles/style0002.css"] = want
 	files["OEBPS/Styles/style0004.css"] = `p { content: "different"; }` + "\n"
 	buildFixtureEpub(t, input, files)
-	mustRun(t, input, output, false)
+	mustRun(t, input, output)
 	got := readZipData(t, output)["OEBPS/Styles/style0002.css"]
 	if string(got) != want {
 		t.Fatalf("合法 at-rule 不得导致失败或重序列化:\n got %q\nwant %q", got, want)
@@ -465,7 +384,7 @@ func TestCleanupDoesNotSemanticallyDeduplicateCSSStrings(t *testing.T) {
 	files["OEBPS/Styles/style0002.css"] = `p[data-x="A  B"] { content: "a b"; }` + "\n"
 	files["OEBPS/Styles/style0004.css"] = `p[data-x="a b"] { content: "ab"; }` + "\n"
 	buildFixtureEpub(t, input, files)
-	mustRun(t, input, output, false)
+	mustRun(t, input, output)
 	got := readZipData(t, output)
 	for _, name := range []string{"OEBPS/Styles/style0002.css", "OEBPS/Styles/style0004.css"} {
 		if string(got[name]) != files[name] {
@@ -488,7 +407,7 @@ func TestCleanupDoesNotDeduplicateAcrossCSSBaseDirectories(t *testing.T) {
 	files["OEBPS/Text/chapter2.xhtml"] = strings.Replace(files["OEBPS/Text/chapter2.xhtml"],
 		`../Styles/style0004.css`, `../Other/style0004.css`, 1)
 	buildFixtureEpub(t, input, files)
-	mustRun(t, input, output, false)
+	mustRun(t, input, output)
 	got := readZipData(t, output)
 	for _, name := range []string{"OEBPS/Styles/style0002.css", "OEBPS/Other/style0004.css"} {
 		if string(got[name]) != css {
@@ -507,7 +426,7 @@ func TestCleanupPreservesByteIdenticalCSSWithDistinctReferences(t *testing.T) {
 		`<dc:title>CSS Cleanup Fixture</dc:title><meta refines="#s4" property="role">duplicate-style</meta>`, 1)
 	files["OEBPS/Styles/component.css"] = `@import "style0004.css";` + "\n.component { margin: 0 auto; }\n"
 	buildFixtureEpub(t, input, files)
-	rep := mustRun(t, input, output, false)
+	rep := mustRun(t, input, output)
 	if rep.DuplicateStylesheetsRemoved != 0 || rep.DuplicateDeduplication != "disabled" {
 		t.Fatalf("referenced duplicate CSS must not be removed: %+v", rep)
 	}
@@ -538,7 +457,7 @@ p { font-family: "STKaiti"; }
 }
 `
 	buildFixtureEpub(t, input, files)
-	mustRun(t, input, output, false)
+	mustRun(t, input, output)
 	outputFiles := readZipData(t, output)
 	consumer := string(outputFiles["OEBPS/Styles/style0002.css"])
 	face := string(outputFiles["OEBPS/Styles/style0004.css"])
@@ -568,7 +487,7 @@ func TestCleanupIgnoresNonUTF8XHTML(t *testing.T) {
 	input := filepath.Join(t.TempDir(), "utf16.xhtml.epub")
 	output := filepath.Join(t.TempDir(), "out.epub")
 	buildFixtureEpub(t, input, files)
-	mustRun(t, input, output, false)
+	mustRun(t, input, output)
 	got := readZipData(t, output)["OEBPS/Text/chapter1.xhtml"]
 	if !bytes.Equal(got, data) {
 		t.Fatalf("UTF-16 XHTML changed: got %d bytes, want %d", len(got), len(data))

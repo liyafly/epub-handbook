@@ -58,7 +58,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 竖排与 Ruby
 
-用 `epub.vertical.ruby.optimize` 做单一机械修补：`op=ruby-rp` 为没有 fallback 的直接 `<rt>` 添加 `<rp>` 括号；`op=writing-mode-prefix` 为 manifest CSS 中精确的标准 `writing-mode` 补齐缺失的 WebKit/EPUB 前缀。一次只运行一个 op；可用 `scope_paths` 指定 spine XHTML 或 manifest CSS 路径。`rp_open` / `rp_close` 默认是全角括号，也可设置为一个安全字符。先 dry-run 审阅计划，再向新路径写候选：
+用 `epub.vertical.ruby.optimize` 做单一机械修补：`op=ruby-rp` 为没有 fallback 的直接 `<rt>` 添加固定全角括号；`op=writing-mode-prefix` 为 manifest CSS 中精确的标准 `writing-mode` 补齐缺失的 WebKit/EPUB 前缀。一次只运行一个 op；可用 `scope_paths` 指定 spine XHTML 或 manifest CSS 路径。先 dry-run 审阅计划，再向新路径写候选：
 
 ```sh
 epub run epub.vertical.ruby.optimize --input "before.epub" --dry-run --json op=ruby-rp
@@ -81,7 +81,7 @@ epub run epub.notes.popup.normalize --input "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-只处理精确的 spine XHTML 子集时，可在 dry-run 与实跑命令中加 `scope_paths='["OEBPS/Text/chapter.xhtml"]'`；每个路径必须属于 spine XHTML。检查 `facts["epub.notes.legacy-fallback.plannedEdits"]`、`editCount`、`filesScanned` 和 `skipped`。标准 popup 违规、目标路径不在 spine、结构不支持或属性不能安全编辑时，finding 为 error 且本能力零写入；只有 Duokan class 缺失时可补齐。范围内没有 noteref 时返回 `notes-fallback.no-notes` info，不修改文件。
+该能力扫描完整 spine XHTML。检查 `facts["epub.notes.legacy-fallback.plannedEdits"]`、`editCount`、`filesScanned` 和 `skipped`。标准 popup 违规、结构不支持或属性不能安全编辑时，finding 为 error 且本能力零写入；只有 Duokan class 缺失时可补齐。没有 noteref 的页面返回 `notes-fallback.no-notes` info，不修改文件。
 
 ## 返回怎么读
 
@@ -136,9 +136,9 @@ epub redline --check all "before.epub" "candidate.epub"
 ### 旧版弹注 fallback
 
 - `notes-fallback.upstream-not-clean`：检查 popup 的 `standardViolations`，先独立修复标准弹注错误，再重跑 fallback。
-- `notes-fallback.scope-not-in-spine`：改正范围路径；`notes-fallback.no-notes` 是 info，表示选中范围没有 noteref、无需写入。
+- `notes-fallback.no-notes` 是 info，表示完整 spine 中没有 noteref、无需写入。
 - `notes-fallback.unsupported-encoding`、`notes-fallback.parse-failed`、`notes-fallback.multiple-lists`、`notes-fallback.noteref-without-icon`、`notes-fallback.content-class-on-li`、`notes-fallback.unsafe-attribute`：先人工修复对应文件结构或属性，再重跑 `epub.notes.popup.normalize` 与 fallback。
-- `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 范围和 popup 计数，不接受部分 class 变更。
+- `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 项和 popup 计数，不接受部分 class 变更。
 - 标准属性/中性类保留；anchor 加 duokan-footnote 且内含图标；ol.footnote-list 加 duokan-footnote-content；li.footnote-item 仅加 duokan-footnote-item，不把 content 类放 li。
 - 同文件一个 aside/ol，noteref 指向唯一 li，◎ backlink 返回原 trigger；不得复制可见 note list、display:none 隐藏正文或用 JS。
 - 保留现有图标 src/alt，缺少才复用项目资源并同步 manifest。样式并入活动 notes.css，分隔线只留一套，不影响普通上标。

@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
@@ -30,8 +28,6 @@ const (
 type Params struct {
 	Op         string
 	ScopePaths []string
-	RPOpen     string
-	RPClose    string
 }
 
 type plannedEdit struct {
@@ -63,16 +59,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if p.Op != OpRubyRP && p.Op != OpWritingModePrefix {
 		return report.Result{}, fmt.Errorf("unsupported vertical Ruby operation %q", p.Op)
 	}
-	if p.RPOpen == "" {
-		p.RPOpen = "（"
-	}
-	if p.RPClose == "" {
-		p.RPClose = "）"
-	}
-	if !ValidRPToken(p.RPOpen) || !ValidRPToken(p.RPClose) {
-		return report.Result{}, errors.New("rp_open and rp_close must each be one safe non-space character")
-	}
-
 	var edits []editset.Edit
 	var planned []plannedEdit
 	var skipped []skippedEdit
@@ -275,8 +261,8 @@ func scanRuby(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []pl
 			}
 			for _, rt := range rts {
 				edits = append(edits,
-					editset.Insert(file.path, int64(rt.Open.Start), []byte("<rp>"+p.RPOpen+"</rp>")),
-					editset.Insert(file.path, int64(rt.Close.End), []byte("<rp>"+p.RPClose+"</rp>")),
+					editset.Insert(file.path, int64(rt.Open.Start), []byte("<rp>（</rp>")),
+					editset.Insert(file.path, int64(rt.Close.End), []byte("<rp>）</rp>")),
 				)
 			}
 			planned = append(planned, plannedEdit{Path: file.path, Action: "insert-rp", Target: rubyIndex + 1})
@@ -500,28 +486,6 @@ func descendant(node *opf.SpanNode, local string) *opf.SpanNode {
 		}
 	}
 	return nil
-}
-
-// ValidRPToken reports whether value is one safe, non-space rune suitable for
-// literal text inside an rp element.
-func ValidRPToken(value string) bool {
-	if !utf8.ValidString(value) {
-		return false
-	}
-	runes := []rune(value)
-	if len(runes) != 1 {
-		return false
-	}
-	r := runes[0]
-	if unicode.IsSpace(r) || unicode.IsControl(r) || r == 0xFFFE || r == 0xFFFF || r >= 0xD800 && r <= 0xDFFF {
-		return false
-	}
-	switch r {
-	case '<', '>', '&', '"', '\'':
-		return false
-	default:
-		return true
-	}
 }
 
 func supportedWritingMode(value string) bool {

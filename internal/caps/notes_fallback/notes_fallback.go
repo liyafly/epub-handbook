@@ -19,12 +19,11 @@ const (
 	UpstreamID   = "epub.notes.popup.normalize"
 )
 
-// Params contains upstream standard-note counts and an optional exact
-// spine-XHTML scope. A negative upstream count means the required fact is missing.
+// Params contains upstream standard-note counts. A negative upstream count
+// means the required fact is missing.
 type Params struct {
 	UpstreamViolations int
 	UpstreamNoterefs   int
-	ScopePaths         []string
 }
 
 type spineFile struct {
@@ -121,28 +120,8 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		return nil, nil, nil, nil, 0, err
 	}
 	spine := spineXHTML(pkg)
-	byPath := make(map[string]spineFile, len(spine))
-	for _, file := range spine {
-		byPath[file.path] = file
-	}
-	selected, skipped := scopeFiles(spine, byPath, p.ScopePaths)
-	selectedByPath := make(map[string]bool, len(selected))
-	for _, file := range selected {
-		selectedByPath[file.path] = true
-	}
 	var findings []report.Finding
-	if p.ScopePaths != nil {
-		for _, requested := range opf.UniqueStrings(p.ScopePaths) {
-			if _, ok := byPath[requested]; !ok {
-				findings = append(findings, report.Finding{
-					Level: "error", ID: "notes-fallback.scope-not-in-spine",
-					Title:    "Scope path is not a spine XHTML item",
-					Detail:   fmt.Sprintf("scope_paths entry %q does not match a spine XHTML archive path", requested),
-					Location: requested,
-				})
-			}
-		}
-	}
+	var skipped []skippedEdit
 
 	var edits []editset.Edit
 	planned := []plannedEdit{}
@@ -189,16 +168,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		}
 		noterefCount += len(noterefs)
 		if len(noterefs) == 0 {
-			if !selectedByPath[file.path] {
-				continue
-			}
-			if hasFileSkip(skipped, file.path) {
-				continue
-			}
 			skipped = append(skipped, skippedEdit{Path: file.path, Target: "notes", Reason: "no-noteref"})
-			continue
-		}
-		if !selectedByPath[file.path] {
 			continue
 		}
 		if len(lists) > 1 {
@@ -259,12 +229,12 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	}
 	if noterefCount == 0 && !hasErrorFinding(findings) {
 		location := opfPath
-		if len(selected) > 0 {
-			location = selected[0].path
+		if len(spine) > 0 {
+			location = spine[0].path
 		}
 		findings = append(findings, report.Finding{
 			Level: "info", ID: "notes-fallback.no-notes",
-			Title:    "No standard noteref anchors found in scope",
+			Title:    "No standard noteref anchors found",
 			Detail:   "no legacy note classes were needed",
 			Location: location,
 		})
@@ -326,27 +296,6 @@ func spineXHTML(pkg *opf.Package) []spineFile {
 		files = append(files, spineFile{path: path})
 	}
 	return files
-}
-
-func scopeFiles(spine []spineFile, byPath map[string]spineFile, scope []string) ([]spineFile, []skippedEdit) {
-	paths := make([]string, 0, len(spine))
-	for _, file := range spine {
-		paths = append(paths, file.path)
-	}
-	selectedPaths, skippedPaths := opf.SelectScopePaths(paths, scope)
-	selected := make([]spineFile, 0, len(selectedPaths))
-	for _, path := range selectedPaths {
-		selected = append(selected, byPath[path])
-	}
-	skipped := make([]skippedEdit, 0, len(skippedPaths))
-	for _, path := range skippedPaths {
-		skipped = append(skipped, skippedEdit{Path: path, Target: "spine-xhtml", Reason: "outside-scope"})
-	}
-	return selected, skipped
-}
-
-func hasFileSkip(skipped []skippedEdit, path string) bool {
-	return slices.ContainsFunc(skipped, func(item skippedEdit) bool { return item.Path == path && item.Reason == "outside-scope" })
 }
 
 func hasOPSType(node *opf.SpanNode, token string) bool {

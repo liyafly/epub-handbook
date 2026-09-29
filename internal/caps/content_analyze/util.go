@@ -151,16 +151,3 @@ func runeCut(s string, n int) string {
 	}
 	return s
 }
-
-// sourceSuffix 复刻 pathlib.Path(source).suffix.lower()：
-// 取文件名里最后一个点，且点后须还有字符；点开头（dotfile）不算后缀。
-func sourceSuffix(source string) string {
-	base := source
-	if i := strings.LastIndexByte(base, '/'); i >= 0 {
-		base = base[i+1:]
-	}
-	if i := strings.LastIndexByte(strings.TrimSuffix(base, "/"), '.'); i > 0 && i < len(base)-1 {
-		return strings.ToLower(base[i:])
-	}
-	return ""
-}

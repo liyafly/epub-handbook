@@ -60,22 +60,6 @@ func TestRealScannersStopInsideWorkWithoutPartialResults(t *testing.T) {
 	}
 }
 
-func TestSourceAnalysisCancellationRemainsAnError(t *testing.T) {
-	for _, tc := range []struct{ name, content string }{
-		{"a.xhtml", "<html><body><p>one</p><p>two</p></body></html>"},
-		{"a.html", "<p>one</p><p>two</p>"},
-		{"a.md", "# One\n\nTwo\n\nThree"},
-		{"a.txt", "One\n\nTwo\n\nThree"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			res, err := registry["epub.text.content.analyze"](cancelAtCheckpoint(t, 5), nil, Args{"source_name": tc.name, "source_content": tc.content}, nil)
-			if !errors.Is(err, context.Canceled) || res.Status != "" {
-				t.Fatalf("cancel classified as book finding: %+v %v", res, err)
-			}
-		})
-	}
-}
-
 func TestCoverStopsDuringAuxiliaryReadWithoutPartialResult(t *testing.T) {
 	b, err := book.Open(buildEpubWithOPF(t))
 	if err != nil {

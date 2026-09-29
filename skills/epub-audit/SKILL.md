@@ -49,8 +49,7 @@ epub run epub.package.nav.audit --input "book.epub" --json
 epub run epub.text.content.analyze --input "book.epub" --json
 ```
 
-只读。`include_snippets=true` 仅用于本地复核，报告放书级 `.pipeline/`，不把正文写进仓库级 records。
-裸片段可用 `source_name=` + `source_content=`，但当前仍需有效 EPUB 作为 `--input` 锚点；纯源材料先用 source-intake。
+只读，输入必须是有效 EPUB。`include_snippets=true` 仅用于本地复核，报告放书级 `.pipeline/`，不把正文写进仓库级 records；纯源材料先用 source-intake。
 
 ### 图片版式分析
 

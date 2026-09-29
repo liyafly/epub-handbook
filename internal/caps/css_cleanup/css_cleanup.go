@@ -6,7 +6,7 @@
 //   - 高风险同构抽取已禁用：在 token/span 保真方案完成前不重建既有 CSS；
 //   - 既有 stylesheet 去重同样禁用：即使同目录逐字节相同，manifest id、
 //     OPF refines/fallback 或其它 CSS 的 @import 仍可能赋予它独立语义；
-//   - --merge-scoped-local-css 当前安全拒绝并报告 warning，不改 link/body；
+//   - scoped-local CSS 合并不在支持的编辑范围内；
 //   - OPF 与 XHTML 链接保持原样；仅对已有 CSS 内容做字节区间编辑（INV-2）。
 //
 // 字节保真策略：CSS / XHTML 只生成不重叠的原始 byte-range edits；未知
@@ -49,37 +49,31 @@ type Params struct {
 	// Output 是 pipeline 注入的输出路径；本包不落盘（INV-3），输出信息由
 	// 信封的 output 段承载，此字段仅保留 CLI 兼容。
 	Output string
-	// MergeScopedLocalCSS 保留 CLI 兼容；当前因 lossless 约束安全禁用。
-	MergeScopedLocalCSS bool
 }
 
 // cleanupReport 是 Run 过程中的计数累加器，逐字段进入 Result.Facts。
 type cleanupReport struct {
-	OPF                          string
-	CSSFilesBefore               int
-	CSSFilesAfter                int
-	FactoredStylesheets          int
-	DuplicateStylesheetsRemoved  int
-	OverridesCreated             int
-	FontDeclarationsRewritten    int
-	XHTMLFilesUpdated            int
-	CSSManifestItemsRemoved      int
-	CSSManifestItemsAdded        int
-	ScopedLocalStylesheetsMerged int
-	ScopeClassesAdded            int
-	SemanticFactoringDisabled    bool
-	ScopedMergeDisabled          bool
-	DuplicateDeduplication       string
-	Warnings                     []string
+	OPF                         string
+	CSSFilesBefore              int
+	CSSFilesAfter               int
+	FactoredStylesheets         int
+	DuplicateStylesheetsRemoved int
+	OverridesCreated            int
+	FontDeclarationsRewritten   int
+	XHTMLFilesUpdated           int
+	CSSManifestItemsRemoved     int
+	CSSManifestItemsAdded       int
+	SemanticFactoringDisabled   bool
+	ScopedMergeDisabled         bool
+	DuplicateDeduplication      string
+	Warnings                    []string
 }
-
-const scopedMergeDisabledWarning = "MergeScopedLocalCSS requested but disabled for lossless safety; existing CSS entries, links, and body classes were left unchanged"
 
 // ---- Run（SPEC §6.1 三段式：扫描 → 应用 → 报告） ----
 
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
-func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
@@ -206,11 +200,6 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	rep.ScopedMergeDisabled = true
 	rep.DuplicateDeduplication = "disabled"
 
-	// scoped-local 合并。
-	if p.MergeScopedLocalCSS {
-		rep.Warnings = append(rep.Warnings, scopedMergeDisabledWarning)
-	}
-
 	// css_files_after：最终 files 里以 .css 结尾（大小写不敏感）的数量。
 	for name := range m.exists {
 		if err := ctx.Err(); err != nil {
@@ -234,29 +223,26 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 
 	// 3. 报告（不落盘）。
-	return buildResult(p, rep), nil
+	return buildResult(rep), nil
 }
 
 // buildResult 装配统一信封的 Result 段。
-func buildResult(p Params, rep cleanupReport) report.Result {
+func buildResult(rep cleanupReport) report.Result {
 	facts := map[string]any{
-		"opf":                          rep.OPF,
-		"cssFilesBefore":               rep.CSSFilesBefore,
-		"cssFilesAfter":                rep.CSSFilesAfter,
-		"factoredStylesheets":          rep.FactoredStylesheets,
-		"duplicateStylesheetsRemoved":  rep.DuplicateStylesheetsRemoved,
-		"overridesCreated":             rep.OverridesCreated,
-		"fontDeclarationsRewritten":    rep.FontDeclarationsRewritten,
-		"xhtmlFilesUpdated":            rep.XHTMLFilesUpdated,
-		"cssManifestItemsRemoved":      rep.CSSManifestItemsRemoved,
-		"cssManifestItemsAdded":        rep.CSSManifestItemsAdded,
-		"scopedLocalStylesheetsMerged": rep.ScopedLocalStylesheetsMerged,
-		"scopeClassesAdded":            rep.ScopeClassesAdded,
-		"semanticFactoringDisabled":    rep.SemanticFactoringDisabled,
-		"scopedMergeDisabled":          rep.ScopedMergeDisabled,
-		"duplicateDeduplication":       rep.DuplicateDeduplication,
-		"warnings":                     rep.Warnings,
-		"mergeScopedLocalCss":          p.MergeScopedLocalCSS,
+		"opf":                         rep.OPF,
+		"cssFilesBefore":              rep.CSSFilesBefore,
+		"cssFilesAfter":               rep.CSSFilesAfter,
+		"factoredStylesheets":         rep.FactoredStylesheets,
+		"duplicateStylesheetsRemoved": rep.DuplicateStylesheetsRemoved,
+		"overridesCreated":            rep.OverridesCreated,
+		"fontDeclarationsRewritten":   rep.FontDeclarationsRewritten,
+		"xhtmlFilesUpdated":           rep.XHTMLFilesUpdated,
+		"cssManifestItemsRemoved":     rep.CSSManifestItemsRemoved,
+		"cssManifestItemsAdded":       rep.CSSManifestItemsAdded,
+		"semanticFactoringDisabled":   rep.SemanticFactoringDisabled,
+		"scopedMergeDisabled":         rep.ScopedMergeDisabled,
+		"duplicateDeduplication":      rep.DuplicateDeduplication,
+		"warnings":                    rep.Warnings,
 	}
 	findings := make([]report.Finding, 0, len(rep.Warnings))
 	for _, w := range rep.Warnings {
@@ -267,9 +253,9 @@ func buildResult(p Params, rep cleanupReport) report.Result {
 	}
 	events := []report.Event{{
 		Step: "css-cleanup", Status: "completed",
-		Message: fmt.Sprintf("css %d -> %d factored=%d duplicates=%d scoped_merged=%d",
+		Message: fmt.Sprintf("css %d -> %d factored=%d duplicates=%d",
 			rep.CSSFilesBefore, rep.CSSFilesAfter, rep.FactoredStylesheets,
-			rep.DuplicateStylesheetsRemoved, rep.ScopedLocalStylesheetsMerged),
+			rep.DuplicateStylesheetsRemoved),
 	}}
 
 	return report.Result{
