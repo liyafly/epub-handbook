@@ -403,15 +403,13 @@ func TestRedlineSpineChangeDetected(t *testing.T) {
 	wantNoLine(t, rep, text, "metadata:")
 }
 
-func TestRedlineAllowsAppendedNonLinearNavItemref(t *testing.T) {
+func TestRedlineRejectsAppendedNonLinearNavItemref(t *testing.T) {
 	beforeEntries := withoutNavItemref(t)
 	afterEntries := appendSpineItemref(t, beforeEntries, "nav", "no")
 	before, after := pair(t, beforeEntries, afterEntries)
 	rep, text := compare(t, before, after, "spine", Options{})
-	wantCode(t, rep, text, 0)
-	if len(rep.Lines) != 1 || rep.Lines[0] != passLine {
-		t.Fatalf("报告 = %q, want [%q]", rep.Lines, passLine)
-	}
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "spine: itemref sequence changed:")
 }
 
 func TestRedlineRejectsAppendedLinearNavItemref(t *testing.T) {
