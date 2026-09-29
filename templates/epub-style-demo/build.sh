@@ -43,7 +43,9 @@ find "$SRC" -exec touch -h -t 198001010000 {} +
 (
   cd "$SRC"
   zip -X -0 "$TMP" mimetype >/dev/null
-  find META-INF OEBPS -type f | LC_ALL=C sort | zip -X -9 "$TMP" -@ >/dev/null
+  find META-INF OEBPS -type f \
+    ! -name '.*' ! -name Thumbs.db ! -name '*~' ! -path '*/.*/*' |
+    LC_ALL=C sort | zip -X -9 "$TMP" -@ >/dev/null
 )
 
 mv -f "$TMP" "$OUT"
