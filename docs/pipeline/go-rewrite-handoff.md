@@ -49,7 +49,7 @@
 - 上游 requires stage 是诊断输入；其 failed 状态不单独阻断目标能力。DRM 预检、runner Go error、未实现能力与目标能力失败仍会阻断。
 - 输出能力在内存态完成预期变更与契约红线检查。红线 error 会标记 failed；只要 runner 和输出事务成功，仍可能给出候选产物供 diff review。
 - `--dry-run` 阻止磁盘输出，但必须完整运行内存变更和相应检查；不能把 dry-run 当作跳过能力执行。
-- `epub clean` 默认只审计并生成计划。选择变换用 `--steps normalize,migrate,css`；`--approve` 只在步骤、末次审计和全项红线通过时写最终候选。目录按路径顺序串行处理；取消时未开始的书只出现在批次信封的 `facts.epub.clean.notStarted` 中。
+- `epub clean` 默认只审计并生成计划。选择变换用 `--steps normalize,migrate,css`；`--approve` 只在步骤、末次审计和全项红线通过时写最终候选。目录按路径顺序串行处理；取消时未开始的书只出现在批次信封的 `facts["epub.clean.notStarted"]` 中。
 - `epub clean` 在一个 Book session 中提交成功步骤；失败步骤的 fork 不进入后续阶段。逐步摘要用 `inputState` / `outputState` 和 `changedEntries` 描述内存态差异；只有 envelope 的输入和实际写出的最终输出具有文件 SHA，预演用 `epub.clean.previewState` 标出当前状态。
 - 多产物能力必须使用 `output_dir` 契约；只读能力不得接受或建议 `--output`。
 - `epub redline --path-map` 接受 normalize、merge、cover 等 envelope 的 `facts.*.mappings`；无改名时成功 envelope 可提供空数组。

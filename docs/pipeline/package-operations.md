@@ -66,7 +66,7 @@ epub redline --check drm,anchors volume-01.epub merged.epub
 epub run epub.package.nav.audit --input book.epub --json
 ```
 
-拆分点来自 EPUB3 nav；没有 nav 时回退到 NCX；仍没有目录时回退到 spine 文件列表。审计报告的 `facts.summary` 给出 manifest / spine 数量等结构事实，`nextCommands` 提示后续命令。
+拆分点来自 EPUB3 nav；没有 nav 时回退到 NCX；仍没有目录时回退到 spine 文件列表。审计报告的 `facts["epub.package.nav.audit.summary"]` 给出 manifest / spine 数量等结构事实，`nextCommands` 提示后续命令。
 
 ## 拆分 EPUB
 

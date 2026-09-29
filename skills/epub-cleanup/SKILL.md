@@ -56,7 +56,7 @@ epub clean "before.epub" --out "clean-preview"
 epub clean "books/" --out "clean-approved" --steps normalize,migrate,css --approve
 ```
 
-`--steps` 只接受按序的 `normalize,migrate,css`。`epub clean` 不编排排版能力；需要排版时，对单本书单独运行 `epub run epub.typography.optimize` 并审阅其报告。`--approve` 只在步骤、末次审计和全项红线通过后写出候选。目录输入递归查找 EPUB，按路径顺序串行处理；取消时只为已开始的书写逐书报告，其余路径列在批次信封的 `facts.epub.clean.notStarted`。`--json` 将批次信封写到 stdout，日志和错误写到 stderr。输出目录须在输入目录外；已有产物不会覆盖。完整状态、报告字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
+`--steps` 只接受按序的 `normalize,migrate,css`。`epub clean` 不编排排版能力；需要排版时，对单本书单独运行 `epub run epub.typography.optimize` 并审阅其报告。`--approve` 只在步骤、末次审计和全项红线通过后写出候选。目录输入递归查找 EPUB，按路径顺序串行处理；取消时只为已开始的书写逐书报告，其余路径列在批次信封的 `facts["epub.clean.notStarted"]`。`--json` 将批次信封写到 stdout，日志和错误写到 stderr。输出目录须在输入目录外；已有产物不会覆盖。完整状态、报告字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
 
 ### 目录结构规范化
 
@@ -178,7 +178,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 ### 完整字体重新子集化
 
 - `font-subset.provider-missing` 表示需安装 `epub-font` provider；`font-subset.not-in-master` 表示母版缺少所需字形，确认声明的 fallback 覆盖这些字符。若收到 `font-subset.stale-input`，先对未修改的源 EPUB 子集化，再运行其他会改书的步骤。
-- 审查 `facts.changedFonts` 与 `facts.providerReport`，确认替换路径、输入/输出 SHA 和每个字体的 action；无变化时也需确认 MATH 字体是否按策略保留。成功后做全项 redline。
+- 审查 `facts["epub.font.subset.changedFonts"]` 与 `facts["epub.font.subset.providerReport"]`，确认替换路径、输入/输出 SHA 和每个字体的 action；无变化时也需确认 MATH 字体是否按策略保留。成功后做全项 redline。
 
 ### 标准弹注
 
