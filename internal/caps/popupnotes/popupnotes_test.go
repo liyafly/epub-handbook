@@ -227,6 +227,25 @@ func TestPopupNotesSeparatesStandardAndDuokanViolations(t *testing.T) {
 	}
 }
 
+func TestPopupRejectsDuokanContentClassOnLIOutsideDuokanMode(t *testing.T) {
+	files := validFixture()
+	files["OEBPS/Text/valid.xhtml"] = strings.Replace(
+		files["OEBPS/Text/valid.xhtml"],
+		`class="footnote-item"`,
+		`class="footnote-item duokan-footnote-content"`,
+		1,
+	)
+	epub := filepath.Join(t.TempDir(), "misplaced-duokan-content.epub")
+	writePopupEpub(t, epub, files)
+	status, titles, facts := runGoPopup(t, epub)
+	if status != "failed" || facts["violations"] != 1 || facts["standardViolations"] != 0 {
+		t.Fatalf("status=%q titles=%v facts=%#v, want one Duokan-only error outside Duokan mode", status, titles, facts)
+	}
+	if len(titles) != 1 || !strings.Contains(titles[0], "duokan-footnote-content must not be on li") {
+		t.Fatalf("titles=%v, want content-class-on-li error", titles)
+	}
+}
+
 func TestPopupScansManifestXHTMLOutsideOEBPSText(t *testing.T) {
 	files := map[string]string{
 		"META-INF/container.xml": `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf"/></rootfiles></container>`,

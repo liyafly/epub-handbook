@@ -175,13 +175,13 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 						errs = append(errs, violation{fmt.Sprintf("%s: Duokan fallback noteref missing class=duokan-footnote", fp)})
 					}
 				}
-				for _, li := range footnoteItems {
-					if !classTokens(li).contains("duokan-footnote-item") {
-						errs = append(errs, violation{fmt.Sprintf("%s: Duokan fallback li missing class=duokan-footnote-item", fp)})
-					}
-					if classTokens(li).contains("duokan-footnote-content") {
-						errs = append(errs, violation{fmt.Sprintf("%s: duokan-footnote-content must not be on li", fp)})
-					}
+			}
+			for _, li := range footnoteItems {
+				if duokanMode && !classTokens(li).contains("duokan-footnote-item") {
+					errs = append(errs, violation{fmt.Sprintf("%s: Duokan fallback li missing class=duokan-footnote-item", fp)})
+				}
+				if classTokens(li).contains("duokan-footnote-content") {
+					errs = append(errs, violation{fmt.Sprintf("%s: duokan-footnote-content must not be on li", fp)})
 				}
 			}
 			duokanViolations += len(errs) - duokanErrorsBefore
