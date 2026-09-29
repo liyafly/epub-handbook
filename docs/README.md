@@ -38,6 +38,7 @@
   - [english-fiction-layout.md](how-to/english-fiction-layout.md)
   - [classical-modern-layout.md](how-to/classical-modern-layout.md)
   - [chapter-head-image.md](how-to/chapter-head-image.md)
+  - [mathml-equation-layout.md](how-to/mathml-equation-layout.md)
   - [anthology-navigation.md](how-to/anthology-navigation.md)
   - [note-box-border-styles.md](how-to/note-box-border-styles.md)
   - [epub2-popup-note-compatibility.md](how-to/epub2-popup-note-compatibility.md)
@@ -48,8 +49,10 @@
 - [pipeline/](pipeline/)：已有 EPUB 的清洗流程与工具
   - [book-workspace.md](pipeline/book-workspace.md)：一书一 Git 的本地工作区约定
   - [cleanup-flow.md](pipeline/cleanup-flow.md)
+  - [asset-optimization.md](pipeline/asset-optimization.md)
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
   - [epub3-migration.md](pipeline/epub3-migration.md)：EPUB3 迁移产物与验收
+  - [reference-font-role-patterns.md](pipeline/reference-font-role-patterns.md)
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
 

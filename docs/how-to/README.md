@@ -7,6 +7,7 @@
 - [english-fiction-layout.md](english-fiction-layout.md)：英文正文排版与 prose 类书籍优化流程。
 - [classical-modern-layout.md](classical-modern-layout.md)：文白对照、原文 / 译文对照和双文本条目。
 - [chapter-head-image.md](chapter-head-image.md)：可重排章节开头头图、横幅头图和 kicker。
+- [mathml-equation-layout.md](mathml-equation-layout.md)：MathML 公式结构与页面排布。
 - [anthology-navigation.md](anthology-navigation.md)：短篇全集、作品合集和分卷文集导航。
 - [note-box-border-styles.md](note-box-border-styles.md)：便签、摘录框、边框、阴影和 SVG 花边实验边界。
 - [epub2-popup-note-compatibility.md](epub2-popup-note-compatibility.md)：EPUB2 外壳中尝试 EPUB3 popup note 语义时的边界、模板与实测清单。
