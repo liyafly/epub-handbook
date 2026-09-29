@@ -26,7 +26,10 @@ type Options struct {
 	OutputPath    string
 	DryRun        bool
 	CaptureOutput bool
-	Args          Args
+	// SkipDiagnosticUpstream skips implemented requires stages before the target
+	// when the caller already owns their diagnostic responsibility.
+	SkipDiagnosticUpstream bool
+	Args                   Args
 }
 
 // Outcome 是 pipeline 的完整产出：信封 + 退出码。
@@ -395,6 +398,9 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 					Detail: fmt.Sprintf("%s has no Go implementation; no check was executed. Follow the corresponding skill's manual/AI workflow, or list ready capabilities with `epub capabilities`", c.ID),
 				})
 				break
+			}
+			if i < last && opts.SkipDiagnosticUpstream {
+				continue
 			}
 			var result report.Result
 			var err error

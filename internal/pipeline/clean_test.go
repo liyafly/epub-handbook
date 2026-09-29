@@ -196,6 +196,29 @@ func TestCleanSharesSessionAcrossSelectedSteps(t *testing.T) {
 	}
 }
 
+func TestCleanSkipsDiagnosticUpstreamAudits(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: filepath.Join(t.TempDir(), "out"),
+		Steps: []string{"normalize", "migrate", "css"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitOK || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want a successful planned book", result)
+	}
+	navAuditEvents := 0
+	for _, event := range result.Books[0].Envelope.Events {
+		if event.Step == "epub.package.nav.audit" {
+			navAuditEvents++
+		}
+	}
+	if navAuditEvents != 2 {
+		t.Fatalf("nav.audit events=%d, want only clean's initial and final audits; events=%+v", navAuditEvents, result.Books[0].Envelope.Events)
+	}
+}
+
 func TestCleanDefaultDryRunOnlyAudits(t *testing.T) {
 	input := buildEpubWithOPF(t)
 	result, err := Clean(t.Context(), CleanOptions{

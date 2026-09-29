@@ -466,7 +466,7 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		args := maps.Clone(step.args)
 		runOptions := Options{
 			RepoRoot: opts.RepoRoot, CapabilityID: step.capability,
-			InputPath: input.path, Args: args,
+			InputPath: input.path, Args: args, SkipDiagnosticUpstream: true,
 		}
 		outcome, runErr := runWithBook(ctx, runOptions, candidate, checkpoint)
 		changedEntries, changesErr := session.ModifiedEntries(candidate)
