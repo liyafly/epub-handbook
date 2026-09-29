@@ -169,6 +169,11 @@ done < <(find "$BOOKS" -type f -iname '*.epub' -print0)
 
 匹配模式：模式 B。
 
+### 2.1 迁移或跳过理由
+
+- 状态：migrated | skipped
+- 理由：<说明迁移内容，或跳过迁移的依据>
+
 ## 3. 清洗步骤
 
 ### S5-<n>: <capability-id>
@@ -180,7 +185,7 @@ done < <(find "$BOOKS" -type f -iname '*.epub' -print0)
 ## 4. 完整红线校验
 
 ```sh
-epub redline --check all "$W/before/source.epub" "$W/after/s5-<n>.epub"
+epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" "$W/after/s5-<n>.epub"
 ```
 
 ## 5. Diff 概览
@@ -190,5 +195,15 @@ epub redline --check all "$W/before/source.epub" "$W/after/s5-<n>.epub"
 - 样式：N selector 改动
 - 资源：N add / delete / modified
 - 元数据：core unchanged
+
+## 6. 阅读器实测
+
+| 阅读器名称 | 版本 | 产物 SHA-256 | 状态 | 现象 / 证据 |
+| --- | --- | --- | --- | --- |
+| <名称> | <版本> | <SHA-256> | pass / warn / fail / na | <现象、截图或日志路径> |
+
+## 7. 待办
+
+- <待复测项或后续事项；没有则写“无”>
 
 ````
