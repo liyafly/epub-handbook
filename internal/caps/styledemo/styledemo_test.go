@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -574,15 +575,15 @@ func TestPyListOrNoneAndBool(t *testing.T) {
 	}
 }
 
-func TestPyPathHelpers(t *testing.T) {
-	if got := stripFragment("Text/a.xhtml#sec"); got != "Text/a.xhtml" {
-		t.Errorf("stripFragment = %q", got)
+func TestSharedPathHelpers(t *testing.T) {
+	if got := pypath.NormJoin("OEBPS", "Text/a.xhtml#sec"); got != "OEBPS/Text/a.xhtml" {
+		t.Errorf("NormJoin = %q", got)
 	}
-	if got := pyJoin("OEBPS", "x"); got != "OEBPS/x" {
-		t.Errorf("pyJoin rel = %q", got)
+	if got := pypath.Join("OEBPS", "x"); got != "OEBPS/x" {
+		t.Errorf("Join rel = %q", got)
 	}
-	if got := pyJoin("OEBPS", "/abs"); got != "/abs" {
-		t.Errorf("pyJoin abs = %q", got)
+	if got := pypath.Join("OEBPS", "/abs"); got != "/abs" {
+		t.Errorf("Join abs = %q", got)
 	}
 	cases := []struct{ in, want string }{
 		{"OEBPS/../x", "x"},
@@ -592,8 +593,8 @@ func TestPyPathHelpers(t *testing.T) {
 		{"a/./b", "a/b"},
 	}
 	for _, c := range cases {
-		if got := pyNormPath(c.in); got != c.want {
-			t.Errorf("pyNormPath(%q) = %q, want %q", c.in, got, c.want)
+		if got := pypath.NormPath(c.in); got != c.want {
+			t.Errorf("NormPath(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

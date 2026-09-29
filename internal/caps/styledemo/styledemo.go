@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/zipfs"
 )
@@ -833,7 +834,7 @@ func validateEpubZip(arch *zipfs.Archive, errs *[]string) error {
 			if href == "" {
 				continue
 			}
-			full := pyNormPath(pyJoin("OEBPS", stripFragment(href)))
+			full := pypath.NormJoin("OEBPS", href)
 			require(nameSet[full], "EPUB manifest href missing in zip: "+href)
 			if strings.HasSuffix(href, ".xhtml") && nameSet[full] {
 				data, err := arch.Read(full)

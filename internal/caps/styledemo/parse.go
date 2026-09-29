@@ -1,5 +1,5 @@
 // parse.go 提供对齐 Python xml.etree.ElementTree 行为子集的只读 XML 投影、
-// demo 源树读取器与 posixpath 工具。全部只读：仅 os.Stat / os.ReadFile。
+// demo 源树读取器。路径语义复用 internal/book/pypath。全部只读：仅 os.Stat / os.ReadFile。
 package styledemo
 
 import (
@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 )
 
 // ---- ET 式元素投影 ----
@@ -239,7 +241,7 @@ func (s diskSource) read(rel string) ([]byte, error) {
 
 // hrefPath 对齐 href_path：OEBPS 目录 + href（已去 #fragment）。
 func (s diskSource) hrefPath(href string) string {
-	return s.abs(pyJoin("OEBPS", stripFragment(href)))
+	return s.abs(pypath.NormJoin("OEBPS", href))
 }
 
 // hrefExists 对齐 href_path(href).exists()（目录也算存在）。
@@ -271,55 +273,6 @@ func (s diskSource) readHrefUTF8(href string) (string, error) {
 		return "", fmt.Errorf("styledemo: %s is not valid UTF-8 (Python oracle would crash on decode)", s.hrefPath(href))
 	}
 	return string(data), nil
-}
-
-// ---- posix 路径工具 ----
-
-// stripFragment 对齐 href.split("#", 1)[0]。
-func stripFragment(href string) string {
-	if i := strings.IndexByte(href, '#'); i >= 0 {
-		return href[:i]
-	}
-	return href
-}
-
-// pyJoin 对齐 posixpath.join 的相关投影（绝对分量整体替换）。
-func pyJoin(a, b string) string {
-	if strings.HasPrefix(b, "/") {
-		return b
-	}
-	if a == "" {
-		return b
-	}
-	return a + "/" + b
-}
-
-// pyNormPath 对齐 posixpath.normpath（不含 "…" 特例）。
-func pyNormPath(p string) string {
-	parts := strings.Split(p, "/")
-	var out []string
-	for _, part := range parts {
-		switch part {
-		case "", ".":
-			continue
-		case "..":
-			if len(out) > 0 && out[len(out)-1] != ".." {
-				out = out[:len(out)-1]
-				continue
-			}
-			out = append(out, part)
-		default:
-			out = append(out, part)
-		}
-	}
-	joined := strings.Join(out, "/")
-	if strings.HasPrefix(p, "/") && !strings.HasPrefix(joined, "/") {
-		return "/" + joined
-	}
-	if joined == "" {
-		return "."
-	}
-	return joined
 }
 
 // ---- Python 标量格式化 ----
