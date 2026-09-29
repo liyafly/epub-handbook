@@ -461,6 +461,51 @@ func TestCleanCancellationDoesNotWriteReportsForUnstartedBooks(t *testing.T) {
 	}
 }
 
+func TestCleanCancelledBatchEnvelopeGolden(t *testing.T) {
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled := cleanBookFailure(CleanBookResult{
+		InputPath:  filepath.Join(root, "testdata", "cancelled.epub"),
+		ReportPath: filepath.Join(root, "out", "cancelled.clean.json"),
+	}, report.Envelope{SchemaVersion: "2", Capability: cleanCapabilityID},
+		"clean.book-cancelled", "EPUB clean was cancelled", context.Canceled)
+	if len(cancelled.Envelope.Events) != 1 || cancelled.Envelope.Events[0].Status != "failed" || cancelled.Envelope.Events[0].Message != "cancelled: context canceled" {
+		t.Fatalf("per-book cancellation event=%+v, want a schema-valid failed event with cancellation detail", cancelled.Envelope.Events)
+	}
+	planned := report.CleanBookSummary{
+		InputPath:           filepath.Join(root, "testdata", "planned.epub"),
+		ReportPath:          filepath.Join(root, "out", "planned.clean.json"),
+		ArtifactDisposition: "planned",
+		Status:              report.StatusPlanned,
+		ExitCode:            ExitOK,
+		Findings:            []report.Finding{},
+	}
+	batch := report.CleanBatchEnvelope([]report.CleanBookSummary{
+		{
+			InputPath: cancelled.InputPath, ReportPath: cancelled.ReportPath,
+			ArtifactDisposition: "", Status: cancelled.Envelope.Status,
+			ExitCode: cancelled.ExitCode, Error: errorString(cancelled.Err),
+			Findings: nonNilCleanFindings(cancelled.Envelope.Findings),
+		},
+		planned,
+	}, nil)
+	data, err := MarshalEnvelope(batch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.ReplaceAll(string(data), root, "<repo>")
+	goldenPath := filepath.Join(root, "testdata", "envelope", "clean-batch-cancelled.report.json")
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(want) {
+		t.Fatalf("cancelled batch differs from golden %s\n--- got ---\n%s\n--- want ---\n%s", goldenPath, got, want)
+	}
+}
+
 func TestCleanInvalidEPUBStillWritesFailureSummary(t *testing.T) {
 	input := filepath.Join(t.TempDir(), "broken.epub")
 	if err := os.WriteFile(input, []byte("not a zip file"), 0o644); err != nil {

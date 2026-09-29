@@ -35,7 +35,7 @@ type Finding struct {
 // Event 是一次运行的步骤记录。
 type Event struct {
 	Step    string `json:"step"`
-	Status  string `json:"status"` // started | completed | failed | skipped | cancelled
+	Status  string `json:"status"` // started | completed | failed | skipped
 	Message string `json:"message,omitempty"`
 }
 
@@ -114,13 +114,15 @@ func CleanBatchEnvelope(books []CleanBookSummary, notStarted []string) Envelope 
 	}
 	for _, book := range books {
 		eventStatus := "completed"
+		eventMessage := book.Status
 		if book.Status == StatusCancelled {
-			eventStatus = "cancelled"
+			eventStatus = "failed"
+			eventMessage = "cancelled: " + book.Error
 		} else if book.ExitCode != 0 {
 			eventStatus = "failed"
 		}
 		envelope.Events = append(envelope.Events, Event{
-			Step: "clean:" + book.InputPath, Status: eventStatus, Message: book.Status,
+			Step: "clean:" + book.InputPath, Status: eventStatus, Message: eventMessage,
 		})
 		if book.ExitCode == 0 {
 			continue

@@ -559,7 +559,7 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		status = report.StatusFailed
 		if cancelled || errors.Is(failure, context.Canceled) || errors.Is(failure, context.DeadlineExceeded) || ctx.Err() != nil {
 			status = report.StatusCancelled
-			allEvents = append(allEvents, report.Event{Step: "clean", Status: "cancelled", Message: failure.Error()})
+			allEvents = append(allEvents, report.Event{Step: "clean", Status: "failed", Message: "cancelled: " + failure.Error()})
 		}
 		findingID := "clean.book-failed"
 		title := "EPUB clean did not finish successfully"
@@ -745,7 +745,7 @@ func cleanBookFailure(result CleanBookResult, env report.Envelope, id, title str
 	env.Status = report.StatusFailed
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		env.Status = report.StatusCancelled
-		env.Events = append(env.Events, report.Event{Step: "clean", Status: "cancelled", Message: err.Error()})
+		env.Events = append(env.Events, report.Event{Step: "clean", Status: "failed", Message: "cancelled: " + err.Error()})
 	}
 	env.Findings = []report.Finding{{Level: "error", ID: id, Title: title, Detail: err.Error(), Location: result.InputPath}}
 	result.Envelope = env

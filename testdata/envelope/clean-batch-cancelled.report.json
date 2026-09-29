@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.clean",
+  "status": "cancelled",
+  "facts": {
+    "epub.clean.bookCount": 2,
+    "epub.clean.books": [
+      {
+        "inputPath": "<repo>/testdata/cancelled.epub",
+        "reportPath": "<repo>/out/cancelled.clean.json",
+        "artifactDisposition": "",
+        "status": "cancelled",
+        "exitCode": 1,
+        "error": "context canceled",
+        "findings": [
+          {
+            "level": "error",
+            "id": "clean.book-cancelled",
+            "title": "EPUB clean was cancelled",
+            "detail": "context canceled",
+            "location": "<repo>/testdata/cancelled.epub"
+          }
+        ]
+      },
+      {
+        "inputPath": "<repo>/testdata/planned.epub",
+        "reportPath": "<repo>/out/planned.clean.json",
+        "artifactDisposition": "planned",
+        "status": "planned",
+        "exitCode": 0,
+        "findings": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "level": "error",
+      "id": "clean.book-failed",
+      "title": "EPUB clean failed for book",
+      "detail": "context canceled",
+      "location": "<repo>/testdata/cancelled.epub"
+    }
+  ],
+  "events": [
+    {
+      "step": "clean:<repo>/testdata/cancelled.epub",
+      "status": "failed",
+      "message": "cancelled: context canceled"
+    },
+    {
+      "step": "clean:<repo>/testdata/planned.epub",
+      "status": "completed",
+      "message": "planned"
+    }
+  ]
+}
