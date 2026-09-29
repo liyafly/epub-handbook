@@ -697,6 +697,28 @@ func TestMigrationLeavesGeneratedNavOutOfSpine(t *testing.T) {
 	}
 }
 
+func TestMigrateRejectsWrongEpubNamespaceOnDescendant(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
+	entries := buildLegacyFixture(legacyOptions{})
+	for i := range entries {
+		if entries[i].name == "OEBPS/Text/chapter.xhtml" {
+			entries[i].content = strings.Replace(entries[i].content, "<body>", `<body xmlns:epub="urn:wrong">`, 1)
+		}
+	}
+	writeFixtureEpub(t, fixture, entries)
+
+	if _, err := runGo(t, fixture, output, defaultParams(output)); err == nil {
+		t.Fatal("Run succeeded with an incorrect descendant xmlns:epub URI")
+	} else if !strings.Contains(err.Error(), "xmlns:epub") || !strings.Contains(err.Error(), "urn:wrong") {
+		t.Fatalf("Run error = %v, want wrong xmlns:epub URI", err)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("failed migration wrote output: stat error = %v", err)
+	}
+}
+
 func TestMigrateSkipsCoverImagePropertyForNonImageMetaCover(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy.epub")

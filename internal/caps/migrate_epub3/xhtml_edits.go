@@ -15,6 +15,9 @@ func normalizeXHTMLShell(text, defaultLanguage string) (string, bool, error) {
 	if truncated != xhtmlscan.ScanComplete {
 		return "", false, fmt.Errorf("XHTML markup scan stopped at byte %d", truncated)
 	}
+	if err := rejectWrongEpubNamespaceDeclarations(text, regions); err != nil {
+		return "", false, err
+	}
 	doctype, hasDoctype, err := xhtmlDoctypeSpan(text)
 	if err != nil {
 		return "", false, err
@@ -349,6 +352,28 @@ func matchingXHTMLAttrs(attrs []xhtmlscan.Attr, name string) []xhtmlscan.Attr {
 		}
 	}
 	return matches
+}
+
+func rejectWrongEpubNamespaceDeclarations(text string, regions []xhtmlscan.Region) error {
+	for _, region := range regions {
+		if region.Kind != xhtmlscan.RegionTag {
+			continue
+		}
+		tag, closing, valid := xhtmlRegionTag(text, region)
+		if !valid || closing {
+			continue
+		}
+		attrs, valid := xhtmlAttributes(text, tag)
+		if !valid {
+			continue
+		}
+		for _, attr := range matchingXHTMLAttrs(attrs, "xmlns:epub") {
+			if attr.Value != opsURI {
+				return convErrf("unsupported xmlns:epub namespace URI %q", attr.Value)
+			}
+		}
+	}
+	return nil
 }
 
 func xhtmlAttributeEdits(path, text string, tag xhtmlscan.Tag, set map[string]string, remove map[string]bool) ([]editset.Edit, error) {
