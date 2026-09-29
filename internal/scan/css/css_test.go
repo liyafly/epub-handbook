@@ -145,6 +145,19 @@ func TestDeclarationPropertyStripsLeadingComment(t *testing.T) {
 	}
 }
 
+func TestDeclarationPropertyValueStripsComments(t *testing.T) {
+	sheet, err := Parse([]byte(`.x { a: /* leading */ Vertical-RL /* trailing */; b: vertical-lr; }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"vertical-rl", "vertical-lr"}
+	for i, decl := range sheet.Rules[0].Declarations {
+		if got := decl.PropertyValue(); got != want[i] {
+			t.Errorf("PropertyValue()=%q, want %q", got, want[i])
+		}
+	}
+}
+
 func TestScanReferencesStrictURLFunctionName(t *testing.T) {
 	refs, err := ScanReferences([]byte(`a { background: url (image.png); }`))
 	if err != nil {

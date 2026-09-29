@@ -365,7 +365,7 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 			unsupported := false
 			for _, decl := range rule.Declarations {
 				name := decl.Property()
-				value := strings.ToLower(strings.TrimSpace(decl.Value))
+				value := decl.PropertyValue()
 				switch name {
 				case "writing-mode":
 					standard = append(standard, decl)
@@ -385,10 +385,10 @@ func scanWritingMode(ctx context.Context, b *book.Book, p Params) ([]editset.Edi
 				skipped = append(skipped, skippedEdit{Path: file.path, Target: target, Reason: "unsupported-writing-mode"})
 				continue
 			}
-			value := strings.ToLower(strings.TrimSpace(standard[0].Value))
+			value := standard[0].PropertyValue()
 			internalConflict := false
 			for _, decl := range standard[1:] {
-				if strings.ToLower(strings.TrimSpace(decl.Value)) != value {
+				if decl.PropertyValue() != value {
 					internalConflict = true
 				}
 			}

@@ -133,6 +133,12 @@ func (d Declaration) Property() string {
 	return strings.ToLower(strings.TrimSpace(StripComments(d.Name)))
 }
 
+// PropertyValue returns the normalized declaration value without comments.
+// The original Value and ValueSpan remain exact source projections.
+func (d Declaration) PropertyValue() string {
+	return strings.ToLower(strings.TrimSpace(StripComments(d.Value)))
+}
+
 // Decl is retained as a concise compatibility name for Declaration.
 type Decl = Declaration
 

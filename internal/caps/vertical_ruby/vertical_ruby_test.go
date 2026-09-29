@@ -292,6 +292,40 @@ func TestWritingModePrefixWithLeadingComment(t *testing.T) {
 	}
 }
 
+func TestWritingModePrefixValueWithComment(t *testing.T) {
+	for _, css := range []string{
+		`a { writing-mode: vertical-rl /* why */; }`,
+		`a { writing-mode: /* why */ vertical-rl; }`,
+	} {
+		t.Run(css, func(t *testing.T) {
+			b := openFixture(t, makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body/></html>`, css))
+			first, err := Run(t.Context(), b, Params{Op: OpWritingModePrefix})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if first.Facts["editCount"] != 1 || findingHasID(first.Findings, "vertical.writing-mode-unsupported-value") {
+				t.Fatalf("first result=%+v, want one prefix edit and no unsupported-value finding", first)
+			}
+			got := string(current(t, b, cssPath))
+			for _, prefix := range []string{"-webkit-writing-mode: vertical-rl;", "-epub-writing-mode: vertical-rl;"} {
+				if !strings.Contains(got, prefix) {
+					t.Errorf("CSS %q missing normalized prefix %q", got, prefix)
+				}
+			}
+			if !strings.Contains(got, "/* why */") {
+				t.Errorf("CSS %q lost the source comment", got)
+			}
+			second, err := Run(t.Context(), b, Params{Op: OpWritingModePrefix})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if second.Facts["editCount"] != 0 {
+				t.Fatalf("second editCount=%v, want idempotent no-op", second.Facts["editCount"])
+			}
+		})
+	}
+}
+
 func TestWritingModePrefixParseAndScopeErrorsAreAtomic(t *testing.T) {
 	input := makeFixture(t, `<html xmlns="http://www.w3.org/1999/xhtml"><body><ruby>漢<rt>かん</rt></ruby></body></html>`, `.one { writing-mode: vertical-rl; }`)
 	b := openFixture(t, input)

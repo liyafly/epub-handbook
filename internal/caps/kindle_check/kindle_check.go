@@ -260,7 +260,7 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 		floatSide := ""
 		for _, decl := range rule.Declarations {
 			name := decl.Property()
-			value := strings.ToLower(strings.TrimSpace(cssscan.StripComments(decl.Value)))
+			value := decl.PropertyValue()
 			switch name {
 			case "transform", "-webkit-transform":
 				rotate = rotate || strings.Contains(value, "rotate")
