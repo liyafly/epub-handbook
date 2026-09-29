@@ -193,6 +193,18 @@ retest_priorities:
     case: 29-poetry
     readers: [ibooks_macos, thorium, kindle_previewer]
     focus: "局部 poetry-cn 的历史观察因原候选无法定位且缺少截图/日志已降为 warn；默认 demo 尚未验收。用本次精确构建产物的独立 identity 副本复测并记录 SHA 与证据。"
+  - rank: 7
+    case: preset-plain-cn@01-body
+    readers: [ibooks_macos, readest, kindle_previewer]
+    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
+  - rank: 8
+    case: preset-poetry-cn@29-poetry
+    readers: [ibooks_macos, readest, kindle_previewer]
+    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
+  - rank: 9
+    case: preset-fiction-en@18-english-fiction
+    readers: [ibooks_macos, readest, kindle_previewer]
+    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
 
 expectations:
   # status: pass | warn | fail | na
@@ -201,7 +213,7 @@ expectations:
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认字体并检查自定义宋体主题；字号默认与 +1"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc'
     failed_page: none
     issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
@@ -211,7 +223,7 @@ expectations:
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入 plain-cn 候选；默认阅读主题与字号"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc'
     failed_page: none
     issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
@@ -219,9 +231,9 @@ expectations:
   - reader: kindle_previewer
     case: preset-plain-cn@01-body
     status: warn
-    reader_version: "4.0.1"
+    reader_version: "4.x（测试时次版本未记录；2026-09-28 安装为 4.0.1）"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-plain-cn.epub --json preset=plain-cn ''scope_paths=["OEBPS/Text/01-body.xhtml"]''; sha256=3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=b4d409009b84551ef820e1d5870588f708e2ccacdd8bacd8c410fb8eae58b6dc'
     failed_page: none
     issue: "历史 GUI 观察：01-basic-cjk 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
@@ -231,7 +243,7 @@ expectations:
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32'
     failed_page: none
     issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
@@ -241,7 +253,7 @@ expectations:
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；默认 16 与增大至 22 字号；冷退出后重新打开"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32'
     failed_page: none
     issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
@@ -249,9 +261,9 @@ expectations:
   - reader: kindle_previewer
     case: preset-poetry-cn@29-poetry
     status: warn
-    reader_version: "4.0.1"
+    reader_version: "4.x（测试时次版本未记录；2026-09-28 安装为 4.0.1）"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-poetry-cn.epub --json preset=poetry-cn ''scope_paths=["OEBPS/Text/29-poetry.xhtml"]''; sha256=e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=f3bec46ba41db73897fa1743e3601d26d9867916b2d63a55c57d376da18e7f32'
     failed_page: none
     issue: "历史 GUI 观察：29-poetry 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
@@ -261,7 +273,7 @@ expectations:
     status: warn
     reader_version: "9.0 (6655)"
     profile: "macOS Apple Books；Light/Original；默认与 +1 字号"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef'
     failed_page: none
     issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
@@ -271,7 +283,7 @@ expectations:
     status: warn
     reader_version: "0.12.10 (20260922.053953)"
     profile: "macOS Readest；本地导入后跳转目录目标页；退出并冷启动复核"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef'
     failed_page: none
     issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原候选与默认 demo 共用 EPUB identity，Readest 可能复用同一书库条目。原 T09 文件未保留且无截图/日志，无法复核 SHA 与实际打开副本，降为 warn。"
     action: "为该候选生成 README 所述的 Readest 独立 identity 临时副本；记录测试副本 SHA 和截图/日志后再评估。"
@@ -279,9 +291,9 @@ expectations:
   - reader: kindle_previewer
     case: preset-fiction-en@18-english-fiction
     status: warn
-    reader_version: "4.0.1"
+    reader_version: "4.x（测试时次版本未记录；2026-09-28 安装为 4.0.1）"
     profile: "Kindle e-reader portrait；Song 字体；字号 4 与 12"
-    artifact: '1133ba0253aaf892fc0b55d8f739a6f8c305f341: sh templates/epub-style-demo/build.sh; epub run epub.typography.optimize --input templates/epub-style-demo/dist/epub-style-demo.epub --output /tmp/reader-evidence-fiction-en.epub --json preset=fiction-en ''scope_paths=["OEBPS/Text/18-english-fiction.xhtml"]''; sha256=c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387'
+    artifact: '历史 GUI 测试候选文件已丢失；sha256=acf3b4ba66ff2fe941f9edc9ab8eee7369fbcd053d81af40a946b9c9e49b32ef'
     failed_page: none
     issue: "历史 GUI 观察：18-english-fiction 页面曾显示预期内容；原 T09 文件未保留且没有可提交的截图/日志，无法按记录 SHA 复核，降为 warn。当前可重建候选 SHA 仅用于后续复测，不代表该 SHA 已经阅读器验收。"
     action: "用 README 所述的临时 identity 副本复测；保存副本 SHA、完整阅读器版本和截图/日志后再评估。"
