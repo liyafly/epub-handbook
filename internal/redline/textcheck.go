@@ -101,7 +101,11 @@ type textFrame struct {
 // 甚至不产出块，可以被整段删掉而红线无感）。并回时必须是**未归一化**的原始
 // 字节：normalizeText 只在块产出时对拼好的整串做一次，与 oracle 一致。
 func ExtractTextBlocks(content []byte, label string) ([]string, error) {
-	return extractTextBlocks(content, label, nil)
+	return extractTextBlocks(content, label, nil, false)
+}
+
+func textBlocksOutsideNav(content []byte, label string) ([]string, error) {
+	return extractTextBlocks(content, label, nil, true)
 }
 
 // ExtractTextBlocksWithLegacyNoterefPairing compares a migration pair while
@@ -111,7 +115,7 @@ func ExtractTextBlocksWithLegacyNoterefPairing(before, after []byte, beforeLabel
 	if err != nil {
 		return nil, nil, err
 	}
-	beforeBlocks, err := extractTextBlocks(before, beforeLabel, targets)
+	beforeBlocks, err := extractTextBlocks(before, beforeLabel, targets, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +126,7 @@ func ExtractTextBlocksWithLegacyNoterefPairing(before, after []byte, beforeLabel
 	return beforeBlocks, afterBlocks, nil
 }
 
-func extractTextBlocks(content []byte, label string, targets map[string]int) ([]string, error) {
+func extractTextBlocks(content []byte, label string, targets map[string]int, excludeNav bool) ([]string, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
@@ -145,6 +149,9 @@ func extractTextBlocks(content []byte, label string, targets map[string]int) ([]
 			name := t.Name.Local
 			parentCollecting := len(stack) == 0 || stack[len(stack)-1].collecting
 			collecting := parentCollecting && !ignoredTextTags[name] && !isNoteControl(name, t.Attr)
+			if excludeNav && name == "nav" {
+				collecting = false
+			}
 			legacyMark := false
 			if targets != nil && name == "a" && !isNoteControl(name, t.Attr) {
 				id, href := anchorIDAndHref(t.Attr)

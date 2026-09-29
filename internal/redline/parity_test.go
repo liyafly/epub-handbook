@@ -126,22 +126,8 @@ func epub2NoNavEntries(t *testing.T) []zipEntry {
 
 func migratedEPUB2Entries(t *testing.T) []zipEntry {
 	t.Helper()
-	entries := baseEntries()
-	for i := range entries {
-		if entries[i].name != "OEBPS/content.opf" {
-			continue
-		}
-		opf := string(entries[i].content)
-		old := "<spine>\n    <itemref idref=\"nav\" linear=\"no\"/>\n    <itemref idref=\"c1\"/>\n  </spine>"
-		new := "<spine>\n    <itemref idref=\"c1\"/>\n    <itemref idref=\"nav\" linear=\"no\"/>\n  </spine>"
-		if !strings.Contains(opf, old) {
-			t.Fatalf("fixture OPF missing migration spine %q", old)
-		}
-		entries[i].content = []byte(strings.Replace(opf, old, new, 1))
-		return entries
-	}
-	t.Fatal("fixture has no package OPF")
-	return nil
+	// EPUB3 nav documents are manifest items and do not appear in the spine.
+	return withoutNavItemref(t)
 }
 
 // editEntry 返回一份 baseEntries 副本，其中 name 对应的 entry 内容被 fn 改写。
@@ -241,6 +227,30 @@ func TestRedlineAllowsAddedNavDocumentForEPUB2Migration(t *testing.T) {
 	rep, text := compare(t, before, after, "all", Options{})
 	wantCode(t, rep, text, 0)
 	wantNoLine(t, rep, text, "text: added XHTML file:")
+}
+
+func TestRedlineRejectsAddedNavWithProseOutsideNav(t *testing.T) {
+	beforeEntries := epub2NoNavEntries(t)
+	afterEntries := migratedEPUB2Entries(t)
+	for i := range afterEntries {
+		if afterEntries[i].name == "OEBPS/nav.xhtml" {
+			afterEntries[i].content = bytes.Replace(afterEntries[i].content, []byte("</body>"), []byte("</body><p>偷偷加入的正文</p>"), 1)
+			break
+		}
+	}
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "all", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "text: added XHTML file: OEBPS/nav.xhtml")
+}
+
+func TestRedlineRejectsAddedNavInSpine(t *testing.T) {
+	beforeEntries := epub2NoNavEntries(t)
+	afterEntries := appendSpineItemref(t, migratedEPUB2Entries(t), "nav", "no")
+	before, after := pair(t, beforeEntries, afterEntries)
+	rep, text := compare(t, before, after, "all", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "text: added XHTML file: OEBPS/nav.xhtml")
 }
 
 func TestRedlineRejectsAddedNonNavXHTML(t *testing.T) {

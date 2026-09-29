@@ -162,6 +162,7 @@ func isMigrationNavAddition(before, after State, name string) bool {
 		return false
 	}
 	afterNavCount := 0
+	navID := ""
 	for _, item := range afterPackage.Manifest {
 		if !opf.HasNavProps(item.Properties) {
 			continue
@@ -173,8 +174,22 @@ func isMigrationNavAddition(before, after State, name string) bool {
 		if item.MediaType != "application/xhtml+xml" || item.ArchivePath != name {
 			return false
 		}
+		navID = item.ID
 	}
-	return afterNavCount == 1
+	if afterNavCount != 1 {
+		return false
+	}
+	for _, itemref := range afterPackage.Spine {
+		if itemref.IDRef == navID {
+			return false
+		}
+	}
+	content, err := after.Read(name)
+	if err != nil {
+		return false
+	}
+	blocks, err := textBlocksOutsideNav(content, fmt.Sprintf("%s:%s", after.Path(), name))
+	return err == nil && len(blocks) == 0
 }
 
 // ---- anchors ----
