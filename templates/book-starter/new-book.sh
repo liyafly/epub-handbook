@@ -46,6 +46,14 @@ EPUB_DIR="$TMP/03 制作工作区/epub"
 cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" \
 	"$TEMPLATE_DIR/build.sh" "$EPUB_DIR/"
 
+STYLE_PRESET_DIR="$TEMPLATE_DIR/../style-presets/literary-cn/Styles"
+if [ ! -d "$STYLE_PRESET_DIR" ]; then
+	echo "Missing literary-cn style preset: $STYLE_PRESET_DIR" >&2
+	exit 1
+fi
+mkdir -p "$EPUB_DIR/OEBPS/Styles"
+cp "$STYLE_PRESET_DIR/"*.css "$EPUB_DIR/OEBPS/Styles/"
+
 cp "$TEMPLATE_DIR/README.md" "$TMP/README.md"
 
 cat >"$TMP/01 源文件/README.md" <<'EOF'

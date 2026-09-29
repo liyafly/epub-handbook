@@ -57,6 +57,7 @@ jobs:
           output="$book/03 制作工作区/dist/book.epub"
           go build -o "$RUNNER_TEMP/epub" ./cmd/epub
           sh templates/book-starter/new-book.sh "$book"
+          diff -r templates/style-presets/literary-cn/Styles "$book/03 制作工作区/epub/OEBPS/Styles"
           test -f "$book/README.md"
           test ! -f "$book/03 制作工作区/epub/README.md"
           EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"

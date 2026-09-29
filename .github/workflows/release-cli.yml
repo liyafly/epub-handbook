@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           release_version="${GITHUB_REF_NAME#v}"
-          if ! grep -Eq "^## (v?${release_version})([[:space:]]|$)" CHANGELOG.md; then
+          if ! awk -v v="$release_version" '$1=="##" && ($2==v || $2=="v"v){f=1} END{exit !f}' CHANGELOG.md; then
             echo "CHANGELOG.md has no heading for ${GITHUB_REF_NAME}" >&2
             exit 1
           fi
@@ -93,7 +93,8 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             release_version="${GITHUB_REF_NAME#v}"
           else
-            release_version="0.4.6-dev"
+            release_version="$(sed -n 's/^[[:space:]]*version *= *"\(.*\)"$/\1/p' cmd/epub/version.go)"
+            test -n "$release_version"
           fi
           built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           printf 'RELEASE_VERSION=%s\n' "$release_version" >> "$GITHUB_ENV"

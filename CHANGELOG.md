@@ -10,12 +10,18 @@
 - `epub redline` 不再将旧式 `[N]` 链接与迁移后的 noteref 配对豁免；旧式标记文本按普通正文比较。
 - `epub-font` 移除包外字体源路径配置和 VF `keep` / `limit` 模式；可变字体只接受 `instance`。`action` 配置字段已移除，旧 `action: "preserve"` 暂时接受一个 provider 版本并作为 no-op 忽略。
 
+### Breaking (JSON facts)
+
+- JSON 信封将 `dry_run` 和 `modified_entries` 分别改为 `pipeline.dryRun` 与 `pipeline.modifiedEntries`；不再透传上游完整 facts，也删除了各能力的 `<id>.findings` facts。
+
 ### Changed
 
 - **`epub-font` 1.1.0**：`fonts.json` 只覆盖明确列出的字体；未列出的 manifest 字体也会按自动规则处理，包括自动保留 MATH 字体。Go capability 现在拒绝 provider 漏报 manifest 字体的报告。
 - **`epub-font` 1.2.0**：字体源只能来自 EPUB 内的 manifest 目标；可变字体统一实例化，MATH 字体不再要求显式保留配置。subset 用独立字符收集器阻断新增覆盖损失，删除重复的 `check --against` CLI 模式。
 
 ## v0.4.6 - 2026-09-28
+
+> 0.4.3–0.4.5 未发布。
 
 ### Added
 
@@ -29,6 +35,7 @@
 - **pipeline 与能力报告**：清理多步取消状态、normalize 后 scope 映射、上游 facts 重复和不可执行的 next command；注释后的 CSS 属性也进入 Kindle 风险检查。
 - **阅读器与模板证据**：样式预设 case 独立登记；缺少截图/日志的历史观察改为 warn；demo 与 starter 构建稳定化，CI 补齐 golden、provider 和 redline 预期。
 - **英文小说预设**：保留 `<em>` 的英文斜体语义，并加入真实页面样例。
+- **书级构建（R10/R11）**：打包排除编辑器和系统临时文件；新候选成功后，会显示与既有 dist 的差异摘要供作者审阅。
 
 ### Fixed
 
