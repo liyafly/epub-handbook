@@ -257,6 +257,44 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 		CapabilityID: "epub.typography.english.optimize",
 		InputPath:    input,
 		DryRun:       true,
+		Args: Args{
+			"scope_paths": `["OEBPS/Text/english-1.xhtml","OEBPS/Text/english-2.xhtml","OEBPS/Text/english-3.xhtml"]`,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
+		t.Fatalf("status=%q exit=%d findings=%+v, want planned / 0", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if got := outcome.Envelope.Facts["epub.typography.english.optimize.editCount"]; got != 3 {
+		t.Fatalf("editCount=%#v, want 3", got)
+	}
+	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{
+		"OEBPS/Text/english-1.xhtml", "OEBPS/Text/english-2.xhtml", "OEBPS/Text/english-3.xhtml",
+	}) {
+		t.Fatalf("pipeline.modifiedEntries=%#v", got)
+	}
+	var sawScopedLanguageDiagnostic bool
+	for _, finding := range outcome.Envelope.Findings {
+		sawScopedLanguageDiagnostic = sawScopedLanguageDiagnostic || finding.ID == "english.opf-language-differs"
+		if finding.ID == "english.opf-language-differs-requires-scope" {
+			t.Fatalf("explicit scope should bypass requires-scope finding: %+v", outcome.Envelope.Findings)
+		}
+	}
+	if !sawScopedLanguageDiagnostic {
+		t.Fatalf("missing scoped OPF-language diagnostic: %+v", outcome.Envelope.Findings)
+	}
+	assertEnglishTypographyGolden(t, outcome, input, "basic.report.json")
+}
+
+func TestEnglishTypographyRequiresScopeGolden(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeEnglishTypographyEPUB(t)
+	outcome, err := Run(t.Context(), Options{
+		CapabilityID: "epub.typography.english.optimize",
+		InputPath:    input,
+		DryRun:       true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -270,13 +308,16 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; len(got.([]string)) != 0 {
 		t.Fatalf("pipeline.modifiedEntries=%#v, want []", got)
 	}
-	var sawScopeRequirement bool
-	for _, finding := range outcome.Envelope.Findings {
-		sawScopeRequirement = sawScopeRequirement || finding.ID == "english.opf-language-differs-requires-scope"
-	}
-	if !sawScopeRequirement {
+	if !slices.ContainsFunc(outcome.Envelope.Findings, func(finding report.Finding) bool {
+		return finding.ID == "english.opf-language-differs-requires-scope"
+	}) {
 		t.Fatalf("expected OPF language scope requirement finding, got %+v", outcome.Envelope.Findings)
 	}
+	assertEnglishTypographyGolden(t, outcome, input, "requires-scope.report.json")
+}
+
+func assertEnglishTypographyGolden(t *testing.T, outcome Outcome, input, filename string) {
+	t.Helper()
 	if outcome.Envelope.Input == nil {
 		t.Fatal("input artifact missing from E2E envelope")
 	}
@@ -290,7 +331,7 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	data = append(data, '\n')
-	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "english_typography", "basic.report.json")
+	goldenPath := filepath.Join(repoRootForTest(t), "testdata", "english_typography", filename)
 	if os.Getenv("UPDATE_GOLDEN") == "1" {
 		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
 			t.Fatal(err)
@@ -305,7 +346,7 @@ func TestEnglishTypographyEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(data, want) {
-		t.Fatalf("English typography E2E envelope differs from golden\n--- got ---\n%s\n--- want ---\n%s", data, want)
+		t.Fatalf("English typography E2E envelope differs from %s\n--- got ---\n%s\n--- want ---\n%s", filename, data, want)
 	}
 }
 

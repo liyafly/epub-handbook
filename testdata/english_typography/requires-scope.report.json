@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.typography.english.optimize",
+  "status": "planned",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "facts": {
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 4,
+      "info": 0
+    },
+    "epub.package.nav.audit.status": "complete",
+    "epub.typography.english.optimize.editCount": 0,
+    "epub.typography.english.optimize.filesScanned": 0,
+    "epub.typography.english.optimize.plannedEdits": [],
+    "epub.typography.english.optimize.skipped": [],
+    "pipeline.dryRun": true,
+    "pipeline.modifiedEntries": []
+  },
+  "findings": [
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.package.nav.audit reported 0 error / 4 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.package.nav.audit.findingsByLevel\"]",
+      "location": "epub.package.nav.audit"
+    },
+    {
+      "level": "info",
+      "id": "english.opf-language-differs-requires-scope",
+      "title": "OPF language differs from the requested XHTML language; explicit scope is required",
+      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"; provide scope_paths to select pages",
+      "location": "OEBPS/content.opf"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 4 warn"
+    },
+    {
+      "step": "epub.typography.english.optimize",
+      "status": "completed"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    }
+  ],
+  "nextCommands": [
+    "epub run epub.typography.english.optimize --input fixture.epub --output out.epub --json"
+  ]
+}

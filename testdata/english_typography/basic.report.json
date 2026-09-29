@@ -12,12 +12,37 @@
       "info": 0
     },
     "epub.package.nav.audit.status": "complete",
-    "epub.typography.english.optimize.editCount": 0,
-    "epub.typography.english.optimize.filesScanned": 0,
-    "epub.typography.english.optimize.plannedEdits": [],
-    "epub.typography.english.optimize.skipped": [],
+    "epub.typography.english.optimize.editCount": 3,
+    "epub.typography.english.optimize.filesScanned": 3,
+    "epub.typography.english.optimize.plannedEdits": [
+      {
+        "path": "OEBPS/Text/english-1.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      },
+      {
+        "path": "OEBPS/Text/english-2.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      },
+      {
+        "path": "OEBPS/Text/english-3.xhtml",
+        "action": "add-lang",
+        "value": "en"
+      }
+    ],
+    "epub.typography.english.optimize.skipped": [
+      {
+        "path": "OEBPS/Text/copyright.xhtml",
+        "reason": "outside-scope"
+      }
+    ],
     "pipeline.dryRun": true,
-    "pipeline.modifiedEntries": []
+    "pipeline.modifiedEntries": [
+      "OEBPS/Text/english-1.xhtml",
+      "OEBPS/Text/english-2.xhtml",
+      "OEBPS/Text/english-3.xhtml"
+    ]
   },
   "findings": [
     {
@@ -29,9 +54,9 @@
     },
     {
       "level": "info",
-      "id": "english.opf-language-differs-requires-scope",
-      "title": "OPF language differs from the requested XHTML language; explicit scope is required",
-      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"; provide scope_paths to select pages",
+      "id": "english.opf-language-differs",
+      "title": "OPF language differs from the requested XHTML language",
+      "detail": "dc:language=[\"zh-CN\"]; requested primary language=\"en\"",
       "location": "OEBPS/content.opf"
     }
   ],
@@ -56,6 +81,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.typography.english.optimize --input fixture.epub --output out.epub --json"
+    "epub run epub.typography.english.optimize --input fixture.epub --output out.epub --json 'scope_paths=[\"OEBPS/Text/english-1.xhtml\",\"OEBPS/Text/english-2.xhtml\",\"OEBPS/Text/english-3.xhtml\"]'"
   ]
 }
