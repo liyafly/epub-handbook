@@ -824,6 +824,24 @@ func TestNavAuditAcceptsEntitiesDeclaredByXHTML10Doctype(t *testing.T) {
 	}
 }
 
+func TestNavAuditFlagsMalformedNavDocument(t *testing.T) {
+	path := writeNativeFixture(t)
+	malformed := filepath.Join(t.TempDir(), "malformed-nav.epub")
+	rewriteZipEntry(t, path, malformed, "OEBPS/nav.xhtml", func(data []byte) []byte {
+		return bytes.Replace(data, []byte("<title>Contents</title>"), []byte("<title>Contents&nbsp;</title>"), 1)
+	})
+	res := runNativeAudit(t, malformed)
+	if res.Status != report.StatusFailed {
+		t.Fatalf("status = %q, want failed", res.Status)
+	}
+	for _, finding := range res.Findings {
+		if finding.Detail == "xhtml-not-well-formed" && finding.Location == "OEBPS/nav.xhtml" {
+			return
+		}
+	}
+	t.Fatalf("missing malformed nav XHTML finding: %+v", res.Findings)
+}
+
 // TestToolAvailabilityFollowsInjectedProbe 把 PATH 依赖从 golden 里隔离出来：
 // toolAvailability 与 epubcheck 相关的 nextCommands 只由注入的探测器决定。
 func TestToolAvailabilityFollowsInjectedProbe(t *testing.T) {

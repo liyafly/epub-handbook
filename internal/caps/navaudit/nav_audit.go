@@ -585,7 +585,14 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			spineXHTML[item.ArchivePath] = struct{}{}
 		}
 	}
-	strictChecked := make(map[string]struct{}, len(spineXHTML))
+	strictXHTML := make(map[string]struct{}, len(spineXHTML)+1)
+	for archivePath := range spineXHTML {
+		strictXHTML[archivePath] = struct{}{}
+	}
+	if nav, ok := pkg.NavItem(); ok && nav.ArchivePath != "" && strings.EqualFold(nav.MediaType, "application/xhtml+xml") {
+		strictXHTML[nav.ArchivePath] = struct{}{}
+	}
+	strictChecked := make(map[string]struct{}, len(strictXHTML))
 	documents := make([]xhtmlDocument, 0, len(manifestXHTML))
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
@@ -603,7 +610,7 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 			}
 			continue
 		}
-		if _, inSpine := spineXHTML[item.ArchivePath]; inSpine {
+		if _, strict := strictXHTML[item.ArchivePath]; strict {
 			if _, checked := strictChecked[item.ArchivePath]; !checked {
 				strictChecked[item.ArchivePath] = struct{}{}
 				var strictErr error
@@ -616,7 +623,7 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 					if ctx.Err() != nil {
 						return
 					}
-					ins.addFinding("error", "Spine XHTML is not well-formed XML: "+strictErr.Error(), item.ArchivePath, "xhtml-not-well-formed")
+					ins.addFinding("error", "Spine or navigation XHTML is not well-formed XML: "+strictErr.Error(), item.ArchivePath, "xhtml-not-well-formed")
 					ins.addSkill("epub-audit", "error")
 				}
 			}
