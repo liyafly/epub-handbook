@@ -242,7 +242,7 @@ func TestRunPlanMatchesExecutionPlanSchema(t *testing.T) {
 	if plan.SchemaVersion != "1" || plan.Artifact.URI != dir || plan.Artifact.Kind != "source-directory" {
 		t.Errorf("plan header = %+v", plan)
 	}
-	wantSteps := []string{"epub.package.nav.audit", "epub.structure.normalize", "epub.package.migrate.epub3", "epub.layout.audit"}
+	wantSteps := []string{"epub.package.nav.audit", "epub.structure.normalize", "epub.package.migrate.epub3", "epub.package.nav.audit"}
 	var gotSteps []string
 	for _, s := range plan.Steps {
 		gotSteps = append(gotSteps, s.Capability)

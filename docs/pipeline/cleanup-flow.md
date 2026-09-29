@@ -22,7 +22,7 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 | S1 预检 | `epub run epub.package.nav.audit --input "$CUR" --json > "$W/s1-audit.json"` | s1-audit.json | 无 DRM/损坏类 error | DRM、未知加密、ZIP 损坏 → **停止**，报告用户 |
 | S2 规范化（可选） | ① 加 `--dry-run` 跑 `epub run epub.structure.normalize --input "$CUR" --output "$W/after/s2.epub" --json > "$W/s2-dry.json"`；② 审映射；③ 去掉 `--dry-run` 实跑，输出存 `$W/s2-normalize.json`；④ `CUR="$W/after/s2.epub"` | s2.epub、s2-normalize.json | 映射逐条看过；实跑 exit 0 | 不需要就在制作说明写跳过理由 |
 | S3 EPUB3 迁移（EPUB2 或缺 nav 时） | 先 `--dry-run`，再 `epub run epub.package.migrate.epub3 --input "$CUR" --output "$W/after/s3.epub" --json > "$W/s3.json"`；`CUR="$W/after/s3.epub"` | s3.epub | exit 0，S6 通过 | 读 findings，不覆盖重试 |
-| S4 审计（只读） | `epub.layout.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze` 各跑一次 `--input "$CUR" --json` | s4-*.json | 只生成报告 | 字体 provider 缺失 → 记"无字体覆盖结论"，继续 |
+| S4 审计（只读） | `epub.package.nav.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze` 各跑一次 `--input "$CUR" --json` | s4-*.json | 只生成报告 | 字体 provider 缺失 → 记"无字体覆盖结论"，继续 |
 | S5 修改（每次只做一项） | 按 `cleanup-patterns.md` 判定模式，再在 [skills/README 技能索引](../../skills/README.md#技能索引)选择该 skill 下一个 capability；dry-run 后写出 `$W/after/s5-<n>.epub` | s5-n.epub | 紧接着跑 S6 并通过，才 `CUR=` 它 | 丢弃该候选，CUR 不变 |
 | S5f 字体（可选） | `epub run epub.font.subset --input "$CUR" --output "$W/after/s5-font.epub" --json [font_config=fonts.json]` | s5-font.epub 与 capability envelope；provider 临时报告位于系统临时目录，命令结束时删除 | exit 0，检查通过的 manifest 字体 entry 写入候选；全项 redline 再确认非字体内容不变 | 失败不应用字体编辑；检查 provider finding、完整字体母版和 `THIRD_PARTY.md` 许可记录 |
 | S6 红线（**每次写出后都跑**） | `epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" <新候选>` | 终端输出 | exit 0 | 不删 gate、不放宽 allow-list；丢弃该候选 |
@@ -167,7 +167,7 @@ epub redline --check all \
 | `epub run epub.structure.normalize` | 可选：先格式化目录，再按 OPF manifest id 反混淆；inspect 非 dry-run 会写未修改副本 | 内部目录散乱或文件名不可读时，在 EPUB3 迁移前运行 |
 | `epub run epub.package.migrate.epub3 --dry-run` | 生成 EPUB3 迁移计划，仍需检查具体 findings | 排除 DRM/损坏阻断后，先审查计划 |
 | `epub run epub.package.migrate.epub3` | 按确认后的计划写出新 EPUB3，报告 before/after SHA-256 和转换明细 | 计划确认后；不原地覆盖输入 |
-| `epub run epub.layout.audit` + `epub run epub.text.content.analyze` + `epub run epub.image.layout.optimize` + `epub run epub.font.coverage.analyze` | 精排建议组合：全局事实与阶段建议、文本结构角色、图片版式候选、字体覆盖风险 | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
+| `epub run epub.package.nav.audit` + `epub run epub.text.content.analyze` + `epub run epub.image.layout.optimize` + `epub run epub.font.coverage.analyze` | 精排建议组合：全局事实与阶段建议、文本结构角色、图片版式候选、字体覆盖风险 | EPUB3 基线前后都可跑；建议在迁移后再跑一次 |
 | `epub run epub.text.content.analyze` | 只读识别文本结构角色，并给出字体角色与可重排排版建议 | 精排建议后、语义 class 分派前 |
 | `epub run epub.font.coverage.analyze` | 只读调用独立字体覆盖 detector，检查 cmap、缺字、链命中和 reader profile 风险 | 字体策略确定前后；EPUB 含嵌入字体或生僻字时 |
 | `epub run epub.image.layout.optimize` | 只读扫描正文/封面等真实图片，输出布局候选与风险；排除 noteref 图标控件 | 精排建议之后；有人需要逐图选择时运行 |

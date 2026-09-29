@@ -54,7 +54,6 @@ cp work/source.epub work/source-copy.epub
 epub run epub.package.nav.audit --input work/source.epub --json
 epub run epub.text.content.analyze --input work/source.epub --json
 epub run epub.font.coverage.analyze --input work/source.epub --json
-epub run epub.layout.audit --input work/source.epub --json
 ```
 
 ## 5. 决定是否清洗

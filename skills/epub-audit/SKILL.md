@@ -41,11 +41,7 @@ epub run epub.package.nav.audit --input "book.epub" --json
 
 ### 排版审稿
 
-```sh
-epub run epub.layout.audit --input "book.epub" --json
-```
-
-只读，无额外参数。还须阅读实际改动的 XHTML/CSS/OPF 与相关资源；扫描不代替语义和视觉 review。按问题读取 [SPEC](../../docs/final/SPEC-实现约束.md) 对应章节，兼容结论核对 [reader matrix](../../docs/final/reader-matrix.yaml)。
+沿用上节的 `epub.package.nav.audit` 报告，无需重复运行。它只读，不修改样式。还须阅读实际改动的 XHTML/CSS/OPF 与相关资源；扫描不代替语义和视觉 review。按问题读取 [SPEC](../../docs/final/SPEC-实现约束.md) 对应章节，兼容结论核对 [reader matrix](../../docs/final/reader-matrix.yaml)。
 
 ### 文本角色分析
 
@@ -82,7 +78,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 
 ### 排版审稿
 
-前缀 `epub.layout.audit.`：`summary`、`auditStatus`、`findingsByLevel`、`recommendedSkills`、`actionableFindings`。后者给出位置、证据、置信度与 `autoFixable`；可自动修复标记不等于用户已授权。当前 `toolAvailability` 仅探测 EPUBCheck。
+前缀 `epub.package.nav.audit.`：`summary`、`auditStatus`、`findingsByLevel`、`recommendedSkills`、`actionableFindings`。后者给出位置、证据、置信度与 `autoFixable`；可自动修复标记不等于用户已授权。当前 `toolAvailability` 仅探测 EPUBCheck。
 
 ### 文本角色分析
 

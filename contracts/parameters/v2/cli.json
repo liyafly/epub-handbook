@@ -12,10 +12,6 @@
       "description": "只读审计导航、包结构和兼容性风险。",
       "parameters": {}
     },
-    "epub.layout.audit": {
-      "description": "只读布局审计，不修改样式。",
-      "parameters": {}
-    },
     "epub.text.content.analyze": {
       "description": "只读正文分析；可选对照源文本。",
       "parameters": {

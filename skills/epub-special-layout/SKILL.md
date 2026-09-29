@@ -54,7 +54,7 @@ epub run epub.literary.structure.format --input "before.epub" --output "candidat
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-角色尚未确认时，先用 `epub.text.content.analyze` 与 `epub.layout.audit` 收集证据，并由人复核后再填写清单。一次运行出现任何 error finding 时整批零写入；既有 class 与已链接 stylesheet 都是 no-op。
+角色尚未确认时，先用 `epub.text.content.analyze` 与 `epub.package.nav.audit` 收集证据，并由人复核后再填写清单。一次运行出现任何 error finding 时整批零写入；既有 class 与已链接 stylesheet 都是 no-op。
 
 ### 竖排与 Ruby
 

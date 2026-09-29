@@ -36,7 +36,7 @@ func cancelAtCheckpoint(t *testing.T, n int32) context.Context {
 }
 
 func TestRealScannersStopInsideWorkWithoutPartialResults(t *testing.T) {
-	for _, id := range []string{"epub.package.nav.audit", "epub.layout.audit", "epub.text.content.analyze", "epub.image.layout.optimize", "epub.css.layering.optimize"} {
+	for _, id := range []string{"epub.package.nav.audit", "epub.text.content.analyze", "epub.image.layout.optimize", "epub.css.layering.optimize"} {
 		t.Run(id, func(t *testing.T) {
 			// This is a real registered capability, not a pipeline runner stub.
 			b, err := book.Open(buildEpubWithOPF(t))

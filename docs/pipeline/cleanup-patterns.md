@@ -5,7 +5,7 @@
 
 ## 怎么用本目录
 
-1. 跑 `epub run epub.layout.audit --input "$CUR" --json`。
+1. 跑 `epub run epub.package.nav.audit --input "$CUR" --json`。
 2. 对照本目录的「特征」找匹配模式。
 3. 按推荐 skill 顺序执行。
 4. 每步后跑 `epub redline --check all` + diff 工具确认。
@@ -112,7 +112,7 @@ format 目录格式化 -> deobfuscate-filenames 文件名反混淆
 判定：
 
 ```sh
-epub run epub.layout.audit --input "$CUR" --json \
+epub run epub.package.nav.audit --input "$CUR" --json \
   | jq '.findings[] | select(.detail == "ocr-residual")'
 ```
 

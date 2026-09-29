@@ -97,7 +97,7 @@
         },
         {
           "id": "layout-audit",
-          "capability": "epub.layout.audit",
+          "capability": "epub.package.nav.audit",
           "kind": "inspect",
           "dependsOn": [
             "migrate-epub3"

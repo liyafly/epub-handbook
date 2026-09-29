@@ -639,7 +639,7 @@ func buildPlan(sc *scanResult) Plan {
 		{ID: "nav-audit", Capability: "epub.package.nav.audit", Kind: "inspect", DependsOn: []string{}, RequiresApproval: false},
 		{ID: "structure-normalize", Capability: "epub.structure.normalize", Kind: "transform", DependsOn: []string{"nav-audit"}, RequiresApproval: true},
 		{ID: "migrate-epub3", Capability: "epub.package.migrate.epub3", Kind: "transform", DependsOn: []string{"structure-normalize"}, RequiresApproval: true},
-		{ID: "layout-audit", Capability: "epub.layout.audit", Kind: "inspect", DependsOn: []string{"migrate-epub3"}, RequiresApproval: false},
+		{ID: "layout-audit", Capability: "epub.package.nav.audit", Kind: "inspect", DependsOn: []string{"migrate-epub3"}, RequiresApproval: false},
 	}
 	roleCounts := map[string]int{}
 	for _, f := range sc.files {

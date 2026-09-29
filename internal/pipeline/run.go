@@ -682,7 +682,6 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 // 能力），dry-run 与正常运行等价：不得建议一个该能力根本不接受的 --output。
 func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite bool) []string {
 	id := contract.ID
-	var out []string
 	if opts.DryRun {
 		if !needsWrite {
 			return nil
@@ -707,12 +706,7 @@ func nextCommands(contract Contract, opts Options, userArgs Args, needsWrite boo
 		}
 		return []string{command}
 	}
-	switch id {
-	case "epub.package.nav.audit":
-		out = append(out,
-			"epub run epub.layout.audit --input "+report.ShellQuote(opts.InputPath))
-	}
-	return out
+	return nil
 }
 
 func fallbackPath(vals ...string) string {

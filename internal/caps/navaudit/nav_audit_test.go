@@ -246,7 +246,6 @@ func TestNativeFixtureShape(t *testing.T) {
 	joined := strings.Join(res.NextCommands, "\n")
 	for _, want := range []string{
 		"epub run epub.package.nav.audit",
-		"epub run epub.layout.audit",
 		"epub run epub.notes.popup.normalize",
 		"epub capabilities --json",
 		"epub run epub.structure.normalize",
@@ -263,60 +262,47 @@ func TestNativeFixtureShape(t *testing.T) {
 	}
 }
 
-// TestEmptySpineIsErrorInPreflightOnly 锁定 spine 特判：preflight 族在 spine 为空时
-// 追加一条 error finding 并置 failed；layout-audit 族不做此特判。
-func TestEmptySpineIsErrorInPreflightOnly(t *testing.T) {
+// TestEmptySpineIsError 锁定空 spine 的错误 finding。
+func TestEmptySpineIsError(t *testing.T) {
 	path := writeNativeFixture(t)
 	noSpine := filepath.Join(t.TempDir(), "no-spine.epub")
 	rewriteZipEntry(t, path, noSpine, "OEBPS/content.opf", func(data []byte) []byte {
 		return bytes.Replace(data, []byte(`<spine toc="ncx"><itemref idref="chapter"/></spine>`), []byte(`<spine toc="ncx"></spine>`), 1)
 	})
 
-	for _, tc := range []struct {
-		name       string
-		params     Params
-		wantStatus string
-		wantSpine  bool
-	}{
-		{"preflight", Params{}, report.StatusFailed, true},
-		{"layout-audit", Params{Report: "layout-audit"}, report.StatusComplete, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			b, err := book.Open(noSpine)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer b.Close()
-			res, err := run(t.Context(), b, tc.params, stubProbe(false))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.Status != tc.wantStatus {
-				t.Fatalf("status = %q, want %q", res.Status, tc.wantStatus)
-			}
-			found := false
-			for _, f := range res.Findings {
-				if f.Title == "OPF spine is missing or empty" && f.Level == "error" {
-					found = true
-				}
-			}
-			if found != tc.wantSpine {
-				t.Errorf("spine finding present = %v, want %v\n%+v", found, tc.wantSpine, res.Findings)
-			}
-			levels := res.Facts["findingsByLevel"].(findingsByLevel)
-			gotErrors := 0
-			for _, f := range res.Findings {
-				if f.Level == "error" {
-					gotErrors++
-				}
-			}
-			if levels.Error != gotErrors {
-				t.Errorf("findingsByLevel.error = %d, want %d", levels.Error, gotErrors)
-			}
-			if got := res.Facts["auditStatus"]; (got == "fail") != tc.wantSpine {
-				t.Errorf("auditStatus = %v", got)
-			}
-		})
+	b, err := book.Open(noSpine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := run(t.Context(), b, Params{}, stubProbe(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusFailed {
+		t.Fatalf("status = %q, want %q", res.Status, report.StatusFailed)
+	}
+	found := false
+	for _, f := range res.Findings {
+		if f.Title == "OPF spine is missing or empty" && f.Level == "error" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("missing empty-spine error finding: %+v", res.Findings)
+	}
+	levels := res.Facts["findingsByLevel"].(findingsByLevel)
+	gotErrors := 0
+	for _, f := range res.Findings {
+		if f.Level == "error" {
+			gotErrors++
+		}
+	}
+	if levels.Error != gotErrors {
+		t.Errorf("findingsByLevel.error = %d, want %d", levels.Error, gotErrors)
+	}
+	if got := res.Facts["auditStatus"]; got != "fail" {
+		t.Errorf("auditStatus = %v, want fail", got)
 	}
 }
 

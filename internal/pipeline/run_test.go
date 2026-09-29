@@ -148,16 +148,10 @@ func TestRunFactsUsePipelineNamespaceAndCompactUpstream(t *testing.T) {
 		t.Fatalf("compact upstream findingsByLevel missing: %#v", outcome.Envelope.Facts)
 	}
 	for key := range outcome.Envelope.Facts {
-		if strings.HasPrefix(key, "epub.layout.audit.") {
-			t.Fatalf("legacy audit alias ran as a duplicate upstream: %s", key)
-		}
 		if strings.HasPrefix(key, "epub.package.nav.audit.") &&
 			key != "epub.package.nav.audit.status" && key != "epub.package.nav.audit.findingsByLevel" {
 			t.Fatalf("unexpected full upstream fact %s", key)
 		}
-	}
-	if !Implemented("epub.layout.audit") {
-		t.Fatal("epub.layout.audit compatibility alias is not registered")
 	}
 }
 
@@ -299,8 +293,8 @@ func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DescribeCapabilities: %v", err)
 	}
-	if len(infos) != 23 {
-		t.Fatalf("embedded capability count = %d, want 23", len(infos))
+	if len(infos) != 22 {
+		t.Fatalf("embedded capability count = %d, want 22", len(infos))
 	}
 	if schema, err := readRepositoryFile("", "contracts/schemas/v2/envelope.schema.json"); err != nil || len(schema) == 0 {
 		t.Fatalf("embedded envelope schema: bytes=%d err=%v", len(schema), err)
@@ -654,8 +648,8 @@ func TestCapabilitiesListsContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contracts) != 23 {
-		t.Errorf("契约数 = %d, want 23", len(contracts))
+	if len(contracts) != 22 {
+		t.Errorf("契约数 = %d, want 22", len(contracts))
 	}
 	if !strings.Contains(ImplementedIDs()[0], "epub.") {
 		t.Errorf("registry id 形态异常: %v", ImplementedIDs())
@@ -677,8 +671,8 @@ func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
 			Findings:   []report.Finding{{Level: "error", ID: "test.err", Title: "boom"}},
 			NextCommands: []string{
 				"epub run test.nc.cap --input x.epub --json", // 自引用，必须被剔除
-				"epub run epub.layout.audit --input x.epub --json",
-				"epub run epub.layout.audit --input x.epub --json", // 重复，去重
+				"epub run epub.package.nav.audit --input x.epub --json",
+				"epub run epub.package.nav.audit --input x.epub --json", // 重复，去重
 			},
 		}, nil
 	})
@@ -692,7 +686,7 @@ func TestNextCommandsPrefersCapabilitySuggestions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"epub run epub.layout.audit --input x.epub --json"}
+	want := []string{"epub run epub.package.nav.audit --input x.epub --json"}
 	if !slices.Equal(got.Envelope.NextCommands, want) {
 		t.Errorf("失败能力的 nextCommands = %q, want %q", got.Envelope.NextCommands, want)
 	}

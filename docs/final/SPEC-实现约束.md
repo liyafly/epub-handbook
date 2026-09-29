@@ -360,7 +360,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 #### 适配性判断
 
-跑 `epub run epub.layout.audit --input "$CUR" --json`，看 findings：
+跑 `epub run epub.package.nav.audit --input "$CUR" --json`，看 findings：
 
 - 找到的问题多在「能做」清单：适合走清洗流水线。
 - 找到的问题多在「不能做」清单：不要走，回到源头。

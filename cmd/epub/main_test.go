@@ -191,8 +191,28 @@ func TestRedlineEnvelopeRecordsArtifactSHA(t *testing.T) {
 }
 
 func TestCapabilitiesUnknownIDIsUsage(t *testing.T) {
-	if code := runCapabilities([]string{"--id", "no.such.capability"}); code != 3 {
-		t.Fatalf("unknown capability exit = %d, want 3", code)
+	removedAuditID := strings.Join([]string{"epub", "layout", "audit"}, ".")
+	for _, id := range []string{"no.such.capability", removedAuditID} {
+		if code := runCapabilities([]string{"--id", id}); code != 3 {
+			t.Fatalf("unknown capability %q exit = %d, want 3", id, code)
+		}
+	}
+}
+
+func TestRemovedLayoutAuditIsUnknownCapability(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "input.epub")
+	writeRedlineFixture(t, input, "same text")
+	removedAuditID := strings.Join([]string{"epub", "layout", "audit"}, ".")
+	code, stdout, _ := captureRunCapability(t, []string{removedAuditID, "--input", input, "--json"})
+	if code != 3 {
+		t.Fatalf("removed capability exit = %d, want 3: %s", code, stdout)
+	}
+	var env report.Envelope
+	if err := json.Unmarshal([]byte(stdout), &env); err != nil {
+		t.Fatalf("stdout is not a usage envelope: %v\n%s", err, stdout)
+	}
+	if env.Status != report.StatusFailed || len(env.Findings) != 1 || !strings.Contains(env.Findings[0].Detail, "unknown capability") {
+		t.Fatalf("removed capability envelope = %+v, want unknown-capability usage finding", env)
 	}
 }
 

@@ -29,27 +29,22 @@ type auditFinding struct {
 	Kind    string `json:"kind,omitempty"`
 }
 
-// Params 是 nav.audit 的参数。
-type Params struct {
-	// Report 选报告族：preflight（默认）或 layout-audit（AI harness 家族，
-	// 无 spine 特判）。
-	Report string // "preflight" | "layout-audit"
-}
+// Params 保留 nav.audit 的无参数调用形态。
+type Params struct{}
 
 type inspector struct {
-	b           *book.Book
-	pkg         *opf.Package
-	opfPath     string
-	mode        string
-	summary     *orderedSummary
-	findings    []auditFinding
-	skills      []string
-	skillLv     map[string]string
-	commands    []string
-	tools       *orderedTools
-	textChars   int
-	imageRefs   int
-	layoutAudit bool
+	b         *book.Book
+	pkg       *opf.Package
+	opfPath   string
+	mode      string
+	summary   *orderedSummary
+	findings  []auditFinding
+	skills    []string
+	skillLv   map[string]string
+	commands  []string
+	tools     *orderedTools
+	textChars int
+	imageRefs int
 	// lookPath 是外部工具探测器（默认 externToolProbe）。
 	lookPath toolProbe
 }
@@ -104,13 +99,12 @@ func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (repor
 		lookPath = externToolProbe
 	}
 	ins := &inspector{
-		b:           b,
-		mode:        "cleanup",
-		layoutAudit: p.Report == "layout-audit",
-		summary:     &orderedSummary{MediaCounts: map[string]int{"xhtml": 0, "css": 0, "images": 0, "fonts": 0, "other": 0}},
-		skillLv:     map[string]string{},
-		tools:       &orderedTools{Values: map[string]bool{}},
-		lookPath:    lookPath,
+		b:        b,
+		mode:     "cleanup",
+		summary:  &orderedSummary{MediaCounts: map[string]int{"xhtml": 0, "css": 0, "images": 0, "fonts": 0, "other": 0}},
+		skillLv:  map[string]string{},
+		tools:    &orderedTools{Values: map[string]bool{}},
+		lookPath: lookPath,
 	}
 	ins.inspect(ctx)
 	if err := ctx.Err(); err != nil {
@@ -150,8 +144,8 @@ func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (repor
 	} else if warnCount > 0 {
 		status = "warn"
 	}
-	// spine 特判（仅 preflight 族）：spine 为空追加一条 error finding。
-	if ins.summary.SpineItems == 0 && !ins.layoutAudit {
+	// spine 为空时追加一条 error finding。
+	if ins.summary.SpineItems == 0 {
 		res.Findings = append(res.Findings, report.Finding{
 			Level: "error", ID: "audit." + fmt.Sprint(len(res.Findings)),
 			Title: "OPF spine is missing or empty",
@@ -256,7 +250,6 @@ func (ins *inspector) inspect(ctx context.Context) {
 	// 旧 preflight / AI / refinement 入口已合并为 Go capability。保留原有
 	// 推荐顺序，但让报告中的每一项都能由当前 `epub` CLI 直接执行。
 	ins.addCommand("epub run epub.package.nav.audit --input " + q + " --json")
-	ins.addCommand("epub run epub.layout.audit --input " + q + " --json")
 	ins.addCommand("epub run epub.notes.popup.normalize --input " + q + " --dry-run --json")
 
 	ins.summary.ZipEntries = len(ins.b.Names())

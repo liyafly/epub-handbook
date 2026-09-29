@@ -81,7 +81,6 @@
   ],
   "nextCommands": [
     "epub run epub.package.nav.audit --input fixture.epub --json",
-    "epub run epub.layout.audit --input fixture.epub --json",
     "epub run epub.notes.popup.normalize --input fixture.epub --dry-run --json",
     "epub run epub.structure.normalize --input fixture.epub --dry-run --json",
     "epub run epub.package.migrate.epub3 --input fixture.epub --dry-run --json",

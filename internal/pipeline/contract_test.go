@@ -60,6 +60,36 @@ func TestResolveChainDetectsCycle(t *testing.T) {
 	}
 }
 
+func TestNoChainRunsAuditRunnerTwice(t *testing.T) {
+	root, err := FindRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root == "" {
+		t.Fatal("repository root not found")
+	}
+	contracts, err := AllContracts(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	removedAuditID := strings.Join([]string{"epub", "layout", "audit"}, ".")
+	for _, contract := range contracts {
+		chain, err := ResolveChain(root, contract.ID)
+		if err != nil {
+			t.Fatalf("resolve %s: %v", contract.ID, err)
+		}
+		auditRuns := 0
+		for _, stage := range chain {
+			if stage.ID == "epub.package.nav.audit" || stage.ID == removedAuditID {
+				auditRuns++
+			}
+		}
+		if auditRuns > 1 {
+			t.Errorf("%s audit chain contains %d nav/layout audit runners: %v", contract.ID, auditRuns, chain)
+		}
+	}
+}
+
 func TestRunExecutesFullChainAndExposesUpstream(t *testing.T) {
 	root := t.TempDir()
 	writeTestContract(t, root, "test.run.c", nil, false, nil)

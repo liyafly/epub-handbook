@@ -106,9 +106,6 @@ func init() {
 	register("epub.package.nav.audit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return navaudit.Run(ctx, b, navaudit.Params{})
 	})
-	register("epub.layout.audit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		return navaudit.Run(ctx, b, navaudit.Params{Report: "layout-audit"})
-	})
 	register("epub.text.content.analyze", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return contentanalyze.Run(ctx, b, contentanalyze.Params{
 			IncludeSnippets: args.Bool("include_snippets"),
