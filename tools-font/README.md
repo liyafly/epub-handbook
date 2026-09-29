@@ -10,8 +10,9 @@
 
 `epub run epub.font.coverage.analyze` 由 `internal/extern` 调起同一个 `uv run python -m src.cli`。
 **缺少 `uv` 时不会静默跳过**：能力以 `status: failed` 显式失败，findings 里给出
-`uv is required for tools-font/coverage-detector`；`uv` 存在但进程起不来（权限、工作目录缺失等）时
-报 `coverage detector could not be started: <原因>`，而不是伪装成"跑完且干净退出"。
+`fontcoverage.adapter` finding，detail 说明缺少 `uv`；`uv` 存在但进程起不来（权限、工作目录缺失等）或
+detector 没有返回受支持的 JSON 报告时，也会以 `fontcoverage.adapter` finding 返回结构化失败结果，
+不会折叠成通用的 `capability.run-failed`。
 被 Ctrl-C 或 deadline 打断时透传取消语义（`status: cancelled`），不会被误判成工具故障。
 
 覆盖分析的字符清单会跳过 U+0300 以下字符（包含 ASCII）、U+2000–U+2E7F 通用标点区间，且不收 CSS 生成字符；它适合判断字体链与阅读器风险，不能证明嵌入字体“全量”覆盖。全量校验使用独立 CLI `epub-font check`，默认检查全部 manifest 字体；子集 provider 另用独立收集器比较源字体与输出字体，阻断子集引入的覆盖损失。

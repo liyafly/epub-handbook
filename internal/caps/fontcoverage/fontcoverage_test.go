@@ -130,8 +130,8 @@ func TestRunFailsWhenDetectorReturnsNonJSON(t *testing.T) {
 	}
 	defer b.Close()
 	res, err := Run(t.Context(), b, Params{ToolRoot: t.TempDir()})
-	if err == nil {
-		t.Fatal("期望 adapter 错误")
+	if err != nil {
+		t.Fatalf("Run() error = %v, want structured adapter failure", err)
 	}
 	if res.Status != report.StatusFailed || len(res.Findings) != 1 || res.Findings[0].ID != "fontcoverage.adapter" {
 		t.Errorf("status=%s findings=%+v", res.Status, res.Findings)

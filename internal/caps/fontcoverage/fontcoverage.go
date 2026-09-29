@@ -20,9 +20,6 @@ import (
 // CapabilityID 是本能力的契约 id。
 const CapabilityID = "epub.font.coverage.analyze"
 
-// ErrAdapter 对齐 FontCoverageAdapterError：detector 未能产出合法报告。
-var ErrAdapter = errors.New("fontcoverage: adapter error")
-
 // Params 是本能力的参数。
 type Params struct {
 	// Profile 是检测档案：ideal-browser | kindle-pessimistic。
@@ -98,10 +95,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	})
 	if runErr != nil {
 		// ctx 取消/超时（大书 uv run 跑很久时被上层 Ctrl-C 或 deadline 打断）：
-		// extern.Run 已经把 ctx 的错误联结进 runErr。这里必须原样透传，不能
-		// 走 adapterFailure —— adapterFailure 只包 ErrAdapter，会让
-		// errors.Is(err, context.Canceled) 在 pipeline 那层失效，取消就被
-		// 误判成 capability.run-failed（"工具坏了"）而不是"没跑完"。
+		// extern.Run 已经把 ctx 的错误联结进 runErr。这里必须原样透传，让
+		// pipeline 区分取消与 detector 故障；其他 adapter 故障则作为结构化结果返回。
 		if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
 			return res, runErr
 		}
@@ -206,7 +201,7 @@ func adapterFailure(res *report.Result, msg string) (report.Result, error) {
 	res.Findings = append(res.Findings, report.Finding{
 		Level: "error", ID: "fontcoverage.adapter", Title: msg,
 	})
-	return *res, fmt.Errorf("%w: %s", ErrAdapter, msg)
+	return *res, nil
 }
 
 // findRepoRoot 向上找含 tools-font 的目录。
