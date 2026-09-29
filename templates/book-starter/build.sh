@@ -88,9 +88,9 @@ find "$SRC_DIR" -exec touch -h -t 198001010000 {} +
 )
 
 HAS_FONTS=false
-if [ -f "$FONT_CONFIG" ] || find "$EPUB_DIR/OEBPS" -type f \( \
+if [ -f "$FONT_CONFIG" ] || find "$SRC_DIR/OEBPS" -type f \( \
 	-iname '*.ttf' -o -iname '*.otf' -o -iname '*.woff' -o -iname '*.woff2' -o \
-	-iname '*.ttc' -o -iname '*.otc' \) -print -quit | grep -q .; then
+	-iname '*.ttc' -o -iname '*.otc' \) ! -name '.*' ! -path '*/.*/*' -print -quit | grep -q .; then
 	HAS_FONTS=true
 fi
 
