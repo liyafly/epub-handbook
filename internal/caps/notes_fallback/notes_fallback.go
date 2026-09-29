@@ -57,7 +57,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		finding := report.Finding{
 			Level: "error", ID: "notes-fallback.upstream-not-clean",
 			Title:  "Standard popup notes must validate before adding legacy hooks",
-			Detail: fmt.Sprintf("%s violations=%d", UpstreamID, p.UpstreamViolations),
+			Detail: fmt.Sprintf("%s standardViolations=%d", UpstreamID, p.UpstreamViolations),
 		}
 		if err := b.Apply(nil); err != nil {
 			return report.Result{}, err

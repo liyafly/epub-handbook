@@ -226,6 +226,24 @@ func TestLegacyFallbackRejectsBadUpstreamAndScope(t *testing.T) {
 	}
 }
 
+func TestUpstreamViolationDetailNamesStandardViolations(t *testing.T) {
+	b := openNotesBook(t, notesFiles(fixtureXHTML))
+	defer b.Close()
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 2, UpstreamNoterefs: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range result.Findings {
+		if finding.ID == "notes-fallback.upstream-not-clean" {
+			if want := UpstreamID + " standardViolations=2"; finding.Detail != want {
+				t.Fatalf("upstream Detail=%q, want %q", finding.Detail, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing upstream-not-clean finding: %+v", result.Findings)
+}
+
 func TestLegacyFallbackRejectsUpstreamCoverageMismatch(t *testing.T) {
 	b := openNotesBook(t, notesFiles(fixtureXHTML))
 	defer b.Close()
