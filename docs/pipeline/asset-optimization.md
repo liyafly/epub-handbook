@@ -1,7 +1,7 @@
 # 资源优化：图片与字体
 
 > 状态：操作指南；用现有工具，不写新脚本。
-> 对应清洗步骤：[cleanup-flow.md](cleanup-flow.md) 的精排建议与分派清洗阶段。
+> 对应清洗步骤：[cleanup-flow.md](cleanup-flow.md) 主线 S1、S5、S6、S8。
 > 对应 SPEC：[§10.2 黄线](../final/SPEC-实现约束.md) + [§10.1 红线](../final/SPEC-实现约束.md)。
 
 ## 1. 适用范围
@@ -126,7 +126,7 @@ epub run epub.package.nav.audit --input <artifact.epub> --json
 ### 6.1 图片转化工具建议
 
 本仓不内置图片压缩器，只推荐外部工具并在 EPUB 层复查路径、manifest、封面和 figure。
-这些工具不由 CLI 探测或调用；需要自行确认已安装、运行后回到 EPUB 层复核：
+外部工具由人执行，完成后回到 S6。
 
 | 工具 | 用途 | 人工注意事项 |
 | --- | --- | --- |
@@ -139,8 +139,8 @@ epub run epub.package.nav.audit --input <artifact.epub> --json
 外部工具只改资源字节。资源改完后必须重新运行：
 
 ```sh
-epub run epub.package.nav.audit --input work/after/step-N-images.epub --json
-epub redline --check all <redline-base.epub> work/after/step-N-images.epub
+epub run epub.package.nav.audit --input "$W/after/s5-<n>.epub" --json
+epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" "$W/after/s5-<n>.epub"
 ```
 
 产物结构检查由 nav.audit 与 `epub redline`（正文不变）组合覆盖；EPUBCheck 在 GitHub Actions 作为 CI gate 运行。
