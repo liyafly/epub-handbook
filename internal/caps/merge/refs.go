@@ -13,38 +13,11 @@ import (
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
 
-// rewriteURI 复刻 core.rewrite_uri（静默失败：解析失败或目标未知时原样返回）。
-func rewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) string {
-	if uri == "" || strings.HasPrefix(uri, "#") || pypath.IsExternalURI(uri) {
-		return uri
-	}
-	parts := pypath.URLSplit(uri)
-	if parts.Path == "" {
-		return uri
-	}
-	oldTarget, err := pypath.ResolveRelativePath(oldDocument, parts.Path)
-	if err != nil {
-		return uri
-	}
-	if !knownFiles[oldTarget] {
-		return uri
-	}
-	target := oldTarget
-	if mapped, ok := pathMap[oldTarget]; ok {
-		target = mapped
-	}
-	if resolved, err := pypath.ResolveRelativePath(newDocument, parts.Path); err == nil && resolved == target {
-		return uri
-	}
-	newPath := pypath.RelativeURI(newDocument, target)
-	return pypath.URLUnsplitPath(newPath, parts.Query, parts.Fragment)
-}
-
 // rewriteMarkupReferences delegates region and tag scanning to scan/xhtml while
 // retaining this capability's URI resolution and CSS/entity escaping adapters.
 func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	rewriteURIValue := func(uri string) string {
-		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	}
 	rewriteCSSValue := func(raw, document string, quote byte, rewrite func(string) string) (string, error) {
 		if strings.Contains(raw, "&") {
@@ -72,21 +45,16 @@ func rewriteCSSWithEntityMap(raw, path string, quote byte, rewrite func(string) 
 	if len(edits) == 0 {
 		return raw, nil
 	}
-	mapped := make([]editset.Edit, 0, len(edits))
-	for _, edit := range edits {
-		start := int(edit.Offset)
-		end := start + int(edit.Length)
-		if start < 0 || end < start || end >= len(rawOff) {
-			return "", fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
-		}
-		replacement := string(edit.Replacement)
+	mapped, err := css.MapEntityDecodedEdits(path, []byte(raw), rawOff, edits, func(replacement string) string {
 		if quote == 0 {
 			replacement = pypath.EscapeText(replacement)
 		} else {
 			replacement = attrEscapeFor(quote, replacement)
 		}
-		rawStart, rawEnd := rawOff[start], rawOff[end]
-		mapped = append(mapped, editset.Replace(path, int64(rawStart), int64(rawEnd-rawStart), []byte(replacement)))
+		return replacement
+	})
+	if err != nil {
+		return "", err
 	}
 	updated, err := editset.Apply(path, []byte(raw), mapped)
 	if err != nil {
@@ -114,9 +82,9 @@ func hasAttrName(names []string, candidate string) bool {
 // rewriteCSSOnly 只做 CSS url()/@import 重写（不含 srcset / URI 属性），
 // 用于 <style> 元素内容与 style="…" 属性值——这两处都已经确定是 CSS 语义，
 // 不需要也不应该再跑属性名匹配。
-func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
+func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	edits, err := css.ReferenceEdits(oldDocument, []byte(text), func(uri string) string {
-		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
+		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	})
 	if err != nil {
 		return "", toolErrf("%s: CSS reference scan: %v", oldDocument, err)
@@ -139,7 +107,7 @@ func transformResource(data []byte, oldPath, newPath string, pathMap map[string]
 	var updated string
 	var err error
 	if ext == ".css" {
-		updated, err = rewriteCSSOnly(string(data), oldPath, newPath, pathMap, knownFiles)
+		updated, err = rewriteCSSOnly(string(data), oldPath, newPath, pathMap, knownFiles, warn)
 	} else {
 		updated, err = rewriteMarkupReferences(string(data), oldPath, newPath, pathMap, knownFiles, warn)
 	}
