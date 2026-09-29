@@ -12,7 +12,7 @@
 | `paper-garden` | 诗段、Ruby、blockquote、竖排增强 | 文本不变，红线应通过 |
 | `loop-auto-fix` | 多轮 loop 正向演示：章节根元素故意漏语言属性 | 审计应检出 `missing-html-lang`（auto_fixable），正文不变 |
 | `redline-trap` | 故意改写正文的反例 | 红线应失败 |
-| `legacy-epub2` | EPUB2/NCX、XHTML 1.1 DTD 与命名实体、跨文件尾注链接与同页普通文本尾注、EPUB2 封面元数据、GB18030 和 Latin-1 CSS 资源 | normalize 原样保留两份旧编码 CSS；migrate 转换同页普通尾注标记并通过全项 redline，保留跨文件尾注链接；迁移后的 XHTML 应为良构 |
+| `legacy-epub2` | EPUB2/NCX、XHTML 1.1 DTD 与命名实体、跨文件尾注链接与同页普通文本尾注、EPUB2 封面元数据、GB18030 和 Latin-1 CSS 资源 | normalize 是空操作（`mappings=[]`、`rewrittenFiles=0`），并原样保留两份旧编码 CSS；migrate 转换同页普通尾注标记并通过全项 redline，保留跨文件尾注链接；迁移后的 XHTML 应为良构 |
 
 ## 生成
 

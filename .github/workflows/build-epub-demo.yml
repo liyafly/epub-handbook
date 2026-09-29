@@ -345,6 +345,16 @@ jobs:
           go run ./cmd/epub run epub.structure.normalize \
             --input "$legacy_before" --output "$legacy_normalized" --json \
             > "$RUNNER_TEMP/legacy-epub2-normalize.json"
+          python3 - "$RUNNER_TEMP/legacy-epub2-normalize.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as report_file:
+              report = json.load(report_file)
+          mappings = report.get("facts", {}).get("epub.structure.normalize.mappings", [])
+          if len(mappings) != 0:
+              raise SystemExit(f"X1 normalize sample must remain a no-op; mappings={mappings!r}")
+          PY
           mkdir -p "$RUNNER_TEMP/legacy-css-before" "$RUNNER_TEMP/legacy-css-after"
           unzip -p "$legacy_before" OEBPS/Styles/legacy.css > "$RUNNER_TEMP/legacy-css-before/legacy.css"
           unzip -p "$legacy_normalized" OEBPS/Styles/legacy.css > "$RUNNER_TEMP/legacy-css-after/legacy.css"
