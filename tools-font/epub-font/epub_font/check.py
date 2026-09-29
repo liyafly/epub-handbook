@@ -354,7 +354,13 @@ def run(args) -> int:
         return _run(args)
     except CheckError:
         raise
-    except (zipfile.BadZipFile, OSError, KeyError) as exc:
+    except (
+        zipfile.BadZipFile,
+        OSError,
+        KeyError,
+        UnicodeDecodeError,
+        etree.XMLSyntaxError,
+    ) as exc:
         raise CheckError(str(exc)) from exc
 
 

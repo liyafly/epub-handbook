@@ -57,6 +57,16 @@ def run_cli(tmp_path: Path, epub: bytes, *args: str) -> tuple[int, dict | None]:
     return code, json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
 
 
+def replace_epub_entry(epub: bytes, path: str, replacement: bytes) -> bytes:
+    source = zipfile.ZipFile(io.BytesIO(epub))
+    output = io.BytesIO()
+    with source, zipfile.ZipFile(output, "w") as target:
+        for info in source.infolist():
+            data = replacement if info.filename == path else source.read(info)
+            target.writestr(info, data)
+    return output.getvalue()
+
+
 def test_collects_everything_the_reader_renders():
     h = required(make_epub())
     for ch in "中文引图题字章一目录导航书名章节Ab “”‘’﹅﹆〇、":
@@ -211,11 +221,26 @@ def test_usage_errors(tmp_path, capsys, args, kwargs, message):
     (b"not a ZIP archive", (), "File is not a zip file"),
     (None, ("--font-file", "missing.ttf"), "missing.ttf"),
     (None, ("--chars-file", "missing.txt"), "missing.txt"),
+    ("invalid-utf8-chars-file", ("--chars-file", "bad.txt"), "utf-8"),
+    ("malformed-encryption-xml", (), None),
 ])
 def test_input_errors_are_user_facing_exit_two(tmp_path, capsys, epub_data, args, message):
-    code, _ = run_cli(tmp_path, make_epub() if epub_data is None else epub_data, *args)
+    cli_args = args
+    if epub_data == "invalid-utf8-chars-file":
+        (tmp_path / "bad.txt").write_bytes(b"\xff\xfe")
+        epub = make_epub()
+        cli_args = ("--chars-file", str(tmp_path / "bad.txt"))
+    elif epub_data == "malformed-encryption-xml":
+        epub = replace_epub_entry(
+            make_epub(encrypted=("OEBPS/Fonts/st-all.ttf",)),
+            "META-INF/encryption.xml",
+            b"<encryption",
+        )
+    else:
+        epub = make_epub() if epub_data is None else epub_data
+    code, _ = run_cli(tmp_path, epub, *cli_args)
     stderr = capsys.readouterr().err
-    assert code == 2 and message in stderr
+    assert code == 2 and (message is None or message in stderr)
     assert stderr.startswith("error:")
     assert "Traceback" not in stderr
 
