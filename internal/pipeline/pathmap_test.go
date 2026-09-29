@@ -95,14 +95,14 @@ func TestNormalizeEnvelopeFeedsRedlinePathMap(t *testing.T) {
 		t.Fatalf("落盘信封应为 schemaVersion=2 的 JSON: %v", err)
 	}
 
-	code, err := RedlineCompareWith(before, after, "all", nil, []string{envelopePath}, false, false)
+	code, err := RedlineCompareWith(before, after, "all", []string{envelopePath}, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if code != ExitOK {
 		t.Fatalf("以信封为 --path-map 的全量红线应通过，exit=%d", code)
 	}
-	code, err = RedlineCompareWith(before, after, "all", nil, nil, false, false)
+	code, err = RedlineCompareWith(before, after, "all", nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -68,7 +68,7 @@ func usage(w *os.File) {
             （默认只审计；typography 必须显式指定预设与范围）
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub version [--json]          显示版本、commit、构建时间与目标平台
-  epub redline [--check TEXT,...|all] [--allow-list GLOB]...
+  epub redline [--check TEXT,...|all]
             [--path-map ENVELOPE.JSON] [--allow-font-obfuscation] [--verbose] [--json]
             BEFORE AFTER
                                       两文件红线比对（对齐 validate_text_invariance）
@@ -636,11 +636,6 @@ func runRedline(argv []string) int {
 	jsonOut := fs.Bool("json", false, "以统一信封 JSON 输出")
 	allowFont := fs.Bool("allow-font-obfuscation", false, "允许标准 EPUB 字体混淆")
 	verbose := fs.Bool("verbose", false, "输出 verbose 行")
-	var allowList []string
-	fs.Func("allow-list", "XHTML 路径 fnmatch 豁免", func(v string) error {
-		allowList = append(allowList, v)
-		return nil
-	})
 	var pathMapFiles []string
 	fs.Func("path-map", "structure normalize 的 --json 信封（或含 mappings 的报告 JSON），提供 entry 改名映射", func(v string) error {
 		pathMapFiles = append(pathMapFiles, v)
@@ -657,7 +652,7 @@ func runRedline(argv []string) int {
 		return runRedlineUsageError(wantJSON, errors.New("需要 BEFORE 与 AFTER 两个 EPUB 路径"))
 	}
 	if wantJSON {
-		env, code, err := pipeline.RedlineCompareEnvelopeWith(fs.Arg(0), fs.Arg(1), *check, allowList, pathMapFiles, *allowFont, *verbose)
+		env, code, err := pipeline.RedlineCompareEnvelopeWith(fs.Arg(0), fs.Arg(1), *check, pathMapFiles, *allowFont, *verbose)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "epub:", err)
 		}
@@ -669,7 +664,7 @@ func runRedline(argv []string) int {
 		_, _ = os.Stdout.Write(data)
 		return code
 	}
-	code, err := pipeline.RedlineCompareWith(fs.Arg(0), fs.Arg(1), *check, allowList, pathMapFiles, *allowFont, *verbose)
+	code, err := pipeline.RedlineCompareWith(fs.Arg(0), fs.Arg(1), *check, pathMapFiles, *allowFont, *verbose)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "epub:", err)
 	}

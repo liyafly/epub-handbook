@@ -39,8 +39,6 @@ type State interface {
 
 // Options 是一次比对的可调参数。
 type Options struct {
-	// AllowList 是 fnmatch 风格的 XHTML 路径豁免（如 */nav.xhtml）。
-	AllowList []string
 	// PathMap 是 before→after 的 entry 改名映射（链式展开后的最终形态）。
 	PathMap map[string]string
 	// AllowFontObfuscation 允许且仅允许标准 EPUB 字体混淆。
@@ -119,22 +117,6 @@ func StagePathMap(list []any) (map[string]string, error) {
 		targets[to] = from
 	}
 	return out, nil
-}
-
-// skipped 复刻 skipped()：任一 fnmatch 模式命中即豁免。
-func skipped(path string, patterns []string) bool {
-	for _, p := range patterns {
-		if fnmatch(p, path) {
-			return true
-		}
-	}
-	return false
-}
-
-// fnmatch 是 Python fnmatch.fnmatch 的 POSIX（大小写敏感）近似：
-// * 跨目录段，? 单字符，[...] 字符类。
-func fnmatch(pattern, name string) bool {
-	return matchFnmatch(pattern, name)
 }
 
 // sha256Hex 返回字节内容的 SHA-256 十六进制摘要。

@@ -72,9 +72,6 @@ func (textCheck) Check(before, after State, o Options) ([]Finding, error) {
 	}
 	for _, name := range beforePaths {
 		afterName := MappedPath(o.PathMap, name)
-		if skipped(name, o.AllowList) || skipped(afterName, o.AllowList) {
-			continue
-		}
 		if !afterPaths[afterName] {
 			out = append(out, Finding{CheckText, fmt.Sprintf("text: deleted XHTML file: %s", name), false})
 			continue
@@ -126,7 +123,7 @@ func (textCheck) Check(before, after State, o Options) ([]Finding, error) {
 	}
 	var added []string
 	for _, name := range xhtmlNames(after) {
-		if expectedAfter[name] || skipped(name, o.AllowList) {
+		if expectedAfter[name] {
 			continue
 		}
 		if !isMigrationNavAddition(before, after, name) {
@@ -200,9 +197,6 @@ func (anchorsCheck) Check(before, after State, o Options) ([]Finding, error) {
 	var out []Finding
 	for _, name := range sortedNames(xhtmlNames(before)) {
 		afterName := MappedPath(o.PathMap, name)
-		if skipped(name, o.AllowList) || skipped(afterName, o.AllowList) {
-			continue
-		}
 		if !stateHas(after, afterName) {
 			out = append(out, Finding{CheckAnchors, fmt.Sprintf("anchors: XHTML file deleted: %s", name), false})
 			continue

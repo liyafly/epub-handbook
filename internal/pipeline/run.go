@@ -721,15 +721,15 @@ func fallbackPath(vals ...string) string {
 // RedlineCompare 是 legacy 两文件比对的人类入口（pre-commit hook / parity 用）。
 // 输出与退出码语义逐字对齐 scripts/validate_text_invariance.py；
 // 报告写到 stderr，由调用方自行重定向到文件。
-func RedlineCompare(before, after, check string, allowList []string, allowFontObfuscation, verbose bool) (int, error) {
-	return RedlineCompareWith(before, after, check, allowList, nil, allowFontObfuscation, verbose)
+func RedlineCompare(before, after, check string, allowFontObfuscation, verbose bool) (int, error) {
+	return RedlineCompareWith(before, after, check, nil, allowFontObfuscation, verbose)
 }
 
 // RedlineCompareWith 在 RedlineCompare 基础上接受 structure normalize 报告
 // 文件路径（对齐 validate_text_invariance.py 的 --path-map），由本层载入并
 // 链式展开改名映射（cmd 层保持零 EPUB/redline 知识）。
-func RedlineCompareWith(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (int, error) {
-	outcome, err := compareRedline(before, after, check, allowList, pathMapFiles, allowFontObfuscation, verbose)
+func RedlineCompareWith(before, after, check string, pathMapFiles []string, allowFontObfuscation, verbose bool) (int, error) {
+	outcome, err := compareRedline(before, after, check, pathMapFiles, allowFontObfuscation, verbose)
 	if err != nil {
 		return outcome.ExitCode, err
 	}
@@ -739,8 +739,8 @@ func RedlineCompareWith(before, after, check string, allowList []string, pathMap
 
 // RedlineCompareEnvelopeWith runs the same comparison as RedlineCompareWith
 // and returns its v2 envelope without writing legacy text to stderr.
-func RedlineCompareEnvelopeWith(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (report.Envelope, int, error) {
-	outcome, err := compareRedline(before, after, check, allowList, pathMapFiles, allowFontObfuscation, verbose)
+func RedlineCompareEnvelopeWith(before, after, check string, pathMapFiles []string, allowFontObfuscation, verbose bool) (report.Envelope, int, error) {
+	outcome, err := compareRedline(before, after, check, pathMapFiles, allowFontObfuscation, verbose)
 	return outcome.Envelope, outcome.ExitCode, err
 }
 
@@ -750,7 +750,7 @@ type redlineOutcome struct {
 	lines    []string
 }
 
-func compareRedline(before, after, check string, allowList []string, pathMapFiles []string, allowFontObfuscation, verbose bool) (redlineOutcome, error) {
+func compareRedline(before, after, check string, pathMapFiles []string, allowFontObfuscation, verbose bool) (redlineOutcome, error) {
 	pathMap := map[string]string{}
 	for _, p := range pathMapFiles {
 		raw, err := book.ReadFileContext(nil, p, 16<<20)
@@ -778,7 +778,6 @@ func compareRedline(before, after, check string, allowList []string, pathMapFile
 		pathMap = redline.ComposePathMaps(pathMap, m)
 	}
 	rep, err := redline.CompareFiles(before, after, check, redline.Options{
-		AllowList:            allowList,
 		PathMap:              pathMap,
 		AllowFontObfuscation: allowFontObfuscation,
 		Verbose:              verbose,

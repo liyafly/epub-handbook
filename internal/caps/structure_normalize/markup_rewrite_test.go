@@ -440,7 +440,7 @@ func TestRealBookNormalizeKeepsProse(t *testing.T) {
 	}
 
 	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
-		// 不给 allow-list：真书上零发现，加了反而会掩盖 nav / NCX 的正文损坏。
+		// 真书上零发现；区域重写失误时，红线必须发现 nav / NCX 正文损坏。
 		[]string{redline.CheckText}, redline.Options{PathMap: res.Renames})
 	if err != nil {
 		t.Fatal(err)

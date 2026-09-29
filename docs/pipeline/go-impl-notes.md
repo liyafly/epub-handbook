@@ -110,7 +110,7 @@ css.FontFamilyDecls(body)            // 对齐 FONT_FAMILY_RE
 ```go
 findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
     []string{"text","metadata","spine","anchors","cover","drm"},
-    redline.Options{PathMap: renames, AllowList: []string{"*/nav.xhtml"}})
+    redline.Options{PathMap: renames})
 redline.CompareFiles(beforePath, afterPath, "all", redline.Options{}) // legacy 两文件协议
 redline.AddPathMapping(m, from, to)  // 链式改名展开
 redline.LoadPathMap(jsonBytes)       // structure_tool 报告形状

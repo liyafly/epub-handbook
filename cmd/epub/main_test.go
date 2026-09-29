@@ -123,6 +123,25 @@ func TestRunRedlineJSONPassAndFail(t *testing.T) {
 	}
 }
 
+func TestRedlineRemovedPathExemptionFlagIsUsageError(t *testing.T) {
+	dir := t.TempDir()
+	before := filepath.Join(dir, "before.epub")
+	after := filepath.Join(dir, "after.epub")
+	writeRedlineFixture(t, before, "same text")
+	writeRedlineFixture(t, after, "same text")
+	removedFlag := "--allow" + "-list"
+
+	code, _, stderr := captureRunFunc(t, func() int {
+		return runRedline([]string{removedFlag, "x", before, after})
+	})
+	if code != 3 {
+		t.Fatalf("exit = %d, want usage exit 3; stderr=%s", code, stderr)
+	}
+	if !strings.Contains(stderr, "flag provided but not defined") {
+		t.Fatalf("stderr = %q, want an unknown-flag error", stderr)
+	}
+}
+
 func TestRedlineJSONInputErrorHasSinglePrefix(t *testing.T) {
 	dir := t.TempDir()
 	before := filepath.Join(dir, "before.epub")

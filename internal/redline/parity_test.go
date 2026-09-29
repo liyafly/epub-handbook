@@ -639,26 +639,6 @@ func TestRedlinePathMapMakesRenameInvisible(t *testing.T) {
 	wantCode(t, rep, text, 0)
 }
 
-func TestRedlineAllowListExemptsOnlyListedPaths(t *testing.T) {
-	touched := editEntry(t, "OEBPS/Text/c1.xhtml", func(b []byte) []byte {
-		return bytes.Replace(b, []byte("第二段落"), []byte("第贰段落"), 1)
-	})
-	before, after := pair(t, baseEntries(), touched)
-
-	// 反向对照：没有豁免时必须开火。
-	rep, text := compare(t, before, after, "text", Options{})
-	wantCode(t, rep, text, 1)
-	wantLine(t, rep, text, "text: modified OEBPS/Text/c1.xhtml")
-
-	rep, text = compare(t, before, after, "text", Options{AllowList: []string{"*/Text/c1.xhtml"}})
-	wantCode(t, rep, text, 0)
-
-	// 豁免必须是精确的：不相关的 glob 不得让问题消失。
-	rep, text = compare(t, before, after, "text", Options{AllowList: []string{"*/nav.xhtml"}})
-	wantCode(t, rep, text, 1)
-	wantLine(t, rep, text, "text: modified OEBPS/Text/c1.xhtml")
-}
-
 func TestRedlineInvalidCheckIsInputError(t *testing.T) {
 	before, after := pair(t, baseEntries(), baseEntries())
 	rep, text := compare(t, before, after, "text,bogus", Options{})

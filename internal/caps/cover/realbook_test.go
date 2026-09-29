@@ -75,7 +75,7 @@ func TestRealBookReplaceCoverKeepsProse(t *testing.T) {
 		}
 	}
 
-	// 正文不变：不给 allow-list，真书上零发现，加了反而会掩盖区域感知
+	// 正文不变：真书上零发现，区域感知错误必须由红线发现
 	// 重写没做对时对转义示例文本的误改。
 	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
 		[]string{redline.CheckText}, redline.Options{PathMap: res.Renames})

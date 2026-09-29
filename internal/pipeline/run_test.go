@@ -613,14 +613,14 @@ func TestRedlineCompareExitCodes(t *testing.T) {
 	buildEpubFile(t, before)
 	buildEpubFile(t, after)
 
-	code, err := RedlineCompare(before, after, "all", nil, false, false)
+	code, err := RedlineCompare(before, after, "all", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if code != 0 {
 		t.Errorf("干净比对退出码 = %d", code)
 	}
-	code, err = RedlineCompare(before, after, "not-a-check", nil, false, false)
+	code, err = RedlineCompare(before, after, "not-a-check", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

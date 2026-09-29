@@ -18,7 +18,7 @@ import (
 // segmentValidation contains facts proved against one in-memory projection.
 // The text/spine/anchors facts are deliberately partition-scoped: comparing a
 // complete source book with one segment would report expected omissions as
-// false failures (or require an unsafe allow-list).
+// false failures (or require unsafe path exemptions).
 type segmentValidation struct {
 	redline   map[string]any
 	partition map[string]any
