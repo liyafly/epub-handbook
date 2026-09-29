@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	opfscan "github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -164,7 +165,7 @@ func scanPhase(b *book.Book) (*scanResult, error) {
 	if v, ok := root.getAttr("version"); ok {
 		rep.PackageVersionBefore = &v
 	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 
 	bodyFontLocked := hasBodyFontLocked(files)
 	if err := normalizeMetadata(root, rep, bodyFontLocked); err != nil {
@@ -545,7 +546,7 @@ func manifestMaps(root *xmlElem, opfDir string) (map[string]*xmlElem, map[string
 			byID[itemID] = item
 		}
 		if okHref && href != "" {
-			byZip[normJoin(opfDir, href)] = item
+			byZip[pypath.NormJoin(opfDir, href)] = item
 		}
 	}
 	return byID, byZip
@@ -655,13 +656,13 @@ func fixGuideHrefs(root *xmlElem, files *workFiles, opfDir string, rep *conversi
 	}
 	for _, ref := range guide.childrenByTag(opfURI, "reference") {
 		href := ref.attrOr("href", "")
-		if href == "" || files.has(normJoin(opfDir, href)) {
+		if href == "" || files.has(pypath.NormJoin(opfDir, href)) {
 			continue
 		}
 		candidate := href
 		for strings.HasPrefix(candidate, "../") {
 			candidate = candidate[3:]
-			if files.has(normJoin(opfDir, candidate)) {
+			if files.has(pypath.NormJoin(opfDir, candidate)) {
 				ref.setAttr("", "href", candidate)
 				rep.ManifestItemsUpdated++
 				rep.Warnings = append(rep.Warnings, fmt.Sprintf("fixed guide href: %s -> %s", href, candidate))
@@ -687,10 +688,10 @@ func hrefExists(root *xmlElem, href string) *xmlElem {
 
 // uniqueHref 逐行复刻 core.unique_href。
 func uniqueHref(files *workFiles, opfDir, href string) string {
-	stem, ext := pySplitExt(href)
+	stem, ext := pypath.SplitExt(href)
 	candidate := href
 	index := 2
-	for files.has(normJoin(opfDir, candidate)) {
+	for files.has(pypath.NormJoin(opfDir, candidate)) {
 		candidate = fmt.Sprintf("%s-%d%s", stem, index, ext)
 		index++
 	}
@@ -809,7 +810,7 @@ type navEntry struct {
 
 // ensureNav 逐行复刻 core.ensure_nav。
 func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionReport) error {
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 	var navs []*xmlElem
 	if manifest := root.childByTag(opfURI, "manifest"); manifest != nil {
 		for _, item := range manifest.childrenByTag(opfURI, "item") {
@@ -846,7 +847,7 @@ func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionR
 		return convErrf("cannot build nav.xhtml: no NCX navPoint or spine entries")
 	}
 	navHref := uniqueHref(files, opfDir, "nav.xhtml")
-	navZip := normJoin(opfDir, navHref)
+	navZip := pypath.NormJoin(opfDir, navHref)
 	files.write(navZip, buildNavXHTML(root, entries))
 	if _, err := addManifestItem(root, rep, "nav", navHref, "application/xhtml+xml", "nav"); err != nil {
 		return err
@@ -879,7 +880,7 @@ func ncxEntries(files *workFiles, root *xmlElem, opfDir string, rep *conversionR
 	if !ok || ncxHref == "" {
 		return nil, nil
 	}
-	ncxZip := normJoin(opfDir, ncxHref)
+	ncxZip := pypath.NormJoin(opfDir, ncxHref)
 	if !files.has(ncxZip) {
 		rep.Warnings = append(rep.Warnings, fmt.Sprintf("NCX manifest item does not resolve: %s", ncxHref))
 		return nil, nil
@@ -893,7 +894,7 @@ func ncxEntries(files *workFiles, root *xmlElem, opfDir string, rep *conversionR
 	if err != nil {
 		return nil, convErrf("%s: XML parse failed: %v", ncxZip, err)
 	}
-	base := pyDirname(ncxHref)
+	base := pypath.Dirname(ncxHref)
 	navMap := ncxRoot.childByTag(ncxURI, "navMap")
 	var points []*xmlElem
 	if navMap != nil {
@@ -954,7 +955,7 @@ func hrefWithFragment(base, href string) string {
 	}
 	p := ""
 	if clean != "" {
-		p = pyNormPath(pyJoin(base, clean))
+		p = pypath.NormPath(pypath.Join(base, clean))
 	}
 	if sep {
 		return p + "#" + fragment
@@ -991,7 +992,7 @@ func spineEntries(root *xmlElem) []navEntry {
 		if href == "" {
 			continue
 		}
-		label := pyBasename(href)
+		label := pypath.Basename(href)
 		if i := strings.LastIndexByte(label, '.'); i >= 0 {
 			label = label[:i]
 		}

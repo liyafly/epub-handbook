@@ -4,7 +4,7 @@
 //
 //   - 解析（含命名空间、实体、EOL 归一）→ 树上执行迁移规则；OPF 与 XHTML
 //     写回走各自的字节范围编辑器，不经整文档序列化。
-//   - posixpath 的 join/normpath/dirname/basename/splitext/relpath 语义。
+//   - 路径与 URL 语义复用 internal/book/pypath。
 package migrateepub3
 
 import (
@@ -13,6 +13,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	opfscan "github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -670,135 +671,6 @@ func xmlSourceToUTF8(data []byte) (string, error) {
 	return strings.TrimPrefix(string(data), "\uFEFF"), nil
 }
 
-// ---- posixpath 工具 ----
-
-func pyDirname(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-func pyBasename(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[i+1:]
-	}
-	return p
-}
-
-// pyJoin 复刻 posixpath.join（两参数形式，含绝对路径与空段语义）。
-func pyJoin(a, b string) string {
-	if strings.HasPrefix(b, "/") {
-		return b
-	}
-	if a == "" {
-		return b
-	}
-	if b == "" {
-		return a + "/"
-	}
-	return a + "/" + b
-}
-
-// pyNormPath 逐行复刻 posixpath.normpath（含 POSIX 双斜杠特例）。
-func pyNormPath(p string) string {
-	if p == "" {
-		return "."
-	}
-	initialSlashes := 0
-	if strings.HasPrefix(p, "/") {
-		initialSlashes = 1
-		if strings.HasPrefix(p, "//") && !strings.HasPrefix(p, "///") {
-			initialSlashes = 2
-		}
-	}
-	comps := strings.Split(p, "/")
-	var newComps []string
-	for _, comp := range comps {
-		if comp == "" || comp == "." {
-			continue
-		}
-		if comp != ".." || (initialSlashes == 0 && len(newComps) == 0) {
-			newComps = append(newComps, comp)
-		} else if len(newComps) > 0 && newComps[len(newComps)-1] != ".." {
-			newComps = newComps[:len(newComps)-1]
-		} else if initialSlashes > 0 {
-			continue
-		} else {
-			newComps = append(newComps, comp)
-		}
-	}
-	out := strings.Join(newComps, "/")
-	if initialSlashes > 0 {
-		out = strings.Repeat("/", initialSlashes) + out
-	}
-	if out == "" {
-		return "."
-	}
-	return out
-}
-
-// normJoin 复刻 epub_lib.norm_join：剥 fragment 后 join + normpath。
-func normJoin(base, href string) string {
-	clean := href
-	if i := strings.IndexByte(href, '#'); i >= 0 {
-		clean = href[:i]
-	}
-	return pyNormPath(pyJoin(base, clean))
-}
-
-// pySplitExt 复刻 posixpath.splitext（含「basename 前导点不算扩展名」）。
-func pySplitExt(p string) (stem, ext string) {
-	sep := strings.LastIndexByte(p, '/')
-	dot := strings.LastIndexByte(p, '.')
-	if dot > sep {
-		for k := sep + 1; k < dot; k++ {
-			if p[k] != '.' {
-				return p[:dot], p[dot:]
-			}
-		}
-	}
-	return p, ""
-}
-
-// pyRelPath 复刻 posixpath.relpath 对已归一相对路径的段级计算。
-func pyRelPath(target, base string) string {
-	startList := splitSegments(base)
-	pathList := splitSegments(target)
-	i := 0
-	for i < len(startList) && i < len(pathList) && startList[i] == pathList[i] {
-		i++
-	}
-	rel := make([]string, 0, len(startList)-i+len(pathList)-i)
-	for k := 0; k < len(startList)-i; k++ {
-		rel = append(rel, "..")
-	}
-	rel = append(rel, pathList[i:]...)
-	if len(rel) == 0 {
-		return "."
-	}
-	return strings.Join(rel, "/")
-}
-
-func splitSegments(p string) []string {
-	var out []string
-	for _, seg := range strings.Split(p, "/") {
-		if seg != "" {
-			out = append(out, seg)
-		}
-	}
-	return out
-}
-
-// relHref 复刻 epub_lib.rel_href（relpath，不做百分号转义）。
-func relHref(fromZipPath, toZipPath string) string {
-	base := pyDirname(fromZipPath)
-	if base == "" {
-		return toZipPath
-	}
-	return pyRelPath(toZipPath, base)
-}
-
 // ---- saxutils.escape 语义 ----
 
 // saxEscape 复刻 xml.sax.saxutils.escape：& > <（CPython 替换序无关紧要，
@@ -867,7 +739,7 @@ func pyTextContent(e *xmlElem) string {
 
 // pathSuffix 复刻 pathlib.Path(href).suffix（含 query/fragment 计入 name）。
 func pathSuffix(href string) string {
-	name := pyBasename(href)
+	name := pypath.Basename(href)
 	i := strings.LastIndexByte(name, '.')
 	if 0 < i && i < len(name)-1 {
 		return name[i:]

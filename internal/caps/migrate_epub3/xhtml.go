@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/scan/xhtml"
 )
@@ -31,7 +32,7 @@ func xhtmlDefaultLanguage(root *xmlElem) string {
 
 // updateXHTMLFiles 逐行复刻 core.update_xhtml_files。
 func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath string, rep *conversionReport) error {
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(opfPath)
 	_, byZip := manifestMaps(root, opfDir)
 	keys := make([]string, 0, len(byZip))
 	for k := range byZip {
