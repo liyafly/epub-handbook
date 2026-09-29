@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
@@ -38,7 +39,7 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []violation
 
-	textFiles, textFilesErr := textFiles(b)
+	textFiles, pkg, textFilesErr := textFiles(b)
 	if textFilesErr != nil {
 		errs = append(errs, violation{fmt.Sprintf("EPUB package XHTML scan failed: %v", textFilesErr)})
 	}
@@ -189,7 +190,7 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 
 	// manifest 图标校验（发现过弹注才执行，与 Python 一致）。
 	if foundNotes {
-		validateManifest(b, textFiles, iconRefs, &errs)
+		validateManifest(b, pkg, iconRefs, &errs)
 	}
 
 	if len(errs) > 0 {
@@ -261,81 +262,64 @@ func validateBacklink(fp string, bl *element, noteIDs map[string]bool, errs *[]v
 }
 
 // validateManifest 对齐 validate_manifest：图标引用按收集顺序逐个解析。
-func validateManifest(b *book.Book, textFiles []string, iconRefs []iconRef, errs *[]violation) {
+func validateManifest(b *book.Book, pkg *opf.Package, iconRefs []iconRef, errs *[]violation) {
 	fail := func(msg string) { *errs = append(*errs, violation{msg}) }
-	opfPath := findOPFPath(b)
-	if opfPath == "" {
+	if pkg == nil {
 		fail("OEBPS: OPF package document not found")
 		return
 	}
-	raw, err := b.Current(opfPath)
-	if err != nil {
-		fail(fmt.Sprintf("XML parse failed: %s: %v", opfPath, err))
-		return
-	}
-	pkgDoc, perr := parseXHTML(raw)
-	if perr != nil {
-		fail(fmt.Sprintf("XML parse failed: %s: %v", opfPath, perr))
-		return
-	}
-	var manifest *element
-	for _, el := range pkgDoc.elements {
-		if el.local == "manifest" {
-			manifest = el
-			break
+	manifestItems := make(map[string]opf.ManifestItem, len(pkg.Manifest))
+	for _, item := range pkg.Manifest {
+		if item.ArchivePath != "" {
+			manifestItems[item.ArchivePath] = item
 		}
 	}
-	manifestItems := map[string]*element{}
-	if manifest != nil {
-		for _, it := range manifest.kids {
-			if it.local != "item" || it.attrs["href"] == "" {
-				continue
-			}
-			manifestItems[pyNormPath(pyUnquote(it.attrs["href"]))] = it
-		}
-	}
-	opfDir := pyDirname(opfPath)
+	opfDir := pypath.Dirname(pkg.Path)
 	for _, ir := range iconRefs {
-		href, ok := resolveLocalIconHref(opfDir, ir.source, ir.src, errs)
+		resolved, ok := resolveLocalIconHref(pkg.Path, ir.source, ir.src, errs)
 		if !ok {
 			continue
 		}
-		item, found := manifestItems[href]
+		href, target := resolved.manifestHref, resolved.archivePath
+		item, found := manifestItems[target]
 		if !found {
-			fail(fmt.Sprintf("%s: manifest must include noteref icon %s", opfPath, href))
-		} else if !strings.HasPrefix(item.attrs["media-type"], "image/") {
-			fail(fmt.Sprintf("%s: noteref icon %s must be image media-type", opfPath, href))
+			fail(fmt.Sprintf("%s: manifest must include noteref icon %s", pkg.Path, href))
+		} else if !strings.HasPrefix(item.MediaType, "image/") {
+			fail(fmt.Sprintf("%s: noteref icon %s must be image media-type", pkg.Path, href))
 		}
-		if !b.Has(normJoin(opfDir, href)) {
+		if !b.Has(target) {
 			fail(fmt.Sprintf("%s: noteref icon missing on disk: %s", opfDir, href))
 		}
 	}
 }
 
-// resolveLocalIconHref 对齐 resolve_local_icon_href；成功返回相对 OPF 目录的
-// 目标路径。
-func resolveLocalIconHref(opfDir, source, src string, errs *[]violation) (string, bool) {
-	fail := func(msg string) (string, bool) {
+type resolvedIconHref struct {
+	manifestHref string
+	archivePath  string
+}
+
+// resolveLocalIconHref resolves relative to the source XHTML in container space.
+func resolveLocalIconHref(opfPath, source, src string, errs *[]violation) (resolvedIconHref, bool) {
+	fail := func(msg string) (resolvedIconHref, bool) {
 		*errs = append(*errs, violation{msg})
-		return "", false
+		return resolvedIconHref{}, false
 	}
-	scheme, netloc, p := pyURLSplit(src)
+	parts := pypath.URLSplit(src)
 	prefix := source + ": noteref img"
-	if scheme != "" || netloc != "" {
+	if parts.Scheme != "" || parts.Netloc != "" {
 		return fail(fmt.Sprintf("%s src must be a local EPUB resource: %s", prefix, src))
 	}
-	if p == "" {
+	if parts.Path == "" {
 		return fail(fmt.Sprintf("%s src missing local path", prefix))
 	}
-	if opfDir == "" || !strings.HasPrefix(source, opfDir+"/") {
-		return fail(fmt.Sprintf("%s source XHTML is outside OPF directory", prefix))
+	target, err := pypath.ResolveRelativePath(source, parts.Path)
+	if err != nil {
+		return fail(fmt.Sprintf("%s src escapes container root: %s", prefix, src))
 	}
-	sourceRel := strings.TrimPrefix(source, opfDir+"/")
-	target := pyNormPath(pyJoin(pyDirname(sourceRel), pyUnquote(p)))
-	if target == "." || strings.HasPrefix(target, "../") || strings.HasPrefix(target, "/") {
-		return fail(fmt.Sprintf("%s src escapes OPF directory: %s", prefix, src))
-	}
-	return target, true
+	return resolvedIconHref{
+		manifestHref: pypath.RelativePath(opfPath, target),
+		archivePath:  target,
+	}, true
 }
 
 // ---- XHTML 解析投影 ----
@@ -492,10 +476,30 @@ func subset(small, big map[string]bool) bool {
 	return true
 }
 
-// textFiles 返回 OPF spine 中所有 XHTML 文档的容器内路径（排序）。
-func textFiles(b *book.Book) ([]string, error) {
-	opfPath := findOPFPath(b)
-	if opfPath == "" {
+// textFiles returns unique, existing XHTML paths in the OPF spine.
+func textFiles(b *book.Book) ([]string, *opf.Package, error) {
+	pkg, err := readPackage(b)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := opf.SpineXHTMLPaths(pkg)
+	selected := out[:0]
+	for _, path := range out {
+		if path != "" && b.Has(path) {
+			selected = append(selected, path)
+		}
+	}
+	sort.Strings(selected)
+	return selected, pkg, nil
+}
+
+func readPackage(b *book.Book) (*opf.Package, error) {
+	container, err := b.Current(opf.ContainerPath)
+	if err != nil {
+		return nil, fmt.Errorf("package document path was not found")
+	}
+	opfPath, err := opf.FindOPFPath(container)
+	if err != nil || opfPath == "" {
 		return nil, fmt.Errorf("package document path was not found")
 	}
 	opfData, err := b.Current(opfPath)
@@ -506,176 +510,5 @@ func textFiles(b *book.Book) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse package document %s: %w", opfPath, err)
 	}
-	var out []string
-	for _, ref := range pkg.Spine {
-		item, ok := pkg.ItemByID(ref.IDRef)
-		if !ok || (item.MediaType != "application/xhtml+xml" && item.MediaType != "text/html") || item.ArchivePath == "" || !b.Has(item.ArchivePath) {
-			continue
-		}
-		out = append(out, item.ArchivePath)
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// findOPFPath 对齐 find_opf：container rootfile（需存在）→ OEBPS/package.opf
-// → OEBPS 下字典序第一个 *.opf。
-func findOPFPath(b *book.Book) string {
-	if raw, err := b.Current(opf.ContainerPath); err == nil {
-		if p, err := opf.FindOPFPath(raw); err == nil && p != "" && b.Has(p) {
-			return p
-		}
-	}
-	if b.Has("OEBPS/package.opf") {
-		return "OEBPS/package.opf"
-	}
-	var cands []string
-	for _, name := range b.Names() {
-		rest := strings.TrimPrefix(name, "OEBPS/")
-		if strings.HasPrefix(name, "OEBPS/") && !strings.Contains(rest, "/") && strings.HasSuffix(name, ".opf") {
-			cands = append(cands, name)
-		}
-	}
-	sort.Strings(cands)
-	if len(cands) > 0 {
-		return cands[0]
-	}
-	return ""
-}
-
-// pyURLSplit 对齐 urllib.parse.urlsplit 的相关投影（C0+空格首尾剥离、
-// \t\r\n 全文移除、scheme/netloc/path 切分）。
-func pyURLSplit(raw string) (scheme, netloc, pathPart string) {
-	const c0OrSpace = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
-	u := strings.Trim(raw, c0OrSpace)
-	u = strings.ReplaceAll(u, "\t", "")
-	u = strings.ReplaceAll(u, "\r", "")
-	u = strings.ReplaceAll(u, "\n", "")
-	rest := u
-	if i := strings.IndexByte(rest, ':'); i > 0 && isASCIILetter(rest[0]) {
-		ok := true
-		for j := 0; j < i; j++ {
-			c := rest[j]
-			if !isASCIILetter(c) && !(c >= '0' && c <= '9') && c != '+' && c != '-' && c != '.' {
-				ok = false
-				break
-			}
-		}
-		if ok {
-			scheme = strings.ToLower(rest[:i])
-			rest = rest[i+1:]
-		}
-	}
-	if strings.HasPrefix(rest, "//") {
-		j := 2
-		for j < len(rest) && rest[j] != '/' && rest[j] != '?' && rest[j] != '#' {
-			j++
-		}
-		netloc = rest[2:j]
-		rest = rest[j:]
-	}
-	if k := strings.IndexAny(rest, "?#"); k >= 0 {
-		rest = rest[:k]
-	}
-	return scheme, netloc, rest
-}
-
-func isASCIILetter(b byte) bool {
-	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
-}
-
-// pyUnquote 对齐 urllib.parse.unquote（UTF-8、errors=replace）。
-func pyUnquote(s string) string {
-	if !strings.Contains(s, "%") {
-		return s
-	}
-	out := make([]byte, 0, len(s))
-	for i := 0; i < len(s); {
-		if s[i] == '%' && i+2 < len(s)+1 && i+2 <= len(s) && isHexByte(s[i+1]) && isHexByte(s[i+2]) {
-			out = append(out, hexVal(s[i+1])<<4|hexVal(s[i+2]))
-			i += 3
-			continue
-		}
-		out = append(out, s[i])
-		i++
-	}
-	return string(bytesToValidUTF8(out))
-}
-
-func isHexByte(b byte) bool {
-	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
-}
-
-func hexVal(b byte) byte {
-	switch {
-	case b >= '0' && b <= '9':
-		return b - '0'
-	case b >= 'a' && b <= 'f':
-		return b - 'a' + 10
-	default:
-		return b - 'A' + 10
-	}
-}
-
-func bytesToValidUTF8(b []byte) []byte {
-	return []byte(strings.ToValidUTF8(string(b), "\uFFFD"))
-}
-
-// ---- 路径工具（posixpath 对齐） ----
-
-func pyDirname(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
-	}
-	return ""
-}
-
-func pyJoin(a, b string) string {
-	if a == "" {
-		return b
-	}
-	if b == "" {
-		return a
-	}
-	return a + "/" + b
-}
-
-// pyNormPath 对齐 posixpath.normpath（相对路径形态）。
-func pyNormPath(p string) string {
-	parts := strings.Split(p, "/")
-	var out []string
-	for _, part := range parts {
-		switch part {
-		case "", ".":
-			continue
-		case "..":
-			if len(out) > 0 && out[len(out)-1] != ".." {
-				out = out[:len(out)-1]
-				continue
-			}
-			out = append(out, part)
-		default:
-			out = append(out, part)
-		}
-	}
-	joined := strings.Join(out, "/")
-	if strings.HasPrefix(p, "/") && !strings.HasPrefix(joined, "/") {
-		return "/" + joined
-	}
-	if joined == "" {
-		return "."
-	}
-	return joined
-}
-
-// normJoin 对齐 OPF 目录与相对 href 的容器路径拼接。
-func normJoin(base, href string) string {
-	clean := href
-	if i := strings.IndexByte(clean, '#'); i >= 0 {
-		clean = clean[:i]
-	}
-	if base == "" {
-		return pyNormPath(clean)
-	}
-	return pyNormPath(base + "/" + clean)
+	return pkg, nil
 }

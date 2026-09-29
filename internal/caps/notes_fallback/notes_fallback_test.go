@@ -83,6 +83,28 @@ func TestLegacyFallbackGoldenRedlineAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestNotesFallbackRootLevelOPF(t *testing.T) {
+	files := notesFiles(fixtureXHTML)
+	rootFiles := make(map[string]string, len(files))
+	for name, content := range files {
+		if name == "META-INF/container.xml" {
+			content = strings.Replace(content, "OEBPS/content.opf", "content.opf", 1)
+		}
+		name = strings.TrimPrefix(name, "OEBPS/")
+		rootFiles[name] = content
+	}
+	b := openNotesBook(t, rootFiles)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{UpstreamViolations: 0, UpstreamNoterefs: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusComplete || result.Facts["editCount"] != 3 {
+		t.Fatalf("root-level OPF fallback result=%+v, want complete with three edits", result)
+	}
+}
+
 func TestLegacyFallbackAddsOnlyMissingClasses(t *testing.T) {
 	partial := strings.Replace(fixtureXHTML, `class="noteref-icon"`, `class="noteref-icon duokan-footnote"`, 1)
 	partial = strings.Replace(partial, `class="footnote-item"`, `class="footnote-item duokan-footnote-item"`, 1)

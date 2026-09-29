@@ -253,3 +253,43 @@ func TestPopupScansManifestXHTMLOutsideOEBPSText(t *testing.T) {
 		t.Fatalf("facts=%#v, want one scanned XHTML, one noteref, and violations", result.Facts)
 	}
 }
+
+func TestPopupAcceptsRootLevelOPF(t *testing.T) {
+	files := validFixture()
+	rootFiles := make(map[string]string, len(files))
+	for name, content := range files {
+		if name == "META-INF/container.xml" {
+			content = strings.Replace(content, "OEBPS/content.opf", "content.opf", 1)
+		}
+		name = strings.TrimPrefix(name, "OEBPS/")
+		rootFiles[name] = content
+	}
+	epub := filepath.Join(t.TempDir(), "root-opf.epub")
+	writePopupEpub(t, epub, rootFiles)
+
+	status, titles, facts := runGoPopup(t, epub)
+	if status != "complete" || len(titles) != 0 {
+		t.Fatalf("root-level OPF status=%q titles=%v, want complete without errors", status, titles)
+	}
+	if facts["violations"] != 0 || facts["standardViolations"] != 0 || facts["noterefs"] != 1 {
+		t.Fatalf("root-level OPF facts = %#v", facts)
+	}
+}
+
+func TestPopupCountsDuplicateSpineItemOnce(t *testing.T) {
+	files := validFixture()
+	opf := strings.Replace(files["OEBPS/content.opf"],
+		`<itemref idref="t-v"/>`,
+		`<itemref idref="t-v"/><itemref idref="t-v"/>`, 1)
+	files["OEBPS/content.opf"] = opf
+	epub := filepath.Join(t.TempDir(), "duplicate-spine.epub")
+	writePopupEpub(t, epub, files)
+
+	status, titles, facts := runGoPopup(t, epub)
+	if status != "complete" || len(titles) != 0 {
+		t.Fatalf("duplicate spine status=%q titles=%v, want complete without errors", status, titles)
+	}
+	if facts["violations"] != 0 || facts["noterefs"] != 1 {
+		t.Fatalf("duplicate spine facts = %#v, want one scanned noteref", facts)
+	}
+}
