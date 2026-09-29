@@ -87,7 +87,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 ### 英文排版
 
-`english.already-declared` 与 `english.declared-on-body` 表示没有改动；`english.skipped-other-lang`、`english.skipped-cjk-text`、`english.skipped-no-text` 与 `english.lang-mismatch` 表示该页被保留。`english.opf-language-differs-requires-scope` 表示 OPF 主语言与目标语言不同，未提供 scope 时整本未扫描且未写入；显式范围出现 `english.lang-conflict` 时全书不应用计划中的修改。显式 scope 下的 `english.opf-language-differs` 仅提示。layout findings 只证明静态扫描结果；红线证明所选内容边界。把静态发现、实际阅读器现象、尚未验证项分别列出。
+`english.already-declared` 与 `english.declared-on-body` 表示没有改动；`english.skipped-other-lang`、`english.skipped-cjk-text`、`english.skipped-no-text` 与 `english.lang-mismatch` 表示该页被保留。`english.invalid-existing-lang` 表示原有语言值无效且保持不变。`english.scope-not-in-spine` 表示范围路径不是精确 spine XHTML；`english.parse-failed`、`english.unsupported-encoding` 与 `english.self-closing-html` 表示输入不能安全补写并会阻止写入。`english.opf-language-differs-requires-scope` 表示 OPF 主语言与目标语言不同，未提供 scope 时整本未扫描且未写入；显式范围出现 `english.lang-conflict` 时全书不应用计划中的修改。显式 scope 下的 `english.opf-language-differs` 仅提示。layout findings 只证明静态扫描结果；红线证明所选内容边界。把静态发现、实际阅读器现象、尚未验证项分别列出。
 
 ### 文学结构精排
 

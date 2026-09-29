@@ -230,7 +230,7 @@
         },
         "stylesheet": {
           "type": "string",
-          "description": "可选：manifest 中已存在的 text/css ZIP 内路径；为每个新增 class 的 XHTML 补链接。"
+          "description": "为命中目标的 XHTML 补齐到该样式表的 link（含 class 已存在的文件）。"
         }
       }
     },
@@ -253,7 +253,7 @@
         },
         "scope_paths": {
           "type": "json-string-array",
-          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；省略则扫描全部 spine XHTML。"
+          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；OPF 主语言与参数不同时必须提供；省略时只在 OPF 语言一致时扫描全书。"
         }
       }
     },

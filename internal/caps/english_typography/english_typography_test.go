@@ -352,7 +352,7 @@ func openEnglishBook(t *testing.T, pages []englishPage, language string) *book.B
 	opfDoc.WriteString(`</spine></package>`)
 	files["OEBPS/content.opf"] = opfDoc.String()
 
-	path := filepath.Join(t.TempDir(), "english.epub")
+	path := filepath.Join(t.TempDir(), "book.epub")
 	var archive bytes.Buffer
 	writer := zip.NewWriter(&archive)
 	entry, err := writer.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
