@@ -147,6 +147,8 @@ epub run epub.cover.replace \
 - 重写 XHTML/CSS 中指向旧封面的本地引用。
 - 若封面页用 inline SVG 的 `viewBox` 与 `<image width/height>` 固定旧封面像素尺寸，且新封面是可识别尺寸的 PNG/JPEG，同步改为新封面的像素尺寸，避免拉伸或留边。
 
+能力自带的 cover 红线会把预期内的封面变化记为 error（退出码 1），产物仍会写出。
+
 验证建议：
 
 ```sh

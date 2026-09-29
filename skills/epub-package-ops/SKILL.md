@@ -48,7 +48,7 @@ epub redline --check all "before.epub" "candidate.epub"
 ### EPUB 包操作
 
 各能力 id 为 facts 前缀：merge 看 inputs/mergedItems/renamedResources/warnings/mappings/sourceMappings；split 看 segmentPlans/plannedOutputs/outputs/segmentsCreated；metadata 看 fieldsUpdated；cover 看 coverPath/mappings。
-`package.refused` 按原因修前提，不清空用户目录来绕过保护。`metadata.edit`、`merge` 的内置红线会把授权字段变化或合并卷的新增内容记为 error（exit 1），但候选仍写出；按 [package-operations](../../docs/pipeline/package-operations.md) 用排除对应检查项的显式 redline 复核，其余检查项仍须通过。
+`package.refused` 按原因修前提，不清空用户目录来绕过保护。`metadata.edit`、`merge`、`cover.replace` 的内置红线会把授权字段变化、合并卷新增内容或封面替换记为 error（exit 1），但候选仍写出。按 [package-operations](../../docs/pipeline/package-operations.md)，用排除对应检查项的显式 redline 复核（metadata 排除 metadata，cover 排除 cover，merge 用 drm,anchors），其余检查项仍须通过。
 
 ### A-lite 转换
 
