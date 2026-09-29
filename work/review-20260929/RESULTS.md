@@ -20,6 +20,8 @@
 - 原因：Q15=C 要保留第三方 EPUB，但根 `AGENTS.md` 要求已跟踪实体 EPUB 同时有保留理由和许可记录；H7 明确说明许可记录缺失，并禁止修改 AGENTS.md。当前证据不足以同时满足两项规则。
 - 证据：`work/review-20260929/00-process.md` 的 H7 明确写有 “No license or permission record ... on file”；根 `AGENTS.md` 的第三方来源与实体 EPUB 维护规则要求许可记录。
 - 下一步：提供权利方许可/授权记录，或由所有者另行决定是否修订仓库规则；再补齐 H7。
+- 后续核查与裁定（2026-09-30）：所有者选择“仍视为证据不足，等待权利人凭据”。跟踪 EPUB 的 SHA-256 为 `ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac`；其 `OEBPS/content.opf` 署名赤霓并记有 `Copyrights © 2017 赤霓`。`OEBPS/Text/Copyright.xhtml`（SHA-256 `f075e17ac8937ffe859163167d3f2812732d6679e663bb37373f3032e17e3676`）写有免费公开于网络、非商业使用的声明。该声明在带有 Z-Library 来源标记的文件内部，未找到可独立核验的权利人来源；按所有者裁定，不将它作为本仓库的许可记录。
+- 当前下一步：等待权利人提供适用于将此 EPUB 保留并公开托管于本仓库的书面许可或可核验来源，再补齐记录；不修改 `AGENTS.md`，也不推断标准许可。
 
 ### H8
 - 状态：skipped(目标 stash 不匹配；远端 tag 已一致)
