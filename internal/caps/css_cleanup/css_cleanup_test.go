@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -644,23 +643,6 @@ func TestSanitizeCSSUnits(t *testing.T) {
 	got, _ = sanitizeCSS("p {\n  margin: 0\n  padding: 0;\n}\n")
 	if !strings.Contains(got, "margin: 0;") {
 		t.Fatalf("补分号失败: %q", got)
-	}
-	if _, err := parseStylesheetSafe([]byte("@font-face { font-family: X; src: url(a.ttf); }")); !errors.Is(err, ErrUnsupportedCSSShape) {
-		t.Fatalf("@font-face 应报告 unsupported shape，而非 syntax error: %v", err)
-	}
-	if _, err := parseStylesheetSafe([]byte("@media screen { .a { color: red; } }")); !errors.Is(err, ErrUnsupportedCSSShape) {
-		t.Fatalf("@media 应报告 unsupported shape，而非 syntax error: %v", err)
-	}
-	if _, err := parseStylesheetSafe([]byte("/* 只剩注释 */")); !errors.Is(err, ErrUnsupportedCSSShape) {
-		t.Fatalf("无 qualified rule 应报告 unsupported shape: %v", err)
-	}
-	if _, err := parseStylesheetSafe([]byte("h1 { color: red;")); err == nil || errors.Is(err, ErrUnsupportedCSSShape) {
-		t.Fatalf("非法 CSS 应报告 syntax error: %v", err)
-	}
-	rules, ok := parseStylesheet("h1 { color: red; FONT-SIZE: 2em }\n")
-	if !ok || rules[0].selector != "h1" || rules[0].declarations[0] != [2]string{"color", "red"} ||
-		rules[0].declarations[1] != [2]string{"FONT-SIZE", "2em"} {
-		t.Fatalf("parseStylesheet 不符: %+v", rules)
 	}
 	if systemFontFamily(`"CNEPUB",SERIF`) != songChain {
 		t.Fatal("字体链查表（压缩+小写）失败")

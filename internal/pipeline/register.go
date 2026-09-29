@@ -71,27 +71,7 @@ type Runner func(ctx context.Context, b *book.Book, args Args, up Upstream) (rep
 // registry 是 capability id → 执行入口 的注册表。
 var registry = map[string]Runner{}
 
-// multiOutput 记录自行落盘多个产物的能力（如 split）：pipeline 跳过统一写盘。
-var multiOutput = map[string]bool{}
-
-// readOnly 记录契约虽是 transformer、但 Go 执行面为只读校验的能力
-// （如 epub.notes.popup.normalize —— 其转换动作在 migrate.epub3 内）。
-var readOnly = map[string]bool{}
-
-// noBook 记录不要求 --input 是 EPUB 的能力：--input 为空或指向目录时
-// 以 b=nil 进入源树模式，指向文件时才经 book.Open 进入产物模式
-// （如 epub.style.demo.maintain 的 demo 源树 / 构建产物双模式）。
-var noBook = map[string]bool{}
-
-// sourceInput 记录以非 EPUB 源材料为输入的只读 planner 能力：--input 必填，
-// 可以是目录或任意文件，pipeline 从不 book.Open，b 恒为 nil，解析后的绝对
-// 路径以 runArgs["source_path"] 传入（如 epub.source.intake）。
-var sourceInput = map[string]bool{}
-
-// 执行形态取值（契约 execution 字段，见 contracts/schemas/v1/
-// capability-manifest.schema.json）。运行时以契约为准；下面四张表只记录
-// 「作者在注册点声明的形态」，由 TestRegistryMatchesContractExecution 与契约
-// 逐条对账 —— 两者不一致时立刻红，而不是让代码与契约各说各话。
+// 执行形态取值见 capability manifest 的 execution 字段；运行时直接读取契约。
 const (
 	ExecInputEpub       = "epub"
 	ExecInputEpubOrTree = "epub-or-tree"
@@ -105,45 +85,6 @@ const (
 func register(id string, r Runner) {
 	registry[id] = r
 }
-
-// registerMultiOutput 登记多产物能力（split 等）：产物由包内自行写盘，
-// pipeline 不再统一 WriteTo。
-func registerMultiOutput(id string, r Runner) {
-	registry[id] = r
-	multiOutput[id] = true
-}
-
-// IsMultiOutput 报告能力是否自行落盘多产物。
-func IsMultiOutput(id string) bool { return multiOutput[id] }
-
-// registerReadOnly 登记只读执行面能力。
-func registerReadOnly(id string, r Runner) {
-	registry[id] = r
-	readOnly[id] = true
-}
-
-// IsReadOnly 报告注册点声明的形态是否为只读（契约 execution.output=none）。
-func IsReadOnly(id string) bool { return readOnly[id] }
-
-// registerNoBook 登记无 EPUB 输入也能运行的能力（只读；--input 为空或
-// 指向目录时 b=nil，指向文件时照常 book.Open）。
-func registerNoBook(id string, r Runner) {
-	registry[id] = r
-	noBook[id] = true
-}
-
-// IsNoBook 报告能力是否支持无 EPUB 输入（源树/目录模式）。
-func IsNoBook(id string) bool { return noBook[id] }
-
-// registerSourceInput 登记源材料输入能力（只读 planner；--input 为目录或任意
-// 文件，永不 book.Open，b 恒为 nil）。
-func registerSourceInput(id string, r Runner) {
-	registry[id] = r
-	sourceInput[id] = true
-}
-
-// IsSourceInput 报告能力是否以非 EPUB 源材料为输入（目录或任意文件）。
-func IsSourceInput(id string) bool { return sourceInput[id] }
 
 // Implemented 报告 capability 是否已有 Go 实现。
 func Implemented(id string) bool {
@@ -191,10 +132,10 @@ func init() {
 	register("epub.font.subset", func(ctx context.Context, b *book.Book, args Args, _ Upstream) (report.Result, error) {
 		return fontsubset.Run(ctx, b, fontsubset.Params{FontConfig: args.Get("font_config")})
 	})
-	registerReadOnly("epub.kindle.compatibility.check", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+	register("epub.kindle.compatibility.check", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return kindlecheck.Run(ctx, b, kindlecheck.Params{})
 	})
-	registerReadOnly("epub.notes.popup.normalize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+	register("epub.notes.popup.normalize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return popupnotes.Run(ctx, b, popupnotes.Params{})
 	})
 	register("epub.notes.legacy-fallback", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
@@ -303,7 +244,7 @@ func init() {
 			Stylesheet:  args.Get("stylesheet"),
 		})
 	})
-	registerNoBook("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+	register("epub.style.demo.maintain", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		if !args.Bool("catalog") {
 			if args.Get("query") != "" {
 				return report.Result{}, usageErrorf("query requires catalog=true")
@@ -333,7 +274,7 @@ func init() {
 			Catalog: args.Bool("catalog"), Collection: args.Get("collection"), Query: args.Get("query"),
 		})
 	})
-	registerSourceInput("epub.source.intake", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+	register("epub.source.intake", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		maxFiles := 0
 		if v := args.Get("max_files"); v != "" {
 			// 参数非法是用法错误（SPEC §8.5 退出码 3），不是能力失败；
@@ -416,7 +357,7 @@ func init() {
 			Output: args.Get("output"),
 		})
 	})
-	registerMultiOutput("epub.package.split", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+	register("epub.package.split", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		var points []int
 		for _, f := range strings.Split(args.Get("split_points"), ",") {
 			if f = strings.TrimSpace(f); f != "" {

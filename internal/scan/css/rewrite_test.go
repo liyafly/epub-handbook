@@ -7,9 +7,9 @@ import (
 	"github.com/liyafly/epub-handbook/internal/editset"
 )
 
-func TestRewriteCSSKeepsUntouchedBytes(t *testing.T) {
+func TestReferenceEditsKeepUntouchedBytes(t *testing.T) {
 	input := []byte("/*keep*/ .x { background: url(a.png); content: \"url(ghost.png)\" }\r\n")
-	edits, err := RewriteCSS("Styles/main.css", input, func(uri string) string {
+	edits, err := ReferenceEdits("Styles/main.css", input, func(uri string) string {
 		if uri == "a.png" {
 			return "b.png"
 		}
@@ -24,6 +24,6 @@ func TestRewriteCSSKeepsUntouchedBytes(t *testing.T) {
 	}
 	want := []byte("/*keep*/ .x { background: url(b.png); content: \"url(ghost.png)\" }\r\n")
 	if !bytes.Equal(got, want) {
-		t.Fatalf("RewriteCSS() = %q, want %q", got, want)
+		t.Fatalf("ReferenceEdits() = %q, want %q", got, want)
 	}
 }

@@ -40,11 +40,8 @@ func TestContractsValid(t *testing.T) {
 	// 机器契约 —— 而 CLI 侧从不读它（`pipeline.Contract.Adapters` 声明后
 	// 零消费），本工具链要作为 skill 接入任意 harness，厂商名单不该是契约的
 	// 一部分。能力面由 `epub capabilities` 自描述，接入方自己决定怎么调。
-	// execution 描述 pipeline 怎么调这条能力（输入语义 + 落盘语义）。它此前只
-	// 以 internal/pipeline/register.go 里的四张 id 白名单存在，契约完全不提，
-	// 于是「contracts/ 是机器契约唯一事实来源」这句话对执行形态不成立 ——
-	// 而且有两条契约与执行面直接矛盾（声明需写权限却永不写盘）。
-	// 注册方式与本字段的对账断言在 internal/pipeline（见 TestRegistryMatchesContractExecution）。
+	// Execution records how the pipeline invokes a capability; runtime dispatch
+	// reads input and output semantics directly from this contract.
 	executionInputs := []string{"epub", "epub-or-tree", "source-path"}
 	executionOutputs := []string{"single", "multi", "none"}
 

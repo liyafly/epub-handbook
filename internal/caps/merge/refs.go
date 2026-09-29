@@ -50,7 +50,7 @@ func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[
 		if strings.Contains(raw, "&") {
 			return rewriteCSSWithEntityMap(raw, document, quote, rewrite)
 		}
-		edits, err := css.RewriteCSS(document, []byte(raw), rewrite)
+		edits, err := css.ReferenceEdits(document, []byte(raw), rewrite)
 		if err != nil {
 			return "", toolErrf("%s: CSS reference scan: %v", document, err)
 		}
@@ -115,7 +115,7 @@ func hasAttrName(names []string, candidate string) bool {
 // 用于 <style> 元素内容与 style="…" 属性值——这两处都已经确定是 CSS 语义，
 // 不需要也不应该再跑属性名匹配。
 func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool) (string, error) {
-	edits, err := css.RewriteCSS(oldDocument, []byte(text), func(uri string) string {
+	edits, err := css.ReferenceEdits(oldDocument, []byte(text), func(uri string) string {
 		return rewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles)
 	})
 	if err != nil {

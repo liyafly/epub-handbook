@@ -6,7 +6,7 @@
 // 这些只被标记为风险与 blocker，由外部工具完成并在来源记录中登记工具名与版本。
 //
 // 三段式：扫描（只读遍历 + 流式哈希）→ 无应用阶段（planner 不改任何文件）→ 报告。
-// b 恒为 nil：pipeline 以 registerSourceInput 注册本能力，从不 book.Open 输入。
+// b 恒为 nil：pipeline 按契约 execution.input 读取源路径，不 book.Open 输入。
 package sourceintake
 
 import (

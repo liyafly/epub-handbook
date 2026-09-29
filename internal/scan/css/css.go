@@ -139,9 +139,6 @@ func (d Declaration) PropertyValue() string {
 	return strings.ToLower(strings.TrimSpace(StripComments(d.Value)))
 }
 
-// Decl is retained as a concise compatibility name for Declaration.
-type Decl = Declaration
-
 // Rule is a qualified rule or an at-rule. Qualified rule selector/body spans
 // are absolute source ranges. At-rules are included in the projection so a
 // caller can make a conservative decision about unknown syntax; nested
@@ -247,14 +244,6 @@ func Parse(data []byte) (sheet *Stylesheet, err error) {
 	}, nil
 }
 
-// ParseDeclarations parses a declaration list whose braces are not included.
-// Spans are absolute within data. Unlike the stylesheet parser, this helper
-// does not require a surrounding rule and is useful for a known declaration
-// block span.
-func ParseDeclarations(data []byte) ([]Declaration, error) {
-	return parseDeclarations(data, 0, len(data))
-}
-
 // ScanReferences locates only real resource references in a stylesheet or
 // inline declaration list. Comments and ordinary string values are opaque;
 // source bytes are never serialized. Escapes remain raw in Value.
@@ -346,59 +335,6 @@ func StripComments(text string) string {
 	}
 	out.Write(data[last:])
 	return out.String()
-}
-
-// Rules parses text and returns qualified/at-rule spans. Parse failures are
-// represented by an empty result for compatibility with the old read-only
-// helper; callers that must distinguish malformed input should call Parse.
-func Rules(text string) []Rule {
-	sheet, err := Parse([]byte(text))
-	if err != nil {
-		return nil
-	}
-	return sheet.Rules
-}
-
-// Declarations parses a declaration body and returns spans relative to body.
-// Callers requiring an error should use ParseDeclarations.
-func Declarations(body string) []Decl {
-	decls, err := ParseDeclarations([]byte(body))
-	if err != nil {
-		return nil
-	}
-	return decls
-}
-
-// FontFamilyDecls returns declarations named font-family, with a byte span
-// covering only the value. Matching is token-aware and therefore ignores
-// strings, comments, and semicolons in functions.
-func FontFamilyDecls(body string) []FontFamilyDecl {
-	decls, err := ParseDeclarations([]byte(body))
-	if err != nil {
-		return nil
-	}
-	data := []byte(body)
-	var out []FontFamilyDecl
-	for _, d := range decls {
-		if !strings.EqualFold(strings.TrimSpace(d.Name), "font-family") {
-			continue
-		}
-		out = append(out, FontFamilyDecl{
-			WholeSpan: d.Span,
-			PrefixEnd: d.ValueSpan.Start,
-			ValueSpan: d.ValueSpan,
-			Value:     string(data[d.ValueSpan.Start:d.ValueSpan.End]),
-		})
-	}
-	return out
-}
-
-// FontFamilyDecl is a compatibility view of a Declaration.
-type FontFamilyDecl struct {
-	WholeSpan Span
-	ValueSpan Span
-	PrefixEnd int
-	Value     string
 }
 
 type sourceScanner struct {

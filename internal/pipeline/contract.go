@@ -29,11 +29,8 @@ type Contract struct {
 		RequiresWriteAccess bool   `json:"requiresWriteAccess"`
 		Network             string `json:"network"`
 	} `json:"permissions"`
-	// Execution 是执行形态：pipeline 据此决定怎么调这条能力。它此前只以
-	// register.go 里的四张 id 白名单存在，契约完全不提 —— 于是「contracts/
-	// 是机器契约唯一事实来源」对执行形态并不成立，而且有两条契约与执行面
-	// 直接矛盾（声明需写权限却永不写盘）。现在运行时读契约，注册方式与
-	// 契约的一致性由 TestRegistryMatchesContractExecution 对账。
+	// Execution describes how the pipeline invokes a capability. Runtime
+	// dispatch reads input and output semantics directly from this contract.
 	Execution struct {
 		// Input: epub（必须是 EPUB 文件，会被 book.Open）
 		//      | epub-or-tree（可缺省或指向目录 = 源树模式）

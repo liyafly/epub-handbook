@@ -128,11 +128,8 @@ func TestRunSourceIntakeUsageErrors(t *testing.T) {
 
 // TestRunSourceIntakeIsReady：epub capabilities 必须把它列为 ready。
 func TestRunSourceIntakeIsReady(t *testing.T) {
-	if !Implemented("epub.source.intake") || !IsSourceInput("epub.source.intake") {
-		t.Error("epub.source.intake must be registered as a sourceInput capability")
-	}
-	if IsSourceInput("epub.style.demo.maintain") || !IsNoBook("epub.style.demo.maintain") {
-		t.Error("styledemo noBook semantics must be untouched")
+	if !Implemented("epub.source.intake") {
+		t.Error("epub.source.intake must be registered")
 	}
 }
 
