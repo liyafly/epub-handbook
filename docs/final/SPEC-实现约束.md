@@ -301,7 +301,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 
 - 改动可见性：任何改动都必须在外部 diff 工具（Calibre / VS Code）中可见；不允许秘密改动。
 - 校验时机：每次 AI 改动后立刻跑 `epub redline`。普通清洗触发红线立即回滚；进入 §10.1.1 后，预期的授权文字差异由决策 artifact 验证，不因此回滚，但其余红线或任何未获授权差异仍立即回滚。
-- DRM 检测：处理前先尝试 `unzip -l`，失败或发现 `encryption.xml` 立刻停止。
+- DRM 检测：S1 以 `epub run epub.package.nav.audit` 判定；DRM 与未知加密立刻停止。`encryption.xml` 只含目标已不存在的 stale 引用时，可由 normalize 移除；仅在确认标准字体 obfuscation 且获明确授权时，按 AGENTS 单独处理。
 - 来源记录：清洗操作必须在书根 `制作说明.md` 记录改了什么、为什么、用哪个 skill。
 - 可回滚：清洗前 epub 保留为 `before/` 备份；不允许就地覆盖。
 
