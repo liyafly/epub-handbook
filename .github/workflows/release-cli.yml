@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  pull_request:
-    paths:
-      - '.github/workflows/release-cli.yml'
-      - '.github/scripts/release-smoke.sh'
-      - 'embed.go'
-      - 'cmd/epub/**'
   workflow_dispatch:
 
 permissions:

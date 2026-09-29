@@ -7,67 +7,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, develop]
-    paths:
-      - 'AGENTS.md'
-      - 'CHANGELOG.md'
-      - 'CLAUDE.md'
-      - 'CONTRIBUTING.md'
-      - 'THIRD_PARTY.md'
-      - 'README.md'
-      - '.markdownlint-cli2.jsonc'
-      - 'go.mod'
-      - 'go.sum'
-      - 'testdata/**'
-      - 'embed.go'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'tools-font/**'
-      - 'templates/epub-style-demo/**'
-      - 'templates/style-presets/**'
-      - 'templates/book-starter/**'
-      - 'templates/cleanup-demo-books/**'
-      - 'skills/**'
-      - 'contracts/**'
-      - 'records/**'
-      - 'references/**'
-      - 'hooks/**'
-      - 'docs/final/**'
-      - 'docs/README.md'
-      - 'docs/learn/**'
-      - 'docs/how-to/**'
-      - 'docs/pipeline/**'
-      - '.github/workflows/build-epub-demo.yml'
+    paths-ignore: ['archive/**', 'work/**']
   pull_request:
-    paths:
-      - 'AGENTS.md'
-      - 'CHANGELOG.md'
-      - 'CLAUDE.md'
-      - 'CONTRIBUTING.md'
-      - 'THIRD_PARTY.md'
-      - 'README.md'
-      - '.markdownlint-cli2.jsonc'
-      - 'go.mod'
-      - 'go.sum'
-      - 'testdata/**'
-      - 'embed.go'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'tools-font/**'
-      - 'templates/epub-style-demo/**'
-      - 'templates/style-presets/**'
-      - 'templates/book-starter/**'
-      - 'templates/cleanup-demo-books/**'
-      - 'skills/**'
-      - 'contracts/**'
-      - 'records/**'
-      - 'references/**'
-      - 'hooks/**'
-      - 'docs/final/**'
-      - 'docs/README.md'
-      - 'docs/learn/**'
-      - 'docs/how-to/**'
-      - 'docs/pipeline/**'
-      - '.github/workflows/build-epub-demo.yml'
+    paths-ignore: ['archive/**', 'work/**']
 
 jobs:
   build:
@@ -103,10 +45,9 @@ jobs:
       - name: Reader matrix evidence guard
         run: sh .github/scripts/reader-matrix-guard.sh docs/final/reader-matrix.yaml
 
-      - name: Architecture guards and tests
+      - name: Build and test
         run: |
           go build ./...
-          go test ./internal/archguard/ -v
           go test ./...
 
       - name: Smoke book workspace starter
@@ -157,6 +98,14 @@ jobs:
           test "$before_sha" = "$after_sha"
           epub_count=$(find "$book/03 制作工作区" -type f -name '*.epub' | wc -l | tr -d ' ')
           test "$epub_count" = 1
+
+      - name: Smoke release binary outside checkout
+        shell: bash
+        run: >-
+          bash .github/scripts/release-smoke.sh
+          "$RUNNER_TEMP/epub"
+          "$(sed -n 's/^[[:space:]]*version *= *"\(.*\)"$/\1/p' cmd/epub/version.go)"
+          linux amd64
 
       - name: Verify deterministic EPUB builds
         shell: bash
@@ -255,11 +204,7 @@ jobs:
           java-version: '17'
 
       - name: Install EPUBCheck
-        run: |
-          curl -fL -o epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
-          echo "74a59af8602bf59b1d04266a450d9cdcb5986e36d825adc403cde0d95e88c9e8  epubcheck.zip" | sha256sum -c
-          unzip -q epubcheck.zip -d "$RUNNER_TEMP/epubcheck"
-          echo "EPUBCHECK_JAR=$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar" >> "$GITHUB_ENV"
+        run: bash .github/scripts/install-epubcheck.sh
 
       - name: Validate book starter with EPUBCheck
         run: java -jar "$EPUBCHECK_JAR" "$RUNNER_TEMP/book starter smoke/03 制作工作区/dist/book.epub" --mode epub --profile default

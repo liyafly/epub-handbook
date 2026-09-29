@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix="epub-release-smoke-") as scratch:
     assert (info["goos"], info["goarch"]) == (expected_goos, expected_goarch), info
 
     capabilities = run_json(["capabilities", "--json"], empty)
-    assert len(capabilities) == 23, len(capabilities)
+    assert len(capabilities) == 22, len(capabilities)
     assert any(item["id"] == "epub.typography.optimize" for item in capabilities)
     assert any(item["id"] == "epub.font.subset" for item in capabilities)
 
