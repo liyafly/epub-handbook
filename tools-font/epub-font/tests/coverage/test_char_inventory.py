@@ -1,5 +1,5 @@
-from src.cli import _build_char_inventory
-from src.charset_tiers import build_standard_charsets
+from epub_font.coverage.cli import _build_char_inventory
+from epub_font.coverage.charset_tiers import build_standard_charsets
 
 
 def test_inventory_keeps_all_occurrences_with_paths():

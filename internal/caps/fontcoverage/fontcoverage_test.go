@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -23,16 +22,15 @@ const fakeDetectorJSON = `{
   "text_runs": [{"file": "OEBPS/Text/c1.xhtml", "runs": 12}]
 }`
 
-// installFakeUV 在 PATH 前插一个假的 uv：忽略参数，打印固定 JSON 到 stdout、
-// 一行诊断到 stderr，退出码 0。
-func installFakeUV(t *testing.T, stdout string) {
+// installFakeProvider 在 PATH 前插一个假的 epub-font：打印固定 JSON 和诊断。
+func installFakeProvider(t *testing.T, stdout string) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("假 uv 依赖 POSIX shell")
 	}
 	dir := t.TempDir()
 	script := "#!/bin/sh\nprintf '%s' \"$FAKE_DETECTOR_STDOUT\"\necho 'detector: fake run' >&2\nexit 0\n"
-	if err := os.WriteFile(filepath.Join(dir, "uv"), []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "epub-font"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("FAKE_DETECTOR_STDOUT", stdout)
@@ -74,13 +72,13 @@ func minimalEpub(t *testing.T) string {
 // TestRunPromotesDetectorSectionsToFacts 锁定 detector 各段进入正式 facts 的
 // 键名与 status 判定。
 func TestRunPromotesDetectorSectionsToFacts(t *testing.T) {
-	installFakeUV(t, fakeDetectorJSON)
+	installFakeProvider(t, fakeDetectorJSON)
 	b, err := book.Open(minimalEpub(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{Profile: "kindle-pessimistic", ToolRoot: t.TempDir()})
+	res, err := Run(t.Context(), b, Params{Profile: "kindle-pessimistic"})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -123,25 +121,17 @@ func TestRunPromotesDetectorSectionsToFacts(t *testing.T) {
 
 // TestRunFailsWhenDetectorReturnsNonJSON 锁定 adapter 失败路径的 finding。
 func TestRunFailsWhenDetectorReturnsNonJSON(t *testing.T) {
-	installFakeUV(t, "not json")
+	installFakeProvider(t, "not json")
 	b, err := book.Open(minimalEpub(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer b.Close()
-	res, err := Run(t.Context(), b, Params{ToolRoot: t.TempDir()})
+	res, err := Run(t.Context(), b, Params{})
 	if err != nil {
 		t.Fatalf("Run() error = %v, want structured adapter failure", err)
 	}
 	if res.Status != report.StatusFailed || len(res.Findings) != 1 || res.Findings[0].ID != "fontcoverage.adapter" {
 		t.Errorf("status=%s findings=%+v", res.Status, res.Findings)
-	}
-}
-
-func TestFindRepoRootErrorMentionsEpubHandbookRoot(t *testing.T) {
-	t.Setenv("EPUB_HANDBOOK_ROOT", "")
-	t.Chdir(t.TempDir())
-	if _, err := findRepoRoot(); err == nil || !strings.Contains(err.Error(), "EPUB_HANDBOOK_ROOT") {
-		t.Fatalf("findRepoRoot() error = %v, want guidance to set EPUB_HANDBOOK_ROOT", err)
 	}
 }

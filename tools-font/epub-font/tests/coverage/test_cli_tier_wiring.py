@@ -1,5 +1,5 @@
-from src.cli import _attach_tier
-from src.charset_tiers import build_standard_charsets
+from epub_font.coverage.cli import _attach_tier
+from epub_font.coverage.charset_tiers import build_standard_charsets
 
 
 def test_attach_tier_common():

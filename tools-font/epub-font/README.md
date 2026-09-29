@@ -1,6 +1,6 @@
 # epub-font：EPUB 字体子集化与全量校验
 
-独立 Python + fontTools provider，与 `coverage-detector/` 同级，**不打包进 EPUB Handbook Go 发行包**。书级构建可经正式的 `epub.font.subset` capability 调用它；也可以直接使用下面的 CLI。
+独立 Python + fontTools provider，**不打包进 EPUB Handbook Go 发行包**。`coverage`、`subset`、`check` 共用本项目、依赖锁和安装入口；书级构建可经正式的 `epub.font.coverage.analyze` / `epub.font.subset` capability 调用它，也可以直接使用下面的 CLI。
 它只做一件事：把 EPUB 里**已存在**的字体条目替换成按全书字符集裁切后的字体字节，并逐项核验。
 OPF、CSS、XHTML 与其他 entry 原样复制（同顺序、同压缩方式），所以字体 alias、包内路径、CSS URL 与 OPF id 都不变
 （`docs/final/字体别名命名规范.md` §4.7）。
@@ -23,9 +23,12 @@ uv run pytest -q          # 离线测试，使用合成字体，不需要下载
 ## 用法
 
 ```sh
+epub-font coverage BOOK.epub [--profile ideal-browser|kindle-pessimistic] [--json] [--output REPORT.json]
 epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
 epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json]
 ```
+
+`coverage` 可写出 JSON 报告和自包含 HTML 报告，用于查看字体链与阅读器风险；默认输出摘要。该分析会跳过 ASCII 与部分通用标点，不承担 `check` 的全量覆盖保证。
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
 - Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（schema v1）、EPUB 与字体 SHA、字体 manifest 身份和逐项检查。私有临时报告随后清理；已校验的版本、SHA、字形统计、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
@@ -91,7 +94,7 @@ epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包
 
 - 要求的字符：全书实际用字（XHTML/SVG/NCX 文本、`alt`/`title`/`aria-label`、CSS 字符串）+ CSS 关键字生成的字符
   （`text-emphasis` 着重号、`list-style-type` 的 `cjk-decimal` 等序号、`<q>` 的默认引号、`hyphens: auto` 的连字符、`text-transform` 变体）。
-  **不跳过** ASCII 与 U+2000–U+2E7F 标点（“”‘’——…）——这是 coverage-detector 的字符清单刻意跳过、因而无法证明"全量"的部分。
+  **不跳过** ASCII 与 U+2000–U+2E7F 标点（“”‘’——…）——coverage 命令的字符清单会跳过这些字符，因此不能证明"全量"覆盖。
 - 不收：`<script>`、XML/CSS 注释、`url("…")`。`--chars-file` 模式只按文件里的字符检查。
 - 判定：`missing`（无 cmap 或映射到 .notdef）、`noInk`（映射到没有轮廓的字形，空格与格式字符除外）、
   `missingSequences`（文本里出现的 IVS/SVS 序列不在 cmap 14）→ 任一非空即 exit 1；

@@ -1,7 +1,8 @@
 """epub-font: subset the fonts of an EPUB, or check that its fonts cover every character.
 
-    epub-font subset BOOK.epub --out NEW.epub [--config fonts.json]
-    epub-font check  BOOK.epub [--font PATH_IN_EPUB ...] [--font-file FILE --chars-file FILE] [--json REPORT]
+    epub-font subset   BOOK.epub --out NEW.epub [--config fonts.json]
+    epub-font check    BOOK.epub [--font PATH_IN_EPUB ...] [--font-file FILE --chars-file FILE] [--json REPORT]
+    epub-font coverage BOOK.epub [--profile PROFILE] [--json] [--output REPORT]
 """
 
 from __future__ import annotations
@@ -9,8 +10,9 @@ from __future__ import annotations
 import sys
 
 from . import check, subset
+from .coverage import cli as coverage
 
-COMMANDS = {"subset": subset.main, "check": check.main}
+COMMANDS = {"subset": subset.main, "check": check.main, "coverage": coverage.main}
 
 
 def main(argv=None) -> int:

@@ -1,4 +1,4 @@
-from src.cli import _annotate_book_meta
+from epub_font.coverage.cli import _annotate_book_meta
 
 
 def test_book_meta_filled():

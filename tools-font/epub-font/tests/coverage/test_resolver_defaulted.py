@@ -1,4 +1,4 @@
-from src.resolver import resolve_chains
+from epub_font.coverage.resolver import resolve_chains
 
 
 def test_defaulted_chain_flagged():

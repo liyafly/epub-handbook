@@ -98,12 +98,12 @@ go run ./cmd/epub run epub.typography.optimize --input before.epub --output samp
 架构是面向 Windows、macOS、Linux 的 Go 单一公开 CLI（`cmd/epub` + `internal/`），
 架构规则由 `internal/archguard/` 的守卫测试强制。旧的主程序 Python、Swift/GUI 执行层已按迁移计划删除；
 `templates/cleanup-demo-books/build_demo_epubs.py` 是需要 Python 3 的 fixture 生成器，只用于生成仓库的自造清洗样本，不属于用户执行面。
-`tools-font/` 保留两个独立安装、不会打包进发行包的 Python provider：
+`tools-font/` 保留一个独立安装、不会打包进发行包的 Python provider：
 
-- `epub.font.coverage.analyze` 调用 coverage detector，分析嵌入字体覆盖和字体链风险。在仓库 checkout 中使用该能力前，于 `tools-font/coverage-detector/` 执行 `uv sync`；缺少 `uv` 时能力会以带明确提示的 failed 结果失败。
-- `epub.font.subset` 调用 `epub-font`，为书级构建从完整字体母版生成并检查字形子集。需要该能力时运行 `uv tool install --editable tools-font/epub-font`；无字体的书不需要它，含字体的构建若缺 provider 或检查失败会失败并保留原有 dist。
+- `epub.font.coverage.analyze` 通过 `epub-font coverage` 分析嵌入字体覆盖和字体链风险。
+- `epub.font.subset` 通过 `epub-font subset` 从完整字体母版生成并检查字形子集。需要任一能力时运行 `uv tool install --editable tools-font/epub-font`；无字体的书不需要子集能力，含字体的构建若缺 provider 或检查失败会失败并保留原有 dist。
 
-两项 provider 都由 `internal/extern` 作为外部进程调用；发行版的 Go CLI 本身不包含它们。`epub capabilities --json` 展示已注册能力及其契约依赖；外部工具的安装要求和缺失行为见对应工具文档。
+两项 capability 都由 `internal/extern` 调用同一个 PATH provider；发行版的 Go CLI 本身不包含它。`epub capabilities --json` 展示已注册能力及其契约依赖；外部工具的安装要求和缺失行为见 [`tools-font/README.md`](tools-font/README.md)。
 
 EPUB 输入默认限制为：压缩文件 512 MiB、100,000 个 ZIP 条目、单条目解压后
 256 MiB、声明解压总量 1 GiB、条目路径 4096 字节。实际解压流也检查单条目限额；

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.chain_health import assess_chains
+from epub_font.coverage.chain_health import assess_chains
 
 
 @dataclass

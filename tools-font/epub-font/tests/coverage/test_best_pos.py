@@ -1,4 +1,4 @@
-from src.cli import _attach_position_aggregates
+from epub_font.coverage.cli import _attach_position_aggregates
 
 WORST_ORDER = {"first-embedded": 0, "later-embedded": 1, "only-non-embedded": 2, "none": 3}
 

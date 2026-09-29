@@ -279,10 +279,6 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 	runArgs["input"] = opts.InputPath
 	runArgs["output"] = opts.OutputPath
 	runArgs["dry_run"] = strconv.FormatBool(opts.DryRun)
-	delete(runArgs, fontCoverageToolRootArg)
-	if root != "" {
-		runArgs[fontCoverageToolRootArg] = filepath.Join(root, "tools-font", "coverage-detector")
-	}
 	if sourceInputCap {
 		// sourceInput 能力：解析后的绝对输入路径（目录或文件）。
 		if abs, err := filepath.Abs(opts.InputPath); err == nil {
@@ -424,7 +420,7 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 				}
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					// 少数确实检查 ctx 的 runner（split、sourceintake，以及
-					// fontcoverage 经 internal/extern 起的 `uv run` 子进程被
+					// fontcoverage 经 internal/extern 起的 provider 被
 					// ctx 杀死时）会把这两个哨兵之一包进返回的 error。这是
 					// "没跑完"，不是"工具坏了"——不能落进 capability.run-failed。
 					cancelled = true

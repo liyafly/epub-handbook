@@ -27,8 +27,7 @@ var ErrTimeout = errors.New("extern: provider timed out")
 // （exec.Cmd.WaitDelay 语义）。
 //
 // 不设它（零值）意味着无限等：Cancel 只杀掉 argv[0] 这一个直接子进程；如果
-// 它自己又 fork 了孙进程且孙进程继承了 stdout/stderr 管道写端（典型例子正是
-// fontcoverage 调的 `uv run python -m src.cli …`——python 是 uv 的子进程），
+// 它自己又 fork 了孙进程且孙进程继承了 stdout/stderr 管道写端，
 // 孙进程只要不退出，管道写端就不关闭，Wait 会一直卡到孙进程自己跑完为止，
 // 取消形同虚设——这正是「子进程无法被取消」的根因，而不只是没传 ctx。
 // 5 秒足够让正常进程把最后一点缓冲输出写完，同时严格封顶了取消后的等待。
@@ -119,8 +118,7 @@ type CmdResult struct {
 //
 // ctx 取消或超时时，子进程会被杀死（exec.CommandContext 默认的 Cancel
 // 行为是 Process.Kill），不会再无限跑下去——这是全仓唯一的外部进程边界，
-// 也是唯一能真正终止一个失控子进程（例如 epub.font.coverage.analyze 起的
-// `uv run` Python 字体工具）的地方。
+// 也是唯一能真正终止一个失控外部 provider 子进程的地方。
 func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	return run(ctx, dir, argv, maxRunDuration)
 }

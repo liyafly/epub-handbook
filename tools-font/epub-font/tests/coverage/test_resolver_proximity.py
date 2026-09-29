@@ -1,4 +1,4 @@
-from src.resolver import resolve_chains
+from epub_font.coverage.resolver import resolve_chains
 
 CSS = [{
     "id": "main", "href": "main.css",

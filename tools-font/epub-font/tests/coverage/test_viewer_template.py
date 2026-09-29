@@ -1,9 +1,7 @@
-import os.path
+from pathlib import Path
 import re
 
-VIEWER = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "font-coverage-viewer.html"
-))
+VIEWER = Path(__file__).resolve().parents[2] / "epub_font" / "coverage" / "font-coverage-viewer.html"
 
 
 def _script(html: str) -> str:

@@ -1,4 +1,4 @@
-from src.charset_tiers import block_tier, is_cjk_tier
+from epub_font.coverage.charset_tiers import block_tier, is_cjk_tier
 
 
 def test_block_tier_ranges():

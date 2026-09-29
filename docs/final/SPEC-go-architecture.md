@@ -485,5 +485,6 @@ Go 的 `encoding/xml` 往返丢信息严重，本来是选 Go 的最大风险。
 `tools-font/epub-font/` **保持 Python 独立 provider**，由正式 capability
 `epub.font.subset` 经 `internal/extern` 起子进程调用；provider 不进入 Go 发行包。能力只把验证后的
 manifest 字体 entry 写入内存候选，最终 ZIP 仍由 Go pipeline 在红线通过后一次写出。
-`tools-font/coverage-detector/` 也保持 Python 独立项目，由 `internal/extern` 调用。这与
-`AGENTS.md` 现有策略一致。
+`tools-font/epub-font/` 同时提供覆盖分析与子集化命令：正式 capability 通过 PATH 调用
+`epub-font coverage` / `epub-font subset`；全量人工校验由 `epub-font check` 提供。该 Python
+provider 与 Go CLI 分开安装，不进入发行包；项目内部保留独立覆盖收集器，避免子集采字错误自我验证。

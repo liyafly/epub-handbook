@@ -58,16 +58,10 @@ jobs:
           enable-cache: true
 
       - name: Install locked Python projects
-        run: |
-          uv sync --project tools-font/epub-font --frozen
-          uv sync --project tools-font/coverage-detector --frozen
+        run: uv sync --project tools-font/epub-font --frozen
 
       - name: Test epub-font provider
         working-directory: tools-font/epub-font
-        run: uv run --project . --frozen pytest -q
-
-      - name: Test coverage detector
-        working-directory: tools-font/coverage-detector
         run: uv run --project . --frozen pytest -q
 
       - name: Build Go CLI

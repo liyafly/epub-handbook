@@ -1,4 +1,4 @@
-from src.cli import _build_candidate_missing
+from epub_font.coverage.cli import _build_candidate_missing
 
 
 def test_candidate_missing_marks_rare():

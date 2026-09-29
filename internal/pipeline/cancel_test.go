@@ -101,7 +101,7 @@ func TestRunCancelledContextViaRunnerError(t *testing.T) {
 	writeTestContract(t, root, "test.cancel.runner-err", nil, true, nil)
 	installTestRunner(t, "test.cancel.runner-err", func(ctx context.Context, _ *book.Book, _ Args, _ Upstream) (report.Result, error) {
 		// 模拟一个会检查 ctx 的 capability（例如 fontcoverage 经
-		// internal/extern 起的 `uv run` 子进程被 ctx 杀死后返回的错误）：
+		// internal/extern 起的 provider 被 ctx 杀死后返回的错误）：
 		// ctx 本身此刻还没有过期，纯粹是 runner 自己判断该终止了。
 		return report.Result{}, fmt.Errorf("coverage detector killed: %w", context.DeadlineExceeded)
 	})

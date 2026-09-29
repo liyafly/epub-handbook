@@ -367,25 +367,21 @@ func TestEPUBHandbookRootOverridesEmbeddedResources(t *testing.T) {
 	}
 }
 
-func TestFontCoverageHonorsEpubHandbookRoot(t *testing.T) {
+func TestFontCoverageUsesPathProviderOutsideRepository(t *testing.T) {
 	t.Setenv("EPUB_HANDBOOK_ROOT", "")
-	root, err := FindRepoRoot()
-	if err != nil || root == "" {
-		t.Fatalf("FindRepoRoot() = %q, %v; want repository root", root, err)
-	}
 	externalDir := t.TempDir()
-	uvDir := t.TempDir()
-	toolRoot := filepath.Join(root, "tools-font", "coverage-detector")
-	workingDirFile := filepath.Join(t.TempDir(), "uv-working-directory")
+	providerDir := t.TempDir()
+	workingDirFile := filepath.Join(t.TempDir(), "provider-working-directory")
+	argsFile := filepath.Join(t.TempDir(), "provider-args")
 	detectorJSON := `{"schema_version":"1.0","summary":{"by_profile_risk":{"kindle-pessimistic":{"ok":1,"risk":0,"fail":0}},"unresolved_runs":0}}`
-	uvScript := "#!/bin/sh\nprintf '%s' \"$PWD\" > \"$UV_CWD_FILE\"\nprintf '%s' \"$FAKE_DETECTOR_STDOUT\"\n"
-	if err := os.WriteFile(filepath.Join(uvDir, "uv"), []byte(uvScript), 0o755); err != nil {
+	providerScript := "#!/bin/sh\nprintf '%s' \"$PWD\" > \"$PROVIDER_CWD_FILE\"\nprintf '%s\\n' \"$@\" > \"$PROVIDER_ARGS_FILE\"\nprintf '%s' \"$FAKE_DETECTOR_STDOUT\"\n"
+	if err := os.WriteFile(filepath.Join(providerDir, "epub-font"), []byte(providerScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("EPUB_HANDBOOK_ROOT", root)
-	t.Setenv("UV_CWD_FILE", workingDirFile)
+	t.Setenv("PROVIDER_CWD_FILE", workingDirFile)
+	t.Setenv("PROVIDER_ARGS_FILE", argsFile)
 	t.Setenv("FAKE_DETECTOR_STDOUT", detectorJSON)
-	t.Setenv("PATH", uvDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("PATH", providerDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Chdir(externalDir)
 
 	outcome, err := Run(t.Context(), Options{
@@ -402,8 +398,15 @@ func TestFontCoverageHonorsEpubHandbookRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != toolRoot {
-		t.Fatalf("uv working directory = %q, want %q", got, toolRoot)
+	if string(got) != externalDir {
+		t.Fatalf("provider working directory = %q, want caller directory %q", got, externalDir)
+	}
+	got, err = os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(got), "coverage\n") || !strings.Contains(string(got), "--json\n") {
+		t.Fatalf("provider args = %q, want coverage subcommand and JSON output", got)
 	}
 }
 

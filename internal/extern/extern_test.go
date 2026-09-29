@@ -259,8 +259,7 @@ func TestRunAlreadyCancelledContext(t *testing.T) {
 // stdout/stderr 管道写端」的场景：ctx 取消后 Cancel 只杀 sh 这一个直接子
 // 进程，被兜住的 sleep 孙进程会被重新挂到 init 下继续跑，只要它不退出，
 // 管道写端就不关闭——如果 Run 没设 WaitDelay，Wait 会一直卡到 sleep 自然
-// 结束为止，取消形同虚设。这正是 epub.font.coverage.analyze 经 extern 起
-// `uv run python -m src.cli …` 的真实进程形状（python 是 uv 的子进程）。
+// 结束为止，取消形同虚设。该测试用 shell 与 sleep 构造这个外部进程形状。
 func TestRunContextCancelledMidFlight(t *testing.T) {
 	requireSh(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

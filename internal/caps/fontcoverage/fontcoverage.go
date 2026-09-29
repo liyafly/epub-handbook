@@ -1,6 +1,5 @@
-// Package fontcoverage 移植 epub.font.coverage.analyze
-// （scripts/epub_font_coverage_adapter.py）：经 internal/extern 调用
-// tools-font/coverage-detector（Python + fonttools，明确不迁，SPEC §9.4）。
+// Package fontcoverage 适配 epub.font.coverage.analyze，并经 internal/extern
+// 调用 PATH 中的 epub-font provider。
 package fontcoverage
 
 import (
@@ -24,8 +23,6 @@ const CapabilityID = "epub.font.coverage.analyze"
 type Params struct {
 	// Profile 是检测档案：ideal-browser | kindle-pessimistic。
 	Profile string
-	// ToolRoot 覆盖 tools-font/coverage-detector 的位置（测试用）。
-	ToolRoot string
 }
 
 // detectorReport 是 detector 顶层 JSON 对象（键 → 值）。
@@ -78,23 +75,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if _, err := os.Stat(input); err != nil {
 		return adapterFailure(&res, fmt.Sprintf("input EPUB does not exist: %s", input))
 	}
-	if ok, _ := extern.LookPath("uv"); !ok {
-		return adapterFailure(&res, "uv is required for tools-font/coverage-detector")
+	if err := extern.Require("epub-font"); err != nil {
+		return adapterFailure(&res, "install the epub-font provider and retry")
 	}
-	toolRoot := p.ToolRoot
-	if toolRoot == "" {
-		root, err := findRepoRoot()
-		if err != nil {
-			return adapterFailure(&res, err.Error())
-		}
-		toolRoot = filepath.Join(root, "tools-font", "coverage-detector")
-	}
-	run, runErr := extern.Run(ctx, toolRoot, []string{
-		"uv", "run", "python", "-m", "src.cli", input,
+	run, runErr := extern.Run(ctx, "", []string{
+		"epub-font", "coverage", input,
 		"--profile", p.Profile, "--json", "--quiet",
 	})
 	if runErr != nil {
-		// ctx 取消/超时（大书 uv run 跑很久时被上层 Ctrl-C 或 deadline 打断）：
+		// ctx 取消/超时（大书 provider 跑很久时被上层 Ctrl-C 或 deadline 打断）：
 		// extern.Run 已经把 ctx 的错误联结进 runErr。这里必须原样透传，让
 		// pipeline 区分取消与 detector 故障；其他 adapter 故障则作为结构化结果返回。
 		if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
@@ -104,7 +93,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		// 丢掉这个 error 会让下面的 parseOrdered 拿着零值 CmdResult 走失败分支，
 		// 报出 "exit code 0" —— 暗示工具跑完了且干净退出，恰好把真正的原因
 		// （工具没装 / 起不来）藏起来。extern.ErrToolMissing 也在这里。
-		return adapterFailure(&res, fmt.Sprintf("coverage detector failed: %v", runErr))
+		return adapterFailure(&res, fmt.Sprintf("epub-font coverage failed: %v", runErr))
 	}
 	det, perr := parseOrdered(run.Stdout)
 	if perr != nil {
@@ -115,10 +104,10 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		if detail == "" {
 			detail = fmt.Sprintf("exit code %d", run.ExitCode)
 		}
-		return adapterFailure(&res, fmt.Sprintf("coverage detector did not return JSON: %s", detail))
+		return adapterFailure(&res, fmt.Sprintf("epub-font coverage did not return JSON: %s", detail))
 	}
 	if v, _ := det.vals["schema_version"].(string); v != "1.0" {
-		return adapterFailure(&res, "coverage detector returned an unsupported report schema")
+		return adapterFailure(&res, "epub-font coverage returned an unsupported report schema")
 	}
 	status := statusFor(det, p.Profile)
 
@@ -145,12 +134,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		res.Status = report.StatusFailed
 		res.Findings = append(res.Findings, report.Finding{
 			Level: "error", ID: "fontcoverage.fail",
-			Title: "Font coverage detector reported fail for profile " + p.Profile,
+			Title: "epub-font coverage reported fail for profile " + p.Profile,
 		})
 	case "warn":
 		res.Findings = append(res.Findings, report.Finding{
 			Level: "warn", ID: "fontcoverage.risk",
-			Title: "Font coverage detector reported risk for profile " + p.Profile,
+			Title: "epub-font coverage reported risk for profile " + p.Profile,
 		})
 	}
 	return res, nil
@@ -202,24 +191,6 @@ func adapterFailure(res *report.Result, msg string) (report.Result, error) {
 		Level: "error", ID: "fontcoverage.adapter", Title: msg,
 	})
 	return *res, nil
-}
-
-// findRepoRoot 向上找含 tools-font 的目录。
-func findRepoRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		if st, err := os.Stat(filepath.Join(dir, "tools-font", "coverage-detector")); err == nil && st.IsDir() {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", errors.New("fontcoverage: 未找到 tools-font/coverage-detector；请设置 EPUB_HANDBOOK_ROOT 指向 epub-handbook 仓库根目录")
-		}
-		dir = parent
-	}
 }
 
 func trimmed(b []byte) string {

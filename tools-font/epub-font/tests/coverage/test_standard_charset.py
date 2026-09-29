@@ -1,4 +1,4 @@
-from src.charset_tiers import build_standard_charsets, classify_tier, standard_zone, StandardCharset
+from epub_font.coverage.charset_tiers import build_standard_charsets, classify_tier, standard_zone, StandardCharset
 
 
 def test_codec_charsets_counts():

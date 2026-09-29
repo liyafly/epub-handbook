@@ -1,4 +1,4 @@
-from src.classifier import classify
+from epub_font.coverage.classifier import classify
 
 
 class Seg:

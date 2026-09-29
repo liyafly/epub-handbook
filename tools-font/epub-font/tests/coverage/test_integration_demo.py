@@ -1,6 +1,6 @@
 import os.path, subprocess, sys, json
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEMO = os.path.normpath(os.path.join(
     ROOT, "..", "..", "templates", "epub-style-demo", "dist",
     "epub-style-demo-20260602-162129.epub"))
@@ -10,8 +10,11 @@ def test_end_to_end_report_shape(tmp_path):
     if not os.path.exists(DEMO):
         import pytest; pytest.skip("demo epub not present")
     out = tmp_path / "r.json"
-    subprocess.run([sys.executable, "-m", "src.cli", DEMO, "-o", str(out), "-q"],
-                   cwd=ROOT, check=True)
+    subprocess.run(
+        [sys.executable, "-c", "from epub_font.cli import main; raise SystemExit(main())",
+         "coverage", DEMO, "-o", str(out), "-q"],
+        cwd=ROOT, check=True,
+    )
     rep = json.loads(out.read_text(encoding="utf-8"))
     assert {"book", "summary", "char_inventory", "chain_health", "standard_zone"} <= set(rep)
     assert rep["standard_zone"]["source"] == "gb2312+gbk"

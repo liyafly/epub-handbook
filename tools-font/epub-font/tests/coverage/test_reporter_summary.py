@@ -1,4 +1,4 @@
-from src.reporter import generate_report
+from epub_font.coverage.reporter import generate_report
 
 
 def _mk(char, tier, zone, rare):

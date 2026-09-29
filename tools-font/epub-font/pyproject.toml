@@ -19,6 +19,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["epub_font"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"epub_font/coverage/font-coverage-viewer.html" = "epub_font/coverage/font-coverage-viewer.html"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 import zipfile
+from importlib.resources import files
 from .reader import read_epub
 from .harvester import harvest_runs
 from .font_index import build_font_index, build_font_index_by_path
@@ -171,16 +172,7 @@ def _build_candidate_missing(results: list, cmap: set) -> list:
 
 def _generate_html(report: dict, output_path: str) -> None:
     """Generate a self-contained HTML report with embedded data and fonts."""
-    import os.path
-    # Find viewer template relative to this source file
-    src_dir = os.path.dirname(os.path.abspath(__file__))
-    # Walk up to find font-coverage-viewer.html
-    viewer_path = os.path.join(src_dir, "..", "..", "font-coverage-viewer.html")
-    viewer_path = os.path.normpath(viewer_path)
-    if not os.path.exists(viewer_path):
-        return  # viewer not found, skip HTML generation
-    with open(viewer_path, "r", encoding="utf-8") as f:
-        template = f.read()
+    template = files(__package__).joinpath("font-coverage-viewer.html").read_text(encoding="utf-8")
     # Embed report as compact JSON (no indentation, no extra spaces)
     report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
     # Inject the data script BEFORE the main <script> so window.__REPORT_DATA__
@@ -202,7 +194,7 @@ def _generate_html(report: dict, output_path: str) -> None:
         f.write(html)
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="EPUB Font Coverage Detector — classify characters by font coverage"
     )
@@ -223,7 +215,7 @@ def main():
     )
     parser.add_argument("--json", action="store_true", help="Output full JSON to stdout")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress output")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         # 1. Read EPUB structure

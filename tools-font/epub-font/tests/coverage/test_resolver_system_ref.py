@@ -1,4 +1,4 @@
-from src.resolver import resolve_chains, build_font_face_registry
+from epub_font.coverage.resolver import resolve_chains, build_font_face_registry
 
 # @font-face whose src points at reader/device system fonts (res:/// + missing pkg path)
 CSS = [{

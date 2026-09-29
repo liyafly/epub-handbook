@@ -7,8 +7,8 @@
 
 Deliberately independent of epubtext.py / fontops.py (nothing is imported from them):
 text is collected with lxml instead of html.parser, fonts are read straight from cmap,
-so a collection bug in the subset tool cannot hide itself. Unlike coverage-detector's
-inventory, nothing is skipped: ASCII, U+2000-U+2E7F punctuation (“”‘’——…) and CSS
+so a collection bug in the subset tool cannot hide itself. Unlike the coverage
+command's inventory, nothing is skipped: ASCII, U+2000-U+2E7F punctuation (“”‘’——…) and CSS
 generated characters are all required.
 
 Per font it reports:
