@@ -39,6 +39,7 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
+	opfscan "github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 // CapabilityID 是契约 id（contracts/capabilities/v1/epub.package.migrate.epub3.json）。
@@ -179,7 +180,9 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 		return nil, err
 	}
 	normalizeManifestMedia(root, rep)
-	ensureCoverProperties(root, rep)
+	if err := ensureCoverProperties(opfPath, opfData, root, rep); err != nil {
+		return nil, err
+	}
 	if err := ensureSpineToc(root); err != nil {
 		return nil, err
 	}
@@ -289,7 +292,11 @@ func buildResult(p Params, rep *conversionReport) report.Result {
 	}
 	var findings []report.Finding
 	for _, w := range rep.Warnings {
-		findings = append(findings, report.Finding{Level: "warn", ID: "migrate.warning", Title: w})
+		id := "migrate.warning"
+		if strings.HasPrefix(w, "migrate.cover-meta-not-image:") {
+			id = "migrate.cover-meta-not-image"
+		}
+		findings = append(findings, report.Finding{Level: "warn", ID: id, Title: w})
 	}
 	events := []report.Event{{
 		Step:   "convert",
@@ -570,38 +577,42 @@ func manifestMaps(root *xmlElem, opfDir string) (map[string]*xmlElem, map[string
 	return byID, byZip
 }
 
-// findCoverID 复刻 core.find_cover_id。
-func findCoverID(root *xmlElem) string {
-	meta := root.childByTag(opfURI, "metadata")
-	if meta == nil {
-		return ""
+// ensureCoverProperties marks only the image cover recognized by the shared
+// OPF projection; an EPUB2 meta cover pointing to non-image content is warned.
+func ensureCoverProperties(opfPath string, opfData []byte, root *xmlElem, rep *conversionReport) error {
+	pkg, err := opfscan.Parse(opfPath, opfData)
+	if err != nil {
+		return convErrf("%s: cannot inspect cover metadata: %v", opfPath, err)
 	}
-	for _, child := range meta.childrenByTag(opfURI, "meta") {
-		if child.attrOr("name", "") == "cover" {
-			return child.attrOr("content", "")
+	cover, ok := pkg.CoverImageItem()
+	if !ok || !strings.HasPrefix(cover.MediaType, "image/") {
+		for _, meta := range pkg.Metas {
+			if meta.Name != "cover" {
+				continue
+			}
+			item, exists := pkg.ItemByID(meta.Content)
+			if exists && !strings.HasPrefix(item.MediaType, "image/") {
+				rep.Warnings = append(rep.Warnings, fmt.Sprintf(
+					"migrate.cover-meta-not-image: EPUB2 cover metadata points to non-image manifest item %q (%s)",
+					item.ID, item.MediaType,
+				))
+			}
 		}
-	}
-	return ""
-}
-
-// ensureCoverProperties 逐行复刻 core.ensure_cover_properties。
-func ensureCoverProperties(root *xmlElem, rep *conversionReport) {
-	coverID := findCoverID(root)
-	if coverID == "" {
-		return
+		return nil
 	}
 	manifest := root.childByTag(opfURI, "manifest")
 	if manifest == nil {
-		return
+		return nil
 	}
 	for _, item := range manifest.childrenByTag(opfURI, "item") {
-		if id, ok := item.getAttr("id"); ok && id == coverID {
+		if id, ok := item.getAttr("id"); ok && id == cover.ID {
 			if addProps(item, "cover-image") {
 				rep.ManifestItemsUpdated++
 			}
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // normalizeManifestMedia 逐行复刻 core.normalize_manifest_media。

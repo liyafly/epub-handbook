@@ -697,6 +697,40 @@ func TestMigrationLeavesGeneratedNavOutOfSpine(t *testing.T) {
 	}
 }
 
+func TestMigrateSkipsCoverImagePropertyForNonImageMetaCover(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	output := filepath.Join(dir, "converted.epub")
+	entries := buildLegacyFixture(legacyOptions{})
+	for i := range entries {
+		if entries[i].name == "OEBPS/content.opf" {
+			entries[i].content = strings.Replace(entries[i].content,
+				`<meta name="cover" content="cover-img"/>`,
+				`<meta name="cover" content="chapter"/>`, 1)
+		}
+	}
+	writeFixtureEpub(t, fixture, entries)
+
+	res, err := runGo(t, fixture, output, defaultParams(output))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	opf := string(zipRead(t, openZip(t, output), "OEBPS/content.opf"))
+	if strings.Contains(opf, "cover-image") {
+		t.Fatalf("non-image meta cover was marked cover-image:\n%s", opf)
+	}
+	found := false
+	for _, finding := range res.Findings {
+		if finding.ID == "migrate.cover-meta-not-image" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing migrate.cover-meta-not-image warning: %+v", res.Findings)
+	}
+}
+
 func TestLockedModeCase(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy-locked.epub")
