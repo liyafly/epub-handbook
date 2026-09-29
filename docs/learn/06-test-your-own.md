@@ -5,8 +5,8 @@
 ## 0. 准备
 
 ```sh
-mkdir -p work
-cp /path/to/your-book.epub work/source.epub
+W=$(mktemp -d)
+cp /path/to/your-book.epub "$W/source.epub"
 ```
 
 不要原地覆盖原始 epub。
@@ -16,47 +16,39 @@ cp /path/to/your-book.epub work/source.epub
 本机不要求安装 EPUBCheck。日常先用本仓 CLI 检查 ZIP、container、OPF、manifest 引用和清洗风险；正文不变红线由 `epub redline` 比对清洗前后产物；EPUBCheck 只在 GitHub Actions 里作为 CI gate 跑。
 
 ```sh
-epub run epub.package.nav.audit --input work/source.epub --json
+epub run epub.package.nav.audit --input "$W/source.epub" --json
 ```
 
 error 必须修，warning 看情况记录。
 
-## 2. 用本仓 validator 跑一次
+## 2. 用外部 diff 工具确认基线（可选）
+
+如果你想确认 diff 工作流就绪，把 `$W/source.epub` 拷贝一份做自比：
 
 ```sh
-epub run epub.style.demo.maintain --input work/source.epub --json
+cp "$W/source.epub" "$W/source-copy.epub"
 ```
 
-这个能力是为 `templates/epub-style-demo/` 设计的，对真实 epub 会报很多 fixture 相关失败。真正有用的是它附带的通用校验：mimetype、container、OPF 完整性、CSS url() 引用。
-
-## 3. 用外部 diff 工具确认基线（可选）
-
-如果你想确认 diff 工作流就绪，把 `work/source.epub` 拷贝一份做自比：
-
-```sh
-cp work/source.epub work/source-copy.epub
-```
-
-按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 比较 `work/source.epub` 与 `work/source-copy.epub`。
+按 [EPUB diff review](../pipeline/epub-diff-review.md) 用 Calibre Editor 比较 `$W/source.epub` 与 `$W/source-copy.epub`。
 
 - 期望：所有文件 unchanged。
 - 如果 Calibre 报差异：说明拷贝过程中改动了文件，重新拷贝。
 
-## 4. 调用 epub-audit 看 findings
+## 3. 调用 epub-audit 看 findings
 
 ```text
-请使用 epub-audit 审稿 work/source.epub
+请使用 epub-audit 审稿 $W/source.epub
 ```
 
 或者直接跑：
 
 ```sh
-epub run epub.package.nav.audit --input work/source.epub --json
-epub run epub.text.content.analyze --input work/source.epub --json
-epub run epub.font.coverage.analyze --input work/source.epub --json
+epub run epub.package.nav.audit --input "$W/source.epub" --json
+epub run epub.text.content.analyze --input "$W/source.epub" --json
+epub run epub.font.coverage.analyze --input "$W/source.epub" --json
 ```
 
-## 5. 决定是否清洗
+## 4. 决定是否清洗
 
 把 nav.audit / 精排分析 / findings 对照 [cleanup-flow.md](../pipeline/cleanup-flow.md)：
 
@@ -65,7 +57,9 @@ epub run epub.font.coverage.analyze --input work/source.epub --json
 - 黄线为主（样式 / 字体 / 结构混乱）-> 可以进入清洗流水线。
 - 绿线为主（仅格式化噪声）-> 不一定值得清洗。
 
-## 6. 用阅读器实测
+决定清洗后，按 cleanup-flow 主线 S0–S6 执行（迁移在 S3）。
+
+## 5. 用阅读器实测
 
 清洗前后都用目标阅读器打开看：
 
@@ -75,6 +69,6 @@ epub run epub.font.coverage.analyze --input work/source.epub --json
 
 把实测结果记下来；贡献回本仓时按 [CONTRIBUTING.md](../../CONTRIBUTING.md) 的 reader-matrix 规范回写。
 
-## 7. 卡住了？
+## 6. 卡住了？
 
 去看 [07-faq.md](07-faq.md) 或 [glossary.md](glossary.md)。
