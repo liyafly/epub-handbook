@@ -20,7 +20,7 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 | --- | --- | --- | --- | --- |
 | S0 冻结 | `cp "$SOURCE_EPUB" "$BOOK_ROOT/01 源文件/$SOURCE_NAME" && cp "$SOURCE_EPUB" "$W/before/source.epub" && shasum -a 256 "$BOOK_ROOT/01 源文件/$SOURCE_NAME" "$W/before/source.epub"` | `01 源文件/$SOURCE_NAME`、`source.epub` | 两个 SHA 一致，并写进 `制作说明.md` | — |
 | S1 预检 | `epub run epub.package.nav.audit --input "$CUR" --json > "$W/s1-audit.json"` | s1-audit.json | 无 DRM/损坏类 error | DRM、未知加密、ZIP 损坏 → **停止**，报告用户 |
-| S2 规范化（可选） | ① 加 `--dry-run` 跑 `epub run epub.structure.normalize --input "$CUR" --output "$W/after/s2.epub" --json > "$W/s2-dry.json"`；② 审映射；③ 去掉 `--dry-run` 实跑，输出存 `$W/s2-normalize.json`；④ `CUR="$W/after/s2.epub"` | s2.epub、s2-normalize.json | 映射逐条看过；实跑 exit 0 | 不需要就在制作说明写跳过理由 |
+| S2 规范化（可选） | ① dry-run：`epub run epub.structure.normalize --input "$CUR" --output "$W/after/s2.epub" --dry-run --json > "$W/s2-dry.json"`；② 审映射；③ 同一命令去掉 `--dry-run` 实跑并把信封保留到 `"$W/s2-normalize.json"`；④ `CUR="$W/after/s2.epub"` | s2.epub、s2-normalize.json | 映射逐条看过；实跑 exit 0 | 不需要就在制作说明写跳过理由 |
 | S3 EPUB3 迁移（EPUB2 或缺 nav 时） | 先 `--dry-run`，再 `epub run epub.package.migrate.epub3 --input "$CUR" --output "$W/after/s3.epub" --json > "$W/s3.json"`；`CUR="$W/after/s3.epub"` | s3.epub | exit 0，S6 通过 | 读 findings，不覆盖重试 |
 | S4 审计（只读） | `epub.package.nav.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze` 各跑一次 `--input "$CUR" --json` | s4-*.json | 只生成报告 | 字体 provider 缺失 → 记"无字体覆盖结论"，继续 |
 | S5 修改（每次只做一项） | 按 `cleanup-patterns.md` 判定模式，再在 [skills/README 技能索引](../../skills/README.md#技能索引)选择该 skill 下一个 capability；dry-run 后写出 `$W/after/s5-<n>.epub` | s5-n.epub | 紧接着跑 S6 并通过，才 `CUR=` 它 | 丢弃该候选，CUR 不变 |
