@@ -5,6 +5,7 @@ package metadata
 import (
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
@@ -108,10 +109,10 @@ func readPackage(names map[string]bool, read func(string) ([]byte, error)) (*pkg
 		if itemID == "" || href == "" {
 			return nil, toolErrf("%s: manifest item missing id or href", opfPath)
 		}
-		if pyIsExternalURI(href) {
+		if pypath.IsExternalURI(href) {
 			continue
 		}
-		archivePath, err := resolveRelativePath(opfPath, pyURLSplit(href).path)
+		archivePath, err := resolveRelativePath(opfPath, pypath.URLSplit(href).Path)
 		if err != nil {
 			return nil, err
 		}
