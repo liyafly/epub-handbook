@@ -25,7 +25,11 @@ func ReferenceEdits(path string, data []byte, rewrite func(string) string) ([]ed
 
 	var edits []editset.Edit
 	for _, ref := range references {
-		if ref.DataURL || pypath.IsExternalURI(ref.Value) {
+		if ref.DataURL || pypath.URLSplit(ref.Value).Scheme != "" {
+			continue
+		}
+		if strings.HasPrefix(ref.Value, "/") {
+			rewrite(ref.Value)
 			continue
 		}
 		if strings.ContainsRune(ref.Value, '\\') {
@@ -48,6 +52,37 @@ func ReferenceEdits(path string, data []byte, rewrite func(string) string) ([]ed
 		))
 	}
 	return edits, nil
+}
+
+// MapEntityDecodedEdits maps CSS edits made against decoded attribute bytes back
+// to the original source spans. rawOffsets has one source byte offset for every
+// decoded byte boundary, as returned by xhtml.DecodeAttrWithMap. Escape is
+// applied only to replacement text before the original attribute is edited.
+func MapEntityDecodedEdits(path string, raw []byte, rawOffsets []int, edits []editset.Edit, escape func(string) string) ([]editset.Edit, error) {
+	if len(edits) == 0 {
+		return nil, nil
+	}
+	if escape == nil {
+		escape = func(value string) string { return value }
+	}
+	if len(rawOffsets) == 0 {
+		return nil, fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
+	}
+	maxOffset := int64(len(rawOffsets) - 1)
+	mapped := make([]editset.Edit, 0, len(edits))
+	for _, edit := range edits {
+		if edit.Offset < 0 || edit.Length < 0 || edit.Offset > maxOffset || edit.Length > maxOffset-edit.Offset {
+			return nil, fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
+		}
+		start := rawOffsets[int(edit.Offset)]
+		end := rawOffsets[int(edit.Offset+edit.Length)]
+		if start < 0 || end < start || end > len(raw) {
+			return nil, fmt.Errorf("%s: CSS reference span cannot be mapped to source text", path)
+		}
+		replacement := escape(string(edit.Replacement))
+		mapped = append(mapped, editset.Replace(path, int64(start), int64(end-start), []byte(replacement)))
+	}
+	return mapped, nil
 }
 
 func validateReferenceValue(value string) error {

@@ -2,6 +2,7 @@ package css
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -106,8 +107,9 @@ func TestReferenceEditsSkipsDataAndExternalURIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReferenceEdits: %v", err)
 	}
-	if len(called) != 1 || called[0] != "local.png" {
-		t.Fatalf("rewrite called with %q, want only local.png", called)
+	wantCalls := []string{"/root/a.png", "//cdn.example.test/a.png", "local.png"}
+	if !slices.Equal(called, wantCalls) {
+		t.Fatalf("rewrite called with %q, want %q", called, wantCalls)
 	}
 	got, err := editset.Apply(path, input, edits)
 	if err != nil {
@@ -116,6 +118,31 @@ func TestReferenceEditsSkipsDataAndExternalURIs(t *testing.T) {
 	want := []byte(`a { a: url(data:image/png;base64,AA==); b: url(https://example.test/a.png); c: url(/root/a.png); d: url(//cdn.example.test/a.png); e: url(new/local.png); }`)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("result = %q, want %q", got, want)
+	}
+}
+
+func TestMapEntityDecodedEditsPreservesSourceRangesAndEscapesReplacement(t *testing.T) {
+	const path = "inline-style"
+	raw := []byte("x&#46;png")
+	edits := []editset.Edit{editset.Replace(path, 0, 5, []byte("new&pic.png"))}
+	escape := func(value string) string { return strings.ReplaceAll(value, "&", "&amp;") }
+	mapped, err := MapEntityDecodedEdits(path, raw, []int{0, 1, 6, 7, 8, 9}, edits, escape)
+	if err != nil {
+		t.Fatalf("MapEntityDecodedEdits: %v", err)
+	}
+	got, err := editset.Apply(path, raw, mapped)
+	if err != nil {
+		t.Fatalf("editset.Apply: %v", err)
+	}
+	if string(got) != "new&amp;pic.png" {
+		t.Fatalf("mapped result = %q, want %q", got, "new&amp;pic.png")
+	}
+}
+
+func TestMapEntityDecodedEditsRejectsInvalidSpan(t *testing.T) {
+	_, err := MapEntityDecodedEdits("inline-style", []byte("x"), []int{0, 1}, []editset.Edit{editset.Replace("inline-style", 0, 2, []byte("y"))}, nil)
+	if err == nil {
+		t.Fatal("MapEntityDecodedEdits accepted an edit outside the decoded offset map")
 	}
 }
 

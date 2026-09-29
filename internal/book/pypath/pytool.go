@@ -92,8 +92,8 @@ func IsExternalURI(uri string) bool {
 	return strings.HasPrefix(uri, "/") || strings.HasPrefix(uri, "//")
 }
 
-// pyQuote 复刻 quote(value, safe="/:@-._~")。
-func pyQuote(s string) string {
+// QuotePath 复刻 quote(value, safe="/:@-._~")。
+func QuotePath(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	for i := 0; i < len(s); i++ {
@@ -112,8 +112,9 @@ func pyQuote(s string) string {
 	return b.String()
 }
 
-// pyUnquote 复刻 unquote（非法 % 序列原样保留）。
-func pyUnquote(s string) string {
+// Unquote 复刻 urllib.parse.unquote：非法 % 序列原样保留，解码出的
+// 非法 UTF-8 使用替换字符。
+func Unquote(s string) string {
 	if !strings.Contains(s, "%") {
 		return s
 	}
@@ -131,7 +132,7 @@ func pyUnquote(s string) string {
 		raw = append(raw, s[i])
 		i++
 	}
-	return string(raw)
+	return strings.ToValidUTF8(string(raw), "\uFFFD")
 }
 
 func hexVal(c byte) (byte, bool) {
@@ -152,18 +153,20 @@ func isASCIILetter(c byte) bool {
 
 // Dirname 复刻 posixpath.dirname。
 func Dirname(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
+	dir, _, found := strings.CutLast(p, "/")
+	if !found {
+		return ""
 	}
-	return ""
+	return dir
 }
 
 // Basename 复刻 posixpath.basename。
 func Basename(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[i+1:]
+	_, base, found := strings.CutLast(p, "/")
+	if !found {
+		return p
 	}
-	return p
+	return base
 }
 
 // SplitExt 复刻 posixpath.splitext。
@@ -208,7 +211,7 @@ func RelPath(target, base string) string {
 
 func splitSegments(p string) []string {
 	var out []string
-	for _, seg := range strings.Split(p, "/") {
+	for seg := range strings.SplitSeq(p, "/") {
 		if seg != "" {
 			out = append(out, seg)
 		}
@@ -230,13 +233,13 @@ func ValidateArchivePath(name, label string) (string, error) {
 
 // ResolveRelativePath 复刻 epub_lib.resolve_relative_path。
 func ResolveRelativePath(baseFile, uriPath string) (string, error) {
-	decoded := pyUnquote(uriPath)
+	decoded := Unquote(uriPath)
 	return ValidateArchivePath(path.Join(Dirname(baseFile), decoded), "resource href")
 }
 
 // RelativeURI 复刻 core.relative_uri。
 func RelativeURI(fromArchivePath, toArchivePath string) string {
-	return pyQuote(RelativePath(fromArchivePath, toArchivePath))
+	return QuotePath(RelativePath(fromArchivePath, toArchivePath))
 }
 
 // SplitProps 复刻 epub_lib.split_props。

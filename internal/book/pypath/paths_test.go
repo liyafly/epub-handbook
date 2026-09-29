@@ -1,6 +1,10 @@
 package pypath
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func TestLexicalPathSemantics(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
@@ -18,6 +22,12 @@ func TestLexicalPathSemantics(t *testing.T) {
 	if got := NormJoin("OPS/Text", "../a%20b.css?v=1#anchor"); got != "OPS/a%20b.css?v=1" {
 		t.Fatal(got)
 	}
+	if got := NormJoin("OPS/Text", "/Images/a.png#cover"); got != "/Images/a.png" {
+		t.Fatalf("rooted NormJoin = %q", got)
+	}
+	if got := Join("OPS", "Text", "chapter.xhtml"); got != "OPS/Text/chapter.xhtml" {
+		t.Fatalf("Join = %q", got)
+	}
 	if got := RelPath("OPS/Text/a", "OPS/Styles"); got != "../Text/a" {
 		t.Fatal(got)
 	}
@@ -34,6 +44,18 @@ func TestLexicalPathSemantics(t *testing.T) {
 	}
 }
 
+func TestURLPathEscaping(t *testing.T) {
+	if got := Unquote("a%20b%2F%E4%B8%AD%FF%ZZ"); got != "a b/中\uFFFD%ZZ" {
+		t.Fatalf("Unquote = %q", got)
+	}
+	if got := QuotePath("a b/中"); got != "a%20b/%E4%B8%AD" {
+		t.Fatalf("QuotePath = %q", got)
+	}
+	if got, err := ResolveRootPath("/Fonts/obf%20font.otf"); err != nil || got != "Fonts/obf font.otf" {
+		t.Fatalf("ResolveRootPath = %q, %v", got, err)
+	}
+}
+
 func TestPathAndURIEscapingRemainDistinct(t *testing.T) {
 	from, to := "OPS/Text/a.xhtml", "OPS/Images/中 a.png"
 	if got := RelativePath(from, to); got != "../Images/中 a.png" {
@@ -44,6 +66,30 @@ func TestPathAndURIEscapingRemainDistinct(t *testing.T) {
 	}
 	if got := RelativePath("a.xhtml", to); got != to {
 		t.Fatal(got)
+	}
+}
+
+func TestRewriteURIWarnsAndKeepsRootedHref(t *testing.T) {
+	var warnings []string
+	warn := func(format string, args ...any) {
+		warnings = append(warnings, fmt.Sprintf(format, args...))
+	}
+	const href = "/Images/cover.png"
+	got := RewriteURI(href, "OEBPS/Text/chapter.xhtml", "OEBPS/Text/chapter.xhtml", nil, map[string]bool{}, warn)
+	if got != href {
+		t.Fatalf("RewriteURI() = %q, want unchanged %q", got, href)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], href) {
+		t.Fatalf("warnings = %q, want one warning naming the unsafe href", warnings)
+	}
+}
+
+func TestRewriteURIMapsKnownLocalReference(t *testing.T) {
+	known := map[string]bool{"OEBPS/Images/old.png": true}
+	pathMap := map[string]string{"OEBPS/Images/old.png": "OEBPS/Images/new.png"}
+	got := RewriteURI("../Images/old.png?download=1#cover", "OEBPS/Text/chapter.xhtml", "OEBPS/Text/chapter.xhtml", pathMap, known, nil)
+	if got != "../Images/new.png?download=1#cover" {
+		t.Fatalf("RewriteURI() = %q", got)
 	}
 }
 

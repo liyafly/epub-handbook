@@ -8,15 +8,21 @@ func BaseStem(p string) string {
 	return stem
 }
 
-// Join preserves the POSIX two-part join used by the migrated tools.
-func Join(base, name string) string {
-	if strings.HasPrefix(name, "/") {
-		return name
+// Join preserves the POSIX join semantics used by the migrated tools.
+func Join(base string, names ...string) string {
+	joined := base
+	for _, name := range names {
+		if strings.HasPrefix(name, "/") {
+			joined = name
+			continue
+		}
+		if joined == "" || strings.HasSuffix(joined, "/") {
+			joined += name
+			continue
+		}
+		joined += "/" + name
 	}
-	if base == "" || strings.HasSuffix(base, "/") {
-		return base + name
-	}
-	return base + "/" + name
+	return joined
 }
 
 // NormPath is POSIX lexical normalization, including the special // prefix.
@@ -59,6 +65,46 @@ func NormJoin(base, href string) string {
 	return NormPath(Join(base, clean))
 }
 
+// RewriteURI updates a local reference after an archive resource moves. Rooted
+// hrefs are unsafe inside an EPUB archive, so they are retained and reported.
+// Unknown or invalid local targets are also retained with a warning.
+func RewriteURI(uri, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(string, ...any)) string {
+	if uri == "" || strings.HasPrefix(uri, "#") {
+		return uri
+	}
+	if strings.HasPrefix(uri, "/") {
+		if warn != nil {
+			warn("%s: unsafe absolute reference left unchanged: %s", oldDocument, uri)
+		}
+		return uri
+	}
+	parts := URLSplit(uri)
+	if parts.Scheme != "" || parts.Path == "" {
+		return uri
+	}
+	oldTarget, err := ResolveRelativePath(oldDocument, parts.Path)
+	if err != nil {
+		if warn != nil {
+			warn("%s: unsafe local reference left unchanged: %s", oldDocument, uri)
+		}
+		return uri
+	}
+	if !knownFiles[oldTarget] {
+		if warn != nil {
+			warn("%s: missing local reference left unchanged: %s", oldDocument, uri)
+		}
+		return uri
+	}
+	target := oldTarget
+	if mapped, ok := pathMap[oldTarget]; ok {
+		target = mapped
+	}
+	if resolved, err := ResolveRelativePath(newDocument, parts.Path); err == nil && resolved == target {
+		return uri
+	}
+	return URLUnsplitPath(RelativeURI(newDocument, target), parts.Query, parts.Fragment)
+}
+
 // RelativePath returns an unescaped path. RelativeURI additionally quotes it.
 func RelativePath(from, to string) string {
 	base := Dirname(from)
@@ -66,4 +112,9 @@ func RelativePath(from, to string) string {
 		return to
 	}
 	return RelPath(to, base)
+}
+
+// ResolveRootPath decodes and validates a root-relative encryption URI.
+func ResolveRootPath(uriPath string) (string, error) {
+	return ValidateArchivePath(strings.TrimLeft(Unquote(uriPath), "/"), "encryption URI")
 }
