@@ -51,33 +51,10 @@ var guideTypeToEpub = map[string]string{
 	"copyright-page": "copyright-page",
 }
 
-// pyPatterns 预编译 core.py 的全部正则（fold = re.I，dotAll = re.S）。
-var pyPatterns = buildPatterns()
-
-func buildPatterns() map[string]*pyRegexp {
-	m := map[string]*pyRegexp{}
-	def := func(name, pattern string, fold, dotAll bool) {
-		m[name] = mustCompilePy(pattern, fold, dotAll)
-	}
-	// sanitize_ncx_text 的坏引号修复（re.I）。
-	def("ncxSrcFix", `(<content\b[^>]*\bsrc=)(["'])([^"']+?)(["'])(#[^"'>\s/]+)`, true, false)
-	// normalize_xhtml_shell（re.I；DOCTYPE 另有 re.S）。
-	def("doctype", `<!DOCTYPE[^>]*>`, true, true)
-	// 本地纯文本弹注（re.S）。
-	def("plainNoteref", `<a\s+id="w(?P<num>\d+)"></a>\s*<a\s+href="(?P<href>[^"]*#m(?P=num))">\s*<sup>\[(?P=num)\]</sup>\s*</a>`, false, true)
-	def("plainNote", `\s*<p\s+class="note"\s*>\s*<a\s+id="m(?P<num>\d+)"></a>\s*<a\s+href="[^"]*#w(?P=num)">\[(?P=num)\]</a>\s*(?P<body>.*?)</p>`, false, true)
-	// Sigil 遗留弹注（re.I | re.S）。
-	def("sigilSection", `<section\b(?=[^>]*\bepub:type\s*=\s*["']footnotes["'])[^>]*>(?P<body>.*?)</section>`, true, true)
-	def("sigilNote", `<aside\b(?=[^>]*\bid\s*=\s*["']footnote_(?P<num>\d+)["'])[^>]*>\s*<p\b[^>]*>\s*<a\b(?=[^>]*\bhref\s*=\s*["']#noteref_(?P=num)["'])[^>]*>\s*\[(?P=num)\]\s*</a>(?P<body>.*?)</p>\s*</aside>`, true, true)
-	def("sigilNoteref", `<a\b(?=[^>]*\bid\s*=\s*["']noteref_(?P<num>\d+)["'])[^>]*>\s*\[(?P=num)\]\s*</a>`, true, true)
-	def("noteMarkerSup", `<sup(?P<attrs>\s[^>]*)?>(?P<content>\s*<a\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bnoteref-icon\b)[^>]*>.*?</a>\s*)</sup>`, true, true)
-	def("hrBeforeNotes", `\s*<hr\b[^>]*/?>\s*$`, true, true)
-	// 属性标记检查（re.I）。
-	// duokan 归一（无 re.I）。
-	def("duokanAside", `<aside\s+epub:type="footnote"(?![^>]*\brole=)`, false, false)
-	// has_body_font_locked 的声明检查（re.I）。
-	def("fontFamilyDecl", `\bfont-family\s*:`, true, false)
-	// unique_id 的 id 清洗。
-	def("idClean", `[^A-Za-z0-9_.-]+`, false, false)
-	return m
-}
+// The remaining core.py patterns are compatible with Go's RE2 engine.
+var (
+	ncxSrcFixRe      = regexp.MustCompile(`(?i)(<content\b[^>]*\bsrc=)(["'])([^"']+?)(["'])(#[^"'>\s/]+)`)
+	doctypeRe        = regexp.MustCompile(`(?is)<!DOCTYPE[^>]*>`)
+	fontFamilyDeclRe = regexp.MustCompile(`(?i)\bfont-family\s*:`)
+	idCleanRe        = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
+)

@@ -828,7 +828,7 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
 
 ### 7.1 XHTML
 
-注释触发采用图片图标，项目默认图标放 `Images/note.png`。如果源 EPUB 已有本地注释图标，保留原 `img src` 和资源声明；只有 `[1]`、`注` 等纯文本或数字上标标记需要转换时，才补入默认图标。返回符号采用 `◎`。
+注释触发采用图片图标。示例中的 `Images/note.png` 由书稿制作方提供并在 OPF 中声明，不是迁移器内置资源。如果源 EPUB 已有本地注释图标，保留原 `img src` 和资源声明；把 `[1]`、`注` 等纯文本或数字上标标记转换为图片 noteref 前，须获得正文修改授权并由制作方提供图标、更新 OPF manifest。EPUB3 迁移保留 plain/Sigil 旧尾注原文。返回符号采用 `◎`。
 
 任何使用 `epub:type` 的 XHTML 文件都要先在根元素声明 EPUB namespace：
 

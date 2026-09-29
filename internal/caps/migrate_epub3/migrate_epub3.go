@@ -14,12 +14,10 @@
 //     fix_guide_hrefs
 //  4. NCX→nav 生成（sanitize_ncx_text 坏引号修复 + nav.xhtml 模板逐字节 +
 //     landmarks），无 NCX 时 spine_entries 兜底
-//  5. note.png 图标（优先读 skills 资产；href 按 unique_href 规则）
-//  6. update_xhtml_files 每页管线：normalize_xhtml_shell →
-//     convert_plain_notes → convert_sigil_legacy_notes →
-//     normalize_duokan_notes → svg/mathml/scripted 属性标记；XHTML shell 与
-//     metadata 的变更只落在目标字节区间，不整页格式化。
-//  8. OPF 只编辑被迁移规则命中的属性、移除的旧 metadata 节点与新建的
+//  5. update_xhtml_files 每页管线：normalize_xhtml_shell →
+//     normalize_duokan_notes → svg/mathml/scripted 属性标记；plain/Sigil
+//     旧尾注文本保持不变，XHTML shell 与 metadata 只落目标字节区间。
+//  7. OPF 只编辑被迁移规则命中的属性、移除的旧 metadata 节点与新建的
 //     metadata / manifest / spine 片段；保留其它原文。
 //
 // 三段式（SPEC §6.1）：扫描只读 b 并产出 []editset.Edit；b.Apply 是唯一
@@ -58,11 +56,9 @@ func convErrf(format string, a ...any) error {
 
 const canonicalMimetype = "application/epub+zip"
 
-// Params 是 capability 参数。PopupNotes 默认开启，由注册闭包把 no_popup_notes
-// 反转传入；迁移不负责排版样式。
+// Params 是 capability 参数；迁移不转换 plain/Sigil 旧尾注，也不负责排版样式。
 type Params struct {
-	PopupNotes bool
-	DryRun     bool
+	DryRun bool
 }
 
 // conversionReport 是转换过程的计数累加器；字段经 buildResult 逐项映射为
@@ -73,7 +69,6 @@ type conversionReport struct {
 	PackageVersionBefore  *string  `json:"package_version_before"`
 	NavEntries            int      `json:"nav_entries"`
 	XHTMLFilesUpdated     int      `json:"xhtml_files_updated"`
-	PlainNotesConverted   int      `json:"plain_notes_converted"`
 	DuokanNotesNormalized int      `json:"duokan_notes_normalized"`
 	ManifestItemsAdded    []string `json:"manifest_items_added"`
 	ManifestItemsUpdated  int      `json:"manifest_items_updated"`
@@ -119,11 +114,11 @@ type scanResult struct {
 
 // Run 执行本 capability。禁止修改 b 之外的任何状态；落盘由 pipeline 的
 // b.WriteTo 负责（INV-3）。
-func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
+func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
-	scan, err := scanPhase(b, p)
+	scan, err := scanPhase(b)
 	if err != nil {
 		return report.Result{}, err
 	}
@@ -134,11 +129,11 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err := b.Apply(scan.edits); err != nil {
 		return report.Result{}, fmt.Errorf("%s: %w", CapabilityID, err)
 	}
-	return buildResult(p, scan.rep), nil
+	return buildResult(scan.rep), nil
 }
 
 // scanPhase 逐行复刻 converter.convert_epub（只读 b）。
-func scanPhase(b *book.Book, p Params) (*scanResult, error) {
+func scanPhase(b *book.Book) (*scanResult, error) {
 	rep := &conversionReport{
 		ManifestItemsAdded: []string{},
 		MetadataUpdates:    []string{},
@@ -184,19 +179,8 @@ func scanPhase(b *book.Book, p Params) (*scanResult, error) {
 	}
 	fixGuideHrefs(root, files, opfDir, rep)
 
-	noteHref := defaultNoteHref(files, root, opfDir)
-	noteZip := normJoin(opfDir, noteHref)
-	defaultNoteIconUsed, err := updateXHTMLFiles(files, root, opfPath, noteZip, rep, p.PopupNotes)
-	if err != nil {
+	if err := updateXHTMLFiles(files, root, opfPath, rep); err != nil {
 		return nil, err
-	}
-	if p.PopupNotes && defaultNoteIconUsed {
-		if !files.has(noteZip) {
-			files.write(noteZip, notePNGBytes())
-		}
-		if _, err := addManifestItem(root, rep, "note-icon", noteHref, "image/png", ""); err != nil {
-			return nil, err
-		}
 	}
 	if err := ensureNav(files, root, opfPath, rep); err != nil {
 		return nil, err
@@ -256,7 +240,7 @@ func buildEdits(b *book.Book, files *workFiles) ([]editset.Edit, error) {
 }
 
 // buildResult 把 conversionReport 逐项映射为统一信封的 facts / findings / events。
-func buildResult(p Params, rep *conversionReport) report.Result {
+func buildResult(rep *conversionReport) report.Result {
 	var versionBefore any
 	if rep.PackageVersionBefore != nil {
 		versionBefore = *rep.PackageVersionBefore
@@ -266,13 +250,11 @@ func buildResult(p Params, rep *conversionReport) report.Result {
 		"packageVersionBefore":  versionBefore,
 		"navEntries":            rep.NavEntries,
 		"xhtmlFilesUpdated":     rep.XHTMLFilesUpdated,
-		"plainNotesConverted":   rep.PlainNotesConverted,
 		"duokanNotesNormalized": rep.DuokanNotesNormalized,
 		"manifestItemsAdded":    rep.ManifestItemsAdded,
 		"manifestItemsUpdated":  rep.ManifestItemsUpdated,
 		"metadataUpdates":       rep.MetadataUpdates,
 		"warnings":              rep.Warnings,
-		"popupNotes":            p.PopupNotes,
 	}
 	var findings []report.Finding
 	if rep.legacyBigTagPath != "" {
@@ -293,8 +275,8 @@ func buildResult(p Params, rep *conversionReport) report.Result {
 	events := []report.Event{{
 		Step:   "convert",
 		Status: "completed",
-		Message: fmt.Sprintf("nav_entries=%d xhtml_files_updated=%d plain_notes=%d duokan=%d",
-			rep.NavEntries, rep.XHTMLFilesUpdated, rep.PlainNotesConverted, rep.DuokanNotesNormalized),
+		Message: fmt.Sprintf("nav_entries=%d xhtml_files_updated=%d duokan=%d",
+			rep.NavEntries, rep.XHTMLFilesUpdated, rep.DuokanNotesNormalized),
 	}}
 	return report.Result{
 		Capability: CapabilityID,
@@ -410,7 +392,7 @@ func cssBodyFontLocked(css string) bool {
 		selectors := string(runes[i:j])
 		declarations := string(runes[j+1 : k])
 		i = k + 1
-		if !pyPatterns["fontFamilyDecl"].hasMatch(declarations) {
+		if !fontFamilyDeclRe.MatchString(declarations) {
 			continue
 		}
 		for _, selector := range strings.Split(selectors, ",") {
@@ -731,7 +713,7 @@ func itemIDExists(root *xmlElem, itemID string) bool {
 
 // uniqueID 逐行复刻 epub_lib.unique_id。
 func uniqueID(root *xmlElem, base string) string {
-	candidate, _ := pyPatterns["idClean"].subTemplate(base, "-", 0)
+	candidate := idCleanRe.ReplaceAllString(base, "-")
 	candidate = strings.Trim(candidate, "-")
 	if candidate == "" {
 		candidate = "item"
@@ -817,16 +799,6 @@ func addManifestItem(root *xmlElem, rep *conversionReport, itemIDBase, href, med
 	return item, nil
 }
 
-// defaultNoteHref 逐行复刻 core.default_note_href。
-func defaultNoteHref(files *workFiles, root *xmlElem, opfDir string) string {
-	const defaultHref = "Images/note.png"
-	defaultZip := normJoin(opfDir, defaultHref)
-	if hrefExists(root, defaultHref) != nil || files.has(defaultZip) {
-		return defaultHref
-	}
-	return uniqueHref(files, opfDir, defaultHref)
-}
-
 // ---- 导航（scripts/epub3_conversion/navigation.py → core） ----
 
 type navEntry struct {
@@ -886,8 +858,11 @@ func ensureNav(files *workFiles, root *xmlElem, opfPath string, rep *conversionR
 // sanitizeNCXText 逐行复刻 core.sanitize_ncx_text。
 func sanitizeNCXText(data []byte, rep *conversionReport) string {
 	text := utf8ReplaceDecode(data)
-	text, _ = pyPatterns["doctype"].subTemplate(text, "", 1)
-	fixed, count := pyPatterns["ncxSrcFix"].subTemplate(text, `\1\2\3\5\4`, 0)
+	if loc := doctypeRe.FindStringIndex(text); loc != nil {
+		text = text[:loc[0]] + text[loc[1]:]
+	}
+	count := len(ncxSrcFixRe.FindAllStringIndex(text, -1))
+	fixed := ncxSrcFixRe.ReplaceAllString(text, `${1}${2}${3}${5}${4}`)
 	if count > 0 {
 		rep.Warnings = append(rep.Warnings, fmt.Sprintf("fixed malformed NCX content src fragment quoting: %d", count))
 	}

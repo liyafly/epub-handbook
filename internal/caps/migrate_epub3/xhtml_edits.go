@@ -531,64 +531,6 @@ func isXHTMLSpace(value byte) bool {
 	return value == ' ' || value == '\t' || value == '\n' || value == '\r'
 }
 
-func pyMatchGroupByteSpan(match *pyMatch, name string) (int, int, bool) {
-	index, ok := match.re.named[name]
-	if !ok || !match.hasGroupI(index) {
-		return 0, 0, false
-	}
-	return match.byteStart(index), match.byteEnd(index), true
-}
-
-func matchHasRealElementBoundaries(text string, regions []xhtmlscan.Region, start, end int, firstName, lastName string) bool {
-	if start < 0 || end < start || end > len(text) {
-		return false
-	}
-	for start < end && isXHTMLSpace(text[start]) {
-		start++
-	}
-	for end > start && isXHTMLSpace(text[end-1]) {
-		end--
-	}
-	var first, last *xhtmlscan.Region
-	for i := range regions {
-		region := &regions[i]
-		if region.Kind != xhtmlscan.RegionTag || region.Span.Start < start || region.Span.End > end {
-			continue
-		}
-		if first == nil {
-			first = region
-		}
-		last = region
-	}
-	if first == nil || last == nil || first.Span.Start != start || last.Span.End != end {
-		return false
-	}
-	firstTag, firstClosing, firstOK := xhtmlRegionTag(text, *first)
-	lastTag, lastClosing, lastOK := xhtmlRegionTag(text, *last)
-	return firstOK && lastOK && !firstClosing && lastClosing &&
-		sameLocalName(firstTag.Name, firstName) && sameLocalName(lastTag.Name, lastName)
-}
-
-func matchHasRealSingleElement(text string, regions []xhtmlscan.Region, start, end int, name string) bool {
-	if start < 0 || end < start || end > len(text) {
-		return false
-	}
-	for start < end && isXHTMLSpace(text[start]) {
-		start++
-	}
-	for end > start && isXHTMLSpace(text[end-1]) {
-		end--
-	}
-	for _, region := range regions {
-		if region.Kind != xhtmlscan.RegionTag || region.Span.Start != start || region.Span.End != end {
-			continue
-		}
-		tag, closing, valid := xhtmlRegionTag(text, region)
-		return valid && !closing && sameLocalName(tag.Name, name)
-	}
-	return false
-}
-
 func regionTagNameAndClosing(text string, region xhtmlscan.Region) (string, bool, bool) {
 	if region.Kind != xhtmlscan.RegionTag || region.Span.Start < 0 || region.Span.End > len(text) || region.Span.Start >= region.Span.End {
 		return "", false, false

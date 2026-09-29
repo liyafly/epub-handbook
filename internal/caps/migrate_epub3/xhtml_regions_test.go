@@ -72,46 +72,37 @@ func TestNormalizeDuokanNotesSkipsEscapedProse(t *testing.T) {
 	}
 }
 
-func TestPlainAndSigilNoteConvertersIgnoreCommentExamples(t *testing.T) {
-	plain := `<!-- <p class="note"><a id="m1"></a><a href="#w1">[1]</a> note</p><a id="w1"></a><a href="#m1"><sup>[1]</sup></a> -->`
-	got, converted, markers, err := convertPlainNotes(plain, "../Images/note.png")
-	if err != nil {
-		t.Fatal(err)
+func TestNormalizeDuokanAsideAddsRoleByParsedAttributes(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+		count          int
+	}{
+		{
+			name:  "attribute order and single quotes",
+			in:    `<aside id="f1" epub:type='footnote'><p>note</p></aside>`,
+			want:  `<aside id="f1" epub:type='footnote' role="doc-footnote"><p>note</p></aside>`,
+			count: 1,
+		},
+		{
+			name:  "existing role is retained",
+			in:    `<aside role='custom' epub:type="footnote"><p>note</p></aside>`,
+			want:  `<aside role='custom' epub:type="footnote"><p>note</p></aside>`,
+			count: 0,
+		},
 	}
-	if got != plain || converted != 0 || markers != 0 {
-		t.Fatalf("comment text must remain unchanged: converted=%d markers=%d got=%q", converted, markers, got)
-	}
-
-	sigil := `<!-- <section epub:type="footnotes"><aside id="footnote_1"><p><a href="#noteref_1">[1]</a>note</p></aside></section><a id="noteref_1">[1]</a> -->`
-	got, converted, markers, err = convertSigilLegacyNotes(sigil, "../Images/note.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != sigil || converted != 0 || markers != 0 {
-		t.Fatalf("comment text must remain unchanged: converted=%d markers=%d got=%q", converted, markers, got)
-	}
-}
-
-func TestPlainNoteConverterKeepsInterleavedBodyContent(t *testing.T) {
-	input := `<p>正文<a id="w1"></a><a href="#m1"><sup>[1]</sup></a></p><p class="note"><a id="m1"></a><a href="#w1">[1]</a>note one</p><p>keep this paragraph</p><p class="note"><a id="m2"></a><a href="#w2">[2]</a>note two</p>`
-	got, converted, markers, err := convertPlainNotes(input, "../Images/note.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != input || converted != 0 || markers != 0 {
-		t.Fatalf("interleaved body content must block conversion: converted=%d markers=%d got=%q", converted, markers, got)
-	}
-}
-
-func TestMarkNoteMarkerSupIgnoresCommentExamples(t *testing.T) {
-	input := `<!-- <sup><a class="noteref-icon" href="#n">x</a></sup> --><p><sup class='keep'><a class="noteref-icon" href="#n">x</a></sup></p>`
-	want := `<!-- <sup><a class="noteref-icon" href="#n">x</a></sup> --><p><sup class='keep note-marker'><a class="noteref-icon" href="#n">x</a></sup></p>`
-	got, changed, err := markNoteMarkerSup(input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !changed || got != want {
-		t.Fatalf("got %q changed=%t want %q", got, changed, want)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, count, warnings, err := normalizeDuokanNotes(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want || count != tc.count {
+				t.Fatalf("got %q count=%d, want %q count=%d", got, count, tc.want, tc.count)
+			}
+			if len(warnings) != 0 {
+				t.Fatalf("unexpected warnings: %q", warnings)
+			}
+		})
 	}
 }
 

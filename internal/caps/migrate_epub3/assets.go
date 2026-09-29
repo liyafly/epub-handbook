@@ -1,43 +1,12 @@
-// assets.go 提供本 capability 使用的静态资源与字节级文本工具：note.png
-// 图标（优先读取 skills 资产，回退内置 base64，对齐 core.note_png_bytes）、
-// Python「utf-8 errors=replace」解码语义与 body 字体锁定探测。
+// assets.go 提供本 capability 的字节级文本工具：Python「utf-8 errors=replace」
+// 解码语义与 body 字体锁定探测。
 package migrateepub3
 
 import (
 	"bytes"
-	"encoding/base64"
-	"os"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 )
-
-// notePNGBase64 是 core.py 内置的 note.png 回退字节。
-const notePNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAAHklEQVR4nGNgGAWjYBSMglEwCkbBKBgFo2AUDAMABRwAAf1xD6YAAAAASUVORK5CYII="
-
-// notePNGBytes 复刻 core.note_png_bytes：优先读取仓库的 note.png 资产，
-// 否则使用内置 base64 回退值。
-func notePNGBytes() []byte {
-	dir, err := os.Getwd()
-	if err == nil {
-		for {
-			candidate := filepath.Join(dir, "skills", "epub-cleanup", "assets", "note.png")
-			if data, rerr := os.ReadFile(candidate); rerr == nil {
-				return data
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-	data, derr := base64.StdEncoding.DecodeString(notePNGBase64)
-	if derr != nil {
-		return []byte{}
-	}
-	return data
-}
 
 // utf8ReplaceDecode 复刻 bytes.decode("utf-8", errors="replace")：
 // 按 Unicode「最长合法子串」建议，每个非法子段产出一个 U+FFFD

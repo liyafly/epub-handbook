@@ -285,21 +285,6 @@ func TestRedlineRejectsSecondNavWhenBeforeHasNav(t *testing.T) {
 	wantLine(t, rep, text, "text: added XHTML file: OEBPS/nav2.xhtml")
 }
 
-func TestRedlineAllowsLegacyNoterefConvertedToPopup(t *testing.T) {
-	before := editEntry(t, "OEBPS/Text/c1.xhtml", func(data []byte) []byte {
-		return bytes.Replace(data, []byte(`<p id="p1">第一段落。</p>`),
-			[]byte(`<p id="p1">正文。<a href="notes.xhtml#m1"><sup>[1]</sup></a>后文</p><p class="note"><a id="m1"></a><a href="notes.xhtml#w1">[1]</a> 注释正文。</p>`), 1)
-	})
-	after := editEntry(t, "OEBPS/Text/c1.xhtml", func(data []byte) []byte {
-		return bytes.Replace(data, []byte(`<p id="p1">第一段落。</p>`),
-			[]byte(`<p id="p1">正文。<sup class="note-marker"><a id="w1" epub:type="noteref" href="#m1"><img alt="注" src="note.png"/></a></sup>后文</p><aside epub:type="footnote"><ol><li id="m1"><p><a epub:type="backlink" href="#w1">◎</a> 注释正文。</p></li></ol></aside>`), 1)
-	})
-	beforePath, afterPath := pair(t, before, after)
-	rep, text := compare(t, beforePath, afterPath, "all", Options{})
-	wantCode(t, rep, text, 0)
-	wantNoLine(t, rep, text, "text: modified OEBPS/Text/c1.xhtml")
-}
-
 func TestRedlineRejectsRemovedBracketTextWithoutNoteref(t *testing.T) {
 	before := editEntry(t, "OEBPS/Text/c1.xhtml", func(data []byte) []byte {
 		return bytes.Replace(data, []byte(`<p id="p1">第一段落。</p>`),

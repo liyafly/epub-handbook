@@ -330,17 +330,16 @@ jobs:
           go run ./cmd/epub run epub.package.migrate.epub3 \
             --input "$legacy_before" --output "$legacy_migrated" --json \
             > "$RUNNER_TEMP/legacy-epub2-migration.json"
-          python3 - "$RUNNER_TEMP/legacy-epub2-migration.json" <<'PY'
-          import json
+          python3 - "$legacy_before" "$legacy_migrated" <<'PY'
           import sys
+          import zipfile
 
-          with open(sys.argv[1], encoding="utf-8") as report_file:
-              report = json.load(report_file)
-          converted = report.get("facts", {}).get(
-              "epub.package.migrate.epub3.plainNotesConverted", 0
-          )
-          if converted < 1:
-              raise SystemExit(f"G23 same-file legacy note was not converted: {converted}")
+          note_ref = b'<a href="notes.xhtml#m1"><sup>[1]</sup></a>'
+          with zipfile.ZipFile(sys.argv[1]) as before_zip, zipfile.ZipFile(sys.argv[2]) as after_zip:
+              before = before_zip.read("OEBPS/Text/ch1.xhtml")
+              after = after_zip.read("OEBPS/Text/ch1.xhtml")
+          if before.count(note_ref) != 1 or after.count(note_ref) != 1:
+              raise SystemExit("X1 legacy [1] markup did not remain unchanged after migration")
           PY
           go run ./cmd/epub redline --check all "$legacy_before" "$legacy_migrated"
           go run ./cmd/epub run epub.structure.normalize \

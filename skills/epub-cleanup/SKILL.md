@@ -85,7 +85,7 @@ epub run epub.package.nav.audit --input "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-按用户明确范围选择 `no_popup_notes=true`。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
+迁移保留 plain/Sigil 旧尾注原文；Duokan legacy class/role 仍会规范化。需要转换旧尾注时，先取得明确授权并人工编辑，再运行弹注校验和全项 redline。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
 
 ### CSS 分层与清理
 
@@ -117,7 +117,7 @@ preset 为 `literary-cn`（默认）、`academic-cn`、`classical-annotated-cn`�
 epub run epub.notes.popup.normalize --input "book.epub" --json
 ```
 
-已授权 EPUB3 迁移时，用 `epub.package.migrate.epub3` 转换经识别的 plain/Sigil/Duokan 结构；它还会改 package/nav/shell，并非“仅弹注”写工具。仅授权弹注时人工修改对应资源，不借此扩大到全书迁移。修改后再跑本命令和全项 redline。
+`epub.notes.popup.normalize` 只读校验已有的标准弹注结构，不转换 plain/Sigil 旧尾注。`epub.package.migrate.epub3` 会保留这些旧结构的 XHTML 字节，只规范化 Duokan legacy class/role，同时修改 package/nav/shell。需要将旧尾注改成弹注时，先取得正文修改授权并按正文校订流程人工处理；完成后运行本命令和全项 redline。
 
 ## 返回怎么读
 
@@ -127,7 +127,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 ### EPUB3 迁移
 
-前缀 `epub.package.migrate.epub3.`：`packageVersionBefore`、`navEntries`、`xhtmlFilesUpdated`、manifest/metadata 改动计数、`plainNotesConverted`、`duokanNotesNormalized`、`warnings` 与开关回显。
+前缀 `epub.package.migrate.epub3.`：`packageVersionBefore`、`navEntries`、`xhtmlFilesUpdated`、manifest/metadata 改动计数、`duokanNotesNormalized`、`warnings`。
 输入/输出 SHA 在信封 input/output，不在 facts。
 
 ### CSS 分层与清理
@@ -146,7 +146,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 ### 标准弹注
 
 前缀 `epub.notes.popup.normalize.`：`noterefs`、`text_files`、`violations`；`error popupnotes` 的 title/location 给出文件和问题。
-迁移报告的 `plainNotesConverted/duokanNotesNormalized/warnings` 只表示识别/处理结果，不证明所有原注释都被识别。
+迁移报告中的 `duokanNotesNormalized/warnings` 只表示处理结果，不证明所有原注释都符合标准结构。
 
 ## 依据返回怎么判断
 
@@ -187,7 +187,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 ### 标准弹注
 
 - 同一 XHTML 中：图片 noteref anchor（epub:type、role、唯一 id）→ li.footnote-item 的 id → ◎ backlink 返回 trigger；每文件最多一个 aside[epub:type=footnote]，内有 ol.footnote-list。声明 epub namespace。
-- 保留已有图标 src/alt；仅缺图标时使用 [note.png](assets/note.png) 并补 manifest。结构/视觉写 notes.css，字体声明写 fonts.css，图标规则限定作用域，不影响普通 sup。
+- 保留已有图标 src/alt；新建图片 noteref 时由用户提供资源并同步 manifest，迁移器不会注入默认图标。结构/视觉写 notes.css，字体声明写 fonts.css，图标规则限定作用域，不影响普通 sup。
 - 不逐条创建 aside，不搬到跨文件 note body，不 display:none、不复制第二份注释、不改注释文字。
-- 模糊结构先逐条配对；Sigil 分组内有无法匹配的 aside 或附加内容时不做部分合并。尽量保留原 id。
+- 人工转换旧 Sigil 分组时，先逐条核对 noteref 与 aside；存在无法匹配的 aside 或附加内容时不做部分合并。尽量保留原 id。
 - 零违反还须对照原 noteref/note 数量、正文与每个触发目标，避免“没有被扫描到”误作正确。红线只允许表示控件差异，注释正文必须保持；多条 note 的弹窗范围需目标阅读器实测。

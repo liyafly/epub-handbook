@@ -6,6 +6,8 @@
 
 - 删除公开 capability `epub.layout.audit`；布局与包结构诊断统一使用 `epub.package.nav.audit`，依赖链不再重复运行审计。
 - `epub.package.migrate.epub3` 不再注入默认排版 CSS；删除排版开关与对应报告 facts。需要排版时改用 `epub.typography.optimize`。
+- `epub.package.migrate.epub3` 不再转换 plain/Sigil 旧尾注或注入 `note.png`；删除 `no_popup_notes` 参数与 `plainNotesConverted`、`popupNotes` facts。旧式尾注保持原文，转换需经授权后人工处理。
+- `epub redline` 不再将旧式 `[N]` 链接与迁移后的 noteref 配对豁免；旧式标记文本按普通正文比较。
 
 ### Changed
 

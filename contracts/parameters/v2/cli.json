@@ -54,7 +54,7 @@
       }
     },
     "epub.notes.popup.normalize": {
-      "description": "只读弹注验证；实际转换由 EPUB3 迁移能力完成。",
+      "description": "只读校验已有标准弹注结构；不转换 plain/Sigil 旧尾注。旧式尾注需经授权后人工转换，再用本能力和全项 redline 验证。",
       "parameters": {}
     },
     "epub.style.demo.maintain": {
@@ -93,14 +93,8 @@
       }
     },
     "epub.package.migrate.epub3": {
-      "description": "生成 EPUB3 候选；保留正文红线并报告迁移差异。",
-      "parameters": {
-        "no_popup_notes": {
-          "type": "boolean",
-          "description": "禁用弹注转换。",
-          "default": "false"
-        }
-      }
+      "description": "生成 EPUB3 候选；保留 plain/Sigil 旧尾注文本，仅规范化 Duokan 标记，并报告迁移差异。",
+      "parameters": {}
     },
     "epub.css.layering.optimize": {
       "description": "按字节区间清理 CSS；不支持自动 dedup/factor/prune/selector 全面重写。",

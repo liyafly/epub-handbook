@@ -232,7 +232,7 @@ func runGo(t *testing.T, fixture, output string, p Params) (report.Result, error
 
 func defaultParams(output string) Params {
 	_ = output // 输出路径由 pipeline 落盘；本包 Params 不再携带。
-	return Params{PopupNotes: true}
+	return Params{}
 }
 
 func openZip(t *testing.T, path string) *zip.ReadCloser {
@@ -271,13 +271,11 @@ type resultFacts struct {
 	PackageVersionBefore  *string  `json:"packageVersionBefore"`
 	NavEntries            int      `json:"navEntries"`
 	XHTMLFilesUpdated     int      `json:"xhtmlFilesUpdated"`
-	PlainNotesConverted   int      `json:"plainNotesConverted"`
 	DuokanNotesNormalized int      `json:"duokanNotesNormalized"`
 	ManifestItemsAdded    []string `json:"manifestItemsAdded"`
 	ManifestItemsUpdated  int      `json:"manifestItemsUpdated"`
 	MetadataUpdates       []string `json:"metadataUpdates"`
 	Warnings              []string `json:"warnings"`
-	PopupNotes            bool     `json:"popupNotes"`
 }
 
 // factsOf 经 JSON 往返读取 Result.Facts，同时保证 facts 可序列化。
@@ -551,7 +549,7 @@ func TestOneclickDefaultFixture(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	rep := factsOf(t, res)
-	if rep.PlainNotesConverted != 1 || rep.NavEntries != 1 {
+	if rep.NavEntries != 1 {
 		t.Fatalf("报告计数错误: %+v", rep)
 	}
 	zr := openZip(t, output)
@@ -582,15 +580,10 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	}
 	manifest := root.childByTag(opfURI, "manifest")
 	navCount := 0
-	hasNote := false
 	for _, item := range manifest.childrenByTag(opfURI, "item") {
 		props := pySplitWS(item.attrOr("properties", ""))
 		if containsString(props, "nav") {
 			navCount++
-		}
-		switch item.attrOr("href", "") {
-		case "Images/note.png":
-			hasNote = true
 		}
 		if id, _ := item.getAttr("id"); id == "cover-img" {
 			if !containsString(props, "cover-image") {
@@ -603,8 +596,8 @@ func TestOneclickDefaultFixture(t *testing.T) {
 			}
 		}
 	}
-	if navCount != 1 || !hasNote {
-		t.Fatalf("manifest 检查失败: nav=%d note=%t", navCount, hasNote)
+	if navCount != 1 {
+		t.Fatalf("manifest 检查失败: nav=%d", navCount)
 	}
 	for _, item := range rep.ManifestItemsAdded {
 		if strings.HasSuffix(strings.ToLower(item), ".css") {
@@ -633,17 +626,8 @@ func TestOneclickDefaultFixture(t *testing.T) {
 	}
 
 	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
-	for _, want := range []string{
-		`xmlns:epub="http://www.idpf.org/2007/ops"`,
-		`<sup class="note-marker">`,
-		`class="noteref-icon" epub:type="noteref" role="doc-noteref"`,
-		`class="footnote-list"`,
-		`role="doc-backlink"`,
-		"注释正文保留。",
-	} {
-		if !strings.Contains(chapter, want) {
-			t.Errorf("chapter 缺少 %q:\n%s", want, chapter)
-		}
+	if !strings.Contains(chapter, legacyNoteMarkup) {
+		t.Fatalf("migration must preserve the old note markup:\n%s", chapter)
 	}
 	if strings.Contains(chapter, "<link") {
 		t.Fatalf("migration added an XHTML stylesheet link:\n%s", chapter)
@@ -912,146 +896,18 @@ func TestIbooksPrefixCase(t *testing.T) {
 	}
 }
 
-func TestCustomImageNoterefCase(t *testing.T) {
+func TestMigratePreservesLegacyBracketFootnoteMarkup(t *testing.T) {
 	dir := t.TempDir()
-	fixture := filepath.Join(dir, "legacy-image-note.epub")
-	output := filepath.Join(dir, "converted-image-note.epub")
-	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
-		chapterNoteMarkup: `<p>正文<a id="w1" class="noteref-icon" epub:type="noteref" role="doc-noteref" href="#m1">` +
-			`<img alt="注" src="../Images/custom-note.png"/></a>继续。</p>` + "\n" +
-			`    <hr/>` + "\n" +
-			`    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>`,
-		extraManifestItem: `    <item id="custom-note" href="Images/custom-note.png" media-type="image/png"/>` + "\n",
-		extraFiles:        map[string]string{"OEBPS/Images/custom-note.png": "png"},
-	}))
+	fixture := filepath.Join(dir, "legacy-notes.epub")
+	output := filepath.Join(dir, "migrated.epub")
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{}))
 
-	res, err := runGo(t, fixture, output, defaultParams(output))
-	if err != nil {
+	if _, err := runGo(t, fixture, output, defaultParams(output)); err != nil {
 		t.Fatal(err)
 	}
-	rep := factsOf(t, res)
-	if rep.PlainNotesConverted != 1 {
-		t.Fatalf("plain_notes_converted 应为 1: %+v", rep)
-	}
-	zr := openZip(t, output)
-	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
-	if !strings.Contains(chapter, `src="../Images/custom-note.png"`) {
-		t.Fatal("应保留自定义图标引用")
-	}
-	if strings.Contains(chapter, `src="../Images/note.png"`) {
-		t.Fatal("不应注入默认图标")
-	}
-	hasNotePNG, hasCustomPNG := false, false
-	for _, f := range zr.File {
-		if f.Name == "OEBPS/Images/note.png" {
-			hasNotePNG = true
-		}
-		if f.Name == "OEBPS/Images/custom-note.png" {
-			hasCustomPNG = true
-		}
-	}
-	if hasNotePNG || !hasCustomPNG {
-		t.Fatalf("产物 entry 错误: note.png=%t custom=%t", hasNotePNG, hasCustomPNG)
-	}
-	root, perr := parseXMLTree(zipRead(t, zr, "OEBPS/content.opf"))
-	if perr != nil {
-		t.Fatal(perr)
-	}
-	manifest := root.childByTag(opfURI, "manifest")
-	for _, item := range manifest.childrenByTag(opfURI, "item") {
-		if item.attrOr("href", "") == "Images/note.png" {
-			t.Fatal("manifest 不应包含默认 note.png")
-		}
-	}
-}
-
-func TestSigilLegacyNotesCase(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "sigil-legacy-notes.epub")
-	output := filepath.Join(dir, "converted-sigil-legacy-notes.epub")
-	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
-		chapterNoteMarkup: `<p>正文<sup><a id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a></sup>` +
-			`继续<sup><a id="noteref_2" href="#footnote_2" epub:type="noteref">[2]</a></sup>。</p>` + "\n" +
-			`    <section class="fnote" epub:type="footnotes">` + "\n" +
-			`      <aside id="footnote_1" epub:type="footnote"><p>` +
-			`<a href="#noteref_1" epub:type="noteref">[1]</a> 第一条注释正文保留。</p></aside>` + "\n" +
-			`      <aside id="footnote_2" epub:type="footnote"><p>` +
-			`<a href="#noteref_2" epub:type="noteref">[2]</a> 第二条注释正文保留。</p></aside>` + "\n" +
-			`    </section>`,
-	}))
-
-	res, err := runGo(t, fixture, output, defaultParams(output))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep := factsOf(t, res)
-	if rep.PlainNotesConverted != 2 {
-		t.Fatalf("sigil 弹注应转换 2 条: %+v", rep)
-	}
-	zr := openZip(t, output)
-	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
-	for _, check := range []struct {
-		want      string
-		wantCount int
-	}{
-		{`<aside epub:type="footnote" role="doc-footnote">`, 1},
-		{`class="footnote-item"`, 2},
-		{`<sup class="note-marker">`, 2},
-	} {
-		if got := strings.Count(chapter, check.want); got != check.wantCount {
-			t.Errorf("%q 出现 %d 次，应为 %d", check.want, got, check.wantCount)
-		}
-	}
-	for _, banned := range []string{`<sup><a id="noteref_1"`} {
-		if strings.Contains(chapter, banned) {
-			t.Errorf("不应残留 %q", banned)
-		}
-	}
-	for _, want := range []string{
-		`id="noteref_1" class="noteref-icon"`,
-		`id="noteref_2" class="noteref-icon"`,
-		`id="footnote_1"`,
-		`id="footnote_2"`,
-		`href="#noteref_1">◎</a>第一条注释正文保留。`,
-		`href="#noteref_2">◎</a>第二条注释正文保留。`,
-	} {
-		if !strings.Contains(chapter, want) {
-			t.Errorf("chapter 缺少 %q:\n%s", want, chapter)
-		}
-	}
-}
-
-func TestSigilPartialSectionCase(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "sigil-partial-notes.epub")
-	output := filepath.Join(dir, "converted-sigil-partial-notes.epub")
-	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
-		chapterNoteMarkup: `<p>正文<sup><a id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a></sup>继续。</p>` + "\n" +
-			`    <section epub:type="footnotes">` + "\n" +
-			`      <aside id="footnote_1" epub:type="footnote"><p>` +
-			`<a href="#noteref_1" epub:type="noteref">[1]</a> 注释正文保留。</p></aside>` + "\n" +
-			`      <p>不能自动识别的残余内容。</p>` + "\n" +
-			`    </section>`,
-	}))
-
-	res, err := runGo(t, fixture, output, defaultParams(output))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep := factsOf(t, res)
-	if rep.PlainNotesConverted != 0 {
-		t.Fatalf("残余内容应阻止自动转换: %+v", rep)
-	}
-	zr := openZip(t, output)
-	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
-	for _, want := range []string{
-		`<section epub:type="footnotes">`,
-		`id="noteref_1" href="#footnote_1" epub:type="noteref">[1]</a>`,
-		"不能自动识别的残余内容。",
-	} {
-		if !strings.Contains(chapter, want) {
-			t.Errorf("chapter 缺少 %q", want)
-		}
+	chapter := string(zipRead(t, openZip(t, output), "OEBPS/Text/chapter.xhtml"))
+	if !strings.Contains(chapter, legacyNoteMarkup) {
+		t.Fatalf("legacy note markup should remain unchanged for manual conversion:\n%s", chapter)
 	}
 }
 
@@ -1070,29 +926,6 @@ func TestMissingHTMLLanguageCase(t *testing.T) {
 		if !strings.Contains(page, `lang="zh-CN"`) || !strings.Contains(page, `xml:lang="zh-CN"`) {
 			t.Errorf("%s 缺少语言补齐:\n%s", name, page)
 		}
-	}
-}
-
-func TestNonNoteSupCase(t *testing.T) {
-	dir := t.TempDir()
-	fixture := filepath.Join(dir, "legacy-non-note-sup.epub")
-	output := filepath.Join(dir, "converted-non-note-sup.epub")
-	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{
-		chapterNoteMarkup: `<p>水的式子是 H<sup>2</sup>O。<a id="w1"></a><a href="chapter.xhtml#m1"><sup>[1]</sup></a></p>` + "\n" +
-			`    <hr/>` + "\n" +
-			`    <p class="note"><a id="m1"></a><a href="chapter.xhtml#w1">[1]</a> 注释正文保留。</p>`,
-	}))
-
-	if _, err := runGo(t, fixture, output, defaultParams(output)); err != nil {
-		t.Fatal(err)
-	}
-	zr := openZip(t, output)
-	chapter := string(zipRead(t, zr, "OEBPS/Text/chapter.xhtml"))
-	if !strings.Contains(chapter, "H<sup>2</sup>O") {
-		t.Fatalf("普通 sup 不应被标记:\n%s", chapter)
-	}
-	if strings.Contains(chapter, `H<sup class="note-marker">2</sup>O`) {
-		t.Fatal("普通 sup 不应获得 note-marker")
 	}
 }
 
@@ -1140,8 +973,8 @@ func TestConversionFactsAreFormal(t *testing.T) {
 	}
 	wantKeys := []string{
 		"opf", "packageVersionBefore", "navEntries", "xhtmlFilesUpdated",
-		"plainNotesConverted", "duokanNotesNormalized", "manifestItemsAdded", "manifestItemsUpdated",
-		"metadataUpdates", "warnings", "popupNotes",
+		"duokanNotesNormalized", "manifestItemsAdded", "manifestItemsUpdated",
+		"metadataUpdates", "warnings",
 	}
 	for _, k := range wantKeys {
 		if _, ok := res.Facts[k]; !ok {
@@ -1154,9 +987,6 @@ func TestConversionFactsAreFormal(t *testing.T) {
 	rep := factsOf(t, res)
 	if rep.OPF != "OEBPS/content.opf" || rep.PackageVersionBefore == nil || *rep.PackageVersionBefore != "2.0" {
 		t.Errorf("opf/packageVersionBefore 错误: %+v", rep)
-	}
-	if !rep.PopupNotes {
-		t.Errorf("开关回显错误: %+v", rep)
 	}
 	if rep.ManifestItemsAdded == nil || rep.MetadataUpdates == nil || rep.Warnings == nil {
 		t.Errorf("列表 facts 必须是数组而非 null: %+v", rep)
