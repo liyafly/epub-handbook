@@ -6,7 +6,7 @@
 A：你的系统没有 `zip` 命令。macOS / Linux 通常自带；Windows 用 WSL 或 Git Bash。
 
 **Q：`epub` 命令不存在？**
-A：仓库根目录用 `go run ./cmd/epub …`，或先构建：`go build -o epub ./cmd/epub`。需要 Go 1.27+。
+A：仓库根目录用 `go run ./cmd/epub …`，或先构建：`go build -o /tmp/epub ./cmd/epub`。需要 Go 1.27+。
 
 **Q：Windows 路径里有空格，命令报错？**
 A：路径用双引号包起来。

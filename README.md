@@ -4,7 +4,7 @@
 
 如果你只是想做一本书、修一本现成 EPUB，或排查一个具体问题，从下面三条路里选一条即可。
 
-CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o epub ./cmd/epub` 后直接使用）。
+CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o /tmp/epub ./cmd/epub` 后直接使用）。
 `epub capabilities --json` 列出全部能力；加 `--id <capability-id>` 可只看该能力的参数、默认值和执行形态。
 `epub run ... --json` 与 `epub redline --json` 返回统一 JSON 信封；`epub capabilities --json` 返回能力数组。退出码 0/1/2/3
 （0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
