@@ -244,6 +244,12 @@
   -webkit-hyphens: auto;
 }
 
+.english-fiction em {
+  font-style: italic;
+  text-emphasis: none;
+  -webkit-text-emphasis: none;
+}
+
 .english-fiction p {
   margin: 0;
   text-indent: 1.35em;

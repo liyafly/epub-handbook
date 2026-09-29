@@ -631,7 +631,7 @@ untested_cases:
     note: "默认 Style Demo 诗歌场景；局部 poetry-cn 候选的历史观察单独记为 warn，不外推到默认样式。"
   - case: 18-english-fiction-emphasis
     fixture: templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml
-    note: "新增英文 `<em>` 语义强调样例；fiction-en 候选保持英文斜体且不加中文着重号，真实阅读器验证待执行。"
+    note: "默认 demo 与 fiction-en 候选都待测；CSS 为英文 `<em>` 声明斜体且取消中文着重号，真实阅读器验证待执行。"
   - case: 00-title-page
     fixture: templates/epub-style-demo/OEBPS/Text/00-title.xhtml
     note: "封面式标题页；尚未实测。"
