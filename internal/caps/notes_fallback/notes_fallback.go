@@ -26,10 +26,6 @@ type Params struct {
 	UpstreamNoterefs   int
 }
 
-type spineFile struct {
-	path string
-}
-
 type plannedEdit struct {
 	Path  string `json:"path"`
 	Tag   string `json:"tag"`
@@ -119,7 +115,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	if err != nil {
 		return nil, nil, nil, nil, 0, err
 	}
-	spine := spineXHTML(pkg)
+	spine := opf.SpineXHTMLPaths(pkg)
 	var findings []report.Finding
 	var skipped []skippedEdit
 
@@ -127,21 +123,21 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	planned := []plannedEdit{}
 	filesScanned := 0
 	noterefCount := 0
-	for _, file := range spine {
+	for _, path := range spine {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, nil, filesScanned, err
 		}
 		filesScanned++
-		data, err := b.CurrentContext(ctx, file.path)
+		data, err := b.CurrentContext(ctx, path)
 		if err != nil {
-			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", file.path, err)
+			return nil, nil, nil, nil, filesScanned, fmt.Errorf("read %s: %w", path, err)
 		}
 		if err := opf.EditableUTF8(data); err != nil {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "notes-fallback.unsupported-encoding",
 				Title:    "XHTML encoding cannot be edited safely",
 				Detail:   err.Error(),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -151,7 +147,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 				Level: "error", ID: "notes-fallback.parse-failed",
 				Title:    "XHTML cannot be parsed for legacy note hooks",
 				Detail:   err.Error(),
-				Location: file.path,
+				Location: path,
 			})
 			continue
 		}
@@ -168,7 +164,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 		}
 		noterefCount += len(noterefs)
 		if len(noterefs) == 0 {
-			skipped = append(skipped, skippedEdit{Path: file.path, Target: "notes", Reason: "no-noteref"})
+			skipped = append(skipped, skippedEdit{Path: path, Target: "notes", Reason: "no-noteref"})
 			continue
 		}
 		if len(lists) > 1 {
@@ -176,7 +172,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 				Level: "error", ID: "notes-fallback.multiple-lists",
 				Title:    "A spine XHTML file contains multiple footnote lists",
 				Detail:   fmt.Sprintf("found %d ol.footnote-list elements", len(lists)),
-				Location: file.path,
+				Location: path,
 			})
 		}
 		for _, anchor := range noterefs {
@@ -185,17 +181,17 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 					Level: "error", ID: "notes-fallback.noteref-without-icon",
 					Title:    "Noteref anchor has no image icon",
 					Detail:   "SPEC §1 requires an img descendant inside each Duokan fallback noteref anchor",
-					Location: file.path,
+					Location: path,
 				})
 				continue
 			}
-			if err := addClass(file.path, data, anchor, "duokan-footnote", &edits, &planned, &skipped); err != nil {
-				findings = append(findings, unsafeAttributeFinding(file.path, anchor, err))
+			if err := addClass(path, data, anchor, "duokan-footnote", &edits, &planned, &skipped); err != nil {
+				findings = append(findings, unsafeAttributeFinding(path, anchor, err))
 			}
 		}
 		for _, list := range lists {
-			if err := addClass(file.path, data, list, "duokan-footnote-content", &edits, &planned, &skipped); err != nil {
-				findings = append(findings, unsafeAttributeFinding(file.path, list, err))
+			if err := addClass(path, data, list, "duokan-footnote-content", &edits, &planned, &skipped); err != nil {
+				findings = append(findings, unsafeAttributeFinding(path, list, err))
 			}
 		}
 		for _, node := range nodes {
@@ -208,13 +204,13 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 					Level: "error", ID: "notes-fallback.content-class-on-li",
 					Title:    "Duokan note content class is on an li element",
 					Detail:   "duokan-footnote-content belongs on ol.footnote-list, not li",
-					Location: file.path,
+					Location: path,
 				})
 				continue
 			}
 			if hasClass(class, "footnote-item") {
-				if err := addClass(file.path, data, node, "duokan-footnote-item", &edits, &planned, &skipped); err != nil {
-					findings = append(findings, unsafeAttributeFinding(file.path, node, err))
+				if err := addClass(path, data, node, "duokan-footnote-item", &edits, &planned, &skipped); err != nil {
+					findings = append(findings, unsafeAttributeFinding(path, node, err))
 				}
 			}
 		}
@@ -230,7 +226,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 	if noterefCount == 0 && !hasErrorFinding(findings) {
 		location := opfPath
 		if len(spine) > 0 {
-			location = spine[0].path
+			location = spine[0]
 		}
 		findings = append(findings, report.Finding{
 			Level: "info", ID: "notes-fallback.no-notes",
@@ -287,15 +283,6 @@ func unsafeAttributeFinding(path string, node *opf.SpanNode, err error) report.F
 
 func hasErrorFinding(findings []report.Finding) bool {
 	return slices.ContainsFunc(findings, func(f report.Finding) bool { return f.Level == "error" })
-}
-
-func spineXHTML(pkg *opf.Package) []spineFile {
-	paths := opf.SpineXHTMLPaths(pkg)
-	files := make([]spineFile, 0, len(paths))
-	for _, path := range paths {
-		files = append(files, spineFile{path: path})
-	}
-	return files
 }
 
 func hasOPSType(node *opf.SpanNode, token string) bool {
