@@ -28,6 +28,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: 确认 work/ 没有被 Git 跟踪
+        run: test -z "$(git ls-files -- work)"
+
       - name: 检测 archguard 是否被改动
         # 规则 0：archguard 是架构的可执行定义，改动它必须经人类审阅。
         # 这里只警告并标注，实际拦截由 CODEOWNERS 强制。
