@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from fontTools.ttLib import TTFont
 
-from epub_font import epubtext, fontops, subset
+from epub_font import check, epubtext, fontops, subset
 from tests import synth
 
 GLYF_VF = synth.build_glyf_font(variable=True)
@@ -171,6 +171,27 @@ def run_subset(epub: Path, config: Path | None, out: Path) -> tuple[int, dict | 
     return code, json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
 
 
+def independent_coverage_pair(
+    source_empty: str = "",
+    source_has_uvs: bool = True,
+    output_empty: str = "",
+    output_has_uvs: bool = True,
+):
+    epub = synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_STATIC})
+    with zipfile.ZipFile(io.BytesIO(epub)) as zf:
+        _, harvest = check.harvest_book(zf)
+    chars = "".join(harvest.chars)
+    sequences = tuple(harvest.sequences)
+    source = synth.build_font_for(chars, empty=source_empty, uvs=sequences if source_has_uvs else ())
+    output = synth.build_font_for(chars, empty=output_empty, uvs=sequences if output_has_uvs else ())
+    return epub, harvest, source, output
+
+
+def check_independent_coverage(epub: bytes, source: bytes, output: bytes) -> dict:
+    with zipfile.ZipFile(io.BytesIO(epub)) as zf:
+        return subset._independent_coverage(zf, "OEBPS/Fonts/st-all.ttf", source, output)
+
+
 GOOD_CONFIG = {
     "version": 1,
     "fonts": [
@@ -249,11 +270,46 @@ def test_subset_fails_when_collector_misses_char(tmp_path, monkeypatch):
     assert not output.exists()
 
 
+def test_independent_coverage_flags_no_ink_regression():
+    epub, harvest, source, output = independent_coverage_pair(output_empty="中")
+
+    assert check.check_font(source, "source", harvest)["noInk"] == []
+    result = check_independent_coverage(epub, source, output)
+
+    assert not result["ok"]
+    assert any(item["kind"] == "noInk" and item["char"] == "U+4E2D 中" for item in result["regressions"])
+
+
+def test_independent_coverage_flags_lost_variation_sequence():
+    epub, harvest, source, output = independent_coverage_pair(output_has_uvs=False)
+
+    assert check.check_font(source, "source", harvest)["missingSequences"] == []
+    result = check_independent_coverage(epub, source, output)
+
+    assert not result["ok"]
+    assert any(
+        item["kind"] == "missingSequences" and item["sequence"] == "U+4E2D U+E0100"
+        for item in result["regressions"]
+    )
+
+
+def test_independent_coverage_allows_gap_present_in_source():
+    epub, harvest, source, output = independent_coverage_pair(
+        source_empty="中", source_has_uvs=False, output_empty="中", output_has_uvs=False
+    )
+
+    source_report = check.check_font(source, "source", harvest)
+    assert source_report["noInk"]
+    assert source_report["missingSequences"]
+    result = check_independent_coverage(epub, source, output)
+
+    assert result == {"ok": True, "regressions": []}
+
+
 def test_cli_rejects_external_master_config_field(tmp_path, capsys):
-    removed_key = "mas" + "ter"
     config = {
         "version": 1,
-        "fonts": [{"target": "OEBPS/Fonts/st-all.ttf", removed_key: "outside.ttf"}],
+        "fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "master": "outside.ttf"}],
     }
     epub, config_path = write_inputs(tmp_path, config)
     output = tmp_path / "new.epub"
@@ -283,8 +339,8 @@ def test_deprecated_action_has_removal_version(tmp_path, capsys):
 
 
 @pytest.mark.parametrize("variation", [
-    {"mode": "k" + "eep"},
-    {"mode": "lim" + "it", "axes": {"wght": [400, 700]}},
+    {"mode": "keep"},
+    {"mode": "limit", "axes": {"wght": [400, 700]}},
 ])
 def test_removed_variable_font_modes_are_rejected(variation):
     with pytest.raises(fontops.FontJobError, match="must be 'instance'"):
