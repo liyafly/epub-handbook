@@ -328,7 +328,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 问题模式 | 主路径 skill | 自动化程度 |
 | --- | --- | --- |
 | 大量内联 `style="..."` -> 抽到外联 CSS | `epub-cleanup` | 人工（CLI 不抽取内联样式） |
-| 标准 footnote 缺 `epub:type` -> 迁移时补齐已识别结构；ARIA 关联需人工核对 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中 |
+| 标准 footnote 缺 `epub:type`；ARIA 关联需人工核对 | `epub-cleanup`（`epub.package.migrate.epub3`） | 人工；migrate 不补缺失的 `epub:type`，只为已有 `aside[epub:type="footnote"]` 补 `role`、规范化 Duokan class |
 | 多看 / 旧版阅读器需要弹注 fallback | `epub-special-layout`（`epub.notes.legacy-fallback`） | 标准弹注检查后可补已识别 legacy class；交互仍需阅读器实测 |
 | OPF manifest 缺 `properties="svg" / "mathml"` | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移时标记已识别特性） |
 | nav.xhtml 缺失 / 结构破损 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（可识别输入由迁移生成；其他结构人工修复） |
