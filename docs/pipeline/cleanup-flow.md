@@ -27,7 +27,7 @@ CUR="$W/before/source.epub"     # CUR 永远指向"最新的、已通过红线�
 | S4 审计（只读） | `epub.package.nav.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze` 各跑一次 `--input "$CUR" --json` | s4-*.json | 只生成报告 | 字体 provider 缺失 → 记"无字体覆盖结论"，继续 |
 | S5 修改（每次只做一项） | 按 `cleanup-patterns.md` 判定模式，再在 [skills/README 技能索引](../../skills/README.md#技能索引)选择该 skill 下一个 capability；dry-run 后写出 `$W/after/s5-<n>.epub` | s5-n.epub | 紧接着跑 S6 并通过，才 `CUR=` 它 | 丢弃该候选，CUR 不变 |
 | S5f 字体（可选） | `epub run epub.font.subset --input "$CUR" --output "$W/after/s5-font.epub" --json [font_config=fonts.json]` | s5-font.epub 与 capability envelope；provider 临时报告位于系统临时目录，命令结束时删除 | provider 用独立字符收集器比较完整源字体与子集候选，确认没有新增缺字、空字形或 IVS/SVS 损失；exit 0 后检查通过的 manifest 字体 entry 写入候选；全项 redline 再确认非字体内容不变 | 失败不写出候选 EPUB、不应用字体编辑；检查 `font-subset.check-failed` finding、完整字体源和 `THIRD_PARTY.md` 许可记录 |
-| S6 红线（**每次写出后都跑**） | `epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" <新候选>` | 终端输出 | exit 0 | 不删 gate、不放宽 allow-list；丢弃该候选 |
+| S6 红线（**每次写出后都跑**） | `epub redline --check all [--path-map "$W/s2-normalize.json"] "$W/before/source.epub" <新候选>` | 终端输出 | exit 0 | 不删 gate、不做任何路径豁免；丢弃该候选 |
 | S7 复检 | 对 `$CUR` 再跑 S1 的 nav.audit | json | error 为 0，或逐条写明授权/豁免 | 回到 S5 |
 | S8 人工 diff | 按 `epub-diff-review.md` 在 Calibre / VS Code 看 before vs `$CUR` | 记录 | 每处差异都在授权范围 | 回到 S5 |
 | S9 交付 | 按附录 E 模板写 `制作说明.md`；涉及阅读器兼容时更新 `reader-matrix.yaml`（未实测记 `warn`/待验证） | 制作说明.md | 用户确认 | — |

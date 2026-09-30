@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 	"unicode"
 
@@ -60,18 +59,6 @@ func isNoteControl(name string, attrs []xml.Attr) bool {
 					return true
 				}
 			}
-		}
-	}
-	return false
-}
-
-func isNoterefControl(name string, attrs []xml.Attr) bool {
-	if name != "a" {
-		return false
-	}
-	for _, attr := range attrs {
-		if attr.Name.Local == "type" && slices.Contains(strings.Fields(attr.Value), "noteref") {
-			return true
 		}
 	}
 	return false
