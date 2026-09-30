@@ -81,7 +81,7 @@ epub run epub.package.nav.audit --input "candidate.epub" --json
 epub redline --check all "before.epub" "candidate.epub"
 ```
 
-迁移保留 plain/Sigil 旧尾注原文；Duokan legacy class/role 仍会规范化。需要转换旧尾注时，先取得明确授权并人工编辑，再运行弹注校验和全项 redline。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
+迁移保留 plain/Sigil 旧尾注原文；Duokan legacy class/role 仍会规范化，但标记文字与返回字形按源内容保留。需要转换旧尾注时，先取得明确授权并人工编辑，再运行弹注校验和全项 redline。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
 
 ### CSS 分层与清理
 

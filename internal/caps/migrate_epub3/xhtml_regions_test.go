@@ -37,8 +37,8 @@ func TestNormalizeDuokanNotesSkipsEscapedProse(t *testing.T) {
 		{
 			name:      "同一文件里标签改名与转义正文并存",
 			in:        `<a class="duokan-footnote" href="#f1">⊙</a><p>写作 &lt;a class="duokan-footnote"&gt; 即可。</p>`,
-			want:      `<a class="noteref-icon" href="#f1">◎</a><p>写作 &lt;a class="duokan-footnote"&gt; 即可。</p>`,
-			wantCount: 2,
+			want:      `<a class="noteref-icon" href="#f1">⊙</a><p>写作 &lt;a class="duokan-footnote"&gt; 即可。</p>`,
+			wantCount: 1,
 		},
 		{
 			name:      "注释与 CDATA 内不改",

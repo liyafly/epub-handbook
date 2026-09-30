@@ -28,7 +28,7 @@ cleanup-flow S3 的候选 `$W/after/s3.epub` 包含：
 - 根据可识别的输入补充 `properties="svg"` / `properties="mathml"`，修复 manifest、guide、mimetype 和 XHTML 语言声明。
 - 输入已有的 `ibooks:specified-fonts` 不会被自动删除；锁定状态需人工复核并把例外记入书级制作说明。
 - 以字节范围改写目标结构；保留排版 CSS、XHTML 标签、普通正文和未命中的格式、注释及 mixed-content。
-- 保留旧尾注标记、注释段落、ID 和资源；只规范化识别出的 Duokan legacy class 与缺失的 footnote `role`。
+- 保留旧尾注标记、正文字符、注释段落、ID 和资源；只规范化识别出的 Duokan legacy class 与缺失的 footnote `role`，不改写返回字形。
 
 迁移不添加排版样式、不分派文本角色。遇到 `<big>` 等旧标签时保留原标签并提示人工复核。
 

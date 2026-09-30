@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
@@ -908,6 +909,36 @@ func TestMigratePreservesLegacyBracketFootnoteMarkup(t *testing.T) {
 	chapter := string(zipRead(t, openZip(t, output), "OEBPS/Text/chapter.xhtml"))
 	if !strings.Contains(chapter, legacyNoteMarkup) {
 		t.Fatalf("legacy note markup should remain unchanged for manual conversion:\n%s", chapter)
+	}
+}
+
+func TestMigrateKeepsDuokanBacklinkGlyphText(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "duokan-glyph.epub")
+	output := filepath.Join(dir, "migrated.epub")
+	markup := `<p>正文<a id="w1"></a><a href="#m1"><sup>[1]</sup></a>继续。</p>` +
+		`<ol class="duokan-footnote-content"><li class="duokan-footnote-item" id="m1">` +
+		`注释正文。<a href="#w1">⊙</a></li></ol>`
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{chapterNoteMarkup: markup}))
+
+	result, err := runGo(t, fixture, output, defaultParams(output))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != report.StatusComplete {
+		t.Fatalf("migration status=%q findings=%+v, want complete", result.Status, result.Findings)
+	}
+	before := string(zipRead(t, openZip(t, fixture), "OEBPS/Text/chapter.xhtml"))
+	after := string(zipRead(t, openZip(t, output), "OEBPS/Text/chapter.xhtml"))
+	if got, want := strings.Count(after, "⊙"), strings.Count(before, "⊙"); got != want {
+		t.Fatalf("backlink glyph count after migration=%d, before=%d", got, want)
+	}
+	report, err := redline.CompareFiles(fixture, output, redline.CheckText, redline.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Code != 0 {
+		t.Fatalf("external text redline returned %d: %v", report.Code, report.Lines)
 	}
 }
 

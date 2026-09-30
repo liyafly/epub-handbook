@@ -8,6 +8,10 @@
 - G43：EPUB 3 中的 XHTML 1.x DTD 命名实体现在报告 `xhtml-dtd-entities-need-migration` 并建议运行 migrate；clean 仅在选择 migrate 时延后此预审计 finding，末次审计与正文红线仍负责验收。
 - G45：结构规范化会为每个非 UTF-8 文本资源返回 `structure.non-utf8-text` finding；nav.audit 的 OPF 解析错误使用 `opf-parse-error`，不再误报 spine 为空。
 
+### Changed
+
+- G46：EPUB3 迁移继续规范化 Duokan class/role，但保留 `⊙` 返回字形，不再把正文字符替换为 `◎`。
+
 ## v0.5.0 - 2026-09-30
 
 ### Breaking

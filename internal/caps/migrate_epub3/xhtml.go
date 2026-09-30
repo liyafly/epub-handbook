@@ -164,7 +164,7 @@ func xhtmlSourceIsUTF8(data []byte) bool {
 // 交接文档 §10 把它记为"红线能拦住但尚未修"，这里按 structure_normalize 已经
 // 验证过的区域化方案修掉。
 //
-// aside、class 与 marker glyph 都只在实际标签边界上编辑。第三个返回值是告警：
+// aside 与 class 只在实际标签边界上编辑。第三个返回值是告警：
 // 区域扫描在无法闭合的结构处截断时，其后的标签不再改写，不能静默半改。
 func normalizeDuokanNotes(text string) (string, int, []string, error) {
 	if !strings.Contains(text, "duokan-footnote") &&
@@ -198,14 +198,7 @@ func normalizeDuokanNotes(text string) (string, int, []string, error) {
 	if err != nil {
 		return "", 0, warnings, err
 	}
-	updated, glyphCount, warning, err := rewriteDuokanMarkerGlyph(renamed.text)
-	if err != nil {
-		return "", 0, warnings, err
-	}
-	if warning != "" && len(warnings) == 0 {
-		warnings = append(warnings, warning)
-	}
-	return updated, renamed.count + glyphCount, warnings, nil
+	return renamed.text, renamed.count, warnings, nil
 }
 
 func normalizeDuokanAsideRole(tag string) (string, int, error) {
