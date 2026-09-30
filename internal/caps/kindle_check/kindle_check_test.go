@@ -106,12 +106,6 @@ func TestFindingRulesAndLevels(t *testing.T) {
 		{name: "webp extension", id: "kindle.image-webp", level: "error", edit: func(files map[string]string) {
 			addManifestImage(files, `<item id="webp" href="image.webp" media-type="application/octet-stream"/>`, "OEBPS/image.webp")
 		}},
-		{name: "tiff media type", id: "kindle.image-tiff", level: "warn", edit: func(files map[string]string) {
-			addManifestImage(files, `<item id="tiff" href="scan.bin" media-type="image/tiff"/>`, "OEBPS/scan.bin")
-		}},
-		{name: "tiff extension", id: "kindle.image-tiff", level: "warn", edit: func(files map[string]string) {
-			addManifestImage(files, `<item id="tiff" href="scan.tif" media-type="application/octet-stream"/>`, "OEBPS/scan.tif")
-		}},
 		{name: "gif frames need review", id: "kindle.image-gif", level: "warn", edit: func(files map[string]string) {
 			addManifestImage(files, `<item id="gif" href="anim.gif" media-type="image/gif"/>`, "OEBPS/anim.gif")
 		}},
@@ -171,6 +165,26 @@ func TestFindingRulesAndLevels(t *testing.T) {
 			}
 			if tt.name == "svg cover" && hasFinding(result.Findings, "kindle.image-svg") {
 				t.Error("cover SVG should be checked as cover-not-raster, not as a non-cover SVG")
+			}
+		})
+	}
+}
+
+func TestTIFFImagesAreNotReportedByKindleCheck(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		item string
+		path string
+	}{
+		{name: "media type", item: `<item id="tiff" href="scan.bin" media-type="image/tiff"/>`, path: "OEBPS/scan.bin"},
+		{name: "extension", item: `<item id="tiff" href="scan.tif" media-type="application/octet-stream"/>`, path: "OEBPS/scan.tif"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := baseFiles()
+			addManifestImage(files, tc.item, tc.path)
+			result := runCheck(t, files)
+			if hasFinding(result.Findings, "kindle.image-tiff") {
+				t.Fatalf("TIFF must not be reported by Kindle compatibility check: %+v", result.Findings)
 			}
 		})
 	}

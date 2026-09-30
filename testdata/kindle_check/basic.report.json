@@ -10,7 +10,6 @@
       "kindle.ncx-missing",
       "kindle.cover-not-raster",
       "kindle.image-webp",
-      "kindle.image-tiff",
       "kindle.image-gif",
       "kindle.image-svg",
       "kindle.css-transform-rotate",
@@ -30,7 +29,6 @@
       "kindle.css-unicode-range": 0,
       "kindle.image-gif": 0,
       "kindle.image-svg": 0,
-      "kindle.image-tiff": 0,
       "kindle.image-webp": 0,
       "kindle.ncx-missing": 0
     },

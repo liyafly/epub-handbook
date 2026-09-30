@@ -297,6 +297,15 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
+		imageMedia := strings.ToLower(strings.TrimSpace(item.MediaType))
+		if strings.HasPrefix(imageMedia, "image/") && strings.TrimSpace(item.Fallback) == "" {
+			switch imageMedia {
+			case "image/gif", "image/jpeg", "image/png", "image/svg+xml", "image/webp":
+			default:
+				ins.addFinding("warn", "Non-core image media type requires a manifest fallback", item.Href, "non-core-image-without-fallback")
+				ins.addSkill("epub-audit", "warn")
+			}
+		}
 		media := item.MediaType
 		hrefLower := strings.ToLower(item.Href)
 		switch {

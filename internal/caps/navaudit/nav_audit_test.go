@@ -101,8 +101,29 @@ func TestNativeFixtureGolden(t *testing.T) {
 func TestKindleCompatibilityRulesStayOutOfNavAudit(t *testing.T) {
 	res := runNativeAudit(t, writeKindleOverlapFixture(t))
 	for _, finding := range res.Findings {
-		if strings.Contains(strings.ToLower(finding.Title), "kindle") || finding.Title == "Convert this image to JPEG/PNG for EPUB delivery" {
+		if strings.Contains(strings.ToLower(finding.Title), "kindle") {
 			t.Errorf("Kindle compatibility finding duplicated in nav.audit: %+v", finding)
+		}
+	}
+}
+
+func TestNavAuditWarnsNonCoreImageWithoutFallback(t *testing.T) {
+	res := runNativeAudit(t, writeEPUB3WithImageFixture(t, false))
+	if res.Status != report.StatusComplete || len(res.Findings) != 1 {
+		t.Fatalf("TIFF-only audit status=%s findings=%+v, want one warning and no errors", res.Status, res.Findings)
+	}
+	finding := res.Findings[0]
+	if finding.Level != "warn" || finding.Detail != "non-core-image-without-fallback" || finding.Location != "Images/scan.tiff" {
+		t.Fatalf("TIFF warning=%+v, want a generic non-core image warning at the resource", finding)
+	}
+	if strings.Contains(strings.ToLower(finding.Title), "kindle") {
+		t.Fatalf("generic media warning mentions Kindle: %+v", finding)
+	}
+
+	res = runNativeAudit(t, writeEPUB3WithImageFixture(t, true))
+	for _, finding := range res.Findings {
+		if finding.Detail == "non-core-image-without-fallback" {
+			t.Fatalf("image with a manifest fallback received warning: %+v", finding)
 		}
 	}
 }
@@ -288,6 +309,46 @@ func writeEPUB3WithoutNavFixture(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func writeEPUB3WithImageFixture(t *testing.T, withFallback bool) string {
+	t.Helper()
+	base := writeEPUB3WithoutNavFixture(t)
+	tiffItem := `<item id="tiff" href="Images/scan.tiff" media-type="image/tiff"`
+	if withFallback {
+		tiffItem += ` fallback="tiff-fallback"/>`
+	} else {
+		tiffItem += `/>`
+	}
+	manifest := `<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>` +
+		`<item id="cover" href="Images/cover.png" media-type="image/png" properties="cover-image"/>` + tiffItem
+	if withFallback {
+		manifest += `<item id="tiff-fallback" href="Images/scan-fallback.png" media-type="image/png"/>`
+	}
+	withManifest := filepath.Join(t.TempDir(), "epub3-with-image-manifest.epub")
+	rewriteZipEntry(t, base, withManifest, "OEBPS/content.opf", func(data []byte) []byte {
+		data = bytes.Replace(data, []byte("</metadata>"), []byte(`<meta name="cover" content="cover"/></metadata>`), 1)
+		return bytes.Replace(data, []byte("</manifest>"), []byte(manifest+"</manifest>"), 1)
+	})
+	withChapter := filepath.Join(t.TempDir(), "epub3-with-image-chapter.epub")
+	rewriteZipEntry(t, withManifest, withChapter, "OEBPS/Text/chapter.xhtml", func(data []byte) []byte {
+		body := `<img src="../Images/scan.tiff" alt="TIFF illustration"/><p>` + strings.Repeat("This EPUB image has body text for audit coverage. ", 12) + `</p>`
+		return bytes.Replace(data, []byte(`<p>Text.</p>`), []byte(body), 1)
+	})
+	withNav := filepath.Join(t.TempDir(), "epub3-with-nav.epub")
+	addZipEntry(t, withChapter, withNav, "OEBPS/nav.xhtml", []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="Text/chapter.xhtml">Chapter</a></li></ol></nav></body></html>
+`))
+	withCover := filepath.Join(t.TempDir(), "epub3-with-cover.epub")
+	addZipEntry(t, withNav, withCover, "OEBPS/Images/cover.png", []byte("png"))
+	withTIFF := filepath.Join(t.TempDir(), "epub3-with-tiff.epub")
+	addZipEntry(t, withCover, withTIFF, "OEBPS/Images/scan.tiff", []byte("tiff"))
+	if !withFallback {
+		return withTIFF
+	}
+	withFallbackResource := filepath.Join(t.TempDir(), "epub3-with-fallback-resource.epub")
+	addZipEntry(t, withTIFF, withFallbackResource, "OEBPS/Images/scan-fallback.png", []byte("png"))
+	return withFallbackResource
 }
 
 func TestNavAuditSuggestsMigrateWhenEPUB3NavMissing(t *testing.T) {

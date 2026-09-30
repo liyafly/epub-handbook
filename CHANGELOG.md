@@ -10,6 +10,7 @@
 - G47：迁移生成的 nav XHTML 直接包含 UTF-8 charset 元数据，重复运行 migrate 不再改写 nav。
 - G52：写出能力的 dry-run 默认输出名现包含完整能力 id，避免 `.optimize` 能力之间相互覆盖。
 - G53：nav.audit 遇到 EPUB 3 缺少 nav 时建议运行 migrate；多个 nav 时不追加该建议。
+- G54：nav.audit 对缺少 manifest fallback 的非核心 `image/*` 类型发出通用警告；Kindle 报告不再重复列出 TIFF。
 
 ### Changed
 

@@ -122,7 +122,6 @@ func checkIDs() []string {
 		"kindle.ncx-missing",
 		"kindle.cover-not-raster",
 		"kindle.image-webp",
-		"kindle.image-tiff",
 		"kindle.image-gif",
 		"kindle.image-svg",
 		"kindle.css-transform-rotate",
@@ -160,10 +159,6 @@ func (i *inspector) checkPackage() {
 		if mediaType == "image/webp" || ext == ".webp" {
 			i.add("error", "kindle.image-webp", "WebP image is outside the Kindle main path",
 				fmt.Sprintf("manifest item %s uses %s or a .webp resource", item.ID, item.MediaType), location, 0)
-		}
-		if mediaType == "image/tiff" || ext == ".tif" || ext == ".tiff" {
-			i.add("warn", "kindle.image-tiff", "TIFF image may be incompatible",
-				fmt.Sprintf("manifest item %s uses %s or a TIFF resource", item.ID, item.MediaType), location, 0)
 		}
 		if mediaType == "image/gif" {
 			i.add("warn", "kindle.image-gif", "GIF image requires manual frame review",
