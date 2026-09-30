@@ -14,6 +14,7 @@ on:
       - 'contracts/**'
       - 'tools-font/**'
       - 'templates/book-starter/**'
+      - 'templates/style-presets/literary-cn/**'
       - '.github/scripts/font-provider-smoke.py'
       - '.github/workflows/font-providers.yml'
   pull_request:
@@ -27,6 +28,7 @@ on:
       - 'contracts/**'
       - 'tools-font/**'
       - 'templates/book-starter/**'
+      - 'templates/style-presets/literary-cn/**'
       - '.github/scripts/font-provider-smoke.py'
       - '.github/workflows/font-providers.yml'
 
@@ -88,7 +90,7 @@ jobs:
 
       - name: Validate positive synthetic artifact with EPUBCheck
         run: >-
-          java -jar "$RUNNER_TEMP/epubcheck/epubcheck-5.1.0/epubcheck.jar"
+          java -jar "$EPUBCHECK_JAR"
           "$RUNNER_TEMP/font-provider-smoke/合成字体书/03 制作工作区/dist/book.epub"
           --mode epub --profile default
           --out "$RUNNER_TEMP/font-provider-smoke/epubcheck.xml"
