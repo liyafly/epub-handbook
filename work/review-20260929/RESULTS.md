@@ -22,6 +22,8 @@
 - 下一步：提供权利方许可/授权记录，或由所有者另行决定是否修订仓库规则；再补齐 H7。
 - 后续核查与裁定（2026-09-30）：所有者选择“仍视为证据不足，等待权利人凭据”。跟踪 EPUB 的 SHA-256 为 `ca0bcd7fd54ec0285bfcd1847558503a9a93ba8eba0720291ca1e77779a571ac`；其 `OEBPS/content.opf` 署名赤霓并记有 `Copyrights © 2017 赤霓`。`OEBPS/Text/Copyright.xhtml`（SHA-256 `f075e17ac8937ffe859163167d3f2812732d6679e663bb37373f3032e17e3676`）写有免费公开于网络、非商业使用的声明。该声明在带有 Z-Library 来源标记的文件内部，未找到可独立核验的权利人来源；按所有者裁定，不将它作为本仓库的许可记录。
 - 当前下一步：等待权利人提供适用于将此 EPUB 保留并公开托管于本仓库的书面许可或可核验来源，再补齐记录；不修改 `AGENTS.md`，也不推断标准许可。
+- 最终处理（2026-09-30）：所有者随后明确要求移除这本 EPUB，取代 Q15=C 的保留决定。提交 `a9f9e14` 已从当前树删除该实体文件，移除 `.gitignore` 白名单，并把依赖真书的回归改为合成 EPUB；`git ls-files '*.epub'` 无输出。当前树不再跟踪该第三方 EPUB，不推断许可；此前 Git 历史未改写。
+- 状态更新：上方等待权利人凭据的下一步已不适用于当前树，H7 的当前树阻塞已解除。若未来重新加入第三方 EPUB，仍须先记录适用许可和保留理由。
 
 ### H8
 - 状态：skipped(目标 stash 不匹配；远端 tag 已一致)
@@ -47,6 +49,8 @@
 - 证据：本地 `actionlint`、SHA/tag 对照与输入名差分均通过；workflow 的 `publish-release` 仍由 `startsWith(github.ref, 'refs/tags/')` 条件保护。
 - 下一步：用户在 GitHub UI 手动运行 Release CLI workflow，确认 verify 与 native smoke 全绿、publish-release 被跳过且无 Node20 annotation。
 - 后续验证（2026-09-30）：以上 `blocked` 是触发前状态。当前任务已在用户授权的 GitHub 账号下通过 `gh workflow run release-cli.yml --repo liyafly/epub-handbook --ref main` 触发 `workflow_dispatch`。运行 [36606160303](https://github.com/liyafly/epub-handbook/actions/runs/36606160303) 对应 HEAD `1d9e813b6b19d3526ee3c882671869c2219fa5e0`，总体 `success`；verify 与四个平台 native smoke 全部成功，`Publish tagged release` 为 `skipped`。五个 job 的 check-run annotations 均无 Node20 警告；仅 Windows job 带有 macOS runner 容量提示。R15 的运行结果验收完成。
+- 最终验证（2026-09-30）：GitHub UI 当时不可用（Mac 锁屏），因此没有把 CLI 运行冒充 UI 操作。所有者要求直接完成后，在当前 `main` 上通过 `gh workflow run` 触发 [36649854156](https://github.com/liyafly/epub-handbook/actions/runs/36649854156)，对应 HEAD `a9f9e140207aa5764ef917c01106bc7bebefb29a`；总体 `success`，Go build/test/vet/guards 与四个平台 native smoke 全部成功，`Publish tagged release` 为 `skipped`。相关 check-run annotations 无 Node20 警告；唯一 annotation 是 macOS arm64 runner 容量提示。
+- 状态更新：运行结果验收完成；触发方式与任务指定的 GitHub UI 不同，记为 `deviated`（CLI `workflow_dispatch`），不再等待 UI 复验。
 
 ### R21
 - 状态：deviated
@@ -83,6 +87,7 @@
 - 原因：按 §0 运行既有字体 smoke 时，build 未发现 `.pipeline/build.*/src/OEBPS/Fonts/` 下的字体，因为 `find ... ! -path '*/.*/*'` 把隐藏的 `.pipeline` 祖先也当作源树内隐藏目录，导致字体子集流程被跳过。为使任务要求的 smoke 实际覆盖字体流程，将发现步骤改成相对源树路径并 prune 源树内的隐藏目录；未更改测试断言或降低构建检查。
 - 证据：原路径过滤在 `.pipeline/build.123/src/OEBPS/Fonts/full.ttf` 上输出 0，按源树相对路径运行 prune 版本输出 1；修复后的 smoke 与三层验证结果记录在 S15 提交的 `Verified:` 段。
 - 下一步：S15 与 F10 的 smoke 均使用修复后的 build 字体发现流程复验。
+- 复验核对（2026-09-30）：S15 提交 `b2aa63e` 的 `Verified:` 已在修复后的 build.sh 上运行字体 smoke，输出 providerVersion 1.2.0、漏字前后对照、MATH 字节保持及失败场景保留 dist SHA；F10 提交 `41a75d85` 随后也运行 smoke，注入 collector 回归后产生 `font-subset.check-failed` 并保留 dist SHA。两次均 exit 0，且 F10 运行时已包含 S15 的修复。原“下一步”已完成，无待办。
 
 ### X1
 - 状态：deviated
@@ -103,6 +108,13 @@
 - 下一步：无。
 
 ### 收尾检查
+
+```
+go test ok
+guards ok
+```
+
+### 收尾检查（2026-09-30，a9f9e14）
 
 ```
 go test ok
