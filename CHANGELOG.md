@@ -5,6 +5,7 @@
 ### Fixed
 
 - G41：`epub redline --check text` 现在覆盖 `th`、`dt`、`dd`、`figcaption`、`caption`、`summary`、`address` 及指定容器中的零散文字；把零散文字包进段落不会改变正文哈希序列。
+- G43：EPUB 3 中的 XHTML 1.x DTD 命名实体现在报告 `xhtml-dtd-entities-need-migration` 并建议运行 migrate；clean 仅在选择 migrate 时延后此预审计 finding，末次审计与正文红线仍负责验收。
 
 ## v0.5.0 - 2026-09-30
 

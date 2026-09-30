@@ -9,6 +9,7 @@ package navaudit
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -576,7 +577,15 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 					if ctx.Err() != nil {
 						return
 					}
-					ins.addFinding("error", "Spine or navigation XHTML is not well-formed XML: "+strictErr.Error(), item.ArchivePath, "xhtml-not-well-formed")
+					if strings.HasPrefix(pkg.Version, "3") && isXHTML1Doctype(raw) && isNamedEntityParseError(strictErr) {
+						ins.addFinding("error", "Migrate this EPUB 3 package before parsing XHTML 1.x DTD named entities.",
+							item.ArchivePath, "xhtml-dtd-entities-need-migration")
+						ins.addSkill("epub-cleanup", "error")
+						ins.addSkill("epub-audit", "error")
+						ins.addCommand("epub run epub.package.migrate.epub3 --input " + report.ShellQuote(ins.b.InputPath()) + " --dry-run --json")
+					} else {
+						ins.addFinding("error", "Spine or navigation XHTML is not well-formed XML: "+strictErr.Error(), item.ArchivePath, "xhtml-not-well-formed")
+					}
 					ins.addSkill("epub-audit", "error")
 				}
 			}
@@ -634,6 +643,11 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 	}
 	ins.checkXHTMLFragments(ctx, documents, manifestXHTML)
 	ins.summaryOCRCounters(textChars, imageRefs)
+}
+
+func isNamedEntityParseError(err error) bool {
+	syntaxErr, ok := errors.AsType[*xml.SyntaxError](err)
+	return ok && strings.HasPrefix(syntaxErr.Msg, "invalid character entity &")
 }
 
 func isXHTML1Doctype(data []byte) bool {

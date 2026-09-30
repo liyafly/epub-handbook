@@ -832,6 +832,38 @@ func TestNavAuditAcceptsEntitiesDeclaredByXHTML10Doctype(t *testing.T) {
 	}
 }
 
+func TestNavAuditMarksDTDEntitiesInEPUB3AsMigratable(t *testing.T) {
+	path := writeNativeFixture(t)
+	epub3 := filepath.Join(t.TempDir(), "epub3-doctype.epub")
+	rewriteZipEntry(t, path, epub3, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte(`version="2.0"`), []byte(`version="3.0"`), 1)
+	})
+	withDTD := filepath.Join(t.TempDir(), "epub3-dtd-entities.epub")
+	doctype := `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">`
+	rewriteZipEntry(t, epub3, withDTD, "OEBPS/Text/ch?apter.xhtml", func(data []byte) []byte {
+		data = bytes.Replace(data,
+			[]byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+			[]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+doctype), 1)
+		return bytes.Replace(data, []byte("这是 Go 原生 nav.audit fixture。"),
+			[]byte("这是&nbsp;Go 原生&mdash; nav.audit fixture。"), 1)
+	})
+
+	res := runNativeAudit(t, withDTD)
+	finding := requireFindingKind(t, res, "xhtml-dtd-entities-need-migration")
+	if finding.Level != "error" || !strings.Contains(strings.ToLower(finding.Title), "migrate") {
+		t.Fatalf("DTD entity finding=%+v, want an error with a migration hint", finding)
+	}
+	var migrateCommands []string
+	for _, command := range res.NextCommands {
+		if strings.Contains(command, "epub.package.migrate.epub3") {
+			migrateCommands = append(migrateCommands, command)
+		}
+	}
+	if len(migrateCommands) != 1 {
+		t.Fatalf("migrate commands=%v, want exactly one recommendation", migrateCommands)
+	}
+}
+
 func TestNavAuditFlagsMalformedNavDocument(t *testing.T) {
 	path := writeNativeFixture(t)
 	malformed := filepath.Join(t.TempDir(), "malformed-nav.epub")

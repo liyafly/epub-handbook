@@ -213,7 +213,7 @@ func buildEdits(b *book.Book, files *workFiles) ([]editset.Edit, error) {
 	} else {
 		edits = append(edits, editset.Replace("mimetype", 0, 0, []byte(canonicalMimetype)))
 	}
-	for _, name := range b.OriginalNames() {
+	for _, name := range b.Names() {
 		if name == "mimetype" {
 			continue
 		}

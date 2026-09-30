@@ -651,7 +651,8 @@ func cleanAuditBlockers(findings []report.Finding, steps []cleanStepDefinition) 
 			continue
 		}
 		migratable := migrateSelected && (finding.Title == `MathML XHTML item missing properties="mathml"` ||
-			finding.Title == `Inline SVG XHTML item missing properties="svg"`)
+			finding.Title == `Inline SVG XHTML item missing properties="svg"` ||
+			finding.Detail == "xhtml-dtd-entities-need-migration")
 		if !migratable {
 			blockers = append(blockers, finding)
 		}

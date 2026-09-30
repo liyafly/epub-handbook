@@ -151,6 +151,39 @@ func TestCleanApprovesEPUB2Migration(t *testing.T) {
 	}
 }
 
+func TestCleanMigrateRepairsDTDEntitiesInEPUB3Package(t *testing.T) {
+	input := writeXHTML1EntityFixture(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir, Steps: []string{"normalize", "migrate"}, Approve: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitOK || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want one successfully approved book", result)
+	}
+	bookResult := result.Books[0]
+	if bookResult.Envelope.Status != report.StatusComplete || bookResult.OutputPath == "" {
+		t.Fatalf("status=%q output=%q findings=%+v, want complete output", bookResult.Envelope.Status, bookResult.OutputPath, bookResult.Envelope.Findings)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "approved" {
+		t.Fatalf("artifact disposition=%v, want approved", got)
+	}
+	if _, err := os.Stat(bookResult.OutputPath); err != nil {
+		t.Fatalf("approved EPUB output is unavailable: %v", err)
+	}
+	steps := bookResult.Envelope.Facts["epub.clean.steps"].([]cleanStepSummary)
+	if len(steps) == 0 || steps[len(steps)-1].Name != "audit-final" {
+		t.Fatalf("steps=%+v, want final audit as last step", steps)
+	}
+	for _, finding := range steps[len(steps)-1].Findings {
+		if finding.Level == "error" {
+			t.Fatalf("final audit still has an error: %+v", finding)
+		}
+	}
+}
+
 func TestCleanSharesSessionAcrossSelectedSteps(t *testing.T) {
 	input := buildEpubWithOPF(t)
 	result, err := Clean(t.Context(), CleanOptions{
@@ -443,6 +476,55 @@ func buildEpubWithWrongDescendantNamespace(t testing.TB) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "wrong-namespace.epub")
+	if err := os.WriteFile(path, output.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func writeXHTML1EntityFixture(t testing.TB) string {
+	t.Helper()
+	original := epubFixtureBytes(t)
+	reader, err := zip.NewReader(bytes.NewReader(original), int64(len(original)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	doctype := `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">`
+	for _, file := range reader.File {
+		input, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(input)
+		closeErr := input.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if file.Name == "OEBPS/c1.xhtml" {
+			content = bytes.Replace(content, []byte(`<html`), []byte(doctype+"\n<html"), 1)
+			content = bytes.Replace(content, []byte("段落。"), []byte("&nbsp;段落。"), 1)
+		}
+		method := uint16(zip.Deflate)
+		if file.Name == "mimetype" {
+			method = zip.Store
+		}
+		entry, err := writer.CreateHeader(&zip.FileHeader{Name: file.Name, Method: method})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "xhtml1-entities.epub")
 	if err := os.WriteFile(path, output.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
