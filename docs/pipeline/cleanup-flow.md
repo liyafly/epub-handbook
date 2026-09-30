@@ -114,15 +114,18 @@ epub clean "$BOOKS" --out "$W/clean-preview" --json
 也可以用 Bash 循环为每本输入建立隔离的报告目录。变量 `BOOKS` 应指向输入目录，`W` 指向该批次的临时工作区；输入路径含空格时仍会作为单个参数传入。
 
 ```bash
-set -e
 BOOKS='/path/to/input-books'
 W='/path/to/batch-work'
 EPUB_BIN=${EPUB_BIN:-epub}
+mkdir -p "$W"
 while IFS= read -r -d '' source; do
   relative=${source#"$BOOKS"/}
   book_out="$W/batch-preview/${relative%.*}"
   mkdir -p "$book_out"
-  "$EPUB_BIN" clean "$source" --out "$book_out" --json > "$book_out/batch.json"
+  "$EPUB_BIN" clean "$source" --out "$book_out" --json > "$book_out/batch.json" || {
+    exit_code=$?
+    printf '%s exit=%s\n' "$source" "$exit_code" >> "$W/failures.txt"
+  }
 done < <(find "$BOOKS" -type f -iname '*.epub' -print0)
 ```
 

@@ -184,6 +184,9 @@ func formatCleanBatchSummary(result pipeline.CleanBatchResult) string {
 	if counts["planned"] > 0 {
 		summary += "; planned books have no written EPUB"
 	}
+	if len(result.NotStarted) > 0 {
+		summary += fmt.Sprintf("; notStarted=%d", len(result.NotStarted))
+	}
 	return summary
 }
 

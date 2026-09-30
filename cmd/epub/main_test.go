@@ -334,6 +334,17 @@ func TestCleanBatchSummarySeparatesPlannedFromWrittenOutputs(t *testing.T) {
 	}
 }
 
+func TestFormatCleanBatchSummaryReportsNotStarted(t *testing.T) {
+	result := pipeline.CleanBatchResult{
+		Books:      []pipeline.CleanBookResult{{Envelope: report.Envelope{Status: report.StatusCancelled}}},
+		NotStarted: []string{"book-2.epub", "book-3.epub"},
+	}
+	got := formatCleanBatchSummary(result)
+	if !strings.Contains(got, "notStarted=2") {
+		t.Fatalf("summary=%q, want notStarted=2", got)
+	}
+}
+
 func TestRunVersionJSONReportsBuildAndPlatform(t *testing.T) {
 	code, stdout, stderr := captureRunFunc(t, func() int {
 		return run([]string{"version", "--json"})
