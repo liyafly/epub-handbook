@@ -1120,15 +1120,47 @@ func TestNormalizeRejectsNonUTF8TextsWhenRenaming(t *testing.T) {
 			fixture := filepath.Join(dir, "source.epub")
 			output := filepath.Join(dir, "candidate.epub")
 			buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", tt.css, tt.extraXHTML, true)
-			if _, err := runGo(t, fixture, output, ModeNormalize, false); !errors.Is(err, ErrStructureTool) {
-				t.Fatalf("non-UTF-8 text with renamed resources should fail, got %v", err)
-			} else if !strings.Contains(err.Error(), "structure.non-utf8-text") || !strings.Contains(err.Error(), "先人工转码为 UTF-8，再重新 S0 冻结") {
-				t.Fatalf("error lacks actionable encoding guidance: %v", err)
+			res, err := runGo(t, fixture, output, ModeNormalize, true)
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if res.Status != report.StatusFailed || len(res.Findings) != 1 || res.Findings[0].ID != "structure.non-utf8-text" {
+				t.Fatalf("non-UTF-8 text with renamed resources should return one stable finding, got %+v", res)
+			}
+			if !strings.Contains(res.Findings[0].Detail, "先人工转码为 UTF-8，再重新 S0 冻结") {
+				t.Fatalf("finding lacks actionable encoding guidance: %+v", res.Findings[0])
 			}
 			if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("rejected conversion must not create output, stat error=%v", err)
 			}
 		})
+	}
+}
+
+func TestNormalizeReportsEveryNonUTF8TextWithStableID(t *testing.T) {
+	invalidCSS := []byte{'p', ' ', '{', ' ', 0xd6, 0xd0, '}', '\n'}
+	invalidXHTML := append([]byte(`<?xml version="1.0" encoding="UTF-8"?><html><head><title>`), 0xd6, 0xd0)
+	invalidXHTML = append(invalidXHTML, []byte(`</title></head><body/></html>`)...)
+
+	fixture := filepath.Join(t.TempDir(), "multiple-non-utf8.epub")
+	buildNormalizeEncodingFixture(t, fixture, "Styles/style.css", invalidCSS, invalidXHTML, true)
+	res, err := runGo(t, fixture, filepath.Join(t.TempDir(), "candidate.epub"), ModeNormalize, true)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	wantLocations := []string{"OEBPS/Styles/style.css", "OEBPS/Text/mislabel.xhtml"}
+	var gotLocations []string
+	for _, finding := range res.Findings {
+		if finding.Level != "error" || finding.ID != "structure.non-utf8-text" {
+			t.Fatalf("unexpected normalization finding: %+v", finding)
+		}
+		if !strings.Contains(finding.Detail, "先人工转码为 UTF-8，再重新 S0 冻结") {
+			t.Fatalf("finding lacks transcode guidance: %+v", finding)
+		}
+		gotLocations = append(gotLocations, finding.Location)
+	}
+	if !reflect.DeepEqual(gotLocations, wantLocations) {
+		t.Fatalf("finding locations=%v, want all invalid files in stable order %v", gotLocations, wantLocations)
 	}
 }
 

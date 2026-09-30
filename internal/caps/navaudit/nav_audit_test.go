@@ -864,6 +864,28 @@ func TestNavAuditMarksDTDEntitiesInEPUB3AsMigratable(t *testing.T) {
 	}
 }
 
+func TestNavAuditReportsNonUTF8OPFInsteadOfEmptySpine(t *testing.T) {
+	path := writeNativeFixture(t)
+	invalidOPF := filepath.Join(t.TempDir(), "non-utf8-opf.epub")
+	rewriteZipEntry(t, path, invalidOPF, "OEBPS/content.opf", func(data []byte) []byte {
+		needle := []byte("<dc:title>Native fixture</dc:title>")
+		replacement := append([]byte("<dc:title>Native "), 0xd6, 0xd0)
+		replacement = append(replacement, []byte(" fixture</dc:title>")...)
+		return bytes.Replace(data, needle, replacement, 1)
+	})
+
+	res := runNativeAudit(t, invalidOPF)
+	finding := requireFindingKind(t, res, "opf-parse-error")
+	if finding.Level != "error" || finding.Location != "OEBPS/content.opf" {
+		t.Fatalf("OPF parse finding=%+v, want an error at content.opf", finding)
+	}
+	for _, candidate := range res.Findings {
+		if strings.Contains(strings.ToLower(candidate.Title), "spine is missing or empty") {
+			t.Fatalf("parse failure must not also masquerade as an empty spine: %+v", res.Findings)
+		}
+	}
+}
+
 func TestNavAuditFlagsMalformedNavDocument(t *testing.T) {
 	path := writeNativeFixture(t)
 	malformed := filepath.Join(t.TempDir(), "malformed-nav.epub")

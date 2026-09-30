@@ -150,6 +150,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 - dry-run 在内存完成两个阶段并检查真实候选，mappings 与候选一致；不写文件。审查映射/冲突/警告及红线后实跑，产物再用同次实跑信封作 path-map 复核。预览出现红线 error 不能按“尚未应用”忽略。
 - `markup scan stopped at byte offset N` 表示后续引用未改写：先修源，不能直接接受候选。其他断链逐项检查。
+- 如果规范化报告出现 `id=structure.non-utf8-text`，按每条 finding 的 `location` 找到对应文本资源，人工转码为 UTF-8 并重新冻结 S0 底本后再运行；不要直接接受部分改写。
 - 缺失字体 URL 不猜文件、不删声明，保留 `local()` fallback；非字体资源断链须修复。stale encryption 只移除目标已不存在的引用。
 - 真实未知加密停止；保守重写失败不一概推断是 DRM，读取具体 events/findings。实跑红线失败保留候选供 diff，不覆盖原件。通过后人工检查路径/链接，再判断是否需要 EPUB3 迁移。
 

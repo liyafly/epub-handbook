@@ -45,12 +45,43 @@ type toolError struct{ msg string }
 func (e *toolError) Error() string   { return e.msg }
 func (e *toolError) Is(t error) bool { return t == ErrStructureTool }
 
+type nonUTF8TextFailure struct {
+	findings []report.Finding
+}
+
+func (e *nonUTF8TextFailure) Error() string {
+	if len(e.findings) == 0 {
+		return ErrStructureTool.Error()
+	}
+	return e.findings[0].Detail
+}
+
+func (e *nonUTF8TextFailure) Is(target error) bool { return target == ErrStructureTool }
+
+func (e *nonUTF8TextFailure) result() report.Result {
+	return report.Result{
+		Capability: CapabilityID,
+		Status:     report.StatusFailed,
+		Findings:   append([]report.Finding(nil), e.findings...),
+	}
+}
+
+const nonUTF8TextGuidance = "text must be UTF-8 for lossless rewrite; 先人工转码为 UTF-8，再重新 S0 冻结"
+
 func toolErrf(format string, a ...any) error {
 	return &toolError{msg: fmt.Sprintf(format, a...)}
 }
 
-func nonUTF8TextError(err error) error {
-	return toolErrf("structure.non-utf8-text: %v; 先人工转码为 UTF-8，再重新 S0 冻结", err)
+func nonUTF8TextFinding(path string, err error) report.Finding {
+	return report.Finding{
+		Level: "error", ID: "structure.non-utf8-text",
+		Title:  "Text resource requires UTF-8 before conservative rewrite",
+		Detail: fmt.Sprintf("structure.non-utf8-text: %s: %s (%v)", path, nonUTF8TextGuidance, err), Location: path,
+	}
+}
+
+func nonUTF8TextError(path string, err error) error {
+	return &nonUTF8TextFailure{findings: []report.Finding{nonUTF8TextFinding(path, err)}}
 }
 
 // Mode 是运行模式，对应 Python 的四个子命令。
@@ -156,13 +187,19 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if !ok {
 		return report.Result{}, fmt.Errorf("%w: unsupported mode %q", ErrStructureTool, string(p.Mode))
 	}
+	var result report.Result
+	var err error
 	if p.Mode == ModeInspect {
-		return runInspect(ctx, b, p)
+		result, err = runInspect(ctx, b, p)
+	} else if p.Mode == ModeNormalize {
+		result, err = runNormalize(ctx, b, p)
+	} else {
+		result, err = runSingleStage(ctx, b, p, op)
 	}
-	if p.Mode == ModeNormalize {
-		return runNormalize(ctx, b, p)
+	if failure, ok := errors.AsType[*nonUTF8TextFailure](err); ok {
+		return failure.result(), nil
 	}
-	return runSingleStage(ctx, b, p, op)
+	return result, err
 }
 
 // scanRewriteStage 复刻 analyze_epub（+ 非 dry-run 的 transform_files）：
@@ -405,7 +442,7 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 		return "", nil, toolErrf("%v", err)
 	}
 	if err := opfscan.RequireUTF8(containerPath, containerData); err != nil {
-		return "", nil, nonUTF8TextError(err)
+		return "", nil, nonUTF8TextError(containerPath, err)
 	}
 	opfPath, err := opfscan.FindOPFPath(containerData)
 	if err != nil {
@@ -423,7 +460,7 @@ func readPackage(files map[string]bool, current func(string) ([]byte, error)) (s
 		return "", nil, toolErrf("%v", err)
 	}
 	if err := opfscan.RequireUTF8(opfPath, opfData); err != nil {
-		return "", nil, nonUTF8TextError(err)
+		return "", nil, nonUTF8TextError(opfPath, err)
 	}
 	pkg, err := opfscan.Parse(opfPath, opfData)
 	if err != nil {
@@ -477,7 +514,7 @@ func inspectEncryption(names []string, files map[string]bool, current func(strin
 		return "", nil, toolErrf("%v", err)
 	}
 	if err := opfscan.RequireUTF8(encPath, data); err != nil {
-		return "", nil, nonUTF8TextError(err)
+		return "", nil, nonUTF8TextError(encPath, err)
 	}
 	parsed, err := opfscan.ParseEncryption(data)
 	if err != nil {
@@ -784,6 +821,7 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 }
 
 func requireUTF8TextResources(names []string, current func(string) ([]byte, error)) error {
+	findings := make([]report.Finding, 0)
 	for _, name := range names {
 		switch strings.ToLower(pypath.PathExt(name)) {
 		case ".css", ".xhtml", ".html", ".htm", ".svg", ".ncx", ".opf":
@@ -795,8 +833,11 @@ func requireUTF8TextResources(names []string, current func(string) ([]byte, erro
 			return toolErrf("%s: cannot read text resource: %v", name, err)
 		}
 		if err := opfscan.RequireUTF8(name, data); err != nil {
-			return nonUTF8TextError(err)
+			findings = append(findings, nonUTF8TextFinding(name, err))
 		}
+	}
+	if len(findings) > 0 {
+		return &nonUTF8TextFailure{findings: findings}
 	}
 	return nil
 }
@@ -1047,7 +1088,7 @@ func rewriteEncryptionXML(data []byte, path string, files map[string]bool, pathM
 // losslessXMLSource returns the scanner's UTF-8 view and the BOM byte offset.
 func losslessXMLSource(path string, data []byte) ([]byte, *opfscan.SpanNode, int, bool, error) {
 	if err := opfscan.RequireUTF8(path, data); err != nil {
-		return nil, nil, 0, false, nonUTF8TextError(err)
+		return nil, nil, 0, false, nonUTF8TextError(path, err)
 	}
 	source := bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	root, err := opfscan.ScanSpanTree(data)

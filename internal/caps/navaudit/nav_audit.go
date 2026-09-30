@@ -34,18 +34,19 @@ type auditFinding struct {
 type Params struct{}
 
 type inspector struct {
-	b         *book.Book
-	pkg       *opf.Package
-	opfPath   string
-	mode      string
-	summary   *orderedSummary
-	findings  []auditFinding
-	skills    []string
-	skillLv   map[string]string
-	commands  []string
-	tools     *orderedTools
-	textChars int
-	imageRefs int
+	b              *book.Book
+	pkg            *opf.Package
+	opfPath        string
+	mode           string
+	summary        *orderedSummary
+	findings       []auditFinding
+	opfParseFailed bool
+	skills         []string
+	skillLv        map[string]string
+	commands       []string
+	tools          *orderedTools
+	textChars      int
+	imageRefs      int
 	// lookPath 是外部工具探测器（默认 externToolProbe）。
 	lookPath toolProbe
 }
@@ -146,7 +147,7 @@ func run(ctx context.Context, b *book.Book, p Params, lookPath toolProbe) (repor
 		status = "warn"
 	}
 	// spine 为空时追加一条 error finding。
-	if ins.summary.SpineItems == 0 {
+	if ins.summary.SpineItems == 0 && !ins.opfParseFailed {
 		res.Findings = append(res.Findings, report.Finding{
 			Level: "error", ID: "audit." + fmt.Sprint(len(res.Findings)),
 			Title: "OPF spine is missing or empty",
@@ -259,6 +260,11 @@ func (ins *inspector) inspect(ctx context.Context) {
 				if pkg, err4 := opf.Parse(opfPath, raw); err4 == nil {
 					ins.opfPath = opfPath
 					ins.pkg = pkg
+				} else {
+					ins.opfPath = opfPath
+					ins.opfParseFailed = true
+					ins.addFinding("error", "OPF could not be parsed: "+err4.Error(), opfPath, "opf-parse-error")
+					ins.addSkill("epub-audit", "error")
 				}
 			}
 		}

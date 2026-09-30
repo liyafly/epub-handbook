@@ -50,7 +50,7 @@ func updateXHTMLFiles(files *workFiles, root *xmlElem, opfPath string, rep *conv
 			continue
 		}
 		if !xhtmlSourceIsUTF8(original) {
-			return convErrf("%s: lossless XHTML migration requires UTF-8 source bytes", zipPath)
+			return convErrf("structure.non-utf8-text: %s: text must be UTF-8 for lossless rewrite; 先人工转码为 UTF-8，再重新 S0 冻结", zipPath)
 		}
 		text := utf8ReplaceDecode(original)
 		hasLegacyBig, err := xhtmlHasLegacyBigTag(text)

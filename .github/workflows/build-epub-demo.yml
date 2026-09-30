@@ -351,10 +351,10 @@ jobs:
           with open(sys.argv[1], encoding="utf-8") as report_file:
               report = json.load(report_file)
           errors = [f for f in report.get("findings", []) if f.get("level") == "error"]
-          detail = " ".join(f.get("detail", "") for f in errors)
-          if report.get("status") != "failed" or not any(
-              "structure.non-utf8-text" in f.get("detail", "") for f in errors
-          ) or "OEBPS/Styles/legacy.css" not in detail or "先人工转码为 UTF-8，再重新 S0 冻结" not in detail:
+          non_utf8 = [f for f in errors if f.get("id") == "structure.non-utf8-text"]
+          if report.get("status") != "failed" or len(non_utf8) != 1 or \
+              non_utf8[0].get("location") != "OEBPS/Styles/legacy.css" or \
+              "先人工转码为 UTF-8，再重新 S0 冻结" not in non_utf8[0].get("detail", ""):
               raise SystemExit(f"GB18030 normalize did not report the expected error: {report}")
           PY
           java -jar "$EPUBCHECK_JAR" "$legacy_migrated" --mode epub --profile default
