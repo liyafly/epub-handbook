@@ -13,6 +13,7 @@
 - G54：nav.audit 对缺少 manifest fallback 的非核心 `image/*` 类型发出通用警告；Kindle 报告不再重复列出 TIFF。
 - G55：clean 文本摘要现在报告未开始的书数；cleanup-flow 附录 B 逐本记录失败退出码并继续处理后续书。
 - C21：typography 对重复 spine XHTML 路径先去重，带或不带 scope 时都只处理同一份 XHTML 一次。
+- C22：normalize 遇到含 CSS 转义的 rooted `url()` 时保留原字节并给出 unsafe absolute reference 警告，不再因此拒绝整本书。
 
 ### Changed
 

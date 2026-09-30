@@ -1186,6 +1186,10 @@ func rewriteCSSReferences(text, oldDocument, newDocument string, rw *refRewriter
 		if ref.DataURL || pypath.URLSplit(ref.Value).Scheme != "" {
 			continue
 		}
+		if strings.HasPrefix(ref.Value, "/") {
+			rw.rewriteURI(ref.Value, oldDocument, newDocument)
+			continue
+		}
 		if strings.Contains(ref.Value, `\`) {
 			rw.err = toolErrf("%s: escaped local CSS URL requires explicit repair: %s", oldDocument, ref.Value)
 			return text

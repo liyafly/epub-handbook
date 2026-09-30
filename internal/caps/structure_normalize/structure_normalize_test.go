@@ -700,6 +700,41 @@ func TestCSSReferenceScannerEdgeCases(t *testing.T) {
 	}
 }
 
+func TestNormalizeRootedEscapedCSSURLWarnsAndKeeps(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "rooted-escaped-css.epub")
+	entries := fixtureEntries("")
+	const rootedURL = `h1{background:url(/x/a\2e png)}`
+	for i := range entries {
+		if entries[i].name == "OPS/legacy/theme.css" {
+			entries[i].content += rootedURL
+		}
+	}
+	buildFixtureEntries(t, fixture, entries)
+
+	output := filepath.Join(dir, "normalized.epub")
+	res, err := runGo(t, fixture, output, ModeNormalize, false)
+	if err != nil {
+		t.Fatalf("normalize rooted escaped CSS URL: %v", err)
+	}
+	report := factsOf(t, res)
+	warningFound := false
+	for _, stage := range report.Stages {
+		for _, warning := range stage.Warnings {
+			if strings.Contains(warning, "unsafe absolute reference left unchanged: /x/a\\2e png") {
+				warningFound = true
+			}
+		}
+	}
+	if !warningFound {
+		t.Fatalf("missing rooted CSS warning in stages: %+v", report.Stages)
+	}
+	cssText := string(zipRead(t, openZip(t, output), "OPS/Styles/theme.css"))
+	if !strings.Contains(cssText, rootedURL) {
+		t.Fatalf("rooted escaped CSS URL bytes changed or disappeared: %q", cssText)
+	}
+}
+
 func TestXHTMLReferenceScanner(t *testing.T) {
 	warnings := []string{}
 	rw := &refRewriter{
