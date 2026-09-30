@@ -12,6 +12,77 @@ import (
 	"github.com/liyafly/epub-handbook/internal/redline"
 )
 
+func duplicateSpineTypographyFixture(classes string) map[string]string {
+	files := typographyFixture(classes)
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], "</spine>", `<itemref idref="chapter"/></spine>`, 1)
+	return files
+}
+
+func TestTypographyDuplicateSpineItemScoped(t *testing.T) {
+	files := duplicateSpineTypographyFixture("font-st chapter-head")
+	input := filepath.Join(t.TempDir(), "duplicate-spine-scoped.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	presets := filepath.Join(repoRootDir(t), "templates", "style-presets")
+	p := Params{Preset: "literary-cn", PresetDir: presets, DryRun: true, ScopePaths: []string{"OEBPS/Text/chapter.xhtml"}}
+	res, err := Run(t.Context(), b, p)
+	if err != nil {
+		t.Fatalf("scoped duplicate spine run: %v", err)
+	}
+	report := factsJSON(t, res.Facts)
+	if report["xhtmlLinks"] != float64(1) {
+		t.Fatalf("xhtmlLinks=%v, want one unique chapter", report["xhtmlLinks"])
+	}
+	chapter, err := b.Current("OEBPS/Text/chapter.xhtml")
+	if err != nil || bytes.Count(chapter, []byte("epub-preset-")) != int(report["stylesheets"].(float64)) {
+		t.Fatalf("scoped preset links=%q err=%v, want one set of scoped stylesheet links", chapter, err)
+	}
+	if findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), []string{"text", "metadata", "spine", "cover", "drm", "anchors"}, redline.Options{}); err != nil || len(findings) != 0 {
+		t.Fatalf("scoped redline findings=%v err=%v", findings, err)
+	}
+	beforeReapply := bytes.Clone(chapter)
+	if _, err := Run(t.Context(), b, p); err != nil {
+		t.Fatalf("repeat scoped run: %v", err)
+	}
+	afterReapply, err := b.Current("OEBPS/Text/chapter.xhtml")
+	if err != nil || !bytes.Equal(beforeReapply, afterReapply) {
+		t.Fatalf("repeat scoped run changed chapter: err=%v", err)
+	}
+}
+
+func TestTypographyDuplicateSpineItemWholeBook(t *testing.T) {
+	files := duplicateSpineTypographyFixture("chapter-head")
+	input := filepath.Join(t.TempDir(), "duplicate-spine-whole-book.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	p := Params{Preset: "literary-cn", PresetDir: filepath.Join(repoRootDir(t), "templates", "style-presets"), DryRun: true}
+	res, err := Run(t.Context(), b, p)
+	if err != nil {
+		t.Fatalf("whole-book duplicate spine run: %v", err)
+	}
+	report := factsJSON(t, res.Facts)
+	if report["xhtmlLinks"] != float64(1) {
+		t.Fatalf("xhtmlLinks=%v, want one unique chapter", report["xhtmlLinks"])
+	}
+	chapter, err := b.Current("OEBPS/Text/chapter.xhtml")
+	if err != nil || bytes.Count(chapter, []byte(`href="../Styles/literary.css"`)) != 1 {
+		t.Fatalf("whole-book preset links=%q err=%v, want one link", chapter, err)
+	}
+	if findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b), []string{"text", "metadata", "spine", "cover", "drm", "anchors"}, redline.Options{}); err != nil || len(findings) != 0 {
+		t.Fatalf("whole-book redline findings=%v err=%v", findings, err)
+	}
+}
+
 func TestScopedPresetPreservesUnselectedAndIsIdempotent(t *testing.T) {
 	files := typographyFixture("font-st chapter-head")
 	const selected = "OEBPS/Text/chapter.xhtml"

@@ -702,7 +702,7 @@ func spineXHTMLPaths(opfRoot *opf.SpanNode, opfPath string) ([]string, error) {
 		}
 		paths = append(paths, path)
 	}
-	return paths, nil
+	return opf.UniqueStrings(paths), nil
 }
 
 // stylesheetActions 复刻 stylesheet_actions。
