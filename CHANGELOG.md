@@ -19,6 +19,10 @@
 - **`epub-font` 1.1.0**：`fonts.json` 只覆盖明确列出的字体；未列出的 manifest 字体也会按自动规则处理，包括自动保留 MATH 字体。Go capability 现在拒绝 provider 漏报 manifest 字体的报告。
 - **`epub-font` 1.2.0**：字体源只能来自 EPUB 内的 manifest 目标；可变字体统一实例化，MATH 字体不再要求显式保留配置。subset 用独立字符收集器阻断新增覆盖损失，删除重复的 `check --against` CLI 模式。
 
+### Fixed
+
+- `epub clean --approve` 在最终审计或红线期间收到取消时，返回 `cancelled` 并保留未写出的候选状态，不再误报完成。
+
 ## v0.4.6 - 2026-09-28
 
 > 0.4.3–0.4.5 未发布。

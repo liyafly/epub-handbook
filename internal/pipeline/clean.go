@@ -538,7 +538,12 @@ func cleanOneBook(ctx context.Context, opts CleanOptions, input cleanInput, inpu
 		allEvents = append(allEvents, redlineSummary.Events...)
 	}
 
-	if opts.Approve && failure == nil && redlineAttempted && session.hasCandidate && ctx.Err() == nil {
+	if failure == nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			failure = ctxErr
+		}
+	}
+	if opts.Approve && failure == nil && redlineAttempted && session.hasCandidate {
 		if writeErr := session.current.WriteToContext(ctx, outputPath); writeErr != nil {
 			failure = errors.Join(failure, fmt.Errorf("write approved candidate: %w", writeErr))
 		} else {

@@ -1,10 +1,12 @@
 package pipeline
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json/v2"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -339,6 +341,112 @@ func TestCleanApprovedRunWritesOnlyFinalCandidateAndReport(t *testing.T) {
 	if bookResult.Envelope.Output == nil || bookResult.Envelope.Output.SHA256 != finalSHA {
 		t.Fatalf("output SHA=%s envelope=%+v", finalSHA, bookResult.Envelope.Output)
 	}
+}
+
+func TestCleanApprovedCancellationAtAnyCheckpointNeverReportsCompleteWithoutOutput(t *testing.T) {
+	input := buildEpubWithOPF(t)
+	for checkpoint := int32(1); checkpoint <= 400; checkpoint++ {
+		outputDir := filepath.Join(t.TempDir(), "out")
+		ctx := cancelAtCheckpoint(t, checkpoint)
+		result, err := Clean(ctx, CleanOptions{
+			InputPath: input, OutputDir: outputDir, Steps: []string{"normalize"}, Approve: true,
+		})
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("checkpoint %d: Clean error = %v", checkpoint, err)
+		}
+		for _, bookResult := range result.Books {
+			if bookResult.Envelope.Status != report.StatusComplete {
+				continue
+			}
+			if bookResult.OutputPath == "" || bookResult.Envelope.Facts["pipeline.artifactDisposition"] != "approved" {
+				t.Fatalf("checkpoint %d: complete result has no approved output: %+v", checkpoint, bookResult)
+			}
+			if _, statErr := os.Stat(bookResult.OutputPath); statErr != nil {
+				t.Fatalf("checkpoint %d: complete result output is absent: %v", checkpoint, statErr)
+			}
+		}
+		if ctx.Err() != nil {
+			for _, bookResult := range result.Books {
+				if bookResult.Envelope.Status == report.StatusComplete {
+					t.Fatalf("checkpoint %d: cancelled run reported complete", checkpoint)
+				}
+			}
+		}
+	}
+}
+
+func TestCleanFailedApprovedRunWithholdsCandidate(t *testing.T) {
+	input := buildEpubWithWrongDescendantNamespace(t)
+	outputDir := filepath.Join(t.TempDir(), "out")
+	result, err := Clean(t.Context(), CleanOptions{
+		InputPath: input, OutputDir: outputDir, Steps: []string{"normalize", "migrate"}, Approve: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != ExitFailed || len(result.Books) != 1 {
+		t.Fatalf("result=%+v, want one failed book", result)
+	}
+	bookResult := result.Books[0]
+	if bookResult.Envelope.Status != report.StatusFailed {
+		t.Fatalf("book status=%q, want failed", bookResult.Envelope.Status)
+	}
+	if got := bookResult.Envelope.Facts["pipeline.artifactDisposition"]; got != "withheld" {
+		t.Fatalf("artifact disposition=%v, want withheld", got)
+	}
+	if got := bookResult.Envelope.Facts["epub.clean.previewState"]; got != "step:normalize" {
+		t.Fatalf("preview state=%v, want step:normalize", got)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "in.epub")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("withheld EPUB exists or stat failed: %v", err)
+	}
+}
+
+func buildEpubWithWrongDescendantNamespace(t testing.TB) string {
+	t.Helper()
+	original := epubFixtureBytes(t)
+	reader, err := zip.NewReader(bytes.NewReader(original), int64(len(original)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, file := range reader.File {
+		input, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, readErr := io.ReadAll(input)
+		closeErr := input.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if file.Name == "OEBPS/c1.xhtml" {
+			content = bytes.Replace(content, []byte("<body>"), []byte(`<body xmlns:epub="urn:wrong">`), 1)
+		}
+		method := uint16(zip.Deflate)
+		if file.Name == "mimetype" {
+			method = zip.Store
+		}
+		entry, err := writer.CreateHeader(&zip.FileHeader{Name: file.Name, Method: method})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "wrong-namespace.epub")
+	if err := os.WriteFile(path, output.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func TestCleanReportWriteFailureKeepsApprovedArtifactDisposition(t *testing.T) {
