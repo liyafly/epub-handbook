@@ -8,23 +8,48 @@
 - `epub.package.migrate.epub3` 不再注入默认排版 CSS；删除排版开关与对应报告 facts。需要排版时改用 `epub.typography.optimize`。
 - `epub.package.migrate.epub3` 不再转换 plain/Sigil 旧尾注或注入 `note.png`；删除 `no_popup_notes` 参数与 `plainNotesConverted`、`popupNotes` facts。旧式尾注保持原文，转换需经授权后人工处理。
 - `epub redline` 不再将旧式 `[N]` 链接与迁移后的 noteref 配对豁免；旧式标记文本按普通正文比较。
-- `epub-font check --against` 已删除；既有书的 `build.sh` 若调用它，需删除该步骤或换用当前模板。子集覆盖回归由 `epub.font.subset` 的 Go capability 校验。
-- `tools-font/coverage-detector/` 已删除；`epub.font.coverage.analyze` 改为调用 PATH 上的 `epub-font coverage`，不再读取 `EPUB_HANDBOOK_ROOT`。已有安装执行 `uv tool install --editable --reinstall tools-font/epub-font`。
-- `epub-font` provider 升至 2.0.0，subset 报告使用 schemaVersion 2；Go capability 拒绝旧报告，并校验来源、静态输出、独立覆盖检查及 MATH 表。移除包外字体源路径与 VF `keep` / `limit`，可变字体只接受 `instance`。
+- `epub clean` 删除 typography 步骤及 `--preset`、`--scope`、`--jobs`、`--retain-review-candidate`；删除 `review-only`、`approved-report-missing` disposition，目录输入改为串行处理。取消时，未开始的书只列入 `facts["epub.clean.notStarted"]`，取消 event 使用 `status:"failed"` 和 `message:"cancelled: …"`；clean 步骤不再运行诊断用的上游。
+- `epub redline --allow-list` 已删除。
+- 删除 notes-fallback 的 `scope_paths`，vertical 的 `rp_open` / `rp_close`，css 的 `merge_scoped_local_css` 及相关 3 个 facts，以及 content.analyze 的 `source_name` / `source_content`。`allow_font_obfuscation` 只由 14 个写出能力接受；8 个只读能力收到该参数会 exit 3。`scope_paths` 含空白项也会 exit 3。
+- normalize 需要改写引用时遇到非 UTF-8 文本会失败且不写出，转码逻辑已删除；scan/opf 不再转码，非 UTF-8 container 或 OPF 会报错，redline 对这类书 exit 3。
+- migrate 只接受 XHTML 1.x / HTML4 实体表，拒绝 HTML5 专有实体与 DOCTYPE 内部子集；nav.audit 只在 EPUB2 包内接受 DTD 实体，并检查 nav 文档是否良构。
+- kindle 删除 `kindle.cover-image-missing`、`kindle.cover-meta-missing`、`kindle.mathml-properties-missing`、`kindle.xhtml-parse-failed`；MathML 缺少 properties 时不再导致 exit 1。nav.audit 删除 NCX、WebP、GIF/TIFF 和 SVG 封面的告警；TIFF 告警待恢复（G54）。
+- 字体工具删除 `epub-font check --against` 与 `tools-font/coverage-detector`；`epub.font.coverage.analyze` 改为调用 PATH 上的 `epub-font coverage`。provider 2.0.0 的 subset 报告改用 schemaVersion 2，Go 会拒绝旧报告，并检查字体来源、静态输出、独立覆盖证明和 MATH 表。删除包外母版和 `master` 字段、VF `keep` / `limit`；可变字体只接受 `instance`。未登记到 OPF 的字体会使 `font.subset` 失败，provider 漏报 manifest 字体时会被拒绝；旧 `build.sh` 遇到 `--against` 会提示迁移。
+- migrate 收窄新增 nav 的正文豁免（G25、G29），拒绝错误的 EPUB 命名空间（G37）；literary 拒绝 SVG id，负数 index 改为 exit 3（C17）；popup 拒绝错放的 `duokan-footnote-content`（C19）；nav.audit 对越出容器根的 CSS URL 报 error（C23）。
 - 旧配置 `action: "preserve"` 在 2.x 仍作为弃用 no-op 接受，须在 3.0.0 前删除。
-
-### Breaking (JSON facts)
-
-- JSON 信封将 `dry_run` 和 `modified_entries` 分别改为 `pipeline.dryRun` 与 `pipeline.modifiedEntries`；不再透传上游完整 facts，也删除了各能力的 `<id>.findings` facts。
 
 ### Changed
 
-- **`epub-font` 1.0.0 → 2.0.0**：合并此前未单独发布的 1.1.0 / 1.2.0 行为，覆盖所有 manifest 字体、只使用 EPUB 内字体源、实例化可变字体、自动保留 MATH 字体，并用独立字符收集器阻断新增覆盖损失；`action: "preserve"` 在 2.x 保持兼容并计划于 3.0.0 删除。
+- S08 / G36：`nextCommands` 只由 findings 驱动（demo 上 nav.audit 从 4 条降为 0 条）；dry-run 输出名改为 `<输入名>.<操作>.epub`。
+- C24：cover、merge、normalize 新增 rooted 和 missing 引用警告；本版保留当前全书范围行为，未聚焦到实际改写引用。
+- C13：带注释的 `writing-mode` 也会补齐厂商前缀。
+- C11：缺少 container.xml 时不再回退到 `OEBPS/package.opf`。
+- **`epub-font` 1.0.0 → 2.0.0**：合并此前未单独发布的 1.1.0 / 1.2.0 行为，覆盖所有 manifest 字体、只使用 EPUB 内字体源、实例化可变字体、自动保留 MATH 字体，并用独立字符收集器阻断新增覆盖损失；弃用 `action: "preserve"` 在 2.x 保持兼容并计划于 3.0.0 删除。
 
 ### Fixed
 
+- G26：修复 nav.audit 将 XHTML 1.0 文件误判为非良构。
+- C11：修复 OPF 位于根目录时 popup 的资源路径判断。
+- G27、F12、F13、G34、G39：修复迁移封面诊断、字体输入错误与缺失 provider 的结构化诊断，以及 clean 取消与批次状态处理。
 - `epub clean --approve` 在最终审计或红线期间收到取消时，返回 `cancelled` 并保留未写出的候选状态，不再误报完成。
 - EPUB3 迁移新增的 nav 文档只有在 body 下仅含 nav 子树与空白时才通过正文红线。
+
+### Added
+
+- G38：redline 信封现在记录输入、输出路径和 SHA-256。
+- a9f9e14：移除第三方 EPUB，真书回归改用合成样本；仓库不再发布 `references/epubs` 中的来源文件。
+
+### 升级说明
+
+- v0.4.6 创建的书级工作区若在 `03 制作工作区/epub/build.sh` 调用 `epub-font check … --against …`，升级后会 exit 2。删除该命令，或审阅后换用当前模板的 build.sh。
+- `fonts.json` 删除 `master`；可变字体只支持 `variation.mode: "instance"`。旧 `action: "preserve"` 在 2.x 被忽略，普通字体仍会子集化，只有含 MATH 表的字体自动保留。
+- 升级字体 provider 后执行 `uv tool install --editable --reinstall tools-font/epub-font`。
+- 既有脚本请删除已移除的 `--jobs`、`--preset`、`--scope`、`--retain-review-candidate`、`--allow-list`，以及上文列出的旧能力参数。
+
+### 已知限制
+
+- 正文不变 gate 目前只比较 `p`、`h1`–`h6`、`li`、`td`、`blockquote`、`pre`、`div` 中的文字。`th`、`dt`、`dd`、`figcaption` 中的文字，以及 `section`、`aside` 的直接文字被删除或改写时不会报告；计划在下一版修复（G41）。相关表格、定义列表和图注写出结果仍需人工 diff 复核。
+- 本版没有真实阅读器复测，reader-matrix 没有 `pass`。影响渲染的 R14 `<em>`、S02 默认排版层移除、S06 旧尾注不再转换，以及字体子集行为变化都待实际阅读器验证。
 
 ## v0.4.6 - 2026-09-28
 
@@ -34,6 +59,12 @@
 
 - **旧版 EPUB 回归样本**：补入 EPUB2、XHTML 1.1 DTD、命名实体和旧编码 CSS 样本，覆盖结构规范化、EPUB3 迁移与红线。
 - **书级字体差分门禁**：`epub-font check --against FULL.epub` 检查子集化后相对母版新增的缺字、空字形和变体序列回归；书级构建失败时保留旧 dist。
+
+### Breaking (JSON facts)
+
+> 补记：本版已生效，当时漏记。
+
+- JSON 信封将 `dry_run` 和 `modified_entries` 分别改为 `pipeline.dryRun` 与 `pipeline.modifiedEntries`；不再透传上游完整 facts，也删除了各能力的 `<id>.findings` facts。
 
 ### Changed
 
