@@ -25,6 +25,12 @@ jobs:
             echo "CHANGELOG.md has no heading for ${GITHUB_REF_NAME}" >&2
             exit 1
           fi
+          dev="$(sed -n 's/^[[:space:]]*version *= *"\(.*\)"$/\1/p' cmd/epub/version.go)"
+          base="${release_version%%-*}"
+          case "$dev" in
+            "$base"|"$base-dev") ;;
+            *) echo "version.go=$dev does not match $GITHUB_REF_NAME" >&2; exit 1 ;;
+          esac
 
       - uses: actions/setup-go@v7
         with:
