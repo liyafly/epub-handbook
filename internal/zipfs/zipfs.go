@@ -294,6 +294,37 @@ func (a *Archive) ReadContext(ctx context.Context, name string) ([]byte, error) 
 	return data, nil
 }
 
+// ReadPrefixContext reads at most maxBytes from an entry without retaining the
+// entry contents or requiring the full uncompressed size to fit that bound.
+func (a *Archive) ReadPrefixContext(ctx context.Context, name string, maxBytes int64) ([]byte, error) {
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	if maxBytes <= 0 {
+		return nil, ErrInvalidLimits
+	}
+	if maxBytes > a.limits.MaxEntryBytes {
+		return nil, fmt.Errorf("zipfs: prefix limit %d exceeds entry limit %d: %w", maxBytes, a.limits.MaxEntryBytes, ErrLimitExceeded)
+	}
+	e, ok := a.byName[name]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrMissing, name)
+	}
+	rc, err := e.zf.Open()
+	if err != nil {
+		return nil, fmt.Errorf("zipfs: open %q: %w", name, err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(io.LimitReader(rc, maxBytes))
+	if err != nil {
+		return nil, fmt.Errorf("zipfs: read prefix %q: %w", name, err)
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 // ReadFileContext reads a bounded auxiliary file. Only regular files are
 // accepted; the descriptor size is checked before reading, and the byte stream
 // is checked again while it is consumed.

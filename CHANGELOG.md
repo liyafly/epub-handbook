@@ -16,6 +16,7 @@
 - C22：normalize 遇到含 CSS 转义的 rooted `url()` 时保留原字节并给出 unsafe absolute reference 警告，不再因此拒绝整本书。
 - C23：nav.audit 将 CSS `url()` 越出 EPUB 容器根的引用报告为 `CSS url() target escapes container root`，finding detail 使用 `xhtml-invalid-target`。
 - C25：`ResolveRelativePath` 拒绝 rooted 路径（含百分号解码后以 `/` 开头的路径）；popup 图标 `src` 明确报告 `src must be a local EPUB resource`，typography spine 以 preset error 拒绝。
+- F17：font.subset 用字体魔数识别未登记字体与错误声明为非字体媒体类型的字体；book-starter 扫描 `META-INF/` 和 `OEBPS/` 中已知字体扩展名。
 
 ### Changed
 

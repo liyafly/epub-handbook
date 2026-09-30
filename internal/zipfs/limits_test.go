@@ -115,6 +115,24 @@ func TestReadContextHonorsLimitsAndCancellation(t *testing.T) {
 	}
 }
 
+func TestReadPrefixContextReturnsBoundedPrefix(t *testing.T) {
+	path := writeTempZip(t, buildInputZip(t))
+	a, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+
+	a.limits.MaxEntryBytes = 3
+	got, err := a.ReadPrefixContext(t.Context(), "a/chapter.xhtml", 3)
+	if err != nil || !bytes.Equal(got, []byte("<p>")) {
+		t.Fatalf("ReadPrefixContext() = %q, %v; want the first three bytes", got, err)
+	}
+	if _, err := a.ReadContext(t.Context(), "a/chapter.xhtml"); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("ReadContext() error = %v, want full-entry size limit", err)
+	}
+}
+
 func TestReadContextChecksActualBytesWhenHeaderUnderreports(t *testing.T) {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)

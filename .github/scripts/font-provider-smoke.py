@@ -440,6 +440,39 @@ def main() -> int:
         stable_sha,
         root / "independent-check-failure.log",
     )
+
+    meta_inf_book = root / "META-INF-only-font-book"
+    starter = REPO_ROOT / "templates" / "book-starter" / "new-book.sh"
+    starter_result = run_logged(
+        ["sh", str(starter), str(meta_inf_book)], env, root / "meta-inf-starter.log"
+    )
+    if starter_result.returncode != 0:
+        raise RuntimeError(f"META-INF-only starter failed; see {root / 'meta-inf-starter.log'}")
+    meta_inf_epub = meta_inf_book / "03 制作工作区" / "epub"
+    meta_inf_dist = dist_epub(meta_inf_book)
+    run_build(meta_inf_book, env, root / "meta-inf-initial-build.log", success=True)
+    meta_inf_baseline = sha256(meta_inf_dist.read_bytes())
+
+    meta_inf_font = meta_inf_epub / "META-INF" / "fonts" / "unmanifested.ttf"
+    meta_inf_font.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        meta_inf_font.write_bytes(SYNTH.build_font_for(" "))
+        run_build(meta_inf_book, env, root / "meta-inf-font.log", success=False)
+        assert_failed_build_preserves(
+            meta_inf_book, meta_inf_dist, meta_inf_baseline, root / "meta-inf-font.log"
+        )
+        meta_report = json.loads(
+            (meta_inf_book / "03 制作工作区" / ".pipeline" / "font-subset.json").read_text(encoding="utf-8")
+        )
+        if not any(
+            item.get("id") == "font-subset.unmanifested-font"
+            and "META-INF/fonts/unmanifested.ttf" in item.get("detail", "")
+            for item in meta_report.get("findings", [])
+        ):
+            raise RuntimeError(f"META-INF font did not trigger the unmanifested-font finding: {meta_report}")
+    finally:
+        meta_inf_font.unlink(missing_ok=True)
+
     missing_env = dict(env)
     missing_env["PATH"] = "/usr/bin:/bin"
     run_build(book_dir, missing_env, root / "provider-missing.log", success=False)
@@ -506,7 +539,13 @@ def main() -> int:
         "failurePreservedDistSHA256": stable_sha,
         "independentCoverageRegression": independent_regression,
         "syntheticNavAudit": synth_nav,
-        "failedScenarios": ["independent-coverage-regression-detected", "provider-missing", "corrupt-font", "cancelled-provider"],
+        "failedScenarios": [
+            "independent-coverage-regression-detected",
+            "meta_inf_font_triggers_subset",
+            "provider-missing",
+            "corrupt-font",
+            "cancelled-provider",
+        ],
         "goRacePackages": ["internal/book", "internal/extern", "internal/pipeline", "internal/zipfs"],
     }
     (root / "result.json").write_text(

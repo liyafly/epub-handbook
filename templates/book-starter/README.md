@@ -34,7 +34,7 @@
 
 ## 字体
 
-获准使用的完整 `.ttf` / `.otf` 母版放在 `03 制作工作区/epub/OEBPS/Fonts/` 的 manifest 目标路径，登记到 OPF manifest 和 CSS，并与解包源一起提交。构建会从完整母版为当前正文生成子集；新增字后会重新计算，不会把唯一字体母版替换成子集。字体来源和许可记入 `THIRD_PARTY.md`。解包源树不是交付物，禁止直接打包它；交付 EPUB 必须经过书内 `build.sh` 或 `epub.font.subset` 的候选与检查流程。
+获准使用的完整 `.ttf` / `.otf` 母版放在 `03 制作工作区/epub/OEBPS/Fonts/` 的 manifest 目标路径，登记到 OPF manifest 和 CSS，并与解包源一起提交。构建会从完整母版为当前正文生成子集；新增字后会重新计算，不会把唯一字体母版替换成子集。字体来源和许可记入 `THIRD_PARTY.md`。`build.sh` 会扫描 `META-INF/` 与 `OEBPS/` 中的已知字体扩展名；字体能力随后按 entry 魔数拒绝未登记或媒体类型错误的字体。无字体书里仅改名、且没有 `fonts.json` 的字体仍不能触发 provider。解包源树不是交付物，禁止直接打包它；交付 EPUB 必须经过书内 `build.sh` 或 `epub.font.subset` 的候选与检查流程。
 
 书中没有字体时不需要字体 provider。含字体时，需要安装 `epub-font` provider 并让 `epub-font` 命令可在 PATH 中找到，且 `epub` CLI 必须提供 `epub.font.subset` 能力。可在手册仓库根目录安装 provider：
 

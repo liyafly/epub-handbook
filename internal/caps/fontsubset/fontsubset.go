@@ -153,23 +153,67 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err != nil {
 		return failure(&res, "font-subset.input-path-invalid", err.Error())
 	}
-	manifestFontItems, err := manifestFonts(ctx, b)
+	manifestItems, err := readManifestItems(ctx, b)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return res, err
 		}
 		return failure(&res, "font-subset.manifest-invalid", err.Error())
 	}
-	manifestPaths := make(map[string]struct{}, len(manifestFontItems))
-	for _, item := range manifestFontItems {
+	manifestFontItems := make([]opfscan.ManifestItem, 0, len(manifestItems))
+	seenFontPaths := make(map[string]struct{}, len(manifestItems))
+	manifestPaths := make(map[string]struct{}, len(manifestItems))
+	for _, item := range manifestItems {
+		if item.ArchivePath == "" {
+			continue
+		}
 		manifestPaths[item.ArchivePath] = struct{}{}
+		fontItem := isFont(item.ArchivePath, item.MediaType)
+		prefix, err := b.OriginalPrefixContext(ctx, item.ArchivePath, 4)
+		if errors.Is(err, book.ErrMissingEntry) {
+			if fontItem {
+				if _, seen := seenFontPaths[item.ArchivePath]; !seen {
+					seenFontPaths[item.ArchivePath] = struct{}{}
+					manifestFontItems = append(manifestFontItems, item)
+				}
+			}
+			continue
+		}
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return res, err
+			}
+			return res, fmt.Errorf("inspect EPUB resource %q: %w", item.ArchivePath, err)
+		}
+		if isFontMagic(prefix) && !isFontMediaType(item.MediaType) {
+			return failure(&res, "font-subset.disguised-font", item.ArchivePath)
+		}
+		if fontItem {
+			if _, seen := seenFontPaths[item.ArchivePath]; seen {
+				continue
+			}
+			seenFontPaths[item.ArchivePath] = struct{}{}
+			manifestFontItems = append(manifestFontItems, item)
+		}
 	}
 	unmanifestedFonts := make([]string, 0)
 	for _, name := range b.OriginalNames() {
-		if !isFont(name, "") {
+		if _, manifested := manifestPaths[name]; manifested {
 			continue
 		}
-		if _, ok := manifestPaths[name]; !ok {
+		if !isFont(name, "") {
+			prefix, err := b.OriginalPrefixContext(ctx, name, 4)
+			if err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return res, err
+				}
+				return res, fmt.Errorf("inspect EPUB resource %q: %w", name, err)
+			}
+			if !isFontMagic(prefix) {
+				continue
+			}
+		}
+		if _, manifested := manifestPaths[name]; !manifested {
 			unmanifestedFonts = append(unmanifestedFonts, name)
 		}
 	}
@@ -723,7 +767,7 @@ func cloneOptionalStrings(values []string) []string {
 	return cloneStrings(values)
 }
 
-func manifestFonts(ctx context.Context, b *book.Book) ([]opfscan.ManifestItem, error) {
+func readManifestItems(ctx context.Context, b *book.Book) ([]opfscan.ManifestItem, error) {
 	container, err := b.CurrentContext(ctx, opfscan.ContainerPath)
 	if err != nil {
 		return nil, fmt.Errorf("read container.xml: %w", err)
@@ -740,27 +784,32 @@ func manifestFonts(ctx context.Context, b *book.Book) ([]opfscan.ManifestItem, e
 	if err != nil {
 		return nil, err
 	}
-	fonts := make([]opfscan.ManifestItem, 0)
-	seen := make(map[string]struct{})
-	for _, item := range pkg.Manifest {
-		if item.ArchivePath == "" || !isFont(item.ArchivePath, item.MediaType) {
-			continue
-		}
-		if _, ok := seen[item.ArchivePath]; ok {
-			continue
-		}
-		seen[item.ArchivePath] = struct{}{}
-		fonts = append(fonts, item)
-	}
-	return fonts, nil
+	return pkg.Manifest, nil
 }
 
 func isFont(archivePath, mediaType string) bool {
-	if strings.Contains(strings.ToLower(mediaType), "font") {
+	if isFontMediaType(mediaType) {
 		return true
 	}
 	switch strings.ToLower(filepath.Ext(archivePath)) {
 	case ".ttf", ".otf", ".woff", ".woff2", ".ttc", ".otc":
+		return true
+	default:
+		return false
+	}
+}
+
+func isFontMediaType(mediaType string) bool {
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return strings.Contains(mediaType, "font") || mediaType == "application/vnd.ms-opentype"
+}
+
+func isFontMagic(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+	switch string(data[:4]) {
+	case "\x00\x01\x00\x00", "OTTO", "true", "typ1", "ttcf", "wOFF", "wOF2":
 		return true
 	default:
 		return false

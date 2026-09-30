@@ -41,7 +41,7 @@ work-epub/my-book/
 
 ## 日常修改和构建
 
-直接修改 `03 制作工作区/epub/OEBPS/` 下的 XHTML、CSS、OPF、nav 与 NCX。`build.sh` 要求 `mimetype`、`META-INF/` 和 `OEBPS/` 同时存在，只打包 `META-INF/` 与 `OEBPS/`，字体扫描也只检查 `OEBPS/`。每次构建都从这个源目录重新打包，所以源目录始终是完整、可编辑、可比较的版本。提交源文件的变化后运行：
+直接修改 `03 制作工作区/epub/OEBPS/` 下的 XHTML、CSS、OPF、nav 与 NCX。`build.sh` 要求 `mimetype`、`META-INF/` 和 `OEBPS/` 同时存在，只打包 `META-INF/` 与 `OEBPS/`；字体扫描也会检查这两个打包目录中的已知字体扩展名。每次构建都从这个源目录重新打包，所以源目录始终是完整、可编辑、可比较的版本。提交源文件的变化后运行：
 
 ```sh
 sh '03 制作工作区/epub/build.sh'
@@ -53,7 +53,7 @@ sh '03 制作工作区/epub/build.sh'
 
 ## 字体母版与子集
 
-推荐把获准使用的完整 `.ttf` / `.otf` 字体放在解包树 `OEBPS/Fonts/`，即 OPF manifest 声明的目标路径，并在 OPF 与 CSS 中正常声明。`build.sh` 扫描 `OEBPS/` 下任何字体后缀文件（不论它是否已登记在 OPF manifest）以及书根 `fonts.json`；发现任一项都会调用 `epub.font.subset`。能力只对子集化 OPF manifest 中登记的字体；任何字体后缀文件未登记到 OPF 时，都会以 `font-subset.unmanifested-font` 失败，不能进入交付产物。若扫描触发构建但没有 manifest 字体目标，会以 `font-subset.no-fonts` 失败。Go 流水线把含完整字体的源 EPUB 交给独立的 `epub-font` provider，在临时目录生成和验证子集，最后只将变更后的字体 entry 应用到输出候选。provider 还会用独立字符收集器按完整源字体与候选字体比较缺字、空字形和 IVS/SVS 序列；仅对完整源字体可用、子集后退化的项目判为回归。解包源里的完整字体不会被覆盖。
+推荐把获准使用的完整 `.ttf` / `.otf` 字体放在解包树 `OEBPS/Fonts/`，即 OPF manifest 声明的目标路径，并在 OPF 与 CSS 中正常声明。`build.sh` 扫描 `META-INF/` 与 `OEBPS/` 下任何已知字体后缀文件（不论它是否已登记在 OPF manifest）以及书根 `fonts.json`；发现任一项都会调用 `epub.font.subset`。能力会读取 EPUB entry 的前四字节，按 SFNT、TTC、WOFF 或 WOFF2 魔数检查全部 manifest 与未登记资源；未登记字体报告 `font-subset.unmanifested-font`，错误声明为非字体媒体类型的字体报告 `font-subset.disguised-font`，这两类资源都不能进入交付产物。若扫描触发构建但没有 manifest 字体目标，会以 `font-subset.no-fonts` 失败。一个残余限制是：若无 `fonts.json`、无已知字体扩展名的书把字体改名后藏入资源树，书级 `build.sh` 无法据此触发 provider；先将其改回常用字体扩展名，或配置 fonts.json。Go 流水线把含完整字体的源 EPUB 交给独立的 `epub-font` provider，在临时目录生成和验证子集，最后只将变更后的字体 entry 应用到输出候选。provider 还会用独立字符收集器按完整源字体与候选字体比较缺字、空字形和 IVS/SVS 序列；仅对完整源字体可用、子集后退化的项目判为回归。解包源里的完整字体不会被覆盖。
 
 因此每次修改正文后，构建都会从解包源中的完整字体重新计算所需字形；新增加的字不依赖上次子集化产物，不会因为旧子集缺字而无法恢复。完整字体的许可和来源记入 `THIRD_PARTY.md`。带 OpenType MATH 表的字体无论是否列在配置中都会按原字节保留，provider 报告记录 `reason=math-table` 与输入/输出 SHA；普通字体继续子集化。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示，之后应删除该字段。可变字体配置只接受 `variation.mode: "instance"`。加密/混淆、损坏或不支持的字体仍会失败。交付 EPUB 必须由书内 `build.sh` 构建，或由 `epub.font.subset` 生成候选后通过规定检查；禁止直接把解包源树打包交付。
 

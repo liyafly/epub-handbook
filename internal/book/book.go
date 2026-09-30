@@ -249,6 +249,18 @@ func (b *Book) OriginalContext(ctx context.Context, name string) ([]byte, error)
 	return data, nil
 }
 
+// OriginalPrefixContext reads a bounded prefix from an input entry without
+// retaining its complete contents in the book cache.
+func (b *Book) OriginalPrefixContext(ctx context.Context, name string, maxBytes int64) ([]byte, error) {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if _, ok := b.byName[name]; !ok {
+		return nil, fmt.Errorf("%w: %s", ErrMissingEntry, name)
+	}
+	return b.arch.ReadPrefixContext(ctx, name, maxBytes)
+}
+
 // Current 返回 entry 的当前字节：有未应用的修改返回修改后内容，否则返回原始内容。
 func (b *Book) Current(name string) ([]byte, error) {
 	return b.CurrentContext(nil, name)

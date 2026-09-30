@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -368,6 +369,64 @@ func TestRunRejectsUnmanifestedFontEntry(t *testing.T) {
 	}
 }
 
+func TestRunRejectsUnmanifestedFontByMagic(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "source.epub")
+	data := fontMagicFixture(t, "META-INF/fonts/copied-resource.bin", "", "wOF2")
+	if err := os.WriteFile(input, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: filepath.Join(t.TempDir(), "missing-provider")})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.unmanifested-font" {
+		t.Fatalf("Run() = status %q, findings %+v, error %v; want unmanifested-font failure", result.Status, result.Findings, err)
+	}
+	if !strings.Contains(result.Findings[0].Detail, "META-INF/fonts/copied-resource.bin") {
+		t.Fatalf("unmanifested-font finding = %+v, want the magic-detected entry", result.Findings[0])
+	}
+}
+
+func TestRunRejectsDisguisedManifestFont(t *testing.T) {
+	input := filepath.Join(t.TempDir(), "source.epub")
+	manifestItem := `<item id="disguised" href="Fonts/full.dat" media-type="application/octet-stream"/>`
+	data := fontMagicFixture(t, "OEBPS/Fonts/full.dat", manifestItem, "OTTO")
+	if err := os.WriteFile(input, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: filepath.Join(t.TempDir(), "missing-provider")})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.disguised-font" {
+		t.Fatalf("Run() = status %q, findings %+v, error %v; want disguised-font failure", result.Status, result.Findings, err)
+	}
+	if !strings.Contains(result.Findings[0].Detail, "OEBPS/Fonts/full.dat") {
+		t.Fatalf("disguised-font finding = %+v, want the manifest entry", result.Findings[0])
+	}
+}
+
+func TestFontMagicRecognizesSupportedSignatures(t *testing.T) {
+	for _, signature := range []string{"\x00\x01\x00\x00", "OTTO", "true", "typ1", "ttcf", "wOFF", "wOF2"} {
+		if !isFontMagic([]byte(signature + "font data")) {
+			t.Errorf("isFontMagic(%q) = false, want a recognized font signature", signature)
+		}
+	}
+	for _, data := range [][]byte{nil, []byte("OT"), []byte("PNG ")} {
+		if isFontMagic(data) {
+			t.Errorf("isFontMagic(%q) = true, want false", data)
+		}
+	}
+}
+
 func TestRunProviderCancellationReturnsCancelledErrorWithoutApplyingCandidate(t *testing.T) {
 	provider := makeProvider(t, "import time; time.sleep(30)")
 	b, _ := openFontBook(t)
@@ -622,6 +681,65 @@ func makeFontFixture(t *testing.T, includeSecondFont, includeUnmanifestedFont bo
 			t.Fatal(err)
 		}
 		if _, err := entry.Write(file.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return output.Bytes()
+}
+
+func fontMagicFixture(t *testing.T, extraPath, manifestItem, signature string) []byte {
+	t.Helper()
+	input := fontFixture(t)
+	reader, err := zip.NewReader(bytes.NewReader(input), int64(len(input)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	type fixtureEntry struct {
+		name string
+		data []byte
+	}
+	entries := make([]fixtureEntry, 0, len(reader.File)+1)
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, readErr := io.ReadAll(rc)
+		closeErr := rc.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if closeErr != nil {
+			t.Fatal(closeErr)
+		}
+		if file.Name == "OEBPS/package.opf" && manifestItem != "" {
+			before, after, replaced := bytes.Cut(data, []byte("</manifest>"))
+			if !replaced {
+				t.Fatal("package fixture has no manifest end tag")
+			}
+			data = append(bytes.Clone(before), []byte(manifestItem+"</manifest>")...)
+			data = append(data, after...)
+		}
+		entries = append(entries, fixtureEntry{name: file.Name, data: data})
+	}
+	entries = append(entries, fixtureEntry{name: extraPath, data: append([]byte(signature), []byte(" font bytes")...)})
+
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, fixture := range entries {
+		header := &zip.FileHeader{Name: fixture.name, Method: zip.Deflate}
+		header.Modified = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
+		if fixture.name == "mimetype" {
+			header.Method = zip.Store
+		}
+		entry, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write(fixture.data); err != nil {
 			t.Fatal(err)
 		}
 	}
