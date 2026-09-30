@@ -65,6 +65,18 @@ uv tool install --editable tools-font/epub-font
 
 provider 缺失或子集检查失败会使这次构建失败，原有 dist 不会被替换。完整 Go CLI 必须包含 `epub.font.subset`；尚未包含该 capability 的旧版 CLI 不能用于带字体书籍的构建。
 
+## 升级既有书
+
+书级仓库会保留创建时复制的 `build.sh`，升级手册仓库不会自动更新这些脚本。epub-font 2.0.0 已删除 `epub-font check --against`；若旧脚本仍调用它，构建会以迁移提示退出。检查并删除该调用，或审阅后将脚本更新到当前 `templates/book-starter/build.sh`。当前 Go 的 `epub.font.subset` 会在应用候选前检查独立覆盖回归。
+
+已安装的 provider 升级到 2.0.0：
+
+```sh
+uv tool install --editable --reinstall tools-font/epub-font
+```
+
+provider 2.0.0 使用 schemaVersion 2。旧 schema 会以 `font-subset.provider-outdated` 失败，且不会应用候选。旧 `fonts.json` 中的 `action: "preserve"` 在 2.x 暂时接受并提示弃用；请在 3.0.0 前移除。`tools-font/coverage-detector/` 已删除，字体覆盖分析统一经 PATH 上的 `epub-font coverage` 执行。
+
 ## 已有 EPUB 的一次性接入
 
 已有 EPUB 仍按 [`cleanup-flow.md`](cleanup-flow.md) 做底本冻结、预检、必要的结构规范化、迁移判断、全项红线和人工 diff review。S0 时即把原始 EPUB 放进 `01 源文件/` 并记录 SHA。解包前先核对 `META-INF/container.xml` 指向的 OPF 路径和 ZIP 目录：`EPUB/`、`EPUB/OPS/` 或根目录 OPF 等非 `OEBPS/` 布局，不能直接使用本页的 starter `build.sh`；它会报告缺少 `OEBPS/`。`epub.structure.normalize` 的路径规范化也不承诺把所有源树转换成 OEBPS。遇到非 OEBPS 书籍时，保留并验证该书现有可用的构建路径，不要为了适配模板脚本未经审查就重命名目录。只有确认最终候选符合本页 OEBPS 骨架且构建验证通过后，才把它解包到 `03 制作工作区/epub/` 并提交书级基线。后续局部修改直接维护解包源并运行已验证的构建命令；只有再次执行有意的清洗、迁移或授权校订时，才重跑对应的专项审查，不需要每次编辑都重复完整接入流程。

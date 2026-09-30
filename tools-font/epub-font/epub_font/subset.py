@@ -26,6 +26,7 @@ from . import check, epubtext, fontops
 CONFIG_KEYS = {"version", "fonts"}
 FONT_KEYS = {"target", "variation", "extraText"}
 DEPRECATED_FONT_KEYS = {"action"}
+DEPRECATED_ACTION_REMOVAL_VERSION = "3.0.0"
 
 
 class UsageError(Exception):
@@ -139,7 +140,9 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
         )
         result["ok"] = all(check_result["ok"] for check_result in result["checks"].values())
         if deprecated_preserve:
-            result["warnings"].append(f"{target}: configuration key action is deprecated and was ignored")
+            result["warnings"].append(
+                f"{target}: configuration key action is deprecated and ignored; remove it before epub-font {DEPRECATED_ACTION_REMOVAL_VERSION}"
+            )
         return result
 
     spec = fontops.parse_variation(job.get("variation"))
@@ -162,7 +165,9 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
     flavor = fontops.FLAVOR_BY_EXT[fontops.target_extension(target)]
     out_bytes, warnings = fontops.make_subset(source_font, required, spec, limits, flavor, target)
     if deprecated_preserve:
-        warnings.append(f"{target}: configuration key action is deprecated and was ignored")
+        warnings.append(
+            f"{target}: configuration key action is deprecated and ignored; remove it before epub-font {DEPRECATED_ACTION_REMOVAL_VERSION}"
+        )
 
     out_font = fontops.load_font(out_bytes, f"{target} (output)")
     out = fontops.font_facts(out_font)
@@ -257,7 +262,7 @@ def run(args) -> int:
 
     all_ok = all(result["ok"] for result in results)
     report_data = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "tool": "epub-font subset",
         "providerVersion": package_version("epub-font"),
         "fontTools": fontTools.version,

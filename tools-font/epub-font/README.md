@@ -31,10 +31,11 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 `coverage` 可写出 JSON 报告和自包含 HTML 报告，用于查看字体链与阅读器风险；默认输出摘要。该分析会跳过 ASCII 与部分通用标点，不承担 `check` 的全量覆盖保证。
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
-- Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（schema v1）、EPUB 与字体 SHA、字体 manifest 身份和逐项检查。私有临时报告随后清理；已校验的版本、SHA、字形统计、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
+- Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（schema v2）、EPUB 与字体 SHA、字体 manifest 身份、字体来源、静态输出、独立覆盖检查和逐项结果；provider 还必须报告与真实 MATH 表相符的 preserve 动作。schema v1 provider 会以 `font-subset.provider-outdated` 拒绝，并提示重新安装。私有临时报告随后清理；已校验的版本、SHA、字形统计、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
 - 省略 `--config` 时自动处理 OPF manifest 中的全部字体。提供 `--config` 时，`fonts.json` 只覆盖列出的字体；manifest 中未列出的字体也会自动处理。含 OpenType `MATH` 表的字体始终按原字节保留；其他静态字体直接子集化，可变字体必须指定 `variation.mode: "instance"` 并输出静态实例。
-- `action` 已从配置中移除。旧配置里的 `action: "preserve"` 暂时接受一个 provider 版本并给出弃用提示，但会被忽略；MATH 字体自动保留，普通字体仍会子集化。加密/混淆、损坏和不支持格式仍会失败。
+- `action` 已从配置中移除。旧配置里的 `action: "preserve"` 在 2.x 仍接受并给出弃用提示，但会被忽略；请在 epub-font 3.0.0 前删除该字段。MATH 字体自动保留，普通字体仍会子集化。加密/混淆、损坏和不支持格式仍会失败。
 - `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
+- `check --against` 已于 epub-font 2.0.0 删除；旧书构建脚本传入时会提示从 `build.sh` 删除该步骤。覆盖回归由 Go 的 `epub.font.subset` capability 检查。
 - `subset` 退出码：`0` 全部检查通过并写出 EPUB；`1` 字体核验失败（报告已写，EPUB 不写）；`2` 输入/配置错误或不支持的字体（报告与 EPUB 均不写）。`check` 退出码：`0` 全覆盖；`1` 有缺字；`2` 输入错误。
 
 ## fonts.json
@@ -56,7 +57,7 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 | `target` | 是 | EPUB 内已存在、且在 OPF manifest 中的字体 ZIP 路径；扩展名决定输出格式：`.ttf`（需 TrueType 轮廓）、`.otf`（需 CFF/CFF2 轮廓）、`.woff`、`.woff2` |
 | `variation.mode` | 可变字体必填；静态字体省略 | 只接受 `instance`，将可变字体实例化为静态字重 |
 | `variation.axes` | 仅 `instance` | 例如 `{"wght": 600}`；未写的轴取默认值 |
-| `action` | 已移除；临时兼容旧配置 | 仅旧值 `preserve` 暂时接受一个 provider 版本并提示弃用，随后忽略；MATH 字体自动保留 |
+| `action` | 已移除；2.x 暂时兼容 | 仅旧值 `preserve` 在 2.x 接受并提示弃用，随后忽略；3.0.0 删除兼容；MATH 字体自动保留 |
 | `extraText` | 否 | 额外保留的字符（SPEC §4 第 5 条 `extraCodepoints`） |
 
 ## 收集哪些字符（全书范围）
@@ -105,7 +106,7 @@ epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包
 
 - CFF2 母版 instance 时，fontTools 不重算 `VORG`，竖排原点保留默认实例值（会给 warning）；竖排书优先用 TrueType 母版，并在阅读器实测。
 - CFF2 instance 的坐标舍入会有 ≤ 约 0.7% em 的点位漂移（阅读字号下不可见），`outlines` 检查已按此设定容差。
-- 含 `MATH` 表的字体无论是否列入配置，都会保留完整字节；报告记录 `reason: math-table` 和相同的 original/output SHA。旧配置的 `action: "preserve"` 仅作为过渡兼容值被忽略并提示弃用。
+- 含 `MATH` 表的字体无论是否列入配置，都会保留完整字节；报告记录 `reason: math-table` 和相同的 original/output SHA。旧配置的 `action: "preserve"` 在 2.x 作为过渡兼容值被忽略并提示弃用，3.0.0 删除兼容。
 - `META-INF/encryption.xml` 列出的字体（混淆/加密）直接拒绝。
 - 只替换已存在的字体条目；新增 `@font-face` / manifest item 属于 CSS/OPF 修改，不在本工具范围。
 - 不做授权判断：OFL 字体若有 Reserved Font Name（如思源的 "Source"），子集属于修改版，发布前自行核对许可。

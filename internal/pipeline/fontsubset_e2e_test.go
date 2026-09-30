@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -75,13 +76,13 @@ func TestFontSubsetEndToEnd(t *testing.T) {
 	}
 
 	if !bytes.Equal(readFontSubsetEntry(t, input, "OEBPS/Fonts/full.ttf"), []byte("FULL FONT")) ||
-		!bytes.Equal(readFontSubsetEntry(t, input, "OEBPS/Fonts/math.otf"), []byte("FULL MATH FONT")) {
+		!bytes.Equal(readFontSubsetEntry(t, input, "OEBPS/Fonts/math.otf"), minimalSFNTMathFont()) {
 		t.Fatal("font capability changed the complete-font source")
 	}
 	if !bytes.Equal(readFontSubsetEntry(t, output, "OEBPS/Fonts/full.ttf"), []byte("SUBSET FONT")) {
 		t.Fatal("output does not contain the provider's subset font")
 	}
-	if !bytes.Equal(readFontSubsetEntry(t, output, "OEBPS/Fonts/math.otf"), []byte("FULL MATH FONT")) {
+	if !bytes.Equal(readFontSubsetEntry(t, output, "OEBPS/Fonts/math.otf"), minimalSFNTMathFont()) {
 		t.Fatal("output did not preserve the complete math font")
 	}
 
@@ -250,13 +251,13 @@ func rewriteFontSubset(input, outputPath string) int {
 	}
 	fullFont := []byte("FULL FONT")
 	subsetFont := []byte("SUBSET FONT")
-	mathFont := []byte("FULL MATH FONT")
+	mathFont := minimalSFNTMathFont()
 	sha := func(data []byte) string {
 		digest := sha256.Sum256(data)
 		return hex.EncodeToString(digest[:])
 	}
 	report := map[string]any{
-		"schemaVersion":   1,
+		"schemaVersion":   2,
 		"tool":            "epub-font subset",
 		"providerVersion": "test-1.0",
 		"fontTools":       "4.test",
@@ -283,7 +284,10 @@ func rewriteFontSubset(input, outputPath string) int {
 
 func fontSubsetReportEntry(target, manifestID, action, reason string, original, output []byte,
 	sha func([]byte) string, missingCount int) map[string]any {
-	checks := map[string]any{"cmap-coverage": map[string]any{"ok": true, "wanted": 2, "present": 2}}
+	checks := map[string]any{
+		"cmap-coverage":        map[string]any{"ok": true, "wanted": 2, "present": 2},
+		"independent-coverage": map[string]any{"ok": true, "regressions": []any{}},
+	}
 	notInMaster := []string{}
 	var requiredCodepoints *int
 	var notInMasterCount *int
@@ -302,7 +306,10 @@ func fontSubsetReportEntry(target, manifestID, action, reason string, original, 
 	} else {
 		notInMaster = nil
 		variation["mode"] = "preserve"
-		checks = map[string]any{"preserved-bytes": map[string]any{"ok": true, "sha256": sha(original)}}
+		checks = map[string]any{
+			"preserved-bytes":      map[string]any{"ok": true, "sha256": sha(original)},
+			"independent-coverage": map[string]any{"ok": true, "regressions": []any{}},
+		}
 	}
 	return map[string]any{
 		"target": target, "manifestId": manifestID, "mediaType": "application/vnd.ms-opentype",
@@ -321,6 +328,17 @@ func outputGlyphCount(action string) int {
 		return 12
 	}
 	return 11
+}
+
+func minimalSFNTMathFont() []byte {
+	font := make([]byte, 32)
+	copy(font[:4], []byte{0, 1, 0, 0})
+	binary.BigEndian.PutUint16(font[4:6], 1)
+	copy(font[12:16], "MATH")
+	binary.BigEndian.PutUint32(font[20:24], 28)
+	binary.BigEndian.PutUint32(font[24:28], 4)
+	copy(font[28:], "math")
+	return font
 }
 
 func quoteFontSubsetShell(value string) string {
@@ -369,7 +387,7 @@ func writeFontSubsetEPUB(t *testing.T) string {
 		{"OEBPS/nav.xhtml", []byte(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter</a></li></ol></nav></body></html>`)},
 		{"OEBPS/chapter.xhtml", []byte(`<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter</title></head><body><p>Hello.</p></body></html>`)},
 		{"OEBPS/Fonts/full.ttf", []byte("FULL FONT")},
-		{"OEBPS/Fonts/math.otf", []byte("FULL MATH FONT")},
+		{"OEBPS/Fonts/math.otf", minimalSFNTMathFont()},
 	}
 	f, err := os.Create(path)
 	if err != nil {

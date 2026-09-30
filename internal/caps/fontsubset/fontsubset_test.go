@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"os"
@@ -96,18 +97,123 @@ func TestRunReplacesOnlyManifestFontInMemory(t *testing.T) {
 	}
 }
 
-func TestRunAcceptsLegacySourceFontMetadata(t *testing.T) {
-	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "legacy-source-font")
+func TestRunRejectsOldProviderSchemaVersion(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "old-schema")
 	provider := makeReportingProvider(t)
 	b, _ := openFontBook(t)
 	defer b.Close()
 
 	result, err := Run(t.Context(), b, Params{ToolPath: provider})
-	if err != nil {
-		t.Fatalf("Run() error = %v", err)
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.provider-outdated" ||
+		!strings.Contains(result.Findings[0].Detail, "uv tool install --editable --reinstall tools-font/epub-font") {
+		t.Fatalf("Run() = result %+v, error %v; want provider-outdated with install hint", result, err)
 	}
-	if result.Status != "complete" {
-		t.Fatalf("status = %q, want complete for legacy report metadata", result.Status)
+	font, readErr := b.Current("OEBPS/Fonts/full.ttf")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !bytes.Equal(font, []byte("FULL FONT")) {
+		t.Fatalf("font changed after outdated-provider failure: %q", font)
+	}
+}
+
+func TestRunRejectsReportWithoutIndependentCoverage(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "missing-independent-coverage")
+	assertProviderReportRejected(t)
+}
+
+func TestRunRejectsLegacyMasterReport(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "legacy-source-font")
+	assertProviderReportRejected(t)
+}
+
+func TestRunRejectsExternalSourceFont(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "external-source-font")
+	assertProviderReportRejected(t)
+}
+
+func TestRunRejectsVariableSubsetOutput(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "variable-subset-output")
+	assertProviderReportRejected(t)
+}
+
+func TestRunRejectsPreserveWithoutMathTable(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "preserve-no-math")
+	assertProviderReportRejected(t)
+}
+
+func TestFontHasMathTableReadsSFNTAndWOFFDirectories(t *testing.T) {
+	sfnt := makeTestSFNT("MATH")
+	hasMath, err := fontHasMathTable(sfnt)
+	if err != nil || !hasMath {
+		t.Fatalf("fontHasMathTable(SFNT) = %v, %v; want true, nil", hasMath, err)
+	}
+
+	woff := makeTestWOFFMath()
+	hasMath, err = fontHasMathTable(woff)
+	if err != nil || !hasMath {
+		t.Fatalf("fontHasMathTable(WOFF) = %v, %v; want true, nil", hasMath, err)
+	}
+
+	noMath, err := fontHasMathTable(makeTestSFNT("name"))
+	if err != nil || noMath {
+		t.Fatalf("fontHasMathTable(SFNT without MATH) = %v, %v; want false, nil", noMath, err)
+	}
+}
+
+func TestFontHasMathTableRejectsWOFF2AndTTC(t *testing.T) {
+	for _, signature := range []string{"wOF2", "ttcf"} {
+		t.Run(signature, func(t *testing.T) {
+			_, err := fontHasMathTable([]byte(signature + "data"))
+			if err == nil {
+				t.Fatalf("fontHasMathTable(%q) error = nil, want explicit unsupported-container error", signature)
+			}
+		})
+	}
+}
+
+func makeTestSFNT(tableTag string) []byte {
+	font := make([]byte, 32)
+	copy(font[:4], []byte{0, 1, 0, 0})
+	binary.BigEndian.PutUint16(font[4:6], 1)
+	copy(font[12:16], tableTag)
+	binary.BigEndian.PutUint32(font[20:24], 28)
+	binary.BigEndian.PutUint32(font[24:28], 4)
+	copy(font[28:], "data")
+	return font
+}
+
+func makeTestWOFFMath() []byte {
+	font := make([]byte, 68)
+	copy(font[:4], "wOFF")
+	binary.BigEndian.PutUint32(font[8:12], uint32(len(font)))
+	binary.BigEndian.PutUint16(font[12:14], 1)
+	copy(font[44:48], "MATH")
+	binary.BigEndian.PutUint32(font[48:52], 64)
+	binary.BigEndian.PutUint32(font[52:56], 4)
+	binary.BigEndian.PutUint32(font[56:60], 4)
+	copy(font[64:], "math")
+	return font
+}
+
+func assertProviderReportRejected(t *testing.T) {
+	t.Helper()
+	provider := makeReportingProvider(t)
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.report-invalid" {
+		t.Fatalf("Run() = result %+v, error %v; want report-invalid", result, err)
+	}
+	font, readErr := b.Current("OEBPS/Fonts/full.ttf")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !bytes.Equal(font, []byte("FULL FONT")) {
+		t.Fatalf("font changed after invalid report: %q", font)
 	}
 }
 
@@ -296,15 +402,16 @@ from pathlib import Path
 source = Path(sys.argv[2])
 output = Path(sys.argv[sys.argv.index("--out") + 1])
 target = "OEBPS/Fonts/full.ttf"
+mode = os.environ.get("EPUB_FONT_REPORT_TEST_MODE", "valid")
 with zipfile.ZipFile(source) as src, zipfile.ZipFile(output, "w") as dst:
     for entry in src.infolist():
-        data = b"SUBSET FONT" if entry.filename == target else src.read(entry)
+        data = b"SUBSET FONT" if entry.filename == target and mode != "preserve-no-math" else src.read(entry)
         dst.writestr(entry, data)
 source_font = zipfile.ZipFile(source).read(target)
 output_font = zipfile.ZipFile(output).read(target)
 sha = lambda data: hashlib.sha256(data).hexdigest()
 report = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "tool": "epub-font subset",
     "providerVersion": "test-1.0",
     "fontTools": "4.test",
@@ -321,14 +428,14 @@ report = {
         "output": {"sha256": sha(output_font), "bytes": len(output_font), "glyphs": 11,
                    "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},
         "requiredCodepoints": 2, "notInMaster": ["U+9F98 龘"], "notInMasterCount": 1,
-        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 1}},
+        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 1},
+                   "independent-coverage": {"ok": True, "regressions": []}},
         "ok": True,
         "warnings": [target + ": 1 required characters are not in the master font (fallback fonts must cover them)"]
     }],
     "ok": True,
     "output": {"path": str(output), "sha256": sha(output.read_bytes()), "warnings": []}
 }
-mode = os.environ.get("EPUB_FONT_REPORT_TEST_MODE", "valid")
 report_path = output.with_name(output.stem + ".font-report.json")
 if mode == "missing":
     sys.exit(0)
@@ -346,9 +453,32 @@ if mode == "wrong-media-type":
     report["fonts"][0]["mediaType"] = "application/xhtml+xml"
 if mode == "wrong-output-sha":
     report["output"]["sha256"] = "0" * 64
+if mode == "old-schema":
+    report["schemaVersion"] = 1
 if mode == "legacy-source-font":
     font = report["fonts"][0]
     font["master"] = font.pop("sourceFont")
+if mode == "missing-independent-coverage":
+    del report["fonts"][0]["checks"]["independent-coverage"]
+if mode == "external-source-font":
+    report["fonts"][0]["sourceFont"]["source"] = "file:/outside/master.ttf"
+if mode == "variable-subset-output":
+    report["fonts"][0]["variation"]["mode"] = "keep"
+    report["fonts"][0]["output"]["axes"] = ["wght"]
+if mode == "preserve-no-math":
+    font = report["fonts"][0]
+    digest = sha(source_font)
+    font["action"] = "preserve"
+    font["reason"] = "math-table"
+    font["variation"] = {"mode": "preserve", "axes": {}}
+    font["output"].update({"sha256": digest, "bytes": len(source_font), "glyphs": 12,
+                           "axes": [], "tables": ["cmap", "glyf"]})
+    font["requiredCodepoints"] = None
+    font["notInMaster"] = None
+    font["notInMasterCount"] = None
+    font["checks"] = {"preserved-bytes": {"ok": True, "sha256": digest},
+                      "independent-coverage": {"ok": True, "regressions": []}}
+    font["warnings"] = []
 report_path.write_text(json.dumps(report), encoding="utf-8")
 `
 
@@ -365,7 +495,7 @@ source_bytes = source.read_bytes()
 font = zipfile.ZipFile(source).read(target)
 sha = lambda data: hashlib.sha256(data).hexdigest()
 report = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "tool": "epub-font subset",
     "providerVersion": "test-1.0",
     "fontTools": "4.test",
@@ -382,7 +512,8 @@ report = {
         "output": {"sha256": sha(font), "bytes": len(font), "glyphs": 12,
                    "outline": "glyf", "flavor": None, "axes": [], "tables": ["cmap", "glyf"]},
         "requiredCodepoints": 2, "notInMaster": [], "notInMasterCount": 0,
-        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 2}},
+        "checks": {"cmap-coverage": {"ok": True, "wanted": 2, "present": 2},
+                   "independent-coverage": {"ok": True, "regressions": []}},
         "ok": True,
         "warnings": []
     }],

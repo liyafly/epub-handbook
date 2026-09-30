@@ -8,7 +8,10 @@
 - `epub.package.migrate.epub3` 不再注入默认排版 CSS；删除排版开关与对应报告 facts。需要排版时改用 `epub.typography.optimize`。
 - `epub.package.migrate.epub3` 不再转换 plain/Sigil 旧尾注或注入 `note.png`；删除 `no_popup_notes` 参数与 `plainNotesConverted`、`popupNotes` facts。旧式尾注保持原文，转换需经授权后人工处理。
 - `epub redline` 不再将旧式 `[N]` 链接与迁移后的 noteref 配对豁免；旧式标记文本按普通正文比较。
-- `epub-font` 移除包外字体源路径配置和 VF `keep` / `limit` 模式；可变字体只接受 `instance`。`action` 配置字段已移除，旧 `action: "preserve"` 暂时接受一个 provider 版本并作为 no-op 忽略。
+- `epub-font check --against` 已删除；既有书的 `build.sh` 若调用它，需删除该步骤或换用当前模板。子集覆盖回归由 `epub.font.subset` 的 Go capability 校验。
+- `tools-font/coverage-detector/` 已删除；`epub.font.coverage.analyze` 改为调用 PATH 上的 `epub-font coverage`，不再读取 `EPUB_HANDBOOK_ROOT`。已有安装执行 `uv tool install --editable --reinstall tools-font/epub-font`。
+- `epub-font` provider 升至 2.0.0，subset 报告使用 schemaVersion 2；Go capability 拒绝旧报告，并校验来源、静态输出、独立覆盖检查及 MATH 表。移除包外字体源路径与 VF `keep` / `limit`，可变字体只接受 `instance`。
+- 旧配置 `action: "preserve"` 在 2.x 仍作为弃用 no-op 接受，须在 3.0.0 前删除。
 
 ### Breaking (JSON facts)
 
@@ -16,8 +19,7 @@
 
 ### Changed
 
-- **`epub-font` 1.1.0**：`fonts.json` 只覆盖明确列出的字体；未列出的 manifest 字体也会按自动规则处理，包括自动保留 MATH 字体。Go capability 现在拒绝 provider 漏报 manifest 字体的报告。
-- **`epub-font` 1.2.0**：字体源只能来自 EPUB 内的 manifest 目标；可变字体统一实例化，MATH 字体不再要求显式保留配置。subset 用独立字符收集器阻断新增覆盖损失，删除重复的 `check --against` CLI 模式。
+- **`epub-font` 1.0.0 → 2.0.0**：合并此前未单独发布的 1.1.0 / 1.2.0 行为，覆盖所有 manifest 字体、只使用 EPUB 内字体源、实例化可变字体、自动保留 MATH 字体，并用独立字符收集器阻断新增覆盖损失；`action: "preserve"` 在 2.x 保持兼容并计划于 3.0.0 删除。
 
 ### Fixed
 

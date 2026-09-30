@@ -5,7 +5,7 @@
 ## 安装与能力
 
 ```sh
-uv tool install --editable tools-font/epub-font
+uv tool install --editable --reinstall tools-font/epub-font
 epub-font --help
 ```
 

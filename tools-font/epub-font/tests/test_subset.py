@@ -210,6 +210,13 @@ def test_cli_end_to_end(tmp_path, capsys):
     assert ord("字") not in semibold.getBestCmap()
 
 
+def test_report_schema_version_is_2(tmp_path):
+    epub, config = write_inputs(tmp_path, GOOD_CONFIG)
+    code, report = run_subset(epub, config, tmp_path / "candidate.epub")
+    assert code == 0, report
+    assert report["schemaVersion"] == 2
+
+
 def test_cli_is_deterministic(tmp_path):
     epub, config = write_inputs(tmp_path, GOOD_CONFIG)
     hashes = []
@@ -258,7 +265,7 @@ def test_cli_rejects_external_master_config_field(tmp_path, capsys):
     assert not output.exists() and not subset.report_path(output).exists()
 
 
-def test_deprecated_preserve_action_is_a_noop_for_regular_font(tmp_path, capsys):
+def test_deprecated_action_has_removal_version(tmp_path, capsys):
     config = {"version": 1, "fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "preserve"}]}
     regular = synth.build_epub({"OEBPS/Fonts/st-all.ttf": GLYF_STATIC})
     epub, config_path = write_inputs(tmp_path, config, regular)
@@ -269,7 +276,8 @@ def test_deprecated_preserve_action_is_a_noop_for_regular_font(tmp_path, capsys)
     assert code == 0, report
     assert report["fonts"][0]["action"] == "subset"
     assert report["fonts"][0]["original"]["sha256"] != report["fonts"][0]["output"]["sha256"]
-    assert "deprecated" in capsys.readouterr().out
+    output_text = capsys.readouterr().out
+    assert "deprecated" in output_text and "3.0.0" in output_text
     with zipfile.ZipFile(output) as candidate:
         assert candidate.read("OEBPS/Fonts/st-all.ttf") != GLYF_STATIC
 

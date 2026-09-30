@@ -415,6 +415,13 @@ def _run(args) -> int:
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if any(arg == "--against" or arg.startswith("--against=") for arg in argv):
+        print(
+            "error: --against removed in epub-font 2.0.0; delete this step from build.sh (see CHANGELOG)",
+            file=sys.stderr,
+        )
+        return 2
     parser = argparse.ArgumentParser(prog="epub-font check", description=__doc__.splitlines()[0])
     parser.add_argument("epub")
     parser.add_argument("--font", action="append", help="font path inside the EPUB (repeatable)")

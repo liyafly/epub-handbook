@@ -19,11 +19,11 @@
     "epub.font.subset.provider": "epub-font",
     "epub.font.subset.providerLog": "provider did not return diagnostic output",
     "epub.font.subset.providerReport": {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "providerVersion": "test-1.0",
       "fontToolsVersion": "4.test",
-      "inputSHA256": "acb9b749d23c0bc739d2f28009c4754ae555079733dee91f7136a62a1120e1e5",
-      "outputSHA256": "c84fc10479b1b321c721fda304236fa797ddce2226c1413cc33bd062e5810cf6",
+      "inputSHA256": "9ee213bb5971f558c4a4b53e05379f53c4fb812cf9c9ba19dd4353f244270bf7",
+      "outputSHA256": "d2f7801bf089a58637105720cfa143dc0814482ca8f37b46158af55c620eb384",
       "ok": true,
       "fonts": [
         {
@@ -48,6 +48,10 @@
               "ok": true,
               "present": 1,
               "wanted": 2
+            },
+            "independent-coverage": {
+              "ok": true,
+              "regressions": []
             }
           },
           "warnings": [
@@ -58,21 +62,25 @@
           "target": "OEBPS/Fonts/math.otf",
           "action": "preserve",
           "reason": "math-table",
-          "masterSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
-          "originalSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
-          "outputSHA256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd",
-          "masterBytes": 14,
-          "originalBytes": 14,
-          "outputBytes": 14,
+          "masterSHA256": "5b08f8cf8b0bb9405f084ce8305456721cbd438a4d9a007ae8c7a565c0c675e2",
+          "originalSHA256": "5b08f8cf8b0bb9405f084ce8305456721cbd438a4d9a007ae8c7a565c0c675e2",
+          "outputSHA256": "5b08f8cf8b0bb9405f084ce8305456721cbd438a4d9a007ae8c7a565c0c675e2",
+          "masterBytes": 32,
+          "originalBytes": 32,
+          "outputBytes": 32,
           "masterGlyphs": 12,
           "outputGlyphs": 12,
           "requiredCodepoints": null,
           "notInMaster": null,
           "notInMasterCount": null,
           "checks": {
+            "independent-coverage": {
+              "ok": true,
+              "regressions": []
+            },
             "preserved-bytes": {
               "ok": true,
-              "sha256": "c66378031eb245588d81085c7445a48c882acec7845fa800f9765f1594de12bd"
+              "sha256": "5b08f8cf8b0bb9405f084ce8305456721cbd438a4d9a007ae8c7a565c0c675e2"
             }
           },
           "warnings": []

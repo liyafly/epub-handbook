@@ -109,17 +109,17 @@ def test_missing_char_is_reported_with_location(tmp_path):
     assert missing["U+201C “"]["first"] == "css"
 
 
-def test_check_cli_rejects_removed_against_mode(tmp_path):
+def test_check_cli_rejects_removed_against_mode(tmp_path, capsys):
     epub = tmp_path / "book.epub"
     font = font_covering(required(make_epub()))
     epub.write_bytes(make_epub(fonts={"OEBPS/Fonts/st-all.ttf": font}))
     full = tmp_path / "full.epub"
     full.write_bytes(epub.read_bytes())
 
-    with pytest.raises(SystemExit) as exit_info:
-        check.main([str(epub), "--against", str(full)])
-
-    assert exit_info.value.code == 2
+    code = check.main([str(epub), "--against", str(full)])
+    stderr = capsys.readouterr().err
+    assert code == 2
+    assert "removed in epub-font 2.0.0" in stderr and "delete this step from build.sh" in stderr
 
 
 def test_glyph_without_outline_is_reported(tmp_path):

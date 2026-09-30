@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,7 @@ import (
 const CapabilityID = "epub.font.subset"
 
 const (
-	providerReportSchemaVersion = 1
+	providerReportSchemaVersion = 2
 	maxProviderReportBytes      = 8 << 20
 )
 
@@ -52,10 +53,15 @@ type providerFontMeta struct {
 }
 
 type providerFontOutput struct {
-	SHA256  string `json:"sha256"`
-	Bytes   int64  `json:"bytes"`
-	Glyphs  int    `json:"glyphs"`
-	Outline string `json:"outline"`
+	SHA256  string   `json:"sha256"`
+	Bytes   int64    `json:"bytes"`
+	Glyphs  int      `json:"glyphs"`
+	Outline string   `json:"outline"`
+	Axes    []string `json:"axes"`
+}
+
+type providerVariation struct {
+	Mode string `json:"mode"`
 }
 
 type providerFontDigest struct {
@@ -70,9 +76,9 @@ type providerFontResult struct {
 	Action             string                     `json:"action"`
 	Reason             string                     `json:"reason"`
 	SourceFont         providerFontMeta           `json:"sourceFont"`
-	LegacyMaster       providerFontMeta           `json:"master"`
 	Original           providerFontDigest         `json:"original"`
 	Output             providerFontOutput         `json:"output"`
+	Variation          providerVariation          `json:"variation"`
 	RequiredCodepoints *int                       `json:"requiredCodepoints"`
 	NotInMaster        []string                   `json:"notInMaster"`
 	NotInMasterCount   *int                       `json:"notInMasterCount"`
@@ -216,6 +222,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			return res, err
 		}
 		return failure(&res, "font-subset.report-invalid", err.Error())
+	}
+	var reportVersion struct {
+		SchemaVersion int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(providerReportBytes, &reportVersion); err != nil {
+		return failure(&res, "font-subset.report-invalid", fmt.Sprintf("decode provider report: %v", err))
+	}
+	if reportVersion.SchemaVersion == 1 {
+		return failure(&res, "font-subset.provider-outdated", "provider report schemaVersion 1 is no longer supported; install the current provider with `uv tool install --editable --reinstall tools-font/epub-font`")
 	}
 	var reportedTargets struct {
 		Fonts []struct {
@@ -430,11 +445,6 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 			return providerReportSummary{}, nil, fmt.Errorf("provider report marks font %q as failed", font.Target)
 		}
 		sourceFont := font.SourceFont
-		if sourceFont.Source == "" {
-			sourceFont = font.LegacyMaster
-		} else if font.LegacyMaster != (providerFontMeta{}) {
-			return providerReportSummary{}, nil, fmt.Errorf("provider report has duplicate source font facts for %q", font.Target)
-		}
 		if sourceFont.Source == "" || len(sourceFont.Source) > 4096 || sourceFont.Bytes < 0 || sourceFont.Glyphs < 0 || sourceFont.Outline == "" ||
 			!validSHA256(sourceFont.SHA256) {
 			return providerReportSummary{}, nil, fmt.Errorf("provider report has invalid master facts for %q", font.Target)
@@ -448,6 +458,9 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		checks, err := summarizeProviderChecks(font.Checks)
 		if err != nil {
 			return providerReportSummary{}, nil, fmt.Errorf("%s: %w", font.Target, err)
+		}
+		if _, ok := font.Checks["independent-coverage"]; !ok {
+			return providerReportSummary{}, nil, fmt.Errorf("provider report is missing the independent-coverage check for %q", font.Target)
 		}
 		original, err := source.OriginalContext(ctx, font.Target)
 		if err != nil {
@@ -463,11 +476,17 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		if font.Output.SHA256 != sha256Hex(outputFont) || font.Output.Bytes != int64(len(outputFont)) {
 			return providerReportSummary{}, nil, fmt.Errorf("provider output SHA-256 or size does not match %q", font.Target)
 		}
-		if strings.HasPrefix(sourceFont.Source, "epub:") && sourceFont.SHA256 != font.Original.SHA256 {
-			return providerReportSummary{}, nil, fmt.Errorf("embedded master SHA-256 does not match original font %q", font.Target)
+		if sourceFont.Source != "epub:"+font.Target || sourceFont.SHA256 != font.Original.SHA256 {
+			return providerReportSummary{}, nil, fmt.Errorf("source font must be the original EPUB target %q with a matching SHA-256", font.Target)
 		}
 		switch font.Action {
 		case "subset":
+			if font.Variation.Mode != "static" && font.Variation.Mode != "instance" {
+				return providerReportSummary{}, nil, fmt.Errorf("provider report has unsupported subset variation mode %q for %q", font.Variation.Mode, font.Target)
+			}
+			if font.Output.Axes == nil || len(font.Output.Axes) != 0 {
+				return providerReportSummary{}, nil, fmt.Errorf("subset output for %q must have an empty axes array", font.Target)
+			}
 			if font.RequiredCodepoints == nil || *font.RequiredCodepoints < 0 || font.NotInMasterCount == nil || *font.NotInMasterCount < 0 || font.NotInMaster == nil {
 				return providerReportSummary{}, nil, fmt.Errorf("provider report has incomplete subset counts for %q", font.Target)
 			}
@@ -482,6 +501,16 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		case "preserve":
 			if font.Reason != "math-table" || font.RequiredCodepoints != nil || font.NotInMaster != nil || font.NotInMasterCount != nil {
 				return providerReportSummary{}, nil, fmt.Errorf("provider report has invalid preserve facts for %q", font.Target)
+			}
+			if font.Output.Axes == nil || len(font.Output.Axes) != 0 {
+				return providerReportSummary{}, nil, fmt.Errorf("preserve output for %q must have an empty axes array", font.Target)
+			}
+			hasMath, err := fontHasMathTable(original)
+			if err != nil {
+				return providerReportSummary{}, nil, fmt.Errorf("cannot verify MATH table for %q: %w", font.Target, err)
+			}
+			if !hasMath {
+				return providerReportSummary{}, nil, fmt.Errorf("provider claimed preserve for %q, but the original font has no MATH table", font.Target)
 			}
 			if font.Original.SHA256 != font.Output.SHA256 || !bytes.Equal(original, outputFont) {
 				return providerReportSummary{}, nil, fmt.Errorf("provider did not preserve MATH font bytes for %q", font.Target)
@@ -545,6 +574,83 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		})
 	}
 	return summary, findings, nil
+}
+
+// fontHasMathTable inspects the table directory without depending on the Python
+// provider. TTC collections and WOFF2 require container decoders and are rejected.
+func fontHasMathTable(data []byte) (bool, error) {
+	if len(data) < 4 {
+		return false, errors.New("font header is truncated")
+	}
+	switch string(data[:4]) {
+	case "wOF2":
+		return false, errors.New("WOFF2 fonts are not supported for preserve validation")
+	case "ttcf":
+		return false, errors.New("TTC collections are not supported for preserve validation")
+	case "wOFF":
+		return woffHasMathTable(data)
+	case "\x00\x01\x00\x00", "OTTO", "true", "typ1":
+		return sfntHasMathTable(data)
+	default:
+		return false, fmt.Errorf("unsupported font signature %q", data[:4])
+	}
+}
+
+func sfntHasMathTable(data []byte) (bool, error) {
+	if len(data) < 12 {
+		return false, errors.New("SFNT header is truncated")
+	}
+	numTables := int(binary.BigEndian.Uint16(data[4:6]))
+	const headerSize, recordSize = 12, 16
+	directorySize := numTables * recordSize
+	if directorySize > len(data)-headerSize {
+		return false, errors.New("SFNT table directory is truncated")
+	}
+	for index := range numTables {
+		record := data[headerSize+index*recordSize : headerSize+(index+1)*recordSize]
+		if string(record[:4]) != "MATH" {
+			continue
+		}
+		offset := uint64(binary.BigEndian.Uint32(record[8:12]))
+		length := uint64(binary.BigEndian.Uint32(record[12:16]))
+		directoryEnd := uint64(headerSize + directorySize)
+		if length == 0 || offset < directoryEnd || offset > uint64(len(data)) || length > uint64(len(data))-offset {
+			return false, errors.New("SFNT MATH table is empty or outside the font file")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func woffHasMathTable(data []byte) (bool, error) {
+	const headerSize, recordSize = 44, 20
+	if len(data) < headerSize {
+		return false, errors.New("WOFF header is truncated")
+	}
+	totalLength := uint64(binary.BigEndian.Uint32(data[8:12]))
+	if totalLength != uint64(len(data)) {
+		return false, errors.New("WOFF length does not match the font file")
+	}
+	numTables := int(binary.BigEndian.Uint16(data[12:14]))
+	directorySize := numTables * recordSize
+	if directorySize > len(data)-headerSize {
+		return false, errors.New("WOFF table directory is truncated")
+	}
+	for index := range numTables {
+		record := data[headerSize+index*recordSize : headerSize+(index+1)*recordSize]
+		if string(record[:4]) != "MATH" {
+			continue
+		}
+		offset := uint64(binary.BigEndian.Uint32(record[4:8]))
+		compressedLength := uint64(binary.BigEndian.Uint32(record[8:12]))
+		originalLength := uint64(binary.BigEndian.Uint32(record[12:16]))
+		directoryEnd := uint64(headerSize + directorySize)
+		if compressedLength == 0 || originalLength == 0 || offset < directoryEnd || offset > uint64(len(data)) || compressedLength > uint64(len(data))-offset {
+			return false, errors.New("WOFF MATH table is empty or outside the font file")
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func summarizeProviderChecks(raw map[string]json.RawMessage) (map[string]map[string]any, error) {
