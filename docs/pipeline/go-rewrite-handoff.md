@@ -3,10 +3,10 @@
 > 当前实现规则以 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md) 为准。本页只记录接手所需的现状、开放项和检查入口。
 > 迁移期决策快照见 [`archive/meta/2026-08-30-go-rewrite-decisions.md`](../../archive/meta/2026-08-30-go-rewrite-decisions.md)；逐轮复审证据见 [`archive/meta/2026-09-go-rewrite-review-log.md`](../../archive/meta/2026-09-go-rewrite-review-log.md)。
 
-## 当前状态（2026-09-27）
+## 当前状态（2026-09-30）
 
 - Go 单一公开 CLI 与 `internal/` 能力流水线是唯一执行面；`contracts/` 是机器契约来源，`tools-font/` 保留一个独立字体 provider。架构硬约束与守卫要求以 Go 架构 SPEC 为准。
-- contracts 与 registry 各有 23 个 capability。当前执行形态为 14 个输出型与 9 个只读型；`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用 `tools-font/epub-font/`，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
+- contracts 与 registry 各有 22 个 capability：14 个输出型（13 个 single、1 个 multi）与 8 个只读型。`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用同一个 `tools-font/epub-font/` provider，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
 - 截至 2026-09-30，当前发布基线为 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
@@ -20,7 +20,7 @@
 | CLI | `cmd/epub` 只处理参数和退出码；业务编排在 `internal/pipeline`。 |
 | 契约 | `contracts/capabilities/` 定义 capability、权限、requires 与执行形态；v2 envelope 由 schema 和 INV-6 守卫。 |
 | EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出；`epub clean` 的多步处理共享源 archive，步骤间不生成中间 ZIP。 |
-| 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell/link 与弹注转换按目标范围写入，弹注匹配要求真实标签边界。 |
+| 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell 与 Duokan 弹注 class 规范化按目标范围写入。 |
 | 字体工具 | `epub-font` 的 `coverage`、`subset`、`check` 共用 `tools-font/epub-font/` 项目与一条 `uv tool install --editable tools-font/epub-font` 安装入口。Go capabilities 从 PATH 调用该 provider；缺少或启动失败时返回结构化 finding，书籍含字体而子集验证失败时构建失败并保留既有 dist。provider 不进入 Go CLI 发行包。 |
 | 遗留执行面 | 面向用户的 Python 执行脚本与 parity harness 已移除；`templates/cleanup-demo-books/build_demo_epubs.py` 仅作为生成测试 fixture 的 Python 3 辅助工具保留，不属于 CLI 执行面。`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
 | 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选不写出。 |
@@ -64,7 +64,7 @@
 ## 待决策 / 开放项
 
 - Apple Books、Readest、Kindle Previewer 等目标阅读器仍需按 `docs/final/reader-matrix.yaml` 的待测项执行 GUI 实测；不得把构建、EPUBCheck 或浏览器结果记作 reader pass。
-- `epub.font.coverage.analyze` 与 `epub.font.subset` 已作为正式 capability 注册；两个 Python provider 均需独立安装和测试。coverage provider 不可用时覆盖分析失败并说明无法验证；含字体的书级构建遇到 subset provider 缺失、配置错误或字体验证失败时必须失败并保留上次通过的 dist。
+- `epub.font.coverage.analyze` 与 `epub.font.subset` 已作为正式 capability 注册，由同一个 `epub-font` provider 提供；provider 需独立安装，并分别通过 Python 单测、Go external wrapper 测试和真实 book-starter smoke。coverage provider 不可用时覆盖分析失败并说明无法验证；含字体的书级构建遇到 subset provider 缺失、配置错误或字体验证失败时必须失败并保留上次通过的 dist。
 - Source intake 当前只做可审计盘点；PDF 解析、OCR、图片转码与后续内容抽取不在现有契约范围。扩大范围前需明确输入材料、隐私、许可和输出决策。
 - 手册与速查表之间的规则一致性目前没有自动语义守卫；涉及硬规则时按 `AGENTS.md` 同步检查 SPEC、终极实践手册、CSS 速查表和相关 skills。
 - 任一 reader 状态需要有真实版本、精确 artifact SHA 和可复核截图或日志；若证据缺一，状态继续留在 warn / na 或 untested，不由工具验证代填。
