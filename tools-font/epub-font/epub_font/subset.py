@@ -38,6 +38,8 @@ def _load_config(path: Path) -> dict:
         config = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise UsageError(f"cannot read config {path}: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise UsageError(f"config {path} is not valid UTF-8: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise UsageError(f"config {path} is not valid JSON: {exc}") from exc
     if not isinstance(config, dict):

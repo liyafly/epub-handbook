@@ -236,6 +236,28 @@ func TestRunProviderFailureLeavesBookUnchanged(t *testing.T) {
 	}
 }
 
+func TestRunMapsProviderUsageErrorToInputFinding(t *testing.T) {
+	provider := makeProvider(t, `import sys; print("error: invalid provider input", file=sys.stderr); sys.exit(2)`)
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "failed" || len(result.Findings) != 1 ||
+		result.Findings[0].ID != "font-subset.provider-rejected-input" {
+		t.Fatalf("Run() = result %+v, error %v; want provider-rejected-input", result, err)
+	}
+	if !strings.Contains(result.Findings[0].Detail, "provider exit code 2") {
+		t.Fatalf("finding = %+v, want provider exit code 2", result.Findings[0])
+	}
+	font, readErr := b.Current("OEBPS/Fonts/full.ttf")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !bytes.Equal(font, []byte("FULL FONT")) {
+		t.Fatalf("font changed after provider usage error: %q", font)
+	}
+}
+
 func TestRunSupportsRelativeInputPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("provider shim uses a POSIX executable")

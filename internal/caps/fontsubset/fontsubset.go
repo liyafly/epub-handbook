@@ -257,6 +257,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		return failure(&res, "font-subset.provider-failed", providerDetail(provider, err))
 	}
 	if provider.ExitCode != 0 {
+		if provider.ExitCode == 2 {
+			return failure(&res, "font-subset.provider-rejected-input", providerDetail(provider, fmt.Errorf("provider exit code %d", provider.ExitCode)))
+		}
 		return failure(&res, "font-subset.check-failed", providerDetail(provider, fmt.Errorf("provider exit code %d", provider.ExitCode)))
 	}
 	providerReportPath := filepath.Join(workspace, "subset.font-report.json")

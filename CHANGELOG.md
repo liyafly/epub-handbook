@@ -17,6 +17,7 @@
 - C23：nav.audit 将 CSS `url()` 越出 EPUB 容器根的引用报告为 `CSS url() target escapes container root`，finding detail 使用 `xhtml-invalid-target`。
 - C25：`ResolveRelativePath` 拒绝 rooted 路径（含百分号解码后以 `/` 开头的路径）；popup 图标 `src` 明确报告 `src must be a local EPUB resource`，typography spine 以 preset error 拒绝。
 - F17：font.subset 用字体魔数识别未登记字体与错误声明为非字体媒体类型的字体；book-starter 扫描 `META-INF/` 和 `OEBPS/` 中已知字体扩展名。
+- F18：epub-font 将非 UTF-8 subset 配置作为 exit 2 用法错误；coverage 默认只输出一行 `error:`，设置 `EPUB_FONT_DEBUG=1` 才附 traceback；Go 将 provider exit 2 归为 `font-subset.provider-rejected-input`。
 
 ### Changed
 

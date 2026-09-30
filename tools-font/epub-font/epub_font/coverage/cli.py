@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 import zipfile
 from importlib.resources import files
@@ -273,7 +274,6 @@ def main(argv=None):
         # The CSS @font-face family and the font's internal family name often
         # disagree (e.g. "kxs" → rarefont.ttf whose name table says "Untitled");
         # keying by path is exact and avoids that misattribution.
-        import os.path
         font_paths = [f["resolved_path"] for f in book["font_files"]]
         zf_idx = zipfile.ZipFile(args.epub, "r")
         try:
@@ -441,9 +441,12 @@ def main(argv=None):
             sys.exit(1 if fails >= 5 else 0)
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
+        message = " ".join(str(e).split())
+        print(f"error: {message}", file=sys.stderr)
+        if os.environ.get("EPUB_FONT_DEBUG") == "1":
+            import traceback
+
+            traceback.print_exc(file=sys.stderr)
         sys.exit(2)
 
 

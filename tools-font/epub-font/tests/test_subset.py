@@ -291,19 +291,22 @@ def test_removed_variable_font_modes_are_rejected(variation):
         fontops.parse_variation(variation)
 
 
-@pytest.mark.parametrize("config_patch,epub_kwargs,message", [
-    ({"fonts": [{"target": "OEBPS/Fonts/missing.ttf"}]}, {}, "is not in the EPUB"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "typo": 1}]}, {}, "unknown keys"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "subset"}]}, {}, "only the legacy value 'preserve'"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "only the legacy value 'preserve'"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice"),
-    ({"version": 2}, {}, "version must be 1"),
-    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}]}, {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "encryption.xml"),
+@pytest.mark.parametrize("config_patch,epub_kwargs,message,config_bytes", [
+    ({"fonts": [{"target": "OEBPS/Fonts/missing.ttf"}]}, {}, "is not in the EPUB", None),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "typo": 1}]}, {}, "unknown keys", None),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "subset"}]}, {}, "only the legacy value 'preserve'", None),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "only the legacy value 'preserve'", None),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice", None),
+    ({"version": 2}, {}, "version must be 1", None),
+    ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}]}, {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "encryption.xml", None),
+    ({}, {}, "not valid UTF-8", b"\xff\xfe{}"),
 ])
-def test_cli_refuses_bad_input(tmp_path, capsys, config_patch, epub_kwargs, message):
+def test_cli_refuses_bad_input(tmp_path, capsys, config_patch, epub_kwargs, message, config_bytes):
     config = {**GOOD_CONFIG, **config_patch}
     epub_bytes = synth.build_epub(BOOK_FONTS, **epub_kwargs)
     epub, config_path = write_inputs(tmp_path, config, epub_bytes)
+    if config_bytes is not None:
+        config_path.write_bytes(config_bytes)
     candidate = tmp_path / "candidate.epub"
     code, report = run_subset(epub, config_path, candidate)
     assert code == 2 and report is None
