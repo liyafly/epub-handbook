@@ -14,37 +14,14 @@ import (
 	"github.com/liyafly/epub-handbook/internal/report"
 )
 
-// referenceBook 返回仓库内跟踪的真书样本（references/epubs/*.epub）。
-// 该文件在 git 中，存在时不得 t.Skip。
-func referenceBook(t *testing.T) string {
-	t.Helper()
-	repo, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	matches, err := filepath.Glob(filepath.Join(repo, "references", "epubs", "*.epub"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(matches) == 0 {
-		t.Fatalf("references/epubs 下没有真书样本（应在 git 中跟踪）")
-	}
-	return matches[0]
-}
-
-// TestRunRealBookNormalizeDryRunNotBlockedByNavAudit 是 ff30a1a 回归的真书
-// 复现：真书上 nav.audit 必然报 error findings，但 requires 上游是诊断，
-// epub.structure.normalize 的 dry-run 必须仍跑到目标 stage 并 completed。
-//
-// 信封的最终状态由目标 stage 与红线决定，而不是上游：这本书上 normalize 的
-// format 阶段（Python 语义：dry-run 也在内存应用）会改写 Chapter11-2 /
-// Chapter12-2 / Chapter8-6 里正文代码样例中的路径字符串，text 红线因此报
-// error → failed / exit 1；若未来 normalize 不再触碰正文，则应回到
-// planned / exit 0。两种情形下上游都不得成为阻断原因。
-func TestRunRealBookNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
+// TestRunNormalizeDryRunNotBlockedByNavAudit 是 ff30a1a 回归的合成 EPUB
+// 复现：导航链接指向不存在的 fragment，nav.audit 会报告 error findings；
+// 但作为诊断型上游时，不得阻止 normalize dry-run 继续执行。
+func TestRunNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
+	input := buildEpubWithNavHref(t, "c1.xhtml#missing-fragment")
 	outcome, err := Run(t.Context(), Options{
 		CapabilityID: "epub.structure.normalize",
-		InputPath:    referenceBook(t),
+		InputPath:    input,
 		OutputPath:   filepath.Join(t.TempDir(), "norm.epub"),
 		DryRun:       true,
 		Args:         Args{},
@@ -64,7 +41,7 @@ func TestRunRealBookNormalizeDryRunNotBlockedByNavAudit(t *testing.T) {
 		t.Fatalf("facts[epub.package.nav.audit.findingsByLevel] = %#v", env.Facts["epub.package.nav.audit.findingsByLevel"])
 	}
 	if upFindings.Error == 0 {
-		t.Errorf("expected ≥1 error-level nav.audit finding on the reference book, got %#v", upFindings)
+		t.Errorf("expected ≥1 error-level nav.audit finding on the generated EPUB, got %#v", upFindings)
 	}
 	if !hasFindingID(env.Findings, "upstream.diagnostics") {
 		t.Errorf("upstream.diagnostics info finding missing: %#v", env.Findings)

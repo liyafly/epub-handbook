@@ -418,23 +418,25 @@ func TestMarkupRewriteCSSOnlyInStyleAttr(t *testing.T) {
 	})
 }
 
-// TestRealBookNormalizeKeepsProse 用仓库样本书跑完整 normalize（两阶段，
-// 内存中应用），再用 redline text 红线比对原始态与当前态：必须零发现。
-// 样本书的 Chapter11-2 / Chapter12-2 / Chapter8-6 正文含转义的
-// `&lt;text src="…"/&gt;` 代码示例，曾被引用重写器当作属性改写。
-func TestRealBookNormalizeKeepsProse(t *testing.T) {
-	repo, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
+// TestNormalizeKeepsEscapedProse 用合成 EPUB 跑完整 normalize（两阶段，
+// 内存中应用）。正文放入看起来像资源标签的转义代码示例；实际图片路径在
+// normalize 中会改名，但示例文本必须保持原样并通过 redline。
+func TestNormalizeKeepsEscapedProse(t *testing.T) {
+	entries := fixtureEntries("")
+	const imgProse = `<p>示例：&lt;img src="../assets/%2Acover.JPG"/&gt;</p>`
+	const textProse = `<p>替换：&lt;par id="\1"&gt;&lt;text src="../assets/%2Acover.JPG#\2"/&gt;</p>`
+	found := false
+	for i := range entries {
+		if entries[i].name == "OPS/legacy/?mix.xhtml" {
+			entries[i].content = strings.Replace(entries[i].content, "</body>", imgProse+textProse+"</body>", 1)
+			found = true
+		}
 	}
-	matches, _ := filepath.Glob(filepath.Join(repo, "references", "epubs", "*.epub"))
-	if len(matches) == 0 {
-		// 样本书随仓库入 git（internal/pipeline/chain_semantics_test.go 同样
-		// 硬失败）。这是真实缺陷的唯一回归，缺书必须报错而不是静默跳过。
-		t.Fatal("references/epubs/ 下没有样本书，无法跑正文不变回归")
+	if !found {
+		t.Fatal("normalize fixture chapter is missing")
 	}
-	source := matches[0]
-
+	source := filepath.Join(t.TempDir(), "source.epub")
+	buildFixtureEntries(t, source, entries)
 	b, err := book.Open(source)
 	if err != nil {
 		t.Fatal(err)
@@ -449,11 +451,11 @@ func TestRealBookNormalizeKeepsProse(t *testing.T) {
 	}
 	facts := factsOf(t, res)
 	if facts.RewrittenFiles == 0 {
-		t.Fatal("样本书应有被重写的文件，否则本回归无效")
+		t.Fatal("fixture should have rewritten resources, otherwise this regression is ineffective")
 	}
 
 	findings, err := redline.Check(redline.OriginalState(b), redline.CurrentState(b),
-		// 真书上零发现；区域重写失误时，红线必须发现 nav / NCX 正文损坏。
+		// 区域重写失误时，红线必须发现 XHTML 正文损坏。
 		[]string{redline.CheckText}, redline.Options{PathMap: res.Renames})
 	if err != nil {
 		t.Fatal(err)
@@ -462,22 +464,21 @@ func TestRealBookNormalizeKeepsProse(t *testing.T) {
 		t.Errorf("redline %s: %s", f.Check, f.Message)
 	}
 
-	// 逐字核对被误改过的三行正文仍在。
-	const chapter = "OEBPS/Text/Chapter11-2.xhtml"
-	target := chapter
-	if mapped, ok := res.Renames[chapter]; ok {
-		target = mapped
+	// 逐字核对容易被误改的转义示例仍在。
+	target, ok := res.Renames["OPS/legacy/?mix.xhtml"]
+	if !ok {
+		t.Fatal("normalize fixture chapter was not renamed")
 	}
 	cur, err := b.Current(target)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, prose := range []string{
-		`<p>替换：&lt;par id="\1"&gt;&lt;text src="../Text/Chapter2-2.xhtml#\2"/&gt;`,
-		`<span class="selector-color">src</span>=<span class="class-color">"../Text/Chapter2-2.xhtml#xj01"</span>/&gt;</li>`,
+		imgProse,
+		textProse,
 	} {
 		if !strings.Contains(string(cur), prose) {
-			t.Errorf("%s 正文被改写，缺少 %q", target, prose)
+			t.Errorf("%s prose was changed; missing %q", target, prose)
 		}
 	}
 }

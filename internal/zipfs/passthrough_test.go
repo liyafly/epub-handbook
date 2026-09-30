@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -214,15 +216,37 @@ func TestRewrittenMimetypeHasNoExtraFields(t *testing.T) {
 	}
 }
 
-// TestPassthroughOnSampleBook 用仓库里 49MB 的样本书做透传 I/O 实测：
-// 只改一个小 XHTML，断言其余全部 entry 字节级一致，并报告搬运量。
-// 这是 W0 完成判据「800MB → 几 MB」的实测凭据（go-rewrite-handoff.md §4）。
-func TestPassthroughOnSampleBook(t *testing.T) {
-	matches, _ := filepath.Glob(filepath.Join("..", "..", "references", "epubs", "*.epub"))
-	if len(matches) == 0 {
-		t.Skip("references/epubs 下没有样本书")
+// TestPassthroughOnGeneratedBook 用确定性生成的 EPUB 检查未修改 entry
+// 的压缩数据属性保持不变，不依赖仓库内的第三方大文件。
+func TestPassthroughOnGeneratedBook(t *testing.T) {
+	var source bytes.Buffer
+	zw := zip.NewWriter(&source)
+	writeEntry := func(name string, method uint16, contents []byte) {
+		t.Helper()
+		h := &zip.FileHeader{Name: name, Method: method}
+		w, err := zw.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(contents); err != nil {
+			t.Fatal(err)
+		}
 	}
-	in, err := Open(matches[0])
+	writeEntry("mimetype", zip.Store, []byte("application/epub+zip"))
+	writeEntry("META-INF/container.xml", zip.Deflate, []byte(`<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`))
+	writeEntry("OEBPS/content.opf", zip.Deflate, []byte(`<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata/><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="asset" href="Images/data.bin" media-type="application/octet-stream"/></manifest><spine><itemref idref="chapter"/></spine></package>`))
+	chapter := []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><body>` + strings.Repeat(`<p>固定测试段落。</p>`, 80) + `</body></html>`)
+	writeEntry("OEBPS/Text/chapter.xhtml", zip.Deflate, chapter)
+	asset := make([]byte, 1<<20)
+	if _, err := rand.New(rand.NewSource(1)).Read(asset); err != nil {
+		t.Fatal(err)
+	}
+	writeEntry("OEBPS/Images/data.bin", zip.Deflate, asset)
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	inputPath := writeTempZip(t, source.Bytes())
+	in, err := Open(inputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +263,7 @@ func TestPassthroughOnSampleBook(t *testing.T) {
 		}
 	}
 	if target == "" {
-		t.Skip("样本书里没有合适大小的 XHTML")
+		t.Fatal("generated EPUB has no XHTML in the expected size range")
 	}
 	content, err := in.Read(target)
 	if err != nil {
@@ -247,7 +271,7 @@ func TestPassthroughOnSampleBook(t *testing.T) {
 	}
 	edited := bytes.Replace(content, []byte(">"), []byte(">\n"), 1)
 	if bytes.Equal(edited, content) {
-		t.Fatalf("样本书 %s 找不到可替换字节", target)
+		t.Fatalf("generated EPUB %s has no editable byte", target)
 	}
 
 	var plans []Plan
@@ -286,9 +310,9 @@ func TestPassthroughOnSampleBook(t *testing.T) {
 			t.Errorf("%s: 未修改 entry 的 CRC32/CompressedSize/Method 改变", name)
 		}
 	}
-	inStat, _ := os.Stat(matches[0])
+	inStat, _ := os.Stat(inputPath)
 	outStat, _ := os.Stat(outPath)
-	t.Logf("样本书 %d bytes：透传 %d bytes compressed（%.1f%%），重写 1 个 entry，输出 %d bytes",
+	t.Logf("generated EPUB %d bytes: passed through %d compressed bytes (%.1f%%), rewrote 1 entry, output %d bytes",
 		inStat.Size(), passthroughCompressed,
 		100*float64(passthroughCompressed)/float64(max(totalCompressed, 1)), outStat.Size())
 }

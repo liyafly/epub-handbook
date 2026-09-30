@@ -9,16 +9,11 @@ Reference samples do not establish EPUB rules or reader-compatibility conclusion
 Those require a project demo artifact and the evidence recorded in
 `docs/final/reader-matrix.yaml`.
 
-## 保留理由
+## EPUB 文件
 
-`references/epubs/EPub指南——从入门到放弃 20230418 (赤霓) (Z-Library).epub`
-按所有者 2026-09-29 的 Q15 裁决继续保留在 git 中，作为唯一的真书回归样本。
-当前没有权利人提供的许可或授权记录；保留决定不表示已取得再分发许可。
+当前没有第三方 EPUB 跟踪在仓库中。`.gitignore` 会忽略 EPUB 文件；新增引用书前，
+先在 [`../THIRD_PARTY.md`](../THIRD_PARTY.md) 记录来源、作者、许可和保留理由，
+并确认许可覆盖仓库所需的保存与分发方式。
 
-依赖该样本的测试：
-
-- `internal/pipeline/chain_semantics_test.go`
-- `internal/zipfs/passthrough_test.go`
-- `internal/caps/structure_normalize/markup_rewrite_test.go`
-- `internal/caps/metadata/realbook_test.go`
-- `internal/caps/cover/realbook_test.go`
+之前跟踪的《EPub指南——从入门到放弃》样本已按所有者 2026-09-30 的决定从当前树
+移除；相关 Git 历史未改写。

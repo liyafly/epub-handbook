@@ -124,9 +124,14 @@ func fixtureEntries(encrypted string) []fixtureEntry {
 
 func buildFixture(t *testing.T, path, encrypted string) {
 	t.Helper()
+	buildFixtureEntries(t, path, fixtureEntries(encrypted))
+}
+
+func buildFixtureEntries(t *testing.T, path string, entries []fixtureEntry) {
+	t.Helper()
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
-	for _, e := range fixtureEntries(encrypted) {
+	for _, e := range entries {
 		h := &zip.FileHeader{Name: e.name}
 		h.Method = zip.Deflate
 		fw, err := w.CreateHeader(h)
