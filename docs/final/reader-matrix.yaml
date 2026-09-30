@@ -196,15 +196,15 @@ retest_priorities:
   - rank: 7
     case: preset-plain-cn@01-body
     readers: [ibooks_macos, readest, kindle_previewer]
-    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
+    focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
   - rank: 8
     case: preset-poetry-cn@29-poetry
     readers: [ibooks_macos, readest, kindle_previewer]
-    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
+    focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
   - rank: 9
     case: preset-fiction-en@18-english-fiction
     readers: [ibooks_macos, readest, kindle_previewer]
-    focus: "历史 GUI 候选文件已丢失；当前可重建候选 SHA-256 c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387。为每个阅读器生成独立 identity 副本，记录副本 SHA、完整版本与截图/日志后复测。"
+    focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
 
 expectations:
   # status: pass | warn | fail | na

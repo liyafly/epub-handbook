@@ -4,15 +4,15 @@
 
 > **复核结论（2026-09-28）：** 旧 T09 候选文件目前无法定位，原 GUI 会话也没有保存可提交的截图或日志；Readest 的三个候选还与默认 demo 共用 identity。旧观察因此不再作为 `pass` 证据，reader matrix 中 9 条记录均已降为 `warn`。下方 GUI 表只保留历史观察，不代表当前可复现的 artifact 已由阅读器验收。
 
-当前可重建候选来自源提交 `1133ba0253aaf892fc0b55d8f739a6f8c305f341`，先运行 `sh templates/epub-style-demo/build.sh`，再对指定页运行 `epub.typography.optimize`：
+下表保留源提交 `1133ba0253aaf892fc0b55d8f739a6f8c305f341`（短 SHA `1133ba0`）生成的历史候选。该提交的基础 demo SHA 为 `0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc`。R14 更新 `literary.css` 后，HEAD 的基础 demo SHA 变为 `f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c`；以下同时记录按 HEAD 重建的候选 SHA。复测必须以当次构建并登记的 SHA 为准，不沿用历史 GUI 观察。
 
 2026-09-29 GitHub Actions `Build EPUB Demo` run `36588470704` 输出：`Deterministic style demo SHA256=f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c`。这是 CI 构建散列，不是阅读器验收证据。
 
-| 候选 | scope | 基础 demo SHA-256 | 候选 SHA-256 |
+| 候选 | scope | 源提交候选 SHA-256 | HEAD 候选 SHA-256 |
 |---|---|---|---|
-| `plain-cn` | `OEBPS/Text/01-body.xhtml` | `0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc` | `3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5` |
-| `poetry-cn` | `OEBPS/Text/29-poetry.xhtml` | 同上 | `e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa` |
-| `fiction-en` | `OEBPS/Text/18-english-fiction.xhtml` | 同上 | `c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387` |
+| `plain-cn` | `OEBPS/Text/01-body.xhtml` | `3a553e501b37fe75d1c3d00ff6fdacfe6722871bf919058fa1c70d37c96068e5` | `7b4e96d8f92bb2bd35b1bf75b67c38dc275877ede50860203ecff5952ec797b5` |
+| `poetry-cn` | `OEBPS/Text/29-poetry.xhtml` | `e4623f453ce5e0b34360f54123462f0eb0933a8e824520cd0ccc128c2bd7d0aa` | `1bc42e6dfb84f6a1330a8ebc2a6a17b98933f16c11210787c5a287edd0c37446` |
+| `fiction-en` | `OEBPS/Text/18-english-fiction.xhtml` | `c51b82efdb359ffb6963b6da5e5bf9029464216bb0681ff9b0f9c1ee92bf9387` | `405296fd7439020dd6fc6d461a6ff710b09ab458865a07994a4b13e87cf0ded3` |
 
 这些 SHA 只标识可重建的生产候选；要做阅读器复测，必须按 [demo README 的 identity 规则](../../../templates/epub-style-demo/README.md#阅读器测试副本的-identity) 创建临时唯一 identity 副本，并把副本 SHA 与截图或日志绑定。当前生成过程的静态 redline 为 0 findings；基础 demo nav audit 为 0 errors / 1 warning。静态结果不构成阅读器证据。
 
