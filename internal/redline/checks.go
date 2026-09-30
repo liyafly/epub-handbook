@@ -184,8 +184,7 @@ func isMigrationNavAddition(before, after State, name string) bool {
 	if err != nil {
 		return false
 	}
-	blocks, err := textBlocksOutsideNav(content, fmt.Sprintf("%s:%s", after.Path(), name))
-	return err == nil && len(blocks) == 0
+	return navBodyHasOnlyNav(content)
 }
 
 // ---- anchors ----

@@ -100,14 +100,88 @@ type textFrame struct {
 // 甚至不产出块，可以被整段删掉而红线无感）。并回时必须是**未归一化**的原始
 // 字节：normalizeText 只在块产出时对拼好的整串做一次，与 oracle 一致。
 func ExtractTextBlocks(content []byte, label string) ([]string, error) {
-	return extractTextBlocks(content, label, false)
+	return extractTextBlocks(content, label)
 }
 
-func textBlocksOutsideNav(content []byte, label string) ([]string, error) {
-	return extractTextBlocks(content, label, true)
+func navBodyHasOnlyNav(content []byte) bool {
+	d := xml.NewDecoder(strings.NewReader(sanitizeXML(content)))
+	d.Strict = true
+	d.Entity = xml.HTMLEntity
+	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+		return input, nil
+	}
+	inBody := false
+	foundBody := false
+	inHead := false
+	headDepth := 0
+	navDepth := 0
+	for {
+		token, err := d.Token()
+		if err == io.EOF {
+			return foundBody && !inBody && navDepth == 0
+		}
+		if err != nil {
+			return false
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			if inBody {
+				if navDepth > 0 {
+					navDepth++
+					continue
+				}
+				if token.Name.Local != "nav" {
+					return false
+				}
+				navDepth = 1
+				continue
+			}
+			if foundBody {
+				return false
+			}
+			if inHead {
+				headDepth++
+				continue
+			}
+			switch token.Name.Local {
+			case "html":
+				continue
+			case "head":
+				inHead = true
+				headDepth = 1
+			case "body":
+				inBody = true
+				foundBody = true
+			default:
+				return false
+			}
+		case xml.EndElement:
+			if navDepth > 0 {
+				navDepth--
+				continue
+			}
+			if inBody && token.Name.Local == "body" {
+				inBody = false
+				continue
+			}
+			if inHead {
+				headDepth--
+				if headDepth == 0 {
+					inHead = false
+				}
+			}
+		case xml.CharData:
+			if inBody && navDepth == 0 && strings.TrimSpace(string(token)) != "" {
+				return false
+			}
+			if foundBody && !inBody && !inHead && strings.TrimSpace(string(token)) != "" {
+				return false
+			}
+		}
+	}
 }
 
-func extractTextBlocks(content []byte, label string, excludeNav bool) ([]string, error) {
+func extractTextBlocks(content []byte, label string) ([]string, error) {
 	cleaned := sanitizeXML(content)
 	d := xml.NewDecoder(strings.NewReader(cleaned))
 	d.Strict = true
@@ -131,9 +205,6 @@ func extractTextBlocks(content []byte, label string, excludeNav bool) ([]string,
 			name := t.Name.Local
 			parentCollecting := len(stack) == 0 || stack[len(stack)-1].collecting
 			collecting := parentCollecting && !ignoredTextTags[name] && !isNoteControl(name, t.Attr)
-			if excludeNav && name == "nav" {
-				collecting = false
-			}
 			fr := &textFrame{
 				name:       name,
 				collecting: collecting,

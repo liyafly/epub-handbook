@@ -229,6 +229,20 @@ func TestRedlineAllowsAddedNavDocumentForEPUB2Migration(t *testing.T) {
 	wantNoLine(t, rep, text, "text: added XHTML file:")
 }
 
+func TestRedlineAllowsAddedNavWithHTMLWhitespaceEntityOutsideNav(t *testing.T) {
+	afterEntries := migratedEPUB2Entries(t)
+	for i := range afterEntries {
+		if afterEntries[i].name == "OEBPS/nav.xhtml" {
+			afterEntries[i].content = bytes.Replace(afterEntries[i].content, []byte("<body>"), []byte("<body>&nbsp;"), 1)
+			break
+		}
+	}
+	before, after := pair(t, epub2NoNavEntries(t), afterEntries)
+	rep, text := compare(t, before, after, "all", Options{})
+	wantCode(t, rep, text, 0)
+	wantNoLine(t, rep, text, "text: added XHTML file:")
+}
+
 func TestRedlineRejectsAddedNavWithProseOutsideNav(t *testing.T) {
 	beforeEntries := epub2NoNavEntries(t)
 	afterEntries := migratedEPUB2Entries(t)
@@ -242,6 +256,39 @@ func TestRedlineRejectsAddedNavWithProseOutsideNav(t *testing.T) {
 	rep, text := compare(t, before, after, "all", Options{})
 	wantCode(t, rep, text, 1)
 	wantLine(t, rep, text, "text: added XHTML file: OEBPS/nav.xhtml")
+}
+
+func TestRedlineRejectsAddedNavWithLooseTextOutsideNav(t *testing.T) {
+	tests := []struct {
+		name     string
+		addition string
+	}{
+		{name: "aside", addition: `<aside>这是一段迁移后偷偷加入的正文。</aside>`},
+		{name: "bare text", addition: `这是一段迁移后偷偷加入的正文。`},
+		{name: "section span", addition: `<section><span>这是一段迁移后偷偷加入的正文。</span></section>`},
+		{name: "figure figcaption", addition: `<figure><figcaption>这是一段迁移后偷偷加入的正文。</figcaption></figure>`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			beforeEntries := epub2NoNavEntries(t)
+			afterEntries := migratedEPUB2Entries(t)
+			foundNav := false
+			for i := range afterEntries {
+				if afterEntries[i].name != "OEBPS/nav.xhtml" {
+					continue
+				}
+				foundNav = true
+				afterEntries[i].content = bytes.Replace(afterEntries[i].content, []byte("</nav>"), []byte("</nav>"+tc.addition), 1)
+			}
+			if !foundNav {
+				t.Fatal("migration fixture has no nav document")
+			}
+			before, after := pair(t, beforeEntries, afterEntries)
+			report, text := compare(t, before, after, "all", Options{})
+			wantCode(t, report, text, 1)
+			wantLine(t, report, text, "text: added XHTML file: OEBPS/nav.xhtml")
+		})
+	}
 }
 
 func TestRedlineRejectsAddedNavInSpine(t *testing.T) {
