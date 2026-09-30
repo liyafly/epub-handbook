@@ -1225,6 +1225,27 @@ func TestCSSURLAuditStillReportsMissingURLFunctionTarget(t *testing.T) {
 	t.Fatalf("missing url() target did not produce an error finding: %+v", res.Findings)
 }
 
+func TestNavAuditCSSURLEscapingContainerRoot(t *testing.T) {
+	path := writeNativeFixture(t)
+	escaping := filepath.Join(t.TempDir(), "css-root-escape.epub")
+	rewriteZipEntry(t, path, escaping, "OEBPS/Styles/main.css", func([]byte) []byte {
+		return []byte(`a { background-image: url("../../../Images/old-cover.png"); }`)
+	})
+
+	res := runNativeAudit(t, escaping)
+	for _, finding := range res.Findings {
+		if finding.Title == "CSS url() target escapes container root" &&
+			finding.Detail == "xhtml-invalid-target" &&
+			finding.Location == "Styles/main.css -> ../../../Images/old-cover.png" {
+			return
+		}
+		if finding.Title == "CSS url() target missing" && strings.Contains(finding.Location, "old-cover.png") {
+			t.Fatalf("container-root escape reported as missing target: %+v", finding)
+		}
+	}
+	t.Fatalf("container-root escape finding missing: %+v", res.Findings)
+}
+
 func TestCSSURLAuditIgnoresQueryAndDowngradesEscapes(t *testing.T) {
 	path := writeNativeFixture(t)
 	input := filepath.Join(t.TempDir(), "query-and-escape.epub")

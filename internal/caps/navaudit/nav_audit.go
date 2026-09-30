@@ -504,6 +504,12 @@ func (ins *inspector) checkCSSURLs(ctx context.Context, pkg *opf.Package, manife
 				continue
 			}
 			abs := pypath.NormJoin(pypath.Dirname(item.ArchivePath), clean)
+			if abs == ".." || strings.HasPrefix(abs, "../") {
+				ins.addFinding("error", "CSS url() target escapes container root",
+					item.Href+" -> "+target, "xhtml-invalid-target")
+				ins.addSkill("epub-audit", "error")
+				continue
+			}
 			if hasEntry(ins.b, abs) {
 				if _, ok := manifestPaths[abs]; !ok {
 					ins.addFinding("error", "CSS url() target missing from OPF manifest",

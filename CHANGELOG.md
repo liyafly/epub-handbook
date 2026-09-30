@@ -14,6 +14,7 @@
 - G55：clean 文本摘要现在报告未开始的书数；cleanup-flow 附录 B 逐本记录失败退出码并继续处理后续书。
 - C21：typography 对重复 spine XHTML 路径先去重，带或不带 scope 时都只处理同一份 XHTML 一次。
 - C22：normalize 遇到含 CSS 转义的 rooted `url()` 时保留原字节并给出 unsafe absolute reference 警告，不再因此拒绝整本书。
+- C23：nav.audit 将 CSS `url()` 越出 EPUB 容器根的引用报告为 `CSS url() target escapes container root`，finding detail 使用 `xhtml-invalid-target`。
 
 ### Changed
 
