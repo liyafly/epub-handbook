@@ -9,7 +9,7 @@
 - contracts 与 registry 各有 23 个 capability。当前执行形态为 14 个输出型与 9 个只读型；`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用 `tools-font/epub-font/`，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
-- 截至 2026-09-28，当前发布基线为 Go CLI [`v0.4.6`](https://github.com/liyafly/epub-handbook/releases/tag/v0.4.6)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
+- 截至 2026-09-30，当前发布基线为 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
 - `internal/docguard` 已接替技能 frontmatter、OpenAI YAML 形状、skill 索引、AI 入口和契约结构等元校验。手册、速查表与 SPEC 的语义同步仍需人工核对。
 - CI、静态检查和产物验证不代表原生阅读器验收；每项 reader 结论只对 reader-matrix 记录的精确 artifact 与 SHA 生效。
 
