@@ -10,6 +10,7 @@ epub-font --help
 ```
 
 - `epub-font coverage BOOK.epub` 分析嵌入字体覆盖、字体链和阅读器风险，并可输出 JSON 与自包含 HTML 报告。`epub.font.coverage.analyze` 通过 PATH 调用该子命令。
+- HTML 报告使用打包资源 [`epub-font/epub_font/coverage/font-coverage-viewer.html`](epub-font/epub_font/coverage/font-coverage-viewer.html)。
 - `epub-font subset BOOK.epub --out NEW.epub` 按全书字符集裁切 manifest 字体并检查结果。`epub.font.subset` 通过 PATH 调用该子命令；候选经 pipeline 红线检查后才写出。
 - `epub-font check BOOK.epub` 使用独立采字逻辑检查 manifest 字体全量覆盖，可单独用于人工复核。它不复用 subset 的采集器。
 

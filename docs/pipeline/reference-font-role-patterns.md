@@ -62,7 +62,7 @@ epub run epub.package.nav.audit --input input.epub --json
 - 调试时很难知道读者看到的是嵌入字体还是系统字体；
 - 私有字体名、旧字体名和平台字体名混在一起。
 
-本仓默认链保持短小：
+推荐字体链保持短小：
 
 ```css
 .type-body {
@@ -89,10 +89,10 @@ epub run epub.package.nav.audit --input input.epub --json
 EPUB3 迁移不会注入 CSS 或创建文本角色。确认需要角色样式后，单独运行 `epub.typography.optimize`，选择预设并限定作用范围：
 
 ```sh
-epub run epub.typography.optimize --input before.epub --output candidate.epub --dry-run --json preset=literary-cn
+epub run epub.typography.optimize --input before.epub --output candidate.epub --dry-run --json preset=literary-cn 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
 ```
 
-预设只提供样式规则，不自动猜测正文语义。例如它不会把任意 `<b>` 改成 `.type-emphasis`，也不会把任意 `.cp` 认定为版权信息。逐类分派仍需人工 diff review。
+`.type-*` 是书级自定义角色类，不由仓库内置预设提供；采用这些类时，需在书内 CSS 中人工实现。内置预设只提供自身的样式规则，不会自动猜测正文语义，也不会把任意 `<b>` 改成 `.type-emphasis` 或把任意 `.cp` 认定为版权信息。示例中的 `scope_paths` 精确限定到一个 spine XHTML 文件；逐类分派仍需人工 diff review。
 
 建议顺序：
 

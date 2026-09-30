@@ -141,5 +141,5 @@ epub redline --check all "before.epub" "candidate.epub"
 - `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 项和 popup 计数，不接受部分 class 变更。
 - 标准属性/中性类保留；anchor 加 duokan-footnote 且内含图标；ol.footnote-list 加 duokan-footnote-content；li.footnote-item 仅加 duokan-footnote-item，不把 content 类放 li。
 - 同文件一个 aside/ol，noteref 指向唯一 li，◎ backlink 返回原 trigger；不得复制可见 note list、display:none 隐藏正文或用 JS。
-- 保留现有图标 src/alt，缺少才复用项目资源并同步 manifest。样式并入活动 notes.css，分隔线只留一套，不影响普通上标。
+- 保留现有图标 src/alt；缺少图标时，由制作方提供获准使用的资源并同步 manifest。样式并入活动 notes.css，分隔线只留一套，不影响普通上标。
 - 多 note 页面逐个点击确认只打开对应 li；红线失败保留候选分析，注释文字不得借兼容修改。EPUB2 外壳只按 [兼容指南](../../docs/how-to/epub2-popup-note-compatibility.md) 记录目标版本实测，不能标为严格 EPUB2 标准。
