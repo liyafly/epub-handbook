@@ -79,11 +79,41 @@ func isNoterefControl(name string, attrs []xml.Attr) bool {
 
 // textFrame 是流式提取中的一个打开元素。
 type textFrame struct {
-	name       string
-	collecting bool // 是否处于可收集文本的上下文
-	isBlock    bool
-	blockChild bool // 打开期间出现过块级后代
-	buf        strings.Builder
+	name            string
+	collecting      bool // 是否处于可收集文本的上下文
+	isBlock         bool
+	isTextContainer bool
+	blockChild      bool // 打开期间出现过块级或文本容器后代
+	buf             strings.Builder
+	loose           strings.Builder // 未被子块级内容消费的文本
+}
+
+func isLooseTextContainer(name string) bool {
+	switch name {
+	case "body", "section", "article", "aside", "header", "footer", "main", "figure":
+		return true
+	default:
+		return false
+	}
+}
+
+func flushLooseText(stack []*textFrame, blocks *[]string) {
+	var pending strings.Builder
+	capturesLooseText := false
+	for _, frame := range stack {
+		if frame.isTextContainer || (frame.isBlock && frame.blockChild) {
+			capturesLooseText = true
+		}
+		if frame.loose.Len() > 0 {
+			pending.WriteString(frame.loose.String())
+			frame.loose.Reset()
+		}
+	}
+	if capturesLooseText {
+		if text := normalizeText(pending.String()); text != "" {
+			*blocks = append(*blocks, text)
+		}
+	}
 }
 
 // ExtractTextBlocks 复刻 extract_text_blocks：
@@ -204,28 +234,37 @@ func extractTextBlocks(content []byte, label string) ([]string, error) {
 		case xml.StartElement:
 			name := t.Name.Local
 			parentCollecting := len(stack) == 0 || stack[len(stack)-1].collecting
+			isBlock := blockTags[name]
+			isTextContainer := isLooseTextContainer(name)
 			collecting := parentCollecting && !ignoredTextTags[name] && !isNoteControl(name, t.Attr)
 			fr := &textFrame{
-				name:       name,
-				collecting: collecting,
-				isBlock:    blockTags[name],
+				name:            name,
+				collecting:      collecting,
+				isBlock:         isBlock,
+				isTextContainer: isTextContainer,
 			}
-			if fr.isBlock && len(stack) > 0 {
-				// 所有尚在打开的祖先都获得了块级后代。
+			if (fr.isBlock || fr.isTextContainer) && len(stack) > 0 {
+				// 块和指定文本容器都会隔开前后的零散文本；标记打开的块祖先，
+				// 使其在关闭时只输出自己的零散片段而不重复输出子块。
 				for _, anc := range stack {
 					anc.blockChild = true
 				}
+				flushLooseText(stack, &blocks)
 			}
 			stack = append(stack, fr)
 		case xml.CharData:
 			if len(stack) > 0 && stack[len(stack)-1].collecting {
 				stack[len(stack)-1].buf.Write(t)
+				stack[len(stack)-1].loose.Write(t)
 			}
 		case xml.EndElement:
 			if len(stack) == 0 {
 				continue
 			}
 			fr := stack[len(stack)-1]
+			if fr.isTextContainer || (fr.isBlock && fr.blockChild) {
+				flushLooseText(stack, &blocks)
+			}
 			stack = stack[:len(stack)-1]
 			if fr.isBlock && !fr.blockChild {
 				if text := normalizeText(fr.buf.String()); text != "" {
@@ -238,6 +277,9 @@ func extractTextBlocks(content []byte, label string) ([]string, error) {
 			// 直接落进父帧，与 oracle 的 node.tail 处理一致。
 			if len(stack) > 0 && fr.buf.Len() > 0 && stack[len(stack)-1].collecting {
 				stack[len(stack)-1].buf.WriteString(fr.buf.String())
+			}
+			if len(stack) > 0 && !fr.isBlock && !fr.isTextContainer && fr.loose.Len() > 0 && stack[len(stack)-1].collecting {
+				stack[len(stack)-1].loose.WriteString(fr.loose.String())
 			}
 		}
 	}

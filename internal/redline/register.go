@@ -50,7 +50,9 @@ var coreMetadataFields = []string{"title", "creator", "identifier", "language"}
 // blockTags 是文本红线认可的块级标签（BLOCK_TAGS）。
 var blockTags = map[string]bool{
 	"p": true, "h1": true, "h2": true, "h3": true, "h4": true, "h5": true,
-	"h6": true, "li": true, "td": true, "blockquote": true, "pre": true, "div": true,
+	"h6": true, "li": true, "td": true, "th": true, "dt": true, "dd": true,
+	"figcaption": true, "caption": true, "summary": true, "address": true,
+	"blockquote": true, "pre": true, "div": true,
 }
 
 // ignoredTextTags 是文本提取时整棵剔除的标签（IGNORED_TEXT_TAGS）。

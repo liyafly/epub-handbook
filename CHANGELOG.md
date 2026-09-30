@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- G41：`epub redline --check text` 现在覆盖 `th`、`dt`、`dd`、`figcaption`、`caption`、`summary`、`address` 及指定容器中的零散文字；把零散文字包进段落不会改变正文哈希序列。
+
 ## v0.5.0 - 2026-09-30
 
 ### Breaking

@@ -101,3 +101,118 @@ func TestCheckTextSeesInlineWrappedEdits(t *testing.T) {
 		})
 	}
 }
+
+func entriesWithTextBody(t *testing.T, body string) []zipEntry {
+	t.Helper()
+	entries := baseEntries()
+	for i := range entries {
+		if entries[i].name == "OEBPS/Text/c1.xhtml" {
+			entries[i].content = []byte(`<html xmlns="http://www.w3.org/1999/xhtml"><head><title>测试</title></head><body>` + body + `</body></html>`)
+			return entries
+		}
+	}
+	t.Fatal("baseEntries has no chapter XHTML")
+	return nil
+}
+
+func expectTextRedlineFailure(t *testing.T, beforeBody, afterBody string) {
+	t.Helper()
+	before, after := pair(t, entriesWithTextBody(t, beforeBody), entriesWithTextBody(t, afterBody))
+	rep, text := compare(t, before, after, "text", Options{})
+	wantCode(t, rep, text, 1)
+	wantLine(t, rep, text, "text: modified OEBPS/Text/c1.xhtml")
+}
+
+func TestRedlineDetectsTableHeaderTextChange(t *testing.T) {
+	before := `<p>正文</p><table><tr><th>表头文字</th><td>单元格</td></tr></table>`
+	after := strings.Replace(before, "表头文字", "表头改写", 1)
+	expectTextRedlineFailure(t, before, after)
+}
+
+func TestRedlineDetectsDefinitionListTextChange(t *testing.T) {
+	before := `<p>正文</p><dl><dt>术语</dt><dd>定义文字</dd></dl>`
+	after := strings.Replace(before, "定义文字", "定义改写", 1)
+	expectTextRedlineFailure(t, before, after)
+}
+
+func TestRedlineDetectsFigcaptionDeletion(t *testing.T) {
+	before := `<p>正文</p><figure><img src="image.png"/><figcaption>图注文字</figcaption></figure>`
+	after := strings.Replace(before, `<figcaption>图注文字</figcaption>`, "", 1)
+	expectTextRedlineFailure(t, before, after)
+}
+
+func TestRedlineDetectsLooseSectionText(t *testing.T) {
+	before := `<p>正文</p><section>节内裸文字 <em>强调内容</em></section>`
+	after := strings.Replace(before, "节内裸文字", "节内改写文字", 1)
+	expectTextRedlineFailure(t, before, after)
+}
+
+func TestRedlineWrappingLooseTextInParagraphKeepsHashes(t *testing.T) {
+	beforeBody := `<section>节内裸文字 <em>强调内容</em></section>`
+	afterBody := `<section><p>节内裸文字 <em>强调内容</em></p></section>`
+	beforeBlocks, err := ExtractTextBlocks([]byte(`<html><body>`+beforeBody+`</body></html>`), "before.xhtml")
+	if err != nil {
+		t.Fatalf("ExtractTextBlocks before: %v", err)
+	}
+	afterBlocks, err := ExtractTextBlocks([]byte(`<html><body>`+afterBody+`</body></html>`), "after.xhtml")
+	if err != nil {
+		t.Fatalf("ExtractTextBlocks after: %v", err)
+	}
+	if got, want := BlockHashes(beforeBlocks), BlockHashes(afterBlocks); !slices.Equal(got, want) {
+		t.Fatalf("wrapping loose text changed block hashes: before=%q after=%q", got, want)
+	}
+	before, after := pair(t, entriesWithTextBody(t, beforeBody), entriesWithTextBody(t, afterBody))
+	rep, text := compare(t, before, after, "text", Options{})
+	wantCode(t, rep, text, 0)
+}
+
+func TestExtractTextBlocksIncludesAddedBlockTags(t *testing.T) {
+	doc := `<html><body><table><caption>表题</caption><tr><th>表头</th><td>单元格</td></tr></table>` +
+		`<dl><dt>术语</dt><dd>定义</dd></dl><figure><figcaption>图注</figcaption></figure>` +
+		`<details><summary>摘要</summary></details><address>地址</address></body></html>`
+	got, err := ExtractTextBlocks([]byte(doc), "structural.xhtml")
+	if err != nil {
+		t.Fatalf("ExtractTextBlocks: %v", err)
+	}
+	want := []string{"表题", "表头", "单元格", "术语", "定义", "图注", "摘要", "地址"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("blocks=%q, want %q", got, want)
+	}
+}
+
+func TestExtractTextBlocksCapturesLooseTextInContainers(t *testing.T) {
+	for _, name := range []string{"body", "section", "article", "aside", "header", "footer", "main", "figure"} {
+		t.Run(name, func(t *testing.T) {
+			var doc string
+			if name == "body" {
+				doc = `<html><body>容器零散文字</body></html>`
+			} else {
+				doc = `<html><body><` + name + `>容器零散文字</` + name + `></body></html>`
+			}
+			got, err := ExtractTextBlocks([]byte(doc), "container.xhtml")
+			if err != nil {
+				t.Fatalf("ExtractTextBlocks: %v", err)
+			}
+			if want := []string{"容器零散文字"}; !slices.Equal(got, want) {
+				t.Fatalf("blocks=%q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestExtractTextBlocksKeepsLooseTextInDocumentOrder(t *testing.T) {
+	doc := `<html><body>body before<section>section before<div>div before<p>段落</p>div after</div>` +
+		`section after<figure>figure before<figcaption>图注</figcaption>figure after</figure></section>` +
+		`body after</body></html>`
+	got, err := ExtractTextBlocks([]byte(doc), "loose.xhtml")
+	if err != nil {
+		t.Fatalf("ExtractTextBlocks: %v", err)
+	}
+	want := []string{
+		"body before", "section before", "div before", "段落", "div after",
+		"section after", "figure before", "图注", "figure after", "body after",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("blocks=%q, want %q", got, want)
+	}
+}
