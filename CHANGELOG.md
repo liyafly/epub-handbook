@@ -9,6 +9,7 @@
 - G45：结构规范化会为每个非 UTF-8 文本资源返回 `structure.non-utf8-text` finding；nav.audit 的 OPF 解析错误使用 `opf-parse-error`，不再误报 spine 为空。
 - G47：迁移生成的 nav XHTML 直接包含 UTF-8 charset 元数据，重复运行 migrate 不再改写 nav。
 - G52：写出能力的 dry-run 默认输出名现包含完整能力 id，避免 `.optimize` 能力之间相互覆盖。
+- G53：nav.audit 遇到 EPUB 3 缺少 nav 时建议运行 migrate；多个 nav 时不追加该建议。
 
 ### Changed
 

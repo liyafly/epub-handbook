@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	migrateepub3 "github.com/liyafly/epub-handbook/internal/caps/migrate_epub3"
 	"github.com/liyafly/epub-handbook/internal/extern"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
@@ -236,6 +237,100 @@ body { font-family: Native, serif; }
 		t.Fatal(err)
 	}
 	return path
+}
+
+func writeEPUB3WithoutNavFixture(t *testing.T) string {
+	t.Helper()
+	entries := []nativeZipEntry{
+		{name: "mimetype", body: []byte("application/epub+zip")},
+		{name: "META-INF/container.xml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>
+`)},
+		{name: "OEBPS/content.opf", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="book-id">
+  <metadata><dc:identifier id="book-id">urn:uuid:no-nav</dc:identifier><dc:title>Missing nav</dc:title><dc:language>en</dc:language></metadata>
+  <manifest>
+    <item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+  </manifest>
+  <spine toc="ncx"><itemref idref="chapter"/></spine>
+</package>
+`)},
+		{name: "OEBPS/Text/chapter.xhtml", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><title>Chapter</title></head><body><h1 id="chapter">Chapter</h1><p>Text.</p></body></html>
+`)},
+		{name: "OEBPS/toc.ncx", body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap><navPoint id="chapter" playOrder="1"><navLabel><text>Chapter</text></navLabel><content src="Text/chapter.xhtml"/></navPoint></navMap></ncx>
+`)},
+	}
+	path := filepath.Join(t.TempDir(), "epub3-without-nav.epub")
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for _, entry := range entries {
+		h := &zip.FileHeader{Name: entry.name, Method: zip.Deflate}
+		if entry.name == "mimetype" {
+			h.Method = zip.Store
+		}
+		writer, err := w.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writer.Write(entry.body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestNavAuditSuggestsMigrateWhenEPUB3NavMissing(t *testing.T) {
+	path := writeEPUB3WithoutNavFixture(t)
+	res := runNativeAudit(t, path)
+	want := "epub run epub.package.migrate.epub3 --input " + report.ShellQuote(path) + " --dry-run --json"
+	if len(res.NextCommands) != 1 || res.NextCommands[0] != want {
+		t.Fatalf("nextCommands=%q, want exactly [%q]", res.NextCommands, want)
+	}
+
+	b, err := book.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := migrateepub3.Run(t.Context(), b, migrateepub3.Params{}); err != nil {
+		b.Close()
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "migrated.epub")
+	if err := b.WriteTo(output); err != nil {
+		b.Close()
+		t.Fatal(err)
+	}
+	if err := b.Close(); err != nil {
+		t.Fatal(err)
+	}
+	after := runNativeAudit(t, output)
+	for _, finding := range after.Findings {
+		if finding.Level == "error" {
+			t.Errorf("migrated EPUB still has audit error: %+v", finding)
+		}
+	}
+
+	multipleNav := filepath.Join(t.TempDir(), "epub3-multiple-nav.epub")
+	rewriteZipEntry(t, path, multipleNav, "OEBPS/content.opf", func(data []byte) []byte {
+		return bytes.Replace(data, []byte("</manifest>"), []byte(`<item id="second-nav" href="second-nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest>`), 1)
+	})
+	multiple := runNativeAudit(t, multipleNav)
+	for _, command := range multiple.NextCommands {
+		if strings.Contains(command, "epub.package.migrate.epub3") {
+			t.Fatalf("multiple nav items should not recommend migrate: %q", multiple.NextCommands)
+		}
+	}
 }
 
 func writeKindleOverlapFixture(t *testing.T) string {

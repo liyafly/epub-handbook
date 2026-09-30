@@ -379,6 +379,9 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 		}
 		ins.addFinding(level, "EPUB 3 package should contain exactly one nav item", "", "")
 		ins.addSkill("epub-audit", level)
+		if navCount == 0 && strings.HasPrefix(version, "3") {
+			ins.addCommand("epub run epub.package.migrate.epub3 --input " + q + " --dry-run --json")
+		}
 	}
 
 	// 封面。
