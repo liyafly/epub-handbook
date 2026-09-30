@@ -25,7 +25,8 @@ func ReferenceEdits(path string, data []byte, rewrite func(string) string) ([]ed
 
 	var edits []editset.Edit
 	for _, ref := range references {
-		if ref.DataURL || pypath.URLSplit(ref.Value).Scheme != "" {
+		parts := pypath.URLSplit(ref.Value)
+		if ref.DataURL || parts.Scheme != "" || parts.Netloc != "" {
 			continue
 		}
 		if strings.HasPrefix(ref.Value, "/") {

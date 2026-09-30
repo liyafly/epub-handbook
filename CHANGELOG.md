@@ -18,6 +18,7 @@
 
 ### Changed
 
+- C24：`//host` network-path 按外链静默跳过；cover 与 merge 的 missing/rooted 警告限定于本次实际改写涉及的引用，normalize 对缺失 OPF href 只报告一次。
 - G46：EPUB3 迁移继续规范化 Duokan class/role，但保留 `⊙` 返回字形，不再把正文字符替换为 `◎`。
 
 ## v0.5.0 - 2026-09-30

@@ -107,7 +107,7 @@ func TestReferenceEditsSkipsDataAndExternalURIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReferenceEdits: %v", err)
 	}
-	wantCalls := []string{"/root/a.png", "//cdn.example.test/a.png", "local.png"}
+	wantCalls := []string{"/root/a.png", "local.png"}
 	if !slices.Equal(called, wantCalls) {
 		t.Fatalf("rewrite called with %q, want %q", called, wantCalls)
 	}

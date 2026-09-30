@@ -84,6 +84,21 @@ func TestRewriteURIWarnsAndKeepsRootedHref(t *testing.T) {
 	}
 }
 
+func TestRewriteURINetworkPathIsExternal(t *testing.T) {
+	var warnings []string
+	warn := func(format string, args ...any) {
+		warnings = append(warnings, fmt.Sprintf(format, args...))
+	}
+	const uri = "//cdn.example/x.png"
+	got := RewriteURI(uri, "OEBPS/Text/chapter.xhtml", "OEBPS/Text/chapter.xhtml", nil, map[string]bool{}, warn)
+	if got != uri {
+		t.Fatalf("RewriteURI() = %q, want unchanged external %q", got, uri)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("network-path URI warnings = %q, want none", warnings)
+	}
+}
+
 func TestRewriteURIMapsKnownLocalReference(t *testing.T) {
 	known := map[string]bool{"OEBPS/Images/old.png": true}
 	pathMap := map[string]string{"OEBPS/Images/old.png": "OEBPS/Images/new.png"}

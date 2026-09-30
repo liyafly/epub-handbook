@@ -17,7 +17,7 @@ import (
 // retaining this capability's URI resolution and CSS/entity escaping adapters.
 func rewriteMarkupReferences(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	rewriteURIValue := func(uri string) string {
-		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
+		return pypath.RewriteURIForChangedTargets(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	}
 	rewriteCSSValue := func(raw, document string, quote byte, rewrite func(string) string) (string, error) {
 		if strings.Contains(raw, "&") {
@@ -84,7 +84,7 @@ func hasAttrName(names []string, candidate string) bool {
 // 不需要也不应该再跑属性名匹配。
 func rewriteCSSOnly(text, oldDocument, newDocument string, pathMap map[string]string, knownFiles map[string]bool, warn func(format string, a ...any)) (string, error) {
 	edits, err := css.ReferenceEdits(oldDocument, []byte(text), func(uri string) string {
-		return pypath.RewriteURI(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
+		return pypath.RewriteURIForChangedTargets(uri, oldDocument, newDocument, pathMap, knownFiles, warn)
 	})
 	if err != nil {
 		return "", toolErrf("%s: CSS reference scan: %v", oldDocument, err)

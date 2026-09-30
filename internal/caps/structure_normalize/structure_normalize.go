@@ -949,6 +949,17 @@ func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
 	if !hasPathChanges(rw.pathMap) {
 		return data, nil
 	}
+	rewriteExistingTarget := func(uri string) string {
+		parts := pypath.URLSplit(uri)
+		if parts.Scheme != "" || parts.Netloc != "" || parts.Path == "" {
+			return uri
+		}
+		target, err := pypath.ResolveRelativePath(opfPath, parts.Path)
+		if err != nil || !rw.files[target] {
+			return uri
+		}
+		return rw.rewriteURI(uri, opfPath, opfPath)
+	}
 	source, root, baseOffset, direct, err := losslessXMLSource(opfPath, data)
 	if err != nil {
 		return nil, err
@@ -962,7 +973,7 @@ func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
 		if !ok || href == "" {
 			continue
 		}
-		updated := rw.rewriteURI(href, opfPath, opfPath)
+		updated := rewriteExistingTarget(href)
 		if updated == href {
 			continue
 		}
@@ -978,7 +989,7 @@ func rewriteOPF(data []byte, opfPath string, rw *refRewriter) ([]byte, error) {
 		}
 		for _, attrName := range []string{"href", "src"} {
 			if uri, ok := elem.AttrByLocal("", attrName); ok && uri != "" {
-				updated := rw.rewriteURI(uri, opfPath, opfPath)
+				updated := rewriteExistingTarget(uri)
 				if updated == uri {
 					continue
 				}

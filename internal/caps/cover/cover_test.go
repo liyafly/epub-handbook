@@ -216,6 +216,43 @@ func TestReplaceCoverFacts(t *testing.T) {
 	}
 }
 
+func TestCoverReplaceWarnsOnlyForRewrittenReferences(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	fixture := writeBookEntries("封面书", "cover", []byte("old-cover"))
+	for i := range fixture {
+		if fixture[i].name == "OEBPS/Text/chapter.xhtml" {
+			fixture[i].content = []byte(strings.Replace(string(fixture[i].content), "</body>",
+				`<img src="//cdn.example/x.png" alt=""/><a href="/Text/chapter.xhtml">rooted</a><a href="missing.xhtml">missing</a></body>`, 1))
+		}
+	}
+	buildEpub(t, source, fixture)
+	cover := filepath.Join(dir, "new-cover.png")
+	if err := os.WriteFile(cover, []byte("new-cover"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "cover.epub")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{Cover: cover, Output: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	warnings, ok := res.Facts["warnings"].([]string)
+	if !ok {
+		t.Fatalf("facts warnings = %#v, want []string", res.Facts["warnings"])
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unrelated network/rooted/missing references produced warnings: %v", warnings)
+	}
+}
+
 // TestReplaceCoverRewritesOldReferences 原为 Python oracle 的 P2/P3 parity
 // 用例（oracle 已于 2026-08-29 删除，`epub_cover_replace_harness.py` 不复
 // 存在）。这里保留同一组 fixture，改为按封面替换的领域语义手写的

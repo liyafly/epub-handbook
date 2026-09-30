@@ -509,6 +509,29 @@ func TestNormalizeTwoStageWorkflow(t *testing.T) {
 	}
 }
 
+func TestNormalizeMissingManifestWarnsOnce(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "missing-manifest-target.epub")
+	entries := fixtureEntries("")
+	for i := range entries {
+		if entries[i].name == "OPS/package.opf" {
+			entries[i].content = strings.Replace(entries[i].content, "</manifest>",
+				`<item id="missing" href="missing.png" media-type="image/png"/></manifest>`, 1)
+		}
+	}
+	buildFixtureEntries(t, fixture, entries)
+
+	output := filepath.Join(dir, "formatted.epub")
+	res, err := runGo(t, fixture, output, ModeFormat, false)
+	if err != nil {
+		t.Fatalf("format EPUB with missing manifest target: %v", err)
+	}
+	warnings := factsOf(t, res).Warnings
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "manifest href does not resolve: missing.png") {
+		t.Fatalf("warnings = %q, want the single buildPathMap warning", warnings)
+	}
+}
+
 func TestDeobfuscateChainedIDsPassRedline(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "chained-ids.epub")
