@@ -99,6 +99,15 @@ func TestRewriteURINetworkPathIsExternal(t *testing.T) {
 	}
 }
 
+func TestResolveRelativePathRejectsRootedHref(t *testing.T) {
+	for _, href := range []string{"/x", "%2Fx", "%2fx"} {
+		got, err := ResolveRelativePath("OEBPS/Text/chapter.xhtml", href)
+		if err == nil || got != "" || !strings.Contains(err.Error(), "invalid absolute") {
+			t.Errorf("ResolveRelativePath(%q) = %q, %v; want invalid absolute error", href, got, err)
+		}
+	}
+}
+
 func TestRewriteURIMapsKnownLocalReference(t *testing.T) {
 	known := map[string]bool{"OEBPS/Images/old.png": true}
 	pathMap := map[string]string{"OEBPS/Images/old.png": "OEBPS/Images/new.png"}

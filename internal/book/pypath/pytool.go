@@ -233,7 +233,13 @@ func ValidateArchivePath(name, label string) (string, error) {
 
 // ResolveRelativePath 复刻 epub_lib.resolve_relative_path。
 func ResolveRelativePath(baseFile, uriPath string) (string, error) {
+	if strings.HasPrefix(uriPath, "/") {
+		return ValidateArchivePath(uriPath, "resource href")
+	}
 	decoded := Unquote(uriPath)
+	if strings.HasPrefix(decoded, "/") {
+		return ValidateArchivePath(decoded, "resource href")
+	}
 	return ValidateArchivePath(path.Join(Dirname(baseFile), decoded), "resource href")
 }
 

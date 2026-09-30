@@ -211,6 +211,28 @@ func TestPopupNotesOK(t *testing.T) {
 	}
 }
 
+func TestPopupRejectsRootedIconSrc(t *testing.T) {
+	dir := t.TempDir()
+	epub := filepath.Join(dir, "rooted-icon.epub")
+	files := validFixture()
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"],
+		`href="Icons/note.png"`, `href="Text/Icons/n.png"`, 1)
+	delete(files, "OEBPS/Icons/note.png")
+	files["OEBPS/Text/Icons/n.png"] = "png"
+	files["OEBPS/Text/valid.xhtml"] = strings.Replace(files["OEBPS/Text/valid.xhtml"],
+		`src="../Icons/note.png"`, `src="/Icons/n.png"`, 1)
+	writePopupEpub(t, epub, files)
+
+	status, titles, facts := runGoPopup(t, epub)
+	if status != "failed" || facts["violations"] != 1 {
+		t.Fatalf("status=%s violations=%v, want one rooted-icon violation", status, facts["violations"])
+	}
+	want := "OEBPS/Text/valid.xhtml: noteref img src must be a local EPUB resource: /Icons/n.png"
+	if len(titles) != 1 || titles[0] != want {
+		t.Fatalf("violations=%q, want [%q]", titles, want)
+	}
+}
+
 func TestPopupNotesSeparatesStandardAndDuokanViolations(t *testing.T) {
 	files := validFixture()
 	files["OEBPS/Text/valid.xhtml"] = strings.Replace(

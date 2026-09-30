@@ -2,6 +2,7 @@ package typography
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -208,6 +209,27 @@ func TestPresetHandlesPercentEncodedSpineHref(t *testing.T) {
 				t.Fatalf("preset link missing from decoded spine path: %q (%v)", chapter, err)
 			}
 		})
+	}
+}
+
+func TestTypographyRejectsRootedSpineHrefAsPresetError(t *testing.T) {
+	files := typographyFixture("chapter-head")
+	files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"],
+		`href="Text/chapter.xhtml"`, `href="/Text/chapter.xhtml"`, 1)
+	input := filepath.Join(t.TempDir(), "rooted-spine.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+
+	_, err = Run(t.Context(), b, Params{Preset: "literary-cn", PresetDir: filepath.Join(repoRootDir(t), "templates/style-presets"), DryRun: true})
+	if !errors.Is(err, ErrPreset) || !strings.Contains(err.Error(), "invalid absolute") {
+		t.Fatalf("rooted spine href error = %v, want presetErr wrapping invalid absolute", err)
+	}
+	if names := b.ModifiedNames(); len(names) != 0 {
+		t.Fatalf("rejected rooted spine modified entries: %v", names)
 	}
 }
 

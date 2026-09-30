@@ -306,7 +306,7 @@ func resolveLocalIconHref(opfPath, source, src string, errs *[]violation) (resol
 	}
 	parts := pypath.URLSplit(src)
 	prefix := source + ": noteref img"
-	if parts.Scheme != "" || parts.Netloc != "" {
+	if parts.Scheme != "" || parts.Netloc != "" || strings.HasPrefix(parts.Path, "/") || strings.HasPrefix(pypath.Unquote(parts.Path), "/") {
 		return fail(fmt.Sprintf("%s src must be a local EPUB resource: %s", prefix, src))
 	}
 	if parts.Path == "" {

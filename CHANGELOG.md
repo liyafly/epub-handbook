@@ -15,6 +15,7 @@
 - C21：typography 对重复 spine XHTML 路径先去重，带或不带 scope 时都只处理同一份 XHTML 一次。
 - C22：normalize 遇到含 CSS 转义的 rooted `url()` 时保留原字节并给出 unsafe absolute reference 警告，不再因此拒绝整本书。
 - C23：nav.audit 将 CSS `url()` 越出 EPUB 容器根的引用报告为 `CSS url() target escapes container root`，finding detail 使用 `xhtml-invalid-target`。
+- C25：`ResolveRelativePath` 拒绝 rooted 路径（含百分号解码后以 `/` 开头的路径）；popup 图标 `src` 明确报告 `src must be a local EPUB resource`，typography spine 以 preset error 拒绝。
 
 ### Changed
 
