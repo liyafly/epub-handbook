@@ -1109,6 +1109,7 @@ func buildNavXHTML(root *xmlElem, entries []navEntry) []byte {
 	b.WriteString(`<html xmlns="` + xhtmlURI + `" xmlns:epub="` + opsURI + `" xml:lang="` + lang + `" lang="` + lang + `">` + "\n")
 	b.WriteString("  <head>\n")
 	b.WriteString("    <title>" + title + "目录</title>\n")
+	b.WriteString("    <meta charset=\"utf-8\"/>\n")
 	b.WriteString("  </head>\n")
 	b.WriteString("  <body>\n")
 	b.WriteString(`    <nav epub:type="toc" id="toc">` + "\n")

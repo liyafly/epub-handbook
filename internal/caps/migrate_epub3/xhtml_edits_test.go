@@ -51,6 +51,24 @@ func TestNormalizeXHTMLShellRejectsTruncatedMarkup(t *testing.T) {
 	}
 }
 
+func TestNormalizeXHTMLShellIsIdempotent(t *testing.T) {
+	source := `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Keep</title></head><body>Body</body></html>`
+	first, changed, err := normalizeXHTMLShell(source, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("first shell pass should add the normalized shell")
+	}
+	second, changed, err := normalizeXHTMLShell(first, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed || second != first {
+		t.Fatalf("second shell pass changed the XHTML: changed=%t\nfirst=%q\nsecond=%q", changed, first, second)
+	}
+}
+
 func TestXHTMLHasLegacyBigTagIgnoresComments(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

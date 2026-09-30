@@ -942,6 +942,80 @@ func TestMigrateKeepsDuokanBacklinkGlyphText(t *testing.T) {
 	}
 }
 
+func TestMigrateTwiceLeavesXHTMLUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "legacy.epub")
+	firstOutput := filepath.Join(dir, "first.epub")
+	secondOutput := filepath.Join(dir, "second.epub")
+	writeFixtureEpub(t, fixture, buildLegacyFixture(legacyOptions{}))
+
+	_, err := runGo(t, fixture, firstOutput, defaultParams(firstOutput))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondResult, err := runGo(t, firstOutput, secondOutput, defaultParams(secondOutput))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondFacts := factsOf(t, secondResult)
+	if secondFacts.XHTMLFilesUpdated != 0 {
+		t.Fatalf("second migration updated %d XHTML files, want 0", secondFacts.XHTMLFilesUpdated)
+	}
+	nav := string(zipRead(t, openZip(t, firstOutput), "OEBPS/nav.xhtml"))
+	if !strings.Contains(nav, `<meta charset="utf-8"/>`) {
+		t.Fatalf("generated nav is missing its charset metadata:\n%s", nav)
+	}
+	firstEntries := archiveEntryBytes(t, firstOutput)
+	secondEntries := archiveEntryBytes(t, secondOutput)
+	if len(firstEntries) != len(secondEntries) {
+		t.Fatalf("migration entry count changed: first=%d second=%d", len(firstEntries), len(secondEntries))
+	}
+	for name, first := range firstEntries {
+		second, ok := secondEntries[name]
+		if !ok {
+			t.Fatalf("second migration removed entry %s", name)
+		}
+		if name == "OEBPS/content.opf" {
+			first = maskDctermsModified(t, first)
+			second = maskDctermsModified(t, second)
+		}
+		if !bytes.Equal(first, second) {
+			t.Fatalf("entry %s changed on the second migration", name)
+		}
+	}
+}
+
+func archiveEntryBytes(t *testing.T, path string) map[string][]byte {
+	t.Helper()
+	zr := openZip(t, path)
+	entries := make(map[string][]byte, len(zr.File))
+	for _, file := range zr.File {
+		entries[file.Name] = zipRead(t, zr, file.Name)
+	}
+	return entries
+}
+
+func maskDctermsModified(t *testing.T, data []byte) []byte {
+	t.Helper()
+	text := string(data)
+	marker := `property="dcterms:modified"`
+	start := strings.Index(text, marker)
+	if start < 0 {
+		t.Fatal("migrated OPF has no dcterms:modified metadata")
+	}
+	openEnd := strings.IndexByte(text[start:], '>')
+	if openEnd < 0 {
+		t.Fatal("dcterms:modified metadata has no opening-tag end")
+	}
+	valueStart := start + openEnd + 1
+	closeStart := strings.Index(text[valueStart:], "</meta>")
+	if closeStart < 0 {
+		t.Fatal("dcterms:modified metadata has no closing tag")
+	}
+	valueEnd := valueStart + closeStart
+	return []byte(text[:valueStart] + "__MODIFIED__" + text[valueEnd:])
+}
+
 func TestMissingHTMLLanguageCase(t *testing.T) {
 	dir := t.TempDir()
 	fixture := filepath.Join(dir, "legacy-missing-language.epub")
