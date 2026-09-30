@@ -61,6 +61,14 @@
 
 6. PR：说明动机、范围、是否影响 reader-matrix、是否需要新实测。
 
+## 维护者发布步骤
+
+1. 在发布提交中更新 CHANGELOG 版本标题和 `cmd/epub/version.go` 的 `<版本>-dev`，确认 release workflow 会从该标题抽取非空 `dist/RELEASE_NOTES.md`。
+2. 将发布提交推到 `main`，等待 Build EPUB Demo、Architecture Guard、Font Provider 全部通过；需要时单独 dispatch Release CLI 并检查四个平台的外部 smoke。
+3. 在已验证的发布提交上创建带注释的版本 tag，例如 `git tag -a v0.5.0 -m 'Release v0.5.0'`。发布前确认 CHANGELOG 的本版正文包含升级说明、已知限制和未实测的阅读器声明。
+4. 只推送指定 tag，例如 `git push origin v0.5.0`；不要使用 `git push --tags` 或移动已发布 tag。发布失败时重跑失败的 workflow job，不要移动 tag。
+5. 核对 GitHub Release 正文和四个平台附件、`SHA256SUMS`。发布完成后另开提交，把 CLI 版本升到下一个 `-dev`，并同步 README 与 Go rewrite handoff 中的当前发布版本。
+
 ## reader-matrix 回写规范
 
 每条 expectation 必须包含：

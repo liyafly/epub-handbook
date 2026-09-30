@@ -164,9 +164,12 @@ jobs:
           fi
           (cd dist && sha256sum "epub_v${version}_"*.tar.gz > SHA256SUMS)
           sed "s/@VERSION@/${version}/g" docs/release/README.md > dist/README.md
+          awk -v v="$version" '$1=="##" && ($2==v || $2=="v"v){f=1;next} f && $1=="##"{exit} f' CHANGELOG.md > dist/RELEASE_NOTES.md
+          test -s dist/RELEASE_NOTES.md
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          body_path: dist/RELEASE_NOTES.md
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: true
