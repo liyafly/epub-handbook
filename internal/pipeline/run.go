@@ -719,10 +719,11 @@ func defaultOutputPath(inputPath, capabilityID string) string {
 	inputPath = fallbackPath(inputPath, "input.epub")
 	inputName := filepath.Base(inputPath)
 	inputStem := strings.TrimSuffix(inputName, filepath.Ext(inputName))
-	_, operation, found := strings.CutLast(capabilityID, ".")
+	operation, found := strings.CutPrefix(capabilityID, "epub.")
 	if !found || operation == "" {
 		operation = capabilityID
 	}
+	operation = strings.ReplaceAll(operation, ".", "-")
 	return filepath.Join(filepath.Dir(inputPath), inputStem+"."+operation+".epub")
 }
 

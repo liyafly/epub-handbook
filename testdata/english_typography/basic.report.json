@@ -81,6 +81,6 @@
     }
   ],
   "nextCommands": [
-    "epub run epub.typography.english.optimize --input fixture.epub --output fixture.optimize.epub --json 'scope_paths=[\"OEBPS/Text/english-1.xhtml\",\"OEBPS/Text/english-2.xhtml\",\"OEBPS/Text/english-3.xhtml\"]'"
+    "epub run epub.typography.english.optimize --input fixture.epub --output fixture.typography-english-optimize.epub --json 'scope_paths=[\"OEBPS/Text/english-1.xhtml\",\"OEBPS/Text/english-2.xhtml\",\"OEBPS/Text/english-3.xhtml\"]'"
   ]
 }

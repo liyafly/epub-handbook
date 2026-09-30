@@ -719,10 +719,10 @@ func TestDryRunNextCommandDerivesOutputFromInput(t *testing.T) {
 	dir := filepath.Dir(inputPath)
 	for _, tc := range []struct {
 		capability string
-		stem       string
+		suffix     string
 	}{
-		{capability: "epub.structure.normalize", stem: "normalize"},
-		{capability: "epub.typography.optimize", stem: "optimize"},
+		{capability: "epub.structure.normalize", suffix: "structure-normalize"},
+		{capability: "epub.typography.optimize", suffix: "typography-optimize"},
 	} {
 		contract := Contract{ID: tc.capability}
 		contract.Execution.Output = ExecOutputSingle
@@ -730,10 +730,50 @@ func TestDryRunNextCommandDerivesOutputFromInput(t *testing.T) {
 		if len(commands) != 1 {
 			t.Fatalf("%s nextCommands = %q, want one apply command", tc.capability, commands)
 		}
-		wantOutput := filepath.Join(dir, "garden."+tc.stem+".epub")
+		wantOutput := filepath.Join(dir, "garden."+tc.suffix+".epub")
 		if !strings.Contains(commands[0], "--output "+report.ShellQuote(wantOutput)+" --json") {
 			t.Errorf("%s command = %q, want output %q", tc.capability, commands[0], wantOutput)
 		}
+	}
+}
+
+func TestDefaultOutputPathsAreDistinctAcrossWriteCapabilities(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	input := writeNewCapabilityEPUB(t)
+	cases := []struct {
+		capability string
+		args       Args
+	}{
+		{capability: "epub.css.layering.optimize"},
+		{capability: "epub.vertical.ruby.optimize", args: Args{"op": "ruby-rp"}},
+		{capability: "epub.typography.optimize"},
+		{capability: "epub.typography.english.optimize"},
+	}
+	outputs := make(map[string]string, len(cases))
+	for _, tc := range cases {
+		dryRun, err := Run(t.Context(), Options{
+			CapabilityID: tc.capability, InputPath: input, DryRun: true, Args: tc.args,
+		})
+		if err != nil || dryRun.ExitCode != ExitOK || dryRun.Envelope.Status != report.StatusPlanned {
+			t.Fatalf("%s dry-run status=%q exit=%d err=%v", tc.capability, dryRun.Envelope.Status, dryRun.ExitCode, err)
+		}
+		output := defaultOutputPath(input, tc.capability)
+		if len(dryRun.Envelope.NextCommands) != 1 || !strings.Contains(dryRun.Envelope.NextCommands[0], report.ShellQuote(output)) {
+			t.Fatalf("%s nextCommands=%q, want its distinct suggested output %q", tc.capability, dryRun.Envelope.NextCommands, output)
+		}
+		applied, err := Run(t.Context(), Options{
+			CapabilityID: tc.capability, InputPath: input, OutputPath: output, Args: tc.args,
+		})
+		if err != nil || applied.ExitCode != ExitOK || applied.Envelope.Status != report.StatusComplete {
+			t.Fatalf("%s apply status=%q exit=%d err=%v findings=%+v", tc.capability, applied.Envelope.Status, applied.ExitCode, err, applied.Envelope.Findings)
+		}
+		if _, err := os.Stat(output); err != nil {
+			t.Fatalf("%s suggested output was not written: %v", tc.capability, err)
+		}
+		outputs[output] = tc.capability
+	}
+	if len(outputs) != len(cases) {
+		t.Fatalf("distinct output count=%d, want %d: %v", len(outputs), len(cases), outputs)
 	}
 }
 

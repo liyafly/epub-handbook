@@ -213,7 +213,7 @@ func TestRunSourceIntakeDryRunHasNoNextCommands(t *testing.T) {
 	single := Contract{ID: "epub.structure.normalize"}
 	single.Execution.Input, single.Execution.Output = ExecInputEpub, ExecOutputSingle
 	if got := nextCommands(single, Options{InputPath: "source.epub", DryRun: true}, nil, true); len(got) != 1 ||
-		!strings.Contains(got[0], "--output source.normalize.epub") {
+		!strings.Contains(got[0], "--output source.structure-normalize.epub") {
 		t.Errorf("write capability dry-run nextCommands = %v", got)
 	}
 	multi := Contract{ID: "epub.package.split"}
