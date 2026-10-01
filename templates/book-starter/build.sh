@@ -16,7 +16,20 @@ DIST_DIR="$WORK_DIR/dist"
 PIPELINE_DIR="$WORK_DIR/.pipeline"
 LOCK_DIR="$PIPELINE_DIR/build.lock"
 OUTPUT="$DIST_DIR/book.epub"
+DIST_SHA_FILE="$PIPELINE_DIR/dist-sha256"
+DIST_SHA_TMP="$PIPELINE_DIR/.dist-sha256.$$"
 EPUB_BIN=${EPUB_BIN:-epub}
+
+file_sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | awk '{print $1}'
+	else
+		echo "sha256sum or shasum is required to protect an existing dist artifact." >&2
+		return 1
+	fi
+}
 
 run_check() {
 	report_path=$1
@@ -63,10 +76,34 @@ rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE
 BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
 cleanup() {
 	rm -rf "$BUILD_TMP"
+	rm -f "$DIST_SHA_TMP"
 	rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
+
+DIST_EXISTS_AT_START=false
+DIST_SHA_AT_START=""
+if [ -e "$OUTPUT" ] || [ -L "$OUTPUT" ]; then
+	DIST_EXISTS_AT_START=true
+	if [ -L "$OUTPUT" ] || [ ! -f "$OUTPUT" ]; then
+		echo "Refusing to replace a non-regular dist artifact: $OUTPUT" >&2
+		exit 1
+	fi
+	if [ ! -f "$DIST_SHA_FILE" ]; then
+		printf 'Refusing to overwrite existing dist without its accepted SHA-256 receipt: %s\n' "$OUTPUT" >&2
+		printf 'Review/import any dist edits into %s, then record the reviewed artifact SHA in %s.\n' "$EPUB_DIR" "$DIST_SHA_FILE" >&2
+		exit 1
+	fi
+	DIST_SHA_AT_START=$(file_sha256 "$OUTPUT")
+	RECORDED_DIST_SHA=$(cat "$DIST_SHA_FILE")
+	if [ "$DIST_SHA_AT_START" != "$RECORDED_DIST_SHA" ]; then
+		printf 'Refusing to overwrite dist: its SHA-256 differs from the last accepted build.\n' >&2
+		printf 'Artifact: %s\nRecorded: %s\nCurrent:  %s\n' "$OUTPUT" "$RECORDED_DIST_SHA" "$DIST_SHA_AT_START" >&2
+		printf 'Review the EPUB changes and merge intended edits into %s before rebuilding.\n' "$EPUB_DIR" >&2
+		exit 1
+	fi
+fi
 
 FULL_EPUB="$BUILD_TMP/full-font.epub"
 FINAL_EPUB="$BUILD_TMP/final.epub"
@@ -115,7 +152,26 @@ if [ -f "$OUTPUT" ]; then
 	cat "$PIPELINE_DIR/previous-dist-redline.txt"
 fi
 
+# Do not overwrite an artifact changed or created while this build was running.
+if [ "$DIST_EXISTS_AT_START" = true ]; then
+	if [ ! -f "$OUTPUT" ] || [ -L "$OUTPUT" ]; then
+		echo "Refusing to replace dist because the previous artifact disappeared during this build." >&2
+		exit 1
+	fi
+	DIST_SHA_NOW=$(file_sha256 "$OUTPUT")
+	if [ "$DIST_SHA_NOW" != "$DIST_SHA_AT_START" ]; then
+		echo "Refusing to replace dist because it changed while this build was running." >&2
+		exit 1
+	fi
+elif [ -e "$OUTPUT" ] || [ -L "$OUTPUT" ]; then
+	echo "Refusing to replace dist because an artifact appeared while this build was running." >&2
+	exit 1
+fi
+
 # BUILD_TMP is under PIPELINE_DIR, on the same volume as DIST_DIR. Rename only
 # after every check succeeds so a failed build preserves the last good EPUB.
+FINAL_SHA=$(file_sha256 "$FINAL_EPUB")
 mv -f "$FINAL_EPUB" "$OUTPUT"
+printf '%s\n' "$FINAL_SHA" >"$DIST_SHA_TMP"
+mv -f "$DIST_SHA_TMP" "$DIST_SHA_FILE"
 printf 'Built %s\n' "$OUTPUT"

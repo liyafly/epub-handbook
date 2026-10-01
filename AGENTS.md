@@ -46,7 +46,7 @@
 
 完整命令与通过条件见 `docs/pipeline/cleanup-flow.md`。
 
-一次性清洗通过并确定可维护候选后，后续维护转为书级 Git 解包源：新书可从仓库根运行 `sh templates/book-starter/new-book.sh work-epub/<book>`；解包源保存在 `03 制作工作区/epub/`，完整字体跟随源树维护。构建用 `03 制作工作区/epub/build.sh`，经导航审计和全项 redline 后覆盖唯一的 `03 制作工作区/dist/book.epub`；临时过程放 `.pipeline/` 并忽略。规则与既有 EPUB 接入详见 `docs/pipeline/book-workspace.md`。
+一次性清洗通过并确定可维护候选后，后续维护转为书级 Git 解包源：新书可从仓库根运行 `sh templates/book-starter/new-book.sh work-epub/<book>`；解包源保存在 `03 制作工作区/epub/`，完整字体跟随源树维护。书级仓库保留创建时复制的 `build.sh`，已有书升级时需先审查并同步当前 starter。构建用 `03 制作工作区/epub/build.sh`，经导航审计和全项 redline 后更新 `03 制作工作区/dist/book.epub`；`.pipeline/dist-sha256` 收据会阻止覆盖未同步的人工修改或收据缺失的成品。编辑 dist 后须先对照红线与人工 diff、将修改并回解包源，再更新收据；临时过程放 `.pipeline/` 并忽略。规则与既有 EPUB 接入详见 `docs/pipeline/book-workspace.md`。
 
 正文校订必须有明确授权，并走 SPEC §10.1.1 与 `docs/pipeline/cleanup-flow.md` 附录 A；**不得删除正文不变 gate、伪造通过或用宽泛 allow-list 掩盖**。含文决策放 `02 校对材料/正文校订/`；其他机器输入按需放 `02 校对材料/`，跨书可复用且脱敏的判断才放 `records/typeset-decisions.jsonl`。
 

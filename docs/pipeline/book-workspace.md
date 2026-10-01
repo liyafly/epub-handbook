@@ -47,7 +47,13 @@ work-epub/my-book/
 sh '03 制作工作区/epub/build.sh'
 ```
 
-脚本把中间包和报告放进 `03 制作工作区/.pipeline/`，最后运行导航结构审计和全项 redline；所有 gate 通过才用同卷重命名覆盖 `03 制作工作区/dist/book.epub`。构建内 FULL/FINAL redline 只检查构建过程中的字体子集化等变换。若已有 `dist/book.epub`，构建还会把它与新候选跑一次全项 redline，并将差异摘要打印到终端；该对比只提示作者检查正文等版本变化，不阻断构建，也不是正文不变 gate。每次构建先清除上次 gate 报告，当前报告使用固定文件名保存，重复构建不会累计报告；终端显示通过/警告摘要，失败时会打印 gate 报告。构建失败时，最近一次通过验证的 `book.epub` 保持原样。不会按时间戳生成新文件，也不会把中间 EPUB 留在书目录里。
+脚本把中间包和报告放进 `03 制作工作区/.pipeline/`，最后运行导航结构审计和全项 redline；所有 gate 通过才用同卷重命名覆盖 `03 制作工作区/dist/book.epub`。构建内 FULL/FINAL redline 只检查构建过程中的字体子集化等变换。若已有 `dist/book.epub`，构建还会把它与新候选跑一次全项 redline，并将差异摘要打印到终端；该对比只提示作者检查正文等版本变化，不是正文不变 gate。
+
+为防止人工编辑过的成品被后续构建覆盖，脚本在 `.pipeline/dist-sha256` 保存最近一次成功构建的交付件 SHA-256。重建前必须确认当前 `dist/book.epub` 与收据匹配；收据缺失、摘要不匹配、文件在构建过程中被改动或被替换时，脚本会停止并保留现有成品。所有源文件变更仍应提交到书级 Git；dist 只是交付输出，不是维护源。
+
+若需用 Sigil 等工具直接修复交付 EPUB，先复制留档，对照改前版本运行 `epub redline --check all` 并人工检查差异；再将需要的变化并回 `03 制作工作区/epub/`，运行导航审计、全项 redline并审阅源码 diff。确认源树已含所需修复后，才把当前交付件 SHA 写入收据，允许下一次构建：macOS 用 `shasum -a 256 '03 制作工作区/dist/book.epub' | awk '{print $1}' > '03 制作工作区/.pipeline/dist-sha256'`，Linux 可改用 `sha256sum`。若 `.pipeline/` 清理导致收据遗失，而 dist 仍存在，应先重新审查并对齐源再恢复收据；不得将缺少收据视作可安全覆盖。构建失败时，最近一次成品保持原样。不会按时间戳生成新文件，也不会把中间 EPUB 留在书目录里。
+
+维护 starter 构建保护时，在手册仓库根运行 `sh templates/book-starter/test-build-dist-guard.sh`；回归覆盖首次构建、源更新重建、人工修改后拒绝覆盖，以及收据缺失时拒绝覆盖。
 
 `dist/book.epub` 和 `.pipeline/` 默认由新书脚本写进书级 `.gitignore`。Git 主要维护解包源、校对材料、脚本与制作决策；交付 EPUB 是可从某次源提交重建的输出。打包前会在临时目录复制源树、统一时间戳并按固定路径顺序归档；相同源提交、平台以及 `zip -v` 显示的相同 zip 构建可复现相同 SHA-256，跨平台或 zip 构建不同不承诺字节级一致。macOS 系统 zip 不会为非 ASCII 条目名设置 UTF-8 标志，EPUB 条目名请使用 ASCII。每次交付后，在 `制作说明.md` 记录源提交、产物 SHA-256 和阅读器实测。若要长期归档具体交付版，把它发布到书级仓库之外的发行位置，并保留对应 SHA，不要把反复构建的二进制历史塞进源文件提交。
 
@@ -67,7 +73,7 @@ provider 缺失或子集检查失败会使这次构建失败，原有 dist 不�
 
 ## 升级既有书
 
-书级仓库会保留创建时复制的 `build.sh`，升级手册仓库不会自动更新这些脚本。epub-font 2.0.0 已删除 `epub-font check --against`；若旧脚本仍调用它，构建会以迁移提示退出。检查并删除该调用，或审阅后将脚本更新到当前 `templates/book-starter/build.sh`。当前 Go 的 `epub.font.subset` 会在应用候选前检查独立覆盖回归。
+书级仓库会保留创建时复制的 `build.sh`，升级手册仓库不会自动更新这些脚本。epub-font 2.0.0 已删除 `epub-font check --against`；若旧脚本仍调用它，构建会以迁移提示退出。检查并删除该调用，或审阅后将脚本更新到当前 `templates/book-starter/build.sh`。dist SHA 收据保护同样只在书内脚本更新后生效；更新既有书时，先检查本书构建逻辑，再同步并验证模板。当前 Go 的 `epub.font.subset` 会在应用候选前检查独立覆盖回归。
 
 已安装的 provider 升级到 2.0.0：
 
