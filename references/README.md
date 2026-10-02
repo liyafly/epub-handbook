@@ -9,6 +9,10 @@ Reference samples do not establish EPUB rules or reader-compatibility conclusion
 Those require a project demo artifact and the evidence recorded in
 `docs/final/reader-matrix.yaml`.
 
+## 在线文档
+
+- [Reeden 电子书扩展来源说明](reeden-extensions.md)：官方页面链接、Draft 状态、许可边界及本仓研究落点；仅保存自行撰写的摘要，不镜像官网内容。
+
 ## EPUB 文件
 
 当前没有第三方 EPUB 跟踪在仓库中。`.gitignore` 会忽略 EPUB 文件；新增引用书前，

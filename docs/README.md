@@ -53,6 +53,7 @@
   - [cleanup-patterns.md](pipeline/cleanup-patterns.md)
   - [epub3-migration.md](pipeline/epub3-migration.md)：EPUB3 迁移产物与验收
   - [reference-font-role-patterns.md](pipeline/reference-font-role-patterns.md)
+  - [reference-reader-extensions.md](pipeline/reference-reader-extensions.md)：多看长屏封面证据与 Reeden 扩展研究
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
 

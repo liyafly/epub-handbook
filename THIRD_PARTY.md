@@ -28,6 +28,41 @@ on 2026-06-18 inspected `ff8c171d0b9dfd3c44c0e2621e1054b39feaa0a0`.
 The handbook implementation does not provide DRM decryption and does not copy
 the reference project's desktop UI or third-party dependencies.
 
+## Documentation Reference: Reeden EPUB Extensions
+
+- Source / publisher: [Reeden official documentation](https://docs.reeden.app/ebook_spec)
+  and its [extension index](https://docs.reeden.app/ebook_spec_compatibility);
+  no individual author is identified on the inspected pages.
+- Inspected on 2026-10-02. The overview labels the specification **0.1 Draft**;
+  this is not an application version or a verified compatibility result.
+- Rights: no explicit documentation redistribution license was found on the
+  inspected extension pages. Public access does not establish reuse permission.
+- Retained material: source links and original project analysis only; no copies
+  of upstream page bodies, illustrations or screenshots are stored here.
+- Purpose: compare standard EPUB semantics, reader-specific enhancements and
+  Duokan compatibility aliases. The source inventory is
+  [references/reeden-extensions.md](references/reeden-extensions.md); the analysis is
+  [docs/pipeline/reference-reader-extensions.md](docs/pipeline/reference-reader-extensions.md).
+- Standards cross-check: [W3C EPUB 3.3](https://www.w3.org/TR/epub-33/#sec-prefix-attr),
+  published by W3C with the [W3C document license](https://www.w3.org/copyright/document-license/).
+  Only the prefix mechanism is summarized; the specification is not mirrored.
+
+## Local Cover-Structure Reference: local-cover-sample-01
+
+- Source: a user-supplied local EPUB identified as `local-cover-sample-01`.
+  The book title, source filename and author / translator / producer names are
+  intentionally omitted from this repository note. The SHA-256 below identifies
+  the inspected artifact. No public download link or redistribution permission
+  was supplied.
+- SHA-256 inspected on 2026-10-02:
+  `619ba5fbd51b9b3b4a34355427c70ad37bd3ee814c75966a863dcc427a074304`.
+- Scope: read-only analysis of ordinary cover references, the registered
+  `cover~slim.png` resource and the `duokan-page-fullscreen` spine property.
+  No EPUB, book text, image or font is retained in this repository.
+- Rights: no permission to redistribute the supplied edition or its assets is
+  asserted. Only structural facts and minimal markup identifiers are recorded
+  in [the analysis](docs/pipeline/reference-reader-extensions.md).
+
 ## Coding/Behavioral Reference: JetBrains/go-modern-guidelines
 
 [`JetBrains/go-modern-guidelines`](https://github.com/JetBrains/go-modern-guidelines)

@@ -11,6 +11,7 @@
 | [package-operations.md](package-operations.md) | 合并、拆分、元数据、封面 |
 | [epub-diff-review.md](epub-diff-review.md) | S8：人工 diff |
 | [reference-font-role-patterns.md](reference-font-role-patterns.md) | 字体角色参考 |
+| [reference-reader-extensions.md](reference-reader-extensions.md) | 多看长屏封面、Reeden 扩展与待验证模式 |
 
 Go 维护交接（不是清洗流程）：[go-rewrite-handoff.md](go-rewrite-handoff.md)。
 硬规则：[../final/SPEC-实现约束.md §10](../final/SPEC-实现约束.md)。
