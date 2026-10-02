@@ -952,6 +952,43 @@ sup {
 
 > 若项目希望注释正文使用独立楷体或仿宋角色，在 `fonts.css` 中给稳定的注释容器绑定系统链或覆盖完整的嵌入字体；`notes.css` 的 `.footnote` 基础类仍只保留结构与视觉属性。使用 `aside[epub|type~="footnote"]` 时，`fonts.css` 必须声明 `@namespace epub "http://www.idpf.org/2007/ops";`；它紧跟可选的 `@charset` / `@import`，并早于 `@font-face` 和普通样式规则。
 
+### 7.2.1 坑点：注释图标前后都换行
+
+如果正文在注释图标前断行，图标单独占一行，后续文字再另起一行，先检查图标和外层链接最终生效的 `display`。即使前面已经给 `.noteref-icon img` 写了 `display:inline`，更具体的后续规则仍可能把图片改回块级显示。例如：
+
+```css
+sup.note-marker > a.noteref-icon {
+  display: inline-block;
+}
+
+sup.note-marker > a.noteref-icon > img {
+  display: block;
+}
+```
+
+完整支持 CSS 的引擎会把内层块级图片包在行内的链接盒子中，这组写法本身不会强制打断正文。如果阅读器未正确处理外层 `inline-block`，或覆盖了相关样式，内层图片就可能以独立块参与排版；具体内部原因仍需在目标阅读器中核对。[W3C 行内盒与块级容器说明](https://www.w3.org/TR/CSS2/visuren.html#inline-boxes)
+
+最小排查改法是在原有的图标选择器中只将 `display:block` 改为 `display:inline`：
+
+```css
+sup.note-marker > a.noteref-icon > img {
+  display: inline;
+}
+```
+
+原规则的图片宽高、基线、外层链接及 `sup` 样式继续保留；不要改成全书 `img { display:inline; }`，也不要用较弱的选择器追加一条实际上无法覆盖原声明的规则。如果仍前后断行，再检查外层 `a` / `sup` 的最终显示方式并单独对照。`line-height:0` 和相对定位调整行高与位置，不能禁止断行。
+
+这类前后断行与行尾自然折行要分开处理。行内图片前后仍可能存在自然断行点；如需要绑定图标与相邻字或标点，另用短容器控制该局部的 `white-space`。只给图标链接加 `nowrap` 管不到链接外的文字；`nowrap` 也不能修复块级排版造成的断行。[W3C 断行与共同祖先规则](https://www.w3.org/TR/css-text-3/#line-breaking)
+
+**匿名生产样本回填（2026-10-02）：** `note-icon-inline-sample-01` 中有 10 个注释图标入口，图标与前后文字同属一个段落，没有额外的 `<br>` 或硬换行。测试副本只修改 `OEBPS/Styles/main.css` 中上述图片规则的一个 `display` 声明，由 `block` 改为 `inline`；其他 ZIP 成员内容一致，ZIP CRC 和 EPUB mimetype 打包检查通过。用户在多看重新试读后反馈“我试了，是好的”。
+
+| 产物 | SHA-256 |
+| --- | --- |
+| 修改前 | `7b06bec9e3577c998871f236f22a1fe3582602fea805b788fe1da2acb5f54476` |
+| 行内图标测试副本 | `0c7338e8cb90112fd1ba629061003b6357558ba43f6c9b9641154c1c7318e0b4` |
+
+原文件与测试副本均保留在用户本地。样本身份与保留范围见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。多看的完整版本、设备和截图尚未提供，在 [reader-matrix](reader-matrix.yaml) 中以 `external-production-note-icon-inline` / `warn` 记录用户试读观察；不据此推断已解决所有阅读器的图标行高、弹窗或行尾标点问题。
+
 ### 7.3 叠加多看 fallback
 
 只有目标 EPUB 明确需要多看旧版兼容时，才在标准结构上叠加多看类名；不要创建第二份注释容器。
@@ -1363,6 +1400,7 @@ Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应�
 ### 弹注
 
 - [ ] 正文引用是图片图标。
+- [ ] 在目标阅读器检查图标是否前后都断行；异常时按 §7.2.1 核对最终 `display`，并复测普通 / 大字号下的行高。
 - [ ] `<a>` 有 `epub:type="noteref"` 和 `role="doc-noteref"`。
 - [ ] 每个含注释的 XHTML 有一个 `<aside epub:type="footnote" role="doc-footnote">` 注释容器。
 - [ ] 多条注释放在同一个容器内的 `ol.footnote-list > li.footnote-item`。

@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-09-28
+updated_at: 2026-10-02
 owner: epub-handbook
 
 lanes:
@@ -79,6 +79,9 @@ cases:
   - id: external-production-v3-1-image-sizing
     title: 匿名外部生产样本 v3.1：单图百分比宽度与并排比例
     fixture: "anonymous-production-sample-v3.1.epub#sha256=d10243cd21fb691b49de13c3ce086503dff3ab16fdbcc884013a5bef4ca0b78e"
+  - id: external-production-note-icon-inline
+    title: 匿名外部生产样本：注释图标前后断行
+    fixture: "anonymous-note-icon-inline.epub#sha256=0c7338e8cb90112fd1ba629061003b6357558ba43f6c9b9641154c1c7318e0b4"
   - id: 17-image-layout
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
@@ -416,6 +419,15 @@ expectations:
     issue: "历史观察（无截图/日志，2026-09-28 降为 warn）：移除通用修复图 width:100% 对单图百分比宽度的覆盖，并按源图框比例设置两组并排容器后，抽查图未再撑满页面，并排关系与图题未错位。"
     action: "通用图片规则只限制 max-width/height；展示宽度留给 figure 或单图作用域，并排比例按源图框而不是后期视觉缩放确定。"
     workaround: "该观察只覆盖本次抽查图；其他宽高比与大字号仍需单独复测。"
+  - reader: duokan
+    case: external-production-note-icon-inline
+    status: warn
+    reader_version: pending-user-version
+    profile: "2026-10-02 用户多看试读；设备、主题和字号未记录"
+    artifact: "anonymous-note-icon-inline.epub#sha256=0c7338e8cb90112fd1ba629061003b6357558ba43f6c9b9641154c1c7318e0b4"
+    issue: "用户报告修改前注释图标前后都断行；测试副本仅把图标 img 的 display:block 改为 inline，用户反馈试读正常。尚缺完整版本、设备和截图/日志，记录观察而非 pass。"
+    action: "原件与测试副本保留在用户本地；补充多看完整版本和截图/日志后复核。同类 demo 02 / 05 的窄屏与大字号仍需独立实测。"
+    workaround: "仅在原图标规则中调整 img 的 display，链接、sup、尺寸与其他成员内容保持原样；见手册 §7.2.1，不对所有图片套用。"
   - reader: duokan
     case: 05-duokan-fallback
     status: warn

@@ -12,6 +12,7 @@
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - noteref 的可见触发主路径是图片图标。已有本地图标资源时必须保留原 `img src`；把纯文本、数字上标、`[1]`、`注` 等标记转成图片 noteref 时，须经正文修改授权，由制作方提供图标并同步 OPF manifest。EPUB3 迁移不会转换这些标记或注入默认 `Images/note.png`。
 - 图片触发器可以保留外层 `<sup>` 作为旧书兼容包裹，但 CSS 必须把它处理为普通行内图标，不做高位数字上标效果；`sup { vertical-align: middle; line-height: 1; }`，图标自身使用 `vertical-align: baseline` 或 `middle`。
+- 图标前后都断行时，检查最终生效的 `display`：外层链接 `inline-block`、内层图片 `block` 的组合在目标阅读器中可能退化为独立块。优先在原有图标规则中只将图片改为 `display:inline`，保持尺寸、链接和正文不变，再做目标阅读器对照；这不是对所有块级图片的禁令，也不等于已确认阅读器内部原因。匿名样本与排查步骤见 [手册 §7.2.1](EPUB%203%20终极实践手册.md)。
 - 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
 - 当需要兼容多看旧版本时，必须在标准结构基础上同步：

@@ -63,6 +63,20 @@ the reference project's desktop UI or third-party dependencies.
   asserted. Only structural facts and minimal markup identifiers are recorded
   in [the analysis](docs/pipeline/reference-reader-extensions.md).
 
+## Local Note-Icon Structure Reference: note-icon-inline-sample-01
+
+- Source: a user-supplied local EPUB and the user's Duokan trial-reading feedback
+  on 2026-10-02. The title, source filename and contributor names are omitted.
+- Original SHA-256: `7b06bec9e3577c998871f236f22a1fe3582602fea805b788fe1da2acb5f54476`.
+- Test-copy SHA-256: `0c7338e8cb90112fd1ba629061003b6357558ba43f6c9b9641154c1c7318e0b4`.
+- Scope: one note-icon CSS declaration changed from `display:block` to `inline`;
+  structural facts and anonymous feedback are recorded in
+  [the handbook](docs/final/EPUB%203%20终极实践手册.md), section 7.2.1.
+- The original and test copy remain local. No EPUB, text or image asset is added
+  to this repository; no redistribution permission is asserted. Full reader
+  version, device and screenshots were not supplied; reader-matrix records the
+  observation as `warn`.
+
 ## Coding/Behavioral Reference: JetBrains/go-modern-guidelines
 
 [`JetBrains/go-modern-guidelines`](https://github.com/JetBrains/go-modern-guidelines)

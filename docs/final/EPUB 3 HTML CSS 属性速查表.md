@@ -440,6 +440,7 @@ h2 {
 | XHTML 根声明 | `<html ... xmlns:epub="http://www.idpf.org/2007/ops">` | 必须 | 声明 `epub:` 前缀；不会单独把 OPF2 升级成 EPUB3 |
 | 触发元素 | `<a epub:type="noteref" role="doc-noteref">` | 推荐 | 放图片图标；外层 `<sup>` 可保留但不做高位上标 |
 | 触发图标 | `<img alt="注" src="../Images/note.png"/>` | 推荐 | 示例路径；资源由书稿制作方提供，已有图标时保留原 `src` |
+| 图标前后都断行 | 在原图标规则中对照 `display:block` → `inline` | 条件排查 | 检查更具体的规则是否覆盖原 `inline`；外层 `inline-block` 的处理需实测，`nowrap` 不修复块级断行；见 [手册 §7.2.1](EPUB%203%20终极实践手册.md) |
 | 注释容器 | `<aside epub:type="footnote" role="doc-footnote">` | 推荐 | 每个 XHTML 一个 |
 | 注释列表 | `<ol class="footnote-list">` | 推荐 | 承载本文件全部注释 |
 | 单条注释 | `<li class="footnote-item" id="footnote-1">` | 推荐 | noteref 跳转目标 |
