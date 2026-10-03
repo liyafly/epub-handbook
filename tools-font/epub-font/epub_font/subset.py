@@ -114,15 +114,14 @@ def _preserve_math_job(target: str, item, original_bytes: bytes, original_font) 
     }
 
 
-def _independent_coverage(zf: zipfile.ZipFile, target: str, source_bytes: bytes, output_bytes: bytes) -> dict:
-    _, harvest = check.harvest_book(zf)
+def _independent_coverage(harvest: check.Harvest, target: str, source_bytes: bytes, output_bytes: bytes) -> dict:
     source = check.check_font(source_bytes, target, harvest)
     output = check.check_font(output_bytes, target, harvest)
     regressions = check._regressions(source, output)
     return {"ok": not regressions, "regressions": regressions[:200]}
 
 
-def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dict:
+def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf: zipfile.ZipFile) -> dict:
     target = job["target"]
     if target not in zf.namelist():
         raise UsageError(f"{target} is not in the EPUB (only existing font entries can be replaced)")
@@ -138,7 +137,7 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
     if original_is_math:
         result = _preserve_math_job(target, item, original_bytes, original_font)
         result["checks"]["independent-coverage"] = _independent_coverage(
-            zf, target, original_bytes, original_bytes
+            harvest, target, original_bytes, original_bytes
         )
         result["ok"] = all(check_result["ok"] for check_result in result["checks"].values())
         if deprecated_preserve:
@@ -174,7 +173,7 @@ def _process_job(job: dict, book: epubtext.BookText, zf: zipfile.ZipFile) -> dic
     out_font = fontops.load_font(out_bytes, f"{target} (output)")
     out = fontops.font_facts(out_font)
     checks, not_in_master = fontops.verify(source_facts, out, required, spec, limits, target, out_font, source_shapes)
-    checks["independent-coverage"] = _independent_coverage(zf, target, original_bytes, out_bytes)
+    checks["independent-coverage"] = _independent_coverage(harvest, target, original_bytes, out_bytes)
     if not_in_master:
         warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
     return {
@@ -242,6 +241,10 @@ def run(args) -> int:
             book = epubtext.read_book_text(zf)
         except epubtext.EpubError as exc:
             raise UsageError(str(exc)) from exc
+        try:
+            _, independent_harvest = check.harvest_book(zf)
+        except check.CheckError as exc:
+            raise UsageError(str(exc)) from exc
         manifest_fonts = [
             item for item in book.items
             if item.path.lower().endswith(tuple(fontops.FLAVOR_BY_EXT)) or "font" in item.media_type.lower()
@@ -258,7 +261,7 @@ def run(args) -> int:
             ]
             jobs.extend(automatic_jobs)
         try:
-            results = [_process_job(job, book, zf) for job in jobs]
+            results = [_process_job(job, book, independent_harvest, zf) for job in jobs]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 

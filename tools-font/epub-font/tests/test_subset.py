@@ -189,7 +189,8 @@ def independent_coverage_pair(
 
 def check_independent_coverage(epub: bytes, source: bytes, output: bytes) -> dict:
     with zipfile.ZipFile(io.BytesIO(epub)) as zf:
-        return subset._independent_coverage(zf, "OEBPS/Fonts/st-all.ttf", source, output)
+        _, harvest = check.harvest_book(zf)
+        return subset._independent_coverage(harvest, "OEBPS/Fonts/st-all.ttf", source, output)
 
 
 GOOD_CONFIG = {
@@ -229,6 +230,24 @@ def test_cli_end_to_end(tmp_path, capsys):
     assert semibold["OS/2"].usWeightClass == 600
     assert ord("字") in kt_font.getBestCmap()   # extraText
     assert ord("字") not in semibold.getBestCmap()
+
+
+def test_cli_harvests_independent_book_coverage_once_for_all_fonts(tmp_path, capsys, monkeypatch):
+    epub, config = write_inputs(tmp_path, GOOD_CONFIG)
+    calls = 0
+    original = check.harvest_book
+
+    def count_harvest(zf):
+        nonlocal calls
+        calls += 1
+        return original(zf)
+
+    monkeypatch.setattr(check, "harvest_book", count_harvest)
+    code, report = run_subset(epub, config, tmp_path / "candidate.epub")
+
+    assert code == 0, capsys.readouterr()
+    assert report["ok"]
+    assert calls == 1
 
 
 def test_report_schema_version_is_2(tmp_path):
