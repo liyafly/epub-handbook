@@ -96,6 +96,8 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 
 推荐由正式 capability `epub.font.subset` 调用独立 `epub-font` provider。完整字体保留在书级 Git 的解包源中；每次都从完整母版生成候选子集，不能把上次输出当作新母版。能力只替换现有 manifest 字体 entry，不改 OPF / CSS / XHTML；provider 的逐字体核验成功后，pipeline 再运行红线并写候选。可变字体需在书根 `fonts.json` 中显式设置 `variation.mode`。书级固定产物与失败保留语义见[工作区指南](book-workspace.md)。
 
+默认全书字符集可保持现有配置不变。需要按正文/标题等 CSS 字体族缩小范围时，可在 `fonts.json` 加 `"usage": "css"`；检查 sidecar 中每字体模式与保守回退原因。遇到脚本、无法读取的 CSS、XML stylesheet processing instruction 或 SVG `use`，provider 会拒绝 CSS 模式且不写候选；未知选择器则扩大对应字体到全书字符集。
+
 需要单独检查既有产物或排查字体配置时，仍可直接使用 `epub-font check`；字体 provider 的 CLI 选项见 [`epub-font` 文档](../../tools-font/epub-font/README.md)。完成静态检查后再做目标阅读器实测。
 
 ### 4.2 WOFF2 vs WOFF vs OTF/TTF

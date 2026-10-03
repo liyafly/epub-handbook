@@ -21,6 +21,7 @@
 
 ### Changed
 
+- F19：epub-font 2.1.0 新增显式 CSS 字体角色子集模式；默认全书模式不变。简单选择器按继承字体族分配字符，无法识别的作用域保守扩大或拒绝，并在 schemaVersion 3 sidecar 与 Go finding 中记录模式和回退；Go 保持兼容旧 book-mode schemaVersion 2。每次整书 subset 运行只收集一次独立字符清单。
 - C24：`//host` network-path 按外链静默跳过；cover 与 merge 的 missing/rooted 警告限定于本次实际改写涉及的引用，normalize 对缺失 OPF href 只报告一次。
 - G46：EPUB3 迁移继续规范化 Duokan class/role，但保留 `⊙` 返回字形，不再把正文字符替换为 `◎`。
 

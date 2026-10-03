@@ -21,9 +21,9 @@ from pathlib import Path
 
 import fontTools
 
-from . import check, epubtext, fontops
+from . import check, epubtext, font_usage, fontops
 
-CONFIG_KEYS = {"version", "fonts"}
+CONFIG_KEYS = {"version", "usage", "fonts"}
 FONT_KEYS = {"target", "variation", "extraText"}
 DEPRECATED_FONT_KEYS = {"action"}
 DEPRECATED_ACTION_REMOVAL_VERSION = "3.0.0"
@@ -49,6 +49,9 @@ def _load_config(path: Path) -> dict:
         raise UsageError(f"config has unknown keys: {sorted(unknown)}")
     if config.get("version") != 1:
         raise UsageError("config.version must be 1")
+    usage = config.get("usage", "book")
+    if not isinstance(usage, str) or usage not in {"book", "css"}:
+        raise UsageError("config.usage must be 'book' or 'css'")
     fonts = config.get("fonts")
     if not isinstance(fonts, list) or not fonts:
         raise UsageError("config.fonts must be a non-empty list")
@@ -121,7 +124,7 @@ def _independent_coverage(harvest: check.Harvest, target: str, source_bytes: byt
     return {"ok": not regressions, "regressions": regressions[:200]}
 
 
-def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf: zipfile.ZipFile) -> dict:
+def _process_job(job: dict, book: epubtext.BookText, usage: font_usage.FontUsage, zf: zipfile.ZipFile) -> dict:
     target = job["target"]
     if target not in zf.namelist():
         raise UsageError(f"{target} is not in the EPUB (only existing font entries can be replaced)")
@@ -137,8 +140,13 @@ def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf:
     if original_is_math:
         result = _preserve_math_job(target, item, original_bytes, original_font)
         result["checks"]["independent-coverage"] = _independent_coverage(
-            harvest, target, original_bytes, original_bytes
+            usage.harvest, target, original_bytes, original_bytes
         )
+        result["usage"] = {
+            "mode": usage.mode,
+            "requiredCodepoints": len(usage.codepoints),
+            "requiredSequences": len(usage.harvest.sequences),
+        }
         result["ok"] = all(check_result["ok"] for check_result in result["checks"].values())
         if deprecated_preserve:
             result["warnings"].append(
@@ -160,7 +168,7 @@ def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf:
     fontops.check_target_format(target, source_facts.outline)
     limits = fontops.axis_limits(source_facts, spec, source_font_label)
 
-    required = {ord(ch) for ch in book.all_chars() | set(job.get("extraText", ""))}
+    required = usage.codepoints | {ord(ch) for ch in job.get("extraText", "")}
     location = fontops.target_location(source_facts, spec, limits)
     source_shapes = fontops.glyph_shapes(source_font, source_facts.cmap, sorted(required), location)
     flavor = fontops.FLAVOR_BY_EXT[fontops.target_extension(target)]
@@ -173,7 +181,7 @@ def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf:
     out_font = fontops.load_font(out_bytes, f"{target} (output)")
     out = fontops.font_facts(out_font)
     checks, not_in_master = fontops.verify(source_facts, out, required, spec, limits, target, out_font, source_shapes)
-    checks["independent-coverage"] = _independent_coverage(harvest, target, original_bytes, out_bytes)
+    checks["independent-coverage"] = _independent_coverage(usage.harvest, target, original_bytes, out_bytes)
     if not_in_master:
         warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
     return {
@@ -189,6 +197,11 @@ def _process_job(job: dict, book: epubtext.BookText, harvest: check.Harvest, zf:
         "output": {"sha256": fontops.sha256(out_bytes), "bytes": len(out_bytes), "glyphs": out.glyph_count,
                    "outline": out.outline, "flavor": out.flavor, "axes": out.axes, "tables": out.tables},
         "requiredCodepoints": len(required),
+        "usage": {
+            "mode": usage.mode,
+            "requiredCodepoints": len(required),
+            "requiredSequences": len(usage.harvest.sequences),
+        },
         "notInMaster": [fontops.cp_label(cp) for cp in not_in_master[:200]],
         "notInMasterCount": len(not_in_master),
         "checks": checks,
@@ -260,14 +273,20 @@ def run(args) -> int:
                 {"target": item.path} for item in manifest_fonts if item.path not in configured_targets
             ]
             jobs.extend(automatic_jobs)
+        requested_usage = config.get("usage", "book") if config else "book"
+        targets = [job["target"] for job in jobs]
         try:
-            results = [_process_job(job, book, independent_harvest, zf) for job in jobs]
+            usage_plan = font_usage.build_plan(requested_usage, zf, book, independent_harvest, targets)
+        except font_usage.UnsafeUsageError as exc:
+            raise UsageError(str(exc)) from exc
+        try:
+            results = [_process_job(job, book, usage_plan.fonts[job["target"]], zf) for job in jobs]
         except fontops.FontJobError as exc:
             raise UsageError(str(exc)) from exc
 
     all_ok = all(result["ok"] for result in results)
     report_data = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "tool": "epub-font subset",
         "providerVersion": package_version("epub-font"),
         "fontTools": fontTools.version,
@@ -277,6 +296,11 @@ def run(args) -> int:
         "charset": {
             "total": len(book.all_chars()),
             "bySource": {name: len(chars) for name, chars in sorted(book.chars_by_source.items())},
+        },
+        "usage": {
+            "mode": usage_plan.mode,
+            "algorithm": "css-conservative-v1" if usage_plan.mode == "css" else "book-v1",
+            "fallbackReasons": usage_plan.fallback_reasons,
         },
         "fonts": [{k: v for k, v in result.items() if k != "_bytes"} for result in results],
         "ok": all_ok,

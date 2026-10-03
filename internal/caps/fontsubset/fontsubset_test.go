@@ -119,6 +119,61 @@ func TestRunRejectsOldProviderSchemaVersion(t *testing.T) {
 	}
 }
 
+func TestRunAcceptsCSSUsageProviderSchema(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "css-usage")
+	provider := makeReportingProvider(t)
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "complete" {
+		t.Fatalf("Run() = result %+v, error %v; want successful schema v3 report", result, err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].ID != "font-subset.not-in-master" {
+		t.Fatalf("findings = %+v, want only the existing missing-master warning", result.Findings)
+	}
+	providerReport, ok := result.Facts["providerReport"].(providerReportSummary)
+	if !ok || providerReport.Usage == nil || providerReport.Usage.Mode != "css" || providerReport.SchemaVersion != 3 {
+		t.Fatalf("provider report = %#v, want validated CSS usage schema v3", result.Facts["providerReport"])
+	}
+}
+
+func TestRunReportsCSSUsageFallback(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "css-usage-fallback")
+	provider := makeReportingProvider(t)
+	b, _ := openFontBook(t)
+	defer b.Close()
+
+	result, err := Run(t.Context(), b, Params{ToolPath: provider})
+	if err != nil || result.Status != "complete" {
+		t.Fatalf("Run() = result %+v, error %v; want successful report with conservative fallback", result, err)
+	}
+	for _, finding := range result.Findings {
+		if finding.ID == "font-subset.usage-fallback" && strings.Contains(finding.Detail, "unsupported selector") {
+			return
+		}
+	}
+	t.Fatalf("findings = %+v, want a font-subset.usage-fallback warning", result.Findings)
+}
+
+func TestRunRejectsProviderUsageCountMismatch(t *testing.T) {
+	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "css-bad-usage")
+	assertProviderReportRejected(t)
+}
+
+func TestValidFontUsageAllowsMoreSequencesThanCodepoints(t *testing.T) {
+	codepoints := 5
+	sequences := 6
+	usage := providerFontUsage{
+		Mode:               "css",
+		RequiredCodepoints: &codepoints,
+		RequiredSequences:  &sequences,
+	}
+	if !validFontUsage("css", usage) {
+		t.Fatalf("validFontUsage(%+v) = false; variation sequences are not bounded by distinct codepoints", usage)
+	}
+}
+
 func TestRunRejectsReportWithoutIndependentCoverage(t *testing.T) {
 	t.Setenv("EPUB_FONT_REPORT_TEST_MODE", "missing-independent-coverage")
 	assertProviderReportRejected(t)
@@ -536,6 +591,13 @@ if mode == "wrong-output-sha":
     report["output"]["sha256"] = "0" * 64
 if mode == "old-schema":
     report["schemaVersion"] = 1
+if mode in ("css-usage", "css-bad-usage", "css-usage-fallback"):
+    report["schemaVersion"] = 3
+    report["usage"] = {"mode": "css", "algorithm": "css-conservative-v1", "fallbackReasons": []}
+    if mode == "css-usage-fallback":
+        report["usage"]["fallbackReasons"] = ["unsupported selector; affected font uses whole-book text"]
+    report["fonts"][0]["usage"] = {"mode": "css", "requiredCodepoints": 2 if mode in ("css-usage", "css-usage-fallback") else 1,
+                                    "requiredSequences": 0}
 if mode == "legacy-source-font":
     font = report["fonts"][0]
     font["master"] = font.pop("sourceFont")

@@ -67,6 +67,8 @@ sh '03 制作工作区/epub/build.sh'
 
 因此每次修改正文后，构建都会从解包源中的完整字体重新计算所需字形；新增加的字不依赖上次子集化产物，不会因为旧子集缺字而无法恢复。完整字体的许可和来源记入 `THIRD_PARTY.md`。带 OpenType MATH 表的字体无论是否列在配置中都会按原字节保留，provider 报告记录 `reason=math-table` 与输入/输出 SHA；普通字体继续子集化。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示，之后应删除该字段。可变字体配置只接受 `variation.mode: "instance"`。加密/混淆、损坏或不支持的字体仍会失败。交付 EPUB 必须由书内 `build.sh` 构建，或由 `epub.font.subset` 生成候选后通过规定检查；禁止直接把解包源树打包交付。
 
+`fonts.json` 默认使用全书字符集；可选顶层 `"usage": "css"` 按 CSS 字体族缩小角色字符集。简单 CSS 可精确分配；无法识别的选择器会将相关字体扩大到全书，含脚本、无法安全读取的 CSS、XML stylesheet processing instruction 或 SVG `use` 会拒绝该模式且保留现有 dist。CSS 模式是按静态 EPUB/CSS 证据构建的候选，不代替目标阅读器验收。
+
 无字体的书不需要安装字体 provider。需要子集化时，在手册仓库中安装：
 
 ```sh
@@ -79,13 +81,13 @@ provider 缺失或子集检查失败会使这次构建失败，原有 dist 不�
 
 书级仓库会保留创建时复制的 `build.sh`，升级手册仓库不会自动更新这些脚本。epub-font 2.0.0 已删除 `epub-font check --against`；若旧脚本仍调用它，构建会以迁移提示退出。检查并删除该调用，或审阅后将脚本更新到当前 `templates/book-starter/build.sh`。dist SHA 收据保护同样只在书内脚本更新后生效；更新既有书时，先检查本书构建逻辑，再同步并验证模板。当前 Go 的 `epub.font.subset` 会在应用候选前检查独立覆盖回归。
 
-已安装的 provider 升级到 2.0.0：
+已安装的 provider 升级到 2.1.0：
 
 ```sh
 uv tool install --editable --reinstall tools-font/epub-font
 ```
 
-provider 2.0.0 使用 schemaVersion 2。旧 schema 会以 `font-subset.provider-outdated` 失败，且不会应用候选。旧 `fonts.json` 中的 `action: "preserve"` 在 2.x 暂时接受并提示弃用；请在 3.0.0 前移除。`tools-font/coverage-detector/` 已删除，字体覆盖分析统一经 PATH 上的 `epub-font coverage` 执行。
+provider 2.1.0 使用 schemaVersion 3，Go 仍兼容旧 book-mode schemaVersion 2；schemaVersion 1 会以 `font-subset.provider-outdated` 失败，且不会应用候选。旧 `fonts.json` 中的 `action: "preserve"` 在 2.x 暂时接受并提示弃用；请在 3.0.0 前移除。`tools-font/coverage-detector/` 已删除，字体覆盖分析统一经 PATH 上的 `epub-font coverage` 执行。
 
 ## 已有 EPUB 的一次性接入
 

@@ -46,6 +46,8 @@ uv tool install --editable tools-font/epub-font
 
 自动字体处理会完整保留带 OpenType `MATH` 表的数学字体，无需在 `fonts.json` 中声明保留。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示；可变字体只接受 `variation.mode: "instance"`。加密/混淆或损坏的字体不会因保留设置而放行。
 
+`fonts.json` 可选添加顶层 `"usage": "css"`，按 CSS 字体族为各字体生成较小的字符集；省略时使用全书字符集。该模式对简单选择器按角色收集文字，对无法识别的选择器保守扩大到全书；含脚本、无法解析的样式表导入、XML stylesheet processing instruction、SVG `use` 或无法证明字符变体完整时会拒绝 CSS 模式，不生成候选。不同字重若共用同一 `font-family`，会保留同一字符集。每次查看 `.pipeline/font-subset.json` 中的使用模式与回退 finding；不确定时省略该设置，保留既有全书模式。
+
 ## 进阶排版
 
 默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。手工切换 CSS 层不等同于完整套用一个 preset：预设有多个分层文件以及对应的 manifest/head 引用；对已有 EPUB，请用 `epub.typography.optimize` 生成候选并审核报告。

@@ -36,6 +36,8 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 
 此 capability 调用独立 `epub-font` provider，并使用另一套字符收集器对照完整源字体与子集结果，拦截新增缺字、空字形和 IVS/SVS 损失；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止且不写候选 EPUB。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
 
+默认按全书字符集子集化。只有样式表结构简单且明确希望按正文/标题字体角色缩小字符集时，才在 `fonts.json` 顶层显式设 `"usage": "css"`；未知选择器会扩大相关字体，活动内容、无法解析的样式和字符生成方式会拒绝 CSS 模式。运行后审查每字体 `usage.mode` 和 `font-subset.usage-fallback` finding；不确定时删除 `usage`，使用全书模式。
+
 在书级工作区中，完整字体保存在解包源的 OPF 目标路径；`fonts.json` 只配置当前 EPUB 内的 manifest 字体。交付用书内 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。
 
 ### 标准弹注
@@ -137,7 +139,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 ### 完整字体重新子集化
 
-前缀 `epub.font.subset.`：facts 中的 `changedFonts` 列出已替换字节的字体路径；`providerReport` 保存 provider 版本、输入/输出 SHA、逐字体 SHA、字形统计、检查结果和警告。finding `font-subset.not-in-master` 是缺字警告，查看 location 和 detail 确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误。
+前缀 `epub.font.subset.`：facts 中的 `changedFonts` 列出已替换字节的字体路径；`providerReport` 保存 provider 版本、输入/输出 SHA、逐字体 SHA、使用模式、字形统计、检查结果和警告。finding `font-subset.usage-fallback` 表示 CSS 角色范围被保守扩大，`font-subset.not-in-master` 是缺字警告，查看 location 和 detail 确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误。
 
 ### 标准弹注
 
@@ -180,6 +182,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 - `font-subset.provider-missing` 表示需安装 `epub-font` provider；`font-subset.not-in-master` 表示母版缺少所需字形，确认声明的 fallback 覆盖这些字符。若收到 `font-subset.stale-input`，先对未修改的源 EPUB 子集化，再运行其他会改书的步骤。
 - 审查 `facts["epub.font.subset.changedFonts"]` 与 `facts["epub.font.subset.providerReport"]`，确认替换路径、输入/输出 SHA 和每个字体的 action；无变化时也需确认 MATH 字体是否按策略保留。成功后做全项 redline。
+- 如启用了 `usage: "css"`，逐字体确认 `usage.mode`；任何 `font-subset.usage-fallback` 都要检查 detail，只有接受较大字集后才继续。静态验证不能代替目标阅读器实测。
 
 ### 标准弹注
 

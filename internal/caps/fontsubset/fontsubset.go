@@ -29,7 +29,8 @@ import (
 const CapabilityID = "epub.font.subset"
 
 const (
-	providerReportSchemaVersion = 2
+	providerReportSchemaVersion = 3
+	legacyProviderReportVersion = 2
 	maxProviderReportBytes      = 8 << 20
 )
 
@@ -64,6 +65,18 @@ type providerVariation struct {
 	Mode string `json:"mode"`
 }
 
+type providerFontUsage struct {
+	Mode               string `json:"mode"`
+	RequiredCodepoints *int   `json:"requiredCodepoints"`
+	RequiredSequences  *int   `json:"requiredSequences"`
+}
+
+type providerUsageReport struct {
+	Mode            string   `json:"mode"`
+	Algorithm       string   `json:"algorithm"`
+	FallbackReasons []string `json:"fallbackReasons"`
+}
+
 type providerFontDigest struct {
 	SHA256 string `json:"sha256"`
 	Bytes  int64  `json:"bytes"`
@@ -79,6 +92,7 @@ type providerFontResult struct {
 	Original           providerFontDigest         `json:"original"`
 	Output             providerFontOutput         `json:"output"`
 	Variation          providerVariation          `json:"variation"`
+	Usage              providerFontUsage          `json:"usage"`
 	RequiredCodepoints *int                       `json:"requiredCodepoints"`
 	NotInMaster        []string                   `json:"notInMaster"`
 	NotInMasterCount   *int                       `json:"notInMasterCount"`
@@ -94,6 +108,7 @@ type providerSubsetReport struct {
 	FontTools       string                  `json:"fontTools"`
 	Input           providerArtifact        `json:"input"`
 	Fonts           []providerFontResult    `json:"fonts"`
+	Usage           *providerUsageReport    `json:"usage"`
 	OK              bool                    `json:"ok"`
 	Output          *providerOutputArtifact `json:"output"`
 }
@@ -115,6 +130,7 @@ type providerFontSummary struct {
 	NotInMasterCount   *int                      `json:"notInMasterCount"`
 	Checks             map[string]map[string]any `json:"checks"`
 	Warnings           []string                  `json:"warnings"`
+	Usage              *providerFontUsage        `json:"usage,omitempty"`
 }
 
 type providerReportSummary struct {
@@ -125,6 +141,7 @@ type providerReportSummary struct {
 	OutputSHA256     string                `json:"outputSHA256"`
 	OK               bool                  `json:"ok"`
 	Fonts            []providerFontSummary `json:"fonts"`
+	Usage            *providerUsageReport  `json:"usage,omitempty"`
 	Warnings         []string              `json:"warnings"`
 }
 
@@ -279,6 +296,9 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if reportVersion.SchemaVersion == 1 {
 		return failure(&res, "font-subset.provider-outdated", "provider report schemaVersion 1 is no longer supported; install the current provider with `uv tool install --editable --reinstall tools-font/epub-font`")
 	}
+	if reportVersion.SchemaVersion != legacyProviderReportVersion && reportVersion.SchemaVersion != providerReportSchemaVersion {
+		return failure(&res, "font-subset.report-invalid", fmt.Sprintf("unsupported provider report schemaVersion %d", reportVersion.SchemaVersion))
+	}
 	var reportedTargets struct {
 		Fonts []struct {
 			Target string `json:"target"`
@@ -411,8 +431,20 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 	if err := json.Unmarshal(data, &providerReport); err != nil {
 		return providerReportSummary{}, nil, fmt.Errorf("decode provider report: %w", err)
 	}
-	if providerReport.SchemaVersion != providerReportSchemaVersion {
+	if providerReport.SchemaVersion != providerReportSchemaVersion && providerReport.SchemaVersion != legacyProviderReportVersion {
 		return providerReportSummary{}, nil, fmt.Errorf("unsupported provider report schemaVersion %d", providerReport.SchemaVersion)
+	}
+	if providerReport.SchemaVersion == providerReportSchemaVersion {
+		if providerReport.Usage == nil {
+			return providerReportSummary{}, nil, fmt.Errorf("provider report is missing usage metadata")
+		}
+		algorithm := map[string]string{"book": "book-v1", "css": "css-conservative-v1"}[providerReport.Usage.Mode]
+		if algorithm == "" || providerReport.Usage.Algorithm != algorithm {
+			return providerReportSummary{}, nil, fmt.Errorf("provider report has unsupported usage mode or algorithm")
+		}
+		if err := validateWarningList("usage.fallbackReasons", providerReport.Usage.FallbackReasons); err != nil {
+			return providerReportSummary{}, nil, err
+		}
 	}
 	if providerReport.Tool != "epub-font subset" || providerReport.ProviderVersion == "" || providerReport.FontTools == "" {
 		return providerReportSummary{}, nil, fmt.Errorf("provider report is missing tool or version identity")
@@ -471,6 +503,7 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		OK:               providerReport.OK,
 		Fonts:            make([]providerFontSummary, 0, len(providerReport.Fonts)),
 		Warnings:         cloneStrings(providerReport.Output.Warnings),
+		Usage:            cloneProviderUsage(providerReport.Usage),
 	}
 	findings := make([]report.Finding, 0)
 	for _, font := range providerReport.Fonts {
@@ -490,6 +523,17 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		seen[font.Target] = struct{}{}
 		if !font.OK {
 			return providerReportSummary{}, nil, fmt.Errorf("provider report marks font %q as failed", font.Target)
+		}
+		if providerReport.SchemaVersion == providerReportSchemaVersion {
+			if !validFontUsage(providerReport.Usage.Mode, font.Usage) {
+				return providerReportSummary{}, nil, fmt.Errorf("provider report has invalid usage facts for %q", font.Target)
+			}
+			if providerReport.Usage.Mode == "book" && font.Usage.Mode != "book" {
+				return providerReportSummary{}, nil, fmt.Errorf("book usage report contains a narrower font scope for %q", font.Target)
+			}
+			if font.Action == "subset" && font.RequiredCodepoints != nil && *font.RequiredCodepoints != *font.Usage.RequiredCodepoints {
+				return providerReportSummary{}, nil, fmt.Errorf("provider requiredCodepoints does not match usage facts for %q", font.Target)
+			}
 		}
 		sourceFont := font.SourceFont
 		if sourceFont.Source == "" || len(sourceFont.Source) > 4096 || sourceFont.Bytes < 0 || sourceFont.Glyphs < 0 || sourceFont.Outline == "" ||
@@ -573,6 +617,9 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 			RequiredCodepoints: font.RequiredCodepoints, NotInMaster: cloneOptionalStrings(font.NotInMaster),
 			NotInMasterCount: font.NotInMasterCount, Checks: checks, Warnings: cloneStrings(font.Warnings),
 		}
+		if providerReport.SchemaVersion == providerReportSchemaVersion {
+			fontSummary.Usage = new(font.Usage)
+		}
 		summary.Fonts = append(summary.Fonts, fontSummary)
 		if font.NotInMasterCount != nil && *font.NotInMasterCount > 0 {
 			detail := fmt.Sprintf("%d required characters are absent from the master font; fallback fonts must cover them", *font.NotInMasterCount)
@@ -620,7 +667,39 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 			Detail: warning, Location: "EPUB output",
 		})
 	}
+	if providerReport.Usage != nil && len(providerReport.Usage.FallbackReasons) > 0 {
+		findings = append(findings, report.Finding{
+			Level: "warn", ID: "font-subset.usage-fallback", Title: "Font usage analysis broadened a subset",
+			Detail:   fmt.Sprintf("%d conservative fallback(s); %s", len(providerReport.Usage.FallbackReasons), providerReport.Usage.FallbackReasons[0]),
+			Location: "EPUB font usage",
+		})
+	}
 	return summary, findings, nil
+}
+
+func validFontUsage(reportMode string, usage providerFontUsage) bool {
+	if usage.RequiredCodepoints == nil || usage.RequiredSequences == nil ||
+		*usage.RequiredCodepoints < 0 || *usage.RequiredCodepoints > 0x110000 ||
+		*usage.RequiredSequences < 0 || *usage.RequiredSequences > maxProviderReportBytes {
+		return false
+	}
+	switch reportMode {
+	case "book":
+		return usage.Mode == "book"
+	case "css":
+		return usage.Mode == "css" || usage.Mode == "book"
+	default:
+		return false
+	}
+}
+
+func cloneProviderUsage(usage *providerUsageReport) *providerUsageReport {
+	if usage == nil {
+		return nil
+	}
+	cloned := *usage
+	cloned.FallbackReasons = slices.Clone(usage.FallbackReasons)
+	return &cloned
 }
 
 // fontHasMathTable inspects the table directory without depending on the Python

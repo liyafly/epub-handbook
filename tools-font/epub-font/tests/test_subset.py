@@ -250,11 +250,12 @@ def test_cli_harvests_independent_book_coverage_once_for_all_fonts(tmp_path, cap
     assert calls == 1
 
 
-def test_report_schema_version_is_2(tmp_path):
+def test_report_schema_version_is_3(tmp_path):
     epub, config = write_inputs(tmp_path, GOOD_CONFIG)
     code, report = run_subset(epub, config, tmp_path / "candidate.epub")
     assert code == 0, report
-    assert report["schemaVersion"] == 2
+    assert report["schemaVersion"] == 3
+    assert report["usage"] == {"mode": "book", "algorithm": "book-v1", "fallbackReasons": []}
 
 
 def test_cli_is_deterministic(tmp_path):
@@ -371,6 +372,7 @@ def test_removed_variable_font_modes_are_rejected(variation):
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "typo": 1}]}, {}, "unknown keys", None),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": "subset"}]}, {}, "only the legacy value 'preserve'", None),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf", "action": []}]}, {}, "only the legacy value 'preserve'", None),
+    ({"usage": []}, {}, "config.usage must be 'book' or 'css'", None),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}, {"target": "OEBPS/Fonts/st-all.ttf"}]}, {}, "listed twice", None),
     ({"version": 2}, {}, "version must be 1", None),
     ({"fonts": [{"target": "OEBPS/Fonts/st-all.ttf"}]}, {"encrypted": ("OEBPS/Fonts/st-all.ttf",)}, "encryption.xml", None),

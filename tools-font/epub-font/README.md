@@ -1,7 +1,7 @@
 # epub-font：EPUB 字体子集化与全量校验
 
 独立 Python + fontTools provider，**不打包进 EPUB Handbook Go 发行包**。`coverage`、`subset`、`check` 共用本项目、依赖锁和安装入口；书级构建可经正式的 `epub.font.coverage.analyze` / `epub.font.subset` capability 调用它，也可以直接使用下面的 CLI。
-它只做一件事：把 EPUB 里**已存在**的字体条目替换成按全书字符集裁切后的字体字节，并逐项核验。
+它只做一件事：把 EPUB 里**已存在**的字体条目替换成按全书字符集（默认）或 CSS 字体角色字符集（显式启用）裁切后的字体字节，并逐项核验。
 OPF、CSS、XHTML 与其他 entry 原样复制（同顺序、同压缩方式），所以字体 alias、包内路径、CSS URL 与 OPF id 都不变
 （`docs/final/字体别名命名规范.md` §4.7）。
 
@@ -31,7 +31,7 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 `coverage` 可写出 JSON 报告和自包含 HTML 报告，用于查看字体链与阅读器风险；默认输出摘要。该分析会跳过 ASCII 与部分通用标点，不承担 `check` 的全量覆盖保证。
 
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
-- Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（schema v2）、EPUB 与字体 SHA、字体 manifest 身份、字体来源、静态输出、独立覆盖检查和逐项结果；provider 还必须报告与真实 MATH 表相符的 preserve 动作。schema v1 provider 会以 `font-subset.provider-outdated` 拒绝，并提示重新安装。私有临时报告随后清理；已校验的版本、SHA、字形统计、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
+- Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（当前 schema v3，兼容旧 book-mode v2）、EPUB 与字体 SHA、字体 manifest 身份、字体来源、静态输出、使用范围、独立覆盖检查和逐项结果；provider 还必须报告与真实 MATH 表相符的 preserve 动作。schema v1 provider 会以 `font-subset.provider-outdated` 拒绝。私有临时报告随后清理；已校验的版本、SHA、字形统计、使用模式、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
 - 省略 `--config` 时自动处理 OPF manifest 中的全部字体。提供 `--config` 时，`fonts.json` 只覆盖列出的字体；manifest 中未列出的字体也会自动处理。含 OpenType `MATH` 表的字体始终按原字节保留；其他静态字体直接子集化，可变字体必须指定 `variation.mode: "instance"` 并输出静态实例。
 - `action` 已从配置中移除。旧配置里的 `action: "preserve"` 在 2.x 仍接受并给出弃用提示，但会被忽略；请在 epub-font 3.0.0 前删除该字段。MATH 字体自动保留，普通字体仍会子集化。加密/混淆、损坏和不支持格式仍会失败。
 - `check` 省略 `--font` 和 `--font-file` 时检查 EPUB manifest 中的全部字体；`--font-file` 用于校验包外字体。
@@ -45,6 +45,7 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 ```json
 {
   "version": 1,
+  "usage": "css",
   "fonts": [
     {"target": "OEBPS/Fonts/st-all.ttf", "variation": {"mode": "instance", "axes": {"wght": 400}}, "extraText": "〓"},
     {"target": "OEBPS/Fonts/STIXTwoMath-Regular.otf"}
@@ -54,13 +55,18 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 
 | 键 | 必填 | 含义 |
 | --- | --- | --- |
+| `usage` | 否 | `book`（默认）为每个字体保留全书字符；`css` 按 CSS 字体角色缩小所需字符集，并在 sidecar 中报告每字体范围 |
 | `target` | 是 | EPUB 内已存在、且在 OPF manifest 中的字体 ZIP 路径；扩展名决定输出格式：`.ttf`（需 TrueType 轮廓）、`.otf`（需 CFF/CFF2 轮廓）、`.woff`、`.woff2` |
 | `variation.mode` | 可变字体必填；静态字体省略 | 只接受 `instance`，将可变字体实例化为静态字重 |
 | `variation.axes` | 仅 `instance` | 例如 `{"wght": 600}`；未写的轴取默认值 |
 | `action` | 已移除；2.x 暂时兼容 | 仅旧值 `preserve` 在 2.x 接受并提示弃用，随后忽略；3.0.0 删除兼容；MATH 字体自动保留 |
 | `extraText` | 否 | 额外保留的字符（SPEC §4 第 5 条 `extraCodepoints`） |
 
+`usage: "css"` 是显式选择。解析器只精确处理类型、class、id、通配符及其简单组合，以及后代与子元素选择器；它会把继承字体和匹配到的字体族都纳入候选，保留全局基线及 CSS 生成字符。无法识别的选择器会把对应字体扩大到全书字符集；字体族无法解析时会扩大所有字体。相同 `font-family` 的多个 `@font-face`（例如不同字重）使用同一字符集，避免误判字重匹配而漏字。含脚本、事件处理属性、嵌入资源、不可解析的 CSS、无法解析的样式表导入、XML stylesheet processing instruction、SVG `use` 或无法证明字符变体完整的输入会拒绝 CSS 模式且不写出 EPUB；将配置改为 `"usage": "book"` 可使用既有全书模式。未知选择器的保守回退会在 provider 报告和 Go capability finding 中说明。
+
 ## 收集哪些字符（全书范围）
+
+`usage: "book"` 使用以下全书范围；CSS 角色模式在此基础上按字体族分配正文文字，并把下列固定/生成字符加入所有嵌入字体。
 
 manifest 中全部 XHTML / SVG / NCX（含 nav）的文本节点，`alt` / `title` / `aria-label`，全部 CSS 字符串字面量
 （CSS 文件、`<style>`、`style=""`，覆盖 `content:` / `quotes:`；跳过注释与 `url("…")`），外加固定基线
