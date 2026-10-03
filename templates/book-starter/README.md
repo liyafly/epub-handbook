@@ -29,7 +29,7 @@
 
 4. 交付文件固定为 `03 制作工作区/dist/book.epub`。有字体时，provider 会用独立字符收集器检查子集没有引入缺字、空字形或 IVS/SVS 序列损失；随后运行导航审计和全项 redline。所有检查通过后才覆盖，失败时保留上一版。成功构建会在忽略目录 `.pipeline/dist-sha256` 保存交付件 SHA-256；以后若 dist 被编辑、替换，或收据丢失，构建会停止并保留文件。这样可避免编辑器保存过的 EPUB 被下一次构建静默覆盖。临时 EPUB 会在构建结束时清理；报告使用固定文件名，不累积。
 
-如果需要在 Sigil 等编辑器中修复已交付 EPUB，先保留该文件副本，再用全项 redline 和人工 diff 检查变化，并将需要的 XHTML、CSS、OPF、导航或资源变更并回 `03 制作工作区/epub/`。提交并验证源文件后，才把当前已审阅 EPUB 的 SHA 写入 `.pipeline/dist-sha256` 作为接受基线；缺少或不匹配收据时不要直接重建。macOS 可用 `shasum -a 256 '03 制作工作区/dist/book.epub' | awk '{print $1}' > '03 制作工作区/.pipeline/dist-sha256'`，Linux 可用 `sha256sum` 替换 `shasum -a 256`。若 `.pipeline/` 被清理而 dist 仍在，先重新审查并对齐源，再恢复收据。
+如果需要在 Sigil 等编辑器中修复已交付 EPUB，先保留该文件副本，再用全项 redline 和人工 diff 检查变化，并将需要的 XHTML、CSS、OPF、导航或资源变更并回 `03 制作工作区/epub/`。区分正文、导航、元数据、资源和序列化变化；需要重建后持续保留的转换行为应固化到书级脚本，并在书级验证器中加入可重复的断言。提交并验证源文件后，才把当前已审阅 EPUB 的 SHA 写入 `.pipeline/dist-sha256` 作为接受基线；缺少或不匹配收据时不要直接重建。macOS 可用 `shasum -a 256 '03 制作工作区/dist/book.epub' | awk '{print $1}' > '03 制作工作区/.pipeline/dist-sha256'`，Linux 可用 `sha256sum` 替换 `shasum -a 256`。若 `.pipeline/` 被清理而 dist 仍在，先重新审查并对齐源，再恢复收据。完整处理流程和《圣经的故事》的 Sigil 回写实例见[书级工作区文档](../../docs/pipeline/book-workspace.md#日常修改和构建)。
 5. 交付时在 `制作说明.md` 记录源提交、产物 SHA-256 和真实阅读器实测。没有在目标阅读器中打开验证时，状态保持“待验证”。
 
 打包前会在临时副本中统一源文件时间戳，并按固定路径顺序归档。同一源提交、同一平台且 `zip -v` 显示相同构建时可复现相同 EPUB SHA-256；跨平台或 zip 构建不同不承诺字节级一致。macOS 系统 zip 不会为非 ASCII 条目名设置 UTF-8 标志，EPUB 条目名请使用 ASCII。
