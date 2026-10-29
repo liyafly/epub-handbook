@@ -71,13 +71,30 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 	echo "Another build is active (or a stale lock exists): $LOCK_DIR" >&2
 	exit 1
 fi
-rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt" \
-	"$PIPELINE_DIR/previous-dist-redline.txt"
-BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
+BUILD_TMP=""
+BUILD_SUCCEEDED=false
 cleanup() {
-	rm -rf "$BUILD_TMP"
+	build_status=$?
+	trap - EXIT
+	if [ -n "$BUILD_TMP" ]; then
+		if [ "$BUILD_SUCCEEDED" = true ]; then
+			rm -rf "$BUILD_TMP"
+		else
+			# Keep the failed input/candidate and the reports from this attempt.
+			# A later build may replace the fixed-name reports in PIPELINE_DIR.
+			for report_name in font-subset.json nav-audit.json redline.txt previous-dist-redline.txt; do
+				if [ -f "$PIPELINE_DIR/$report_name" ]; then
+					if ! cp "$PIPELINE_DIR/$report_name" "$BUILD_TMP/$report_name"; then
+						printf 'Could not snapshot report; inspect original: %s\n' "$PIPELINE_DIR/$report_name" >&2
+					fi
+				fi
+			done
+			printf 'Build failed; retained diagnostic files: %s\n' "$BUILD_TMP" >&2
+		fi
+	fi
 	rm -f "$DIST_SHA_TMP"
 	rmdir "$LOCK_DIR" 2>/dev/null || true
+	exit "$build_status"
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
@@ -105,6 +122,11 @@ if [ -e "$OUTPUT" ] || [ -L "$OUTPUT" ]; then
 	fi
 fi
 
+# Only retire the latest reports after the existing dist passes its receipt
+# preflight. Failed build directories are independent and are never pruned here.
+rm -f "$PIPELINE_DIR/font-subset.json" "$PIPELINE_DIR/nav-audit.json" "$PIPELINE_DIR/redline.txt" \
+	"$PIPELINE_DIR/previous-dist-redline.txt"
+BUILD_TMP=$(mktemp -d "$PIPELINE_DIR/build.XXXXXX")
 FULL_EPUB="$BUILD_TMP/full-font.epub"
 FINAL_EPUB="$BUILD_TMP/final.epub"
 SRC_DIR="$BUILD_TMP/src"
@@ -174,4 +196,5 @@ FINAL_SHA=$(file_sha256 "$FINAL_EPUB")
 mv -f "$FINAL_EPUB" "$OUTPUT"
 printf '%s\n' "$FINAL_SHA" >"$DIST_SHA_TMP"
 mv -f "$DIST_SHA_TMP" "$DIST_SHA_FILE"
+BUILD_SUCCEEDED=true
 printf 'Built %s\n' "$OUTPUT"

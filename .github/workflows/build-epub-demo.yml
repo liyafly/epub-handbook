@@ -53,6 +53,7 @@ jobs:
       - name: Smoke book workspace starter
         shell: bash
         run: |
+          sh templates/book-starter/test-build-dist-guard.sh
           book="$RUNNER_TEMP/book starter smoke"
           output="$book/03 制作工作区/dist/book.epub"
           go build -o "$RUNNER_TEMP/epub" ./cmd/epub
@@ -97,8 +98,12 @@ jobs:
           fi
           after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           test "$before_sha" = "$after_sha"
-          epub_count=$(find "$book/03 制作工作区" -type f -name '*.epub' | wc -l | tr -d ' ')
+          epub_count=$(find "$book/03 制作工作区/dist" -type f -name '*.epub' | wc -l | tr -d ' ')
           test "$epub_count" = 1
+          failure_count=$(find "$book/03 制作工作区/.pipeline" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')
+          test "$failure_count" = 2
+          find "$book/03 制作工作区/.pipeline" -type f -name nav-audit.json \
+            -exec grep -l 'OEBPS/Images/missing.png' {} + | grep -q .
 
       - name: Smoke release binary outside checkout
         shell: bash

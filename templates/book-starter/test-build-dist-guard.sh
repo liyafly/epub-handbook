@@ -15,6 +15,7 @@ FAKE_EPUB="$TMP_ROOT/fake-epub"
 BUILD="$EPUB_DIR/build.sh"
 OUTPUT="$BOOK_DIR/03 制作工作区/dist/book.epub"
 RECEIPT="$BOOK_DIR/03 制作工作区/.pipeline/dist-sha256"
+PIPELINE_DIR="$BOOK_DIR/03 制作工作区/.pipeline"
 
 file_sha256() {
 	if command -v sha256sum >/dev/null 2>&1; then
@@ -29,6 +30,10 @@ cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" \
 	"$TEMPLATE_DIR/build.sh" "$EPUB_DIR/"
 cat >"$FAKE_EPUB" <<'EOF'
 #!/usr/bin/env sh
+if [ "${FAIL_NAV:-false}" = true ] && [ "$1" = run ] && [ "$2" = epub.package.nav.audit ]; then
+	printf '{"findings":[{"level":"error","id":"test.nav-rejected"}]}\n'
+	exit 1
+fi
 printf '{}\n'
 EOF
 chmod +x "$FAKE_EPUB"
@@ -54,14 +59,56 @@ if ! run_build >"$TMP_ROOT/source-update.log" 2>&1; then
 	exit 1
 fi
 
+# A rejected candidate must remain inspectable without changing the last dist.
+ACCEPTED_SHA=$(file_sha256 "$OUTPUT")
+ACCEPTED_RECEIPT=$(cat "$RECEIPT")
+if (FAIL_NAV=true run_build) >"$TMP_ROOT/rejected-build.log" 2>&1; then
+	echo "build unexpectedly accepted a rejected candidate" >&2
+	exit 1
+fi
+[ "$(file_sha256 "$OUTPUT")" = "$ACCEPTED_SHA" ] && \
+	[ "$(cat "$RECEIPT")" = "$ACCEPTED_RECEIPT" ] || {
+	echo "rejected build changed the accepted dist or its receipt" >&2
+	exit 1
+}
+FAILED_BUILD=$(find "$PIPELINE_DIR" -maxdepth 1 -type d -name 'build.*' -print)
+[ -n "$FAILED_BUILD" ] && [ -f "$FAILED_BUILD/final.epub" ] && \
+	[ -f "$FAILED_BUILD/full-font.epub" ] && [ -f "$FAILED_BUILD/nav-audit.json" ] || {
+	echo "rejected build discarded its candidate or diagnostic report" >&2
+	exit 1
+}
+FAILED_CANDIDATE_SHA=$(file_sha256 "$FAILED_BUILD/final.epub")
+FAILED_REPORT_SHA=$(file_sha256 "$FAILED_BUILD/nav-audit.json")
+grep -q 'test.nav-rejected' "$FAILED_BUILD/nav-audit.json"
+[ ! -d "$PIPELINE_DIR/build.lock" ] || {
+	echo "rejected build did not release its lock" >&2
+	exit 1
+}
+run_build >"$TMP_ROOT/retry-build.log" 2>&1
+[ "$(file_sha256 "$FAILED_BUILD/final.epub")" = "$FAILED_CANDIDATE_SHA" ] && \
+	[ "$(file_sha256 "$FAILED_BUILD/nav-audit.json")" = "$FAILED_REPORT_SHA" ] || {
+	echo "a later build changed the retained failure evidence" >&2
+	exit 1
+}
+[ "$(find "$PIPELINE_DIR" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')" = 1 ] || {
+	echo "successful retry retained an unnecessary temporary build tree" >&2
+	exit 1
+}
+
 printf 'manual repair' >>"$OUTPUT"
 EDITED_SHA=$(file_sha256 "$OUTPUT")
+LATEST_NAV_SHA=$(file_sha256 "$PIPELINE_DIR/nav-audit.json")
 if run_build >"$TMP_ROOT/edited-dist.log" 2>&1; then
 	echo "build unexpectedly overwrote a manually edited dist" >&2
 	exit 1
 fi
 [ "$(file_sha256 "$OUTPUT")" = "$EDITED_SHA" ] || {
 	echo "manual dist edit changed after blocked build" >&2
+	exit 1
+}
+[ -f "$PIPELINE_DIR/nav-audit.json" ] && \
+	[ "$(file_sha256 "$PIPELINE_DIR/nav-audit.json")" = "$LATEST_NAV_SHA" ] || {
+	echo "receipt preflight failure discarded the previous diagnostic report" >&2
 	exit 1
 }
 grep -q 'differs from the last accepted build' "$TMP_ROOT/edited-dist.log" || {
