@@ -140,7 +140,7 @@ def dist_epub(book_dir: Path) -> Path:
 
 
 def assert_only_fixed_dist(book_dir: Path, expected: Path) -> None:
-    matches = sorted((book_dir / "03 制作工作区").rglob("*.epub"))
+    matches = sorted((book_dir / "03 制作工作区" / "dist").rglob("*.epub"))
     if matches != [expected]:
         raise RuntimeError(f"expected one EPUB at {expected}, found {matches}")
     if not expected.is_file() or expected.stat().st_size == 0:
@@ -254,8 +254,32 @@ def assert_failed_build_preserves(
     if new_sha != old_sha:
         raise RuntimeError(f"failed build replaced the fixed dist artifact: before={old_sha} after={new_sha}")
     pipeline = book_dir / "03 制作工作区" / ".pipeline"
-    if (pipeline / "build.lock").exists() or list(pipeline.glob("build.*")):
-        raise RuntimeError(f"failed build left a build lock or temporary candidate; see {log_path}")
+    if (pipeline / "build.lock").exists():
+        raise RuntimeError(f"failed build left a build lock; see {log_path}")
+    if (pipeline / "dist-sha256").read_text(encoding="utf-8").strip() != old_sha:
+        raise RuntimeError(f"failed build changed the accepted dist receipt; see {log_path}")
+
+    prefix = "Build failed; retained diagnostic files: "
+    retained_paths = [
+        Path(line.removeprefix(prefix)).resolve()
+        for line in log_path.read_text(encoding="utf-8").splitlines()
+        if line.startswith(prefix)
+    ]
+    if len(retained_paths) != 1:
+        raise RuntimeError(f"failed build did not identify its retained diagnostics; see {log_path}")
+    retained = retained_paths[0]
+    if retained.parent != pipeline.resolve() or not retained.is_dir():
+        raise RuntimeError(f"failed build diagnostics are outside the build workspace: {retained}")
+    full_input = retained / "full-font.epub"
+    if not full_input.is_file():
+        raise RuntimeError(f"failed build discarded its full-font input: {retained}")
+    with zipfile.ZipFile(full_input) as archive:
+        if archive.testzip() is not None:
+            raise RuntimeError(f"retained full-font input has a CRC failure: {full_input}")
+    report = pipeline / "font-subset.json"
+    snapshot = retained / report.name
+    if not snapshot.is_file() or snapshot.read_bytes() != report.read_bytes():
+        raise RuntimeError(f"failed build did not preserve its font report snapshot: {retained}")
 
 
 def cancel_build(book_dir: Path, env: dict[str, str], root: Path, log_path: Path) -> int:
@@ -537,6 +561,7 @@ def main() -> int:
             "noInk": 0,
         },
         "failurePreservedDistSHA256": stable_sha,
+        "failedBuildDiagnosticsPreserved": True,
         "independentCoverageRegression": independent_regression,
         "syntheticNavAudit": synth_nav,
         "failedScenarios": [
