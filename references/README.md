@@ -12,6 +12,7 @@ Those require a project demo artifact and the evidence recorded in
 ## 在线文档
 
 - [Reeden 电子书扩展来源说明](reeden-extensions.md)：官方页面链接、Draft 状态、许可边界及本仓研究落点；仅保存自行撰写的摘要，不镜像官网内容。
+- [Readest 导入身份来源说明](readest-import-identity.md)：v0.12.16 摘要/导入路径及许可链接，用于解释测试副本的缓存陷阱；不复制上游实现。
 
 ## EPUB 文件
 

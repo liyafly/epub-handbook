@@ -12,6 +12,7 @@
 | [epub-diff-review.md](epub-diff-review.md) | S8：人工 diff |
 | [reference-font-role-patterns.md](reference-font-role-patterns.md) | 字体角色参考 |
 | [reference-reader-extensions.md](reference-reader-extensions.md) | 多看长屏封面、Reeden 扩展与待验证模式 |
+| [reader-adaptation-lessons-2026-10.md](reader-adaptation-lessons-2026-10.md) | 匿名适配复盘：Reeden 正斜体、Readest 缓存/分页裁切、Kindle 复杂图文与证据边界 |
 
 Go 维护交接（不是清洗流程）：[go-rewrite-handoff.md](go-rewrite-handoff.md)。
 硬规则：[../final/SPEC-实现约束.md §10](../final/SPEC-实现约束.md)。

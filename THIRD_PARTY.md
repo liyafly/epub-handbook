@@ -46,6 +46,25 @@ the reference project's desktop UI or third-party dependencies.
 - Standards cross-check: [W3C EPUB 3.3](https://www.w3.org/TR/epub-33/#sec-prefix-attr),
   published by W3C with the [W3C document license](https://www.w3.org/copyright/document-license/).
   Only the prefix mechanism is summarized; the specification is not mirrored.
+- The bleed and fullscreen pages were rechecked on 2026-10-29 for an anonymized
+  adaptation retrospective. The fullscreen page now describes aspect-ratio
+  variants and `~slim` pairing; this does not establish mobile reader acceptance.
+  Only original analysis and links are retained; no upstream assets are copied.
+
+## Behavioral Reference: Readest Import Identity
+
+- Source / authors: [Readest and contributors](https://github.com/readest/readest),
+  tag `v0.12.16`, inspected on 2026-10-29. Relevant files are
+  `apps/readest-app/src/utils/md5.ts` and `src/services/bookService.ts` under the
+  same app directory.
+- License: [GNU AGPL v3](https://github.com/readest/readest/blob/v0.12.16/LICENSE).
+- Retained material: links and original analysis in
+  [references/readest-import-identity.md](references/readest-import-identity.md)
+  and the [October retrospective](docs/pipeline/reader-adaptation-lessons-2026-10.md).
+  No source implementation, binary, book payload, font or reader database is copied.
+- Purpose: explain why changing only an EPUB identifier is insufficient evidence
+  of a fresh reader import. Local observations remain bound to their artifact,
+  reader version and profile; remote source is not binary acceptance evidence.
 
 ## Local Cover-Structure Reference: local-cover-sample-01
 

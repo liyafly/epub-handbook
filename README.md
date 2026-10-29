@@ -71,6 +71,7 @@ go run ./cmd/epub run epub.typography.optimize --input before.epub --output samp
 | Go CLI 实现与架构守卫 | [cmd/epub](cmd/epub/) 与 [internal/](internal/) |
 | 机器契约 | [contracts/](contracts/) |
 | 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
+| 近期适配复盘 | [2026 年 10 月：Reeden、Readest 与 Kindle](docs/pipeline/reader-adaptation-lessons-2026-10.md) |
 | 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
 
 架构是面向 Windows、macOS、Linux 的 Go 单一公开 CLI（`cmd/epub` + `internal/`），

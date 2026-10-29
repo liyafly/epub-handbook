@@ -75,4 +75,5 @@
 - 当前维护规则只写此文件。SKILL.md 保持 `name` / `description` frontmatter 与固定四段；`agents/openai.yaml` 只用扁平字符串 metadata，触发描述和默认提示必须匹配真实能力。具体格式见 `skills/README.md`。
 - 硬约束 → `docs/final/`；书型实操 → `docs/how-to/`；流程与模式 → `docs/pipeline/`；书级结论 → `制作说明.md`；任务计划/review → 当前任务或 issue。
 - 第三方来源 → `THIRD_PARTY.md` 与 `references/`，注明来源、作者、许可、链接；实体 EPUB 只有明确保留理由与许可记录才入 git。
+- 书级经验回填主仓前须脱敏：不提交真实书名/作者/原文、书内文件名/页码/内容 ID、真实字体名、私人路径、成品或证据指纹、精确案例数量和恢复标识；示例改用占位名称。完整证据与私有索引留本地，不靠相对路径或截短哈希代替脱敏。检查范围包含正文、表格、代码块、链接和机器数据。
 - 已完成计划/实验留 git 历史或 `archive/`，不为统一措辞重写历史。可选 hook 模板为 `hooks/pre-commit.epub-handbook`，只调用 Go 守卫与 CLI。
