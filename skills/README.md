@@ -8,6 +8,7 @@
 - 新书或长期维护中的书：用 `templates/book-starter/new-book.sh` 建立书级 Git 与解包源，后续只运行书内 `build.sh`；完整字体母版跟随源树，子集化写入临时候选。详见[书级工作区](../docs/pipeline/book-workspace.md)。
 - 只有文本/PDF/扫描件：先 `epub-source-intake` 盘点；它不抽取 PDF、不做 OCR、不生成 EPUB。
 - 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。不要默认全书套 preset；用户只要方案时不写书稿。
+- Reeden 英文误斜体、Readest 新包仍像旧包/页底裁图、Kindle 重复封面：按症状读取 [2026 年 10 月适配复盘](../docs/pipeline/reader-adaptation-lessons-2026-10.md)，其中数值与绕过均有单书范围，不自动套成全局 preset。
 - 只审查时输出“位置、问题证据、影响、最小建议”；授权修复时再实施。审批与书稿保护按 `AGENTS.md`，不在各 skill 重复。
 
 ## 公共命令与返回

@@ -124,10 +124,12 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 - 图文关系未确认时不自动加左右浮动。需要环绕时用 `figure.img-left/right` 承载 float 与百分比宽度，内图 `width:100%; height:auto`；25%–35% 只是实测起点。
 - 保留图注、alt、文字和资源；不为整齐裁掉内容。JPEG/PNG 为生产主路径，Kindle 风险 SVG/WebP 先确认转码范围。
 - 有扫描 warning 则结论不完整；手工修改后跑全项红线和 package audit，并用足够长的周围正文验证普通/大字号及窄屏，短段落不足以证明环绕失败。
+- 图在页底缺笔画而源图完整时，先排除旧导入包，再查分页与容器边距；单图/单字号通过后仍查相邻图和下一章。不以图片扫描零发现证明无裁切，不先裁图、重采样或给全书统一缩放。案例见 [匿名适配复盘](../../docs/pipeline/reader-adaptation-lessons-2026-10.md)。
 
 ### 字体覆盖分析
 
 - true-missing → 查可用字库；fallback-not-reached → 改链或局部专用类，不先造字；subset-cut → 查子集字符清单；only-non-embedded → 依赖目标阅读器验证。
 - unresolved 非零必须标记分析缺口；系统字体名不能证明 cmap 覆盖，悲观 profile 不能写成 Kindle fail/pass。
+- 字体有字但样式选错，与 cmap 缺字分开诊断；正文误用斜体要检查 `@font-face` 的族/字重/样式与实际阅读器映射，覆盖分析通过不能排除此问题。
 - 分析器不采集 CSS `quotes/content` 生成字符：单独枚举，子集写出后复查 cmap。不得把形似码位（如 〇/○）互换。
 - 普通正文默认自由；少量补字用局部类，锁定正文须覆盖最终解析到该角色的全部文字/标点，不只扫 p。修改后重跑覆盖与全项红线。

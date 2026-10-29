@@ -107,6 +107,7 @@ epub redline --check all "before.epub" "candidate.epub"
 
 - 声明可靠的 lang/xml:lang，用短 serif 链；未验证断字时左对齐，不强制 justify。小说首段无缩进、后续约 1.2–1.5em、少段距；非虚构看层级，诗剧保留行与 speaker。
 - 真实文本优先；首字装饰用 ::first-letter，旧 span/drop cap 必须复核朗读、复制和大字号。嵌入字体要有设计/覆盖/平台理由，不为英文排版默认嵌字。
+- 普通英文整段误成斜体时，先查实际载荷、阅读器字体覆盖和同族 `@font-face` 映射；确认误匹配后可试独立斜体别名并显式绑定 `em`，保留正体链和语义强调。见 [Reeden 单书修复](../../docs/pipeline/reader-adaptation-lessons-2026-10.md#2-reeden英文正文为什么全变成斜体后来怎样改对)；不全局清除斜体，也不将此绕过自动套给其他书。英文能力只补语言声明，不会改字体链。
 - 居中插图为默认；需要环绕才转 `epub.image.layout.optimize` 分析。保留原文、引号、拼写、诗行与锚点。
 - 选章首和连续正文做候选比较，覆盖窄屏与大字号；交付目标包含 Kindle、Readest、Apple Books 时分别实测，缺项明确标注。
 

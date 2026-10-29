@@ -87,6 +87,8 @@
 
 OPF 必须声明实际打包的字体文件，并继续保留通用 fallback。Kindle Previewer 要测试 Publisher Font；Apple Books 要测试原版字体设置。
 
+普通正文意外全成斜体时，先核对实际导入包、阅读器覆盖设置和同族 `@font-face` 的样式匹配。一个 Reeden 案例通过将斜体拆为 `en-italic` 别名，并让 `em` 显式使用它修复，普通正文继续用正体族；[脱敏 CSS 示意与验收边界](../pipeline/reader-adaptation-lessons-2026-10.md#2-reeden英文正文为什么全变成斜体后来怎样改对) 见匿名复盘。这是有条件的单书绕过，不能由此认定所有阅读器不支持同族多 face，也不能用全局 `font-style:normal` 消除原有语义强调。
+
 ## 段落节奏
 
 小说/散文起点：

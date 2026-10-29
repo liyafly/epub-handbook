@@ -64,6 +64,7 @@ epub redline --check all "before.epub" "candidate.epub"
 - split 对同一 `@font-face src` 内有有效非空 `local()` 的缺失字体 URL 保留声明并继续，只记录 `split.font-local-fallback` 事件，不产生 warning；系统字体是否可用仍须实测。无此回退的字体、图片/导入 CSS 等断链仍拒绝。
 - split 必须核对所有分段合起来的内容、边界与导航；原书与某一段必然有范围差异，不能当一般正文不变比较。检查新增导航 spine 项是否为预期非正文项。
 - 换封面只接受已授权的封面/引用变化，metadata 只接受指定字段变化；其他正文、字体、图片仍受保护。门禁失败保留候选，不自动发布。
+- 需要同时保留常规封面与 slim/多比例资源时，先核对替换计划、mappings 和真实 ZIP 成员；单封面替换候选可能清理被替代资源，不能直接当多比例交付。Kindle 重复封面先查 cover-image/legacy cover、guide、spine 与封面页单主图是否一致，再做定点对照；桌面显示主图不证明手机自动选中 slim。见 [10 月复盘](../../docs/pipeline/reader-adaptation-lessons-2026-10.md)。
 
 ### A-lite 转换
 

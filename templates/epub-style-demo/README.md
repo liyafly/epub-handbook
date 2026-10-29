@@ -74,6 +74,8 @@ epub run epub.metadata.edit --input "$C" --output "$C.readest.epub" --json "meta
 
 该命令预期 exit 1：唯一的 `error` finding 是 `dc:identifier changed`，这是 metadata 红线对测试副本 identity 变化的提示；流水线仍会写出 `C.readest.epub`，供人工检查并记录其 SHA-256。不要把此预期失败写成通过，也不要覆盖原候选。
 
+**这只完成 identifier 隔离，不保证阅读器已经打开新内容。** Readest 0.12.16 在两书适配中曾因 partial-MD5 相同而复用旧条目；若 OPF 未落入抽样范围，新 UUID 仍可能无效。导入后还需核对原生条目/URL、实际载荷或能区分版本的目标内容；身份不明时停止视觉结论。本轮有效副本将 OPF 提到 ZIP 前部并验证摘要差异、其余解压成员不变，详见 [10 月复盘 §4](../../docs/pipeline/reader-adaptation-lessons-2026-10.md#4-readest先排除旧内容再判断-css-是否有效)。`epub.metadata.edit` 不负责 ZIP 重排或 Readest 摘要检查，不通过删除用户书库来绕过。
+
 ## 验证建议
 
 - Apple Books：重点看嵌入样式、Ruby、弹注和 A-lite 分页。
