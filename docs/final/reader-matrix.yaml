@@ -149,6 +149,9 @@ cases:
   - id: recipe-shape-wrap
     title: 轮廓环绕配方与窄屏护栏候选
     fixture: templates/recipes/shape-wrap/sample.xhtml
+  - id: shape-wrap-generated-eight-scenes
+    title: 工具生成的八场异形轮廓候选
+    fixture: templates/shape-wrap-demo/build-generated.py
   - id: recipe-drop-cap
     title: 完整单词首字装饰配方候选
     fixture: templates/recipes/drop-cap/sample.xhtml
@@ -229,6 +232,28 @@ retest_priorities:
     focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
 
 expectations:
+  - reader: readest
+    case: recipe-shape-wrap
+    status: pass
+    reader_version: "0.12.16 (20261014.063656)"
+    profile: "macOS 桌面；沿用现有设置且未更改；字号与主题名称未记录"
+    artifact: "templates/recipes/dist/shape-wrap.epub#sha256=9dabcea78279d2a6d86e9fd2abe6f10858828364aa59d9a8722b973a0da17574"
+    failed_page: none
+    issue: "当前视图中 L 形轮廓绕排、凹口与图后整行恢复均可见；结论只适用于此 SHA 和当前桌面设置。"
+    action: "补测窄屏护栏、大字号、夜间主题及实体设备；不得外推为通用兼容结论。"
+    workaround: "保留矩形与窄屏块图降级规则。"
+    log: work-epub/00 清理与恢复/2026-10-30-配方迁移/执行验证/readest-0.12.16-shape-wrap-2026-10-30.json
+  - reader: readest
+    case: shape-wrap-generated-eight-scenes
+    status: pass
+    reader_version: "0.12.16 (20261014.063656)"
+    profile: "macOS 桌面；沿用现有设置且未更改；字号与主题名称未记录"
+    artifact: "templates/shape-wrap-demo/dist/shape-wrap-generated.epub#sha256=13bf019037952f2000ab4c527956a9628b3e26a6a74b013280477e51ba4cf51c"
+    failed_page: none
+    issue: "八个目录场景均逐页查看，形状绕排与图后整行恢复可见；仅对此 SHA 和当前桌面设置成立。"
+    action: "补测大字号、窄屏、夜间主题及实体设备；不转签为其他候选或阅读器的通过。"
+    workaround: "继续保留显式矩形回退与普通侧边间距。"
+    log: work-epub/00 清理与恢复/2026-10-30-配方迁移/执行验证/readest-0.12.16-shape-wrap-2026-10-30.json
   - reader: ibooks_macos
     case: shape-wrap-polygon
     status: pass
@@ -702,9 +727,6 @@ expectations:
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:
-  - case: recipe-shape-wrap
-    fixture: templates/recipes/shape-wrap/sample.xhtml
-    note: "独立最小包能构建；历史 shape-wrap-polygon 的普通字号观察不转签给新护栏或工具候选。当前桌面接口返回 cgWindowNotFound，未能执行新版 Readest 实测。"
   - case: recipe-drop-cap
     fixture: templates/recipes/drop-cap/sample.xhtml
     note: "完整单词伪元素路径待按当前 SHA 实测，历史 demo 18 的 warn 不转签。"

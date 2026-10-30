@@ -4,7 +4,7 @@
 
 | 配方 | 效果与降级 | 证据状态 | 证据入口 |
 | --- | --- | --- | --- |
-| [shape-wrap](shape-wrap/recipe.md) | polygon 环绕 → 矩形 → 窄屏块图 | 历史 v3 三款桌面阅读器有记录；新增护栏待测 | [历史截图与 SHA](../shape-wrap-demo/reader-evidence/README.md) |
+| [shape-wrap](shape-wrap/recipe.md) | polygon 环绕 → 矩形 → 窄屏块图 | 当前样本在 Readest 0.12.16 桌面视图通过；窄屏、大字号、夜间与设备待测 | [历史截图与 SHA](../shape-wrap-demo/reader-evidence/README.md)；[本次矩阵记录](../../docs/final/reader-matrix.yaml) |
 | [drop-cap](drop-cap/recipe.md) | 完整单词的首字装饰 → 普通正文 | 三款阅读器历史记录均为 warn；本片段待测 | [demo 18](../epub-style-demo/OEBPS/Text/18-english-fiction.xhtml) |
 | [text-emphasis](text-emphasis/recipe.md) | 原生着重号 → 下划线语义强调 | 候选；横排、竖排均待补实测 | [demo 24 / 25](../epub-style-demo/OEBPS/Text/24-text-emphasis.xhtml) |
 | [theme-adaptive-art](theme-adaptive-art/recipe.md) | 单色透明插图可选夜间反相 → 白底局部衬片 | 候选；早期书级方案验收失败，当前片段待复测 | [复测说明](theme-adaptive-art/recipe.md#阅读器结果) |
@@ -12,7 +12,7 @@
 
 “有历史记录”不代表新片段、新书或新 SHA 通过。尚未在至少两本书完成验证的做法只作为候选，不晋升为通用兼容规则；书级证据保留在书级 Git，公共目录只用合成材料。新 CSS 均需普通/大字号、窄屏与昼夜主题验证；静态 gate 与真实阅读器结果分别记录。
 
-五个当前片段在 [reader-matrix](../../docs/final/reader-matrix.yaml) 的 `recipe-*` case 与 `untested_cases` 登记；表中的历史观察只属于原 case。
+五个当前片段在 [reader-matrix](../../docs/final/reader-matrix.yaml) 的 `recipe-*` case 登记；尚未实测的片段留在 `untested_cases`。表中的历史观察只属于原 case；本次 shape-wrap 通过也只适用于记录的 SHA 与当前 Readest 桌面设置。
 
 首批五项不包办所有书型。普通居中图与图注由 starter 基础层承载；矩形浮动是 shape-wrap 的 L1，不能对带图注的 figure 直接套轮廓。封面、章首饰图、全页图、诗歌、小型大写和标准弹注分别参考 [主 demo 场景索引](../epub-style-demo/SCENE_MATRIX.md)、[gallery](../epub-style-demo/GALLERY.md) 与 [专项技能](../../skills/README.md)。A-lite、竖排和公式继续走原有独立场景，不混进普通图文配方。
 
