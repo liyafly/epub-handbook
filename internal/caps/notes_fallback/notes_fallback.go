@@ -167,6 +167,15 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, []p
 			skipped = append(skipped, skippedEdit{Path: path, Target: "notes", Reason: "no-noteref"})
 			continue
 		}
+		if len(lists) == 0 {
+			findings = append(findings, report.Finding{
+				Level: "error", ID: "notes-fallback.no-grouped-list",
+				Title:    "Duokan legacy hooks require the grouped ol.footnote-list structure",
+				Detail:   "SPEC §1: Duokan fallback for the aside[epub:type=footnotes] standard structure is not defined yet",
+				Location: path,
+			})
+			continue
+		}
 		if len(lists) > 1 {
 			findings = append(findings, report.Finding{
 				Level: "error", ID: "notes-fallback.multiple-lists",

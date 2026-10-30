@@ -485,7 +485,7 @@ CITY_CHAPTERS_AFTER = (
       <p>城里最旧的地名叫 <ruby>行舟<rt>xíng zhōu</rt></ruby> 巷，巷口有一盏蓝色信号灯<sup><a id="note-1" class="noteref-icon" epub:type="noteref" role="doc-noteref" href="#footnote-1"><img alt="注" src="../Images/note.png"/></a></sup>。</p>
       <figure class="map"><img alt="北门地图" src="../Images/city-map.svg"/></figure>
       <p class="caption">图 1：北门钟楼与河面风向标。</p>
-      <aside epub:type="footnote" role="doc-footnote" class="footnotes"><ol class="footnote-list"><li class="footnote-item" id="footnote-1"><p><a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#note-1">◎</a>这盏灯只在潮位升高时亮起。</p></li></ol></aside>
+      <aside epub:type="footnotes" class="footnotes"><div class="footnote-list"><aside class="footnote-item" id="footnote-1" epub:type="footnote" role="doc-footnote"><p><a class="footnote-back" epub:type="backlink" role="doc-backlink" href="#note-1">◎</a>这盏灯只在潮位升高时亮起。</p></aside></div></aside>
     </section>""",
   ),
   Chapter(

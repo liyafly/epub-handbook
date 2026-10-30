@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
 | Apple Books 字体 | 正文字体锁定时加 OPF `ibooks:specified-fonts=true` + 测试“原版字体”；局部角色字体不受此 meta 影响 |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnote"` 内用 `ol/li` 聚合本文件注释，`◎` 返回；需兼容多看旧版时在同一结构上叠加 `duokan-*` fallback |
+| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnotes"` 容器内每条注释是独立的 `aside epub:type="footnote"`，`◎` 返回；需兼容多看旧版时暂用旧 `ol/li` grouped 结构叠加 `duokan-*` fallback |
 | 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |
@@ -848,7 +848,9 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
 
 `xmlns:epub` 只负责声明 `epub:` 前缀，不会单独把 OPF2 包升级成 EPUB3。已有 EPUB2 因目标阅读器兼容需求暂时不能迁移时，可以尝试带双向链接 fallback 的混合写法，但必须按阅读器实测；见 [EPUB2 外壳中的 Popup Note 兼容写法](../how-to/epub2-popup-note-compatibility.md)。
 
-同一个 XHTML 文件内只放一个注释容器：`aside epub:type="footnote"`。多条注释放在容器内的 `ol.footnote-list`，每条注释用 `li.footnote-item` 承载，正文 `noteref` 直接指向对应 `li` 的 `id`。这样保留 EPUB 3 标准弹注识别点，也保留 demo 的多注释聚合结构。
+同一个 XHTML 文件内只放一个注释容器：`aside epub:type="footnotes"`（复数，表示注释组）。多条注释放在容器内的 `div.footnote-list`，每条注释是独立的 `aside.footnote-item`，带 `epub:type="footnote"`（单数，表示单条）和 `role="doc-footnote"`；正文 `noteref` 直接指向这条 aside 的 `id`。
+
+> **坑：`footnote` 和 `footnotes` 不能混用。** 旧版本把整组容器标成 `aside epub:type="footnote"`，noteref 却指向容器内没有语义的 `li`。阅读器从目标往上找最近的 footnote，找到整个容器，于是点一条注释弹出整组；Apple Books 能单条弹出，掩盖了这个问题。只把容器改成 `footnotes` 也不够，单条注释还要自己带 `footnote`，否则部分阅读器只会跳转、不弹出。
 
 ```xml
 <p>
@@ -874,11 +876,12 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
   </sup>
 </p>
 
-<aside epub:type="footnote" role="doc-footnote">
+<aside epub:type="footnotes">
   <div><hr class="footnote-line xian"/></div>
 
-  <ol class="footnote-list">
-    <li class="footnote-item" id="footnote-1">
+  <div class="footnote-list">
+    <aside class="footnote-item" id="footnote-1"
+           epub:type="footnote" role="doc-footnote">
       <p class="footnote">
         <a class="footnote-back"
            epub:type="backlink"
@@ -886,9 +889,10 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
            href="#note-1">◎</a>
         第一条注释内容。
       </p>
-    </li>
+    </aside>
 
-    <li class="footnote-item" id="footnote-2">
+    <aside class="footnote-item" id="footnote-2"
+           epub:type="footnote" role="doc-footnote">
       <p class="footnote">
         <a class="footnote-back"
            epub:type="backlink"
@@ -896,8 +900,8 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
            href="#note-2">◎</a>
         第二条注释内容。
       </p>
-    </li>
-  </ol>
+    </aside>
+  </div>
 </aside>
 ```
 
@@ -998,7 +1002,7 @@ sup.note-marker > a.noteref-icon > img {
 
 ### 7.3 叠加多看 fallback
 
-只有目标 EPUB 明确需要多看旧版兼容时，才在标准结构上叠加多看类名；不要创建第二份注释容器。
+只有目标 EPUB 明确需要多看旧版兼容时才叠加多看类名，不要创建第二份注释容器。多看按 class 识别，要求 noteref 指向 `li.duokan-footnote-item`，和标准结构“指向 `aside[epub:type=footnote]`”冲突。所以多看模式暂时继续使用下面的旧 grouped 结构；两者兼容的候选写法（id 放在 li 或放在内嵌 aside）记在 [reader-matrix](reader-matrix.yaml) 待测项中，实测前不作为规则。
 
 ```html
 <p>
@@ -1409,11 +1413,11 @@ Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应�
 - [ ] 正文引用是图片图标。
 - [ ] 在目标阅读器检查图标是否前后都断行；异常时按 §7.2.1 核对最终 `display`，并复测普通 / 大字号下的行高。
 - [ ] `<a>` 有 `epub:type="noteref"` 和 `role="doc-noteref"`。
-- [ ] 每个含注释的 XHTML 有一个 `<aside epub:type="footnote" role="doc-footnote">` 注释容器。
-- [ ] 多条注释放在同一个容器内的 `ol.footnote-list > li.footnote-item`。
-- [ ] noteref 的 `href` 指向对应 `li.footnote-item` 的 `id`。
+- [ ] 每个含注释的 XHTML 有一个 `<aside epub:type="footnotes">` 注释容器，容器不带 `role="doc-footnote"`。
+- [ ] 每条注释是 `div.footnote-list` 内独立的 `<aside class="footnote-item" epub:type="footnote" role="doc-footnote">`。
+- [ ] noteref 的 `href` 指向对应 `aside.footnote-item` 的 `id`。
 - [ ] 注释返回符号是 `◎`。
-- [ ] noteref、注释 `li` 和外层 aside 在同一 XHTML 文件。
+- [ ] noteref、注释 aside 和外层容器在同一 XHTML 文件。
 
 ### 标准效果
 
@@ -1440,7 +1444,7 @@ Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应�
 - [ ] `body.fullpage` 不携带 `background-*`；背景通过 `poster-bg` 等 modifier 提供。
 - [ ] `body.fullpage` 含 `-webkit-text-size-adjust:100%; text-size-adjust:100%`。
 - [ ] `.fullframe` 骨架 `padding:0; overflow:visible`，留白靠内部元素 `margin`。
-- [ ] 需多看旧版兼容时，noteref 锚带 `duokan-footnote` 且内含 `<img>`。
+- [ ] 需多看旧版兼容时，暂用旧 grouped 结构（`aside[epub:type=footnote] > ol.footnote-list > li.footnote-item`），noteref 锚带 `duokan-footnote` 且内含 `<img>`。
 - [ ] 注释列表 `<ol>` 同时挂 `footnote-list duokan-footnote-content`。
 - [ ] 每条 `li.footnote-item` 只额外挂 `duokan-footnote-item`，不重复挂 `duokan-footnote-content`。
 - [ ] 正文自由模式下 `body` / 普通 `p` 不设字体；未要求特定设计字形的显式标题、等宽等角色优先使用短系统链。

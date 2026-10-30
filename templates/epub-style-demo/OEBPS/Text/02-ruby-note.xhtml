@@ -31,14 +31,14 @@
           <img alt="注" src="../Images/note.png"/>
         </a>
       </sup>
-      ，注释内容保留在同一个 XHTML 文件的 grouped aside 中。
+      ，注释内容保留在同一个 XHTML 文件的 footnotes 容器中，每条注释是独立的 footnote aside。
     </p>
   </section>
 
-  <aside epub:type="footnote" role="doc-footnote">
+  <aside epub:type="footnotes">
     <div><hr class="footnote-line"/></div>
-    <ol class="footnote-list">
-      <li class="footnote-item" id="footnote-1">
+    <div class="footnote-list">
+      <aside class="footnote-item" id="footnote-1" epub:type="footnote" role="doc-footnote">
         <p class="footnote">
           <a class="footnote-back"
              epub:type="backlink"
@@ -46,8 +46,8 @@
              href="#note-1">◎</a>
           这是弹出注释样本。阅读器如果支持 EPUB 3 footnote，可弹窗显示；不支持时也应能跳转阅读。
         </p>
-      </li>
-    </ol>
+      </aside>
+    </div>
   </aside>
 </body>
 </html>

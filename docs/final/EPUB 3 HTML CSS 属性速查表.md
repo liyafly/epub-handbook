@@ -125,11 +125,11 @@
 | `epub:type="bodymatter"` | 正文开始 | 推荐 | landmarks |
 | `epub:type="toc"` | 目录 | 推荐 | nav |
 | `<a epub:type="noteref" role="doc-noteref">` | 注释触发 | 推荐 | 项目采用图片图标触发 |
-| `<aside epub:type="footnote" role="doc-footnote">` | 注释容器 | 推荐 | 每个 XHTML 一个，包住本文件全部注释 |
-| `<ol class="footnote-list">` | 注释列表 | 推荐 | 放在 footnote aside 内 |
-| `<li class="footnote-item" id="footnote-1">` | 单条注释目标 | 推荐 | noteref 的 `href` 指向这里 |
+| `<aside epub:type="footnotes">` | 注释容器（注释组） | 推荐 | 每个 XHTML 一个，包住本文件全部注释；不带 `role="doc-footnote"` |
+| `<div class="footnote-list">` | 注释列表 | 推荐 | 放在 footnotes 容器内 |
+| `<aside class="footnote-item" id="footnote-1" epub:type="footnote" role="doc-footnote">` | 单条注释目标 | 推荐 | noteref 的 `href` 指向这里；`footnote` 只标单条，不标容器 |
 | `<a epub:type="backlink" role="doc-backlink">` | 注释返回 | 推荐 | 项目采用 `◎` |
-| `<section epub:type="footnotes">` | 注释组 | 可用 | 不作为项目弹注主路径 |
+| `<aside epub:type="footnote">` 包 `ol/li` | 旧 grouped 容器 | 仅多看 fallback | 把整组标成单条，部分阅读器会弹出整组；非多看场景 popup 校验给 warn |
 
 ### 2.8 Ruby 注音
 
@@ -444,9 +444,9 @@ h2 {
 | 触发元素 | `<a epub:type="noteref" role="doc-noteref">` | 推荐 | 放图片图标；外层 `<sup>` 可保留但不做高位上标 |
 | 触发图标 | `<img alt="注" src="../Images/note.png"/>` | 推荐 | 示例路径；资源由书稿制作方提供，已有图标时保留原 `src` |
 | 图标前后都断行 | 在原图标规则中对照 `display:block` → `inline` | 条件排查 | 检查更具体的规则是否覆盖原 `inline`；外层 `inline-block` 的处理需实测，`nowrap` 不修复块级断行；见 [手册 §7.2.1](EPUB%203%20终极实践手册.md) |
-| 注释容器 | `<aside epub:type="footnote" role="doc-footnote">` | 推荐 | 每个 XHTML 一个 |
-| 注释列表 | `<ol class="footnote-list">` | 推荐 | 承载本文件全部注释 |
-| 单条注释 | `<li class="footnote-item" id="footnote-1">` | 推荐 | noteref 跳转目标 |
+| 注释容器 | `<aside epub:type="footnotes">` | 推荐 | 每个 XHTML 一个 |
+| 注释列表 | `<div class="footnote-list">` | 推荐 | 承载本文件全部注释 |
+| 单条注释 | `<aside class="footnote-item" id="footnote-1" epub:type="footnote" role="doc-footnote">` | 推荐 | noteref 跳转目标 |
 | 返回符号 | `◎` | 推荐 | demo 实践采用 |
 | 返回属性 | `epub:type="backlink" role="doc-backlink"` | 推荐 |  |
 | noteref id | `note-1` | 推荐 | 全文唯一 |
@@ -486,7 +486,7 @@ h2 {
 |---|---|---|
 | 多看触发类 | `class="duokan-footnote"` | noteref 兼容触发 |
 | 多看条目类 | `class="duokan-footnote-item"` | 兼容列表项 |
-| 多看内容类 | `<ol class="footnote-list duokan-footnote-content">` —— 两个类同挂在 `<ol>` 上，不允许只挂 `duokan-footnote-content` | 弹窗内容匹配点 |
+| 多看内容类 | `<ol class="footnote-list duokan-footnote-content">` —— 两个类同挂在 `<ol>` 上，不允许只挂 `duokan-footnote-content`；多看模式暂用旧 grouped `ol/li` 结构 | 弹窗内容匹配点 |
 
 ## 十五、A-lite 属性速查
 

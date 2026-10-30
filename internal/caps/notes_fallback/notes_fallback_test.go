@@ -143,6 +143,13 @@ func TestLegacyFallbackParseAndStructuralErrorsApplyNoEdits(t *testing.T) {
 		{name: "multiple note lists", xhtml: strings.Replace(fixtureXHTML, `</ol>`, `</ol><ol class="footnote-list"><li class="footnote-item" id="n2">另一条</li></ol>`, 1), id: "notes-fallback.multiple-lists", notes: 1},
 		{name: "noteref without icon", xhtml: strings.Replace(fixtureXHTML, `<img src="../Icons/note.png" alt="注"/>`, ``, 1), id: "notes-fallback.noteref-without-icon", notes: 1},
 		{name: "content class on li", xhtml: strings.Replace(fixtureXHTML, `class="footnote-item"`, `class="footnote-item duokan-footnote-content"`, 1), id: "notes-fallback.content-class-on-li", notes: 1},
+		{name: "standard footnotes container", xhtml: strings.NewReplacer(
+			`<aside epub:type="footnote" role="doc-footnote">`, `<aside epub:type="footnotes">`,
+			`<ol class="footnote-list">`, `<div class="footnote-list">`,
+			`</ol>`, `</div>`,
+			`<li class="footnote-item" id="n1">`, `<aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">`,
+			`</li>`, `</aside>`,
+		).Replace(fixtureXHTML), id: "notes-fallback.no-grouped-list", notes: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -4,7 +4,7 @@
 
 ## 1. 适用边界
 
-只有目标书必须兼容多看旧版 popup note 时才叠加本 fallback。标准 EPUB3 弹注始终是主路径；不要为多看复制第二份注释正文，也不要把私有类反向写成通用结构。
+只有目标书必须兼容多看旧版 popup note 时才叠加本 fallback。注意：标准结构已改为 `aside[epub:type="footnotes"]` 容器加逐条 `aside[epub:type="footnote"]`，而多看要求 noteref 指向 `li.duokan-footnote-item`，二者的目标元素冲突。所以多看书暂时继续使用旧 grouped 结构（`aside[epub:type="footnote"] > ol.footnote-list > li.footnote-item`）；`epub.notes.legacy-fallback` 遇到标准结构会报 `notes-fallback.no-grouped-list` 并停止。兼容候选写法见 `docs/final/reader-matrix.yaml` 待测项。标准 EPUB3 弹注始终是主路径；不要为多看复制第二份注释正文，也不要把私有类反向写成通用结构。
 
 开始前先确认：
 

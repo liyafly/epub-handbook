@@ -8,14 +8,16 @@
 
 - 任何使用 `epub:type` 的 XHTML 根 `<html>` 必须声明：`xmlns:epub="http://www.idpf.org/2007/ops"`。
 - `a[epub:type="noteref"]` 与对应 `aside[epub:type="footnote"]` 必须位于**同一 XHTML 文件**。
-- 每个章节文件最多一个注释容器：`<aside epub:type="footnote" role="doc-footnote">`。
+- 每个章节文件最多一个注释容器：`<aside epub:type="footnotes">`，不带 `role="doc-footnote"`。EPUB 3 SSV 中 `footnote` 只表示**单条**注释，`footnotes` 表示注释组；DPUB-ARIA 的 `doc-footnote` 也只表示单条。整组容器不得标成 `footnote`，否则部分阅读器点一条注释会弹出整组。
+- 每条注释是一个独立的 `<aside class="footnote-item" id="…" epub:type="footnote" role="doc-footnote">`，noteref 指向它的 `id`。不要只把容器改成 `footnotes` 而让单条注释留在没有语义的 `li` 上：Apple Books 只把 `aside[epub:type="footnote"]` 当作弹注目标，其他阅读器可能退化为跳转。
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - noteref 的可见触发主路径是图片图标。已有本地图标资源时必须保留原 `img src`；把纯文本、数字上标、`[1]`、`注` 等标记转成图片 noteref 时，须经正文修改授权，由制作方提供图标并同步 OPF manifest。EPUB3 迁移不会转换这些标记或注入默认 `Images/note.png`。
 - 图片触发器可以保留外层 `<sup>` 作为旧书兼容包裹，但 CSS 必须把它处理为普通行内图标，不做高位数字上标效果；`sup { vertical-align: middle; line-height: 1; }`，图标自身使用 `vertical-align: baseline` 或 `middle`。
 - 图标前后都断行时，检查最终生效的 `display`：外层链接 `inline-block`、内层图片 `block` 的组合在目标阅读器中可能退化为独立块。优先在原有图标规则中只将图片改为 `display:inline`，保持尺寸、链接和正文不变，再做目标阅读器对照；这不是对所有块级图片的禁令，也不等于已确认阅读器内部原因。匿名样本与排查步骤见 [手册 §7.2.1](EPUB%203%20终极实践手册.md)。
-- 多条注释必须使用：`ol.footnote-list > li.footnote-item`。
+- 多条注释放在容器内唯一的 `div.footnote-list` 中：`aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item`。
+- 旧 grouped 结构（`aside[epub:type="footnote"][role="doc-footnote"] > ol.footnote-list > li.footnote-item`）只作为下方多看 fallback 的承载结构保留；非多看场景下 `epub.notes.popup.normalize` 对它给出 `popupnotes.legacy-container` warn，新书和改版书一律用标准结构。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
-- 当需要兼容多看旧版本时，必须在标准结构基础上同步：
+- 当需要兼容多看旧版本时，暂时改用上述旧 grouped 结构，并同步（基于标准结构的多看写法尚未实测，`epub.notes.legacy-fallback` 遇到标准结构会报 `notes-fallback.no-grouped-list` 并停止）：
   - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
   - 注释容器必须使用 `<ol class="footnote-list duokan-footnote-content">`；
   - 每条 `<li class="footnote-item">` 仅挂 `duokan-footnote-item`，禁止在 `<li>` 上重复挂 `duokan-footnote-content`。

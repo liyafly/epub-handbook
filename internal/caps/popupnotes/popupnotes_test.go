@@ -49,7 +49,8 @@ const popupContainer = `<?xml version="1.0" encoding="UTF-8"?>
 </container>
 `
 
-// brokenFixture 覆盖 12 类错误措辞；validFixture 只有合法弹注。
+// brokenFixture 覆盖旧 grouped 结构的 12 类错误措辞；validFixture 只有合法的
+// 标准结构弹注。
 func brokenFixture() map[string]string {
 	bodyA := `    <p id="dup">一</p>
     <p id="dup">二</p>
@@ -74,10 +75,10 @@ func brokenFixture() map[string]string {
     </aside>
 `
 	bodyV := `    <p>正文<a id="v1" epub:type="noteref" role="doc-noteref" class="noteref-icon" href="#n1"><img src="../Icons/note.png" alt="注"/></a>继续。</p>
-    <aside epub:type="footnote" role="doc-footnote">
-      <ol class="footnote-list">
-        <li class="footnote-item" id="n1">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></li>
-      </ol>
+    <aside epub:type="footnotes">
+      <div class="footnote-list">
+        <aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></aside>
+      </div>
     </aside>
 `
 	files := map[string]string{
@@ -94,10 +95,10 @@ func brokenFixture() map[string]string {
 
 func validFixture() map[string]string {
 	body := `    <p>正文<a id="v1" epub:type="noteref" role="doc-noteref" class="noteref-icon" href="#n1"><img src="../Icons/note.png" alt="注"/></a>继续。</p>
-    <aside epub:type="footnote" role="doc-footnote">
-      <ol class="footnote-list">
-        <li class="footnote-item" id="n1">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></li>
-      </ol>
+    <aside epub:type="footnotes">
+      <div class="footnote-list">
+        <aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></aside>
+      </div>
     </aside>
 `
 	return map[string]string{
@@ -106,6 +107,24 @@ func validFixture() map[string]string {
 		"OEBPS/Icons/note.png":   "png",
 		"OEBPS/Text/valid.xhtml": popupXHTML(body),
 	}
+}
+
+// legacyFixture 是旧 grouped 结构：整组 ol.footnote-list 包在
+// aside[epub:type=footnote] 中，仅作为 Duokan fallback 保留。
+func legacyFixture() map[string]string {
+	files := validFixture()
+	files["OEBPS/Text/valid.xhtml"] = strings.Replace(files["OEBPS/Text/valid.xhtml"], `    <aside epub:type="footnotes">
+      <div class="footnote-list">
+        <aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></aside>
+      </div>
+    </aside>
+`, `    <aside epub:type="footnote" role="doc-footnote">
+      <ol class="footnote-list">
+        <li class="footnote-item" id="n1">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></li>
+      </ol>
+    </aside>
+`, 1)
+	return files
 }
 
 func writePopupEpub(t *testing.T, path string, files map[string]string) {
@@ -140,6 +159,13 @@ func writePopupEpub(t *testing.T, path string, files map[string]string) {
 
 func runGoPopup(t *testing.T, epub string) (string, []string, map[string]any) {
 	t.Helper()
+	status, titles, _, facts := runGoPopupWithWarnings(t, epub)
+	return status, titles, facts
+}
+
+// runGoPopupWithWarnings 额外返回旧 grouped 结构的 warn 措辞。
+func runGoPopupWithWarnings(t *testing.T, epub string) (string, []string, []string, map[string]any) {
+	t.Helper()
 	b, err := book.Open(epub)
 	if err != nil {
 		t.Fatal(err)
@@ -149,14 +175,18 @@ func runGoPopup(t *testing.T, epub string) (string, []string, map[string]any) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var titles []string
+	var titles, warns []string
 	for _, f := range res.Findings {
-		if f.Level != "error" || f.ID != "popupnotes" {
+		switch {
+		case f.Level == "error" && f.ID == "popupnotes":
+			titles = append(titles, f.Title)
+		case f.Level == "warn" && f.ID == "popupnotes.legacy-container":
+			warns = append(warns, f.Title)
+		default:
 			t.Fatalf("finding 形状错误: %+v", f)
 		}
-		titles = append(titles, f.Title)
 	}
-	return res.Status, titles, res.Facts
+	return res.Status, titles, warns, res.Facts
 }
 
 // TestPopupNotesErrors 锁定坏 fixture 的逐条错误措辞、顺序与 status=failed
@@ -211,6 +241,75 @@ func TestPopupNotesOK(t *testing.T) {
 	}
 }
 
+// TestPopupWarnsLegacyGroupedAside 锁定旧 grouped 结构：仍可通过，但给出 warn。
+func TestPopupWarnsLegacyGroupedAside(t *testing.T) {
+	epub := filepath.Join(t.TempDir(), "legacy.epub")
+	writePopupEpub(t, epub, legacyFixture())
+	status, titles, warns, facts := runGoPopupWithWarnings(t, epub)
+	if status != "complete" || len(titles) != 0 || facts["standardViolations"] != 0 {
+		t.Fatalf("status=%q titles=%v facts=%#v, want complete without errors", status, titles, facts)
+	}
+	want := "OEBPS/Text/valid.xhtml: legacy grouped footnote aside marks the whole list as one note; use aside[epub:type=footnotes] with one aside[epub:type=footnote] per note"
+	if len(warns) != 1 || warns[0] != want {
+		t.Fatalf("warns=%q, want [%q]", warns, want)
+	}
+}
+
+// TestPopupStandardStructureErrors 锁定标准结构的错误措辞与顺序。
+func TestPopupStandardStructureErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want []string
+	}{
+		{
+			name: "container-role",
+			old:  `<aside epub:type="footnotes">`,
+			new:  `<aside epub:type="footnotes" role="doc-footnote">`,
+			want: []string{"OEBPS/Text/valid.xhtml: footnotes container must not have role=doc-footnote"},
+		},
+		{
+			name: "note-role-and-class",
+			old:  `<aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">`,
+			new:  `<aside id="n1" epub:type="footnote">`,
+			want: []string{
+				"OEBPS/Text/valid.xhtml: noteref target aside must have class=footnote-item",
+				"OEBPS/Text/valid.xhtml: footnote aside must have role=doc-footnote: #n1",
+				"OEBPS/Text/valid.xhtml: footnote aside must have class=footnote-item: #n1",
+			},
+		},
+		{
+			name: "target-li",
+			old:  `<aside class="footnote-item" id="n1" epub:type="footnote" role="doc-footnote">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></aside>`,
+			new:  `<ol><li class="footnote-item" id="n1">注<a epub:type="backlink" role="doc-backlink" href="#v1">↩</a></li></ol>`,
+			want: []string{
+				"OEBPS/Text/valid.xhtml: noteref target must be aside: #n1",
+				"OEBPS/Text/valid.xhtml: every noteref target must be a footnote aside in .footnote-list",
+				"OEBPS/Text/valid.xhtml: each footnote aside should contain a backlink",
+			},
+		},
+		{
+			name: "duokan-on-standard",
+			old:  `class="noteref-icon"`,
+			new:  `class="noteref-icon duokan-footnote"`,
+			want: []string{"OEBPS/Text/valid.xhtml: Duokan fallback is not defined for the footnotes container; keep the legacy grouped ol structure"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			files := validFixture()
+			files["OEBPS/Text/valid.xhtml"] = strings.Replace(files["OEBPS/Text/valid.xhtml"], tc.old, tc.new, 1)
+			epub := filepath.Join(t.TempDir(), tc.name+".epub")
+			writePopupEpub(t, epub, files)
+			status, titles, _ := runGoPopup(t, epub)
+			if status != "failed" || strings.Join(titles, "\n") != strings.Join(tc.want, "\n") {
+				t.Fatalf("status=%q titles:\n%s\nwant:\n%s", status, strings.Join(titles, "\n"), strings.Join(tc.want, "\n"))
+			}
+		})
+	}
+}
+
 func TestPopupRejectsRootedIconSrc(t *testing.T) {
 	dir := t.TempDir()
 	epub := filepath.Join(dir, "rooted-icon.epub")
@@ -234,7 +333,7 @@ func TestPopupRejectsRootedIconSrc(t *testing.T) {
 }
 
 func TestPopupNotesSeparatesStandardAndDuokanViolations(t *testing.T) {
-	files := validFixture()
+	files := legacyFixture()
 	files["OEBPS/Text/valid.xhtml"] = strings.Replace(
 		files["OEBPS/Text/valid.xhtml"],
 		`class="noteref-icon"`,
@@ -250,7 +349,7 @@ func TestPopupNotesSeparatesStandardAndDuokanViolations(t *testing.T) {
 }
 
 func TestPopupRejectsDuokanContentClassOnLIOutsideDuokanMode(t *testing.T) {
-	files := validFixture()
+	files := legacyFixture()
 	files["OEBPS/Text/valid.xhtml"] = strings.Replace(
 		files["OEBPS/Text/valid.xhtml"],
 		`class="footnote-item"`,

@@ -101,8 +101,9 @@ func TestNotesFallbackEndToEnd(t *testing.T) {
 	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.status"]; got != report.StatusComplete {
 		t.Fatalf("popup status=%#v, want complete", got)
 	}
-	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.findingsByLevel"]; got != (upstreamFindingsByLevel{}) {
-		t.Fatalf("popup findingsByLevel=%#v, want zero counts", got)
+	// 旧 grouped 结构是 Duokan fallback 的输入，上游只给 legacy-container warn。
+	if got := outcome.Envelope.Facts["epub.notes.popup.normalize.findingsByLevel"]; got != (upstreamFindingsByLevel{Warn: 1}) {
+		t.Fatalf("popup findingsByLevel=%#v, want one legacy-container warn", got)
 	}
 	if got := outcome.Envelope.Facts["pipeline.modifiedEntries"]; !slices.Equal(got.([]string), []string{"OEBPS/Text/chapter.xhtml"}) {
 		t.Fatalf("pipeline.modifiedEntries=%#v", got)

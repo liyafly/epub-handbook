@@ -230,6 +230,14 @@ retest_priorities:
     case: preset-fiction-en@18-english-fiction
     readers: [ibooks_macos, readest, kindle_previewer]
     focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
+  - rank: 10
+    case: 02-ruby-standard-footnote
+    readers: [ibooks_ios, ibooks_macos, kindle_previewer, readest, thorium, koreader]
+    focus: "02 已改为标准结构 C：aside[epub:type=footnotes] > div.footnote-list > 逐条 aside[epub:type=footnote][role=doc-footnote]。逐个阅读器记录点一条注释时是弹出单条、弹出整组还是只跳转，以及章末列表显示与否；对照组 A=旧 grouped aside[epub:type=footnote] 包 ol>li（容器误标为单条），B=只把容器改为 footnotes。单书观察（阅读器版本未记录）：A 在部分阅读器会整组弹出，Apple Books 能单条弹出。结论回写 SPEC §1。"
+  - rank: 11
+    case: 05-duokan-fallback
+    readers: [duokan, ibooks_macos, readest]
+    focus: "多看与标准结构兼容的候选写法：D1=footnotes 容器 > ol.footnote-list.duokan-footnote-content > li.footnote-item.duokan-footnote-item[id] > aside[epub:type=footnote]（id 在 li）；D2=同结构但 id 放在内嵌 aside、li 不带 id。记录多看与 Apple Books 是否都能单条弹出。实测前 05 和 epub.notes.legacy-fallback 继续使用旧 grouped 结构。"
 
 expectations:
   - reader: readest

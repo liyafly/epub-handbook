@@ -186,8 +186,9 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 ### 标准弹注
 
-- 同一 XHTML 中：图片 noteref anchor（epub:type、role、唯一 id）→ li.footnote-item 的 id → ◎ backlink 返回 trigger；每文件最多一个 aside[epub:type=footnote]，内有 ol.footnote-list。声明 epub namespace。
+- 同一 XHTML 中：图片 noteref anchor（epub:type、role、唯一 id）→ 单条注释 aside.footnote-item[epub:type=footnote][role=doc-footnote] 的 id → ◎ backlink 返回 trigger；每文件最多一个 aside[epub:type=footnotes] 容器（不带 doc-footnote），内有 div.footnote-list。声明 epub namespace。
 - 保留已有图标 src/alt；新建图片 noteref 时由用户提供资源并同步 manifest，迁移器不会注入默认图标。结构/视觉写 notes.css，字体声明写 fonts.css，图标规则限定作用域，不影响普通 sup。
-- 不逐条创建 aside，不搬到跨文件 note body，不 display:none、不复制第二份注释、不改注释文字。
-- 人工转换旧 Sigil 分组时，先逐条核对 noteref 与 aside；存在无法匹配的 aside 或附加内容时不做部分合并。尽量保留原 id。
+- 不把整组注释标成 epub:type=footnote；不搬到跨文件 note body，不 display:none、不复制第二份注释、不改注释文字。
+- `popupnotes.legacy-container` warn：旧 grouped 结构把整组标成单条；非多看书改为 footnotes 容器 + 逐条 aside，保留原 id、href 与回跳。需要多看 fallback 时保留旧结构。
+- 人工转换旧 Sigil 逐条 aside 时，先逐条核对 noteref 与 aside，再收进同一个 footnotes 容器；存在无法匹配的 aside 或附加内容时不做部分合并。尽量保留原 id。
 - 零违反还须对照原 noteref/note 数量、正文与每个触发目标，避免“没有被扫描到”误作正确。红线只允许表示控件差异，注释正文必须保持；多条 note 的弹窗范围需目标阅读器实测。

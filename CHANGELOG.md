@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- 弹注标准结构改为 `aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item[epub:type="footnote"][role="doc-footnote"]`：`footnote` 只标单条注释，不再标在整组容器上（旧写法会让部分阅读器点一条注释弹出整组）。`epub.notes.popup.normalize` 按新结构校验；旧 grouped 结构在非多看场景给出 `popupnotes.legacy-container` warn，多看 fallback 暂时继续使用旧结构，`epub.notes.legacy-fallback` 遇到标准结构报 `notes-fallback.no-grouped-list`。SPEC §1、手册、速查表、skills、demo 02 和 cleanup demo 目标已同步更新。
+
 ### Fixed
 
 - G41：`epub redline --check text` 现在覆盖 `th`、`dt`、`dd`、`figcaption`、`caption`、`summary`、`address` 及指定容器中的零散文字；把零散文字包进段落不会改变正文哈希序列。

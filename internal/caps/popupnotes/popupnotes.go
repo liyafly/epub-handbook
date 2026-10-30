@@ -38,6 +38,7 @@ type iconRef struct {
 func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 	res := report.Result{Capability: CapabilityID, Status: report.StatusComplete}
 	var errs []violation
+	var warns []violation
 
 	textFiles, pkg, textFilesErr := textFiles(b)
 	if textFilesErr != nil {
@@ -69,59 +70,76 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 			seenID[el.id] = true
 		}
 
-		// noterefs / footnote_asides 收集（role 为整串精确比较，epub:type 按分词）。
+		// noterefs / 注释容器收集（role 为整串精确比较，epub:type 按分词）。
+		// 标准结构：aside[epub:type=footnotes] 容器内每条注释为独立
+		// aside[epub:type=footnote]。旧结构把整组 ol.footnote-list 包在
+		// aside[epub:type=footnote] 中，仅作为 Duokan fallback 保留。
 		var noterefs []*element
+		var groups []*element
 		var footnoteAsides []*element
 		for _, el := range doc.elements {
 			switch {
 			case el.local == "a" && (typed(el, "noteref") || el.role == "doc-noteref"):
 				noterefs = append(noterefs, el)
-			case el.local == "aside" && (typed(el, "footnote") || el.role == "doc-footnote"):
+			case el.local == "aside" && typed(el, "footnotes"):
+				groups = append(groups, el)
+			case el.local == "aside" && (typed(el, "footnote") || el.role == "doc-footnote") && !insideAny(el, groups):
 				footnoteAsides = append(footnoteAsides, el)
 			}
 		}
-		if len(noterefs) == 0 && len(footnoteAsides) == 0 {
+		if len(noterefs) == 0 && len(footnoteAsides) == 0 && len(groups) == 0 {
 			continue
 		}
 		foundNotes = true
 		noterefCount += len(noterefs)
 
+		var noteIDs map[string]bool
+		var targetIDs map[string]bool
+		collect := func(targetKind string) {
+			noteIDs = map[string]bool{}
+			targetIDs = map[string]bool{}
+			for _, anchor := range noterefs {
+				if anchor.id != "" {
+					noteIDs[anchor.id] = true
+				}
+				targetID, iconSrc := validateNoteref(fp, doc, anchor, targetKind, &errs)
+				if targetID != "" {
+					targetIDs[targetID] = true
+				}
+				if iconSrc != "" {
+					iconRefs = append(iconRefs, iconRef{fp, iconSrc})
+				}
+			}
+		}
+
+		if len(groups) > 0 || len(footnoteAsides) == 0 {
+			collect("aside")
+			validateStandardGroup(fp, groups, footnoteAsides, noterefs, targetIDs, noteIDs, &errs)
+			continue
+		}
+
+		// 旧结构：单个 grouped aside[epub:type=footnote] > ol.footnote-list > li。
 		if len(footnoteAsides) != 1 {
 			errs = append(errs, violation{fmt.Sprintf("%s: files with notes must have exactly one grouped footnote aside", fp)})
 		}
 		var lists []*element // aside 内的 ol.footnote-list
-		if len(footnoteAsides) > 0 {
-			aside := footnoteAsides[0]
-			if !typed(aside, "footnote") {
-				errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must have epub:type=footnote", fp)})
+		aside := footnoteAsides[0]
+		if !typed(aside, "footnote") {
+			errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must have epub:type=footnote", fp)})
+		}
+		if aside.role != "doc-footnote" {
+			errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must have role=doc-footnote", fp)})
+		}
+		for _, o := range aside.descendants("ol") {
+			if classTokens(o).contains("footnote-list") {
+				lists = append(lists, o)
 			}
-			if aside.role != "doc-footnote" {
-				errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must have role=doc-footnote", fp)})
-			}
-			for _, o := range aside.descendants("ol") {
-				if classTokens(o).contains("footnote-list") {
-					lists = append(lists, o)
-				}
-			}
-			if len(lists) != 1 {
-				errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must contain exactly one ol.footnote-list", fp)})
-			}
+		}
+		if len(lists) != 1 {
+			errs = append(errs, violation{fmt.Sprintf("%s: footnote aside must contain exactly one ol.footnote-list", fp)})
 		}
 
-		targetIDs := map[string]bool{}
-		noteIDs := map[string]bool{}
-		for _, anchor := range noterefs {
-			if anchor.id != "" {
-				noteIDs[anchor.id] = true
-			}
-			targetID, iconSrc := validateNoteref(fp, doc, anchor, &errs)
-			if targetID != "" {
-				targetIDs[targetID] = true
-			}
-			if iconSrc != "" {
-				iconRefs = append(iconRefs, iconRef{fp, iconSrc})
-			}
-		}
+		collect("li")
 
 		if len(lists) > 0 {
 			noteList := lists[0]
@@ -185,6 +203,9 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 				}
 			}
 			duokanViolations += len(errs) - duokanErrorsBefore
+			if !duokanMode {
+				warns = append(warns, violation{fmt.Sprintf("%s: legacy grouped footnote aside marks the whole list as one note; use aside[epub:type=footnotes] with one aside[epub:type=footnote] per note", fp)})
+			}
 		}
 	}
 
@@ -201,6 +222,11 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 			})
 		}
 	}
+	for _, v := range warns {
+		res.Findings = append(res.Findings, report.Finding{
+			Level: "warn", ID: "popupnotes.legacy-container", Title: v.msg,
+		})
+	}
 	res.Facts = map[string]any{
 		"noterefs":           noterefCount,
 		"violations":         len(errs),
@@ -211,7 +237,8 @@ func Run(ctx context.Context, b *book.Book, _ Params) (report.Result, error) {
 }
 
 // validateNoteref 对齐 validate_noteref；返回 target 片段 id 与图标 src。
-func validateNoteref(fp string, doc *doc, anchor *element, errs *[]violation) (string, string) {
+// targetKind 为标准结构的 "aside" 或旧 grouped 结构的 "li"。
+func validateNoteref(fp string, doc *doc, anchor *element, targetKind string, errs *[]violation) (string, string) {
 	prefix := fp + ": noteref"
 	require := func(cond bool, msg string) {
 		if !cond {
@@ -238,10 +265,92 @@ func validateNoteref(fp string, doc *doc, anchor *element, errs *[]violation) (s
 	target, found := doc.byID(targetID)
 	require(found, prefix+" target missing: #"+targetID)
 	if found {
-		require(target.local == "li", prefix+" target must be li: #"+targetID)
-		require(classTokens(target).contains("footnote-item"), prefix+" target li must have class=footnote-item")
+		require(target.local == targetKind, prefix+" target must be "+targetKind+": #"+targetID)
+		require(classTokens(target).contains("footnote-item"), prefix+" target "+targetKind+" must have class=footnote-item")
 	}
 	return targetID, iconSrc
+}
+
+// validateStandardGroup 校验标准结构：每个文件一个 aside[epub:type=footnotes]
+// 容器，内含一个 .footnote-list；每条注释是独立的
+// aside.footnote-item[epub:type=footnote][role=doc-footnote]，并带回跳链接。
+func validateStandardGroup(fp string, groups, stray, noterefs []*element, targetIDs, noteIDs map[string]bool, errs *[]violation) {
+	fail := func(msg string) { *errs = append(*errs, violation{fp + ": " + msg}) }
+	if len(groups) != 1 {
+		fail("files with notes must have exactly one aside[epub:type=footnotes] container")
+	}
+	if len(stray) > 0 {
+		fail("footnote asides must be inside the aside[epub:type=footnotes] container")
+	}
+	for _, a := range noterefs {
+		if classTokens(a).contains("duokan-footnote") {
+			fail("Duokan fallback is not defined for the footnotes container; keep the legacy grouped ol structure")
+			break
+		}
+	}
+	if len(groups) == 0 {
+		return
+	}
+	group := groups[0]
+	if group.role == "doc-footnote" {
+		fail("footnotes container must not have role=doc-footnote")
+	}
+	var lists []*element
+	for _, el := range group.descendants("") {
+		if classTokens(el).contains("footnote-list") {
+			lists = append(lists, el)
+		}
+	}
+	if len(lists) != 1 {
+		fail("footnotes container must contain exactly one .footnote-list")
+		return
+	}
+	var notes []*element
+	itemIDs := map[string]bool{}
+	for _, el := range lists[0].descendants("aside") {
+		if !typed(el, "footnote") {
+			continue
+		}
+		notes = append(notes, el)
+		if el.id != "" {
+			itemIDs[el.id] = true
+		}
+		if el.role != "doc-footnote" {
+			fail("footnote aside must have role=doc-footnote: #" + el.id)
+		}
+		if !classTokens(el).contains("footnote-item") {
+			fail("footnote aside must have class=footnote-item: #" + el.id)
+		}
+	}
+	if !subset(targetIDs, itemIDs) {
+		fail("every noteref target must be a footnote aside in .footnote-list")
+	}
+	var backlinks []*element
+	for _, note := range notes {
+		for _, a := range note.descendants("a") {
+			if typed(a, "backlink") || a.role == "doc-backlink" {
+				backlinks = append(backlinks, a)
+			}
+		}
+	}
+	if len(backlinks) < len(targetIDs) {
+		fail("each footnote aside should contain a backlink")
+	}
+	for _, bl := range backlinks {
+		validateBacklink(fp, bl, noteIDs, errs)
+	}
+}
+
+// insideAny 判断 el 是否位于 containers 中某个元素之内。
+func insideAny(el *element, containers []*element) bool {
+	for p := el.parent; p != nil; p = p.parent {
+		for _, c := range containers {
+			if p == c {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // validateBacklink 对齐 validate_backlink。
