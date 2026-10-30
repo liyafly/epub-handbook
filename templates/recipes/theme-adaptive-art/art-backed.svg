@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <title>Synthetic monochrome leaves</title>
+  <rect width="320" height="180" fill="#fff"/>
+  <g fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M45 154 Q142 140 260 34"/>
+    <path d="M105 133 Q74 77 137 61 Q148 105 105 133 Z"/>
+    <path d="M153 107 Q190 148 234 110 Q202 78 153 107 Z"/>
+    <path d="M205 68 Q182 22 236 16 Q248 47 205 68 Z"/>
+  </g>
+</svg>

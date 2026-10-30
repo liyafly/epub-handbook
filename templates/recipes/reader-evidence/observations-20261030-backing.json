@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-30",
+  "entries": [
+    {
+      "case": "recipe-shape-wrap",
+      "reader": "ibooks_macos",
+      "status": "pass",
+      "readerVersion": "9.0 (6655)",
+      "profile": "浅色；双页；沿用字号，精确值未记录",
+      "observation": "首个展开页中L形凹口绕排和图后整行恢复可见；左页留白、末段继续下一页，续页和20em分支未覆盖。",
+      "source": "templates/recipes/dist/shape-wrap.epub",
+      "sourceSHA256": "9dabcea78279d2a6d86e9fd2abe6f10858828364aa59d9a8722b973a0da17574",
+      "testArtifact": "shape-wrap-ibooks_macos.epub",
+      "testSHA256": "c13dd144147c27c63b5cead946118363c1a08f6043f1628109650eee71ac6b7c",
+      "screenshots": [
+        "shape-ibooks-current.png"
+      ]
+    },
+    {
+      "case": "recipe-text-emphasis",
+      "reader": "ibooks_macos",
+      "status": "warn",
+      "readerVersion": "9.0 (6655)",
+      "profile": "浅色；沿用字号，精确值未记录",
+      "observation": "AX含正文，捕获阅读区灰色空白，无法确认视觉效果；不据此推断CSS原因。",
+      "source": "templates/recipes/dist/text-emphasis.epub",
+      "sourceSHA256": "70ac532a310d411b05057b9d3ca08f18f694bcb21c232cf96184dd43d6c149b0",
+      "testArtifact": "text-emphasis-ibooks_macos.epub",
+      "testSHA256": "c2d8822f8c74ec0713379958a1875839476a4da4fce5d8efc0eb508bff16b4e1",
+      "screenshots": [
+        "emphasis-ibooks-current.png"
+      ]
+    },
+    {
+      "case": "recipe-parallel-pair",
+      "reader": "ibooks_macos",
+      "status": "warn",
+      "readerVersion": "9.0 (6655)",
+      "profile": "浅色；沿用字号，精确值未记录",
+      "observation": "AX含正文，捕获阅读区灰色空白，无法确认视觉效果；不据此推断CSS原因。",
+      "source": "templates/recipes/dist/parallel-pair.epub",
+      "sourceSHA256": "a80ad98a1c71740e6bf3a04ded63886daf4b5f6485e99e8677c7348f03e99ff4",
+      "testArtifact": "parallel-pair-ibooks_macos.epub",
+      "testSHA256": "01ec402e8f3dc614527e53a4d993b965b48662c9683511633d11e5b1da1cc062",
+      "screenshots": [
+        "parallel-ibooks-current.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "ibooks_macos",
+      "status": "fail",
+      "readerVersion": "9.0 (6655)",
+      "profile": "深色；主题纸张；沿用字号，精确值未记录",
+      "observation": "修复前透明图仅靠CSS白底：保守图黑线落在深色页上，衬片未保住；可选反相图可见。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "6e9adb22feb330f519d8b024d54837abf38a9d70a751def52f2b84a229c2ea4f",
+      "testArtifact": "theme-adaptive-art-ibooks_macos.epub",
+      "testSHA256": "e3c3f39f25f06d7f9dae59d1b4834b7e9feb596cb4b53ab479d0f2bc014f2517",
+      "screenshots": [
+        "theme-ibooks-dark-p1.png",
+        "theme-ibooks-dark-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "ibooks_macos",
+      "status": "pass",
+      "readerVersion": "9.0 (6655)",
+      "profile": "深色；主题纸张；沿用字号，精确值未记录",
+      "observation": "修复后首图将白色底嵌入SVG资源，黑线白框完整；第二图透明单色反相为白线，可见。仅当前合成图深色两页。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "cf013fd8a6f9b181f5e6e25aceb6970507b1c439d8cfbf1e6c815df57268b2e0",
+      "testArtifact": "theme-backing-ibooks_macos.epub",
+      "testSHA256": "80a57444d7a5a9bb6a996f0aa51950a46bbc69fa89196027b223b14053c3b100",
+      "screenshots": [
+        "theme-backing-ibooks-dark-p1.png",
+        "theme-backing-ibooks-dark-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "readest",
+      "status": "warn",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "18px/400；青草；自动浅色及手动深色；图片反色/颜色覆盖关闭",
+      "observation": "修复后两图在浅色和深色可见；保守图使用资源内白底。可选图在深色仍黑线白框，反相未触发，保留warn。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "cf013fd8a6f9b181f5e6e25aceb6970507b1c439d8cfbf1e6c815df57268b2e0",
+      "testArtifact": "theme-backing-readest.epub",
+      "testSHA256": "fc24dbd20f943e62d95ef8c3073e1d78f0cbbc904bfb66f1b9133dd39cc5a863",
+      "screenshots": [
+        "theme-backing-readest-light-p1.png",
+        "theme-backing-readest-light-p2.png",
+        "theme-backing-readest-dark-p1.png",
+        "theme-backing-readest-dark-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "kindle_previewer",
+      "status": "warn",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Song4；白底",
+      "observation": "修复后两幅线稿及正文可见；夜间未测，不能宣称主题增强通过。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "cf013fd8a6f9b181f5e6e25aceb6970507b1c439d8cfbf1e6c815df57268b2e0",
+      "testArtifact": "theme-backing-kindle_previewer.epub",
+      "testSHA256": "8bfde4dfb86725feea00e59acadc4b6a3b1b76e7039a98d38690a0c7eb1b29b6",
+      "screenshots": [
+        "theme-backing-kindle4.png"
+      ]
+    },
+    {
+      "case": "recipe-shape-wrap",
+      "reader": "readest",
+      "status": "warn",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "18px/400；青草自动主题；分栏1、最大列宽280px",
+      "observation": "窄分页栏仍沿polygon绕排，20em窗口媒体查询未触发；栏宽不等于窗口宽，L3仍待验证。",
+      "source": "templates/recipes/dist/shape-wrap.epub",
+      "sourceSHA256": "9dabcea78279d2a6d86e9fd2abe6f10858828364aa59d9a8722b973a0da17574",
+      "testArtifact": "shape-wrap-readest.epub",
+      "testSHA256": "6bd770f4e10bf86a591d719e524ce9094b92357dfd53c346aefdb3d994afe7fd",
+      "screenshots": [
+        "shape-readest-column280.png"
+      ]
+    }
+  ],
+  "restoration": "Readest已恢复18px/400、自动主题、侧栏15、布局分栏2/最大列宽560；Kindle维持Song4。Apple Books曾在恢复浅色时转到书库，随后界面仅暴露菜单且截图不可用，最终主题未确认；未宣称已恢复。",
+  "scope": "旧产物失败与新产物通过分别保留。书级实测留在私有书级Git；公共证据仅合成材料。"
+}

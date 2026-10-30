@@ -18,4 +18,4 @@
 
 ## 阅读器结果
 
-历史 v3 观察继续保留。当前配方在 Readest 0.12.16 桌面配置通过；Kindle Previewer 4.0.3 Song 8 退回矩形，记 warn。Readest 侧栏缩窄仍未触发 20em 分支，因此 L3 不能标为通过；Apple Books 当前包和实体设备仍待验证。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。
+历史 v3 观察继续保留。当前配方在 Readest 0.12.16 桌面配置通过；Kindle Previewer 4.0.3 Song 8 退回矩形，记 warn。Apple Books 9.0 当前样本首个展开页的凹口绕排与图后整行恢复可见，续页未覆盖。Readest 改为单栏、最大列宽280px后仍沿 polygon 绕排：分页栏宽不等于窗口宽，20em媒体查询未触发，L3不能标为通过。目标阅读器窄栏无法触发护栏时，应逐书评估普通块图。详见 [补验日志](../reader-evidence/observations-20261030-backing.json)、[早期观察](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书或实体设备。

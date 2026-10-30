@@ -31,10 +31,11 @@ def package(name: str, baseline: bool) -> dict:
         "OEBPS/toc.ncx": f'<?xml version="1.0"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:{identity}"/></head><docTitle><text>{label}</text></docTitle><navMap><navPoint id="sample" playOrder="1"><navLabel><text>{label}</text></navLabel><content src="sample.xhtml"/></navPoint></navMap></ncx>'.encode(),
     }
     image_item = ""
-    for image_name, media_type in (("art.png", "image/png"), ("art.svg", "image/svg+xml")):
+    for image_name, media_type in (("art.png", "image/png"), ("art.svg", "image/svg+xml"), ("art-backed.svg", "image/svg+xml")):
         if (source / image_name).exists():
             files["OEBPS/" + image_name] = (source / image_name).read_bytes()
-            image_item += f'<item id="art" href="{image_name}" media-type="{media_type}"/>'
+            item_id = "art-backed" if image_name == "art-backed.svg" else "art"
+            image_item += f'<item id="{item_id}" href="{image_name}" media-type="{media_type}"/>'
     files["OEBPS/package.opf"] = f'''<?xml version="1.0"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:{identity}</dc:identifier><dc:title>{label}</dc:title><dc:language>{language}</dc:language><meta property="dcterms:modified">2026-10-30T00:00:00Z</meta></metadata>

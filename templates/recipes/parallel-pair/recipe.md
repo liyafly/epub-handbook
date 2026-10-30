@@ -18,4 +18,6 @@
 
 ## 阅读器结果
 
-Readest 0.12.16 的 26px 桌面配置中短组双栏、长组上下并自然跨页；Kindle Previewer 4.0.3 的 Song 4 / 8 均按源序上下，8 号字续页完整。这些配置按各自测试 SHA 记 pass，窄屏、其他字体与昼夜组合仍待测。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。
+Readest 0.12.16 的 26px 桌面配置中短组双栏、长组上下并自然跨页；Kindle Previewer 4.0.3 的 Song 4 / 8 均按源序上下，8 号字续页完整。这些配置按各自测试 SHA 记 pass。Apple Books 当前包捕获的阅读区灰色空白，无法验收视觉效果，记 warn；窄屏、其他字体与昼夜组合仍待测。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。
+
+Apple Books 补验见 [独立日志](../reader-evidence/observations-20261030-backing.json)。
