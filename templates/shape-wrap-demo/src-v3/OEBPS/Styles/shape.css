@@ -1,0 +1,19 @@
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; padding: 0; }
+h1 { font-size: 1.3em; line-height: 1.3; margin: 0 0 .35em; text-align: left; }
+p { line-height: 1.6; }
+.subtitle { font-size: .8em; margin: 0 0 1em; color: #666; text-indent: 0; }
+.story { margin: 0; text-indent: 0; text-align: justify; }
+.shape { width: 36%; padding: 0; border: 0; margin-top: 0; margin-bottom: 0; }
+.shape img { display: block; width: 100%; height: auto; }
+.left { float: left; margin-left: 0; margin-right: .65em; }
+.right { float: right; margin-left: .65em; margin-right: 0; }
+.end { clear: both; font-size: .75em; color: #777; text-align: center; margin: 1em 0 0; text-indent: 0; }
+.s1 { shape-outside: polygon(0% 0%, 27% 0%, 27% 72%, 100% 72%, 100% 100%, 0% 100%) content-box; shape-margin: .45em; }
+.s2 { shape-outside: polygon(0% 0%, 100% 0%, 100% 28%, 27% 28%, 27% 100%, 0% 100%) content-box; shape-margin: .45em; }
+.s3 { shape-outside: polygon(100% 0%, 73% 0%, 73% 72%, 0% 72%, 0% 100%, 100% 100%) content-box; shape-margin: .45em; }
+.s4 { shape-outside: polygon(100% 0%, 0% 0%, 0% 28%, 73% 28%, 73% 100%, 100% 100%) content-box; shape-margin: .45em; }
+.s5 { shape-outside: polygon(0% 0%, 17% 0%, 31% 13%, 39% 4%, 46% 23%, 48% 30%, 44% 36%, 50% 43%, 57% 50%, 65% 59%, 73% 69%, 77% 78%, 87% 76%, 96% 79%, 100% 85%, 99% 93%, 91% 100%, 0% 100%) content-box; shape-margin: .45em; }
+.s6 { shape-outside: polygon(100% 0%, 83% 0%, 69% 13%, 61% 4%, 54% 23%, 52% 30%, 56% 36%, 50% 43%, 43% 50%, 35% 59%, 27% 69%, 23% 78%, 13% 76%, 4% 79%, 0% 85%, 1% 93%, 9% 100%, 100% 100%) content-box; shape-margin: .45em; }
+.s7 { shape-outside: polygon(0% 0%, 18% 0%, 22% 7%, 32% 15%, 48% 22%, 68% 30%, 84% 38%, 95% 44%, 100% 50%, 95% 56%, 84% 63%, 66% 71%, 47% 78%, 31% 87%, 22% 94%, 18% 100%, 0% 100%) content-box; shape-margin: .45em; }
+.s8 { shape-outside: polygon(100% 0%, 82% 0%, 78% 7%, 68% 15%, 52% 22%, 32% 30%, 16% 38%, 5% 44%, 0% 50%, 5% 56%, 16% 63%, 34% 71%, 53% 78%, 69% 87%, 78% 94%, 82% 100%, 100% 100%) content-box; shape-margin: .45em; }

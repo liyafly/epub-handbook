@@ -56,6 +56,7 @@
   - [reference-reader-extensions.md](pipeline/reference-reader-extensions.md)：多看长屏封面证据与 Reeden 扩展研究
   - [package-operations.md](pipeline/package-operations.md)
   - [epub-diff-review.md](pipeline/epub-diff-review.md)
+  - [EPUB排版问题复盘与验收清单.md](pipeline/EPUB排版问题复盘与验收清单.md)：匿名排版问题与验收覆盖复盘
 
 ### 模板、工具与历史
 
