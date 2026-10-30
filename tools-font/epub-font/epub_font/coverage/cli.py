@@ -362,10 +362,10 @@ def main(argv=None):
 
         # 11. Build fonts section
         embedded_info = []
-        for file_path, fi in font_index.items():
+        for file_path, fi in font_by_path.items():
             family = fi.family if hasattr(fi, "family") else file_path.rsplit("/", 1)[-1]
             is_subset = fi.is_subset if hasattr(fi, "is_subset") else False
-            glyph_count = len(fi.codepoints) if hasattr(fi, "codepoints") else 0
+            glyph_count = fi.glyph_count if hasattr(fi, "glyph_count") else 0
             ivs_count = len(fi.ivs_records) if hasattr(fi, "ivs_records") else 0
             embedded_info.append({
                 "family": family,
@@ -373,6 +373,7 @@ def main(argv=None):
                 "is_subset": is_subset,
                 "glyph_count": glyph_count,
                 "ivs_records": ivs_count,
+                "variation_axes": getattr(fi, "variation_axes", {}),
             })
 
         # 11.5 Embed font files as base64 for self-contained HTML reports
@@ -381,7 +382,7 @@ def main(argv=None):
         embedded_fonts = {}
         zf_embed = zipfile.ZipFile(args.epub, "r")
         try:
-            for fi in font_index.values():
+            for fi in font_by_path.values():
                 try:
                     data = zf_embed.read(fi.file_path)
                     if len(data) <= MAX_EMBED:

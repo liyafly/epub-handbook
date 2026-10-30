@@ -1,61 +1,16 @@
 # 书级 EPUB 工作区
 
-本仓库维护一本书的解包源、制作决策和必要材料。日常只改
-`03 制作工作区/epub/OEBPS/`；打包与检查由脚本完成，不需要手动解压、复制多个 EPUB
-或整理时间戳产物。初始书稿包含标题页、第一章、导航、NCX 和基础样式。
+日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。根脚本依赖 EPUB Handbook 统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定；需可用的 `epub` CLI，含字体时另装 `epub-font` provider。
 
-此 starter 和 `build.sh` 只支持 `mimetype`、`META-INF/`、`OEBPS/` 布局；starter 初始结构把 OPF 放在 `OEBPS/package.opf`。它不是任意已有 EPUB 的通用打包器；接入不同目录布局的书籍前，请按 [已有 EPUB 接入说明](../../docs/pipeline/book-workspace.md#已有-epub-的一次性接入) 核对并保留其可用构建路径。
+- `sh build.sh`：注入锁定字体、子集化、独立覆盖检查、导航审计与全项 redline，通过后更新 dist、收据与 `交付记录.tsv`。
+- `sh build.sh fonts`：将库中完整字体注入源树供编辑器预览；库字体路径 Git 忽略，子集字体仍跟踪。
+- `sh build.sh clean`：清旧失败构建，保留最近一次现场；不清收据或其他材料。
+- `sh build.sh accept-dist`：先将编辑过的 dist 修改并回源并完成人工 diff；命令验证重建候选每个成员一致后才重新登记 SHA。
 
-## 日常修改
+字体配置在 `03 制作工作区/fonts.json`。`target` 是包内路径，`from` 是共享字体库文件名，`sha256` 锁定完整版本；可变字体保留 `variation.mode=instance` 与 axes。库优先 `EPUB_FONT_LIBRARY`，默认向上找 `fonts/`。完整母版只在共享库保存一份；来源和许可见库内 `字体清单.tsv`。既有子集留源树，不入库；缺字 warning 不代表覆盖通过，子集引入的回归仍会阻断。更新锁须审阅后显式执行 `epub-font inject --config '03 制作工作区/fonts.json' --update-lock`。
 
-1. 修改 `package.opf`、`nav.xhtml`、`toc.ncx`、`Text/` 或 `Styles/` 中需要的文件。换书名时同步修改 OPF 标题、作者、UUID，以及 NCX 的 `dtb:uid`。新增章节时同步 OPF manifest/spine、nav 和 NCX。
-2. 在书根检查并提交源文件：
+`01 源文件/` 冻结原始输入；参考、正文校订、版式截图和历史记录分别放 `02 校对材料/` 相应子目录。书根制作说明只写当前状态、目标阅读器、配方、待办和决策链接。成功记录自动写入制作区 TSV，含书源/手册提交、SHA 和字体锁；`dist/`、`.pipeline/` 与预览母版不提交。
 
-   ```sh
-   git status --short
-   git diff --check
-   git add -A
-   git commit -m 'content: update book source'
-   ```
+构建保留唯一固定交付件，失败现场可复核；dist 与收据不匹配时停止，不静默覆盖人工修改。可复现性取决于源、字体锁、手册/provider 及打包工具版本，静态成功不代表阅读器验收。已有 EPUB 导入只支持 OEBPS 布局；其他布局保留已验证的构建路径，不能为适配工具猜改目录。
 
-   `dist/` 和 `.pipeline/` 已忽略，不会把构建产物加入书级 Git。
-3. 在书根运行唯一构建命令：
-
-   ```sh
-   sh '03 制作工作区/epub/build.sh'
-   ```
-
-   未安装时：`EPUB_BIN=/path/to/epub sh '03 制作工作区/epub/build.sh'`
-
-4. 交付文件固定为 `03 制作工作区/dist/book.epub`。有字体时，provider 会用独立字符收集器检查子集没有引入缺字、空字形或 IVS/SVS 序列损失；随后运行导航审计和全项 redline。所有检查通过后才覆盖，失败时保留上一版。成功构建会在忽略目录 `.pipeline/dist-sha256` 保存交付件 SHA-256；以后若 dist 被编辑、替换，或收据丢失，构建会停止并保留文件。这样可避免编辑器保存过的 EPUB 被下一次构建静默覆盖。成功时清理本次临时 EPUB；打包或检查失败时，终端会提示保留的 `.pipeline/build.XXXXXX/`，其中含已生成的输入、候选、源副本和本次报告快照。下次构建不删除该失败现场；确认分析/恢复需求结束后另行清理。固定名报告仍表示最近一次进入构建阶段的检查，SHA 收据预检失败不会清掉它们。
-
-如果需要在 Sigil 等编辑器中修复已交付 EPUB，先保留该文件副本，再用全项 redline 和人工 diff 检查变化，并将需要的 XHTML、CSS、OPF、导航或资源变更并回 `03 制作工作区/epub/`。区分正文、导航、元数据、资源和序列化变化；需要重建后持续保留的转换行为应固化到书级脚本，并在书级验证器中加入可重复的断言。提交并验证源文件后，才把当前已审阅 EPUB 的 SHA 写入 `.pipeline/dist-sha256` 作为接受基线；缺少或不匹配收据时不要直接重建。macOS 可用 `shasum -a 256 '03 制作工作区/dist/book.epub' | awk '{print $1}' > '03 制作工作区/.pipeline/dist-sha256'`，Linux 可用 `sha256sum` 替换 `shasum -a 256`。若 `.pipeline/` 被清理而 dist 仍在，先重新审查并对齐源，再恢复收据。完整处理流程和《圣经的故事》的 Sigil 回写实例见[书级工作区文档](../../docs/pipeline/book-workspace.md#日常修改和构建)。
-5. 交付时在 `制作说明.md` 记录源提交、产物 SHA-256 和真实阅读器实测。没有在目标阅读器中打开验证时，状态保持“待验证”。
-
-打包前会在临时副本中统一源文件时间戳，并按固定路径顺序归档。同一源提交、同一平台且 `zip -v` 显示相同构建时可复现相同 EPUB SHA-256；跨平台或 zip 构建不同不承诺字节级一致。macOS 系统 zip 不会为非 ASCII 条目名设置 UTF-8 标志，EPUB 条目名请使用 ASCII。
-
-## 字体
-
-获准使用的完整 `.ttf` / `.otf` 母版放在 `03 制作工作区/epub/OEBPS/Fonts/` 的 manifest 目标路径，登记到 OPF manifest 和 CSS，并与解包源一起提交。构建会从完整母版为当前正文生成子集；新增字后会重新计算，不会把唯一字体母版替换成子集。字体来源和许可记入 `THIRD_PARTY.md`。`build.sh` 会扫描 `META-INF/` 与 `OEBPS/` 中的已知字体扩展名；字体能力随后按 entry 魔数拒绝未登记或媒体类型错误的字体。无字体书里仅改名、且没有 `fonts.json` 的字体仍不能触发 provider。解包源树不是交付物，禁止直接打包它；交付 EPUB 必须经过书内 `build.sh` 或 `epub.font.subset` 的候选与检查流程。
-
-书中没有字体时不需要字体 provider。含字体时，需要安装 `epub-font` provider 并让 `epub-font` 命令可在 PATH 中找到，且 `epub` CLI 必须提供 `epub.font.subset` 能力。可在手册仓库根目录安装 provider：
-
-```sh
-uv tool install --editable tools-font/epub-font
-```
-
-自动字体处理会完整保留带 OpenType `MATH` 表的数学字体，无需在 `fonts.json` 中声明保留。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示；可变字体只接受 `variation.mode: "instance"`。加密/混淆或损坏的字体不会因保留设置而放行。
-
-`fonts.json` 可选添加顶层 `"usage": "css"`，按 CSS 字体族为各字体生成较小的字符集；省略时使用全书字符集。该模式对简单选择器按角色收集文字，对无法识别的选择器保守扩大到全书；含脚本、无法解析的样式表导入、XML stylesheet processing instruction、SVG `use` 或无法证明字符变体完整时会拒绝 CSS 模式，不生成候选。不同字重若共用同一 `font-family`，会保留同一字符集。每次查看 `.pipeline/font-subset.json` 中的使用模式与回退 finding；不确定时省略该设置，保留既有全书模式。
-
-## 进阶排版
-
-默认使用自由字体模式。整书锁定字体时，还要在 `fonts.css` 设置 `body` 字体，并在 OPF 配对 `ibooks:specified-fonts` 元数据与 `ibooks` prefix。手工切换 CSS 层不等同于完整套用一个 preset：预设有多个分层文件以及对应的 manifest/head 引用；对已有 EPUB，请用 `epub.typography.optimize` 生成候选并审核报告。
-
-## 需要查细节时
-
-- [书级工作区与已有 EPUB 接入](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)
-- [排版实现约束](https://github.com/liyafly/epub-handbook/blob/main/docs/final/SPEC-%E5%AE%9E%E7%8E%B0%E7%BA%A6%E6%9D%9F.md)
-- [可复用主题样式](https://github.com/liyafly/epub-handbook/tree/main/templates/style-presets)
-- [字体 provider 配置](https://github.com/liyafly/epub-handbook/blob/main/tools-font/epub-font/README.md)
-- [可选排版样例](https://github.com/liyafly/epub-handbook/tree/main/templates/epub-style-demo)
+详细约定见 [书级工作区](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)、[实现约束](https://github.com/liyafly/epub-handbook/blob/main/docs/final/SPEC-%E5%AE%9E%E7%8E%B0%E7%BA%A6%E6%9D%9F.md) 和 [字体 provider](https://github.com/liyafly/epub-handbook/blob/main/tools-font/epub-font/README.md)。

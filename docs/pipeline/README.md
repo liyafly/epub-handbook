@@ -1,6 +1,6 @@
 # 批处理流水线
 
-清洗一本已有 EPUB：**只按 [cleanup-flow.md](cleanup-flow.md) 的主线走。** 下面是主线某一步需要时才读的专题。
+已有 EPUB 的精排接入与问题清洗，按 [cleanup-flow.md](cleanup-flow.md) 的两条路径选择。下面是相应步骤需要时才读的专题。
 
 | 专题 | 何时读 |
 | --- | --- |

@@ -1,104 +1,81 @@
 # 一书一 Git 工作区
 
-书稿的长期维护以解包后的 EPUB 源目录为准。书级仓库记录每次可读修改；打包、字体子集和检查都在临时工作区完成，成功后只保留一个可覆盖的交付文件。本页的 `book-starter` 和 `build.sh` 使用固定的 `OEBPS/` 布局，只覆盖该模板的打包范围。
+日常只有改源 → `sh build.sh` → 阅读器检查。主仓忽略整个 `work-epub/`，书级 Git 保留源、配置、决策和交付记录；共享字体库与书一起备份，不建立书级 Git。
 
-## 初始化
-
-从手册仓库根目录执行：
+## 初始化与接入
 
 ```sh
-sh templates/book-starter/new-book.sh work-epub/my-book
+sh templates/book-starter/new-book.sh work-epub/<book>
+# 已有、可维护的 OEBPS EPUB
+sh templates/book-starter/import-book.sh <原始.epub> work-epub/<book>
 ```
 
-脚本会创建一本书的独立本地 Git 仓库，放入书根 `README.md`、最小 EPUB 骨架、构建脚本、`.gitignore`、`THIRD_PARTY.md` 和 `制作说明.md`。书根 README 是给后续维护者的日常操作说明；解包目录只放 EPUB 源文件和构建脚本。目标目录必须尚不存在，避免覆盖已有书稿。首次写完元数据或正文后提交：
-
-```sh
-git -C work-epub/my-book add .
-git -C work-epub/my-book commit -m 'chore: establish book source'
-```
-
-目录结构：
+导入冻结原件与 SHA，运行导航审计，解包并盘点内嵌字体，提交基线。加密、损坏、审计阻断或非 OEBPS 布局停止，冻结输入与报告保留供分析，不自动转目录或解密。完整字体按 SHA 去重进入 `work-epub/fonts/`，许可先标“待核”；覆盖工具判断可能为子集的字体留在源树，报告列出字形数和判断，不能据此证明一定为全量。没有必要时不做规范化、EPUB3 迁移或 CSS 清洗；确有问题才走 [cleanup-flow.md](cleanup-flow.md) 对应步骤。
 
 ```text
-work-epub/my-book/
-├── README.md                  # 书级日常修改、构建与字体说明
-├── 01 源文件/                 # 已有 EPUB 的冻结底本；新书可暂为空
-├── 02 校对材料/               # 按需放校对资料和授权决策
-├── 03 制作工作区/
-│   ├── epub/                  # 唯一长期维护的解包 EPUB 源目录
-│   │   ├── mimetype
-│   │   ├── META-INF/
-│   │   ├── OEBPS/
-│   │   └── build.sh
-│   ├── .pipeline/             # 临时打包、报告和候选，Git 忽略
-│   └── dist/book.epub         # 最近一次通过验证的产物，Git 忽略并覆盖
-├── .gitignore
-├── THIRD_PARTY.md
-└── 制作说明.md
+work-epub/
+  fonts/                         # 全量字体、README.md、字体清单.tsv
+  <book>/                        # 独立 Git
+    01 源文件/                   # 冻结输入
+    02 校对材料/参考|正文校订|版式|历史/
+    03 制作工作区/
+      epub/                      # 解包源；可保留原有子集字体
+      fonts.json                 # 本书字体与锁
+      交付记录.tsv               # 成功构建自动追加
+      dist/book.epub             # 忽略；已有正式文件名可保留
+      .pipeline/                 # 忽略；报告、收据、失败现场
+    build.sh                     # 转发到手册统一构建器
+    制作说明.md                  # 当前状态、目标阅读器、配方、待办与决策链接
 ```
 
-不需要时不要建立空的 `reports/`、`before/`、`after/` 或额外的 EPUB 版本目录。确有多套图片、字体母版或可复用脚本时，再按书内实际需要增加目录。
+## 字体库与配置
+
+完整母版不重复提交到每本书源树。字体库先取 `EPUB_FONT_LIBRARY`，未设置时从书配置位置向上寻找共享的 `fonts/`；显式设置的目录不存在时失败，不悄悄回退。库内 `字体清单.tsv` 记录文件名、SHA、来源、许可与备注，书级 `THIRD_PARTY.md` 引用清单。正文和图片仍在书级记录来源。库文件缺失或 SHA 不符即停，不擅自换字体版本。
+
+```json
+{
+  "version": 1,
+  "usage": "css",
+  "fonts": [
+    {"target": "OEBPS/Fonts/st.otf", "from": "body-master.otf", "sha256": "<完整小写SHA256>"},
+    {"target": "OEBPS/Fonts/ht.ttf", "from": "heading-variable.ttf", "sha256": "<完整小写SHA256>",
+     "variation": {"mode": "instance", "axes": {"wght": 700}}},
+    {"target": "OEBPS/Fonts/retained-subset.ttf"}
+  ]
+}
+```
+
+`target` 是 OPF/CSS 引用的包内路径，新书使用角色别名，旧书保留原名。`from` 只能是库内文件名。没有 `from` 的项继续使用源树字体，两者可混用；原有子集不入库。`usage` 省略时按全书字符集，显式 `css` 才按保守 CSS 角色范围。未知选择器会扩大字符集；活动内容、无法证明安全的样式或字符生成方式会拒绝 CSS 模式。可变字体只接受静态实例化；MATH 字体按原字节保留；原有加密边界不变。
+
+母版原本缺字会打印 warning，提供缺字与文件定位样本，不阻断；新增缺字、空字形或 IVS/SVS 的子集回归仍阻断。子集源缺少后来新增的字不能自动恢复，需找到授权完整母版并更新配置。更换母版版本后，审阅来源、许可与字形变化，再显式更新锁：
+
+```sh
+epub-font inject --config '03 制作工作区/fonts.json' --update-lock
+```
+
+`sh build.sh fonts` 将锁定母版注入源树供编辑器预览，源树内相应母版路径必须被 Git 忽略；混用时仅忽略库字体路径，保留子集字体跟踪。没有预览注入时，编辑器显示回退字体；交付始终从库重新注入临时副本，不复用预览文件。
 
 ## 日常修改和构建
 
-直接修改 `03 制作工作区/epub/OEBPS/` 下的 XHTML、CSS、OPF、nav 与 NCX。`build.sh` 要求 `mimetype`、`META-INF/` 和 `OEBPS/` 同时存在，只打包 `META-INF/` 与 `OEBPS/`；字体扫描也会检查这两个打包目录中的已知字体扩展名。每次构建都从这个源目录重新打包，所以源目录始终是完整、可编辑、可比较的版本。提交源文件的变化后运行：
-
 ```sh
-sh '03 制作工作区/epub/build.sh'
+sh build.sh
+sh build.sh fonts
+sh build.sh clean
+sh build.sh accept-dist
 ```
 
-脚本把中间包和报告放进 `03 制作工作区/.pipeline/`，最后运行导航结构审计和全项 redline；所有 gate 通过才用同卷重命名覆盖 `03 制作工作区/dist/book.epub`。构建内 FULL/FINAL redline 只检查构建过程中的字体子集化等变换。若已有 `dist/book.epub`，构建还会把它与新候选跑一次全项 redline，并将差异摘要打印到终端；该对比只提示作者检查正文等版本变化，不是正文不变 gate。
+书根脚本只转发到 `${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh`，将书目录作为首参数；多册可各自将包含 `epub/` 的制作子目录传入。构建器兼容旧式复制到 `03 制作工作区/epub/` 的脚本与源树完整字体，但维护逻辑只更新手册这一份。配置优先制作区 `fonts.json`，再兼容书根配置；既有正式名用转发脚本的 `EPUB_OUTPUT_NAME` 保留。已有非 OEBPS 书可在核对资源集合后显式设 `EPUB_LEGACY_LAYOUT=1`，原样打包原布局；导入命令仍拒绝自动接入非 OEBPS 布局，不做猜测改名。
 
-为防止人工编辑过的成品被后续构建覆盖，脚本在 `.pipeline/dist-sha256` 保存最近一次成功构建的交付件 SHA-256。重建前必须确认当前 `dist/book.epub` 与收据匹配；收据缺失、摘要不匹配、文件在构建过程中被改动或被替换时，脚本会停止并保留现有成品。所有源文件变更仍应提交到书级 Git；dist 只是交付输出，不是维护源。
+构建复制源 → 按锁注入完整字体 → 打包 → 子集与独立覆盖检查 → 导航审计 → 全项 redline → 原子替换 dist 并登记收据和交付记录。成功只保留固定交付包；失败保留 `.pipeline/build.*` 与报告，不替换已有 dist。`clean` 只清旧 `build.*`，默认保留最近一次现场，且遇到构建锁停止，不清整个 `.pipeline/`。
 
-若需用 Sigil 等工具直接修复交付 EPUB，先复制留档，对照改前版本运行 `epub redline --check all` 并人工检查差异；再将需要的变化并回 `03 制作工作区/epub/`，运行导航审计、全项 redline并审阅源码 diff。确认源树已含所需修复后，才把当前交付件 SHA 写入收据，允许下一次构建：macOS 用 `shasum -a 256 '03 制作工作区/dist/book.epub' | awk '{print $1}' > '03 制作工作区/.pipeline/dist-sha256'`，Linux 可改用 `sha256sum`。若 `.pipeline/` 清理导致收据遗失，而 dist 仍存在，应先重新审查并对齐源再恢复收据；不得将缺少收据视作可安全覆盖。构建失败时，最近一次成品保持原样；本次临时目录 `.pipeline/build.XXXXXX/` 保留已生成的输入/候选、源副本和报告快照，终端打印路径，后续重建不自动删除它。成功时只清理本次临时目录；失败现场分析完后再按范围清理，不把整个 `.pipeline/` 当缓存删除。固定名报告表示最近一次进入构建阶段的检查；dist SHA 预检失败会保留原报告。
+现有 dist 的 SHA 必须匹配 `.pipeline/dist-sha256`，缺收据或不匹配时不覆盖。编辑过 dist 后，先保存副本，做全项 redline 与人工 diff，把修改并回源；`accept-dist` 会重新生成并检查候选，要求所有包内成员内容与当前 dist 一致（不只比较正文红线），然后才登记收据。它不替代人工审核，不允许跳过源同步。
 
-将编辑器修复并回源时，同时记录它属于正文、导航、元数据、资源还是 XML/CSS 序列化变化，并说明哪些是必须长期保留的行为。需要长期保留的转换行为应写入本书的生成脚本；能够稳定断言的结果则加入书级验证器，避免下一次重建或换编辑器保存时丢失。若编辑器只改缩进、空元素形式或生成器标记，应单独审阅，不要把批量字节变化误认为书稿内容已核验。`制作说明.md` 记录最终采纳的修复与对应验证。
+`交付记录.tsv` 自动记录时间、书源 commit（有修改带 `-dirty`）、手册 commit、dist SHA 和字体锁版本。`制作说明.md` 保留一屏当前状态、目标阅读器、使用配方、待办、已知差异和决策链接；旧长记录、带日期交接放 `02 校对材料/历史/`，不删除历史。依赖库与手册版本一起备份，复现时取记录中的提交。
 
-例如，《圣经的故事》保存 Sigil 2.8.1 后，为全部 XHTML 加入 `<!DOCTYPE html>`、移除了冗余 `<meta charset>`，并更新 OPF 修改时间、加入 Sigil 版本标记及调整 `container.xml` 缩进。经结构化对比确认正文和导航语义未变后，书级 `tools/prepare-book.py` 固定 DOCTYPE 与不输出冗余 charset 的行为，`tools/verify-book.py` 对全部 XHTML 逐文件断言这两条规则。它们是该书接受的编辑器修复，不自动成为所有书籍的 EPUB 规则。
+## 阅读器与交付证据
 
-维护 starter 构建保护时，在手册仓库根运行 `sh templates/book-starter/test-build-dist-guard.sh`；回归覆盖首次构建、源更新重建、检查失败保留候选/报告且不改 dist/收据、成功重试不覆盖失败证据，以及人工修改/收据缺失时拒绝覆盖。
-
-`dist/book.epub` 和 `.pipeline/` 默认由新书脚本写进书级 `.gitignore`。Git 主要维护解包源、校对材料、脚本与制作决策；交付 EPUB 是可从某次源提交重建的输出。打包前会在临时目录复制源树、统一时间戳并按固定路径顺序归档；相同源提交、平台以及 `zip -v` 显示的相同 zip 构建可复现相同 SHA-256，跨平台或 zip 构建不同不承诺字节级一致。macOS 系统 zip 不会为非 ASCII 条目名设置 UTF-8 标志，EPUB 条目名请使用 ASCII。每次交付后，在 `制作说明.md` 记录源提交、产物 SHA-256 和阅读器实测。若要长期归档具体交付版，把它发布到书级仓库之外的发行位置，并保留对应 SHA，不要把反复构建的二进制历史塞进源文件提交。
-
-## 字体母版与子集
-
-推荐把获准使用的完整 `.ttf` / `.otf` 字体放在解包树 `OEBPS/Fonts/`，即 OPF manifest 声明的目标路径，并在 OPF 与 CSS 中正常声明。`build.sh` 扫描 `META-INF/` 与 `OEBPS/` 下任何已知字体后缀文件（不论它是否已登记在 OPF manifest）以及书根 `fonts.json`；发现任一项都会调用 `epub.font.subset`。能力会读取 EPUB entry 的前四字节，按 SFNT、TTC、WOFF 或 WOFF2 魔数检查全部 manifest 与未登记资源；未登记字体报告 `font-subset.unmanifested-font`，错误声明为非字体媒体类型的字体报告 `font-subset.disguised-font`，这两类资源都不能进入交付产物。若扫描触发构建但没有 manifest 字体目标，会以 `font-subset.no-fonts` 失败。一个残余限制是：若无 `fonts.json`、无已知字体扩展名的书把字体改名后藏入资源树，书级 `build.sh` 无法据此触发 provider；先将其改回常用字体扩展名，或配置 fonts.json。Go 流水线把含完整字体的源 EPUB 交给独立的 `epub-font` provider，在临时目录生成和验证子集，最后只将变更后的字体 entry 应用到输出候选。provider 还会用独立字符收集器按完整源字体与候选字体比较缺字、空字形和 IVS/SVS 序列；仅对完整源字体可用、子集后退化的项目判为回归。解包源里的完整字体不会被覆盖。
-
-因此每次修改正文后，构建都会从解包源中的完整字体重新计算所需字形；新增加的字不依赖上次子集化产物，不会因为旧子集缺字而无法恢复。完整字体的许可和来源记入 `THIRD_PARTY.md`。带 OpenType MATH 表的字体无论是否列在配置中都会按原字节保留，provider 报告记录 `reason=math-table` 与输入/输出 SHA；普通字体继续子集化。旧配置里的 `action: "preserve"` 暂时作为弃用 no-op 接受并提示，之后应删除该字段。可变字体配置只接受 `variation.mode: "instance"`。加密/混淆、损坏或不支持的字体仍会失败。交付 EPUB 必须由书内 `build.sh` 构建，或由 `epub.font.subset` 生成候选后通过规定检查；禁止直接把解包源树打包交付。
-
-`fonts.json` 默认使用全书字符集；可选顶层 `"usage": "css"` 按 CSS 字体族缩小角色字符集。简单 CSS 可精确分配；无法识别的选择器会将相关字体扩大到全书，含脚本、无法安全读取的 CSS、XML stylesheet processing instruction 或 SVG `use` 会拒绝该模式且保留现有 dist。CSS 模式是按静态 EPUB/CSS 证据构建的候选，不代替目标阅读器验收。
-
-无字体的书不需要安装字体 provider。需要子集化时，在手册仓库中安装：
-
-```sh
-uv tool install --editable tools-font/epub-font
-```
-
-provider 缺失或子集检查失败会使这次构建失败，原有 dist 不会被替换。完整 Go CLI 必须包含 `epub.font.subset`；尚未包含该 capability 的旧版 CLI 不能用于带字体书籍的构建。
-
-## 升级既有书
-
-书级仓库会保留创建时复制的 `build.sh`，升级手册仓库不会自动更新这些脚本。epub-font 2.0.0 已删除 `epub-font check --against`；若旧脚本仍调用它，构建会以迁移提示退出。检查并删除该调用，或审阅后将脚本更新到当前 `templates/book-starter/build.sh`。dist SHA 收据保护同样只在书内脚本更新后生效；更新既有书时，先检查本书构建逻辑，再同步并验证模板。当前 Go 的 `epub.font.subset` 会在应用候选前检查独立覆盖回归。
-
-已安装的 provider 升级到 2.1.0：
-
-```sh
-uv tool install --editable --reinstall tools-font/epub-font
-```
-
-provider 2.1.0 使用 schemaVersion 3，Go 仍兼容旧 book-mode schemaVersion 2；schemaVersion 1 会以 `font-subset.provider-outdated` 失败，且不会应用候选。旧 `fonts.json` 中的 `action: "preserve"` 在 2.x 暂时接受并提示弃用；请在 3.0.0 前移除。`tools-font/coverage-detector/` 已删除，字体覆盖分析统一经 PATH 上的 `epub-font coverage` 执行。
-
-## 已有 EPUB 的一次性接入
-
-已有 EPUB 仍按 [`cleanup-flow.md`](cleanup-flow.md) 做底本冻结、预检、必要的结构规范化、迁移判断、全项红线和人工 diff review。S0 时即把原始 EPUB 放进 `01 源文件/` 并记录 SHA。解包前先核对 `META-INF/container.xml` 指向的 OPF 路径和 ZIP 目录：`EPUB/`、`EPUB/OPS/` 或根目录 OPF 等非 `OEBPS/` 布局，不能直接使用本页的 starter `build.sh`；它会报告缺少 `OEBPS/`。`epub.structure.normalize` 的路径规范化也不承诺把所有源树转换成 OEBPS。遇到非 OEBPS 书籍时，保留并验证该书现有可用的构建路径，不要为了适配模板脚本未经审查就重命名目录。只有确认最终候选符合本页 OEBPS 骨架且构建验证通过后，才把它解包到 `03 制作工作区/epub/` 并提交书级基线。后续局部修改直接维护解包源并运行已验证的构建命令；只有再次执行有意的清洗、迁移或授权校订时，才重跑对应的专项审查，不需要每次编辑都重复完整接入流程。
-
-对任意合法 EPUB 源树进行通用打包仍是后续功能；本页没有实现新的解包器或通用打包入口。
+配方首测保留完整 artifact/SHA、版本、逐场景截图并回写 reader matrix；书级交付保留每个配方在每个主要阅读器的截图和构建报告；中间调参可在确认交付后清理。静态检查与真实阅读器分开记录，没有实测不能写 pass。正文校订仍走 SPEC §10.1.1，含文决策留书级校对材料，被 gate 引用的文件与路径映射不得提前删除。
 
 ## Git 与第三方材料
 
-- `work-epub/` 被手册主仓忽略。每本书有自己的 `.git`，不添加为 submodule。
-- 书级 Git 保留可编辑源文件、构建脚本、必要的审阅材料、`THIRD_PARTY.md` 和 `制作说明.md`。
-- `.pipeline/`、`dist/`、缓存与失败临时候选不进 Git。被正文校订或结构 gate 引用的决策文件与路径映射仍须留到 gate 完成。
-- 第三方 EPUB、字体和图片进入书级 Git 前，在 `THIRD_PARTY.md` 记录来源、作者、许可和保留理由；许可未核实不得配置公开 remote 或发布原始材料。
-- 不在手册主仓执行 `git add -f work-epub/<book>`。
+书级 Git 不重写历史，不将书添加为主仓 submodule。迁移前先核对并保存已有改动、冻结旧构建基线；字体和目录调整单独提交，布局合并另作提交；迁移后全项 redline 与非字体成员逐项对比。来源或许可待核的内容只保留本地，不配置公开 remote、不发布。完整证据与真实书目信息留本地，经验回填主仓须按 AGENTS 脱敏。

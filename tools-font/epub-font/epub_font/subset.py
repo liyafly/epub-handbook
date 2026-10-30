@@ -24,7 +24,7 @@ import fontTools
 from . import check, epubtext, font_usage, fontops
 
 CONFIG_KEYS = {"version", "usage", "fonts"}
-FONT_KEYS = {"target", "variation", "extraText"}
+FONT_KEYS = {"target", "variation", "extraText", "from", "sha256"}
 DEPRECATED_FONT_KEYS = {"action"}
 DEPRECATED_ACTION_REMOVAL_VERSION = "3.0.0"
 
@@ -184,6 +184,13 @@ def _process_job(job: dict, book: epubtext.BookText, usage: font_usage.FontUsage
     checks["independent-coverage"] = _independent_coverage(usage.harvest, target, original_bytes, out_bytes)
     if not_in_master:
         warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
+        locations = []
+        for cp in not_in_master[:20]:
+            char = chr(cp)
+            where = usage.harvest.chars.get(char, {}).get("first", "CSS/config/generated text")
+            locations.append(f"{fontops.cp_label(cp)} {char!r} ({where})")
+        detail = "; ".join(locations)
+        warnings.append(f"{target}: source coverage warning, first {len(locations)} of {len(not_in_master)}: {detail}"[:4096])
     return {
         "target": target,
         "manifestId": item.item_id,

@@ -153,7 +153,7 @@ def read_entry(epub_path: Path, entry: str) -> bytes:
 
 
 def run_build(book_dir: Path, env: dict[str, str], log_path: Path, *, success: bool) -> None:
-    build = book_dir / "03 制作工作区" / "epub" / "build.sh"
+    build = book_dir / "build.sh"
     result = run_logged(["sh", str(build)], env, log_path)
     if success and result.returncode != 0:
         raise RuntimeError(f"book build failed; see {log_path}")
@@ -298,7 +298,7 @@ def cancel_build(book_dir: Path, env: dict[str, str], root: Path, log_path: Path
     wrapper.chmod(0o755)
     cancel_env = dict(env)
     cancel_env["PATH"] = str(wrapper_dir) + os.pathsep + env.get("PATH", "")
-    build = book_dir / "03 制作工作区" / "epub" / "build.sh"
+    build = book_dir / "build.sh"
     with log_path.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(
             ["sh", str(build)],

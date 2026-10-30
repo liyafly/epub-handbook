@@ -5,7 +5,7 @@
 ## 快速分流
 
 - 已有 EPUB：先用 `epub-audit` 预检；再按问题进入 `epub-cleanup`、`epub-package-ops` 或 `epub-special-layout`。目标包含特定阅读器时加 `epub-reader-verify`。
-- 新书或长期维护中的书：用 `templates/book-starter/new-book.sh` 建立书级 Git 与解包源，后续只运行书内 `build.sh`；完整字体母版跟随源树，子集化写入临时候选。详见[书级工作区](../docs/pipeline/book-workspace.md)。
+- 新书或长期维护中的书：用 `templates/book-starter/new-book.sh` 建立书级 Git 与解包源，后续运行书根 `build.sh` 转发到统一构建器；完整字体母版来自共享字体库、以 SHA 锁定，构建时注入并子集化到临时候选。既有子集字体保留源树。详见[书级工作区](../docs/pipeline/book-workspace.md)。
 - 只有文本/PDF/扫描件：先 `epub-source-intake` 盘点；它不抽取 PDF、不做 OCR、不生成 EPUB。
 - 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。不要默认全书套 preset；用户只要方案时不写书稿。
 - Reeden 英文误斜体、Readest 新包仍像旧包/页底裁图、Kindle 重复封面：按症状读取 [2026 年 10 月适配复盘](../docs/pipeline/reader-adaptation-lessons-2026-10.md)，其中数值与绕过均有单书范围，不自动套成全局 preset。

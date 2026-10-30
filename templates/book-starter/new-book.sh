@@ -41,10 +41,17 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
-mkdir -p "$TMP/01 源文件" "$TMP/02 校对材料" "$TMP/03 制作工作区/epub"
+mkdir -p "$TMP/01 源文件" "$TMP/03 制作工作区/epub"
+for section in 参考 正文校订 版式 历史; do
+	mkdir -p "$TMP/02 校对材料/$section"
+	touch "$TMP/02 校对材料/$section/.gitkeep"
+done
 EPUB_DIR="$TMP/03 制作工作区/epub"
-cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" \
-	"$TEMPLATE_DIR/build.sh" "$EPUB_DIR/"
+cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" "$EPUB_DIR/"
+cat >"$TMP/build.sh" <<'EOF'
+#!/bin/sh
+exec sh "${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh" "$(dirname "$0")" "$@"
+EOF
 
 STYLE_PRESET_DIR="$TEMPLATE_DIR/../style-presets/literary-cn/Styles"
 if [ ! -d "$STYLE_PRESET_DIR" ]; then
@@ -72,6 +79,9 @@ cat >"$TMP/.gitignore" <<'EOF'
 # Temporary build reports and the single replaceable delivery artifact.
 /03 制作工作区/.pipeline/
 /03 制作工作区/dist/
+# Preview-only injected masters; source subset fonts are ignored individually
+# when a book mixes locked library fonts and retained embedded subsets.
+/03 制作工作区/epub/OEBPS/Fonts/
 
 # Local editor noise.
 .DS_Store
@@ -81,7 +91,8 @@ EOF
 cat >"$TMP/THIRD_PARTY.md" <<'EOF'
 # 第三方材料
 
-在书级 Git 中加入来源于第三方的正文、图片或字体前，记录来源、作者、许可和保留理由。
+在书级 Git 中加入来源于第三方的正文或图片前，记录来源、作者、许可和保留理由。
+共享字体的来源与许可统一见字体库 `字体清单.tsv`（默认 `../fonts/`，可由 EPUB_FONT_LIBRARY 指定）。
 许可未核实时，不配置公开远程，也不发布原始材料。
 
 | 路径 | 来源 | 作者 | 许可 | 保留理由 |
@@ -91,24 +102,20 @@ EOF
 cat >"$TMP/制作说明.md" <<'EOF'
 # 制作说明
 
-## 当前源文件
+## 当前状态
+- 最新交付：见 `03 制作工作区/交付记录.tsv` 最后一行（尚未构建）
+- 构建：`sh build.sh`；字体母版来自共享库，字体配置在 `03 制作工作区/fonts.json`
+- 目标阅读器：待填写；阅读器实测待验证
+- 使用的配方：无
 
-- 解包源目录：`03 制作工作区/epub/`
-- 字体母版：与源树一起维护；每次构建都从完整字体生成本次字形子集。
-- 最终产物：`03 制作工作区/dist/book.epub`（构建通过后覆盖）
+## 待办
+- [ ] 完成书目信息、内容与目标阅读器验证
 
-## 构建与验证
+## 已知阅读器差异
+- 尚未实测
 
-- 命令：`sh '03 制作工作区/epub/build.sh'`
-- 源提交：待首次交付后填写
-- 最近构建：待首次构建后填写
-- 产物 SHA-256：待首次构建后填写
-- 阅读器实测：待验证；记录阅读器名称、版本和 artifact SHA 后再标为通过
-
-## 重要制作决策
-
-- 字体许可、字体链或阅读器差异：待填写
-- 正文校订或其他授权差异：无
+## 决策
+- 正文校订：无；细节与授权材料放 `02 校对材料/`
 EOF
 
 git -C "$TMP" init -b main >/dev/null
@@ -118,5 +125,5 @@ trap - EXIT HUP INT TERM
 
 printf 'Created book workspace: %s\n' "$DESTINATION"
 printf 'Edit: %s\n' "$DESTINATION/03 制作工作区/epub/OEBPS/"
-printf 'Build: sh "%s/03 制作工作区/epub/build.sh"\n' "$DESTINATION"
+printf 'Build: sh "%s/build.sh"\n' "$DESTINATION"
 printf 'Git:   git -C "%s" status --short\n' "$DESTINATION"

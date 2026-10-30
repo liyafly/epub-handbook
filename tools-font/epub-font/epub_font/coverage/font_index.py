@@ -61,6 +61,7 @@ class FontInfo:
     ivs_records: list = field(default_factory=list)
     glyph_count: int = 0
     is_subset: bool = False
+    variation_axes: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +205,7 @@ def _read_single_font(zf: ZipFile, file_path: str) -> Optional[FontInfo]:
         glyph_count = font["maxp"].numGlyphs
 
     is_subset = _detect_subset(font, glyph_count)
+    variation_axes = {axis.axisTag: axis.defaultValue for axis in font['fvar'].axes} if 'fvar' in font else {}
 
     font.close()
 
@@ -214,6 +216,7 @@ def _read_single_font(zf: ZipFile, file_path: str) -> Optional[FontInfo]:
         ivs_records=ivs,
         glyph_count=glyph_count,
         is_subset=is_subset,
+        variation_axes=variation_axes,
     )
 
 

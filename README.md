@@ -28,7 +28,7 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 ```sh
 sh templates/book-starter/new-book.sh work-epub/my-book
 go build -o /tmp/epub ./cmd/epub
-EPUB_BIN=/tmp/epub sh 'work-epub/my-book/03 制作工作区/epub/build.sh'
+EPUB_BIN=/tmp/epub sh 'work-epub/my-book/build.sh'
 /tmp/epub run epub.package.nav.audit --input 'work-epub/my-book/03 制作工作区/dist/book.epub' --json
 ```
 

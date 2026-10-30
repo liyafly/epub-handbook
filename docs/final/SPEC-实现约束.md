@@ -60,7 +60,7 @@
 - 默认回跳符号 `◎` 若继承 C1-body、嵌入注释字体或其他要求完整覆盖的角色，必须进入该角色子集；只有为它声明了独立的非嵌入 fallback 角色时，才可从对应嵌入字体清单排除。
 - 子集化、字体改名和文件扩展名改写不得改变 XHTML 正文码位。视觉相似字符（例如 `〇` U+3007 与 `○` U+25CB）不得按字形自动互换；这类变化属于正文校订，必须走 §10.1.1。
 - 子集写出后必须重新核对角色字符清单与字体 `cmap`；“子集命令成功”不等于该角色全部实际用字已覆盖。
-- 完整字体保存在书级工作区解包源中，并登记为 OPF manifest 字体；`fonts.json` 只配置当前 EPUB 内的字体。发行候选只能由书内 `build.sh` 或 `epub.font.subset` 生成，禁止直接打包解包源树。详见[书级工作区指南](../pipeline/book-workspace.md)。
+- 完整字体统一保存在共享字体库（默认 `work-epub/fonts/`，`EPUB_FONT_LIBRARY` 可指定），来源与许可见库内 `字体清单.tsv`。书级 `03 制作工作区/fonts.json` 以 `target` 指定 OPF/CSS 的包内路径，以 `from` 和完整 `sha256` 锁定库中母版；构建只向临时源树注入全量字体，再子集化。既有子集字体保留在源树，不冒充全量母版、不入共享库；母版已有的缺字给出字符与文件定位 warning，子集引入的覆盖回归仍阻断。发行候选只能由书根转发到统一构建器的 `build.sh` 或 `epub.font.subset` 生成，禁止直接打包解包源树。详见[书级工作区指南](../pipeline/book-workspace.md)。
 - `epub-font subset` 默认 `usage: "book"`，每个字体按全书字符集生成。显式 `usage: "css"` 时，provider 按已识别的 CSS 字体族分配角色字符；未知选择器将受影响字体扩大到全书，脚本、无法解析的样式表导入、XML stylesheet processing instruction、SVG `use` 或无法证明字符变体完整时拒绝此模式。多个 `@font-face` 若共用 `font-family`，在权重等细分未验证前使用同一字符集。CSS 角色映射报告不代替逐字体 `cmap` / 独立覆盖检查或真实阅读器验收。
 
 ## 5) 结构化产物要求

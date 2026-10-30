@@ -3,16 +3,17 @@
     epub-font subset   BOOK.epub --out NEW.epub [--config fonts.json]
     epub-font check    BOOK.epub [--font PATH_IN_EPUB ...] [--font-file FILE --chars-file FILE] [--json REPORT]
     epub-font coverage BOOK.epub [--profile PROFILE] [--json] [--output REPORT]
+    epub-font inject --config fonts.json --tree EPUB_SOURCE [--library DIR] [--update-lock]
 """
 
 from __future__ import annotations
 
 import sys
 
-from . import check, subset
+from . import check, inject, subset
 from .coverage import cli as coverage
 
-COMMANDS = {"subset": subset.main, "check": check.main, "coverage": coverage.main}
+COMMANDS = {"subset": subset.main, "check": check.main, "coverage": coverage.main, "inject": inject.main}
 
 
 def main(argv=None) -> int:

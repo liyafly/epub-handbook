@@ -116,3 +116,15 @@ epub-font check BOOK.epub --font-file rare.ttf --chars-file rare.txt       # 包
 - `META-INF/encryption.xml` 列出的字体（混淆/加密）直接拒绝。
 - 只替换已存在的字体条目；新增 `@font-face` / manifest item 属于 CSS/OPF 修改，不在本工具范围。
 - 不做授权判断：OFL 字体若有 Reserved Font Name（如思源的 "Source"），子集属于修改版，发布前自行核对许可。
+
+## 共享母版注入
+
+```sh
+epub-font inject --config '03 制作工作区/fonts.json' --tree /path/to/temporary-epub
+# 审阅母版版本变更后，只更新锁
+epub-font inject --config '03 制作工作区/fonts.json' --update-lock
+```
+
+配置项增加 `from`（字体库文件名）和完整小写 `sha256`。库由 `--library`、`EPUB_FONT_LIBRARY` 或配置位置向上的共享 `fonts/` 定位；显式目录不存在即失败。全部文件和 SHA 校验完成后才注入；路径穿越与符号链接拒绝。缺文件或 SHA 不符不会更新锁或开始复制。子集阶段接受但忽略这两个字段，继续处理已经注入的 manifest 目标；不访问外部母版。
+
+`coverage` 的字体盘点输出实际 `glyph_count`、保守 `is_subset` 启发式和可变轴默认值 `variation_axes`，供导入时判断。启发式不能证明字体一定为完整母版；疑似子集留源树。母版缺字警告包含字符和首个文件位置样本，回归检查仍独立执行。

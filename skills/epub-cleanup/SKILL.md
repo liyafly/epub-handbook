@@ -27,7 +27,7 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体�
 
 ### 完整字体重新子集化
 
-维护书籍时把完整、获准使用的字体母版放进解包源并由书级 Git 保存。构建从源 EPUB 重新子集化到候选，不能把上次的子集当作新的母版：
+维护书籍时把完整、获准使用的字体母版放入共享字体库，以书级配置锁定 SHA；统一构建器向临时源树注入全量母版。构建从注入后的源 EPUB 子集化到候选，不能把上次的子集当作新的母版：
 
 ```sh
 epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json [font_config=fonts.json]
@@ -38,7 +38,7 @@ epub redline --check all full-font-source.epub subset-candidate.epub
 
 默认按全书字符集子集化。只有样式表结构简单且明确希望按正文/标题字体角色缩小字符集时，才在 `fonts.json` 顶层显式设 `"usage": "css"`；未知选择器会扩大相关字体，活动内容、无法解析的样式和字符生成方式会拒绝 CSS 模式。运行后审查每字体 `usage.mode` 和 `font-subset.usage-fallback` finding；不确定时删除 `usage`，使用全书模式。
 
-在书级工作区中，完整字体保存在解包源的 OPF 目标路径；`fonts.json` 只配置当前 EPUB 内的 manifest 字体。交付用书内 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。
+在书级工作区中，`fonts.json` 的 `target` 仍是 EPUB 内的 manifest 字体路径；库文件与 SHA 由 `from` / `sha256` 锁定。既有子集字体可保留源树并与库字体混用，不能据此宣称它覆盖新增文字。交付用书根 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。
 
 ### 标准弹注
 

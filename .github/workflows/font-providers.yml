@@ -66,6 +66,9 @@ jobs:
         working-directory: tools-font/epub-font
         run: uv run --project . --frozen pytest -q
 
+      - name: Test centralized build and font injection failure guards
+        run: sh templates/book-starter/test-build-dist-guard.sh
+
       - name: Build Go CLI
         run: go build -o "$RUNNER_TEMP/epub" ./cmd/epub
 
@@ -73,6 +76,8 @@ jobs:
         run: go test -race ./internal/book ./internal/extern ./internal/pipeline ./internal/zipfs
 
       - name: Build and verify synthetic font book
+        env:
+          EPUB_HANDBOOK_ROOT: ${{ github.workspace }}
         run: >-
           uv run --project tools-font/epub-font --frozen python
           .github/scripts/font-provider-smoke.py

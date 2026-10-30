@@ -133,3 +133,50 @@ grep -q 'without its accepted SHA-256 receipt' "$TMP_ROOT/missing-receipt.log" |
 }
 
 echo "PASS book-starter dist edit guard"
+
+# The centralized entry accepts an explicit book directory, preserving the
+# legacy copied-script behavior exercised above.
+printf '%s\n' "$EDITED_SHA" >"$RECEIPT"
+cat >"$BOOK_DIR/build.sh" <<'EOF'
+#!/bin/sh
+exec sh "$EPUB_HANDBOOK_ROOT/templates/book-starter/build.sh" "$(dirname "$0")" "$@"
+EOF
+HANDBOOK_ROOT=$(CDPATH= cd -- "$TEMPLATE_DIR/../.." && pwd)
+EPUB_HANDBOOK_ROOT="$HANDBOOK_ROOT" EPUB_BIN="$FAKE_EPUB" sh "$BOOK_DIR/build.sh" >"$TMP_ROOT/forward.log" 2>&1
+[ -s "$BOOK_DIR/03 制作工作区/交付记录.tsv" ]
+
+# Injection must fail before dist replacement, including when one font is
+# missing or a lock no longer matches. Unit tests verify the real provider's
+# diagnostics; this integration verifies that the build preserves dist.
+CONFIG="$BOOK_DIR/03 制作工作区/fonts.json"
+printf '%s\n' '{"version":1,"fonts":[{"target":"OEBPS/Fonts/st.ttf","from":"master.ttf","sha256":"bad"}]}' >"$CONFIG"
+FAKE_FONT="$TMP_ROOT/fake-font"
+cat >"$FAKE_FONT" <<'EOF'
+#!/bin/sh
+echo "error: $INJECT_FAILURE" >&2
+exit 2
+EOF
+chmod +x "$FAKE_FONT"
+ACCEPTED_SHA=$(file_sha256 "$OUTPUT")
+for reason in 'font library missing regular file: master.ttf' 'SHA-256 mismatch; expected old; actual new'; do
+	if INJECT_FAILURE="$reason" EPUB_FONT_BIN="$FAKE_FONT" EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" >"$TMP_ROOT/inject-failure.log" 2>&1; then
+		echo "injection error did not stop the build" >&2; exit 1
+	fi
+	[ "$(file_sha256 "$OUTPUT")" = "$ACCEPTED_SHA" ]
+	grep -q "$reason" "$TMP_ROOT/inject-failure.log"
+done
+rm "$CONFIG"
+
+# accept-dist refuses stylesheet/source divergence even though redlines do
+# not protect CSS bytes. A matching rebuilt member set may re-register SHA.
+printf '\n<!-- unmerged source -->\n' >>"$EPUB_DIR/OEBPS/Text/01-chapter.xhtml"
+if EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" accept-dist >"$TMP_ROOT/accept-rejected.log" 2>&1; then
+	echo "accept-dist registered a dist with unmerged source changes" >&2; exit 1
+fi
+EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" >"$TMP_ROOT/accept-source.log" 2>&1
+rm "$RECEIPT"
+EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" accept-dist >"$TMP_ROOT/accept.log" 2>&1
+[ "$(cat "$RECEIPT")" = "$(file_sha256 "$OUTPUT")" ]
+sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" clean >"$TMP_ROOT/clean.log"
+[ "$(find "$PIPELINE_DIR" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')" = 1 ]
+echo "PASS centralized build, injection failures, accept-dist and clean"
