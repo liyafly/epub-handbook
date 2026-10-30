@@ -58,10 +58,13 @@ jobs:
           output="$book/03 制作工作区/dist/book.epub"
           go build -o "$RUNNER_TEMP/epub" ./cmd/epub
           sh templates/book-starter/new-book.sh "$book"
-          diff -r templates/style-presets/literary-cn/Styles "$book/03 制作工作区/epub/OEBPS/Styles"
+          export EPUB_HANDBOOK_ROOT="$GITHUB_WORKSPACE"
+          test -f "$book/03 制作工作区/epub/OEBPS/Styles/base.css"
+          test -f "$book/03 制作工作区/epub/OEBPS/Styles/design.css"
+          test "$(find "$book/03 制作工作区/epub/OEBPS/Styles" -type f | wc -l)" -eq 2
           test -f "$book/README.md"
           test ! -f "$book/03 制作工作区/epub/README.md"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh"
           test -s "$output"
           chapter="$book/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
           cp "$chapter" "$RUNNER_TEMP/book-starter-chapter.xhtml"
@@ -77,7 +80,7 @@ jobs:
               raise SystemExit("starter chapter has no body end tag")
           path.write_text(source.replace(marker, '<img src="../Images/missing.png"/><a href="#missing-anchor">bad anchor</a>\n</body>', 1))
           PY
-          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh" >"$RUNNER_TEMP/book-starter-broken-reference.log" 2>&1; then
+          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh" >"$RUNNER_TEMP/book-starter-broken-reference.log" 2>&1; then
             echo "Expected broken XHTML resource and fragment references to fail the build." >&2
             exit 1
           fi
@@ -88,11 +91,11 @@ jobs:
           after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           test "$before_sha" = "$after_sha"
           cp "$RUNNER_TEMP/book-starter-chapter.xhtml" "$chapter"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh"
           test -s "$output"
           before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           printf '\n<broken' >> "$book/03 制作工作区/epub/OEBPS/package.opf"
-          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/03 制作工作区/epub/build.sh" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then
+          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then
             echo "Expected a malformed source build to fail." >&2
             exit 1
           fi
@@ -130,6 +133,7 @@ jobs:
           test "$demo_sha_a" = "$demo_sha_source"
           printf 'Deterministic style demo SHA256=%s\n' "$demo_sha_a"
 
+          export EPUB_HANDBOOK_ROOT="$GITHUB_WORKSPACE"
           starter="$RUNNER_TEMP/book starter reproducibility seed"
           book_a="$RUNNER_TEMP/book starter reproducibility a"
           book_b="$RUNNER_TEMP/book starter reproducibility b"
@@ -137,8 +141,8 @@ jobs:
           cp -R "$starter" "$book_a"
           cp -R "$starter" "$book_b"
           touch -t 198101010000 "$book_b/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_a/03 制作工作区/epub/build.sh"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_b/03 制作工作区/epub/build.sh"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_a/build.sh"
+          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_b/build.sh"
           book_sha_a=$(sha256sum "$book_a/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
           book_sha_b=$(sha256sum "$book_b/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
           test "$book_sha_a" = "$book_sha_b"
@@ -237,6 +241,19 @@ jobs:
         run: |
           for candidate in "$RUNNER_TEMP"/style-preset-candidates/*.epub; do
             test -s "$candidate"
+            java -jar "$EPUBCHECK_JAR" "$candidate" --mode epub --profile default
+          done
+
+      - name: Build and validate recipe fixtures
+        shell: bash
+        run: |
+          python3 templates/recipes/build.py
+          for recipe in shape-wrap drop-cap text-emphasis theme-adaptive-art parallel-pair; do
+            candidate="templates/recipes/dist/$recipe.epub"
+            baseline="templates/recipes/dist/$recipe-baseline.epub"
+            "$RUNNER_TEMP/epub" run epub.package.nav.audit --input "$candidate" --json
+            "$RUNNER_TEMP/epub" run epub.notes.popup.normalize --input "$candidate" --json
+            "$RUNNER_TEMP/epub" redline --check all "$baseline" "$candidate"
             java -jar "$EPUBCHECK_JAR" "$candidate" --mode epub --profile default
           done
 
