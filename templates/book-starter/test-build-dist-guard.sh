@@ -180,3 +180,22 @@ EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" accept-dist >"$TMP
 sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" clean >"$TMP_ROOT/clean.log"
 [ "$(find "$PIPELINE_DIR" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')" = 1 ]
 echo "PASS centralized build, injection failures, accept-dist and clean"
+
+# Chinese receipt paths must not be mistaken for dirty source when Git quotes
+# non-ASCII names. Exercise sequential builds like a multi-volume workspace.
+git -C "$BOOK_DIR" init -q
+git -C "$BOOK_DIR" config user.name 'Build test'
+git -C "$BOOK_DIR" config user.email 'build@example.invalid'
+git -C "$BOOK_DIR" config core.quotePath true
+printf '.pipeline/\ndist/\n' >"$BOOK_DIR/.gitignore"
+git -C "$BOOK_DIR" add .
+git -C "$BOOK_DIR" commit -qm baseline
+BOOK_COMMIT=$(git -C "$BOOK_DIR" rev-parse HEAD)
+for attempt in 1 2; do
+	EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" >"$TMP_ROOT/receipt-$attempt.log" 2>&1
+	[ "$(tail -n 1 "$BOOK_DIR/03 制作工作区/交付记录.tsv" | cut -f 2)" = "$BOOK_COMMIT" ]
+done
+printf '\n<!-- dirty source -->\n' >>"$EPUB_DIR/OEBPS/Text/01-chapter.xhtml"
+EPUB_BIN="$FAKE_EPUB" sh "$TEMPLATE_DIR/build.sh" "$BOOK_DIR" >"$TMP_ROOT/dirty-source.log" 2>&1
+[ "$(tail -n 1 "$BOOK_DIR/03 制作工作区/交付记录.tsv" | cut -f 2)" = "$BOOK_COMMIT-dirty" ]
+echo "PASS literal Chinese receipt paths and real dirty source detection"
