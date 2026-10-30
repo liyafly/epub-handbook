@@ -23,3 +23,11 @@ sh templates/shape-wrap-demo/build.sh
 这些结论只属于记录中的产物、版本与配置，迁移和静态检查不构成新一轮阅读器验收。
 独立样本没有主样式模板的完整资源，`epub.style.demo.maintain` 的相应失败须单列，
 不得将其写成通过。配方规则与阅读器矩阵回写在后续阶段处理。
+
+工具生成的独立候选（需 `epub-art` 环境）可重建为 `dist/shape-wrap-generated.epub`：
+
+```sh
+uv run --project tools-art/epub-art --frozen python templates/shape-wrap-demo/build-generated.py
+```
+
+该命令不覆盖历史 v3 或其阅读器证据；新候选仍须独立验收。

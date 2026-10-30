@@ -1,0 +1,20 @@
+[project]
+name = "epub-art"
+version = "0.1.0"
+description = "Book-local image audit, conservative transparency and CSS polygon planning"
+requires-python = ">=3.12"
+dependencies = ["Pillow>=11"]
+
+[project.scripts]
+epub-art = "epub_art.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

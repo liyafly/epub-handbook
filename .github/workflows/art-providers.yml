@@ -1,0 +1,22 @@
+name: Art Provider Tests
+on:
+  push:
+    paths: ['tools-art/**', 'templates/shape-wrap-demo/src-v3/**', '.github/workflows/art-providers.yml']
+  pull_request:
+    paths: ['tools-art/**', 'templates/shape-wrap-demo/src-v3/**', '.github/workflows/art-providers.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  art:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+      - run: uv sync --frozen
+        working-directory: tools-art/epub-art
+      - run: uv run --frozen pytest -q
+        working-directory: tools-art/epub-art
