@@ -104,7 +104,7 @@
       }
     },
     "epub.typography.optimize": {
-      "description": "应用样式预设；scope_paths 限定章节且追加独立 CSS，省略则整书替换预设层。",
+      "description": "应用样式预设（仅作起点样例）；scope_paths 限定章节，默认替换同层独立 CSS，省略 scope 则整书替换预设层。",
       "parameters": {
         "preset": {
           "type": "string",
@@ -118,7 +118,13 @@
         },
         "scope_paths": {
           "type": "json-string-array",
-          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；仅追加自包含 CSS，保留原链接与共享样式。"
+          "description": "非空 JSON 数组，元素为精确的 ZIP 内 spine XHTML 路径；应用自包含 CSS，保留普通链接与共享样式。"
+        },
+        "preset_mode": {
+          "type": "string",
+          "description": "局部模式 replace 替换同层旧链接并清除无引用的生成 CSS；append 保留追加行为。",
+          "default": "replace",
+          "enum": ["replace", "append"]
         },
         "allow_font_obfuscation": {
           "type": "boolean",

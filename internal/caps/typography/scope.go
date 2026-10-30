@@ -1,15 +1,223 @@
 package typography
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/book/pypath"
+	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/scan/css"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
+
+func generatedLayer(name string) (string, bool) {
+	rest, ok := strings.CutPrefix(path.Base(name), "epub-preset-")
+	if !ok || len(rest) < 66 || rest[64] != '-' {
+		return "", false
+	}
+	for _, ch := range rest[:64] {
+		if !(ch >= '0' && ch <= '9' || ch >= 'a' && ch <= 'f') {
+			return "", false
+		}
+	}
+	layer := rest[65:]
+	return layer, layerNameRe.MatchString(layer)
+}
+
+func stylesheetTarget(document, href string) (string, bool) {
+	if opf.IsExternalURI(href) {
+		return "", false
+	}
+	return opf.ResolveHref(document, pypath.URLSplit(href).Path)
+}
+
+// Replace only owned, same-layer links. Source spans preserve comments, body
+// bytes and unrelated links; unsafe link semantics fail before Book.Apply.
+func replaceScopedLinks(text, document string, paths []string, root *opf.SpanNode) (string, []map[string]string, error) {
+	head := root.ChildByAnyNS("head")
+	if head == nil || head.SelfClose {
+		return "", nil, presetErrf("XHTML has no explicit head: %s", document)
+	}
+	desired := map[string]string{}
+	for _, name := range paths {
+		layer, _ := generatedLayer(name)
+		desired[layer] = name
+	}
+	seen := map[string]bool{}
+	replaced := []map[string]string{}
+	var edits []editset.Edit
+	for _, node := range head.Kids {
+		if node.Name.Local != "link" || node.Name.Space != head.Name.Space {
+			continue
+		}
+		rel, _ := node.AttrByLocal("", "rel")
+		if !slices.Contains(strings.Fields(strings.ToLower(rel)), "stylesheet") {
+			continue
+		}
+		href, _ := node.AttrByLocal("", "href")
+		old, ok := stylesheetTarget(document, href)
+		if !ok {
+			continue
+		}
+		layer, owned := generatedLayer(old)
+		target, selected := desired[layer]
+		if !owned || !selected {
+			continue
+		}
+		if old == target && !seen[layer] {
+			seen[layer] = true
+			continue
+		}
+		for _, attr := range node.Attrs {
+			if attr.Name.Space != "" || !slices.Contains([]string{"rel", "href", "type"}, attr.Name.Local) {
+				return "", nil, presetErrf("%s: scoped link has additional semantics; review manually: %s", document, href)
+			}
+		}
+		end := node.Open.End
+		if !node.SelfClose {
+			end = node.Close.End
+		}
+		edits = append(edits, editset.Replace(document, int64(node.Open.Start), int64(end-node.Open.Start), []byte{}))
+		replaced = append(replaced, map[string]string{"document": document, "layer": layer, "previousPath": old, "newPath": target})
+	}
+	updated, err := editset.Apply(document, []byte(text), edits)
+	if err != nil {
+		return "", nil, err
+	}
+	result, err := appendStylesheetLinks(string(updated), document, paths)
+	return result, replaced, err
+}
+
+// Read every possible static reference before deleting generated CSS. A file
+// used by another page, CSS import, SVG or OPF relation remains in the book.
+func pruneScopedCSS(ctx context.Context, b *book.Book, updates map[string][]byte, desired []string, opfPath string, opfRoot *opf.SpanNode) ([]editset.Edit, []string, error) {
+	used := map[string]bool{}
+	for _, name := range desired {
+		used[name] = true
+	}
+	reference := func(document, href string) {
+		if name, ok := stylesheetTarget(document, href); ok {
+			used[name] = true
+		}
+	}
+	read := func(name string) ([]byte, error) {
+		if data, ok := updates[name]; ok {
+			return data, nil
+		}
+		return b.CurrentContext(ctx, name)
+	}
+	for _, name := range b.Names() {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
+		switch strings.ToLower(path.Ext(name)) {
+		case ".css":
+			data, err := read(name)
+			if err != nil {
+				return nil, nil, err
+			}
+			sheet, err := css.Parse(data)
+			if err != nil {
+				return nil, nil, presetErrf("cannot prove stylesheet references in %s: %v", name, err)
+			}
+			for _, ref := range sheet.References {
+				reference(name, ref.Value)
+			}
+		case ".xhtml", ".html", ".htm", ".svg":
+			data, err := read(name)
+			if err != nil {
+				return nil, nil, err
+			}
+			if bytes.Contains(data, []byte("<?xml-stylesheet")) {
+				return nil, nil, presetErrf("cannot prove XML stylesheet references: %s", name)
+			}
+			root, err := opf.ScanXHTMLSpanTree(data)
+			if err != nil {
+				return nil, nil, presetErrf("cannot prove references in %s: %v", name, err)
+			}
+			for _, node := range root.Walk() {
+				if node.Name.Local == "base" {
+					return nil, nil, presetErrf("cannot prune scoped CSS with an HTML base element: %s", name)
+				}
+				for _, attr := range node.Attrs {
+					if attr.Name.Local == "base" {
+						return nil, nil, presetErrf("cannot prune scoped CSS with xml:base: %s", name)
+					}
+					if attr.Name.Local == "href" || attr.Name.Local == "src" {
+						reference(name, attr.Value)
+					}
+					if attr.Name.Local == "style" {
+						sheet, err := css.Parse([]byte(".inline{" + attr.Value + "}"))
+						if err != nil {
+							return nil, nil, presetErrf("cannot prove style attribute references: %s", name)
+						}
+						for _, ref := range sheet.References {
+							reference(name, ref.Value)
+						}
+					}
+				}
+				if node.Name.Local == "script" {
+					return nil, nil, presetErrf("cannot prove dynamic CSS references: %s", name)
+				}
+				if node.Name.Local == "style" {
+					sheet, err := css.Parse([]byte(node.Text))
+					if err != nil {
+						return nil, nil, presetErrf("cannot prove inline CSS references: %s", name)
+					}
+					for _, ref := range sheet.References {
+						reference(name, ref.Value)
+					}
+				}
+			}
+		}
+	}
+	protectedIDs := map[string]bool{}
+	for _, node := range opfRoot.Walk() {
+		for _, attr := range node.Attrs {
+			if attr.Name.Local == "fallback" || attr.Name.Local == "media-overlay" || attr.Name.Local == "refines" {
+				protectedIDs[strings.TrimPrefix(attr.Value, "#")] = true
+			}
+		}
+	}
+	items := map[string][]*opf.SpanNode{}
+	for _, node := range opf.ManifestNodes(opfRoot) {
+		href, _ := node.AttrByLocal("", "href")
+		name, ok := stylesheetTarget(opfPath, href)
+		if !ok {
+			continue
+		}
+		items[name] = append(items[name], node)
+		id, _ := node.AttrByLocal("", "id")
+		if protectedIDs[id] || len(node.Attrs) != 3 {
+			used[name] = true
+		}
+	}
+	removed := []string{}
+	for _, name := range b.Names() {
+		if _, owned := generatedLayer(name); owned && !used[name] {
+			removed = append(removed, name)
+		}
+	}
+	slices.Sort(removed)
+	var edits []editset.Edit
+	for _, name := range removed {
+		edits = append(edits, editset.Delete(name))
+		for _, node := range items[name] {
+			end := node.Open.End
+			if !node.SelfClose {
+				end = node.Close.End
+			}
+			edits = append(edits, editset.Replace(opfPath, int64(node.Open.Start), int64(end-node.Open.Start), []byte{}))
+		}
+	}
+	return edits, removed, nil
+}
 
 func selectScope(spine, requested []string) ([]string, error) {
 	if len(requested) == 0 {

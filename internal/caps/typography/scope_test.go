@@ -104,7 +104,7 @@ func TestScopedPresetPreservesUnselectedAndIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Facts["applicationMode"] != "scoped-additive" {
+	if res.Facts["applicationMode"] != "scoped-replace" {
 		t.Fatal(res.Facts)
 	}
 	for name, original := range files {

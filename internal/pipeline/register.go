@@ -304,6 +304,7 @@ func init() {
 			Output:     args.Get("output"),
 			DryRun:     args.Bool("dry_run"),
 			ScopePaths: scope,
+			PresetMode: args.Get("preset_mode"),
 		})
 	})
 	register("epub.package.merge", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

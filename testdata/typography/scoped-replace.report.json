@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.typography.optimize",
+  "status": "complete",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "facts": {
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 0,
+      "info": 1
+    },
+    "epub.package.nav.audit.status": "complete",
+    "epub.typography.optimize.applicationMode": "scoped-replace",
+    "epub.typography.optimize.coverage": {
+      "coveredClasses": [],
+      "insufficientToDetermineApplicability": true,
+      "ratio": 0,
+      "threshold": 0.3,
+      "uncoveredClasses": [],
+      "usedClasses": [],
+      "warning": "样本的 spine XHTML 中没有 class token，无法用 class-token 覆盖率判断标签选择器的适用性；请核对代表性页面的元素结构"
+    },
+    "epub.typography.optimize.coverageBasis": "class-token",
+    "epub.typography.optimize.dryRun": false,
+    "epub.typography.optimize.layers": [
+      "media.css"
+    ],
+    "epub.typography.optimize.manifestItemsAdded": 1,
+    "epub.typography.optimize.manifestItemsAddedHrefs": [
+      "Styles/epub-preset-50822c2931aa49eafb30fc662939de86a877dc38c31064243a194bf2bf11b0ca-media.css"
+    ],
+    "epub.typography.optimize.notes": "",
+    "epub.typography.optimize.preset": "sample",
+    "epub.typography.optimize.presetMode": "replace",
+    "epub.typography.optimize.removedFiles": [
+      "OEBPS/Styles/epub-preset-64c216c45aac23cc179bdb4d8e82fa0b28b99d17ceef385fca71e1dcfdd347db-media.css"
+    ],
+    "epub.typography.optimize.replacedLayers": [
+      {
+        "document": "OEBPS/chapter.xhtml",
+        "layer": "media.css",
+        "newPath": "OEBPS/Styles/epub-preset-50822c2931aa49eafb30fc662939de86a877dc38c31064243a194bf2bf11b0ca-media.css",
+        "previousPath": "OEBPS/Styles/epub-preset-64c216c45aac23cc179bdb4d8e82fa0b28b99d17ceef385fca71e1dcfdd347db-media.css"
+      }
+    ],
+    "epub.typography.optimize.scopeFileCount": 1,
+    "epub.typography.optimize.scopePaths": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "epub.typography.optimize.stylesheetActions": [
+      {
+        "action": "add",
+        "path": "OEBPS/Styles/epub-preset-50822c2931aa49eafb30fc662939de86a877dc38c31064243a194bf2bf11b0ca-media.css",
+        "source": "\u003cpresets\u003e/sample/Styles/media.css"
+      }
+    ],
+    "epub.typography.optimize.stylesheets": 1,
+    "epub.typography.optimize.xhtmlLinkFiles": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "epub.typography.optimize.xhtmlLinks": 1
+  },
+  "findings": [
+    {
+      "level": "warn",
+      "id": "typography.coverage-insufficient",
+      "title": "样本的 spine XHTML 中没有 class token，无法用 class-token 覆盖率判断标签选择器的适用性；请核对代表性页面的元素结构"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 0 warn"
+    },
+    {
+      "step": "epub.typography.optimize",
+      "status": "completed"
+    },
+    {
+      "step": "style-preset-apply",
+      "status": "completed",
+      "message": "preset=sample layers=1 manifest_added=1"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    },
+    {
+      "step": "write-output",
+      "status": "completed",
+      "message": "captured in memory; no disk write"
+    }
+  ]
+}

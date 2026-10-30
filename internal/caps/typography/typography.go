@@ -71,6 +71,8 @@ type Params struct {
 	Output string
 	// ScopePaths 非 nil 时仅向这些 spine XHTML 追加隔离样式，不替换共享 CSS。
 	ScopePaths []string
+	// PresetMode replaces same-layer scoped links by default; append preserves history.
+	PresetMode string
 	// DryRun 标记内存预览，不写输出。
 	DryRun bool
 }
@@ -394,6 +396,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return report.Result{}, err
 	}
+	if p.PresetMode == "" {
+		p.PresetMode = "replace"
+	}
+	if p.PresetMode != "replace" && p.PresetMode != "append" {
+		return report.Result{}, presetErrf("preset_mode must be append or replace")
+	}
 	presetDir := p.PresetDir
 	if presetDir == "" {
 		presetDir = DefaultPresetsDir
@@ -547,6 +555,8 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	edits = append(edits, manifestEdits...)
 
+	updates := map[string][]byte{}
+	replacedLayers := []map[string]string{}
 	// spine 页面 stylesheet link 整行重写。
 	for _, path := range xhtmlPaths {
 		if err := ctx.Err(); err != nil {
@@ -567,7 +577,13 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			if parseErr != nil {
 				err = presetErrf("%s: %v", path, parseErr)
 			} else {
-				updated, err = appendStylesheetLinksTree(text, path, cssPaths, root)
+				if p.PresetMode == "replace" {
+					var replaced []map[string]string
+					updated, replaced, err = replaceScopedLinks(text, path, cssPaths, root)
+					replacedLayers = append(replacedLayers, replaced...)
+				} else {
+					updated, err = appendStylesheetLinksTree(text, path, cssPaths, root)
+				}
 			}
 		} else {
 			regions, stop := pages.markupRegions(path, text)
@@ -582,6 +598,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			})
 		}
 		if updated != text {
+			updates[path] = []byte(updated)
 			// 整文件替换（不是最小区间 Edit）：与本仓其余 caps（structure_normalize、
 			// alite、cover、merge、metadata、migrate_epub3、split）对已改动 entry
 			// 的处理方式一致 —— 它们全部是 `editset.Replace(path, 0, len(old), new)`。
@@ -592,6 +609,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 			// 文件的编辑策略偏离本仓其它 caps 的统一约定。评估结论：维持整文件替换。
 			edits = append(edits, editset.Replace(path, 0, int64(len(data)), []byte(updated)))
 		}
+	}
+	removedFiles := []string{}
+	if p.ScopePaths != nil && p.PresetMode == "replace" {
+		pruneEdits, removed, err := pruneScopedCSS(ctx, b, updates, cssPaths, opfPath, opfRoot)
+		if err != nil {
+			return report.Result{}, err
+		}
+		edits = append(edits, pruneEdits...)
+		removedFiles = removed
 	}
 
 	if err := ctx.Err(); err != nil {
@@ -612,6 +638,12 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	}
 	if p.ScopePaths != nil {
 		facts["applicationMode"] = "scoped-additive"
+		if p.PresetMode == "replace" {
+			facts["applicationMode"] = "scoped-replace"
+		}
+		facts["presetMode"] = p.PresetMode
+		facts["replacedLayers"] = replacedLayers
+		facts["removedFiles"] = removedFiles
 		facts["scopePaths"] = xhtmlPaths
 	}
 	return report.Result{

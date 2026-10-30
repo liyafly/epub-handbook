@@ -97,7 +97,7 @@ func TestParameterCatalogMatchesQ21Selections(t *testing.T) {
 }
 
 func TestInvalidParametersFailBeforeInputAccess(t *testing.T) {
-	for _, args := range []Args{{"presett": "literary-cn"}, {"scope_paths": "[]"}, {"scope_paths": "null"}, {"scope_paths": "[1]"}, {"allow_font_obfuscation": "tru"}} {
+	for _, args := range []Args{{"presett": "literary-cn"}, {"scope_paths": "[]"}, {"scope_paths": "null"}, {"scope_paths": "[1]"}, {"allow_font_obfuscation": "tru"}, {"preset_mode": "invalid"}} {
 		out, err := Run(t.Context(), Options{CapabilityID: "epub.typography.optimize", InputPath: "must-not-open.epub", DryRun: true, Args: args})
 		if err == nil || out.ExitCode != ExitUsage || strings.Contains(err.Error(), "input not found") {
 			t.Fatalf("args=%v exit=%d err=%v", args, out.ExitCode, err)
