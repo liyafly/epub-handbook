@@ -306,6 +306,7 @@ h2 {
 | `overflow-x` | `auto` | 推荐 | 代码块、长表格 |
 | `display` | `block` / `inline-block` / `table-*` | 推荐 | EPUB 兼容稳定 |
 | `float` | `left` / `right` | 推荐 | 图文环绕通用路径：float 挂 `<figure>`，宽度用 `25%–35%` 百分比；文白对照只在 `min-width` 宽屏增强中用双段落 `float:left/right`，默认 `38%/58%`，可按文本角色调整；英文首字主路径用 `::first-letter`。 |
+| `shape-outside` / `shape-margin` | 显式 `polygon(...) content-box` + 局部间距 | 条件增强 | figure 与矩形回退同宽；保留普通侧边 margin；无图注。裸 polygon 默认 margin-box，坐标不可混用。历史 v3 的 Apple Books/Readest 普通字号通过，Kindle Previewer 矩形回退；窄屏护栏与新组合另测，见 SPEC §5.6.2。 |
 | 文白对照浮动列 | `@media (min-width:40em)` 内默认 `.parallel-float-pair` 使用 `38%/58%`；`.parallel-ratio-balanced` 使用 `48%/48%`；`.parallel-ratio-source-wide` 使用 `58%/38%`；都配 `.parallel-clear` | 条件可用 | 默认上下；短组宽屏才左右；单书比例总和建议不超过 `96%`；长段用 `.parallel-stack-pair` 上下并允许分页 |
 | `clear` | `none` / `right` | 可用 | A-lite 竖排列 |
 | 章节头图宽度 | 小章标 fallback `width:35%; max-width:7.5em`，横幅 `width:100%; max-width:100%` | 推荐 | 写在 `literary.css`；高度由源图比例决定 |

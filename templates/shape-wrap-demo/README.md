@@ -15,7 +15,7 @@ sh templates/shape-wrap-demo/build.sh
 
 `evidence/` 保存迁入的原始观察、截图、验证日志、测试副本归档和原生成脚本
 `build-scenes-original.py`；`cleanup-receipt.json` 保存历史清理收据。
-这些材料原样保留在本地并被 Git 忽略，进入公共阅读器矩阵前须逐项审查和脱敏。
+这些材料原样保留在本地并被 Git 忽略。公开的合成场景截图及去除本地路径和字体偏好的观察索引在 [reader-evidence/](reader-evidence/README.md)，不包含书级素材。
 旧记录中的实验路径是历史位置，现从本模板目录查找；历史测试副本在
 `evidence/standard-v3-test-inputs.zip` 中。
 

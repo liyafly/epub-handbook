@@ -460,6 +460,8 @@ code, pre, kbd, samp {
 
 ## 五点五、图片环绕兼容路径
 
+异形轮廓采用四层渐进增强：普通块图、百分比 figure 矩形 float、按图 polygon、窄屏取消 float。增强与回退同宽，不用 `@supports` 切换宽度。沿用实测样本时显式写 `content-box` 并保留普通侧边 margin；裸 polygon 的默认 margin-box 不能直接复用这些坐标。历史 v3 只证明所记 Apple Books/Readest 普通字号和 Kindle Previewer 矩形回退，未证明实体机、大字号或新护栏。实现与边界见 [SPEC §5.6.2](SPEC-实现约束.md#562-异形环绕渐进增强) 和 [操作指南](../how-to/shape-wrap.md)。
+
 图文环绕使用 `<figure>` 浮动作为主路径。Kindle App 实测 figure 也能环绕；关键是 figure 有明确百分比宽度，并且前后正文足够长，让阅读器有足够行数展示绕排。direct `img` 直挂 float 不作为主路径，避免部分阅读器图片显示过小。
 
 ```html

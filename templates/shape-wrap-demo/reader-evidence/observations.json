@@ -1,0 +1,235 @@
+{
+  "recorded": "2026-10-08",
+  "masterSHA256": "0e84f2c647fab3b9c63c75e3adf79f41ce8891dad3e3cf385f54d85bd4746847",
+  "readers": [
+    {
+      "reader": "Apple Books",
+      "version": "9.0 (6655)",
+      "artifact": "shape-wrap-scenes-v3-apple-books.epub",
+      "sha256": "7945ecfe915af5ee9fe0e12d72b03268e32a17036376c4c2507f06bb4add3451",
+      "scope": "Local macOS apps, these exact reader copies and existing normal font settings only. No large-font or physical-device testing. Reader copies differ from the delivered master only in OPF/NCX identifiers.",
+      "observation": "All eight outlines were followed: text entered L recesses and tracked cat/wave boundaries; full-width text resumed below the image and shape clearance. No text/image overlap, missing image, black image background or visibly clipped text was observed.",
+      "scenes": [
+        {
+          "id": "01-l-left-bottom",
+          "name": "左下 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-01.png"
+        },
+        {
+          "id": "02-l-left-top",
+          "name": "左上 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-02-03.png"
+        },
+        {
+          "id": "03-l-right-bottom",
+          "name": "右下 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-02-03.png"
+        },
+        {
+          "id": "04-l-right-top",
+          "name": "右上 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-04-05.png"
+        },
+        {
+          "id": "05-cat-left",
+          "name": "动物在左侧",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-04-05.png"
+        },
+        {
+          "id": "06-cat-right",
+          "name": "动物在右侧",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-06-07.png"
+        },
+        {
+          "id": "07-wave-left",
+          "name": "左侧先宽后窄",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-06-07.png"
+        },
+        {
+          "id": "08-wave-right",
+          "name": "右侧先宽后窄",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "apple-books-v3-08.png"
+        }
+      ],
+      "screenshots": [
+        "apple-books-v3-01.png",
+        "apple-books-v3-02-03.png",
+        "apple-books-v3-04-05.png",
+        "apple-books-v3-06-07.png",
+        "apple-books-v3-08.png"
+      ]
+    },
+    {
+      "reader": "Readest",
+      "version": "0.12.12 (20261005.094928)",
+      "artifact": "shape-wrap-scenes-v3-readest.epub",
+      "sha256": "e61e99d497ff1bce654b8d7c4d5a02cac66af1ca19c78668d70d4158ed2f16e6",
+      "scope": "Local macOS apps, these exact reader copies and existing normal font settings only. No large-font or physical-device testing. Reader copies differ from the delivered master only in OPF/NCX identifiers.",
+      "observation": "All eight outlines were followed: text entered L recesses and tracked cat/wave boundaries; full-width text resumed below the image and shape clearance. No text/image overlap, missing image, black image background or visibly clipped text was observed.",
+      "scenes": [
+        {
+          "id": "01-l-left-bottom",
+          "name": "左下 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-01-02.png"
+        },
+        {
+          "id": "02-l-left-top",
+          "name": "左上 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-01-02.png"
+        },
+        {
+          "id": "03-l-right-bottom",
+          "name": "右下 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-03-04.png"
+        },
+        {
+          "id": "04-l-right-top",
+          "name": "右上 L",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-03-04.png"
+        },
+        {
+          "id": "05-cat-left",
+          "name": "动物在左侧",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-05-06.png"
+        },
+        {
+          "id": "06-cat-right",
+          "name": "动物在右侧",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-05-06.png"
+        },
+        {
+          "id": "07-wave-left",
+          "name": "左侧先宽后窄",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-07-08.png"
+        },
+        {
+          "id": "08-wave-right",
+          "name": "右侧先宽后窄",
+          "contourWrap": "pass",
+          "fullWidthAfterFigure": "pass",
+          "screenshot": "readest-v3-07-08.png"
+        }
+      ],
+      "screenshots": [
+        "readest-v3-01-02.png",
+        "readest-v3-03-04.png",
+        "readest-v3-05-06.png",
+        "readest-v3-07-08.png"
+      ]
+    },
+    {
+      "reader": "Kindle Previewer 4",
+      "version": "4.0.2",
+      "artifact": "shape-wrap-scenes-v3-kindle-previewer.epub",
+      "sha256": "8961e153abf584548e900340ccb2092d9f4d0decd80821a1e899aad04f2fa3ed",
+      "scope": "These eight scenes in this exact artifact and Previewer profile only.",
+      "observation": "All eight shape images were visible with their gray fills and no black background. Text flowed around rectangular image bounds; it did not enter the L-shaped concavities or track the cat and wave contours. After each figure ended, the following text returned to full line width. No missing or visibly clipped text was observed. This Previewer result does not establish behavior on Kindle devices or other versions.",
+      "scenes": [
+        {
+          "id": "01",
+          "name": "左下 L",
+          "observation": "Text stayed to the right of the image rectangle and did not enter the L concavity; full-width flow resumed below."
+        },
+        {
+          "id": "02",
+          "name": "左上 L",
+          "observation": "Text stayed to the right of the image rectangle and did not enter the L concavity; full-width flow resumed below."
+        },
+        {
+          "id": "03",
+          "name": "右下 L",
+          "observation": "Text stayed to the left of the image rectangle and did not enter the L concavity; full-width flow resumed below."
+        },
+        {
+          "id": "04",
+          "name": "右上 L",
+          "observation": "Text stayed to the left of the image rectangle and did not enter the L concavity; full-width flow resumed below."
+        },
+        {
+          "id": "05",
+          "name": "动物在左侧",
+          "observation": "Text followed the rectangular float boundary rather than the cat contour; full-width flow resumed below."
+        },
+        {
+          "id": "06",
+          "name": "动物在右侧",
+          "observation": "Text followed the rectangular float boundary rather than the cat contour; full-width flow resumed below."
+        },
+        {
+          "id": "07",
+          "name": "左侧先宽后窄",
+          "observation": "Text followed the rectangular float boundary rather than the wave contour; full-width flow resumed below."
+        },
+        {
+          "id": "08",
+          "name": "右侧先宽后窄",
+          "observation": "Text followed the rectangular float boundary rather than the wave contour; full-width flow resumed below."
+        }
+      ],
+      "screenshots": [
+        "kindle-v3-01.png",
+        "kindle-v3-02.png",
+        "kindle-v3-03.png",
+        "kindle-v3-04.png",
+        "kindle-v3-05.png",
+        "kindle-v3-06.png",
+        "kindle-v3-07.png",
+        "kindle-v3-08.png"
+      ]
+    }
+  ],
+  "boundaries": [
+    "Historical v3 with explicit content-box and ordinary side margins.",
+    "Normal existing desktop settings only; not a new test.",
+    "Large fonts, narrow guard, dark mode, mobile and physical Kindle remain unverified."
+  ],
+  "screenshotSHA256": {
+    "apple-books-v3-01.png": "cd9ab4651b435e9857724e3a5154ed9e1346e72de5e01a80526a61292b71f614",
+    "apple-books-v3-02-03.png": "4450812962d909e7664870effff7c5712a103f4e7517f2bb9a138601caf6e584",
+    "apple-books-v3-04-05.png": "6aef683f1fd6df518a4af4de5df1db849e5fe07bd7d6e6eb92145f299d848a09",
+    "apple-books-v3-06-07.png": "3f2d096bc4de48e8811f03161435ca72f89c540780bd05c0d8465afff873de12",
+    "apple-books-v3-08.png": "737a11b291d7bd1bd6964e61d3cd357efc2bbd144b8088937f5ba9bcc9a9e8aa",
+    "kindle-v3-01.png": "04207ab5e93a3ada5c5ad6ece5c0eb11a239b8eb87979cdc3f2625c5def91173",
+    "kindle-v3-02.png": "7b317b42d235edd9929733bcb16a83d14fce187e655b79f5d7f47392ae306d41",
+    "kindle-v3-03.png": "3910ee6bf52513d431f8bc3a542591e3a9790a3fff585cc1f0b55d309cdc7be3",
+    "kindle-v3-04.png": "6e84090f141948a389b8d19967ac2ba3b3555ccbf195796c33f08db7c341b2a6",
+    "kindle-v3-05.png": "664e4afda4966c05f2861d33cfc78d5ba7d000f64c839159086defbd5c1429c1",
+    "kindle-v3-06.png": "85fe4d93c17c8e55b800e4aa400a6a4df24da7d70cf8af15104af686a130f21e",
+    "kindle-v3-07.png": "0d8f3623d6ae01b2e8c9b31656f2194a9c6a943d31dee974071b794bb525a365",
+    "kindle-v3-08.png": "a647153dac919b03db9c5969c05a7294725113b4de16f4e0979ee20112c84dd4",
+    "readest-v3-01-02.png": "d89e2a0acf96b2f4d0939c185f9eb89c67cf323377f1609c21bfee8c3b99d1c6",
+    "readest-v3-03-04.png": "70d76f0338d2b5d11677e66f2f93e6d65a7941150584b732453f2bb4c4112e2b",
+    "readest-v3-05-06.png": "f3ce2bf60de32d793c963845b03b664b388e983b7c2cf684723d33416d22d76c",
+    "readest-v3-07-08.png": "44a44bd060be36143a952fa2550fe4dbe5f0c0f3fa544a76e7a699ce108b1f8f"
+  }
+}

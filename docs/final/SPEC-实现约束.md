@@ -105,7 +105,15 @@
 - Kindle 用户字体覆盖后宋楷差异可能消失，原文/白话至少要靠段落顺序、出处和上下文独立可读；生产书可在条目级补充说明，但不要在每个短 pair 里堆标签。
 - Kindle 专用 AZW3/MOBI 成品中可见 `table-layout: fixed` 左右对照先例，但通用 EPUB / KDP 源文件不把 table 当正文对照主路径；只有明确只交付 Kindle 成品格式并逐设备验收时，才作为专用例外。
 
-## 5.6.2) 版权页与前置书目信息
+## 5.6.2) 异形环绕（渐进增强）
+
+- 使用四层结构：L0 是普通 block figure；L1 为 figure 的百分比宽度与左右 float，内图 `display:block; width:100%; height:auto`；L2 为按图指定的 `shape-outside: polygon(...)` 与 `shape-margin`；L3 在窄屏媒体查询中取消 float。L1/L2 使用同一宽度，先保证矩形回退可读，不依赖 `@supports` 切换宽度。
+- 增强主路径只用显式 `polygon()`，不用 PNG alpha 的 `url(image)` 推断。左右浮动时按实际图片坐标镜像；只需准确描正文一侧的边缘，另一侧闭合到盒边。点数以足够描述形状为准，通常不超过约 20–40 个；L 形可更少。
+- 必须明确参考盒。裸 polygon 默认参考 margin-box；历史独立样本显式使用 `content-box`，其百分比对应无 padding/border 的图像内容盒。可复制配方沿用此路径，保留正文一侧的普通 margin 作为矩形回退间距；不要以 `shape-margin` 替代所有回退间距。若选择默认 margin-box，须将坐标按实际盒模型重算，不能直接搬内容盒坐标。参见 [CSS Shapes §6.1](https://www.w3.org/TR/css-shapes-1/#shape-outside-property)。
+- 轮廓 figure 不放 figcaption；图注移到不参与轮廓的普通流结构。保证后续连续正文足够长，确认凹口、逐行边缘、无重叠及图下恢复整行；窄屏、大字号与深色模式分别验证。
+- [独立样本](../../templates/shape-wrap-demo/README.md) 的历史 v3，在 Apple Books 与 Readest 的所记版本/普通字号中沿轮廓环绕；Kindle Previewer 按矩形回退。结论仅绑定 [reader matrix 的 shape-wrap-polygon](reader-matrix.yaml)，不推导实体 Kindle、手机或新 CSS 组合的通过。生产设计主动退回矩形并不代表轮廓能力失效。
+
+## 5.6.3) 版权页与前置书目信息
 
 - 版权页必须保留为可选择、可检索、可朗读的真文本；不得用整页扫描图替代。原书已有的 CIP、书名、著译者、出版发行、印刷、版次、印次、书号、定价和版权声明应保持原有信息与顺序，不得为“补齐字段”凭空添加内容。
 - 主容器使用 `section.frontmatter.copyright-page` 并声明 `epub:type="frontmatter copyright-page"`。存量书保真转录的主路径是按原页阅读顺序使用连续 `p`，用 scoped class 和普通 `hr` 分组；不为追求结构感强拆原有行序。没有可见标题时给主容器补 `aria-label="版权信息"`。

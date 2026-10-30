@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-10-02
+updated_at: 2026-10-30
 owner: epub-handbook
 
 lanes:
@@ -143,6 +143,10 @@ cases:
     title: 自造清洗 demo：纸上花园观察录
     fixture: templates/cleanup-demo-books/dist/paper-garden-after-clean.epub
 
+  - id: shape-wrap-polygon
+    title: 合成异形轮廓：显式 polygon 与矩形回退
+    fixture: templates/shape-wrap-demo/src-v3/OEBPS/Styles/shape.css
+
 retired_cases:
   - id: 03b-poster-fullbleed
     title: 海报全幅 cover 对照
@@ -210,6 +214,42 @@ retest_priorities:
     focus: "源提交 1133ba0 的基础 demo SHA-256 为 0b2c881251d51ff61edb00f5c17584c6cd8950125bf6bf7e8ab4bcf03b9825fc；R14 后 HEAD 基础 demo SHA-256 为 f38f8de8a054feebc129aa3c21eedf00891f8a841b38de4d09c20a4d93fed99c。历史 GUI 候选文件已丢失；复测以当次构建并登记的候选 SHA 为准，为每个阅读器生成独立 identity 副本并记录副本 SHA、完整版本与截图/日志。"
 
 expectations:
+  - reader: ibooks_macos
+    case: shape-wrap-polygon
+    status: pass
+    reader_version: "9.0 (6655)"
+    profile: "macOS；原有普通字号；双页；浅色"
+    artifact: "templates/shape-wrap-demo/dist/shape-wrap-scenes-v3-apple-books.epub#sha256=7945ecfe915af5ee9fe0e12d72b03268e32a17036376c4c2507f06bb4add3451"
+    failed_page: none
+    issue: "历史 v3 的合成场景沿轮廓环绕，图下恢复整行；只对该测试副本与普通字号配置有效。"
+    action: "保留普通侧边间距和显式 content-box；新护栏、大字号、深色与设备另测。"
+    workaround: "不依赖 alpha url() 或 @supports 改宽度。"
+    log: templates/shape-wrap-demo/reader-evidence/observations.json
+    screenshot: templates/shape-wrap-demo/reader-evidence/apple-books-v3-01.png
+  - reader: readest
+    case: shape-wrap-polygon
+    status: pass
+    reader_version: "0.12.12 (20261005.094928)"
+    profile: "macOS；16px / 400；双栏；浅色；字体覆盖关闭"
+    artifact: "templates/shape-wrap-demo/dist/shape-wrap-scenes-v3-readest.epub#sha256=e61e99d497ff1bce654b8d7c4d5a02cac66af1ca19c78668d70d4158ed2f16e6"
+    failed_page: none
+    issue: "历史 v3 的合成场景沿轮廓环绕，图下恢复整行；只对该测试副本与普通字号配置有效。"
+    action: "保留普通侧边间距和显式 content-box；新护栏、大字号、深色与设备另测。"
+    workaround: "不依赖 alpha url() 或 @supports 改宽度。"
+    log: templates/shape-wrap-demo/reader-evidence/observations.json
+    screenshot: templates/shape-wrap-demo/reader-evidence/readest-v3-01-02.png
+  - reader: kindle_previewer
+    case: shape-wrap-polygon
+    status: warn
+    reader_version: "4.0.2"
+    profile: "电子阅读器竖屏；普通字号 4；矩形回退"
+    artifact: "templates/shape-wrap-demo/dist/shape-wrap-scenes-v3-kindle-previewer.epub#sha256=8961e153abf584548e900340ccb2092d9f4d0decd80821a1e899aad04f2fa3ed"
+    failed_page: none
+    issue: "历史 v3 转换可打开；所有场景退回矩形，图下恢复整行。属于预期降级，不是轮廓支持。"
+    action: "保留普通侧边间距和显式 content-box；新护栏、大字号、深色与设备另测。"
+    workaround: "不依赖 alpha url() 或 @supports 改宽度。"
+    log: templates/shape-wrap-demo/reader-evidence/observations.json
+    screenshot: templates/shape-wrap-demo/reader-evidence/kindle-v3-01.png
   # status: pass | warn | fail | na
   - reader: ibooks_macos
     case: preset-plain-cn@01-body
