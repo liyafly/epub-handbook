@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-30",
+  "entries": [
+    {
+      "case": "recipe-drop-cap",
+      "reader": "readest",
+      "status": "pass",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "18px；400；覆盖书籍字体关闭；青草/自动主题",
+      "observation": "轻量 M 与可选下沉 B 可见，正文完整且未拆词；仅此配置。",
+      "source": "templates/recipes/dist/drop-cap.epub",
+      "sourceSHA256": "c872522a16d4c7edf95523849be29c43bfa231043dfac2c0d3f897ac2b4e5a74",
+      "testArtifact": "drop-cap-readest.epub",
+      "testSHA256": "2554795adadca962f0f7ac43b5eed32988d223d8feaf0a6c17bd3b63b99cac6b",
+      "screenshots": [
+        "drop-cap-readest.png"
+      ]
+    },
+    {
+      "case": "recipe-text-emphasis",
+      "reader": "readest",
+      "status": "pass",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "18px / 26px；400；青草/自动主题",
+      "observation": "原生下着重号可见，大字号换行后位置与正文无重叠；竖排、其他主题待测。",
+      "source": "templates/recipes/dist/text-emphasis.epub",
+      "sourceSHA256": "70ac532a310d411b05057b9d3ca08f18f694bcb21c232cf96184dd43d6c149b0",
+      "testArtifact": "text-emphasis-readest.epub",
+      "testSHA256": "f2f507ad5c387c4faf119782197657c220a5e17744e11a2a6b6f4e937b7908c2",
+      "screenshots": [
+        "text-emphasis-readest.png",
+        "text-emphasis-readest-26.png"
+      ]
+    },
+    {
+      "case": "recipe-parallel-pair",
+      "reader": "readest",
+      "status": "pass",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "26px；400；青草/自动主题",
+      "observation": "短组左右显示、长组上下且自然跨两页，续页完整；窄屏上下分支待测。",
+      "source": "templates/recipes/dist/parallel-pair.epub",
+      "sourceSHA256": "a80ad98a1c71740e6bf3a04ded63886daf4b5f6485e99e8677c7348f03e99ff4",
+      "testArtifact": "parallel-pair-readest.epub",
+      "testSHA256": "156b7d83cda84344e95c4c468e8ed47170981ff5ad9941c94542a9453cc70aea",
+      "screenshots": [
+        "parallel-pair-readest-26-p1.png",
+        "parallel-pair-readest-26-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "readest",
+      "status": "warn",
+      "readerVersion": "0.12.16 (20261014.063656)",
+      "profile": "浅色26px / 深色18px；覆盖书籍颜色/图片反色关闭",
+      "observation": "两幅线稿均可见；深色主题仍是黑线白色局部衬片，可选反相未触发。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "6e9adb22feb330f519d8b024d54837abf38a9d70a751def52f2b84a229c2ea4f",
+      "testArtifact": "theme-adaptive-art-readest.epub",
+      "testSHA256": "47095b43a5f05dbbb789d2d3f85fc387ddf89043aa07429fd9aefe6bb78952bc",
+      "screenshots": [
+        "theme-art-readest-light-26-p1.png",
+        "theme-art-readest-light-26-p2.png",
+        "theme-art-readest-dark18.png",
+        "theme-art-readest-dark18-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-parallel-pair",
+      "reader": "kindle_previewer",
+      "status": "pass",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Song 4 / 8",
+      "observation": "短组与长组都按源序上下；8号字自然分两页，未见半宽错位。",
+      "source": "templates/recipes/dist/parallel-pair.epub",
+      "sourceSHA256": "a80ad98a1c71740e6bf3a04ded63886daf4b5f6485e99e8677c7348f03e99ff4",
+      "testArtifact": "parallel-pair-kindle_previewer.epub",
+      "testSHA256": "5e66f4610fad7c80b91a5e016cac8cfd4da5102976fe0d2eca507f78c735f387",
+      "screenshots": [
+        "parallel-kindle-song4.png",
+        "parallel-kindle-song8.png",
+        "parallel-kindle-song8-p2.png"
+      ]
+    },
+    {
+      "case": "recipe-drop-cap",
+      "reader": "kindle_previewer",
+      "status": "pass",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Bookerly 8",
+      "observation": "轻量 M 和下沉 B 可见；两页重排，续页及字体切换未全覆盖。",
+      "source": "templates/recipes/dist/drop-cap.epub",
+      "sourceSHA256": "c872522a16d4c7edf95523849be29c43bfa231043dfac2c0d3f897ac2b4e5a74",
+      "testArtifact": "drop-cap-kindle_previewer.epub",
+      "testSHA256": "0ca7b319163cd6441fe2d7d63c8c1bb9536534b82c0f154e9f0e576427c351a3",
+      "screenshots": [
+        "drop-cap-kindle8.png"
+      ]
+    },
+    {
+      "case": "recipe-text-emphasis",
+      "reader": "kindle_previewer",
+      "status": "warn",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Song 8",
+      "observation": "下着重号与下划线同时可见，正文可读；条件取消下划线未生效。",
+      "source": "templates/recipes/dist/text-emphasis.epub",
+      "sourceSHA256": "70ac532a310d411b05057b9d3ca08f18f694bcb21c232cf96184dd43d6c149b0",
+      "testArtifact": "text-emphasis-kindle_previewer.epub",
+      "testSHA256": "a019068434e5a81279208d95138b2da025bba50f36d8501067d7b5ae5af31a8d",
+      "screenshots": [
+        "emphasis-kindle8.png"
+      ]
+    },
+    {
+      "case": "recipe-shape-wrap",
+      "reader": "kindle_previewer",
+      "status": "warn",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Song 8",
+      "observation": "L形可见，正文按矩形边界回退；非 polygon 通过，20em 护栏未触发。",
+      "source": "templates/recipes/dist/shape-wrap.epub",
+      "sourceSHA256": "9dabcea78279d2a6d86e9fd2abe6f10858828364aa59d9a8722b973a0da17574",
+      "testArtifact": "shape-wrap-kindle_previewer.epub",
+      "testSHA256": "d547a1952eb9bae78966df4e186d2ced05817f1f0f6ee51e79f484536f97b78c",
+      "screenshots": [
+        "shape-kindle-song8.png"
+      ]
+    },
+    {
+      "case": "recipe-theme-adaptive-art",
+      "reader": "kindle_previewer",
+      "status": "warn",
+      "readerVersion": "4.0.3 (1)",
+      "profile": "电子阅读器竖屏；Song 8；白底",
+      "observation": "两幅线稿和正文可见；转换为非增强排版路径，夜间未测。",
+      "source": "templates/recipes/dist/theme-adaptive-art.epub",
+      "sourceSHA256": "6e9adb22feb330f519d8b024d54837abf38a9d70a751def52f2b84a229c2ea4f",
+      "testArtifact": "theme-adaptive-art-kindle_previewer.epub",
+      "testSHA256": "518432c7cb26bc657da40df8a324f2480147cb025b883e82fad1eb28479647fc",
+      "screenshots": [
+        "theme-art-kindle8.png"
+      ]
+    },
+    {
+      "case": "recipe-drop-cap",
+      "reader": "ibooks_macos",
+      "status": "warn",
+      "readerVersion": "9.0 (6655)",
+      "profile": "浅色；原有主题和字号未精确记录；重启后重试",
+      "observation": "AX 包含完整正文，但捕获的阅读区是灰色空白；重启仍相同，无法确认视觉效果，不能归因为首字 CSS。",
+      "source": "templates/recipes/dist/drop-cap.epub",
+      "sourceSHA256": "c872522a16d4c7edf95523849be29c43bfa231043dfac2c0d3f897ac2b4e5a74",
+      "testArtifact": "drop-cap-ibooks_macos.epub",
+      "testSHA256": "e6a84bcbd2af2b147597d73987d9106902198472db3f937a1c39eb80bb59ec96",
+      "screenshots": [
+        "drop-cap-ibooks-blank.png"
+      ]
+    }
+  ],
+  "restoration": "Readest 恢复 18px、自动主题、侧栏15；Kindle 恢复4号；Apple Books主题最终状态待复核。"
+}

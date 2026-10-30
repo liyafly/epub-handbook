@@ -18,4 +18,4 @@
 
 ## 阅读器结果
 
-[矩阵 case `24-text-emphasis` / `25-text-emphasis-vertical`](../../../docs/final/reader-matrix.yaml) 均列为待测。本片段是候选；没有把来源书的 CSS 当作阅读器通过证据，需分别补横排、竖排、大字号与夜间模式。
+Readest 0.12.16 的横排 18px / 26px 下着重号可见、换行无重叠，按当前测试 SHA 记 pass。Kindle Previewer 4.0.3 Song 8 同时显示下划线和圆点，正文可读，条件取消下划线未生效，记 warn。竖排、夜间和 Apple Books 当前包仍待测。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。

@@ -18,4 +18,4 @@
 
 ## 阅读器结果
 
-当前为候选，待实测。早期书级透明化方案首轮验收失败，私有完整证据留书级记录，未写成公共 pass。[阅读器矩阵](../../../docs/final/reader-matrix.yaml) 尚无本配方的可复核通过项；须补 Apple Books、Readest 与 Kindle 的当前产物、普通/大字号及昼夜主题记录，尤其检查边缘和封闭白区。
+Readest 0.12.16 浅色 26px / 深色 18px 中两幅线稿可见，深色仍保留黑线白色衬片，可选反相未触发，记 warn。Kindle Previewer 4.0.3 白底可显示两图，但转换走非增强排版，夜间未测，记 warn。Apple Books 当前包和实际书图的夜间边缘仍待验证。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。

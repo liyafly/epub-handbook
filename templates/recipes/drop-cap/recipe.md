@@ -18,4 +18,4 @@
 
 ## 阅读器结果
 
-[矩阵 case `18-english-fiction`](../../../docs/final/reader-matrix.yaml) 的 Apple Books、Readest、Kindle Previewer 历史记录均为 warn：默认字号观察可见，更多字号与字体仍待复测。历史浮动 span 与本片段的伪元素路径不同，不能转签。本片段待首次按当前 SHA 实测。
+当前合成样本在 Readest 0.12.16（18px）和 Kindle Previewer 4.0.3（Bookerly 8）看到轻量首字与下沉首字，按各自测试 SHA 记 pass。Apple Books 9.0 的 AX 有完整正文，但阅读区捕获为空白，重启后仍相同，记 warn，未定位为 CSS 问题。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。

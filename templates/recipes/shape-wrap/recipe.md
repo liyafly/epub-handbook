@@ -18,4 +18,4 @@
 
 ## 阅读器结果
 
-[矩阵 case `shape-wrap-polygon`](../../../docs/final/reader-matrix.yaml) 与 [原产物证据](../../shape-wrap-demo/reader-evidence/README.md)：Apple Books 9.0、Readest 0.12.12 历史 v3 普通桌面配置为 pass；Kindle Previewer 4.0.2 矩形回退为 warn。实体设备、本片段新护栏与工具生成候选均待验证。详细限制见 [操作说明](../../../docs/how-to/shape-wrap.md)。
+历史 v3 观察继续保留。当前配方在 Readest 0.12.16 桌面配置通过；Kindle Previewer 4.0.3 Song 8 退回矩形，记 warn。Readest 侧栏缩窄仍未触发 20em 分支，因此 L3 不能标为通过；Apple Books 当前包和实体设备仍待验证。 详见 [当前产物、SHA 与截图日志](../reader-evidence/observations-20261030.json) 和 [阅读器矩阵](../../../docs/final/reader-matrix.yaml)。不把合成样本范围外推到其他书。
