@@ -90,7 +90,14 @@ func replaceScopedLinks(text, document string, paths []string, root *opf.SpanNod
 	if err != nil {
 		return "", nil, err
 	}
-	result, err := appendStylesheetLinks(string(updated), document, paths)
+	missing := make([]string, 0, len(paths))
+	for _, name := range paths {
+		layer, _ := generatedLayer(name)
+		if !seen[layer] {
+			missing = append(missing, name)
+		}
+	}
+	result, err := appendStylesheetLinks(string(updated), document, missing)
 	return result, replaced, err
 }
 
@@ -146,6 +153,9 @@ func pruneScopedCSS(ctx context.Context, b *book.Book, updates map[string][]byte
 					return nil, nil, presetErrf("cannot prune scoped CSS with an HTML base element: %s", name)
 				}
 				for _, attr := range node.Attrs {
+					if strings.HasPrefix(strings.ToLower(attr.Name.Local), "on") {
+						return nil, nil, presetErrf("cannot prove dynamic event-handler CSS references: %s", name)
+					}
 					if attr.Name.Local == "base" {
 						return nil, nil, presetErrf("cannot prune scoped CSS with xml:base: %s", name)
 					}

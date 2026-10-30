@@ -10,7 +10,45 @@ import (
 	"github.com/liyafly/epub-handbook/internal/book"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/redline"
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
+
+func TestScopedReplacementKeepsEquivalentQueryLink(t *testing.T) {
+	const document = "OEBPS/Text/chapter.xhtml"
+	name := scopedStylesheetPath("OEBPS/Styles", "media.css", []byte("p{}"))
+	page := `<html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" href="../Styles/` + filepath.Base(name) + `?version=1"/></head><body><p>Text</p></body></html>`
+	root, err := opf.ScanXHTMLSpanTree([]byte(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := replaceScopedLinks(page, document, []string{name}, root)
+	if err != nil || got != page {
+		t.Fatalf("equivalent link duplicated or changed: %s; err=%v", got, err)
+	}
+}
+
+func TestScopedPruneRefusesInlineEventHandlers(t *testing.T) {
+	files := typographyFixture("")
+	files["OEBPS/Text/chapter.xhtml"] = strings.Replace(files["OEBPS/Text/chapter.xhtml"], "<body", `<body onload="loadStyles()"`, 1)
+	input := filepath.Join(t.TempDir(), "input.epub")
+	buildFixtureEpub(t, input, files)
+	b, err := book.Open(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	data, err := b.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := opf.ScanSpanTree(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := pruneScopedCSS(t.Context(), b, nil, nil, "OEBPS/content.opf", root); err == nil {
+		t.Fatal("inline event handler accepted as provably static")
+	}
+}
 
 func TestScopedReplacementPrunesOnlyUnreferencedLayers(t *testing.T) {
 	for _, reference := range []string{"orphan", "other-page-reference", "css-import"} {
