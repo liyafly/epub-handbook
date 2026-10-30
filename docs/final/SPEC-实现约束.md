@@ -189,6 +189,7 @@
 |---|---|---|---|
 | `fonts.css` | 字体声明与角色绑定 | `@font-face`、只含字体声明的角色选择器（`body` / `h1` / `body.preface` / 注释角色等）、字体工具类（`.font-st` / `.font-ht` / `.font-kt` / `.font-fs` / `.font-mono` / `.font-en-serif`；局部类 `.rare` / `.title-tszt` / `.signature-tszt`） | 非字体排版、颜色、分页、布局；角色混杂的裸 `p` / `div` / `span` 选择器 |
 | `base.css` | 正文基础 | `@page`、`html/body`、`h1–h6`、`p`、`ul/ol/dl`、`table`、`pre/code`、`figure/img`、`a`、`em/strong/q/blockquote`、`ruby/rt/rp` 默认样式、`.has-ruby` 行距兜底 | 弹注 / 文字效果 / 文学结构 / 图文浮动 / 海报 / 竖排类 |
+| `design.css` | 书级组合设计（双层 starter） | 本书选用的配方、角色类与视觉；注明配方来源与本书改动 | 字体声明与绑定、覆盖安全底座、未验证的整书主题强制色 |
 | `notes.css` | 弹注 | `noteref-*`、`footnote-*`、`duokan-footnote-*` 全套 | 字体声明、文字效果、文学结构 |
 | `effects.css` | 文字效果 + 便签视觉 | `.emp` / `.wavy` / `.dropcap` / `.note-box` 边框阴影类 | 字体声明、弹注、文学结构 |
 | `literary.css` | 文学结构 + 前置页 | `.dialog` / `.poetry` / `.letter` / `.scene-break` / `.chapter-head` / `.chapter-head-art` / `.chapter-head-banner` / `.chapter-header` / `.epigraph` / `.copyright-page` / `.dedication` / `.epigraph-page` / `.english-fiction` / `.classical-modern` / `.parallel-entry` / `.parallel-pair` / `.parallel-float-pair` / `.parallel-stack-pair` | 弹注、普通图文浮动、海报、竖排 |
@@ -200,7 +201,7 @@
 - EPUB 样式表不得包含 `direction` 或 `unicode-bidi`；XHTML 内容需要基准方向时使用 HTML `dir` 属性。EPUB 3.3 §6.3.1.2 禁止这两个 CSS 属性，EPUBCheck 对禁用属性发出 CSS-001。
 - 加载顺序：`fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。
 - 海报页 XHTML link `fonts.css + poster.css`（如需正文排版再加 `base.css`）。
-- 正文页 XHTML 至少 link `fonts.css + base.css`，其他层按场景选用。
+- 常规分层正文页 link `fonts.css + base.css`，其他层按场景选用。无字体声明/绑定的双层 starter 只 link `base.css → design.css`；需要字体时另加 `fonts.css` 并置于最前。已有多层书不为统一文件数而合并。`design.css` 达到行数上限时按职责拆分；标准弹注仍用 `notes.css`。
 - 若 `.note-box` 容器视觉继续增长并让 `effects.css` 超过 400 行，优先拆出 `decoration.css` 承载便签/资料卡边框阴影；`effects.css` 保留文字效果。超过 500 行必须拆分。
 - OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
 - `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。

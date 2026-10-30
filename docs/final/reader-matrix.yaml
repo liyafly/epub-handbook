@@ -146,6 +146,21 @@ cases:
   - id: shape-wrap-polygon
     title: 合成异形轮廓：显式 polygon 与矩形回退
     fixture: templates/shape-wrap-demo/src-v3/OEBPS/Styles/shape.css
+  - id: recipe-shape-wrap
+    title: 轮廓环绕配方与窄屏护栏候选
+    fixture: templates/recipes/shape-wrap/sample.xhtml
+  - id: recipe-drop-cap
+    title: 完整单词首字装饰配方候选
+    fixture: templates/recipes/drop-cap/sample.xhtml
+  - id: recipe-text-emphasis
+    title: 语义着重号与下划线降级配方候选
+    fixture: templates/recipes/text-emphasis/sample.xhtml
+  - id: recipe-theme-adaptive-art
+    title: 单色主题插图与局部白底降级配方候选
+    fixture: templates/recipes/theme-adaptive-art/sample.xhtml
+  - id: recipe-parallel-pair
+    title: 上下源序与宽屏短组对照配方候选
+    fixture: templates/recipes/parallel-pair/sample.xhtml
 
 retired_cases:
   - id: 03b-poster-fullbleed
@@ -687,6 +702,21 @@ expectations:
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:
+  - case: recipe-shape-wrap
+    fixture: templates/recipes/shape-wrap/sample.xhtml
+    note: "独立最小包能构建；历史 shape-wrap-polygon 的普通字号观察不转签给新护栏或工具候选。当前桌面接口返回 cgWindowNotFound，未能执行新版 Readest 实测。"
+  - case: recipe-drop-cap
+    fixture: templates/recipes/drop-cap/sample.xhtml
+    note: "完整单词伪元素路径待按当前 SHA 实测，历史 demo 18 的 warn 不转签。"
+  - case: recipe-text-emphasis
+    fixture: templates/recipes/text-emphasis/sample.xhtml
+    note: "原生着重号、条件取消下划线与大字号待实测；横排和竖排分别记录。"
+  - case: recipe-theme-adaptive-art
+    fixture: templates/recipes/theme-adaptive-art/sample.xhtml
+    note: "局部白底与单色可选反相待实测；主题查询解析不等于阅读器主题跟随，早期书级失败不写为通过。"
+  - case: recipe-parallel-pair
+    fixture: templates/recipes/parallel-pair/sample.xhtml
+    note: "当前片段待实测；保留源序上下，Kindle 大字号、分页和夜间主题继续待复测。"
   - case: 01-basic-cjk
     fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
     note: "默认 Style Demo 普通正文；局部 plain-cn 候选的历史观察单独记为 warn，不外推到默认样式。"

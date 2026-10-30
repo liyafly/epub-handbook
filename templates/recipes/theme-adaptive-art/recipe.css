@@ -1,0 +1,14 @@
+figure.theme-art { margin: 1em auto; max-width: 20em; text-align: center; }
+figure.theme-art img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+  background-color: #fff;
+}
+/* Monochrome only; reader theme and system theme may differ. */
+@media (prefers-color-scheme: dark) {
+  @supports (filter: invert(1)) {
+    figure.theme-art-line img { background-color: transparent; filter: invert(1); }
+  }
+}

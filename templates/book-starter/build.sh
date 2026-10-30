@@ -31,7 +31,8 @@ DIST_SHA_FILE="$PIPELINE_DIR/dist-sha256"
 DIST_SHA_TMP="$PIPELINE_DIR/.dist-sha256.$$"
 EPUB_BIN=${EPUB_BIN:-epub}
 FONT_BIN=${EPUB_FONT_BIN:-epub-font}
-if [ -d "$HOME/.local/bin" ]; then PATH="$HOME/.local/bin:$PATH"; export PATH; fi
+LOCAL_BIN_DIR=${EPUB_LOCAL_BIN-"$HOME/.local/bin"}
+if [ -n "$LOCAL_BIN_DIR" ] && [ -d "$LOCAL_BIN_DIR" ]; then PATH="$PATH:$LOCAL_BIN_DIR"; export PATH; fi
 if [ ! -f "$EPUB_DIR/mimetype" ] && [ -d "$WORK_DIR" ]; then
 	# Multi-volume workspaces keep one forwarding entry per volume.
 	VOLUMES_FOUND=false

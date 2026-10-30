@@ -9,6 +9,8 @@ description: 处理英文排版、文学结构、竖排与 Ruby、多看旧版�
 
 本入口按任务合并相关技能。所有能力的公共返回、授权边界与验收说明统一见[技能索引](../README.md)。
 
+选择组合效果时查 [配方目录](../../templates/recipes/README.md)，按证据状态区分历史实测与候选；双层 starter 的选用片段放 `design.css`，字体仍用独立 `fonts.css`，标准弹注仍用 `notes.css`。不自动改套已有书的分层设计。
+
 ### 英文排版
 
 英文为主的书籍；先判断小说/散文、非虚构、诗剧或双语的结构区别。按 [SPEC §5.9](../../docs/final/SPEC-实现约束.md) 与 [英文 fixture](../../templates/epub-style-demo/OEBPS/Text/18-english-fiction.xhtml) 选样例，不把小说参数强加给诗行、列表或表格。

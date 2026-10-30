@@ -9,7 +9,9 @@
 | `epub-style-demo` | 验证中文正文、列表、表格、代码、Ruby、弹注、局部竖排、A-lite 海报页 | `sh templates/epub-style-demo/build.sh` |
 | `cleanup-demo-books` | 自造 before / after 清洗样本，用于红线 gate 和 diff review | `bash templates/cleanup-demo-books/build.sh` |
 | `book-starter` | 一键创建带书根维护说明的独立书级 Git 工作区 | `sh templates/book-starter/new-book.sh work-epub/<book>` |
-| `style-presets` | 可复用 CSS 风格预设 | 不单独打包 |
+| `style-presets` | 六个书型起点样例 | 不单独打包 |
+| `recipes` | 五个组合效果的 CSS、最小 XHTML 与证据边界 | `python3 templates/recipes/build.py` |
+| `shape-wrap-demo` | 独立轮廓环绕合成场景及历史阅读器证据 | `sh templates/shape-wrap-demo/build.sh` |
 
 ## 使用原则
 

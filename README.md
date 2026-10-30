@@ -34,6 +34,8 @@ EPUB_BIN=/tmp/epub sh 'work-epub/my-book/build.sh'
 
 构建脚本需要已安装的 `epub` CLI；未安装时像示例一样设置 `EPUB_BIN` 为本地二进制的路径。详细步骤和手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
 
+starter 默认 `base.css + design.css`；从 [效果配方](templates/recipes/README.md) 按需组合。六套 [书型预设](templates/style-presets/README.md) 保留为起点样例。
+
 ### 修一本现成 EPUB
 
 清洗现有 EPUB 时，先冻结底本，再按 [清洗 runbook](docs/pipeline/cleanup-flow.md) 主线预检、逐项修改、运行红线并做 diff review；不在唯一原件上直接修改。

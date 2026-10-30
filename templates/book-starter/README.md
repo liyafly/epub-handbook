@@ -2,6 +2,10 @@
 
 日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。根脚本依赖 EPUB Handbook 统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定；需可用的 `epub` CLI，含字体时另装 `epub-font` provider。
 
+构建器默认把 `$HOME/.local/bin` 追加到工具搜索路径，支持 `uv tool install` 的默认安装位置，调用者 PATH 中的工具优先；`EPUB_LOCAL_BIN=<目录>` 可指定位置，显式设空可保留调用者原始 PATH（隔离环境或检查工具缺失时使用）。
+
+默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并同步制作说明中的“使用的配方”；每条配方的证据范围以其说明为准。需要嵌入字体时另加 `fonts.css`、OPF 声明及 XHTML link，置于 base 之前；标准弹注继续用 `notes.css`。已有多层书无需合并。六套整书预设只作起点样例。
+
 - `sh build.sh`：注入锁定字体、子集化、独立覆盖检查、导航审计与全项 redline，通过后更新 dist、收据与 `交付记录.tsv`。
 - `sh build.sh fonts`：将库中完整字体注入源树供编辑器预览；库字体路径 Git 忽略，子集字体仍跟踪。
 - `sh build.sh clean`：清旧失败构建，保留最近一次现场；不清收据或其他材料。

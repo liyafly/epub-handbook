@@ -88,7 +88,7 @@ def prepare_book(book_dir: Path, env: dict[str, str]) -> tuple[Path, Path, Path]
     chapter.write_text(chapter_text.replace(body_end, f"{added_markup}{body_end}", 1), encoding="utf-8")
 
     css = epub_dir / "OEBPS" / "Styles" / "fonts.css"
-    css_text = css.read_text(encoding="utf-8")
+    css_text = css.read_text(encoding="utf-8") if css.exists() else '@charset "utf-8";\n'
     list_rules = "\n".join(
         f"ol.marker-{style} {{ list-style-type: {style}; }}" for style in LIST_STYLE_TYPES
     )
@@ -105,12 +105,20 @@ def prepare_book(book_dir: Path, env: dict[str, str]) -> tuple[Path, Path, Path]
     opf_text = opf.read_text(encoding="utf-8")
     manifest_anchor = '    <item id="css-base"'
     font_items = (
+        '    <item id="css-fonts" href="Styles/fonts.css" media-type="text/css"/>\n'
         '    <item id="font-full" href="Fonts/full.ttf" media-type="font/ttf"/>\n'
         '    <item id="font-math" href="Fonts/math.ttf" media-type="font/ttf"/>\n'
     )
     if manifest_anchor not in opf_text:
         raise RuntimeError("starter OPF no longer has the expected manifest insertion point")
     opf.write_text(opf_text.replace(manifest_anchor, font_items + manifest_anchor, 1), encoding="utf-8")
+    for page in (epub_dir / "OEBPS" / "Text").glob("*.xhtml"):
+        markup = page.read_text(encoding="utf-8")
+        anchor = '  <link rel="stylesheet" type="text/css" href="../Styles/base.css"/>'
+        if anchor not in markup:
+            raise RuntimeError("starter page has no base stylesheet insertion point")
+        markup = markup.replace(anchor, '  <link rel="stylesheet" type="text/css" href="../Styles/fonts.css"/>\n' + anchor, 1)
+        page.write_text(markup, encoding="utf-8")
 
     # Use the real package text collector to create a complete offline master,
     # then deliberately omit exactly one rare character for warning coverage.
@@ -499,6 +507,7 @@ def main() -> int:
 
     missing_env = dict(env)
     missing_env["PATH"] = "/usr/bin:/bin"
+    missing_env["EPUB_LOCAL_BIN"] = ""
     run_build(book_dir, missing_env, root / "provider-missing.log", success=False)
     assert_failed_build_preserves(book_dir, dist, stable_sha, root / "provider-missing.log")
     missing_report = json.loads(

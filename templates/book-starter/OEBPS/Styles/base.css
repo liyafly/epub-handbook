@@ -1,0 +1,18 @@
+@charset "utf-8";
+
+/* Safety base: reader theme and body font remain reader-controlled. */
+@page { margin: .8em; }
+html { margin: 0; padding: 0; }
+body { margin: 0; padding: 0; line-height: 1.75; overflow-wrap: break-word; }
+h1, h2, h3, h4, h5, h6 { line-height: 1.35; text-indent: 0; }
+p { margin: .5em 0; text-indent: 2em; }
+ul, ol { padding-left: 2em; }
+blockquote { margin: 1em; }
+figure { margin: 1em 0; text-align: center; }
+img { max-width: 100%; height: auto; }
+figcaption { font-size: .85em; text-indent: 0; }
+table { border-collapse: collapse; max-width: 100%; }
+th, td { padding: .3em; vertical-align: top; }
+pre { white-space: pre-wrap; overflow-wrap: break-word; }
+a { color: inherit; }
+rt { font-size: .5em; }

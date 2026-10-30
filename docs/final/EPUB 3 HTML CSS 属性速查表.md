@@ -28,7 +28,7 @@
 | `<head>` | 元信息容器 | 推荐 | 放 `title`、`meta`、CSS |
 | `<meta charset="utf-8"/>` | 字符集 | 推荐 | 每个 XHTML 都写 |
 | `<title>` | 页面标题 | 推荐 | 阅读器与调试都用得到 |
-| `<link rel="stylesheet">` | 引入 CSS | 推荐 | 字体、正文、海报可分文件 |
+| `<link rel="stylesheet">` | 引入 CSS | 推荐 | starter 默认 `base.css → design.css`；有字体声明/绑定时另加 `fonts.css` 置于最前；已有多层书保持职责分工 |
 | `<body>` | 页面主体 | 推荐 | 海报页用 `body.fullpage` |
 | `<section>` | 章节 / 语义分区 | 推荐 | 配 `epub:type` |
 | `<article>` | 独立文章 | 可用 | 文集、附录、单篇文章 |

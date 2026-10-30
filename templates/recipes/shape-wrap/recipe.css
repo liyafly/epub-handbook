@@ -1,0 +1,16 @@
+/* L0: readable block figure. */
+figure.wrap { display: block; width: 30%; padding: 0; border: 0; margin: 1em auto; }
+figure.wrap img { display: block; width: 100%; height: auto; }
+/* L1: rectangular float, including a safe text-side gap. */
+figure.wrap-left { float: left; margin: 0 .65em 0 0; }
+figure.wrap-right { float: right; margin: 0 0 0 .65em; }
+/* L2: only for the supplied L image and its content-box ratio. */
+figure.outline-l {
+  shape-outside: polygon(0% 0%, 27% 0%, 27% 72%, 100% 72%, 100% 100%, 0% 100%) content-box;
+  shape-margin: .45em;
+}
+/* L3: candidate narrow-screen guard; validate against book and font size. */
+@media (max-width: 20em) {
+  figure.wrap { float: none; margin: 1em auto; shape-outside: none; }
+}
+.wrap-end { clear: both; }

@@ -15,11 +15,7 @@
     <item id="title-page"  href="Text/00-title.xhtml"   media-type="application/xhtml+xml"/>
     <item id="chapter-1"   href="Text/01-chapter.xhtml" media-type="application/xhtml+xml"/>
     <item id="css-base"    href="Styles/base.css"       media-type="text/css"/>
-    <item id="css-fonts"   href="Styles/fonts.css"      media-type="text/css"/>
-    <item id="css-notes"   href="Styles/notes.css"      media-type="text/css"/>
-    <item id="css-effects" href="Styles/effects.css"    media-type="text/css"/>
-    <item id="css-media"   href="Styles/media.css"      media-type="text/css"/>
-    <item id="css-theme"   href="Styles/literary.css"   media-type="text/css"/>
+    <item id="css-design"  href="Styles/design.css"     media-type="text/css"/>
   </manifest>
   <spine toc="ncx">
     <itemref idref="title-page"/>

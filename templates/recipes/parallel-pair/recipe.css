@@ -1,0 +1,13 @@
+.parallel-pair { clear: both; margin: .75em 0 1em; }
+.parallel-pair .classical-text, .parallel-pair .modern-text { margin: .25em 0; text-indent: 1em; }
+.parallel-float-pair { page-break-inside: avoid; -webkit-page-break-inside: avoid; break-inside: avoid; }
+.parallel-stack-pair, .parallel-pair-allow-break { page-break-inside: auto; -webkit-page-break-inside: auto; break-inside: auto; }
+.parallel-clear { clear: both; height: 0; margin: 0; padding: 0; font-size: 0; line-height: 0; }
+@media (min-width: 40em) {
+  .parallel-float-pair .classical-text { float: left; width: 38%; }
+  .parallel-float-pair .modern-text { float: right; width: 58%; }
+  .parallel-float-pair.parallel-ratio-balanced .classical-text,
+  .parallel-float-pair.parallel-ratio-balanced .modern-text { width: 48%; }
+  .parallel-float-pair.parallel-ratio-source-wide .classical-text { width: 58%; }
+  .parallel-float-pair.parallel-ratio-source-wide .modern-text { width: 38%; }
+}

@@ -1,6 +1,6 @@
 # EPUB 风格预设
 
-风格预设把常见书型的排版选择收敛为六个菜单项。每个预设只提供
+六套风格预设是书型的起点样例，按需修改；组合效果优先查 [配方目录](../recipes/README.md)。starter 不默认套用整书预设。每个预设只提供
 `Styles/` CSS、OPF stylesheet 声明和 XHTML `<head>` link，不改正文文本或结构。
 
 ## 使用前提

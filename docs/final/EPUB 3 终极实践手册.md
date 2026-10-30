@@ -817,6 +817,7 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
 
 - `fonts.css`：仅放 `@font-face`、只含字体声明的稳定角色选择器，以及系统字体/局部角色 helper。
 - `base.css`：正文基础元素（`@page`、`html/body`、标题、段落、列表、表格、代码、普通 `figure/img`、inline 语义、Ruby 默认、`.has-ruby` 行距兜底）。
+- `design.css`：双层 starter 的书级设计与选用配方，注明来源；字体仍独立，标准弹注仍用 `notes.css`，达到行数上限时按职责拆分。
 - `notes.css`：标准 popup footnote、多看 fallback 和注释图标。
 - `effects.css`：着重号、波浪线、首字下沉、便签/资料卡边框阴影。
 - `literary.css`：章首、章节头图、题记、对话、诗、信件、场景分隔、前置页、英文 prose 结构、文白对照条目结构。
@@ -825,6 +826,8 @@ EPUB 样式表不得使用 `direction` 或 `unicode-bidi`；XHTML 内容需要�
 - `poster.css`：A-lite 海报页（`body.fullpage`、`body.poster-bg`、`.fullframe`、`.poster-title`、`.poster-subtitle`、`.vcol`）。
 
 加载顺序是 `fonts.css → base.css → notes/effects/literary/media/vertical/poster.css`。海报页建议链接 `fonts.css + poster.css`（可按需再链 `base.css`）；正文页链接 `fonts.css + base.css`，再按场景加入组件层。
+
+无字体声明/绑定的 starter 只加载 `base.css → design.css`，按需从 [组合配方](../../templates/recipes/README.md) 选择效果；需要字体再将 `fonts.css` 加到最前。已有多层书保持原有分工，六套整书预设只作起点样例。
 
 普通 `html` / `body`、`body.fullpage`、标题、图注和引用不要写页面级 `color`、`background` 或 `background-color`，避免覆盖阅读器的夜间模式、护眼模式和用户主题。局部组件可以保留必要的边框、阴影和背景装饰；A-lite 背景图只写在 `poster-bg` 等 modifier 上。
 

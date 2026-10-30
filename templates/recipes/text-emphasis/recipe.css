@@ -1,0 +1,14 @@
+em.recipe-emphasis {
+  font-style: normal;
+  text-decoration: underline;
+  -epub-text-emphasis: filled dot;
+  -epub-text-emphasis-position: under right;
+  -webkit-text-emphasis: filled dot;
+  -webkit-text-emphasis-position: under;
+  text-emphasis: filled dot;
+  text-emphasis-position: under right;
+}
+/* Parser support is not reader acceptance; retain underline if rendering fails. */
+@supports (text-emphasis: filled dot) or (-webkit-text-emphasis: filled dot) {
+  em.recipe-emphasis { text-decoration: none; }
+}

@@ -1,0 +1,9 @@
+@charset "utf-8";
+
+/* Selected recipes: none. Keep this list aligned with 制作说明.md.
+ * Copy only selected rules from templates/recipes/<name>/recipe.css.
+ * Record book-specific changes and current-artifact reader evidence.
+ * Font declarations/bindings belong in optional fonts.css, loaded first.
+ */
+.title-page { margin: 3em 0; text-align: center; }
+.title-page p { text-indent: 0; }

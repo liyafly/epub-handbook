@@ -1,0 +1,11 @@
+.recipe-opening { text-indent: 0; }
+.recipe-opening::first-letter { font-size: 1.6em; font-weight: bold; }
+/* Explicit opt-in only. Keep the word intact in XHTML. */
+@media (min-width: 24em) {
+  .recipe-opening-sunk::first-letter {
+    float: left;
+    font-size: 2.6em;
+    line-height: 1;
+    padding-right: .12em;
+  }
+}
