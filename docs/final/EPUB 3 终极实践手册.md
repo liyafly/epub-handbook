@@ -15,7 +15,7 @@
 | 标题 / 题签 / 特殊排版 | 仅"必须特定字体"的题签 / 卷头题字嵌入（模式 A，链 ≤ 2 段）；其他标题默认走系统黑体链 |
 | Apple Books 字体 | 正文字体锁定时加 OPF `ibooks:specified-fonts=true` + 测试“原版字体”；局部角色字体不受此 meta 影响 |
 | Kindle 字体 | 嵌入 `.ttf` / `.otf`，主字体放 `body`，测试 Publisher Font 开关 |
-| 弹出注释 | 图片图标触发，单个 `aside epub:type="footnotes"` 容器内每条注释是独立的 `aside epub:type="footnote"`，`◎` 返回；需兼容多看旧版时暂用旧 `ol/li` grouped 结构叠加 `duokan-*` fallback |
+| 弹出注释 | 图片图标触发，`◎` 返回；按书二选一：必须严格 EPUB 3 时走标准结构（单个 `aside epub:type="footnotes"` 容器内每条注释为独立的 `aside epub:type="footnote"`），其他书默认走多看兼容回退（旧 `ol/li` grouped 结构叠加 `duokan-*`） |
 | 波浪线 | `text-decoration: underline` 兜底 + `text-decoration-style: wavy` 渐进增强；Kindle 退化为普通下划线 |
 | 着重号 | 标准 `text-emphasis: filled dot` |
 | Ruby 注音 | 标准 `ruby + rt`，段落加行距兜底 |

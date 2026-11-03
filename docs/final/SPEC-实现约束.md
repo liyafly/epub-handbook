@@ -31,6 +31,7 @@
 - 任何使用 `epub:type` 的 XHTML 根 `<html>` 必须声明：`xmlns:epub="http://www.idpf.org/2007/ops"`。
 - `a[epub:type="noteref"]` 与对应 `aside[epub:type="footnote"]` 必须位于**同一 XHTML 文件**。
 - 每个章节文件最多一个注释容器：`<aside epub:type="footnotes">`，不带 `role="doc-footnote"`。EPUB 3 SSV 中 `footnote` 只表示**单条**注释，`footnotes` 表示注释组；DPUB-ARIA 的 `doc-footnote` 也只表示单条。整组容器不得标成 `footnote`，否则部分阅读器点一条注释会弹出整组。
+- **两条路径按书选择，制作说明中记录选了哪条**：书必须严格符合 EPUB 3 语义（面向标准阅读器、Kindle 转换或明确要求规范合规）时走标准结构；其他书默认走多看兼容回退（下方旧 grouped 结构加 `duokan-*`）。多看回退已在部分阅读器上观察到可用，包括 Apple Books，见 `reader-matrix.yaml` 的 `05-duokan-fallback`。同一本书只用一条路径，不得混用。
 - 每条注释是一个独立的 `<aside class="footnote-item" id="…" epub:type="footnote" role="doc-footnote">`，noteref 指向它的 `id`。不要只把容器改成 `footnotes` 而让单条注释留在没有语义的 `li` 上：Apple Books 只把 `aside[epub:type="footnote"]` 当作弹注目标，其他阅读器可能退化为跳转。
 - `a[epub:type="noteref"]` 必须具有唯一 `id`，供注释回跳定位。
 - noteref 的可见触发主路径是图片图标。已有本地图标资源时必须保留原 `img src`；把纯文本、数字上标、`[1]`、`注` 等标记转成图片 noteref 时，须经正文修改授权，由制作方提供图标并同步 OPF manifest。EPUB3 迁移不会转换这些标记或注入默认 `Images/note.png`。

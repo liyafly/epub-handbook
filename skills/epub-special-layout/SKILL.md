@@ -73,6 +73,7 @@ epub run epub.notes.legacy-fallback --input "before.epub" --dry-run --json
 - `notes-fallback.no-grouped-list`：输入已是标准 footnotes 结构，多看 fallback 尚未定义（id 放 li 还是内嵌 aside 待实测）；不改结构，向用户说明并记录。
 - `notes-fallback.unsupported-encoding`、`notes-fallback.parse-failed`、`notes-fallback.multiple-lists`、`notes-fallback.noteref-without-icon`、`notes-fallback.content-class-on-li`、`notes-fallback.unsafe-attribute`：先人工修复对应文件结构或属性，再重跑 popup normalize 与 fallback。
 - `notes-fallback.upstream-coverage-mismatch`：上游 noteref 数与 fallback 扫描数不一致；核对 spine 项和 popup 计数，不接受部分 class 变更。
+- 弹注按书二选一并写入制作说明：必须严格 EPUB 3 → 标准结构；其他书 → 多看兼容回退。同一本书不混用。
 - 标准结构：`aside[epub:type=footnotes] > div.footnote-list > aside.footnote-item[epub:type=footnote][role=doc-footnote]`，noteref 指向单条 aside；容器不标 footnote。
 - 多看 fallback 暂用旧 grouped 结构：标准属性/中性类保留；anchor 加 duokan-footnote 且内含图标；ol.footnote-list 加 duokan-footnote-content；li.footnote-item 仅加 duokan-footnote-item，不把 content 类放 li。
 - 同文件一个注释容器，noteref 指向唯一单条注释，◎ backlink 返回原 trigger；不得复制可见 note list、display:none 隐藏正文或用 JS。

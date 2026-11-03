@@ -748,6 +748,14 @@ expectations:
     issue: "用户报告修改前注释图标前后都断行；测试副本仅把图标 img 的 display:block 改为 inline，用户反馈试读正常。尚缺完整版本、设备和截图/日志，记录观察而非 pass。"
     action: "原件与测试副本保留在用户本地；补充多看完整版本和截图/日志后复核。同类 demo 02 / 05 的窄屏与大字号仍需独立实测。"
     workaround: "仅在原图标规则中调整 img 的 display，链接、sup、尺寸与其他成员内容保持原样；见手册 §7.2.1，不对所有图片套用。"
+  - reader: ibooks_macos
+    case: 05-duokan-fallback
+    status: warn
+    reader_version: pending-user-version
+    profile: "2026-10-30 用户本地试读；设备、主题和字号未记录"
+    artifact: "anonymous-duokan-fallback-sample.epub（匿名生产样本；产物身份与 SHA 留在本地书级制作说明）"
+    issue: "用户报告：完整的多看回退结构（grouped aside[epub:type=footnote] > ol.footnote-list.duokan-footnote-content > li.footnote-item.duokan-footnote-item）在部分阅读器上工作正常，包括 Apple Books。缺阅读器版本和截图，记录为观察而非 pass。"
+    action: "据此把多看回退定为非严格 EPUB 3 书的默认弹注路径（SPEC §1）；补版本与截图后复核，多注释章节需单独确认是否单条弹出。"
   - reader: duokan
     case: 05-duokan-fallback
     status: warn
