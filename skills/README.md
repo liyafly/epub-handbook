@@ -7,7 +7,7 @@
 - 已有 EPUB：先用 `epub-audit` 预检；再按问题进入 `epub-cleanup`、`epub-package-ops` 或 `epub-special-layout`。目标包含特定阅读器时加 `epub-reader-verify`。
 - 新书或长期维护中的书：用 `templates/book-starter/new-book.sh` 建立书级 Git 与解包源，后续运行书根 `build.sh` 转发到统一构建器；完整字体母版来自共享字体库、以 SHA 锁定，构建时注入并子集化到临时候选。既有子集字体保留源树。详见[书级工作区](../docs/pipeline/book-workspace.md)。
 - 只有文本/PDF/扫描件：先 `epub-source-intake` 盘点；它不抽取 PDF、不做 OCR、不生成 EPUB。
-- 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。不要默认全书套 preset；用户只要方案时不写书稿。
+- 用户要“更好看/给示例”：先识别书型、页面角色、目标阅读器与现有视觉语言；从 demo 选择相关场景，在独立候选中做代表性章节/页面样例，验证普通/大字号与窄屏。配方见 [templates/recipes](../templates/recipes/README.md)；preset 只作新书起点（`new-book.sh --from-preset`），不再注入已有书；用户只要方案时不写书稿。
 - Reeden 英文误斜体、Readest 新包仍像旧包/页底裁图、Kindle 重复封面：按症状读取 [2026 年 10 月适配复盘](../docs/pipeline/reader-adaptation-lessons-2026-10.md)，其中数值与绕过均有单书范围，不自动套成全局 preset。
 - 只审查时输出“位置、问题证据、影响、最小建议”；授权修复时再实施。审批与书稿保护按 `AGENTS.md`，不在各 skill 重复。
 
@@ -19,7 +19,7 @@
 # 只读能力不传 --output
 epub run epub.package.nav.audit --input "book.epub" --json
 # 单输出写能力：先审查 dry-run，再向新路径写出
-epub run epub.typography.optimize --input "book.epub" --output "candidate.epub" --dry-run --json
+epub run epub.css.layering.optimize --input "book.epub" --output "candidate.epub" --dry-run --json
 # flag 在路径或 KEY=VALUE 参数之前；有空格的路径和整个 KEY=VALUE 参数要引用
 epub redline --check all "before.epub" "after.epub"
 ```
@@ -40,7 +40,7 @@ epub redline --check all "before.epub" "after.epub"
 | Skill | 触发/边界 | 能力与执行方式 |
 | --- | --- | --- |
 | `epub-audit` | 只读检查包结构、导航、排版、文本角色、图片和字体；不直接修书 | `epub.package.nav.audit`、`epub.text.content.analyze`、`epub.image.layout.optimize`、`epub.font.coverage.analyze`，只读 |
-| `epub-cleanup` | 按清洗 runbook 规范目录、迁移 package、调整 CSS/CJK 样式、从完整母版生成字体子集并检查标准弹注 | `epub.structure.normalize`、`epub.package.migrate.epub3`、`epub.css.layering.optimize`、`epub.typography.optimize`、`epub.font.subset`，写入；`epub.notes.popup.normalize`，只读 |
+| `epub-cleanup` | 按清洗 runbook 规范目录、迁移 package、调整 CSS/CJK 样式、从完整母版生成字体子集并检查标准弹注 | `epub.structure.normalize`、`epub.package.migrate.epub3`、`epub.css.layering.optimize`、`epub.typography.optimize`（存量兼容：已用 preset 的书可继续维护，新工作不再使用）、`epub.font.subset`，写入；`epub.notes.popup.normalize`，只读 |
 | `epub-package-ops` | 明确授权后合并、拆分、改元数据、换封面或转 A-lite | `epub.package.merge`、`epub.package.split`、`epub.metadata.edit`、`epub.cover.replace`、`epub.alite.convert`，写入 |
 | `epub-source-intake` | 非 EPUB 源文件盘点与接入计划；不抽取 PDF、不做 OCR | `epub.source.intake`，只读 |
 | `epub-special-layout` | 英文、文学结构、竖排/Ruby 与多看旧版弹注 fallback | `epub.typography.english.optimize`、`epub.literary.structure.format`、`epub.notes.legacy-fallback`、`epub.vertical.ruby.optimize`，写入 |

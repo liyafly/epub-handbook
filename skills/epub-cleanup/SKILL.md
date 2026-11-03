@@ -7,189 +7,87 @@ description: 清洗已有 EPUB 的目录、版本、CSS、中文排版、字体�
 
 ## 何时用
 
-本入口按任务合并相关技能。所有能力的公共返回、授权边界与验收说明统一见[技能索引](../README.md)。
+公共返回、授权边界与验收说明见[技能索引](../README.md)；预检与写入保护见根 AGENTS。
 
-### 目录结构规范化
-
-只处理内部资源路径：先 format 保留文件名并归类目录，再 deobfuscate 按 manifest id 改名。正文和字体字节不变；包迁移使用 `epub.package.migrate.epub3`。预检与写入保护见根 AGENTS。
-
-### EPUB3 迁移
-
-预检确认需要版本/结构迁移时；已经符合 EPUB3 且仅有局部排版问题，不重复迁移。范围包含 package metadata/properties、nav（保留 NCX）、XHTML shell 与已识别注释，不应用排版样式或嵌入新字体。遇到 `<big>` 时保留原标签并查看信息提示。
-
-### CSS 分层与清理
-
-区分两件事：CLI 修补缺失分号、装饰分隔行与已知旧字体链；新增样式、语义拆层和冲突级联需人工判断。先读 [SPEC §7](../../docs/final/SPEC-实现约束.md) 的完整分层契约；便签边框按需读 [专门指南](../../docs/how-to/note-box-border-styles.md)。
-
-### 中文字体与正文节奏
-
-处理 CJK 字体链、行距/缩进/长 token 与角色样式。改字体前读 [SPEC §3、§4、§8](../../docs/final/SPEC-实现约束.md)；新增 alias/文件/class 前读 [字体命名规范](../../docs/final/字体别名命名规范.md)。保留既有自由/锁定模式，不把“更好看”自动解释为锁定正文字体。
-
-### 完整字体重新子集化
-
-维护书籍时把完整、获准使用的字体母版放入共享字体库，以书级配置锁定 SHA；统一构建器向临时源树注入全量母版。构建从注入后的源 EPUB 子集化到候选，不能把上次的子集当作新的母版：
-
-```sh
-epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json [font_config=fonts.json]
-epub redline --check all full-font-source.epub subset-candidate.epub
-```
-
-此 capability 调用独立 `epub-font` provider，并使用另一套字符收集器对照完整源字体与子集结果，拦截新增缺字、空字形和 IVS/SVS 损失；provider 缺失、目标字体混淆、完整字体不匹配或验证失败时停止且不写候选 EPUB。书级一键构建与字体来源记录见[工作区指南](../../docs/pipeline/book-workspace.md)。
-
-默认按全书字符集子集化。只有样式表结构简单且明确希望按正文/标题字体角色缩小字符集时，才在 `fonts.json` 顶层显式设 `"usage": "css"`；未知选择器会扩大相关字体，活动内容、无法解析的样式和字符生成方式会拒绝 CSS 模式。运行后审查每字体 `usage.mode` 和 `font-subset.usage-fallback` finding；不确定时删除 `usage`，使用全书模式。
-
-在书级工作区中，`fonts.json` 的 `target` 仍是 EPUB 内的 manifest 字体路径；库文件与 SHA 由 `from` / `sha256` 锁定。既有子集字体可保留源树并与库字体混用，不能据此宣称它覆盖新增文字。交付用书根 `build.sh` 构建，或将 `epub.font.subset` 的候选通过规定检查后交付。不要直接打包解包源树。
-
-### 标准弹注
-
-标准注释转换、迁移后复核或弹注失联。先完整读 [SPEC §1](../../docs/final/SPEC-实现约束.md)，参照 [标准 fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)；多看旧版额外兼容另走 `epub-special-layout`。
+- 目录结构规范化：只处理内部资源路径，先 format 保留文件名并归类目录，再 deobfuscate 按 manifest id 改名；正文和字体字节不变。
+- EPUB3 迁移：预检确认需要版本/结构迁移时；已符合 EPUB3 且仅有局部排版问题则不重复迁移。范围是 package metadata/properties、nav（保留 NCX）、XHTML shell 与已识别注释，不应用排版样式、不嵌入新字体。遇到 `<big>` 保留原标签。
+- CSS 分层与清理：CLI 只修补缺失分号、装饰分隔行与已知旧字体链；新增样式、语义拆层和冲突级联需人工判断。分层契约见 [SPEC §7](../../docs/final/SPEC-实现约束.md)，便签边框见[专门指南](../../docs/how-to/note-box-border-styles.md)。
+- 中文字体与正文节奏：CJK 字体链、行距/缩进/长 token 与角色样式。改字体前读 [SPEC §3、§4、§8](../../docs/final/SPEC-实现约束.md)，新增 alias/文件/class 前读[字体命名规范](../../docs/final/字体别名命名规范.md)。保留既有自由/锁定模式，不把“更好看”解释为锁定正文字体。
+- 完整字体重新子集化：完整字体母版在共享字体库、以书级配置锁定 SHA；子集化的输入是注入全量母版后的源 EPUB，不能把上次子集当母版。
+- 标准弹注：转换、迁移后复核或弹注失联。完整读 [SPEC §1](../../docs/final/SPEC-实现约束.md)，参照[标准 fixture](../../templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml)；多看旧版兼容另走 `epub-special-layout`。
 
 ## 调什么
 
-### 多本书按序预览或写出
-
-当用户要对一本或多本已有 EPUB 执行同一组确定性清洗步骤时，可用 `epub clean` 汇总每本书的审计、SHA 链、步骤 findings 和红线结果。默认只审计并生成计划；变换步骤要通过 `--steps` 明确选择：
-
-```sh
-# 默认只审计，不做变换；只写逐书 .clean.json 汇总
-epub clean "before.epub" --out "clean-preview"
-
-# 明确选择结构步骤；审查后才加 --approve 写出候选
-epub clean "books/" --out "clean-approved" --steps normalize,migrate,css --approve
-```
-
-`--steps` 只接受按序的 `normalize,migrate,css`。`epub clean` 不编排排版能力；需要排版时，对单本书单独运行 `epub run epub.typography.optimize` 并审阅其报告。`--approve` 只在步骤、末次审计和全项红线通过后写出候选。目录输入递归查找 EPUB，按路径顺序串行处理；取消时只为已开始的书写逐书报告，其余路径列在批次信封的 `facts["epub.clean.notStarted"]`。`--json` 将批次信封写到 stdout，日志和错误写到 stderr。输出目录须在输入目录外；已有产物不会覆盖。完整状态、报告字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
-
-### 目录结构规范化
+参数以 `epub capabilities --id <id>` 为准。写入类先 `--dry-run` 审查，再向新路径实跑，最后 `epub redline --check all`。
 
 ```sh
 epub run epub.structure.normalize --input "before.epub" --output "normalized.epub" --dry-run --json
-# 人工审查两阶段映射后实跑；报告目录须已存在
-epub run epub.structure.normalize --input "before.epub" --output "normalized.epub" --json > normalize-envelope.json
 epub redline --check all --path-map normalize-envelope.json "before.epub" "normalized.epub"
-```
-
-排障才用 `mode=format|deobfuscate|inspect`。`mode=inspect` 仍属单输出调用，非 dry-run 会写未修改副本，不称“无输出只读”。明确授权且确认标准字体混淆时，运行加 `allow_font_obfuscation=true`，红线加 `--allow-font-obfuscation`；不能用于未知加密。
-
-### EPUB3 迁移
-
-```sh
-epub run epub.package.nav.audit --input "before.epub" --json
 epub run epub.package.migrate.epub3 --input "before.epub" --output "candidate.epub" --dry-run --json
-# 审查后，保持与 dry-run 相同的选项
-epub run epub.package.migrate.epub3 --input "before.epub" --output "candidate.epub" --json
-epub run epub.notes.popup.normalize --input "candidate.epub" --json
-epub run epub.package.nav.audit --input "candidate.epub" --json
-epub redline --check all "before.epub" "candidate.epub"
-```
-
-迁移保留 plain/Sigil 旧尾注原文；Duokan legacy class/role 仍会规范化，但标记文字与返回字形按源内容保留。需要转换旧尾注时，先取得明确授权并人工编辑，再运行弹注校验和全项 redline。迁移不应用排版样式；若用户需要排版，另行选择 `epub.typography.optimize` 的 preset 和 scope。输出必须是新路径。
-
-### CSS 分层与清理
-
-```sh
 epub run epub.css.layering.optimize --input "before.epub" --output "candidate.epub" --dry-run --json
-# 审查后
-epub run epub.css.layering.optimize --input "before.epub" --output "candidate.epub" --json
-epub redline --check all "before.epub" "candidate.epub"
-```
-
-此能力仅执行已有的字节区间 CSS 清理，不提供 scoped stylesheet 合并。
-
-### 中文字体与正文节奏
-
-```sh
-epub run epub.typography.optimize --input "before.epub" --output "candidate.epub" --dry-run --json
-epub run epub.typography.optimize --input "before.epub" --output "candidate.epub" --json preset=literary-cn
-# 局部试样：精确指定 ZIP 内 spine XHTML 路径；预览后用同样参数去掉 --dry-run
-epub run epub.typography.optimize --input "before.epub" --output "sample.epub" --dry-run --json preset=literary-cn 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
-epub redline --check all "before.epub" "candidate.epub"
-```
-
-preset 为 `literary-cn`（默认）、`academic-cn`、`classical-annotated-cn` 等起点样例；仅自定义库才用 `preset_dir=`。省略 scope_paths 是整书替换预设层，但逐字节保留已有 `Styles/fonts.css` 及 OPF 字体元数据；正文链须已位于该字体层且与元数据一致，模式冲突或无法安全识别的导入、动态、内联正文链会拒绝处理。提供非空 JSON 路径数组则应用所选章节的内容寻址独立 CSS：默认 `preset_mode=replace` 替换同层生成链接，普通链接与共享样式保留，旧 CSS 只有在全书静态引用和 OPF 关联均排除后才删除；`preset_mode=append` 保留旧追加行为。无法证明引用安全或链接带额外语义时停止，不猜删。局部 preset 不支持 url()/@import，不能借此安装资源或自动改正文结构。字体资源/链变化后另跑 `epub run epub.font.coverage.analyze --input "candidate.epub" --json`。
-
-### 标准弹注
-
-```sh
-# 名字含 normalize，但当前只校验，不改书
+epub run epub.font.subset --input full-font-source.epub --output subset-candidate.epub --json [font_config=fonts.json]
 epub run epub.notes.popup.normalize --input "book.epub" --json
 ```
 
-`epub.notes.popup.normalize` 只读校验已有的标准弹注结构，不转换 plain/Sigil 旧尾注。`epub.package.migrate.epub3` 会保留这些旧结构的 XHTML 字节，只规范化 Duokan legacy class/role，同时修改 package/nav/shell。需要将旧尾注改成弹注时，先取得正文修改授权并按正文校订流程人工处理；完成后运行本命令和全项 redline。
+- 批量：`epub clean <路径> --out <目录> [--steps normalize,migrate,css] [--approve]`。默认只审计出计划；`--steps` 只接受按序的 `normalize,migrate,css`，不编排排版；`--approve` 在末次审计和全项红线通过后才写出候选。字段与限制见[清洗 runbook](../../docs/pipeline/cleanup-flow.md)。
+- normalize 实跑时把信封存为文件供红线 `--path-map`。`mode=inspect` 仍属单输出调用，非 dry-run 会写未修改副本。仅在明确授权且确认标准字体混淆时加 `allow_font_obfuscation=true`（红线加 `--allow-font-obfuscation`），不能用于未知加密。
+- `epub.package.migrate.epub3` 迁移后依次跑 `epub.notes.popup.normalize`、nav audit、全项红线。
+- `epub.notes.popup.normalize` 只读校验，不转换 plain/Sigil 旧尾注；转换旧尾注须先取得正文修改授权，走正文校订流程。
+- `epub.font.subset` 调独立 `epub-font` provider；缺失、目标字体混淆、母版不匹配或验证失败时停止且不写候选。`fonts.json` 顶层 `"usage": "css"` 仅在样式表简单且明确要按角色缩小字符集时设置；不确定时删除，用全书模式。构建流程见[工作区指南](../../docs/pipeline/book-workspace.md)。
+- `epub.typography.optimize preset=...` 是**存量兼容路径**：已用 preset 的书可继续维护，新工作不再使用，也不给已有书注入 preset。新书若要参考 preset，用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`；已有书的排版增强走配方（[templates/recipes](../../templates/recipes/README.md)）与书级设计。维护存量书时，字体资源/链变化后另跑 `epub.font.coverage.analyze`。
 
 ## 返回怎么读
 
-### 目录结构规范化
+前缀均为能力 id + `.`。
 
-前缀 `epub.structure.normalize.`：`mappings[]`（from/to）、`warnings[]`、`movedResources`、`renamedResources`、`rewrittenFiles`、`fontObfuscationResources`、`removedStaleEncryptionResources`；默认双阶段另有 `stages[]`。`mappings[]` 是后续红线的路径映射；需要时把完整 normalize 信封作为 `--path-map`，不要手抄映射。
-
-### EPUB3 迁移
-
-前缀 `epub.package.migrate.epub3.`：`packageVersionBefore`、`navEntries`、`xhtmlFilesUpdated`、manifest/metadata 改动计数、`duokanNotesNormalized`、`warnings`。
-输入/输出 SHA 在信封 input/output，不在 facts。
-
-### CSS 分层与清理
-
-前缀 `epub.css.layering.optimize.`：`cssFilesBefore/After`、`fontDeclarationsRewritten`、`warnings`；`semanticFactoringDisabled=true`、`scopedMergeDisabled=true`、`duplicateDeduplication=disabled` 是当前策略。旧的拆分/去重计数键保留但为 0，不代表功能可用。
-
-### 中文字体与正文节奏
-
-前缀 `epub.typography.optimize.`：`preset/layers/notes`、`coverage`、`stylesheetActions[]`（add/replace/keep）、`xhtmlLinkFiles`、`manifestItemsAddedHrefs`。整书模式另有 `fontMode=free|locked` 与 `fontModeAction=preserve`，保留字体层的 action 为 `keep`。局部模式另有 `scopePaths` 与下述替换/追加记录。
-局部模式的 `applicationMode` 默认为 `scoped-replace`，回退为 `scoped-additive`；`presetMode`、`replacedLayers[]`（document/layer/previousPath/newPath）和 `removedFiles[]` 记录替换与删除。**coverage 是 preset 类覆盖率，不是字形覆盖率。** `typography.low-coverage` 表示结构与 preset 不匹配。
-
-### 完整字体重新子集化
-
-前缀 `epub.font.subset.`：facts 中的 `changedFonts` 列出已替换字节的字体路径；`providerReport` 保存 provider 版本、输入/输出 SHA、逐字体 SHA、使用模式、字形统计、检查结果和警告。finding `font-subset.usage-fallback` 表示 CSS 角色范围被保守扩大，`font-subset.not-in-master` 是缺字警告，查看 location 和 detail 确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误。
-
-### 标准弹注
-
-前缀 `epub.notes.popup.normalize.`：`noterefs`、`text_files`、`violations`；`error popupnotes` 的 title/location 给出文件和问题。
-迁移报告中的 `duokanNotesNormalized/warnings` 只表示处理结果，不证明所有原注释都符合标准结构。
+- `epub.structure.normalize.mappings[]` 是后续红线的路径映射；把完整 normalize 信封作为 `--path-map`，不要手抄。
+- `epub.package.migrate.epub3`：输入/输出 SHA 在信封 input/output，不在 facts。
+- `epub.css.layering.optimize`：`semanticFactoringDisabled=true`、`scopedMergeDisabled=true`、`duplicateDeduplication=disabled` 是当前策略；旧拆分/去重计数键保留但为 0，不代表功能可用。
+- `epub.typography.optimize`：**`coverage` 是 preset 类覆盖率，不是字形覆盖率**；`typography.low-coverage` 表示结构与 preset 不匹配。
+- `epub.font.subset`：`changedFonts` 是已替换字节的字体路径，`providerReport` 含输入/输出 SHA 与逐字体统计。`font-subset.usage-fallback` 表示 CSS 角色范围被保守扩大；`font-subset.not-in-master` 是缺字警告，确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误；`font-subset.stale-input` 须先对未修改的源 EPUB 子集化再做其他改书步骤。
+- `epub.notes.popup.normalize`：`violations` 与 `error popupnotes` 的 title/location 给出文件和问题。迁移报告的 `duokanNotesNormalized/warnings` 只表示处理结果，不证明所有原注释合规。
 
 ## 依据返回怎么判断
 
 ### 目录结构规范化
 
-- dry-run 在内存完成两个阶段并检查真实候选，mappings 与候选一致；不写文件。审查映射/冲突/警告及红线后实跑，产物再用同次实跑信封作 path-map 复核。预览出现红线 error 不能按“尚未应用”忽略。
-- `markup scan stopped at byte offset N` 表示后续引用未改写：先修源，不能直接接受候选。其他断链逐项检查。
-- 如果规范化报告出现 `id=structure.non-utf8-text`，按每条 finding 的 `location` 找到对应文本资源，人工转码为 UTF-8 并重新冻结 S0 底本后再运行；不要直接接受部分改写。
+- dry-run 在内存完成两个阶段并检查真实候选；审查映射/冲突/警告及红线后实跑，产物再用同次实跑信封作 path-map 复核。预览出现红线 error 不能按“尚未应用”忽略。
+- `markup scan stopped at byte offset N` 表示后续引用未改写：先修源，不能接受候选。
+- `structure.non-utf8-text`：按 finding 的 `location` 人工转码为 UTF-8 并重新冻结 S0 底本后再运行，不接受部分改写。
 - 缺失字体 URL 不猜文件、不删声明，保留 `local()` fallback；非字体资源断链须修复。stale encryption 只移除目标已不存在的引用。
-- 真实未知加密停止；保守重写失败不一概推断是 DRM，读取具体 events/findings。实跑红线失败保留候选供 diff，不覆盖原件。通过后人工检查路径/链接，再判断是否需要 EPUB3 迁移。
+- 真实未知加密停止；保守重写失败不一概推断是 DRM，读具体 events/findings。红线失败保留候选供 diff。
 
 ### EPUB3 迁移
 
-- 审查 warnings、注释识别范围和样式/导航计划；模糊注释保留转人工，不部分猜转。不要把转换计数等同于原注释总数。
-- DRM/未知加密停止；保守重写失败读取具体事件，不绕过保护或覆盖输出重试。
-- 实跑红线失败保留候选，逐项分析；元数据版本等预期迁移变化与意外正文/顺序变化分开解释，不能用宽泛豁免掩盖。
-- 产物预检与注释验证后，人工 diff OPF/nav/NCX、封面、spine、注释及 CSS；需要精排才分派专项 skill，迁移成功不是阅读器通过。
+- 审查 warnings、注释识别范围和样式/导航计划；模糊注释保留转人工，不部分猜转，转换计数不等于原注释总数。
+- 红线失败时，元数据版本等预期迁移变化与意外正文/顺序变化分开解释，不用宽泛豁免掩盖。人工 diff OPF/nav/NCX、封面、spine、注释及 CSS；迁移成功不是阅读器通过。
 
 ### CSS 分层与清理
 
-- 核对具体声明改动，字体链变化不能误伤既有嵌入角色；不以“CSS 数量越少”作为成功标准。即使 CSS 逐字节相同，独立 manifest id、refines/fallback 或 @import 也可能赋予不同语义，不自动删除副本。
-- 人工归层：字体/角色绑定进 fonts；通用正文进 base；notes/effects/literary/media/vertical/poster 按组件职责。XHTML 先依赖后覆盖，manifest 只保留实际资源。
-- 局部 CSS 的引用集合、相对 URL 或级联关系不清时保留，不猜测可合并；不得整文档重序列化。EPUB/WebKit 前缀与基础 fallback 不因浏览器正常而删掉。
-- 红线失败保留候选，定位原因；通过后还需 diff 和相关页面的视觉检查，正文不变并不证明 CSS 外观不变。
-- nav audit 出现 `css-root-font-size` error：从 `html` / `:root` / `*`（含通用 reset 选择器列表）删除 `font-size` / `font` 声明，其余属性保留，列表里的 `body` 可一并删除；`css-body-font-size` info 不单独处理；`css-fixed-font-size` warn 改为相对 `em` / `%`，元素内无文字时可记录理由保留；它们会让部分阅读器调字号失效（SPEC §5.5.1）。改后重跑审计与全项红线，并在目标阅读器放大两级复查。
+- 核对具体声明改动，字体链变化不能误伤既有嵌入角色；不以“CSS 数量越少”为成功标准。CSS 逐字节相同，独立 manifest id、refines/fallback 或 @import 也可能语义不同，不自动删副本。
+- 归层：字体/角色绑定进 fonts；通用正文进 base；notes/effects/literary/media/vertical/poster 按组件职责。引用集合、相对 URL 或级联不清时保留，不得整文档重序列化；EPUB/WebKit 前缀与基础 fallback 不因浏览器正常而删。
+- 正文不变不证明 CSS 外观不变，通过红线后仍需 diff 和相关页面视觉检查。
+- nav audit 的 `css-root-font-size` error：从 `html` / `:root` / `*`（含 reset 选择器列表）删除 `font-size` / `font`，其余属性保留，列表里的 `body` 可一并删。`css-body-font-size` info 不单独处理；`css-fixed-font-size` warn 改相对 `em` / `%`，元素内无文字时可记录理由保留（SPEC §5.5.1）。改后重跑审计与全项红线，并在目标阅读器放大两级复查。
+- `css-page-color-lock` warn：`html` / `:root` / `*` / 普通 `body` 写了页面级 `color` / `background`，会在夜间与护眼主题下削弱对比度（SPEC §7）。须人工判断：该色是否有设计意图、改为继承后是否可读；确需保留的记录理由。不批量删除，A-lite 的 `poster-*` modifier 已豁免。
 
 ### 中文字体与正文节奏
 
-- 审查 add/replace 的具体样式表，尤其避免覆盖原书有效设计；只需局部改动时，不为用能力而套整套 preset。先做代表性正文/章首/复杂页样例，确认视觉节奏再推广。
-- 自由模式 body/普通 p 不设 font-family；锁定入口为 fonts.css 的 body 规则并同步 OPF 字体 meta/prefix。局部字体不要求全书锁定；保留既有模式及明确书级例外。
-- 设计字体/少量补字使用专用角色；局部子集不可拿来锁全书。C1-body 须按 CSS 继承覆盖全部角色用字和标点；保留 generic fallback，不靠重复嵌入字体解决回退。
-- 字体声明进 fonts.css，正文节奏进 base.css；注释结构进 notes.css。带 epub namespace 的选择器须正确声明 namespace。
-- 自由版与锁定版从同一内容基线派生，允许差异与 modified 时间规则按 SPEC §8；红线和字体覆盖都通过后，仍需大字号/窄屏阅读器验收。
+- 只需局部改动时，不为用能力而套整套预设层；先做代表性正文/章首/复杂页样例，确认节奏再推广。审查 add/replace 的具体样式表，避免覆盖原书有效设计。
+- 自由模式 body/普通 p 不设 font-family；锁定入口为 fonts.css 的 body 规则并同步 OPF 字体 meta/prefix。局部字体不要求全书锁定，保留既有模式及书级例外。
+- 设计字体/少量补字用专用角色；C1-body 须按 CSS 继承覆盖全部角色用字和标点，保留 generic fallback，不靠重复嵌入字体解决回退。
+- 字体声明进 fonts.css，正文节奏进 base.css，注释结构进 notes.css；带 epub namespace 的选择器须声明 namespace。
+- 自由版与锁定版从同一内容基线派生，差异规则按 SPEC §8；红线和覆盖都通过后，仍需大字号/窄屏阅读器验收。
 
 ### 完整字体重新子集化
 
-- `font-subset.provider-missing` 表示需安装 `epub-font` provider；`font-subset.not-in-master` 表示母版缺少所需字形，确认声明的 fallback 覆盖这些字符。若收到 `font-subset.stale-input`，先对未修改的源 EPUB 子集化，再运行其他会改书的步骤。
-- 审查 `facts["epub.font.subset.changedFonts"]` 与 `facts["epub.font.subset.providerReport"]`，确认替换路径、输入/输出 SHA 和每个字体的 action；无变化时也需确认 MATH 字体是否按策略保留。成功后做全项 redline。
-- 如启用了 `usage: "css"`，逐字体确认 `usage.mode`；任何 `font-subset.usage-fallback` 都要检查 detail，只有接受较大字集后才继续。静态验证不能代替目标阅读器实测。
+- 审查 `changedFonts` 与 `providerReport`：替换路径、输入/输出 SHA、每字体 action；无变化时确认 MATH 字体是否按策略保留。成功后做全项 redline。
+- 启用 `usage: "css"` 时逐字体确认 `usage.mode`，任何 `usage-fallback` 须看 detail，接受较大字集后才继续。静态验证不能代替阅读器实测。
 
 ### 标准弹注
 
-- 同一 XHTML 中：图片 noteref anchor（epub:type、role、唯一 id）→ 单条注释 `aside.footnote-item[epub:type=footnote][role=doc-footnote]` 的 id → ◎ backlink 返回 trigger；每文件最多一个 aside[epub:type=footnotes] 容器（不带 doc-footnote），内有 div.footnote-list。声明 epub namespace。
-- 保留已有图标 src/alt；新建图片 noteref 时由用户提供资源并同步 manifest，迁移器不会注入默认图标。结构/视觉写 notes.css，字体声明写 fonts.css，图标规则限定作用域，不影响普通 sup。
-- 不把整组注释标成 epub:type=footnote；不搬到跨文件 note body，不 display:none、不复制第二份注释、不改注释文字。
+- 同一 XHTML 中：图片 noteref anchor（epub:type、role、唯一 id）→ 单条 `aside.footnote-item[epub:type=footnote][role=doc-footnote]` → ◎ backlink 返回 trigger；每文件最多一个 aside[epub:type=footnotes] 容器（不带 doc-footnote），内有 div.footnote-list。声明 epub namespace。
+- 保留已有图标 src/alt；新建图片 noteref 由用户提供资源并同步 manifest，迁移器不注入默认图标。图标规则限定作用域，不影响普通 sup。
+- 不把整组注释标成 epub:type=footnote；不跨文件、不 display:none、不复制第二份注释、不改注释文字。
 - `popupnotes.legacy-container` warn：旧 grouped 结构把整组标成单条；非多看书改为 footnotes 容器 + 逐条 aside，保留原 id、href 与回跳。需要多看 fallback 时保留旧结构。
-- 人工转换旧 Sigil 逐条 aside 时，先逐条核对 noteref 与 aside，再收进同一个 footnotes 容器；存在无法匹配的 aside 或附加内容时不做部分合并。尽量保留原 id。
-- 零违反还须对照原 noteref/note 数量、正文与每个触发目标，避免“没有被扫描到”误作正确。红线只允许表示控件差异，注释正文必须保持；多条 note 的弹窗范围需目标阅读器实测。
+- 人工转换旧 Sigil 逐条 aside 时，先逐条核对 noteref 与 aside，再收进同一 footnotes 容器；有无法匹配的 aside 或附加内容时不做部分合并，尽量保留原 id。
+- 零违反还须对照原 noteref/note 数量、正文与每个触发目标，避免“没扫到”误作正确。红线只允许表示控件差异，注释正文必须保持；多条 note 的弹窗范围需目标阅读器实测。
