@@ -86,6 +86,16 @@
 - 普通可重排正文页的 `body` 不允许同时使用 `width:100%` 与左右 `padding`；正文页应保持 auto 宽度，让 padding 计入可用行宽，避免阅读器右侧裁切。
 - 正文页如需页面留白，优先使用 `body { margin:0; padding:... }`，并显式设置 `box-sizing:border-box` / `-webkit-box-sizing:border-box`。
 
+## 5.5.1) 阅读器字号缩放
+
+- 可重排书的书内 CSS 不得在 `html` / `:root` 上声明 `font-size` 或 `font` 简写，**任何值都不行**（包括 `100%`、`1em`、`62.5%`、`16px`）。多数自定义字号的阅读器把用户字号写在根元素上；书内样式表在同一元素上的声明会在层叠中覆盖它，表现为“部分阅读器调字号无效”，而按缩放比例处理字号的阅读器不受影响，因此只在部分阅读器复现。两本存量书的 CSS reset 与 `html { font-size: 100% }` 均已实测导致此问题，删除后恢复；[字号缩放探针](../../templates/font-scale-probe/README.md)在 Reeden 测试版上复现：仅 `html { font-size: 100% }` 页不放大（reader-matrix `probe-font-scale`，无截图，记为 warn 观察）。修法对所有阅读器通用，不需要 Reeden 专用分支。
+- 普通 `body` 上的 `font-size: 1em` / `100%` 在同一探针中未锁定字号，且尚无阅读器复现，不作禁止；它默认继承即等于 `100%`，新写 CSS 不必声明，存量书无需为此单独改动。正文字号差异放在 `p`、角色类或内容容器上，用 `em` / `%`。A-lite 海报页 `body.fullpage` 的固定基准（§2）是有意锁定，不在此列。
+- 常见来源是通用 CSS reset（`html, body, div, … { font-size: 100% }`）和模板 `html { font-size: 100% }`；清洗存量书时必须把字号声明从 `html` / `:root` / `*` 上删除（reset 列表里的 `body` 可一并删除），保留其余 reset 属性。
+- 单独的 `*` 选择器同样命中 `html`，按 `html` 处理。
+- 其它元素不用绝对字号（`px` / `pt` 等，或 `small`、`medium` 等绝对关键字）与视口字号（`vw` / `vh`）：它们不随根字号变化，阅读器放大时这部分文字不动。A-lite 海报页（`.fullpage`）与 `0` / `1px` 隐藏文字惯用法除外。Reeden 测试版会把 `p { font-size: 16px }` 一起放大，但 WebView 类阅读器按 CSS 语义不会，不能据此放宽。
+- 自动 gate：`epub run epub.package.nav.audit` 对 `html` / `:root` / `*` 字号声明报 error（`css-root-font-size`，书级构建阻断）；对普通 `body` 报 info（`css-body-font-size`，仅提示冗余）；对其它元素的绝对/视口字号报 warn（`css-fixed-font-size`，人工复核后改为相对单位或说明理由）。
+- 证据边界与实测方法见[字号缩放探针](../../templates/font-scale-probe/README.md)；`body` 若在其它阅读器复现锁定，再升级为 warn / error。
+
 ## 5.6) 图片环绕兼容
 
 - 图文环绕的通用路径是 `<figure class="img-left|img-right">` 包裹 `<img>` 与可选 `<figcaption>`，把 `float:left/right` 与百分比 `width` 挂在 `figure` 上。
@@ -329,6 +339,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 章节锚点红线 | `epub redline --check anchors before.epub after.epub` | 退出码 0 |
 | 封面红线 | `epub redline --check cover before.epub after.epub` | 退出码 0 |
 | 全量红线 | `epub redline --check all before.epub after.epub` | 退出码 0 |
+| 阅读器字号缩放 | `epub run epub.package.nav.audit --input after.epub --json` | 无 `css-root-font-size` error；`css-fixed-font-size` warn 已修改或说明（§5.5.1） |
 
 上表适用于普通清洗。进入 §10.1.1 后，正文变化由已核验的决策 artifact 负责证明；其余红线仍必须逐项通过，不得声称“全量红线通过”。
 

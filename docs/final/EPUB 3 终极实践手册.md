@@ -270,7 +270,7 @@ CSS 字体角色模式通过可证明的字体族与选择器范围缩小字符�
 @charset "utf-8";
 
 html {
-  font-size: 100%;
+  /* 不在 html / :root / body 上写 font-size：会覆盖阅读器字号设置，见 SPEC §5.5.1 */
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
 }
@@ -287,7 +287,6 @@ body {
   padding: 0 1em;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  font-size: 1em;
   line-height: 1.7;
   text-align: justify;
   /* 自由模式默认不设 font-family；锁定模式的直接 body 规则放在 fonts.css */

@@ -234,7 +234,9 @@
 | `font-family` | 显式系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | C1-body 嵌入字体全覆盖；局部字体覆盖明确承担字符，其余验证 fallback |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
-| `font-size` | `em` / `%` | 推荐 | 正文避免固定 px |
+| `font-size` | `em` / `%` | 推荐 | 正文不用 `px` / `pt`、`small` 等绝对关键字或 `vw`，否则不随阅读器字号变化（A-lite 海报页除外） |
+| `html` / `:root` / `*` 上的 `font-size` / `font` | 不写 | 禁止 | 任何值（含 `100%`）都会覆盖部分阅读器（已复现：Reeden）的字号设置；字号差异放在 `p` 或角色类上，见 SPEC §5.5.1 |
+| `body` 上的 `font-size: 1em` / `100%` | 不必写 | 可用 | 冗余但探针中未锁定字号；A-lite `body.fullpage` 按 §2 固定基准 |
 | `line-height (中文)` | `1.6`–`1.9` | 推荐 | 中文常用 1.7 |
 | `line-height (英文)` | `1.45`–`1.65` | 推荐 | 英文小说常用；简单重排书先取 1.55 左右 |
 | `text-indent (中文)` | `2em` | 推荐 | 中文正文 |

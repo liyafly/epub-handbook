@@ -102,6 +102,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 
 - DRM/未知加密、不可读 ZIP/container/OPF 按根 AGENTS 停止；可修复的版本、properties、导航诊断可进入对应修复，再验证产物，不要求把所有输入错误先手工清零。
 - 路径混淆 → `epub-cleanup`（`epub.structure.normalize`）；EPUB2/legacy → `epub-cleanup`（`epub.package.migrate.epub3`）；注释 → `epub.notes.popup.normalize`；包合并/拆分/换封面 → `epub-package-ops`。不要因需要审计就自动执行写操作。
+- `css-root-font-size` error 与 `css-fixed-font-size` warn 是 P1 功能问题（部分阅读器无法调字号，已在 Reeden 复现根元素写法），交 `epub-cleanup` 处理；`css-body-font-size` 只是 info，不单独派修。见 SPEC §5.5.1。
 - 不删除 spine 页面来掩盖错误，不猜 `dc:language`，不批量删除字体 metadata 或未识别资源。CSS 字体断链保留声明与 `local()`，不猜替代字体；非字体断链须修复。
 - 检查唯一 nav、spine 顺序、引用 fragment、MathML/SVG properties 和封面声明；Kindle/legacy 交付保留 NCX。目录层次问题按需读 [文集导航](../../docs/how-to/anthology-navigation.md)。
 - 修复保持现有 id 与 mixed-content 正文，不能依靠浏览器 HTML 容错。新增/删除资源同步 manifest、spine 和导航的实际依赖；有授权删除时记录精确清单及红线差异。

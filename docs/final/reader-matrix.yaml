@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-10-30
+updated_at: 2026-11-03
 owner: epub-handbook
 
 lanes:
@@ -23,6 +23,8 @@ readers:
     name: 多看阅读
   - id: koreader
     name: KOReader
+  - id: reeden
+    name: Reeden
 
 cases:
   - id: 00-cover-metadata
@@ -164,6 +166,9 @@ cases:
   - id: recipe-parallel-pair
     title: 上下源序与宽屏短组对照配方候选
     fixture: templates/recipes/parallel-pair/sample.xhtml
+  - id: probe-font-scale
+    title: 根/正文字号声明与阅读器调字号探针
+    fixture: templates/font-scale-probe/src/OEBPS/Text/p01.xhtml
 
 retired_cases:
   - id: 03b-poster-fullbleed
@@ -240,6 +245,16 @@ retest_priorities:
     focus: "多看与标准结构兼容的候选写法：D1=footnotes 容器 > ol.footnote-list.duokan-footnote-content > li.footnote-item.duokan-footnote-item[id] > aside[epub:type=footnote]（id 在 li）；D2=同结构但 id 放在内嵌 aside、li 不带 id。记录多看与 Apple Books 是否都能单条弹出。实测前 05 和 epub.notes.legacy-fallback 继续使用旧 grouped 结构。"
 
 expectations:
+  - reader: reeden
+    case: probe-font-scale
+    status: warn
+    reader_version: "长期使用的测试版；具体版本号未记录"
+    profile: "2026-11-03 用户试读；设备、主题未记录；默认字号后放大两级"
+    artifact: "templates/font-scale-probe/dist/font-scale-probe.epub#sha256=ff289b9ec2e01b1ed213e0653b331171e1a2e355b947aad74a36ac44a31a6958"
+    failed_page: "04"
+    issue: "用户报告：01 对照、02 body 1em、03 body 100%、05 section 1em、06 p 16px 均随阅读器字号放大，只有 04 html { font-size: 100% } 不放大。与两本存量书（根元素 100% 声明，删除后恢复）现象一致。06 的 px 也放大，与 Reeden 自绘（Flutter）引擎自行缩放 px 的推测一致，未证实。无截图，记录为观察而非 fail。"
+    action: "补 Reeden 版本号与 01/04/06 默认与放大截图后可升级为 fail；其它阅读器对 02/03/06 的结论需独立实测，不由本条外推。"
+    workaround: "书内 CSS 不在 html / :root / * 上声明 font-size / font（SPEC §5.5.1），所有阅读器通用，无需 Reeden 专用分支。"
   - reader: "ibooks_macos"
     case: "recipe-shape-wrap"
     status: "pass"

@@ -169,6 +169,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 - 人工归层：字体/角色绑定进 fonts；通用正文进 base；notes/effects/literary/media/vertical/poster 按组件职责。XHTML 先依赖后覆盖，manifest 只保留实际资源。
 - 局部 CSS 的引用集合、相对 URL 或级联关系不清时保留，不猜测可合并；不得整文档重序列化。EPUB/WebKit 前缀与基础 fallback 不因浏览器正常而删掉。
 - 红线失败保留候选，定位原因；通过后还需 diff 和相关页面的视觉检查，正文不变并不证明 CSS 外观不变。
+- nav audit 出现 `css-root-font-size` error：从 `html` / `:root` / `*`（含通用 reset 选择器列表）删除 `font-size` / `font` 声明，其余属性保留，列表里的 `body` 可一并删除；`css-body-font-size` info 不单独处理；`css-fixed-font-size` warn 改为相对 `em` / `%`，元素内无文字时可记录理由保留；它们会让部分阅读器调字号失效（SPEC §5.5.1）。改后重跑审计与全项红线，并在目标阅读器放大两级复查。
 
 ### 中文字体与正文节奏
 
