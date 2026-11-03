@@ -18,7 +18,7 @@
 
 1. 阅读器可调字号（§5.5.1，gate `css-root-font-size`）。
 2. 正文文字不变（§10.1，`epub redline --check text`）。
-3. 不锁页面级配色，保留夜间与护眼主题（§7，gate `css-page-color-lock`）。
+3. 默认不锁页面级配色，保留夜间与护眼主题（§7，gate `css-page-color-lock`）；书级设计确需固定文字色或底色时可保留，在制作说明写明理由。
 4. 图片宽度用百分比（§5.6、§5.11），不以 `em` / 固定像素决定版面。
 5. 导航与注释可用（§1、`epub.package.nav.audit`）。
 
@@ -237,7 +237,7 @@
 - 常规分层正文页 link `fonts.css + base.css`，其他层按场景选用。无字体声明/绑定的双层 starter 只 link `base.css → design.css`；需要字体时另加 `fonts.css` 并置于最前。已有多层书不为统一文件数而合并。`design.css` 达到行数上限时按职责拆分；标准弹注仍用 `notes.css`。
 - 若 `.note-box` 容器视觉继续增长并让 `effects.css` 超过 400 行，优先拆出 `decoration.css` 承载便签/资料卡边框阴影；`effects.css` 保留文字效果。超过 500 行必须拆分。
 - OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
-- `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。
+- `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。这是默认做法，不是禁令：书级设计（如封面页、章首页底色或正文定制文字色）确需保留时，在书级制作说明记录理由即可，warn 不阻断构建。
 - 自动 gate：`epub run epub.package.nav.audit` 对 `html` / `:root` / `*` / 普通 `body`（含带类名的 body）声明固定的 `color` / `background` / `background-color` 报 warn（`css-page-color-lock`，人工判断后改为继承或说明理由）；值为 `inherit` / `transparent` / `none` / `initial` / `unset` / `currentcolor` 不报；主体复合选择器含 `.poster-*` 类（A-lite 背景 modifier）豁免，`body.fullpage` 本身不豁免。存量书常见，只报告不改书。
 - 单文件 400 行预警、500 行硬上限；超过 500 行必须按职责拆分或迁入已有正确层。
 - 跨层依赖通过类名契约，不允许下层文件引用上层组件类。
