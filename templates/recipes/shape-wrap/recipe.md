@@ -12,6 +12,10 @@
 
 [recipe.css](recipe.css) 四层依次为块图、矩形 float、显式 `content-box` polygon、窄屏护栏。普通侧 margin 保住矩形间距；`shape-margin` 处理轮廓间距。不得加改变参考盒的 padding/border，不用 `@supports` 改宽度。右侧需同时镜像图片和 x 坐标；可用 [epub-art](../../../tools-art/README.md) 生成候选，再人工检查。
 
+## 默认起点
+
+figure 宽度用百分比，起点 `25%–35%`，样本取 `30%`；不用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。`25%–35%` 不是标准常量，而是 Kindle App / Readest 反馈下的保守起点：图过宽压缩剩余文本列，过窄影响可读性。书级按目标阅读器、屏幕和字号实测微调。
+
 ## 降级行为
 
 忽略 shape 时保持矩形 float；窄于 20em 时回块图。忽略 float 时仍是普通图片后跟正文。20em 只是候选阈值，大字号和短段落要独立复测，不能把历史普通字号通过转签给护栏。

@@ -62,6 +62,11 @@
   margin: 0 auto;
 }
 
+.chapter-head-art-roomy img {
+  width: 40%;
+  max-width: 9em;
+}
+
 .chapter-head-banner img {
   display: block;
   width: 100%;

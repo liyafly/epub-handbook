@@ -244,6 +244,7 @@ retest_priorities:
     readers: [duokan, ibooks_macos, readest]
     focus: "多看与标准结构兼容的候选写法：D1=footnotes 容器 > ol.footnote-list.duokan-footnote-content > li.footnote-item.duokan-footnote-item[id] > aside[epub:type=footnote]（id 在 li）；D2=同结构但 id 放在内嵌 aside、li 不带 id。记录多看与 Apple Books 是否都能单条弹出。实测前 05 和 epub.notes.legacy-fallback 继续使用旧 grouped 结构。"
 
+# 新条目可选加 outcome: enhanced | degraded | broken（增强生效 / 退回可读 / 坏掉，见 SPEC §0），与 status 并存；旧条目不迁移。
 expectations:
   - reader: reeden
     case: probe-font-scale

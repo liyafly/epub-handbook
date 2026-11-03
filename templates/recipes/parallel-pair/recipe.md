@@ -10,7 +10,7 @@
 
 ## 增强层
 
-[recipe.css](recipe.css) 只在 `min-width:40em` 开双 float，起点 38%/58%，总宽留至少 4% 沟槽。近似等长可选 `.parallel-ratio-balanced`，原文较长可选 `.parallel-ratio-source-wide`。长组默认允许分页，短组才尝试避免内部切页。
+[recipe.css](recipe.css) 只在 `min-width:40em` 开双 float，起点 38%/58%，总宽留至少 4% 沟槽（两栏总和建议不超过 96%）。近似等长可选 `.parallel-ratio-balanced`（48%/48%），原文较长可选 `.parallel-ratio-source-wide`（58%/38%）；单书可在后加载 CSS 自定义比例。长组默认允许分页，短组才尝试避免内部切页。
 
 ## 降级行为
 

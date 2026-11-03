@@ -18,6 +18,22 @@
 
 典型简单英文小说 EPUB 往往是很轻的结构：package、目录、单 CSS 或少量 CSS、章节 XHTML、JPG/PNG 插图。正文主要由居中插图、居中章标题、首段无缩进加轻量首字、后续缩进段落组成；CSS 不依赖 float、absolute positioning 或复杂布局。这说明英文 prose 的重点不是精装饰，而是让段落、插图和标题在不同阅读器里稳定重排。
 
+典型章节标记：
+
+```html
+<body class="english-fiction" xml:lang="en" lang="en">
+  <section epub:type="chapter">
+    <figure class="en-illustration">
+      <img src="../Images/ch01.jpg" alt="Chapter illustration"/>
+    </figure>
+    <h1 class="english-chapter-title">I. Chapter Title</h1>
+    <p class="en-noindent en-first-letter">The first paragraph starts without indent.</p>
+    <p class="en-noindent en-dropcap-host"><span class="en-dropcap">A</span> second opening paragraph demonstrates a lowered initial.</p>
+    <p>Following paragraphs use a modest first-line indent.</p>
+  </section>
+</body>
+```
+
 这些结构观察只用于提炼版式规则，不依赖仓库外的第三方样本。
 
 ## 匿名生产回填：插图型英文合集
@@ -28,7 +44,7 @@
 
 - 普通正文保留阅读器的字体和字号选择权，只设置英文段落节奏；该书采用 `line-height:1.68`、`word-spacing:.035em`、后续段 `text-indent:1.3em`，这些是单书起点，不是全局常量。
 - 嵌入的展示字体只绑定章题、章首字、诗歌/签名和独立展示文字；普通叙述或对话即使出现相同的大写词，也不按字符串全局套用展示字体。
-- 章首装饰图与真实章题分离。方形章标、横幅头图和正文插图分别由自己的 `figure` 角色控制；该书使用过 `46%`、`74%` 和 `54%` 的实例宽度，但新书应按素材比例和目标字号重测。
+- 章首装饰图与真实章题分离。方形章标、横幅头图和正文插图分别由自己的 `figure` 角色控制；该书使用过 `46%`（章标）、`74%`（横幅）、`54%`（居中图）和 `28%`（环绕图）的实例宽度，但新书应按素材比例和目标字号重测。
 - 小图只有在后面有足够长的连续正文时才启用 `figure.img-left/right` 环绕，并在明确的后续段落清除浮动；短段和紧邻下一幅图的场景保持居中。
 - `::first-letter` 保持单词完整，真实 `span` 版只作为可并行构建的兼容候选；两版必须保证可见正文、图片、导航和阅读顺序一致，选择哪一版仍需目标阅读器复测。
 

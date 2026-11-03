@@ -23,6 +23,34 @@
 
 不要在通用 Kindle 版本使用 `transform: rotate()` 旋转整块文本框。2026-05-23 用 Kindle Previewer 3.104 实测：`box-shadow`、`inset box-shadow`、`outline-offset` 可完成转换；`transform: rotate()` 会触发 KFX 增强排版内部错误。
 
+## 基础结构与样式
+
+```html
+<div class="note-box note-shadow">
+  <p class="note-title">提示</p>
+  <p>这里是真实文本。阅读器忽略阴影时，边框和底色仍然保留。</p>
+</div>
+```
+
+```css
+.note-box {
+  margin: 1.1em 0;
+  padding: .8em .9em;
+  text-indent: 0;
+  page-break-inside: avoid;
+  -webkit-page-break-inside: avoid;
+}
+
+.note-shadow {
+  border: 1px solid #c9bda9;
+  background: #fffaf0;
+  -webkit-box-shadow: .22em .22em 0 #d8ccb9;
+  box-shadow: .22em .22em 0 #d8ccb9;
+}
+```
+
+这里的底色与边框色只属于局部组件；页面级 `color` / `background` 不设置（SPEC §7）。
+
 ## 样式层级
 
 当前 demo 把 `.note-box` 系列放在 `effects.css`：它们是文字效果之外的容器视觉增强，但仍只服务于真实文本的边框、阴影和装饰线。若便签样式继续增长并让 `effects.css` 超过 400 行，应评估是否拆出独立的容器视觉层；超过 500 行时必须拆分，而不是继续扩写文字效果层。
@@ -37,9 +65,12 @@
 | 实心投影 | 纸片厚度 | 中；需边框兜底 |
 | 内阴影 | 内嵌资料卡 | 中；夜间模式慎用 |
 | 斜角感 | 贴纸偏移感 | 中；用边框/圆角/阴影模拟 |
+| 长条投影框 | 较长资料卡：上下边线 + 左侧色条 + 投影 | 中；需边框兜底 |
 | 不规则边缘 | 手贴纸、剪贴感 | 中；不要依赖 clip-path |
 
 生产推荐顺序是：普通方框或左侧竖线优先；需要题签感时用双线框；需要纸片层次时再加阴影；手贴纸感用不对称圆角、外轮廓和投影模拟。不要把复杂花边作为通用 EPUB 的默认边框。
+
+不要用复杂滤镜、CSS mask 或多层伪元素承载关键信息。Kindle/旧 WebKit 可能忽略阴影或外轮廓；只要边框和底色还在，就应视为合格降级。
 
 ## SVG 花边实验
 

@@ -4,6 +4,28 @@
 
 > 本文件只记录**实现约束**，用于执行层实现与回归测试的约束清单。描述性解释请看《EPUB 3 终极实践手册》。
 
+## 0) 总则：三层结构与验收
+
+规则分三层，约束强度递减：
+
+| 层 | 内容 | 统一程度 | 保证方式 |
+| --- | --- | --- | --- |
+| 1 安全底座 | 只有下列五项 | 统一 | 尽量写成 gate |
+| 2 配方 | 首字、异形环绕、文白对照、着重号、主题插图等；每个写明增强、回退与证据 | 按需选用 | 逐配方实测，见 [配方目录](../../templates/recipes/README.md) |
+| 3 书级设计 | 字体、节奏、章首与细节差异 | 不统一 | 制作说明记录决策 |
+
+安全底座五项（用户决策，不再扩充）：
+
+1. 阅读器可调字号（§5.5.1，gate `css-root-font-size`）。
+2. 正文文字不变（§10.1，`epub redline --check text`）。
+3. 不锁页面级配色，保留夜间与护眼主题（§7，gate `css-page-color-lock`）。
+4. 图片宽度用百分比（§5.6、§5.11），不以 `em` / 固定像素决定版面。
+5. 导航与注释可用（§1、`epub.package.nav.audit`）。
+
+验收三态：每个目标阅读器对每个增强只判**增强生效 / 退回可读 / 坏掉**。增强可以失败，但必须失败成可读；只有「坏掉」阻断交付。`reader-matrix.yaml` 新条目可选加 `outcome: enhanced | degraded | broken`，与既有 `status`（`pass | warn | fail | na`）并存；旧条目不迁移，守卫不变。
+
+规则依据：每条硬规则应能说出依据——实测（`reader-matrix` / fixture）、用户决策或推导。推导得来的规则是待验证假设，允许说明理由后不照做。书级调参数值（环绕宽度、文白比例、头图宽度等）是配方默认起点，来源见各 `recipe.md`，不是硬规则。
+
 ## 1) 弹注（Footnote Popup）
 
 - 任何使用 `epub:type` 的 XHTML 根 `<html>` 必须声明：`xmlns:epub="http://www.idpf.org/2007/ops"`。
@@ -99,8 +121,7 @@
 ## 5.6) 图片环绕兼容
 
 - 图文环绕的通用路径是 `<figure class="img-left|img-right">` 包裹 `<img>` 与可选 `<figcaption>`，把 `float:left/right` 与百分比 `width` 挂在 `figure` 上。
-- figure 宽度使用百分比，推荐先落在 `25%–35%`，demo 默认 `30%`；不得使用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。
-- `25%–35%` 不是标准常量，而是当前 Kindle App / Readest 反馈下的保守起点：图片过宽会压缩剩余文本列，图片过窄会影响可读性，正式书稿必须按目标阅读器、屏幕和字号实测微调。
+- figure 宽度使用百分比；不得使用 `em` 宽度做 Kindle 主路径，避免字号变化改变绕排阈值。具体百分比是配方默认起点（含取值范围与理由），见 [shape-wrap 配方](../../templates/recipes/shape-wrap/recipe.md)，须按目标阅读器、屏幕和字号实测微调。
 - 内层图片必须使用 `width:100%; height:auto;`。不要固定高度，也不要依赖 `aspect-ratio` 作为主路径；真实图片让 `height:auto` 保持天然宽高比。
 - 环绕样例必须提供足够长的前后正文；短段落无法证明 float 失败，只能作为阈值反例。
 - 不使用 direct `img` 直挂 float 作为主路径，避免部分阅读器图片显示过小。
@@ -108,7 +129,7 @@
 ## 5.6.1) 文白对照左右兼容
 
 - 文白对照、原文/译文对照的基础结构必须按源序保留真实文本：标题、出处、原文、译文、回目录锚点都不可图片化。
-- 主路径结构应接近大部头文白书：一组 `.parallel-pair` 直接包含原文段落和译文段落。基础状态必须上下；短组可用 `.parallel-float-pair`，但双侧 `float:left/right` 只能放在宽屏 `@media (min-width: 40em)` 增强里。默认文白起点为 `38%/58%`；原译篇幅接近时可加 `.parallel-ratio-balanced` 使用 `48%/48%`；原文较长时可加 `.parallel-ratio-source-wide` 使用 `58%/38%`。单书可在后加载 CSS 中自定义比例，但两栏总和建议不超过 `96%`，给 gutter 留至少 `4%`。Kindle 电子墨水、小屏、大字号、长组、大字号探针或已知风险组应保持上下。
+- 主路径结构应接近大部头文白书：一组 `.parallel-pair` 直接包含原文段落和译文段落。基础状态必须上下；短组可用 `.parallel-float-pair`，但双侧 `float:left/right` 只能放在宽屏 `@media (min-width: 40em)` 增强里。两栏比例与 `.parallel-ratio-*` 变体是配方默认起点，见 [parallel-pair 配方](../../templates/recipes/parallel-pair/recipe.md)，单书可自定，但须给 gutter 留空。Kindle 电子墨水、小屏、大字号、长组、大字号探针或已知风险组应保持上下。
 - 不依赖 `overflow:hidden` BFC 形成右侧列；KF8/KFX 对这条路径不稳定。不要为了标签和列容器把每组正文包得过重，除非确有多段注记需求。
 - 分页保护只能用于短组增强类：`.parallel-float-pair { page-break-inside: avoid; -webkit-page-break-inside: avoid; break-inside: avoid; }`；`.parallel-pair` 默认允许长对照自然切页，`.parallel-stack-pair` / `.parallel-pair-allow-break` 必须显式允许切页，避免 Kindle 产生大空白页。
 - 不使用 `table`、`display:flex`、`grid`、absolute positioning 或固定版式承载正文对照。阅读器忽略 float、屏幕过窄或大字号列宽不足时，必须退回源序上下显示。
@@ -179,7 +200,7 @@
 
 - 普通可重排章节头图属于章首结构，写入 `literary.css`，不归入正文图文混排的 `media.css`。
 - 头图必须是装饰或栏目识别；章节标题、kicker、副标题必须保留为真实 XHTML 文本。
-- 小型章标使用保守百分比宽度并加 `max-width`：约 `35%`；空间充足且已复测时，可用增强类到约 `40%`。
+- 小型章标使用保守百分比宽度并加 `max-width`；具体取值与增强类上限见 [章节头图 how-to](../how-to/chapter-head-image.md)，属书级调参。
 - 满栏横幅头图可使用 `width:100%; max-width:100%`，只铺满正文内容栏，不要求突破阅读器页边距。
 - 内层图片使用 `height:auto`；横幅高度由源图宽高比控制。不固定高度，不使用 `vh/vw`、absolute positioning 或大段顶部空白模拟固定页。
 - 如果章首需要强视觉首屏、背景图或大面积叠字，应改走 A-lite 海报方案；不要把普通章节头图扩大成伪固定版式。
@@ -217,6 +238,7 @@
 - 若 `.note-box` 容器视觉继续增长并让 `effects.css` 超过 400 行，优先拆出 `decoration.css` 承载便签/资料卡边框阴影；`effects.css` 保留文字效果。超过 500 行必须拆分。
 - OPF manifest 必须分别声明所有存在于 `Styles/` 的 CSS 文件。
 - `html`、普通 `body`、`body.fullpage`、普通标题、图注和引用不设置页面级 `color` / `background` / `background-color`，避免覆盖阅读器夜间模式、护眼模式和用户主题；局部组件可保留必要的边框、阴影和背景装饰。
+- 自动 gate：`epub run epub.package.nav.audit` 对 `html` / `:root` / `*` / 普通 `body`（含带类名的 body）声明固定的 `color` / `background` / `background-color` 报 warn（`css-page-color-lock`，人工判断后改为继承或说明理由）；值为 `inherit` / `transparent` / `none` / `initial` / `unset` / `currentcolor` 不报；主体复合选择器含 `.poster-*` 类（A-lite 背景 modifier）豁免，`body.fullpage` 本身不豁免。存量书常见，只报告不改书。
 - 单文件 400 行预警、500 行硬上限；超过 500 行必须按职责拆分或迁入已有正确层。
 - 跨层依赖通过类名契约，不允许下层文件引用上层组件类。
 
@@ -340,6 +362,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | 封面红线 | `epub redline --check cover before.epub after.epub` | 退出码 0 |
 | 全量红线 | `epub redline --check all before.epub after.epub` | 退出码 0 |
 | 阅读器字号缩放 | `epub run epub.package.nav.audit --input after.epub --json` | 无 `css-root-font-size` error；`css-fixed-font-size` warn 已修改或说明（§5.5.1） |
+| 页面级配色锁定 | `epub run epub.package.nav.audit --input after.epub --json` | `css-page-color-lock` warn 已修改或说明理由（§7） |
 
 上表适用于普通清洗。进入 §10.1.1 后，正文变化由已核验的决策 artifact 负责证明；其余红线仍必须逐项通过，不得声称“全量红线通过”。
 
