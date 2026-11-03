@@ -10,7 +10,7 @@
 sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
 ```
 
-按 `preset.json` 的 `layers` 顺序，把除 `fonts.css` 外的各层追加到新书 `design.css`，文件头注明“起点：preset <name> @ <手册提交>”。`fonts.css` 不复制：字体走 `fonts.json` 与共享字体库流程。不带 `--from-preset` 时行为不变。复制后在书级 `制作说明.md` 记下选用的预设，视觉不满意就直接改 `design.css`。
+按 `preset.json` 的 `layers` 顺序，把除 `fonts.css`、`notes.css` 外的各层追加到新书 `design.css`，文件头注明“起点：preset <name> @ <手册提交>”。`notes.css` 单独复制为新书的 `Styles/notes.css`，并自动加入 OPF 与各章 link（base → notes → design）。`fonts.css` 不复制：字体走 `fonts.json` 与共享字体库流程。不带 `--from-preset` 时行为不变。复制后在书级 `制作说明.md` 记下选用的预设，视觉不满意就直接改 `design.css`。
 
 预设选择器面向本仓 class 体系（`.font-st`、`.chapter-head`、`.parallel-float-pair` 等），新书正文需用这些类名才会生效。
 

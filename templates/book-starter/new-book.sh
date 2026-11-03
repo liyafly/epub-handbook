@@ -7,6 +7,7 @@ usage() {
 }
 
 PRESET=""
+PRESET_NOTES=0
 case "$#" in
 	1) ;;
 	3)
@@ -74,18 +75,20 @@ EPUB_DIR="$TMP/03 制作工作区/epub"
 cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" "$EPUB_DIR/"
 
 if [ -n "$PRESET" ]; then
-	# Starting point only: append the preset layers (except fonts.css) to design.css.
-	# Fonts go through fonts.json; the copied CSS is then owned and edited by the book.
+	# Starting point only: append the preset layers (except fonts.css and notes.css)
+	# to design.css. Fonts go through fonts.json; notes.css stays its own layer
+	# (SPEC §7). The copied CSS is then owned and edited by the book.
 	COMMIT=$(git -C "$TEMPLATE_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 	DESIGN="$EPUB_DIR/OEBPS/Styles/design.css"
 	{
-		printf '\n/* 起点：preset %s @ %s，可自由修改；不再与 preset 同步。\n * 已略过 fonts.css，字体走 fonts.json 流程。 */\n' "$PRESET" "$COMMIT"
+		printf '\n/* 起点：preset %s @ %s，可自由修改；不再与 preset 同步。\n * 已略过 fonts.css（字体走 fonts.json 流程）与 notes.css（单独成层）。 */\n' "$PRESET" "$COMMIT"
 		tr -d '\n' <"$PRESET_DIR/preset.json" |
 			sed -n 's/.*"layers"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' |
 			tr ',' '\n' | sed 's/[[:space:]"]//g' |
 			while IFS= read -r layer; do
 				[ -n "$layer" ] || continue
 				[ "$layer" = "fonts.css" ] && continue
+				[ "$layer" = "notes.css" ] && continue
 				if [ ! -f "$PRESET_DIR/Styles/$layer" ]; then
 					echo "Preset layer missing: $layer" >&2
 					exit 1
@@ -94,6 +97,25 @@ if [ -n "$PRESET" ]; then
 				grep -v '^@charset' "$PRESET_DIR/Styles/$layer" || true
 			done
 	} >>"$DESIGN"
+	# Standard popup notes keep their own layer: base.css -> notes.css -> design.css.
+	if tr -d '\n' <"$PRESET_DIR/preset.json" | grep -q '"notes\.css"'; then
+		if [ ! -f "$PRESET_DIR/Styles/notes.css" ]; then
+			echo "Preset layer missing: notes.css" >&2
+			exit 1
+		fi
+		{
+			printf '@charset "utf-8";\n/* 起点：preset %s @ %s 的 notes.css，可自由修改。 */\n' "$PRESET" "$COMMIT"
+			grep -v '^@charset' "$PRESET_DIR/Styles/notes.css" || true
+		} >"$EPUB_DIR/OEBPS/Styles/notes.css"
+		OPF="$EPUB_DIR/OEBPS/package.opf"
+		awk '{ print } /id="css-base"/ { print "    <item id=\"css-notes\"   href=\"Styles/notes.css\"       media-type=\"text/css\"/>" }' \
+			"$OPF" >"$OPF.tmp" && mv "$OPF.tmp" "$OPF"
+		for xhtml in "$EPUB_DIR"/OEBPS/Text/*.xhtml; do
+			awk '{ print } /href="\.\.\/Styles\/base\.css"/ { print "  <link rel=\"stylesheet\" type=\"text/css\" href=\"../Styles/notes.css\"/>" }' \
+				"$xhtml" >"$xhtml.tmp" && mv "$xhtml.tmp" "$xhtml"
+		done
+		PRESET_NOTES=1
+	fi
 fi
 cat >"$TMP/build.sh" <<'EOF'
 #!/bin/sh
@@ -168,4 +190,6 @@ printf 'Build: sh "%s/build.sh"\n' "$DESTINATION"
 printf 'Git:   git -C "%s" status --short\n' "$DESTINATION"
 if [ -n "$PRESET" ]; then
 	printf 'Preset %s copied into design.css (fonts.css skipped; configure fonts via fonts.json). Record it in 制作说明.md.\n' "$PRESET"
+	[ "$PRESET_NOTES" -eq 1 ] && printf 'Preset notes.css copied as its own layer (Styles/notes.css, linked after base.css).\n'
+	true
 fi
