@@ -1,12 +1,36 @@
 #!/usr/bin/env sh
 set -eu
 
-if [ "$#" -ne 1 ]; then
-	echo "Usage: sh templates/book-starter/new-book.sh <book-directory>" >&2
+usage() {
+	echo "Usage: sh templates/book-starter/new-book.sh <book-directory> [--from-preset <name>]" >&2
 	exit 2
-fi
+}
+
+PRESET=""
+case "$#" in
+	1) ;;
+	3)
+		[ "$2" = "--from-preset" ] || usage
+		PRESET=$3
+		;;
+	*) usage ;;
+esac
 
 TEMPLATE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PRESET_DIR=""
+if [ -n "$PRESET" ]; then
+	case "$PRESET" in
+		*[!A-Za-z0-9_-]*|"")
+			echo "Invalid preset name: $PRESET" >&2
+			exit 2
+			;;
+	esac
+	PRESET_DIR="$TEMPLATE_DIR/../style-presets/$PRESET"
+	if [ ! -f "$PRESET_DIR/preset.json" ]; then
+		echo "Unknown preset: $PRESET (see templates/style-presets/)" >&2
+		exit 2
+	fi
+fi
 DESTINATION=$1
 case "$DESTINATION" in
 	/*) ;;
@@ -48,6 +72,29 @@ for section in 参考 正文校订 版式 历史; do
 done
 EPUB_DIR="$TMP/03 制作工作区/epub"
 cp -R "$TEMPLATE_DIR/mimetype" "$TEMPLATE_DIR/META-INF" "$TEMPLATE_DIR/OEBPS" "$EPUB_DIR/"
+
+if [ -n "$PRESET" ]; then
+	# Starting point only: append the preset layers (except fonts.css) to design.css.
+	# Fonts go through fonts.json; the copied CSS is then owned and edited by the book.
+	COMMIT=$(git -C "$TEMPLATE_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
+	DESIGN="$EPUB_DIR/OEBPS/Styles/design.css"
+	{
+		printf '\n/* 起点：preset %s @ %s，可自由修改；不再与 preset 同步。\n * 已略过 fonts.css，字体走 fonts.json 流程。 */\n' "$PRESET" "$COMMIT"
+		tr -d '\n' <"$PRESET_DIR/preset.json" |
+			sed -n 's/.*"layers"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' |
+			tr ',' '\n' | sed 's/[[:space:]"]//g' |
+			while IFS= read -r layer; do
+				[ -n "$layer" ] || continue
+				[ "$layer" = "fonts.css" ] && continue
+				if [ ! -f "$PRESET_DIR/Styles/$layer" ]; then
+					echo "Preset layer missing: $layer" >&2
+					exit 1
+				fi
+				printf '\n/* preset %s: %s */\n' "$PRESET" "$layer"
+				grep -v '^@charset' "$PRESET_DIR/Styles/$layer" || true
+			done
+	} >>"$DESIGN"
+fi
 cat >"$TMP/build.sh" <<'EOF'
 #!/bin/sh
 exec sh "${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh" "$(dirname "$0")" "$@"
@@ -119,3 +166,6 @@ printf 'Created book workspace: %s\n' "$DESTINATION"
 printf 'Edit: %s\n' "$DESTINATION/03 制作工作区/epub/OEBPS/"
 printf 'Build: sh "%s/build.sh"\n' "$DESTINATION"
 printf 'Git:   git -C "%s" status --short\n' "$DESTINATION"
+if [ -n "$PRESET" ]; then
+	printf 'Preset %s copied into design.css (fonts.css skipped; configure fonts via fonts.json). Record it in 制作说明.md.\n' "$PRESET"
+fi

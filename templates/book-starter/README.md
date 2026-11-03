@@ -4,7 +4,7 @@
 
 构建器默认把 `$HOME/.local/bin` 追加到工具搜索路径，支持 `uv tool install` 的默认安装位置，调用者 PATH 中的工具优先；`EPUB_LOCAL_BIN=<目录>` 可指定位置，显式设空可保留调用者原始 PATH（隔离环境或检查工具缺失时使用）。
 
-默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并同步制作说明中的“使用的配方”；每条配方的证据范围以其说明为准。需要嵌入字体时另加 `fonts.css`、OPF 声明及 XHTML link，置于 base 之前；标准弹注继续用 `notes.css`。已有多层书无需合并。六套整书预设只作起点样例。
+默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并同步制作说明中的“使用的配方”；每条配方的证据范围以其说明为准。需要嵌入字体时另加 `fonts.css`、OPF 声明及 XHTML link，置于 base 之前；标准弹注继续用 `notes.css`。已有多层书无需合并。想以某个书型为起点，建书时加 `--from-preset <name>`（`new-book.sh <书目录> --from-preset literary-cn`），把预设除 `fonts.css` 外的各层复制进 `design.css` 后自由修改。
 
 - `sh build.sh`：注入锁定字体、子集化、独立覆盖检查、导航审计与全项 redline，通过后更新 dist、收据与 `交付记录.tsv`。
 - `sh build.sh fonts`：将库中完整字体注入源树供编辑器预览；库字体路径 Git 忽略，子集字体仍跟踪。

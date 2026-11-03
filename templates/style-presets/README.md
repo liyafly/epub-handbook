@@ -1,44 +1,28 @@
 # EPUB 风格预设
 
-六套风格预设是书型的起点样例，按需修改；组合效果优先查 [配方目录](../recipes/README.md)。starter 不默认套用整书预设。每个预设只提供
-`Styles/` CSS、OPF stylesheet 声明和 XHTML `<head>` link，不改正文文本或结构。
+六套预设是**新书起点**，不是给已有书注入的整书主题。新书想从某个书型开始时，建书时复制一份进书级 `design.css`，之后当作本书自己的 CSS 自由修改，不再与预设同步。组合效果优先查[配方目录](../recipes/README.md)。预设只提供 `Styles/` CSS、`preset.json` 的层顺序和说明，不改正文文本或结构。
 
-## 使用前提
+预设即本目录下的六个目录：`plain-cn` / `literary-cn` / `academic-cn` / `classical-annotated-cn` / `poetry-cn` / `fiction-en`。
 
-预设选择器面向本仓 class 体系，例如 `.font-st`、`.chapter-head`、
-`.parallel-float-pair`。先以 `--dry-run` 运行 `epub run epub.typography.optimize`
-查看 `coverage`；低于 30% 表示原书尚未迁入该体系，应先走 cleanup pipeline。
-低 coverage 不是错误，但直接应用很可能静默无效。
-
-预设即 `templates/style-presets/` 下的六个目录（`plain-cn` / `literary-cn` / `academic-cn` /
-`classical-annotated-cn` / `poetry-cn` / `fiction-en`）：
+## 新书起点用法
 
 ```sh
-epub run epub.typography.optimize \
-  --input input.epub \
-  --output output.epub \
-  --json --dry-run \
-  preset=literary-cn
+sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
 ```
 
-确认 dry-run 报告后去掉 `--dry-run` 实跑；自定义预设根目录用 `preset_dir=<路径>` 传入。
+按 `preset.json` 的 `layers` 顺序，把除 `fonts.css` 外的各层追加到新书 `design.css`，文件头注明“起点：preset <name> @ <手册提交>”。`fonts.css` 不复制：字体走 `fonts.json` 与共享字体库流程。不带 `--from-preset` 时行为不变。复制后在书级 `制作说明.md` 记下选用的预设，视觉不满意就直接改 `design.css`。
 
-整书应用保留已有 `Styles/fonts.css` 原始字节和 OPF 字体元数据，保持原书自由／锁定
-模式；没有该层的自由版才安装预设字体层。正文链与元数据冲突、正文链散落在其他
-样式层，或存在需要人工判断的导入／动态／内联正文链时会拒绝处理。报告中的
-`fontMode`、`fontModeAction=preserve` 和字体层 `action=keep` 可用于核对。
-这不会验证全部 CSS 级联或字体覆盖，也不代替局部样例与阅读器验收。
+预设选择器面向本仓 class 体系（`.font-st`、`.chapter-head`、`.parallel-float-pair` 等），新书正文需用这些类名才会生效。
 
-自定义预设限 1–32 个不重复层：JSON 至多 1 MiB，单层 CSS 至多 4 MiB，
-CSS 合计至多 16 MiB；所有输入必须是普通文件。
+## 存量兼容
 
-可在仓库内或发行二进制目录外搜索内置预设：
+已用 `epub.typography.optimize preset=<name>` 注入过预设的书可继续用该能力维护；新工作不再使用它，也不给没有预设层的已有书注入预设。能力本身本轮保留。存量书维护时的注意点：
 
 ```sh
-epub run epub.style.demo.maintain catalog=true collection=presets query=academic
+epub run epub.typography.optimize --input input.epub --output output.epub --json --dry-run preset=literary-cn
 ```
 
-目录结果来自 preset.json，列出说明、CSS 层和资源来源；`readerStatus=not-verified` 表示尚无对应阅读器实测。它只帮助发现选项，不会验证或应用预设。
+先看 dry-run 的 `coverage`（低于 30% 表示原书尚未迁入该体系，直接应用很可能静默无效）。整书应用保留已有 `Styles/fonts.css` 原始字节和 OPF 字体元数据，保持原书自由／锁定模式；正文链与元数据冲突、散落在其他样式层或存在需人工判断的导入／动态／内联正文链时会拒绝处理。自定义预设根目录用 `preset_dir=<路径>`，限 1–32 个不重复层，JSON 至多 1 MiB、单层 CSS 至多 4 MiB、合计至多 16 MiB，输入必须是普通文件。可用 `epub run epub.style.demo.maintain catalog=true collection=presets query=academic` 搜索预设目录（只列出，不验证、不应用）。
 
 预设遵守 `docs/final/SPEC-实现约束.md` §7 的 CSS 分层和加载顺序。新增预设时：
 
