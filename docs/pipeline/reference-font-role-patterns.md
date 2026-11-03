@@ -84,15 +84,11 @@ epub run epub.package.nav.audit --input input.epub --json
 
 样本包里有 `.ttf`，不代表它们可以复制到新书、demo 或仓库。分析只借鉴角色分工。需要嵌入字体时，单独核对授权和 OPF manifest。
 
-## 4. 通过 typography capability 应用角色样式
+## 4. 在书级 CSS 中实现角色样式
 
-EPUB3 迁移不会注入 CSS 或创建文本角色。确认需要角色样式后，单独运行 `epub.typography.optimize`，选择预设并限定作用范围：
+EPUB3 迁移不会注入 CSS 或创建文本角色。样式预设（`templates/style-presets/`）也不再注入已有书，只作为新书起点：建书时用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`。已含 `epub-preset-*.css`（旧版 `epub.typography.optimize` 生成）的书，该 CSS 已属本书，直接编辑，无需工具维护。
 
-```sh
-epub run epub.typography.optimize --input before.epub --output candidate.epub --dry-run --json preset=literary-cn 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
-```
-
-`.type-*` 是书级自定义角色类，不由仓库内置预设提供；采用这些类时，需在书内 CSS 中人工实现。内置预设只提供自身的样式规则，不会自动猜测正文语义，也不会把任意 `<b>` 改成 `.type-emphasis` 或把任意 `.cp` 认定为版权信息。示例中的 `scope_paths` 精确限定到一个 spine XHTML 文件；逐类分派仍需人工 diff review。
+`.type-*` 是书级自定义角色类，不由仓库内置预设提供；采用这些类时，需在书内 CSS 中人工实现。内置预设只提供自身的样式规则，不会自动猜测正文语义，也不会把任意 `<b>` 改成 `.type-emphasis` 或把任意 `.cp` 认定为版权信息。逐类分派须人工 diff review。
 
 建议顺序：
 

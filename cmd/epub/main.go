@@ -309,9 +309,6 @@ func printCapabilitySummary(outcome pipeline.Outcome) {
 	if env.Capability == "epub.style.demo.maintain" && factString(env.Facts, "epub.style.demo.maintain.mode") == "catalog" {
 		printStyleCatalog(env.Facts)
 	}
-	if env.Capability == "epub.typography.optimize" {
-		printTypographySummary(env.Facts)
-	}
 	for _, f := range env.Findings {
 		fmt.Printf("[%s] %s\n", f.Level, f.Title)
 	}
@@ -360,72 +357,6 @@ func printStyleCatalog(facts map[string]any) {
 	}
 }
 
-func printTypographySummary(facts map[string]any) {
-	prefix := "epub.typography.optimize."
-	if preset := factString(facts, prefix+"preset"); preset != "" {
-		fmt.Printf("preset:     %s\n", preset)
-	}
-	mode := factString(facts, prefix+"applicationMode")
-	if mode == "" {
-		mode = "whole-book"
-	}
-	scopeFileCount := factInt(facts, prefix+"scopeFileCount")
-	if scopeFileCount == 0 {
-		scopeFileCount = factInt(facts, prefix+"xhtmlLinks")
-	}
-	fileWord := "files"
-	if scopeFileCount == 1 {
-		fileWord = "file"
-	}
-	fmt.Printf("scope:      %s (%d XHTML %s)\n", mode, scopeFileCount, fileWord)
-	var actions []struct {
-		Action string `json:"action"`
-	}
-	if decodeFact(facts[prefix+"stylesheetActions"], &actions) {
-		counts := map[string]int{}
-		for _, action := range actions {
-			counts[action.Action]++
-		}
-		fmt.Printf("stylesheets: add=%d replace=%d keep=%d\n", counts["add"], counts["replace"], counts["keep"])
-	}
-	var coverage struct {
-		Ratio        float64  `json:"ratio"`
-		Uncovered    []string `json:"uncoveredClasses"`
-		Used         []string `json:"usedClasses"`
-		Insufficient bool     `json:"insufficientToDetermineApplicability"`
-		Warning      string   `json:"warning"`
-	}
-	if decodeFact(facts[prefix+"coverage"], &coverage) {
-		basis := factString(facts, prefix+"coverageBasis")
-		if basis == "" {
-			basis = "class-token"
-		}
-		if coverage.Insufficient || len(coverage.Used) == 0 {
-			fmt.Printf("%s coverage: insufficient class tokens to determine applicability\n", basis)
-		} else {
-			fmt.Printf("%s coverage: %.0f%%", basis, coverage.Ratio*100)
-			if len(coverage.Uncovered) > 0 {
-				shown := coverage.Uncovered
-				if len(shown) > 20 {
-					shown = shown[:20]
-				}
-				fmt.Printf("; uncovered: %s", strings.Join(shown, ", "))
-				if len(coverage.Uncovered) > len(shown) {
-					fmt.Printf(" (+%d more)", len(coverage.Uncovered)-len(shown))
-				}
-			}
-			fmt.Println()
-		}
-		if coverage.Warning != "" {
-			fmt.Printf("warning: %s\n", coverage.Warning)
-		}
-		fmt.Printf("coverage basis: %s; this counts class attributes and does not measure CSS cascade or visual compatibility.\n", basis)
-	}
-	if factString(facts, prefix+"fontModeAction") == "preserve" {
-		fmt.Printf("font mode:  %s (preserved)\n", factString(facts, prefix+"fontMode"))
-	}
-}
-
 func decodeFact(value any, target any) bool {
 	if value == nil {
 		return false
@@ -437,19 +368,6 @@ func decodeFact(value any, target any) bool {
 func factString(facts map[string]any, key string) string {
 	value, _ := facts[key].(string)
 	return value
-}
-
-func factInt(facts map[string]any, key string) int {
-	switch value := facts[key].(type) {
-	case int:
-		return value
-	case int64:
-		return int(value)
-	case float64:
-		return int(value)
-	default:
-		return 0
-	}
 }
 
 // rejectDuplicatePathFlags catches ambiguous input/output choices before the

@@ -34,7 +34,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 - `epub.package.migrate.epub3` 迁移后依次跑 `epub.notes.popup.normalize`、nav audit、全项红线。
 - `epub.notes.popup.normalize` 只读校验，不转换 plain/Sigil 旧尾注；转换旧尾注须先取得正文修改授权，走正文校订流程。
 - `epub.font.subset` 调独立 `epub-font` provider；缺失、目标字体混淆、母版不匹配或验证失败时停止且不写候选。`fonts.json` 顶层 `"usage": "css"` 仅在样式表简单且明确要按角色缩小字符集时设置；不确定时删除，用全书模式。构建流程见[工作区指南](../../docs/pipeline/book-workspace.md)。
-- `epub.typography.optimize preset=...` 是**存量兼容路径**：已用 preset 的书可继续维护，新工作不再使用，也不给已有书注入 preset。新书若要参考 preset，用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`；已有书的排版增强走配方（[templates/recipes](../../templates/recipes/README.md)）与书级设计。维护存量书时，字体资源/链变化后另跑 `epub.font.coverage.analyze`。
+- preset 是新书起点：用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`，不注入已有书。已含 `epub-preset-*.css` 的书，该 CSS 已属本书，直接编辑；已有书的排版增强走配方（[templates/recipes](../../templates/recipes/README.md)）与书级设计。字体资源/链变化后另跑 `epub.font.coverage.analyze`。
 
 ## 返回怎么读
 
@@ -43,7 +43,6 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 - `epub.structure.normalize.mappings[]` 是后续红线的路径映射；把完整 normalize 信封作为 `--path-map`，不要手抄。
 - `epub.package.migrate.epub3`：输入/输出 SHA 在信封 input/output，不在 facts。
 - `epub.css.layering.optimize`：`semanticFactoringDisabled=true`、`scopedMergeDisabled=true`、`duplicateDeduplication=disabled` 是当前策略；旧拆分/去重计数键保留但为 0，不代表功能可用。
-- `epub.typography.optimize`：**`coverage` 是 preset 类覆盖率，不是字形覆盖率**；`typography.low-coverage` 表示结构与 preset 不匹配。
 - `epub.font.subset`：`changedFonts` 是已替换字节的字体路径，`providerReport` 含输入/输出 SHA 与逐字体统计。`font-subset.usage-fallback` 表示 CSS 角色范围被保守扩大；`font-subset.not-in-master` 是缺字警告，确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误；`font-subset.stale-input` 须先对未修改的源 EPUB 子集化再做其他改书步骤。
 - `epub.notes.popup.normalize`：`violations` 与 `error popupnotes` 的 title/location 给出文件和问题。迁移报告的 `duokanNotesNormalized/warnings` 只表示处理结果，不证明所有原注释合规。
 

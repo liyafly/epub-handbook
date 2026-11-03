@@ -34,7 +34,6 @@ import (
 	splitcap "github.com/liyafly/epub-handbook/internal/caps/split"
 	structurenormalize "github.com/liyafly/epub-handbook/internal/caps/structure_normalize"
 	styledemo "github.com/liyafly/epub-handbook/internal/caps/styledemo"
-	typographycap "github.com/liyafly/epub-handbook/internal/caps/typography"
 	verticalruby "github.com/liyafly/epub-handbook/internal/caps/vertical_ruby"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
@@ -278,33 +277,6 @@ func init() {
 	register("epub.css.layering.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return csscleanup.Run(ctx, b, csscleanup.Params{
 			Output: args.Get("output"),
-		})
-	})
-	register("epub.typography.optimize", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
-		scope, err := parseScopePaths(args)
-		if err != nil {
-			return report.Result{}, err
-		}
-		preset := args.Get("preset")
-		if preset == "" {
-			preset = "literary-cn"
-		}
-		var presetFS fs.FS
-		if args.Bool(embeddedPresetsArg) {
-			var err error
-			presetFS, err = fs.Sub(epubhandbook.EmbeddedFS(), typographycap.DefaultPresetsDir)
-			if err != nil {
-				return report.Result{}, fmt.Errorf("open embedded typography presets: %w", err)
-			}
-		}
-		return typographycap.Run(ctx, b, typographycap.Params{
-			Preset:     preset,
-			PresetDir:  args.Get("preset_dir"),
-			PresetFS:   presetFS,
-			Output:     args.Get("output"),
-			DryRun:     args.Bool("dry_run"),
-			ScopePaths: scope,
-			PresetMode: args.Get("preset_mode"),
 		})
 	})
 	register("epub.package.merge", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

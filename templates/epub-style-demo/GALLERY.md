@@ -4,19 +4,14 @@
 
 ## 怎样试一页
 
-先用 catalog 找到来源页，再打开下表链接核对 XHTML 结构和 CSS。局部预览以同一个 frozen EPUB 为输入，输出到新的候选路径：
+先用 catalog 找到来源页，再打开下表链接核对 XHTML 结构和 CSS。要在自己的书里采用某个配方，把配方 CSS 手工并入书级 CSS；新书可用预设作起点：
 
 ```sh
 epub run epub.style.demo.maintain catalog=true query=poetry
-epub capabilities --id epub.typography.optimize
-
-epub run epub.typography.optimize --input "$BASE" --output "$CANDIDATE" --dry-run --json \
-  preset=poetry-cn 'scope_paths=["OEBPS/Text/29-poetry.xhtml"]'
+sh templates/book-starter/new-book.sh work-epub/<book> --from-preset poetry-cn
 ```
 
-确认 dry-run 报告中的目标文件、CSS 动作和字体模式后，再对相同 `$BASE` 与新路径实跑；运行全项 redline、导航审计和人工 diff review。局部预设只向选中的 spine 页追加独立 CSS，不改正文或共享样式。诗歌、书信、对白等角色 class 必须已存在；预设不会自动把普通段落转换成角色结构。
-
-此命令是通用示意，`$BASE` 必须是冻结过的 demo EPUB，`$CANDIDATE` 必须是不存在的新路径。页面专用限制见各配方。静态结构检查、候选红线和真实阅读器显示分别记录；新页面的字号、窄屏、主题和分页仍待按矩阵实测。
+改动后运行全项 redline、导航审计和人工 diff review。诗歌、书信、对白等角色 class 必须已存在于正文；预设和配方不会自动把普通段落转换成角色结构。页面专用限制见各配方。静态结构检查、候选红线和真实阅读器显示分别记录；新页面的字号、窄屏、主题和分页仍待按矩阵实测。
 
 ## 配方
 

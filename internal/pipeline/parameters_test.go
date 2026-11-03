@@ -43,7 +43,7 @@ func TestParameterCatalogCoversExactlyTheCapabilities(t *testing.T) {
 			}
 		}
 	}
-	filtered, err := DescribeCapabilities(root, "epub.typography.optimize")
+	filtered, err := DescribeCapabilities(root, "epub.vertical.ruby.optimize")
 	if err != nil || len(filtered) != 1 || filtered[0].Parameters["scope_paths"].Type != "json-string-array" {
 		t.Fatalf("filtered=%v err=%v", filtered, err)
 	}
@@ -97,8 +97,8 @@ func TestParameterCatalogMatchesQ21Selections(t *testing.T) {
 }
 
 func TestInvalidParametersFailBeforeInputAccess(t *testing.T) {
-	for _, args := range []Args{{"presett": "literary-cn"}, {"scope_paths": "[]"}, {"scope_paths": "null"}, {"scope_paths": "[1]"}, {"allow_font_obfuscation": "tru"}, {"preset_mode": "invalid"}} {
-		out, err := Run(t.Context(), Options{CapabilityID: "epub.typography.optimize", InputPath: "must-not-open.epub", DryRun: true, Args: args})
+	for _, args := range []Args{{"langg": "en-GB"}, {"scope_paths": "[]"}, {"scope_paths": "null"}, {"scope_paths": "[1]"}, {"allow_font_obfuscation": "tru"}} {
+		out, err := Run(t.Context(), Options{CapabilityID: "epub.typography.english.optimize", InputPath: "must-not-open.epub", DryRun: true, Args: args})
 		if err == nil || out.ExitCode != ExitUsage || strings.Contains(err.Error(), "input not found") {
 			t.Fatalf("args=%v exit=%d err=%v", args, out.ExitCode, err)
 		}
@@ -106,11 +106,11 @@ func TestInvalidParametersFailBeforeInputAccess(t *testing.T) {
 }
 
 func TestPreviewNextCommandPreservesScopeAndQuotes(t *testing.T) {
-	c := Contract{ID: "epub.typography.optimize"}
+	c := Contract{ID: "epub.typography.english.optimize"}
 	c.Execution.Output = ExecOutputSingle
-	opts := Options{DryRun: true, InputPath: "books/O'Brien $(ignored).epub", OutputPath: "my candidate.epub", Args: Args{"preset": "academic-cn", "scope_paths": `["OPS/Text/a.xhtml"]`}}
+	opts := Options{DryRun: true, InputPath: "books/O'Brien $(ignored).epub", OutputPath: "my candidate.epub", Args: Args{"lang": "en-GB", "scope_paths": `["OPS/Text/a.xhtml"]`}}
 	got := nextCommands(c, opts, opts.Args, true)
-	want := `epub run epub.typography.optimize --input 'books/O'"'"'Brien $(ignored).epub' --output 'my candidate.epub' --json preset=academic-cn 'scope_paths=["OPS/Text/a.xhtml"]'`
+	want := `epub run epub.typography.english.optimize --input 'books/O'"'"'Brien $(ignored).epub' --output 'my candidate.epub' --json lang=en-GB 'scope_paths=["OPS/Text/a.xhtml"]'`
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("next command loses or expands scope: %q", got)
 	}

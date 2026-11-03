@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Removed
+
+- 删除 `epub.typography.optimize`（契约、`cli.json` 参数、`internal/caps/typography`、流水线注册、测试与 golden、CI 里的预设候选步骤）。样式预设不再注入已有书，只作新书起点：`templates/book-starter/new-book.sh <dir> --from-preset <name>` 一次性复制进书级 CSS。已含该能力生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 归本书所有，直接编辑，不再有工具维护。capability 总数 22 → 21；`epub.typography.english.optimize` 不受影响。内嵌资源不再打包 `templates/style-presets/*/Styles/*.css`，预设目录 catalog 只读 `preset.json`。
+
 ### Changed
 
 - 弹注标准结构改为 `aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item[epub:type="footnote"][role="doc-footnote"]`：`footnote` 只标单条注释，不再标在整组容器上（旧写法会让部分阅读器点一条注释弹出整组）。`epub.notes.popup.normalize` 按新结构校验；旧 grouped 结构在非多看场景给出 `popupnotes.legacy-container` warn，多看 fallback 暂时继续使用旧结构，`epub.notes.legacy-fallback` 遇到标准结构报 `notes-fallback.no-grouped-list`。SPEC §1、手册、速查表、skills、demo 02 和 cleanup demo 目标已同步更新。

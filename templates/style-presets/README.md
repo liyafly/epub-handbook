@@ -14,22 +14,16 @@ sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
 
 预设选择器面向本仓 class 体系（`.font-st`、`.chapter-head`、`.parallel-float-pair` 等），新书正文需用这些类名才会生效。
 
-## 存量兼容
+## 与已有书的关系
 
-已用 `epub.typography.optimize preset=<name>` 注入过预设的书可继续用该能力维护；新工作不再使用它，也不给没有预设层的已有书注入预设。能力本身本轮保留。存量书维护时的注意点：
-
-```sh
-epub run epub.typography.optimize --input input.epub --output output.epub --json --dry-run preset=literary-cn
-```
-
-先看 dry-run 的 `coverage`（低于 30% 表示原书尚未迁入该体系，直接应用很可能静默无效）。整书应用保留已有 `Styles/fonts.css` 原始字节和 OPF 字体元数据，保持原书自由／锁定模式；正文链与元数据冲突、散落在其他样式层或存在需人工判断的导入／动态／内联正文链时会拒绝处理。自定义预设根目录用 `preset_dir=<路径>`，限 1–32 个不重复层，JSON 至多 1 MiB、单层 CSS 至多 4 MiB、合计至多 16 MiB，输入必须是普通文件。可用 `epub run epub.style.demo.maintain catalog=true collection=presets query=academic` 搜索预设目录（只列出，不验证、不应用）。
+预设不会被注入已有书，也没有对应的工具。已含旧版 `epub.typography.optimize` 生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 已属本书，直接编辑即可。可用 `epub run epub.style.demo.maintain catalog=true collection=presets query=academic` 搜索预设目录（只列出，不验证、不应用）。
 
 预设遵守 `docs/final/SPEC-实现约束.md` §7 的 CSS 分层和加载顺序。新增预设时：
 
 1. 建立 `<name>/preset.json`、`README.md` 和 `Styles/`。
 2. `preset.json` 的 `layers` 按 `fonts.css`、`base.css`、其余场景层排序。
 3. 单 CSS 文件不超过 400 行；不得在页面级设置颜色或背景。
-4. 用 `epub run epub.typography.optimize` 的 `--dry-run` 验证新预设，再跑 `epub redline` 红线 gate 和 `epub run epub.notes.popup.normalize` 弹注校验。
+4. 用 `new-book.sh <dir> --from-preset <name>` 建一本临时书并运行其 `build.sh`，再跑 `epub redline` 红线 gate 和 `epub run epub.notes.popup.normalize` 弹注校验。
 
 > **实测状态**：这些预设的结构合规由自动化 validator 保证；视觉效果尚未经
 > `reader-matrix` 实测，应用后应标记为待实测，直到按阅读器实测闭环回写。

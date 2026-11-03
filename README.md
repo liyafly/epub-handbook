@@ -51,17 +51,15 @@ starter 默认 `base.css + design.css`；从 [效果配方](templates/recipes/RE
 
 先读 [AGENTS.md](AGENTS.md)。它是 AI 协作约束的唯一维护源，也是专业层的总路由。
 
-想找版式示例，先搜索真实 demo；想试改已有 EPUB，先做局部候选：
+想找版式示例，先搜索真实 demo；预设只作新书起点，建书时复制一次：
 
 ```sh
 epub run epub.style.demo.maintain catalog=true query=chapter
 epub run epub.style.demo.maintain catalog=true collection=presets query=academic
-epub capabilities --id epub.typography.optimize
-go run ./cmd/epub run epub.typography.optimize --input before.epub --output sample.epub --dry-run --json 'scope_paths=["OEBPS/Text/chapter.xhtml"]'
+sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
 ```
 
-`scope_paths` 应替换成实际 spine XHTML 路径。局部模式追加独立 CSS，保留原样式与其他章节；
-不传此参数是整书预设应用，保留已有字体层及自由／锁定模式；模式冲突会拒绝处理，
+预设不再注入已有书：`new-book.sh --from-preset` 把预设层复制进新书的书级 CSS，之后随书自由修改，
 详见[预设说明](templates/style-presets/README.md)。catalog 搜索会列出真实 XHTML 场景或内置预设；脱离仓库运行时，发行二进制使用随包资源。发现、候选生成和真实阅读器验收是三个不同阶段。
 
 | 能力 | 位置 |

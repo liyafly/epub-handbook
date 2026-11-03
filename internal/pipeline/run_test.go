@@ -25,55 +25,6 @@ func buildSampleEpub(t *testing.T) string {
 	return buildEpubWithOPF(t)
 }
 
-func buildTypographySampleEpub(t *testing.T) string {
-	t.Helper()
-	data := epubFixtureBytes(t)
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	zw := zip.NewWriter(&out)
-	for _, f := range zr.File {
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		content, readErr := io.ReadAll(rc)
-		closeErr := rc.Close()
-		if readErr != nil {
-			t.Fatal(readErr)
-		}
-		if closeErr != nil {
-			t.Fatal(closeErr)
-		}
-		if f.Name == "OEBPS/nav.xhtml" {
-			content = bytes.Replace(content, []byte("</head>"), []byte("\n</head>\n"), 1)
-			if !bytes.Contains(content, []byte("</head>")) {
-				t.Fatal("test fixture nav.xhtml needs a head section for typography")
-			}
-		} else if strings.HasSuffix(f.Name, ".xhtml") {
-			content = bytes.Replace(content, []byte("</head>"), []byte("\n</head>\n"), 1)
-		}
-		h := f.FileHeader
-		w, err := zw.CreateHeader(&h)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := w.Write(content); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(t.TempDir(), "typography.epub")
-	if err := os.WriteFile(path, out.Bytes(), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
 func TestRunNavAuditEndToEnd(t *testing.T) {
 	epub := buildSampleEpub(t)
 	outcome, err := Run(t.Context(), Options{
@@ -246,32 +197,6 @@ func rewritePipelineEpubEntry(t *testing.T, src, dst, entry string, fn func([]by
 	}
 }
 
-func TestTypographyDefaultPresetDirIsRepoRootRelative(t *testing.T) {
-	root, err := FindRepoRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
-	input := buildTypographySampleEpub(t)
-	output := filepath.Join(t.TempDir(), "candidate.epub")
-	t.Chdir(filepath.Join(root, "internal"))
-
-	outcome, err := Run(t.Context(), Options{
-		CapabilityID: "epub.typography.optimize",
-		InputPath:    input,
-		OutputPath:   output,
-		DryRun:       true,
-	})
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	if outcome.Envelope.Status != report.StatusPlanned || outcome.ExitCode != ExitOK {
-		t.Fatalf("status=%q exit=%d, want planned/0; findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
-	}
-	if len(outcome.Envelope.NextCommands) != 1 || strings.Contains(outcome.Envelope.NextCommands[0], "preset_dir=") {
-		t.Fatalf("nextCommands = %q, want a command without injected preset_dir", outcome.Envelope.NextCommands)
-	}
-}
-
 func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	t.Setenv("EPUB_HANDBOOK_ROOT", "")
 	root, err := FindRepoRoot()
@@ -293,8 +218,8 @@ func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DescribeCapabilities: %v", err)
 	}
-	if len(infos) != 22 {
-		t.Fatalf("embedded capability count = %d, want 22", len(infos))
+	if len(infos) != 21 {
+		t.Fatalf("embedded capability count = %d, want 21", len(infos))
 	}
 	if schema, err := readRepositoryFile("", "contracts/schemas/v2/envelope.schema.json"); err != nil || len(schema) == 0 {
 		t.Fatalf("embedded envelope schema: bytes=%d err=%v", len(schema), err)
@@ -407,25 +332,6 @@ func TestFontCoverageUsesPathProviderOutsideRepository(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(got), "coverage\n") || !strings.Contains(string(got), "--json\n") {
 		t.Fatalf("provider args = %q, want coverage subcommand and JSON output", got)
-	}
-}
-
-func TestTypographyUsesEmbeddedPresetOutsideRepository(t *testing.T) {
-	t.Setenv("EPUB_HANDBOOK_ROOT", "")
-	input := buildTypographySampleEpub(t)
-	output := filepath.Join(t.TempDir(), "candidate.epub")
-	t.Chdir(t.TempDir())
-	outcome, err := Run(t.Context(), Options{
-		CapabilityID: "epub.typography.optimize",
-		InputPath:    input,
-		OutputPath:   output,
-		DryRun:       true,
-	})
-	if err != nil {
-		t.Fatalf("Run with embedded preset: %v", err)
-	}
-	if outcome.ExitCode != ExitOK || outcome.Envelope.Status != report.StatusPlanned {
-		t.Fatalf("status=%q exit=%d findings=%+v", outcome.Envelope.Status, outcome.ExitCode, outcome.Envelope.Findings)
 	}
 }
 
@@ -651,8 +557,8 @@ func TestCapabilitiesListsContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contracts) != 22 {
-		t.Errorf("契约数 = %d, want 22", len(contracts))
+	if len(contracts) != 21 {
+		t.Errorf("契约数 = %d, want 21", len(contracts))
 	}
 	if !strings.Contains(ImplementedIDs()[0], "epub.") {
 		t.Errorf("registry id 形态异常: %v", ImplementedIDs())
@@ -722,7 +628,7 @@ func TestDryRunNextCommandDerivesOutputFromInput(t *testing.T) {
 		suffix     string
 	}{
 		{capability: "epub.structure.normalize", suffix: "structure-normalize"},
-		{capability: "epub.typography.optimize", suffix: "typography-optimize"},
+		{capability: "epub.typography.english.optimize", suffix: "typography-english-optimize"},
 	} {
 		contract := Contract{ID: tc.capability}
 		contract.Execution.Output = ExecOutputSingle
@@ -746,7 +652,6 @@ func TestDefaultOutputPathsAreDistinctAcrossWriteCapabilities(t *testing.T) {
 	}{
 		{capability: "epub.css.layering.optimize"},
 		{capability: "epub.vertical.ruby.optimize", args: Args{"op": "ruby-rp"}},
-		{capability: "epub.typography.optimize"},
 		{capability: "epub.typography.english.optimize"},
 	}
 	outputs := make(map[string]string, len(cases))

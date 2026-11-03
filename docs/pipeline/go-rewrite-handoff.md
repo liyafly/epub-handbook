@@ -6,7 +6,7 @@
 ## 当前状态（2026-09-30）
 
 - Go 单一公开 CLI 与 `internal/` 能力流水线是唯一执行面；`contracts/` 是机器契约来源，`tools-font/` 保留一个独立字体 provider。架构硬约束与守卫要求以 Go 架构 SPEC 为准。
-- contracts 与 registry 各有 22 个 capability：14 个输出型（13 个 single、1 个 multi）与 8 个只读型。`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用同一个 `tools-font/epub-font/` provider，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
+- contracts 与 registry 各有 21 个 capability：13 个输出型（12 个 single、1 个 multi）与 8 个只读型。`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用同一个 `tools-font/epub-font/` provider，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
 - 截至 2026-09-30，当前发布基线为 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。

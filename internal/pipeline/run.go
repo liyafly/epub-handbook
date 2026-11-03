@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
-	typographycap "github.com/liyafly/epub-handbook/internal/caps/typography"
 	"github.com/liyafly/epub-handbook/internal/redline"
 	"github.com/liyafly/epub-handbook/internal/report"
 )
@@ -307,15 +306,6 @@ func run(ctx context.Context, opts Options, sessionBook, stageInput *book.Book) 
 			runArgs[embeddedPresetsArg] = "true"
 		} else {
 			runArgs[presetCatalogDirArg] = filepath.Join(root, "templates", "style-presets")
-		}
-	}
-	if runArgs["preset_dir"] == "" && slices.ContainsFunc(chain, func(c Contract) bool {
-		return c.ID == typographycap.CapabilityID
-	}) {
-		if root == "" {
-			runArgs[embeddedPresetsArg] = "true"
-		} else {
-			runArgs["preset_dir"] = filepath.Join(root, typographycap.DefaultPresetsDir)
 		}
 	}
 	opts.Args = runArgs
