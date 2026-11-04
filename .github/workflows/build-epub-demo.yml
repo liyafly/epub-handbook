@@ -34,12 +34,12 @@ jobs:
         run: |
           npm install -g markdownlint-cli2@0.23.3
           markdownlint-cli2 --config .markdownlint-cli2.jsonc \
-            'README.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
+            'README.md' 'README.en.md' 'CONTRIBUTING.md' 'CHANGELOG.md' 'AGENTS.md' 'CLAUDE.md' \
             'THIRD_PARTY.md' 'contracts/**/*.md' \
             'records/**/*.md' 'references/**/*.md' 'hooks/**/*.md' \
             'tools-font/**/*.md' \
             'docs/README.md' \
-            'docs/final/**/*.md' 'docs/learn/**/*.md' \
+            'docs/final/**/*.md' 'docs/learn/**/*.md' 'docs/guide/**/*.md' \
             'docs/how-to/**/*.md' 'docs/pipeline/**/*.md' 'skills/**/*.md'
 
       - name: Reader matrix evidence guard

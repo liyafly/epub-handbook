@@ -1,137 +1,55 @@
 # epub-handbook
 
-中文 EPUB 3 制作、清洗与兼容性工具集。
+[English](README.en.md)
 
-如果你只是想做一本书、修一本现成 EPUB，或排查一个具体问题，从下面三条路里选一条即可。
+把你已有的 EPUB 排得更好看，并且在 Apple Books、Kindle 和 Reeden 上都能正常显示。`epub` 是一个命令行工具：它把书解包成可以编辑的文件夹，你改 CSS，它负责打包和检查。正文一个字都不能变，目录和注释要能用，字号要能调，检查都通过才输出成品。每本书的设计由你决定；工具负责不把书做坏、效果失败时能回退、按阅读器分别出版本。支持 macOS、Windows 和 Linux，只处理没有 DRM 的书。
 
-CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go build -o /tmp/epub ./cmd/epub` 后直接使用）。
-`epub capabilities --json` 列出全部能力；加 `--id <capability-id>` 可只看该能力的参数、默认值和执行形态。
-`epub run ... --json` 与 `epub redline --json` 返回统一 JSON 信封；`epub capabilities --json` 返回能力数组。退出码 0/1/2/3
-（0 成功；1 失败或存在 error 级发现；2 需人工批准；3 用法错误）。
+## 安装
 
-发行版中的 `epub.style.demo.maintain catalog=true` 可离线使用内嵌目录；`epub.style.demo.maintain --input <book.epub>` 需要仓库 checkout，或设置 `EPUB_HANDBOOK_ROOT` 指向仓库根目录。
-
-截至 2026-09-30，当前发布版本为 [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 二进制、安装说明及 `SHA256SUMS`。二进制内嵌 contracts、schemas 和 style presets，可在仓库目录之外运行。后续版本见 [GitHub Releases](https://github.com/liyafly/epub-handbook/releases)。
-
-## 我想……
-
-| 目标 | 最短入口 |
-| --- | --- |
-| 做一本新书 | [做一本书](docs/learn/做一本书.md) |
-| 修 / 清洗一本现成 EPUB | [运行清洗流程](#修一本现成-epub) |
-| 查目录、弹注、字体、图片等问题 | [新手必读的症状直达表](docs/learn/README.md#3-带着问题直接查) |
-
-### 做一本书
-
-推荐用 `epub book` 子命令（macOS / Linux / Windows 同一个二进制，不需要 sh 或 python）：
+**从源码构建**（需要 [Go](https://go.dev/dl/) 1.27 或更新版本）：
 
 ```sh
-go build -o epub ./cmd/epub
-./epub book new my-book --from-preset literary-cn   # 或 ./epub book import 原书.epub my-book
-./epub book build my-book                           # 成品在 my-book/out/book.epub
+git clone https://github.com/liyafly/epub-handbook.git
+cd epub-handbook
+go build -o epub ./cmd/epub        # Windows 用 go build -o epub.exe ./cmd/epub
 ```
 
-新布局只有 `book.json`、`original.epub`（导入时冻结）、`epub/`、`out/` 与隐藏的 `.epub/`；独立 Git 是可选项（`--git`）。已有的旧布局书（`03 制作工作区/`、`fonts.json`、转发 `build.sh`）用同一条 `epub book build <书目录>` 构建，自动识别。下面是仍然可用的旧脚本路径：
+把生成的 `epub` 放进 PATH 里的目录，或者用完整路径运行。
+
+**下载二进制**：[GitHub Releases](https://github.com/liyafly/epub-handbook/releases) 提供 macOS、Windows 和 Linux 的压缩包，可用 `SHA256SUMS` 核对。`epub book` 命令是 v0.5.0 之后加入的，新版本发布之前请从源码构建。macOS 二进制未签名，第一次运行可能被系统拦下。
+
+**字体工具（可选）**：只有书里嵌入字体时才需要 `epub-font`。它是 Python 程序，用 [uv](https://docs.astral.sh/uv/) 从仓库安装：
 
 ```sh
-sh templates/book-starter/new-book.sh work-epub/my-book
-go build -o /tmp/epub ./cmd/epub
-EPUB_BIN=/tmp/epub sh 'work-epub/my-book/build.sh'
-/tmp/epub run epub.package.nav.audit --input 'work-epub/my-book/03 制作工作区/dist/book.epub' --json
+uv tool install --editable --reinstall tools-font/epub-font
 ```
 
-构建脚本需要已安装的 `epub` CLI；未安装时像示例一样设置 `EPUB_BIN` 为本地二进制的路径。详细步骤和手写最小 EPUB 的原理路径都在 [做一本书](docs/learn/做一本书.md)。
+不嵌字体的书不用装。详见 [字体工具说明](tools-font/README.md)。
 
-starter 默认 `base.css + design.css`；从 [效果配方](templates/recipes/README.md) 按需组合。六套 [书型预设](templates/style-presets/README.md) 保留为起点样例。
+## 五步上手
 
-### 修一本现成 EPUB
+1. 导入：`epub book import 原书.epub 我的书`，冻结原件、检查结构、解包到 `我的书/epub/`。
+2. 预览：`epub book preview 我的书 --open`，打包一份不做检查的预览版并打开。
+3. 改样式：编辑 `我的书/epub/OEBPS/` 下的 CSS，可以从 [配方](docs/guide/recipes.md) 复制，然后再预览。
+4. 构建：`epub book build 我的书`，完整检查后把成品写到 `我的书/out/`。
+5. 送到阅读器：Apple Books 直接导入，Kindle 用 Send to Kindle，见 [阅读器](docs/guide/readers.md)。
 
-清洗现有 EPUB 时，先冻结底本，再按 [清洗 runbook](docs/pipeline/cleanup-flow.md) 主线预检、逐项修改、运行红线并做 diff review；不在唯一原件上直接修改。
+## 使用指南
 
-### 查一个具体问题
+- [快速开始](docs/guide/quick-start.md)：完整流程、书目录、每项检查的含义、构建拒绝时怎么办
+- [阅读器](docs/guide/readers.md)：Apple Books、Kindle、Reeden，以及按阅读器出不同版本
+- [配方](docs/guide/recipes.md)：可复制的特殊效果和各阅读器表现
+- [常见问题](docs/guide/faq.md)
+- [术语表](docs/guide/glossary.md)
 
-先去 [新手必读](docs/learn/) 按症状直达。常见问题集中在
-[FAQ](docs/learn/07-faq.md)，核心术语集中在 [术语表](docs/learn/glossary.md)。
+## 维护者与 AI 工具
 
----
-
-## AI / 专业维护者入口
-
-先读 [AGENTS.md](AGENTS.md)。它是 AI 协作约束的唯一维护源，也是专业层的总路由。
-
-想找版式示例，先搜索真实 demo；预设只作新书起点，建书时复制一次：
-
-```sh
-epub run epub.style.demo.maintain catalog=true query=chapter
-epub run epub.style.demo.maintain catalog=true collection=presets query=academic
-sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
-```
-
-预设不再注入已有书：`new-book.sh --from-preset` 把预设层复制进新书的书级 CSS，之后随书自由修改，
-详见[预设说明](templates/style-presets/README.md)。catalog 搜索会列出真实 XHTML 场景或内置预设；脱离仓库运行时，发行二进制使用随包资源。发现、候选生成和真实阅读器验收是三个不同阶段。
-
-| 能力 | 位置 |
-| --- | --- |
-| 对外硬约束与阅读器证据 | [docs/final/](docs/final/) |
-| 已有 EPUB 流水线 | [docs/pipeline/](docs/pipeline/) |
-| 场景化排版指南 | [docs/how-to/](docs/how-to/) |
-| AI 能力契约与反向查表 | [docs/learn/04-skills.md](docs/learn/04-skills.md) |
-| Go CLI 实现与架构守卫 | [cmd/epub](cmd/epub/) 与 [internal/](internal/) |
-| 机器契约 | [contracts/](contracts/) |
-| 阅读器最小实测样本 | [templates/epub-style-demo/](templates/epub-style-demo/) |
-| 近期适配复盘 | [2026 年 10 月：Reeden、Readest 与 Kindle](docs/pipeline/reader-adaptation-lessons-2026-10.md) |
-| 历史设计、实验与推导 | [archive/](archive/) 与 git 历史 |
-
-架构是面向 Windows、macOS、Linux 的 Go 单一公开 CLI（`cmd/epub` + `internal/`），
-架构规则由 `internal/archguard/` 的守卫测试强制。旧的主程序 Python、Swift/GUI 执行层已按迁移计划删除；
-`templates/cleanup-demo-books/build_demo_epubs.py` 是需要 Python 3 的 fixture 生成器，只用于生成仓库的自造清洗样本，不属于用户执行面。
-`tools-font/` 保留一个独立安装、不会打包进发行包的 Python provider：
-
-- `epub.font.coverage.analyze` 通过 `epub-font coverage` 分析嵌入字体覆盖和字体链风险。
-- `epub.font.subset` 通过 `epub-font subset` 从完整字体母版生成并检查字形子集。需要任一能力时运行 `uv tool install --editable tools-font/epub-font`；无字体的书不需要子集能力，含字体的构建若缺 provider 或检查失败会失败并保留原有 dist。
-
-两项 capability 都由 `internal/extern` 调用同一个 PATH provider；发行版的 Go CLI 本身不包含它。`epub capabilities --json` 展示已注册能力及其契约依赖；外部工具的安装要求和缺失行为见 [`tools-font/README.md`](tools-font/README.md)。
-
-EPUB 输入默认限制为：压缩文件 512 MiB、100,000 个 ZIP 条目、单条目解压后
-256 MiB、声明解压总量 1 GiB、条目路径 4096 字节。实际解压流也检查单条目限额；
-每个打开的 book 缓存原文与修改内容合计最多 512 MiB（不是整个进程的峰值内存承诺）。
-替换封面限 64 MiB，redline 路径映射 JSON 限 16 MiB；这些输入须是普通文件。
-超限会明确报错，CLI 暂无放宽限额参数。
-
-完整文档索引见 [docs/README.md](docs/README.md)。
-
-每本书使用 `work-epub/<book>/` 独立工作区，并在该目录自行初始化 Git；
-手册主仓库仍忽略整个 `work-epub/`，不把书级仓库当成 submodule。统一目录和过程文件约定见
-[一书一 Git 工作区](docs/pipeline/book-workspace.md)。
-
-## 维护验证
-
-按改动类型执行 [AGENTS.md](AGENTS.md) 的最小验证矩阵。Go 代码与入口变更至少运行：
-
-```sh
-go build . ./cmd/... ./internal/...
-go test -count=1 . ./cmd/... ./internal/...
-go test ./internal/archguard/
-git diff --check
-```
-
-本地有 `work-epub/` 书级工作区时，用以上明确包集合，避免 Go 把被主仓忽略的书稿辅助脚本当作模块包；在干净 checkout 和 CI 中仍运行完整的 `go build ./...` 与 `go test ./...`。
-
-阅读器兼容性结论必须先有 demo、artifact、阅读器名称和版本及实测现象，再写入
-`docs/final/reader-matrix.yaml`；不能只根据手册推断。
+AI 工具（Claude Code、Codex 等）和维护者先读 [AGENTS.md](AGENTS.md)。完整文档索引、CLI 退出码、输入限额和能力清单见 [维护者文档索引](docs/README.md)。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 范围
 
-本仓聚焦可重排 EPUB 3：
+只做可重排的 EPUB 3。不生成 MOBI、AZW3 等 Kindle 专有格式，不做阅读器，也不模拟阅读器渲染：显示效果以真实阅读器为准。
 
-- 不制作 mobi / AZW3 等封闭格式；
-- 不实现 epub.js 阅读器；
-- 不替代 Kindle 自费出版运营工具；
-- 不模拟阅读器渲染，视觉结论来自真实阅读器实测。
+## 许可
 
-## 协作与许可
-
-贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。第三方材料的来源、作者、许可和链接
-记录在 [THIRD_PARTY.md](THIRD_PARTY.md)。
-
-代码部分使用 MIT 许可；文档与样本许可见 `THIRD_PARTY.md`。
+免费使用。代码、模板和 skills 使用 [MIT](LICENSES/MIT.txt) 许可，文档使用 [CC BY 4.0](LICENSES/CC-BY-4.0.txt)，详见 [LICENSE](LICENSE)。第三方材料的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)。
