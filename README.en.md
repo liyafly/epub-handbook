@@ -29,7 +29,7 @@ Books without embedded fonts do not need it. See the [font tool notes](tools-fon
 ## Five steps
 
 1. Import: `epub book import original.epub my-book` freezes the original, checks it and unpacks it into `my-book/epub/`.
-2. Preview: `epub book preview my-book --open` packs an unchecked preview and opens it.
+2. Preview: `epub book preview my-book --open` packs an unchecked preview and opens it (on a Mac, prefer `--open=Reeden`; see [Readers](docs/guide/readers.en.md)).
 3. Edit styles: change the CSS under `my-book/epub/OEBPS/`, perhaps copying from the [recipes](docs/guide/recipes.en.md), and preview again.
 4. Build: `epub book build my-book` runs every check and writes the finished book to `my-book/out/`.
 5. Send it to your reader: import it into Apple Books, or use Send to Kindle. See [Readers](docs/guide/readers.en.md).

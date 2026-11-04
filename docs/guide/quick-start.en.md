@@ -40,7 +40,7 @@ You edit `epub/`, and now and then `book.json`. Nothing else.
 epub book preview my-book --open
 ```
 
-This packs `.epub/preview.epub` and opens it with your default app. On a Mac you can name the app, for example `--open=Reeden`.
+This packs `.epub/preview.epub` and opens it with your default app. On a Mac, prefer `--open=Reeden`: the default is usually Apple Books, which adds another copy on every import, so keep it for the final check.
 
 Previews are fast because they **skip every check** and never touch `out/`. Use them to look, not to deliver.
 

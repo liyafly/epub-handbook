@@ -29,7 +29,7 @@ uv tool install --editable --reinstall tools-font/epub-font
 ## 五步上手
 
 1. 导入：`epub book import 原书.epub 我的书`，冻结原件、检查结构、解包到 `我的书/epub/`。
-2. 预览：`epub book preview 我的书 --open`，打包一份不做检查的预览版并打开。
+2. 预览：`epub book preview 我的书 --open`，打包一份不做检查的预览版并打开（Mac 上建议 `--open=Reeden`，见 [阅读器](docs/guide/readers.md)）。
 3. 改样式：编辑 `我的书/epub/OEBPS/` 下的 CSS，可以从 [配方](docs/guide/recipes.md) 复制，然后再预览。
 4. 构建：`epub book build 我的书`，完整检查后把成品写到 `我的书/out/`。
 5. 送到阅读器：Apple Books 直接导入，Kindle 用 Send to Kindle，见 [阅读器](docs/guide/readers.md)。

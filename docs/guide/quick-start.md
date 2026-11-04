@@ -40,7 +40,7 @@ epub book import 原书.epub 我的书
 epub book preview 我的书 --open
 ```
 
-预览会打包一份 `.epub/preview.epub` 并用系统默认程序打开。在 Mac 上可以指定应用，例如 `--open=Reeden`。
+预览会打包一份 `.epub/preview.epub` 并用系统默认程序打开。在 Mac 上建议指定 `--open=Reeden`：默认程序通常是 Apple Books，它每次导入都会多一份副本，适合留到最后验收。
 
 预览很快，因为它**不做任何检查**，也不碰 `out/`。它只用来看效果，不能拿去交付。
 
