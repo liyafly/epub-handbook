@@ -77,9 +77,13 @@ func TestOpenRejectsDirectoryAndUnreadableFile(t *testing.T) {
 	if err := os.Chmod(path, 0); err != nil {
 		t.Fatal(err)
 	}
-	_, err := Open(path)
+	archive, err := Open(path)
 	_ = os.Chmod(path, 0o600)
 	if err == nil {
+		// Windows ignores mode 000; release the handle so TempDir cleanup can delete the file.
+		if err := archive.Close(); err != nil {
+			t.Fatal(err)
+		}
 		t.Skip("current process can read a mode-000 file")
 	}
 	if !errors.Is(err, os.ErrPermission) {
