@@ -41,3 +41,45 @@ def test_white_matte_recomposes_on_white():
     result = images.transparent(image, method='white-matte')
     white = Image.new('RGBA', image.size, 'white')
     assert Image.alpha_composite(white, result).convert('RGB').tobytes() == image.tobytes()
+
+
+def test_page_prepare_injects_base_and_fill(tmp_path):
+    from epub_art import page
+    source = tmp_path / 'Text' / 'p.xhtml'
+    source.parent.mkdir()
+    source.write_text('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title></head><body/></html>')
+    text = page.prepare(source, fill=True)
+    assert f'<base href="{source.parent.resolve().as_uri()}/"/>' in text
+    assert page.FILL_CSS in text and text.index(page.FILL_CSS) < text.index('</head>')
+    assert page.FILL_CSS not in page.prepare(source, fill=False)
+    assert page.parse_size('1264x1680') == (1264, 1680)
+    with pytest.raises(ValueError):
+        page.parse_size('1264')
+
+
+def test_page_renders_opaque_full_viewport(tmp_path):
+    from epub_art import page
+    try:
+        page.find_chrome()
+    except ValueError:
+        pytest.skip('no Chrome/Chromium available')
+    (tmp_path / 'Styles').mkdir()
+    (tmp_path / 'Text').mkdir()
+    # Relative stylesheet must resolve through <base>; body background must reach the bottom edge.
+    (tmp_path / 'Styles' / 's.css').write_text(
+        'body { margin: 0; background: linear-gradient(rgb(200, 30, 30), rgb(200, 30, 30)) no-repeat center; background-size: cover; }')
+    source = tmp_path / 'Text' / 'p.xhtml'
+    source.write_text('<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head>'
+                      '<title>t</title><link rel="stylesheet" type="text/css" href="../Styles/s.css"/></head>'
+                      '<body><p>x</p></body></html>')
+    output = tmp_path / 'out.jpg'
+    result = page.render(source, output, (400, 600), scale=2)
+    with Image.open(output) as im:
+        assert im.size == (400, 600) and im.mode == 'RGB'
+        r, g, b = im.getpixel((390, 595))
+    assert r > 170 and g < 70 and b < 70
+    assert result['outputSHA256']
+    unfilled = tmp_path / 'unfilled.png'
+    page.render(source, unfilled, (400, 600), scale=2, fill=False)
+    with Image.open(unfilled) as im:
+        assert min(im.getpixel((390, 595))) > 240  # short content leaves a white canvas without fill

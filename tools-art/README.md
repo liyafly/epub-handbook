@@ -9,6 +9,7 @@ epub-art audit illustration.png
 epub-art shape illustration.png --float left --selector figure.outline --output shape.json --css shape.css
 epub-art transparent original.jpg --output candidate.png
 epub-art transparent line-art.png --method white-matte --protect-mask keep.png --output candidate.png
+epub-art page epub/Text/vol1.xhtml --output vol1.jpg
 # 在本项目目录运行测试，避免扫描独立字体项目
 uv run --directory tools-art/epub-art --frozen pytest -q
 ```
@@ -22,6 +23,11 @@ uv run --directory tools-art/epub-art --frozen pytest -q
 `white-matte` 仅适合已确认白色均为底色的线稿，按白底恢复公式生成 RGB/alpha；白色物体也可能消失，须显式选择并检查。
 这是书级既有“边缘纸区”和“白底线稿恢复”两类算法的通用部分；书内专用蒙版、颜色判断和人工决策仍留书级，不自动重放到其他图。
 默认不反色、不裁切、不缩放、不覆盖输入；同名输出须显式 `--force`，输入始终不可作为输出。
+
+`page` 用本机 Chrome（或 Edge / Chromium，`--chrome` 或 `EPUB_ART_CHROME` 指定）无头截图，把一张排好版的页面导出成不透明的整页图。
+用于 Kindle 会把透明 PNG 压出白底、叠层背景无法预合成的页面：先在 EPUB 里排好，再导出整页图替换。
+默认 1264×1680、`--scale 2`（CSS 视口 632×840）；`--scale` 调小则内容相对变大。默认把 `html, body` 撑满视口，背景铺到底，`--no-fill` 关闭。
+页面里的相对路径照常解析；输入不改。图里的文字不能检索、不能调字号，标题要留在 `alt` 和目录里。
 
 `audit` 报告尺寸、比例、透明像素、模式和 ICC 存在性。ICC 存在不证明为 sRGB；CMYK 等输入须先有意转换颜色空间，透明化拒绝猜转。
 所有候选都要核对浅色、彩色、深色背景和线条/封闭白区，之后再做目标阅读器检查，不全书盲目批处理。

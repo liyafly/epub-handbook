@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 from PIL import Image
-from . import images, shapes
+from . import images, page, shapes
 
 
 def destination(path, source, force):
@@ -35,6 +35,16 @@ def main(argv=None):
             p.add_argument('--threshold', type=int, default=248)
             p.add_argument('--method', choices=['exterior', 'white-matte'], default='exterior')
             p.add_argument('--protect-mask', type=Path)
+    p = sub.add_parser('page', help='render one laid-out XHTML/HTML page to an opaque JPG/PNG')
+    p.add_argument('input', type=Path)
+    p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--force', action='store_true')
+    p.add_argument('--size', default='1264x1680', help='output pixels, default 1264x1680 (3:4, Kindle-like)')
+    p.add_argument('--scale', type=float, default=2.0, help='device pixel ratio; CSS viewport = size / scale')
+    p.add_argument('--no-fill', dest='fill', action='store_false', help='do not stretch html/body to the viewport')
+    p.add_argument('--quality', type=int, default=90)
+    p.add_argument('--chrome', help='browser executable; default: EPUB_ART_CHROME or common Chrome/Edge paths')
+    p.add_argument('--wait', type=int, default=3000, help='virtual time budget in ms for fonts and images')
     args = parser.parse_args(argv)
     try:
         if args.output:
@@ -52,6 +62,11 @@ def main(argv=None):
             result['css'] = shapes.css(result, args.selector)
             if args.css:
                 args.css.write_text(result['css'])
+        elif args.command == 'page':
+            if not 1 <= args.quality <= 100 or not 0 <= args.wait <= 60000:
+                raise ValueError('quality 1..100 and wait 0..60000 are required')
+            result = page.render(args.input, args.output, page.parse_size(args.size), args.scale,
+                                 args.fill, args.chrome, args.quality, args.wait)
         elif args.command == 'transparent':
             if args.output.suffix.lower() != '.png' or not 0 <= args.threshold <= 255:
                 raise ValueError('transparent output must be PNG; threshold must be 0..255')
@@ -67,7 +82,7 @@ def main(argv=None):
         else:
             result = images.audit(args.input)
         text = json.dumps(result, ensure_ascii=False, indent=2) + '\n'
-        if args.output and args.command != 'transparent':
+        if args.output and args.command not in ('transparent', 'page'):
             args.output.write_text(text)
         print(text, end='')
         return 0
