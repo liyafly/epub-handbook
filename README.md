@@ -23,7 +23,15 @@ CLI 统一入口是 `epub`（仓库内以 `go run ./cmd/epub` 运行，或 `go b
 
 ### 做一本书
 
-推荐用脚本创建独立书级 Git 工作区：
+推荐用 `epub book` 子命令（macOS / Linux / Windows 同一个二进制，不需要 sh 或 python）：
+
+```sh
+go build -o epub ./cmd/epub
+./epub book new my-book --from-preset literary-cn   # 或 ./epub book import 原书.epub my-book
+./epub book build my-book                           # 成品在 my-book/out/book.epub
+```
+
+新布局只有 `book.json`、`original.epub`（导入时冻结）、`epub/`、`out/` 与隐藏的 `.epub/`；独立 Git 是可选项（`--git`）。已有的旧布局书（`03 制作工作区/`、`fonts.json`、转发 `build.sh`）用同一条 `epub book build <书目录>` 构建，自动识别。下面是仍然可用的旧脚本路径：
 
 ```sh
 sh templates/book-starter/new-book.sh work-epub/my-book

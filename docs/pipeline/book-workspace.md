@@ -2,6 +2,28 @@
 
 日常只有改源 → `sh build.sh` → 阅读器检查。主仓忽略整个 `work-epub/`，书级 Git 保留源、配置、决策和交付记录；共享字体库与书一起备份，不建立书级 Git。
 
+## `epub book` 子命令（跨平台，首选）
+
+```sh
+epub book new <dir> [--from-preset <name>] [--git]
+epub book import <original.epub> <dir> [--git] [--legacy-layout]
+epub book build [<dir>]          # fonts / clean / accept-dist 同形
+epub book fonts [<dir>] [--update-lock]
+```
+
+纯 Go 实现，Windows、macOS、Linux 共用；安全属性与下面的 sh 构建器一致（冻结原件与 SHA、DRM 停止、导航审计、字体锁与子集、全项 redline、原子替换、`dist-sha256` 收据、`accept-dist` 逐成员比对、构建锁、失败现场保留）。布局自动识别：书目录含 `book.json` 为新布局，否则按旧布局（`03 制作工作区/`、`fonts.json`、书根转发 `build.sh` 里的 `EPUB_OUTPUT_NAME` / `EPUB_LEGACY_LAYOUT` 按行读取，不执行脚本）。
+
+```text
+<book>/
+  book.json        # 书名、输出名、字体锁（原 fonts.json 内容）、original 的 SHA；readers/variants 为预留
+  original.epub    # import 时冻结，只读
+  epub/            # 解包源，唯一要编辑的地方
+  out/book.epub    # 成品；收据 .epub/dist-sha256
+  .epub/           # 报告、收据、delivery.tsv（只留最近一次）、失败现场 build.*；可随时清理
+```
+
+新布局的共享字体库规则不变：`EPUB_FONT_LIBRARY`，否则从 `book.json` 所在位置向上找与祖先同级的 `fonts/`。provider 查找 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%\.local\bin`）；`EPUB_LOCAL_BIN`、`EPUB_FONT_BIN` 含义同旧构建器。下面的 sh 脚本继续可用，旧书无需迁移。
+
 ## 初始化与接入
 
 ```sh

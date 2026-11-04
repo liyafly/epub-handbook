@@ -202,7 +202,7 @@ AI 照着跑就炸，而且**失败得很晚、很难归因**。
 | `internal/extern` | 启动 PATH 中的 `epub-font` provider；探测 `epubcheck` 可用性；工具缺失时显式降级 | 业务判断 | `caps` |
 | `internal/book` | 内存 EPUB 模型：entry 表 + 惰性内容 + 脏标记 | 碰磁盘 | 全部上层 |
 | `internal/book/pypath` | Python 侧 `urllib.parse` / `posixpath` / `xml.sax.saxutils` 的路径、URL、转义语义（纯函数，只依赖标准库） | 任何 EPUB 语义判断、任何 I/O | 全部上层（**不含** `internal/book` 自己：同层） |
-| `internal/zipfs` | `OpenRaw`/`Copy`/`CreateRaw`；唯一磁盘边界 | 理解 EPUB 语义 | `book` |
+| `internal/zipfs` | `OpenRaw`/`Copy`/`CreateRaw`；唯一磁盘边界；书级工作区用的通用磁盘原语（`workspace.go`：建目录/锁、原子替换、复制与打包源树、安全解包），供 `pipeline` 的 `epub book` 调用 | 理解 EPUB 语义 | `book`、`pipeline` |
 | `internal/archguard` | 架构守卫测试 | **任何人不得修改**（见规则 0） | — |
 
 ---

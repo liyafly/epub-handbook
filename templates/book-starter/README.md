@@ -1,5 +1,7 @@
 # 书级 EPUB 工作区
 
+> 跨平台替代：`epub book new|import|build|fonts|clean|accept-dist`（纯 Go，Windows 可用，自动识别本页的旧布局）。本页脚本保留给既有书。
+
 日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。根脚本依赖 EPUB Handbook 统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定；需可用的 `epub` CLI，含字体时另装 `epub-font` provider。
 
 构建器默认把 `$HOME/.local/bin` 追加到工具搜索路径，支持 `uv tool install` 的默认安装位置，调用者 PATH 中的工具优先；`EPUB_LOCAL_BIN=<目录>` 可指定位置，显式设空可保留调用者原始 PATH（隔离环境或检查工具缺失时使用）。
