@@ -1,22 +1,37 @@
-# 书级 EPUB 工作区
+# 书级 EPUB 工作区（旧布局）
 
-> 跨平台替代：`epub book new|import|build|fonts|clean|accept-dist`（纯 Go，Windows 可用，自动识别本页的旧布局；另有 `preview` 与变体覆盖层，见 `docs/pipeline/book-workspace.md`）。本页脚本保留给既有书。
+> 新书和新导入的书请用 `epub book new|import|preview|build|fonts|clean|accept-dist`：纯 Go，Windows 可用，也能识别本页的旧布局，另有预览与阅读器变体。见 [快速开始](https://github.com/liyafly/epub-handbook/blob/main/docs/guide/quick-start.md) 和 [书级工作区](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)。本页的 sh 脚本只为既有书保留。
 
-日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。根脚本依赖 EPUB Handbook 统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定；需可用的 `epub` CLI，含字体时另装 `epub-font` provider。
+日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。
 
-构建器默认把 `$HOME/.local/bin` 追加到工具搜索路径，支持 `uv tool install` 的默认安装位置，调用者 PATH 中的工具优先；`EPUB_LOCAL_BIN=<目录>` 可指定位置，显式设空可保留调用者原始 PATH（隔离环境或检查工具缺失时使用）。
-
-默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并同步制作说明中的“使用的配方”；每条配方的证据范围以其说明为准。需要嵌入字体时另加 `fonts.css`、OPF 声明及 XHTML link，置于 base 之前；标准弹注继续用 `notes.css`。已有多层书无需合并。想以某个书型为起点，建书时加 `--from-preset <name>`（`new-book.sh <书目录> --from-preset literary-cn`），把预设除 `fonts.css`、`notes.css` 外的各层复制进 `design.css`；预设的 `notes.css` 单独复制为 `Styles/notes.css`，并自动加入 OPF 和各章 link（顺序 base → notes → design）。复制后都归本书自由修改。
+## 构建命令
 
 - `sh build.sh`：注入锁定字体、子集化、独立覆盖检查、导航审计与全项 redline，通过后更新 dist、收据与 `交付记录.tsv`。
-- `sh build.sh fonts`：将库中完整字体注入源树供编辑器预览；库字体路径 Git 忽略，子集字体仍跟踪。
-- `sh build.sh clean`：清旧失败构建，保留最近一次现场；不清收据或其他材料。
-- `sh build.sh accept-dist`：先将编辑过的 dist 修改并回源并完成人工 diff；命令验证重建候选每个成员一致后才重新登记 SHA。
+- `sh build.sh fonts`：把库中完整字体注入源树供编辑器预览；库字体路径被 Git 忽略，子集字体仍跟踪。
+- `sh build.sh clean`：清旧的失败构建，保留最近一次现场；不清收据和其他材料。
+- `sh build.sh accept-dist`：先把编辑过的 dist 修改并回源并完成人工 diff；命令验证重建候选的每个成员都一致后，才重新登记 SHA。
 
-字体配置在 `03 制作工作区/fonts.json`。`target` 是包内路径，`from` 是共享字体库文件名，`sha256` 锁定完整版本；可变字体保留 `variation.mode=instance` 与 axes。库优先 `EPUB_FONT_LIBRARY`，默认向上找 `fonts/`。完整母版只在共享库保存一份；来源和许可见库内 `字体清单.tsv`。既有子集留源树，不入库；缺字 warning 不代表覆盖通过，子集引入的回归仍会阻断。更新锁须审阅后显式执行 `epub-font inject --config '03 制作工作区/fonts.json' --update-lock`。
+书根脚本依赖手册仓库的统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定。需要可用的 `epub` CLI；含字体时另装 `epub-font` provider。构建器默认把 `$HOME/.local/bin`（`uv tool install` 的默认位置）追加到搜索路径，调用者 PATH 里的工具优先；`EPUB_LOCAL_BIN=<目录>` 指定位置，显式设空则只用原始 PATH（用于隔离环境或检查工具缺失）。
 
-`01 源文件/` 冻结原始输入；参考、正文校订、版式截图和历史记录分别放 `02 校对材料/` 相应子目录。书根制作说明只写当前状态、目标阅读器、配方、待办和决策链接。成功记录自动写入制作区 TSV，含书源/手册提交、SHA 和字体锁；`dist/`、`.pipeline/` 与预览母版不提交。
+## 样式
 
-构建保留唯一固定交付件，失败现场可复核；dist 与收据不匹配时停止，不静默覆盖人工修改。可复现性取决于源、字体锁、手册/provider 及打包工具版本，静态成功不代表阅读器验收。已有 EPUB 导入只支持 OEBPS 布局；其他布局保留已验证的构建路径，不能为适配工具猜改目录。
+默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并在制作说明的"使用的配方"里记下；每条配方的证据范围以其说明为准。
+
+- 嵌入字体时另加 `fonts.css`、OPF 声明和 XHTML link，放在 base 之前。
+- 标准弹注用 `notes.css`。
+- 已有多层 CSS 的书不必合并。
+- 想以某个书型为起点，建书时加 `--from-preset <name>`（如 `new-book.sh <书目录> --from-preset literary-cn`）。预设除 `fonts.css`、`notes.css` 外的各层复制进 `design.css`；预设的 `notes.css` 单独复制为 `Styles/notes.css`，自动加入 OPF 和各章 link（顺序 base → notes → design）。复制后都归本书自由修改。
+
+## 字体
+
+字体配置在 `03 制作工作区/fonts.json`：`target` 是包内路径，`from` 是共享字体库的文件名，`sha256` 锁定完整版本，可变字体保留 `variation.mode=instance` 与 axes。字体库优先取 `EPUB_FONT_LIBRARY`，否则向上找 `fonts/`。完整母版只在共享库存一份，来源和许可见库内 `字体清单.tsv`；既有子集留在源树，不入库。
+
+缺字 warning 不代表覆盖通过；子集引入的回归仍会阻断。更新锁须先审阅，再显式执行 `epub-font inject --config '03 制作工作区/fonts.json' --update-lock`。
+
+## 目录与记录
+
+`01 源文件/` 冻结原始输入；参考、正文校订、版式截图和历史记录分别放 `02 校对材料/` 的相应子目录。书根制作说明只写当前状态、目标阅读器、配方、待办和决策链接。成功构建自动把书源/手册提交、SHA 和字体锁写入制作区 TSV；`dist/`、`.pipeline/` 与预览母版不提交。
+
+构建只保留一个固定交付件，失败现场可复核；dist 与收据不匹配时停止，不静默覆盖人工修改。可复现性取决于源、字体锁、手册/provider 和打包工具版本；静态成功不代表阅读器验收。已有 EPUB 导入只支持 OEBPS 布局；其他布局保留已验证的构建路径，不为适配工具猜改目录。
 
 详细约定见 [书级工作区](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)、[实现约束](https://github.com/liyafly/epub-handbook/blob/main/docs/final/SPEC-%E5%AE%9E%E7%8E%B0%E7%BA%A6%E6%9D%9F.md) 和 [字体 provider](https://github.com/liyafly/epub-handbook/blob/main/tools-font/epub-font/README.md)。
