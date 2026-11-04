@@ -4,6 +4,14 @@
 
 保持真实文字与 `<em>` 语义，以原生着重号增强。候选默认保留下划线作为不支持着重号时的可见提示，不用字面圆点插入正文。横排与竖排是两个验收场景。
 
+## 阅读器一览
+
+| Apple Books | Kindle | Reeden | 通用版回退 |
+| --- | --- | --- | --- |
+| 阅读区灰色，无法判断（warn） | 下划线和圆点同时出现，可读（warn） | 待测 | 原生着重号 → 下划线 |
+
+证据来自本目录的合成样本：Apple Books 为 macOS 上的 9.0，Kindle 为 Kindle Previewer 4.0.3（不是 Send to Kindle 送达设备的结果）；iPhone 与 Reeden 尚未实测。逐项记录见下文「阅读器结果」。
+
 ## 标记结构
 
 [sample.xhtml](sample.xhtml) 使用 `em.recipe-emphasis`，文字与标点照原文保留；不要将每字改为 Ruby 来模拟圆点，以免改变朗读与复制。已有书若有字面标注，须作为独立正文变更审阅。

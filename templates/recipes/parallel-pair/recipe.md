@@ -4,6 +4,14 @@
 
 基础状态按原文、译文上下排列；仅短组在宽屏增强为双栏。来源：[SPEC §5.6.1](../../../docs/final/SPEC-实现约束.md#561-文白对照左右兼容)。
 
+## 阅读器一览
+
+| Apple Books | Kindle | Reeden | 通用版回退 |
+| --- | --- | --- | --- |
+| 阅读区灰色，无法判断（warn） | 按原文、译文上下排（pass） | 待测 | 宽屏短组双栏 → 按源序上下 |
+
+证据来自本目录的合成样本：Apple Books 为 macOS 上的 9.0，Kindle 为 Kindle Previewer 4.0.3（不是 Send to Kindle 送达设备的结果）；iPhone 与 Reeden 尚未实测。逐项记录见下文「阅读器结果」。
+
 ## 标记结构
 
 [sample.xhtml](sample.xhtml) 的 `.parallel-pair` 直接包含 `.classical-text` 与 `.modern-text`，随后是空 `.parallel-clear`。短组显式加 `.parallel-float-pair`；长组使用 `.parallel-stack-pair`，不包固定页高容器。

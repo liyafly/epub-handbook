@@ -4,6 +4,14 @@
 
 章首保留完整单词，以 `::first-letter` 做轻量首字装饰。下沉浮动是显式选择的增强，不强制整书启用。来源：[SPEC §5.9](../../../docs/final/SPEC-实现约束.md#59-英文小说正文)。
 
+## 阅读器一览
+
+| Apple Books | Kindle | Reeden | 通用版回退 |
+| --- | --- | --- | --- |
+| 阅读区空白，原因未查明（warn） | 轻量首字和下沉首字都正常（pass） | 待测 | 首字装饰 → 普通段落 |
+
+证据来自本目录的合成样本：Apple Books 为 macOS 上的 9.0，Kindle 为 Kindle Previewer 4.0.3（不是 Send to Kindle 送达设备的结果）；iPhone 与 Reeden 尚未实测。逐项记录见下文「阅读器结果」。
+
 ## 标记结构
 
 [sample.xhtml](sample.xhtml) 使用 `p.recipe-opening`，开启下沉再加 `recipe-opening-sunk`；不拆首字 span，不插入空格。英文页面声明 `lang` 与 `xml:lang`。引号开头、数字、连字符、朗读及复制顺序都需检查。

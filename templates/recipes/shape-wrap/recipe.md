@@ -4,6 +4,14 @@
 
 连续正文沿透明插图的显式 polygon 排列。基础宽度先保证矩形也可读；不要靠阅读器解析图片 alpha 作为主路径。规则来源：[SPEC §5.6.2](../../../docs/final/SPEC-实现约束.md#562-异形环绕渐进增强)。
 
+## 阅读器一览
+
+| Apple Books | Kindle | Reeden | 通用版回退 |
+| --- | --- | --- | --- |
+| 首个展开页沿轮廓环绕（续页未看） | 退回矩形环绕（warn） | 待测 | 轮廓 → 矩形 → 窄屏块图 |
+
+证据来自本目录的合成样本：Apple Books 为 macOS 上的 9.0，Kindle 为 Kindle Previewer 4.0.3（不是 Send to Kindle 送达设备的结果）；iPhone 与 Reeden 尚未实测。逐项记录见下文「阅读器结果」。
+
 ## 标记结构
 
 见 [sample.xhtml](sample.xhtml)：`figure.wrap.wrap-left.outline-l` 只含一张图片，紧接连续正文；不把正文塞进左右栏容器。图注不能进入轮廓 figure，带图注的图保留普通块图或矩形浮动。当前坐标只对应随附合成 L 图；换图须重新算。

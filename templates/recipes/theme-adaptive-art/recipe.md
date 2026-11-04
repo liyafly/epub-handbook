@@ -4,6 +4,14 @@
 
 先保证插图可辨认：保守样本使用资源内部的白色实底。Apple Books 深色主题可能覆盖 CSS 白底，不能仅凭 `background-color` 保证透明黑线可见。确认是单色线稿后，可选 `theme-art-line` 在夜间反相。彩色图、照片及带纸纹图片不反相。
 
+## 阅读器一览
+
+| Apple Books | Kindle | Reeden | 通用版回退 |
+| --- | --- | --- | --- |
+| 深色主题下资源内白底图可见（修复后 pass） | 白底图可见，夜间待测（warn） | 待测 | 资源内白底保守图 |
+
+证据来自本目录的合成样本：Apple Books 为 macOS 上的 9.0，Kindle 为 Kindle Previewer 4.0.3（不是 Send to Kindle 送达设备的结果）；iPhone 与 Reeden 尚未实测。逐项记录见下文「阅读器结果」。
+
 ## 标记结构
 
 [sample.xhtml](sample.xhtml) 用 `figure.theme-art`；保守图 `art-backed.svg` 在 SVG 内绘制白色矩形。单色线稿才加 `theme-art-line`，其 `art.svg` 保留透明画布。两图均为合成材料，仅检验机制。实际位图保留原尺寸与比例；转换前后的 RGB、alpha 和白色合成结果用 [epub-art](../../../tools-art/README.md) 审计，封闭白区与保护蒙版另行确认；制作实底副本也须保留原图。
