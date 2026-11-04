@@ -4,6 +4,8 @@
 
 ## 当前指南
 
+- [epub-structure-and-compat.md](epub-structure-and-compat.md)：EPUB 内部结构、导航、CSS 分层、字体链与 EPUB 2/3 兼容。
+- [handwrite-minimal-epub.md](handwrite-minimal-epub.md)：从演示书构建到手写一本只有一章的 EPUB。
 - [english-fiction-layout.md](english-fiction-layout.md)：英文正文排版与 prose 类书籍优化流程。
 - [classical-modern-layout.md](classical-modern-layout.md)：文白对照、原文 / 译文对照和双文本条目。
 - [chapter-head-image.md](chapter-head-image.md)：可重排章节开头头图、横幅头图和 kicker。

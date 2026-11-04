@@ -6,6 +6,7 @@
 - `meta/`：已完成的设计与实施计划
 - `experiments/`：实验、review 与兼容性复盘
 - `source/`：早期推导入口
+- `learn/`：已并入 `docs/guide/` 的旧入门页
 
 当前规则只以 `templates/`、`docs/final/`、`reader-matrix.yaml` 和相关
 `skills/*/SKILL.md` 为准；归档内容不直接驱动实现。需要重新启用某项结论时，应先

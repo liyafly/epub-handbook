@@ -1,33 +1,6 @@
-# 做一本书
+# 手写最小 EPUB
 
-最快的路径是用一条命令创建书级 Git 工作区，不用手写 XML 或手动安排产物目录：
-
-1. 从手册仓库根目录运行 `sh templates/book-starter/new-book.sh work-epub/my-book`。
-2. 在 `work-epub/my-book/03 制作工作区/epub/OEBPS/` 改元数据与正文。新 UUID 同步到
-   `toc.ncx` 的 `dtb:uid`；新增章节时同步 OPF manifest+spine、`nav.xhtml` 和 `toc.ncx`。
-3. 在书级仓库提交解包源，然后运行
-   `sh 'work-epub/my-book/03 制作工作区/epub/build.sh'`。构建脚本需要已安装的 `epub` CLI；若使用刚编译的版本，先在手册仓库根运行 `go build -o /tmp/epub ./cmd/epub`，再以 `EPUB_BIN=/tmp/epub` 调用脚本。
-4. 构建通过后，唯一产物在 `03 制作工作区/dist/book.epub`；它由下一次成功构建覆盖，
-   `.pipeline/` 和 `dist/` 不进入书级 Git。
-5. 把产物放进 Apple Books 或 Kindle Previewer 实看，并在 `制作说明.md` 记录 reader
-   名称、版本和产物 SHA。
-
-完整字体母版放在解包源 `OEBPS/Fonts/` 并随书级 Git 保存；安装字体 provider 后，构建从母版
-自动生成本次子集。完整目录、失败保护和已有 EPUB 的一次性接入见
-[`一书一 Git 工作区`](../pipeline/book-workspace.md)。
-
-骨架默认自由模式（读者可换字体）。弹注、图片环绕、竖排等场景去
-`templates/epub-style-demo/` 找对应页面复用结构；规则依据查
-`docs/final/EPUB 3 HTML CSS 属性速查表.md`。
-
-> 溯源：templates/book-starter/README.md；SPEC §7 / §8。
-
----
-
-## 附录：想理解每个文件怎么来的
-
-下面的路径从构建演示书开始，再手写一个最小 EPUB。它适合想理解原理的人，不是
-第一次出书的必经步骤。
+本页从构建仓库自带的演示书开始，再手写一本只有一章的 EPUB，用来理解每个文件的作用。只想做书的话不需要读，直接用 `epub book new` 或 `epub book import`，见 [快速开始](../guide/quick-start.md)。
 
 ## 你需要
 
@@ -103,9 +76,9 @@ cp templates/epub-style-demo/dist/epub-style-demo.epub "$AFTER"
 
 上面的 demo 故意包含很多场景，用来测试兼容性。它不是新书的空白模板。第一次做自己的书时，可以复制 demo，再裁成只剩一章的最小骨架。
 
-先认识后面会反复出现的五个词：[OPF](glossary.md#opf) 是项目文件，
-[manifest](glossary.md#manifest) 列资源，[spine](glossary.md#spine) 定阅读顺序，
-[nav.xhtml](glossary.md#navxhtml) 是 EPUB 3 目录，[NCX](glossary.md#ncx) 是 EPUB 2
+先认识后面会反复出现的五个词：[OPF](../guide/glossary.md#opf) 是项目文件，
+[manifest](../guide/glossary.md#manifest) 列资源，[spine](../guide/glossary.md#spine) 定阅读顺序，
+[nav.xhtml](../guide/glossary.md#navxhtml) 是 EPUB 3 目录，[NCX](../guide/glossary.md#ncx) 是 EPUB 2
 兼容导航。
 
 ### 1. 复制并裁掉演示场景
@@ -245,5 +218,5 @@ epub run epub.package.nav.audit --input work-epub/my-first-book.epub --json
 
 没有 error 级 finding 后，再用 Apple Books 或目标阅读器打开 `work-epub/my-first-book.epub`。
 
-想继续理解内部结构和版本兼容，见 [进阶：结构与兼容](进阶-结构与兼容.md)。
+想继续理解内部结构和版本兼容，见 [结构与兼容](epub-structure-and-compat.md)。
 对外硬规则在 [docs/final/](../final/)，AI 协作能力在 [skills/](../../skills/)。
