@@ -120,6 +120,9 @@ func bookNew(ctx context.Context, opts BookNewOptions, bio BookIO) (presetNotes 
 			return false, err
 		}
 	}
+	if err := addReaderLayer(epubDir); err != nil {
+		return false, err
+	}
 	cfg := bookConfig{Version: 1, Title: name, Output: defaultOutputName, Fonts: []json.RawMessage{}}
 	if err := writeBookConfig(filepath.Join(tmp, bookConfigName), cfg); err != nil {
 		return false, err
@@ -308,6 +311,40 @@ func initBookGit(ctx context.Context, dir string, ignoredFonts []string, blanket
 	}
 	if res.ExitCode != 0 {
 		return fmt.Errorf("git init failed: %s", strings.TrimSpace(string(res.Stderr)))
+	}
+	return nil
+}
+
+// addReaderLayer 给新书加一个空的 Styles/reader.css，并在 OPF 与每个 XHTML 里
+// 把它链接在最后。阅读器变体只需用覆盖层替换这一个文件。
+func addReaderLayer(epubDir string) error {
+	styles := filepath.Join(epubDir, "OEBPS", "Styles")
+	css := "@charset \"utf-8\";\n/* 阅读器覆盖层入口：默认为空。变体覆盖层（variants/<名称>/）只需替换本文件。\n * 不要在这里写阅读器识别查询（SPEC §5.6.1 禁止 amzn-kf8 / amzn-mobi）。 */\n"
+	if err := zipfs.WriteFileAtomic(filepath.Join(styles, "reader.css"), []byte(css), 0o644); err != nil {
+		return err
+	}
+	opf := filepath.Join(epubDir, "OEBPS", "package.opf")
+	opfData, err := os.ReadFile(opf)
+	if err != nil {
+		return err
+	}
+	opfData = insertAfterLine(opfData, `id="css-design"`, `    <item id="css-reader"  href="Styles/reader.css"     media-type="text/css"/>`)
+	if err := zipfs.WriteFileAtomic(opf, opfData, 0o644); err != nil {
+		return err
+	}
+	pages, err := filepath.Glob(filepath.Join(epubDir, "OEBPS", "Text", "*.xhtml"))
+	if err != nil {
+		return err
+	}
+	for _, page := range pages {
+		data, err := os.ReadFile(page)
+		if err != nil {
+			return err
+		}
+		data = insertAfterLine(data, `href="../Styles/design.css"`, `  <link rel="stylesheet" type="text/css" href="../Styles/reader.css"/>`)
+		if err := zipfs.WriteFileAtomic(page, data, 0o644); err != nil {
+			return err
+		}
 	}
 	return nil
 }

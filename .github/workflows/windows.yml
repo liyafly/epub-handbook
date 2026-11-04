@@ -52,4 +52,10 @@ jobs:
           ./epub.exe book new "smoke book"
           ./epub.exe book build "smoke book"
           ./epub.exe book accept-dist "smoke book"
+          mkdir -p "smoke book/variants/kindle/OEBPS/Styles"
+          printf 'p { text-indent: 2em; }\n' > "smoke book/variants/kindle/OEBPS/Styles/reader.css"
+          printf '{"version":1,"title":"smoke","output":"book.epub","fonts":[],"variants":{"kindle":{"overlay":"variants/kindle","output":"book-kindle.epub"}}}\n' > "smoke book/book.json"
+          ./epub.exe book preview "smoke book" --variant kindle
+          ./epub.exe book build "smoke book"
+          test -f "smoke book/out/book-kindle.epub"
         shell: bash

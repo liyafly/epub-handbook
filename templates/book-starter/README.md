@@ -1,6 +1,6 @@
 # 书级 EPUB 工作区
 
-> 跨平台替代：`epub book new|import|build|fonts|clean|accept-dist`（纯 Go，Windows 可用，自动识别本页的旧布局）。本页脚本保留给既有书。
+> 跨平台替代：`epub book new|import|build|fonts|clean|accept-dist`（纯 Go，Windows 可用，自动识别本页的旧布局；另有 `preview` 与变体覆盖层，见 `docs/pipeline/book-workspace.md`）。本页脚本保留给既有书。
 
 日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。根脚本依赖 EPUB Handbook 统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定；需可用的 `epub` CLI，含字体时另装 `epub-font` provider。
 

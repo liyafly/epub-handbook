@@ -28,6 +28,7 @@ const (
 	BookCommandFonts      = "fonts"
 	BookCommandClean      = "clean"
 	BookCommandAcceptDist = "accept-dist"
+	BookCommandPreview    = "preview"
 )
 
 // BookRunOptions 是 build / fonts / clean / accept-dist 的输入。
@@ -36,6 +37,11 @@ type BookRunOptions struct {
 	Command string
 	// UpdateLock 仅用于 fonts：显式更新字体锁（须先审阅母版变化）。
 	UpdateLock bool
+	// Variant 非空时 build / accept-dist / preview 只处理该变体（不碰通用版成品与收据）。
+	Variant string
+	// Open 仅用于 preview：构建后用系统默认程序（或 OpenApp 指定的应用）打开。
+	Open    bool
+	OpenApp string
 }
 
 type bookRunner struct {
@@ -43,16 +49,19 @@ type bookRunner struct {
 	bio        BookIO
 	env        bookEnv
 	updateLock bool
+	variant    string
+	open       bool
+	openApp    string
 }
 
 // BookRun 执行一条书级命令并返回退出码（0 成功，1 失败，3 用法错误）。
 func BookRun(ctx context.Context, opts BookRunOptions, bio BookIO) int {
 	switch opts.Command {
-	case BookCommandBuild, BookCommandFonts, BookCommandClean, BookCommandAcceptDist:
+	case BookCommandBuild, BookCommandFonts, BookCommandClean, BookCommandAcceptDist, BookCommandPreview:
 	default:
 		return bookExit(bio, usageErrorf("unknown book command: %s", opts.Command))
 	}
-	r := &bookRunner{ctx: ctx, bio: bio, env: readBookEnv(), updateLock: opts.UpdateLock}
+	r := &bookRunner{ctx: ctx, bio: bio, env: readBookEnv(), updateLock: opts.UpdateLock, variant: opts.Variant, open: opts.Open, openApp: opts.OpenApp}
 	ensureLocalBin(r.env)
 	return bookExit(bio, r.run(opts.Dir, opts.Command))
 }
@@ -89,6 +98,8 @@ func (r *bookRunner) run(dir, command string) error {
 		return r.fonts(layout)
 	case BookCommandClean:
 		return r.clean(layout)
+	case BookCommandPreview:
+		return r.preview(layout)
 	default:
 		return r.build(layout, command)
 	}
@@ -266,12 +277,277 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportNames = []string{"font-subset.json", "nav-audit.json", "redline.txt", "previous-dist-redline.txt"}
+var reportPrefixes = []string{"font-subset", "nav-audit", "redline", "previous-dist-redline"}
+
+// isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
+func isReportFile(name string) bool {
+	for _, prefix := range reportPrefixes {
+		if strings.HasPrefix(name, prefix+".") || strings.HasPrefix(name, prefix+"-") {
+			return true
+		}
+	}
+	return false
+}
+
+func reportFiles(stateDir string) []string {
+	entries, err := os.ReadDir(stateDir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && isReportFile(entry.Name()) {
+			names = append(names, entry.Name())
+		}
+	}
+	return names
+}
+
+// fontPlan 是某个输出使用的字体配置。
+type fontPlan struct {
+	Config      string
+	LibraryArgs []string
+	Jobs        []fontJob
+	Has         bool
+}
+
+func baseFontUsage(layout bookLayout) string {
+	if layout.Kind == layoutBook {
+		return layout.Config.Usage
+	}
+	if layout.FontConfig == "" {
+		return ""
+	}
+	data, err := readSmallFile(layout.FontConfig)
+	if err != nil {
+		return ""
+	}
+	var doc struct {
+		Usage string `json:"usage"`
+	}
+	_ = json.Unmarshal(data, &doc)
+	return doc.Usage
+}
+
+// fontPlanFor 决定输出使用的字体配置：变体可整体覆盖字体任务列表。
+func fontPlanFor(layout bookLayout, out outputSpec, scratch string) (fontPlan, error) {
+	if out.Fonts == nil {
+		if !layout.hasFontConfig() {
+			return fontPlan{}, nil
+		}
+		config, lib, err := prepareFontConfig(layout, scratch)
+		if err != nil {
+			return fontPlan{}, err
+		}
+		var jobs []fontJob
+		if layout.Kind == layoutBook {
+			jobs, err = layout.Config.jobs()
+		} else {
+			jobs, err = readFontConfigJobs(layout.FontConfig)
+		}
+		return fontPlan{Config: config, LibraryArgs: lib, Jobs: jobs, Has: true}, err
+	}
+	fonts := *out.Fonts
+	if len(fonts) == 0 {
+		return fontPlan{}, nil
+	}
+	jobs, err := parseFontJobs(fonts)
+	if err != nil {
+		return fontPlan{}, err
+	}
+	data, err := json.MarshalIndent(struct {
+		Version int               `json:"version"`
+		Usage   string            `json:"usage,omitempty"`
+		Fonts   []json.RawMessage `json:"fonts"`
+	}{1, baseFontUsage(layout), fonts}, "", "  ")
+	if err != nil {
+		return fontPlan{}, err
+	}
+	config := filepath.Join(scratch, "fonts.json")
+	if err := zipfs.WriteFileAtomic(config, append(data, '\n'), 0o644); err != nil {
+		return fontPlan{}, err
+	}
+	anchor := layout.FontConfig
+	if anchor == "" {
+		anchor = filepath.Join(layout.BookDir, bookConfigName)
+		if layout.Kind == layoutLegacy {
+			anchor = filepath.Join(layout.WorkDir, legacyVariantsName)
+		}
+	}
+	var lib []string
+	if dir := findSharedFontLibrary(anchor); dir != "" {
+		lib = []string{"--library", dir}
+	}
+	return fontPlan{Config: config, LibraryArgs: lib, Jobs: jobs, Has: true}, nil
+}
+
+// prepareTree 复制源树 → 套用覆盖层 → 按字体锁注入库字体，返回待打包的树。
+// build 与 preview 共用。
+func (r *bookRunner) prepareTree(layout bookLayout, out outputSpec, overlayFiles []string, dir string) (string, fontPlan, error) {
+	srcDir := filepath.Join(dir, "src")
+	keep := func(rel string, top bool) bool {
+		if !top {
+			return true
+		}
+		if layout.LegacyLayout {
+			// 已审计的非 OEBPS 布局：原样打包，不改名。
+			return !strings.HasPrefix(rel, ".") && rel != "build.sh"
+		}
+		return rel == "mimetype" || rel == "META-INF" || rel == "OEBPS"
+	}
+	if err := zipfs.CopyTree(r.ctx, layout.EpubDir, srcDir, keep); err != nil {
+		return "", fontPlan{}, err
+	}
+	if out.Overlay != "" {
+		if err := applyOverlay(out.Overlay, overlayFiles, srcDir); err != nil {
+			return "", fontPlan{}, err
+		}
+	}
+	plan, err := fontPlanFor(layout, out, dir)
+	if err != nil {
+		return "", fontPlan{}, err
+	}
+	if slices.ContainsFunc(plan.Jobs, func(j fontJob) bool { return j.From != "" }) {
+		argv := []string{r.env.fontBin(), "inject", "--config", plan.Config, "--tree", srcDir}
+		argv = append(argv, plan.LibraryArgs...)
+		res, err := runProvider(r.ctx, r.bio, argv)
+		if err != nil {
+			return "", fontPlan{}, err
+		}
+		if err := zipfs.WriteFileAtomic(filepath.Join(dir, "font-inject.json"), res.Stdout, 0o644); err != nil {
+			return "", fontPlan{}, err
+		}
+		if res.ExitCode != 0 {
+			return "", fontPlan{}, fmt.Errorf("epub-font inject exited with status %d", res.ExitCode)
+		}
+	}
+	return srcDir, plan, nil
+}
+
+// candidate 是一个输出在构建临时目录里的候选。
+type candidate struct {
+	out   outputSpec
+	dir   string
+	full  string
+	final string
+	plan  fontPlan
+}
+
+// buildCandidate 生成候选；gates 为 false 时只打包完整字体版（用作通用版文本基线）。
+func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFiles []string, gates bool, genericFull string) error {
+	if err := zipfs.MkdirAll(c.dir); err != nil {
+		return err
+	}
+	c.full = filepath.Join(c.dir, "full-font.epub")
+	c.final = filepath.Join(c.dir, "final.epub")
+	srcDir, plan, err := r.prepareTree(layout, c.out, overlayFiles, c.dir)
+	if err != nil {
+		return err
+	}
+	c.plan = plan
+	if err := zipfs.PackTree(r.ctx, srcDir, c.full, "mimetype"); err != nil {
+		return err
+	}
+	if !gates {
+		return nil
+	}
+	tag := ""
+	if c.out.Name != "" {
+		tag = " [" + c.out.Name + "]"
+	}
+	sfx := c.out.suffix()
+	subsetReport := filepath.Join(layout.StateDir, "font-subset"+sfx+".json")
+	if plan.Has || treeHasFontFiles(srcDir) {
+		args := Args{}
+		if plan.Config != "" {
+			args["font_config"] = plan.Config
+		}
+		if err := r.capabilityCheck(layout, subsetReport, "epub.font.subset"+tag, Options{
+			CapabilityID: "epub.font.subset", InputPath: c.full, OutputPath: c.final, Args: args,
+		}); err != nil {
+			return err
+		}
+		r.printProviderWarnings(subsetReport)
+	} else if err := zipfs.CopyFile(r.ctx, c.full, c.final, 0o644); err != nil {
+		return err
+	}
+	if err := r.capabilityCheck(layout, filepath.Join(layout.StateDir, "nav-audit"+sfx+".json"), "epub.package.nav.audit"+tag, Options{
+		CapabilityID: "epub.package.nav.audit", InputPath: c.final,
+	}); err != nil {
+		return err
+	}
+	if err := r.redlineCheck(layout, filepath.Join(layout.StateDir, "redline"+sfx+".txt"), "redline"+tag, "all", c.full, c.final, true); err != nil {
+		return err
+	}
+	if c.out.Name != "" && genericFull != "" {
+		// 变体正文必须与通用版逐字一致。
+		if err := r.redlineCheck(layout, filepath.Join(layout.StateDir, "redline-vs-generic"+sfx+".txt"), "redline text vs generic"+tag, "text", genericFull, c.final, true); err != nil {
+			return err
+		}
+	}
+	output := filepath.Join(layout.DistDir, c.out.File)
+	if isFile(output) {
+		fmt.Fprintf(r.bio.out(), "INFO comparing candidate with previous dist (review only; does not block): %s\n", output)
+		prevPath := filepath.Join(layout.StateDir, "previous-dist-redline"+sfx+".txt")
+		_ = r.redlineCheck(layout, prevPath, "", "all", output, c.final, false)
+		if data, readErr := readSmallFile(prevPath); readErr == nil {
+			_, _ = r.bio.out().Write(data)
+		}
+	}
+	return nil
+}
+
+type distState struct {
+	exists bool
+	sha    string
+}
+
+// preflightOutput 复刻 sh 版对现有 dist 的收据预检（每个输出各用自己的收据）。
+func (r *bookRunner) preflightOutput(layout bookLayout, out outputSpec, accept bool) (distState, error) {
+	output := filepath.Join(layout.DistDir, out.File)
+	info, err := os.Lstat(output)
+	if err != nil {
+		if accept {
+			return distState{}, fmt.Errorf("accept-dist requires an existing dist artifact: %s", output)
+		}
+		return distState{}, nil
+	}
+	if info.Mode()&fs.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return distState{}, fmt.Errorf("Refusing to replace a non-regular dist artifact: %s", output)
+	}
+	if !accept && !isFile(out.Receipt) {
+		return distState{}, fmt.Errorf("Refusing to overwrite existing dist without its accepted SHA-256 receipt: %s\n"+
+			"Review/import any dist edits into %s, then record the reviewed artifact SHA in %s.", output, layout.EpubDir, out.Receipt)
+	}
+	sum, err := zipfs.FileSHA256Context(r.ctx, output)
+	if err != nil {
+		return distState{}, err
+	}
+	if recorded := readReceipt(out.Receipt); !accept && sum != recorded {
+		return distState{}, fmt.Errorf("Refusing to overwrite dist: its SHA-256 differs from the last accepted build.\n"+
+			"Artifact: %s\nRecorded: %s\nCurrent:  %s\n"+
+			"Review the EPUB changes and merge intended edits into %s before rebuilding.", output, recorded, sum, layout.EpubDir)
+	}
+	return distState{exists: true, sha: sum}, nil
+}
 
 func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 	accept := command == BookCommandAcceptDist
 	stdout, stderr := r.bio.out(), r.bio.err()
+	all := layout.outputs()
+	targets := all
+	if r.variant != "" {
+		v, ok := layout.variant(r.variant)
+		if !ok {
+			return usageErrorf("unknown variant %q (defined: %s)", r.variant, variantNames(layout))
+		}
+		targets = []outputSpec{v}
+	}
 	if err := validateEpubTree(layout); err != nil {
+		return err
+	}
+	overlays, err := validateOverlays(layout, targets)
+	if err != nil {
 		return err
 	}
 	if err := zipfs.MkdirAll(layout.DistDir); err != nil {
@@ -300,46 +576,26 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 			return
 		}
 		// 保留本次失败的输入/候选与报告；之后的构建会替换固定名报告。
-		for _, name := range reportNames {
+		for _, name := range reportFiles(layout.StateDir) {
 			src := filepath.Join(layout.StateDir, name)
-			if isFile(src) {
-				if copyErr := zipfs.CopyFile(context.WithoutCancel(r.ctx), src, filepath.Join(buildTmp, name), 0o644); copyErr != nil {
-					fmt.Fprintf(stderr, "Could not snapshot report; inspect original: %s\n", src)
-				}
+			if copyErr := zipfs.CopyFile(context.WithoutCancel(r.ctx), src, filepath.Join(buildTmp, name), 0o644); copyErr != nil {
+				fmt.Fprintf(stderr, "Could not snapshot report; inspect original: %s\n", src)
 			}
 		}
 		fmt.Fprintf(stderr, "Build failed; retained diagnostic files: %s\n", buildTmp)
 	}()
 
-	output := layout.outputPath()
-	receipt := layout.receiptPath()
-	distExists, distShaAtStart := false, ""
-	if info, lerr := os.Lstat(output); lerr == nil {
-		distExists = true
-		if info.Mode()&fs.ModeSymlink != 0 || !info.Mode().IsRegular() {
-			return fmt.Errorf("Refusing to replace a non-regular dist artifact: %s", output)
-		}
-		if !accept && !isFile(receipt) {
-			return fmt.Errorf("Refusing to overwrite existing dist without its accepted SHA-256 receipt: %s\n"+
-				"Review/import any dist edits into %s, then record the reviewed artifact SHA in %s.", output, layout.EpubDir, receipt)
-		}
-		distShaAtStart, err = zipfs.FileSHA256Context(r.ctx, output)
+	states := make(map[string]distState, len(targets))
+	for _, out := range targets {
+		st, err := r.preflightOutput(layout, out, accept)
 		if err != nil {
 			return err
 		}
-		recorded := readReceipt(receipt)
-		if !accept && distShaAtStart != recorded {
-			return fmt.Errorf("Refusing to overwrite dist: its SHA-256 differs from the last accepted build.\n"+
-				"Artifact: %s\nRecorded: %s\nCurrent:  %s\n"+
-				"Review the EPUB changes and merge intended edits into %s before rebuilding.", output, recorded, distShaAtStart, layout.EpubDir)
-		}
-	}
-	if accept && !distExists {
-		return errors.New("accept-dist requires an existing dist artifact.")
+		states[out.Name] = st
 	}
 
 	// 现有 dist 通过收据预检之后才清掉上一轮报告；失败现场目录互相独立，不在此清理。
-	for _, name := range reportNames {
+	for _, name := range reportFiles(layout.StateDir) {
 		if err := zipfs.Remove(filepath.Join(layout.StateDir, name)); err != nil {
 			return err
 		}
@@ -348,153 +604,115 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 	if err != nil {
 		return err
 	}
-	fullEpub := filepath.Join(buildTmp, "full-font.epub")
-	finalEpub := filepath.Join(buildTmp, "final.epub")
-	srcDir := filepath.Join(buildTmp, "src")
 
-	keep := func(rel string, top bool) bool {
-		if !top {
-			return true
+	// 阶段一：生成并检查全部候选，此阶段不写 dist。
+	generic := &candidate{out: all[0], dir: buildTmp}
+	genericIsTarget := targets[0].Name == ""
+	var cands []*candidate
+	var failures []error
+	fail := func(out outputSpec, err error) {
+		if ctxErr := r.ctx.Err(); ctxErr != nil {
+			failures = append(failures, ctxErr)
+			return
 		}
-		if layout.LegacyLayout {
-			// 已审计的非 OEBPS 布局：原样打包，不改名。
-			return !strings.HasPrefix(rel, ".") && rel != "build.sh"
-		}
-		return rel == "mimetype" || rel == "META-INF" || rel == "OEBPS"
+		failures = append(failures, fmt.Errorf("%s: %w", out.label(), err))
 	}
-	if err := zipfs.CopyTree(r.ctx, layout.EpubDir, srcDir, keep); err != nil {
-		return err
+	if err := r.buildCandidate(layout, generic, overlays[""], genericIsTarget, ""); err != nil {
+		fail(generic.out, err)
+	} else if genericIsTarget {
+		cands = append(cands, generic)
+	}
+	if isFile(generic.full) {
+		for _, out := range targets {
+			if out.Name == "" {
+				continue
+			}
+			c := &candidate{out: out, dir: filepath.Join(buildTmp, "variants", out.Name)}
+			if err := r.buildCandidate(layout, c, overlays[out.Name], true, generic.full); err != nil {
+				fail(out, err)
+				continue
+			}
+			cands = append(cands, c)
+		}
+	} else if len(targets) > 1 || !genericIsTarget {
+		failures = append(failures, errors.New("variants not built: the generic candidate is unavailable"))
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%w\n%d of %d outputs failed; nothing was written to %s: %w",
+			errBookStepFailed, len(failures), len(targets), layout.DistDir, errors.Join(failures...))
 	}
 
-	// 字体配置：旧布局沿用 fonts.json，新布局从 book.json 派生。
-	fontConfig := ""
-	var libraryArgs []string
-	var jobs []fontJob
-	if layout.hasFontConfig() {
-		fontConfig, libraryArgs, err = prepareFontConfig(layout, buildTmp)
-		if err != nil {
-			return err
+	// 阶段二：全部候选通过后，先逐个做并发修改与 accept 比对，再统一替换。
+	finalSHA := make(map[string]string, len(cands))
+	for _, c := range cands {
+		output := filepath.Join(layout.DistDir, c.out.File)
+		st := states[c.out.Name]
+		if st.exists {
+			if info, lerr := os.Lstat(output); lerr != nil || info.Mode()&fs.ModeSymlink != 0 || !info.Mode().IsRegular() {
+				return errors.New("Refusing to replace dist because the previous artifact disappeared during this build.")
+			}
+			now, shaErr := zipfs.FileSHA256Context(r.ctx, output)
+			if shaErr != nil {
+				return shaErr
+			}
+			if now != st.sha {
+				return errors.New("Refusing to replace dist because it changed while this build was running.")
+			}
+		} else if _, lerr := os.Lstat(output); lerr == nil {
+			return errors.New("Refusing to replace dist because an artifact appeared while this build was running.")
 		}
-		if layout.Kind == layoutBook {
-			jobs, err = layout.Config.jobs()
+		if accept {
+			// 包括 CSS 与图片在内的所有成员字节都须与源树重建的候选一致；红线本身
+			// 查不出遗漏的样式表修改。
+			changed, cmpErr := compareArchiveMembers(r.ctx, output, c.final)
+			if cmpErr != nil {
+				return cmpErr
+			}
+			if len(changed) > 0 {
+				return fmt.Errorf("Dist still differs from rebuilt source (%s); merge/review first: %s", c.out.label(), strings.Join(changed, ", "))
+			}
+			finalSHA[c.out.Name], err = zipfs.FileSHA256Context(r.ctx, output)
 		} else {
-			jobs, err = readFontConfigJobs(layout.FontConfig)
+			finalSHA[c.out.Name], err = zipfs.FileSHA256Context(r.ctx, c.final)
 		}
 		if err != nil {
 			return err
 		}
-		if slices.ContainsFunc(jobs, func(j fontJob) bool { return j.From != "" }) {
-			argv := []string{r.env.fontBin(), "inject", "--config", fontConfig, "--tree", srcDir}
-			argv = append(argv, libraryArgs...)
-			res, runErr := runProvider(r.ctx, r.bio, argv)
-			if runErr != nil {
-				return runErr
-			}
-			if werr := zipfs.WriteFileAtomic(filepath.Join(buildTmp, "font-inject.json"), res.Stdout, 0o644); werr != nil {
-				return werr
-			}
-			if res.ExitCode != 0 {
-				return fmt.Errorf("epub-font inject exited with status %d", res.ExitCode)
-			}
-		}
-	}
-	if err := zipfs.PackTree(r.ctx, srcDir, fullEpub, "mimetype"); err != nil {
-		return err
-	}
-
-	hasFonts := layout.hasFontConfig() || treeHasFontFiles(srcDir)
-	subsetReport := filepath.Join(layout.StateDir, "font-subset.json")
-	if hasFonts {
-		args := Args{}
-		if fontConfig != "" {
-			args["font_config"] = fontConfig
-		}
-		if err := r.capabilityCheck(layout, subsetReport, "epub.font.subset", Options{
-			CapabilityID: "epub.font.subset", InputPath: fullEpub, OutputPath: finalEpub, Args: args,
-		}); err != nil {
-			return err
-		}
-	} else if err := zipfs.CopyFile(r.ctx, fullEpub, finalEpub, 0o644); err != nil {
-		return err
-	}
-	if isFile(subsetReport) {
-		r.printProviderWarnings(subsetReport)
-	}
-
-	if err := r.capabilityCheck(layout, filepath.Join(layout.StateDir, "nav-audit.json"), "epub.package.nav.audit", Options{
-		CapabilityID: "epub.package.nav.audit", InputPath: finalEpub,
-	}); err != nil {
-		return err
-	}
-	if err := r.redlineCheck(layout, filepath.Join(layout.StateDir, "redline.txt"), fullEpub, finalEpub, true); err != nil {
-		return err
-	}
-	if isFile(output) {
-		fmt.Fprintf(stdout, "INFO comparing candidate with previous dist (review only; does not block): %s\n", output)
-		prevPath := filepath.Join(layout.StateDir, "previous-dist-redline.txt")
-		_ = r.redlineCheck(layout, prevPath, output, finalEpub, false)
-		if data, readErr := readSmallFile(prevPath); readErr == nil {
-			_, _ = stdout.Write(data)
-		}
-	}
-
-	// 不覆盖构建期间被改动或新出现的成品。
-	if distExists {
-		if !isFile(output) {
-			return errors.New("Refusing to replace dist because the previous artifact disappeared during this build.")
-		}
-		if info, lerr := os.Lstat(output); lerr != nil || info.Mode()&fs.ModeSymlink != 0 {
-			return errors.New("Refusing to replace dist because the previous artifact disappeared during this build.")
-		}
-		now, shaErr := zipfs.FileSHA256Context(r.ctx, output)
-		if shaErr != nil {
-			return shaErr
-		}
-		if now != distShaAtStart {
-			return errors.New("Refusing to replace dist because it changed while this build was running.")
-		}
-	} else if _, lerr := os.Lstat(output); lerr == nil {
-		return errors.New("Refusing to replace dist because an artifact appeared while this build was running.")
-	}
-
-	var finalSHA string
-	if accept {
-		// 包括 CSS 与图片在内的所有成员字节都须与源树重建的候选一致；红线本身
-		// 查不出遗漏的样式表修改。
-		changed, cmpErr := compareArchiveMembers(r.ctx, output, finalEpub)
-		if cmpErr != nil {
-			return cmpErr
-		}
-		if len(changed) > 0 {
-			return fmt.Errorf("Dist still differs from rebuilt source; merge/review first: %s", strings.Join(changed, ", "))
-		}
-		finalSHA, err = zipfs.FileSHA256Context(r.ctx, output)
-	} else {
-		finalSHA, err = zipfs.FileSHA256Context(r.ctx, finalEpub)
-	}
-	if err != nil {
-		return err
 	}
 
 	// 先在内存里备好交付记录，再替换成品。
-	logBytes, err := buildDeliveryLog(r.ctx, layout, jobs, finalSHA)
+	logBytes, err := buildDeliveryLog(r.ctx, layout, cands, finalSHA)
 	if err != nil {
 		return err
 	}
-	if !accept {
-		if err := zipfs.ReplaceFile(finalEpub, output); err != nil {
+	for _, c := range cands {
+		output := filepath.Join(layout.DistDir, c.out.File)
+		if !accept {
+			if err := zipfs.ReplaceFile(c.final, output); err != nil {
+				return err
+			}
+		}
+		if err := zipfs.WriteFileAtomic(c.out.Receipt, []byte(finalSHA[c.out.Name]+"\n"), 0o644); err != nil {
 			return err
 		}
-	}
-	if err := zipfs.WriteFileAtomic(receipt, []byte(finalSHA+"\n"), 0o644); err != nil {
-		return err
+		fmt.Fprintf(stdout, "Built %s\n", output)
 	}
 	if err := zipfs.WriteFileAtomic(layout.DeliveryLog, logBytes, 0o644); err != nil {
 		return err
 	}
 	succeeded = true
-	fmt.Fprintf(stdout, "Built %s\n", output)
 	return nil
+}
+
+func variantNames(layout bookLayout) string {
+	names := make([]string, 0, len(layout.Variants))
+	for _, v := range layout.Variants {
+		names = append(names, v.Name)
+	}
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
 }
 
 func readReceipt(path string) string {
@@ -530,18 +748,27 @@ func treeHasFontFiles(root string) bool {
 	return found
 }
 
-func buildDeliveryLog(ctx context.Context, layout bookLayout, jobs []fontJob, sha string) ([]byte, error) {
-	fonts := make([]string, 0, len(jobs))
-	for _, job := range jobs {
-		if job.From != "" {
-			fonts = append(fonts, job.Target+"="+job.SHA256)
+func buildDeliveryLog(ctx context.Context, layout bookLayout, cands []*candidate, shas map[string]string) ([]byte, error) {
+	sourceRev, handbookRev := bookSourceRevision(ctx, layout), handbookRevision(ctx)
+	var rows strings.Builder
+	for _, c := range cands {
+		fonts := make([]string, 0, len(c.plan.Jobs))
+		for _, job := range c.plan.Jobs {
+			if job.From != "" {
+				fonts = append(fonts, job.Target+"="+job.SHA256)
+			}
 		}
+		fontLock := "source-tree"
+		if len(fonts) > 0 {
+			fontLock = strings.Join(fonts, ";")
+		}
+		row := deliveryRow(sourceRev, handbookRev, shas[c.out.Name], fontLock)
+		if c.out.Name != "" {
+			// 变体行在末尾多一列 variant:<名字>；通用版行保持原有五列。
+			row = strings.TrimSuffix(row, "\n") + "\tvariant:" + c.out.Name + "\n"
+		}
+		rows.WriteString(row)
 	}
-	fontLock := "source-tree"
-	if len(fonts) > 0 {
-		fontLock = strings.Join(fonts, ";")
-	}
-	row := deliveryRow(bookSourceRevision(ctx, layout), handbookRevision(ctx), sha, fontLock)
 	existing := []byte(deliveryHeader)
 	if layout.Kind == layoutLegacy {
 		if data, err := readSmallFile(layout.DeliveryLog); err == nil {
@@ -551,7 +778,7 @@ func buildDeliveryLog(ctx context.Context, layout bookLayout, jobs []fontJob, sh
 			existing = append(existing, '\n')
 		}
 	}
-	return append(existing, row...), nil
+	return append(existing, rows.String()...), nil
 }
 
 // compareArchiveMembers 返回两个 EPUB 之间成员集合或字节不同的名字（升序）。
@@ -637,10 +864,10 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 	return nil
 }
 
-// redlineCheck 对两个 EPUB 跑全项 redline，文本报告写入 reportPath。
+// redlineCheck 对两个 EPUB 跑 redline（check 为检查项），文本报告写入 reportPath。
 // required=false 时只做审阅用途，失败不阻断。
-func (r *bookRunner) redlineCheck(layout bookLayout, reportPath, before, after string, required bool) error {
-	outcome, runErr := compareRedline(before, after, "all", nil, false, false)
+func (r *bookRunner) redlineCheck(layout bookLayout, reportPath, label, check, before, after string, required bool) error {
+	outcome, runErr := compareRedline(before, after, check, nil, false, false)
 	text := strings.Join(outcome.lines, "\n")
 	if text != "" {
 		text += "\n"
@@ -651,16 +878,15 @@ func (r *bookRunner) redlineCheck(layout bookLayout, reportPath, before, after s
 	if ctxErr := r.ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}
-	failed := runErr != nil || outcome.ExitCode != ExitOK
 	if !required {
 		return nil
 	}
-	if failed {
-		fmt.Fprintf(r.bio.err(), "FAIL redline (report: %s)\n", layout.displayPath(reportPath))
+	if runErr != nil || outcome.ExitCode != ExitOK {
+		fmt.Fprintf(r.bio.err(), "FAIL %s (report: %s)\n", label, layout.displayPath(reportPath))
 		_, _ = r.bio.err().Write([]byte(text))
 		return errBookStepFailed
 	}
-	fmt.Fprintf(r.bio.out(), "PASS redline (warnings: 0; report: %s)\n", layout.displayPath(reportPath))
+	fmt.Fprintf(r.bio.out(), "PASS %s (warnings: 0; report: %s)\n", label, layout.displayPath(reportPath))
 	return nil
 }
 

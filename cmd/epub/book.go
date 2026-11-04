@@ -13,10 +13,11 @@ import (
 const bookUsage = `用法:
   epub book new <书目录> [--from-preset <名称>] [--git]
   epub book import <原书.epub> <书目录> [--git] [--legacy-layout]
-  epub book build [<书目录>]
+  epub book build [<书目录>] [--variant <名称>]
+  epub book preview [<书目录>] [--variant <名称>] [--open[=<应用>]]
   epub book fonts [<书目录>] [--update-lock]
   epub book clean [<书目录>]
-  epub book accept-dist [<书目录>]
+  epub book accept-dist [<书目录>] [--variant <名称>]
 
 新布局（含 book.json）与旧布局（03 制作工作区/epub/、fonts.json）自动识别；
 省略书目录表示当前目录。--git 在书根建立可选的独立 Git。
@@ -62,10 +63,18 @@ func runBook(argv []string) int {
 			return bookUsageError("import 需要原书 EPUB 与目标书目录")
 		}
 		return pipeline.BookImport(ctx, pipeline.BookImportOptions{Original: args[0], Dir: args[1], Git: *git, LegacyLayout: *legacy}, bio)
-	case pipeline.BookCommandBuild, pipeline.BookCommandFonts, pipeline.BookCommandClean, pipeline.BookCommandAcceptDist:
+	case pipeline.BookCommandBuild, pipeline.BookCommandPreview, pipeline.BookCommandFonts, pipeline.BookCommandClean, pipeline.BookCommandAcceptDist:
 		fs := flag.NewFlagSet("epub book "+sub, flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		updateLock := false
+		variant := ""
+		open := &optionalValue{}
+		if sub == pipeline.BookCommandBuild || sub == pipeline.BookCommandAcceptDist || sub == pipeline.BookCommandPreview {
+			fs.StringVar(&variant, "variant", "", "只处理该变体（不碰通用版成品与收据）")
+		}
+		if sub == pipeline.BookCommandPreview {
+			fs.Var(open, "open", "构建后打开预览；--open=<应用> 指定应用（macOS 如 Reeden、Books）")
+		}
 		if sub == pipeline.BookCommandFonts {
 			fs.BoolVar(&updateLock, "update-lock", false, "显式更新字体锁（先审阅母版变化）")
 		}
@@ -80,7 +89,7 @@ func runBook(argv []string) int {
 		if len(args) == 1 {
 			dir = args[0]
 		}
-		return pipeline.BookRun(ctx, pipeline.BookRunOptions{Dir: dir, Command: sub, UpdateLock: updateLock}, bio)
+		return pipeline.BookRun(ctx, pipeline.BookRunOptions{Dir: dir, Command: sub, UpdateLock: updateLock, Variant: variant, Open: open.set, OpenApp: open.value}, bio)
 	default:
 		fmt.Fprintf(os.Stderr, "epub book: unknown subcommand %q\n\n%s", sub, bookUsage)
 		return pipeline.ExitUsage
@@ -105,4 +114,31 @@ func parseInterspersed(fs *flag.FlagSet, argv []string) (positional []string, co
 		positional = append(positional, fs.Arg(0))
 		argv = fs.Args()[1:]
 	}
+}
+
+// optionalValue 是可带可不带值的 flag：`--open` 或 `--open=<应用>`。
+type optionalValue struct {
+	set   bool
+	value string
+}
+
+func (o *optionalValue) IsBoolFlag() bool { return true }
+
+func (o *optionalValue) String() string {
+	if o == nil {
+		return ""
+	}
+	return o.value
+}
+
+func (o *optionalValue) Set(text string) error {
+	switch text {
+	case "true":
+		o.set = true
+	case "false":
+		o.set, o.value = false, ""
+	default:
+		o.set, o.value = true, text
+	}
+	return nil
 }

@@ -22,6 +22,14 @@ epub book fonts [<dir>] [--update-lock]
   .epub/           # 报告、收据、delivery.tsv（只留最近一次）、失败现场 build.*；可随时清理
 ```
 
+### 预览与变体
+
+- `epub book preview [<dir>] [--variant N] [--open[=应用]]`：复制源 → 套用变体覆盖层 → 注入库字体（不子集化）→ 打包到 `.epub/preview[-N].epub`（旧布局在 `.pipeline/`）。**不跑任何检查，不写收据与交付记录，不碰 dist/out**，交付前必须 `build`。`--open` 用系统默认程序打开（macOS `open`，Windows `cmd /c start`，Linux `xdg-open`），`--open=Reeden` 指定应用（macOS 如 `Reeden`、`Books`、`Readest`、`Kindle Previewer 4`）；打不开只警告，文件路径已打印。多册工作区逐册预览。
+- 变体 = 同一份源 + 覆盖层目录，阅读器版本与“锁定字体 / 正文自由”这类版本差异共用一套机制。新布局在 `book.json` 里写 `"variants": {"kindle": {"overlay": "variants/kindle", "output": "book-kindle.epub", "fonts": [...]}}`（`fonts` 省略则沿用通用字体配置，`[]` 表示本变体不嵌字体；`"readers": [...]` 仅作文档）。旧布局放在制作区的 `variants.json`（`{"variants": {...}}`，覆盖层路径相对制作区），不影响布局识别。
+- 覆盖层目录镜像 EPUB 树（如 `OEBPS/Styles/reader.css`），**只允许替换或新增 `.css` 和替换 OPF**；XHTML、nav、NCX、图片、字体出现即在构建前报错。`epub book new` 的新书自带空 `Styles/reader.css`，在 OPF 和每个 XHTML 里排在最后，阅读器覆盖层只需替换它。不要写阅读器识别查询（SPEC §5.6.1）。
+- `build` 先造通用版候选，再造每个变体候选，各自走完整门禁（字体注入/子集/覆盖检查、导航审计、全项 redline），另对通用版候选做正文 `text` 红线比对。**全部候选通过后才统一替换**：任一变体失败则 `out/` 一个文件都不动，错误信息列出失败的输出。每个输出有自己的收据（通用版 `dist-sha256`，变体 `dist-sha256.<名>`）与同样的“被改过的成品不覆盖”保护；交付记录每个输出一行，变体行末尾多一列 `variant:<名>`。
+- `--variant N`（`build` / `accept-dist` / `preview`）只处理该变体，不重建也不触碰通用版成品与收据；`accept-dist` 不带 `--variant` 时逐个输出做成员比对，全部一致才登记收据。
+
 新布局的共享字体库规则不变：`EPUB_FONT_LIBRARY`，否则从 `book.json` 所在位置向上找与祖先同级的 `fonts/`。provider 查找 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%\.local\bin`）；`EPUB_LOCAL_BIN`、`EPUB_FONT_BIN` 含义同旧构建器。下面的 sh 脚本继续可用，旧书无需迁移。
 
 ## 初始化与接入

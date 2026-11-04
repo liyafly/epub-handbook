@@ -54,8 +54,9 @@ type bookConfig struct {
 	Usage        string            `json:"usage,omitempty"`
 	Fonts        []json.RawMessage `json:"fonts"`
 	Original     *bookOriginal     `json:"original,omitempty"`
-	Readers      json.RawMessage   `json:"readers,omitempty"`
-	Variants     json.RawMessage   `json:"variants,omitempty"`
+	// Readers 只是文档性质的目标阅读器清单，不会据此自动生成任何东西。
+	Readers  []string                 `json:"readers,omitempty"`
+	Variants map[string]variantConfig `json:"variants,omitempty"`
 }
 
 func (c bookConfig) jobs() ([]fontJob, error) {
@@ -108,7 +109,9 @@ type bookLayout struct {
 	// FontConfig 是旧版 fonts.json 路径（存在时）；新布局为 book.json 中 fonts 非空时的 book.json。
 	FontConfig string
 	Config     bookConfig // 新布局的 book.json
-	Volumes    []string   // 多册工作区：各册目录（含自己的 build.sh）
+	// Variants 是已校验的变体（阅读器版本 / 版本差异），按名字排序。
+	Variants []variantSpec
+	Volumes  []string // 多册工作区：各册目录（含自己的 build.sh）
 }
 
 // displayPath 返回相对书根的路径，用于简洁输出。
@@ -194,6 +197,10 @@ func resolveNewLayout(bookDir string, env bookEnv) (bookLayout, error) {
 	if len(cfg.Fonts) > 0 {
 		layout.FontConfig = filepath.Join(bookDir, bookConfigName)
 	}
+	layout.Variants, err = buildVariantSpecs(cfg.Variants, bookDir, layout.OutputName)
+	if err != nil {
+		return bookLayout{}, fmt.Errorf("%s: %w", bookConfigName, err)
+	}
 	return layout, nil
 }
 
@@ -255,6 +262,19 @@ func resolveLegacyLayout(dir string, env bookEnv) (bookLayout, error) {
 		if isFile(candidate) {
 			layout.FontConfig = candidate
 			break
+		}
+	}
+	// 旧布局的变体配置放在制作区的 variants.json，不参与布局识别。
+	if data, err := readSmallFile(filepath.Join(layout.WorkDir, legacyVariantsName)); err == nil {
+		var doc struct {
+			Variants map[string]variantConfig `json:"variants"`
+		}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return bookLayout{}, fmt.Errorf("%s is not valid JSON: %w", legacyVariantsName, err)
+		}
+		layout.Variants, err = buildVariantSpecs(doc.Variants, layout.WorkDir, layout.OutputName)
+		if err != nil {
+			return bookLayout{}, fmt.Errorf("%s: %w", legacyVariantsName, err)
 		}
 	}
 	return layout, nil
