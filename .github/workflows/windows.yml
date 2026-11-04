@@ -1,0 +1,55 @@
+name: Windows CLI
+
+# 书级工作流（epub book ...）要求在 Windows 上无需 sh / python 即可从导入到出成品。
+# 这里在 windows-latest 上编译并运行相关 Go 测试；它不是阅读器验收，也不替代
+# 含 epub-font provider 的真实书构建（provider 另行安装）。
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: go build + book tests (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - name: 保持 LF 检出，避免模板与 fixture 被转成 CRLF
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go build
+        run: go build ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: 书级工作流与磁盘边界测试
+        run: >
+          go test -count=1
+          ./internal/zipfs/
+          ./internal/extern/
+          ./internal/archguard/
+          ./internal/docguard/
+        shell: bash
+
+      - name: epub book 端到端（合成 fixture）
+        run: go test -count=1 -run "TestBook|TestResolveBook" ./internal/pipeline/
+        shell: bash
+
+      - name: epub book new / build 冒烟（无 sh、无 python）
+        run: |
+          go build -o epub.exe ./cmd/epub
+          ./epub.exe book new "smoke book"
+          ./epub.exe book build "smoke book"
+          ./epub.exe book accept-dist "smoke book"
+        shell: bash

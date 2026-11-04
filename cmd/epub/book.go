@@ -1,0 +1,108 @@
+package main
+
+// epub book ...：书级工作流子命令组。只做参数解析，业务全在 internal/pipeline。
+
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/liyafly/epub-handbook/internal/pipeline"
+)
+
+const bookUsage = `用法:
+  epub book new <书目录> [--from-preset <名称>] [--git]
+  epub book import <原书.epub> <书目录> [--git] [--legacy-layout]
+  epub book build [<书目录>]
+  epub book fonts [<书目录>] [--update-lock]
+  epub book clean [<书目录>]
+  epub book accept-dist [<书目录>]
+
+新布局（含 book.json）与旧布局（03 制作工作区/epub/、fonts.json）自动识别；
+省略书目录表示当前目录。--git 在书根建立可选的独立 Git。
+`
+
+func runBook(argv []string) int {
+	if len(argv) == 0 {
+		fmt.Fprint(os.Stderr, bookUsage)
+		return pipeline.ExitUsage
+	}
+	sub, rest := argv[0], argv[1:]
+	bio := pipeline.BookIO{Out: os.Stdout, Err: os.Stderr}
+	ctx, stop := runCtx()
+	defer stop()
+
+	switch sub {
+	case "help", "-h", "--help":
+		fmt.Fprint(os.Stdout, bookUsage)
+		return pipeline.ExitOK
+	case "new":
+		fs := flag.NewFlagSet("epub book new", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		preset := fs.String("from-preset", "", "以 templates/style-presets/<名称> 为起点")
+		git := fs.Bool("git", false, "在书根初始化独立 Git")
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) != 1 {
+			return bookUsageError("new 需要一个书目录")
+		}
+		return pipeline.BookNew(ctx, pipeline.BookNewOptions{Dir: args[0], Preset: *preset, Git: *git}, bio)
+	case "import":
+		fs := flag.NewFlagSet("epub book import", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		git := fs.Bool("git", false, "在书根初始化独立 Git 并提交基线")
+		legacy := fs.Bool("legacy-layout", false, "允许非 OEBPS 布局：原样解包，构建时按原布局打包")
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) != 2 {
+			return bookUsageError("import 需要原书 EPUB 与目标书目录")
+		}
+		return pipeline.BookImport(ctx, pipeline.BookImportOptions{Original: args[0], Dir: args[1], Git: *git, LegacyLayout: *legacy}, bio)
+	case pipeline.BookCommandBuild, pipeline.BookCommandFonts, pipeline.BookCommandClean, pipeline.BookCommandAcceptDist:
+		fs := flag.NewFlagSet("epub book "+sub, flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		updateLock := false
+		if sub == pipeline.BookCommandFonts {
+			fs.BoolVar(&updateLock, "update-lock", false, "显式更新字体锁（先审阅母版变化）")
+		}
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) > 1 {
+			return bookUsageError(sub + " 最多接受一个书目录")
+		}
+		dir := ""
+		if len(args) == 1 {
+			dir = args[0]
+		}
+		return pipeline.BookRun(ctx, pipeline.BookRunOptions{Dir: dir, Command: sub, UpdateLock: updateLock}, bio)
+	default:
+		fmt.Fprintf(os.Stderr, "epub book: unknown subcommand %q\n\n%s", sub, bookUsage)
+		return pipeline.ExitUsage
+	}
+}
+
+func bookUsageError(message string) int {
+	fmt.Fprintf(os.Stderr, "epub book: %s\n\n%s", message, bookUsage)
+	return pipeline.ExitUsage
+}
+
+// parseInterspersed 允许 flag 与位置参数交错（`epub book new 我的书 --git`）。
+// 返回位置参数；code >= 0 表示应立即以该退出码返回。
+func parseInterspersed(fs *flag.FlagSet, argv []string) (positional []string, code int) {
+	for {
+		if err := fs.Parse(argv); err != nil {
+			return nil, pipeline.ExitUsage
+		}
+		if fs.NArg() == 0 {
+			return positional, -1
+		}
+		positional = append(positional, fs.Arg(0))
+		argv = fs.Args()[1:]
+	}
+}
