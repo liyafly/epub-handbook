@@ -18,6 +18,7 @@ const bookUsage = `用法:
   epub book fonts [<书目录>] [--update-lock]
   epub book clean [<书目录>]
   epub book accept-dist [<书目录>] [--variant <名称>]
+  epub book recipes [<配方> [--add <书目录>]]
 
 新布局（含 book.json）与旧布局（03 制作工作区/epub/、fonts.json）自动识别；
 省略书目录表示当前目录。--git 在书根建立可选的独立 Git。
@@ -50,6 +51,22 @@ func runBook(argv []string) int {
 			return bookUsageError("new 需要一个书目录")
 		}
 		return pipeline.BookNew(ctx, pipeline.BookNewOptions{Dir: args[0], Preset: *preset, Git: *git}, bio)
+	case "recipes":
+		fs := flag.NewFlagSet("epub book recipes", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		add := fs.String("add", "", "把配方 CSS 追加进该书的 OEBPS/Styles/design.css")
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) > 1 {
+			return bookUsageError("recipes 最多接受一个配方名")
+		}
+		name := ""
+		if len(args) == 1 {
+			name = args[0]
+		}
+		return pipeline.BookRecipes(pipeline.BookRecipesOptions{Name: name, Add: *add}, bio)
 	case "import":
 		fs := flag.NewFlagSet("epub book import", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
