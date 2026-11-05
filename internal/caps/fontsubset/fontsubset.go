@@ -83,22 +83,24 @@ type providerFontDigest struct {
 }
 
 type providerFontResult struct {
-	Target             string                     `json:"target"`
-	ManifestID         string                     `json:"manifestId"`
-	MediaType          string                     `json:"mediaType"`
-	Action             string                     `json:"action"`
-	Reason             string                     `json:"reason"`
-	SourceFont         providerFontMeta           `json:"sourceFont"`
-	Original           providerFontDigest         `json:"original"`
-	Output             providerFontOutput         `json:"output"`
-	Variation          providerVariation          `json:"variation"`
-	Usage              providerFontUsage          `json:"usage"`
-	RequiredCodepoints *int                       `json:"requiredCodepoints"`
-	NotInMaster        []string                   `json:"notInMaster"`
-	NotInMasterCount   *int                       `json:"notInMasterCount"`
-	Checks             map[string]json.RawMessage `json:"checks"`
-	OK                 bool                       `json:"ok"`
-	Warnings           []string                   `json:"warnings"`
+	Target             string             `json:"target"`
+	ManifestID         string             `json:"manifestId"`
+	MediaType          string             `json:"mediaType"`
+	Action             string             `json:"action"`
+	Reason             string             `json:"reason"`
+	SourceFont         providerFontMeta   `json:"sourceFont"`
+	Original           providerFontDigest `json:"original"`
+	Output             providerFontOutput `json:"output"`
+	Variation          providerVariation  `json:"variation"`
+	Usage              providerFontUsage  `json:"usage"`
+	RequiredCodepoints *int               `json:"requiredCodepoints"`
+	NotInMaster        []string           `json:"notInMaster"`
+	NotInMasterCount   *int               `json:"notInMasterCount"`
+	// NotInMasterBodyCount 是缺字里正文实际出现的部分（epub-font 2.2.0 起提供，可缺省）。
+	NotInMasterBodyCount *int                       `json:"notInMasterBodyCount"`
+	Checks               map[string]json.RawMessage `json:"checks"`
+	OK                   bool                       `json:"ok"`
+	Warnings             []string                   `json:"warnings"`
 }
 
 type providerSubsetReport struct {
@@ -114,23 +116,24 @@ type providerSubsetReport struct {
 }
 
 type providerFontSummary struct {
-	Target             string                    `json:"target"`
-	Action             string                    `json:"action"`
-	Reason             string                    `json:"reason"`
-	MasterSHA256       string                    `json:"masterSHA256"`
-	OriginalSHA256     string                    `json:"originalSHA256"`
-	OutputSHA256       string                    `json:"outputSHA256"`
-	MasterBytes        int64                     `json:"masterBytes"`
-	OriginalBytes      int64                     `json:"originalBytes"`
-	OutputBytes        int64                     `json:"outputBytes"`
-	MasterGlyphs       int                       `json:"masterGlyphs"`
-	OutputGlyphs       int                       `json:"outputGlyphs"`
-	RequiredCodepoints *int                      `json:"requiredCodepoints"`
-	NotInMaster        []string                  `json:"notInMaster"`
-	NotInMasterCount   *int                      `json:"notInMasterCount"`
-	Checks             map[string]map[string]any `json:"checks"`
-	Warnings           []string                  `json:"warnings"`
-	Usage              *providerFontUsage        `json:"usage,omitempty"`
+	Target               string                    `json:"target"`
+	Action               string                    `json:"action"`
+	Reason               string                    `json:"reason"`
+	MasterSHA256         string                    `json:"masterSHA256"`
+	OriginalSHA256       string                    `json:"originalSHA256"`
+	OutputSHA256         string                    `json:"outputSHA256"`
+	MasterBytes          int64                     `json:"masterBytes"`
+	OriginalBytes        int64                     `json:"originalBytes"`
+	OutputBytes          int64                     `json:"outputBytes"`
+	MasterGlyphs         int                       `json:"masterGlyphs"`
+	OutputGlyphs         int                       `json:"outputGlyphs"`
+	RequiredCodepoints   *int                      `json:"requiredCodepoints"`
+	NotInMaster          []string                  `json:"notInMaster"`
+	NotInMasterCount     *int                      `json:"notInMasterCount"`
+	NotInMasterBodyCount *int                      `json:"notInMasterBodyCount,omitempty"`
+	Checks               map[string]map[string]any `json:"checks"`
+	Warnings             []string                  `json:"warnings"`
+	Usage                *providerFontUsage        `json:"usage,omitempty"`
 }
 
 type providerReportSummary struct {
@@ -581,6 +584,9 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 			if font.RequiredCodepoints == nil || *font.RequiredCodepoints < 0 || font.NotInMasterCount == nil || *font.NotInMasterCount < 0 || font.NotInMaster == nil {
 				return providerReportSummary{}, nil, fmt.Errorf("provider report has incomplete subset counts for %q", font.Target)
 			}
+			if body := font.NotInMasterBodyCount; body != nil && (*body < 0 || *body > *font.NotInMasterCount) {
+				return providerReportSummary{}, nil, fmt.Errorf("provider report has inconsistent notInMasterBodyCount for %q", font.Target)
+			}
 			if len(font.NotInMaster) > 200 || len(font.NotInMaster) > *font.NotInMasterCount {
 				return providerReportSummary{}, nil, fmt.Errorf("provider report has inconsistent notInMaster details for %q", font.Target)
 			}
@@ -590,7 +596,7 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 				}
 			}
 		case "preserve":
-			if font.Reason != "math-table" || font.RequiredCodepoints != nil || font.NotInMaster != nil || font.NotInMasterCount != nil {
+			if font.Reason != "math-table" || font.RequiredCodepoints != nil || font.NotInMaster != nil || font.NotInMasterCount != nil || font.NotInMasterBodyCount != nil {
 				return providerReportSummary{}, nil, fmt.Errorf("provider report has invalid preserve facts for %q", font.Target)
 			}
 			if font.Output.Axes == nil || len(font.Output.Axes) != 0 {
@@ -615,7 +621,8 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 			MasterBytes: sourceFont.Bytes, OriginalBytes: font.Original.Bytes, OutputBytes: font.Output.Bytes,
 			MasterGlyphs: sourceFont.Glyphs, OutputGlyphs: font.Output.Glyphs,
 			RequiredCodepoints: font.RequiredCodepoints, NotInMaster: cloneOptionalStrings(font.NotInMaster),
-			NotInMasterCount: font.NotInMasterCount, Checks: checks, Warnings: cloneStrings(font.Warnings),
+			NotInMasterCount: font.NotInMasterCount, NotInMasterBodyCount: font.NotInMasterBodyCount,
+			Checks: checks, Warnings: cloneStrings(font.Warnings),
 		}
 		if providerReport.SchemaVersion == providerReportSchemaVersion {
 			fontSummary.Usage = new(font.Usage)
@@ -623,6 +630,10 @@ func validateProviderReport(ctx context.Context, data []byte, inputPath, outputP
 		summary.Fonts = append(summary.Fonts, fontSummary)
 		if font.NotInMasterCount != nil && *font.NotInMasterCount > 0 {
 			detail := fmt.Sprintf("%d required characters are absent from the master font; fallback fonts must cover them", *font.NotInMasterCount)
+			if body := font.NotInMasterBodyCount; body != nil {
+				detail = fmt.Sprintf("%d required characters are absent from the master font (%d in body text, %d from CSS/config/generated text); fallback fonts must cover them",
+					*font.NotInMasterCount, *body, *font.NotInMasterCount-*body)
+			}
 			if len(font.NotInMaster) > 0 {
 				examples := font.NotInMaster
 				if len(examples) > 10 {

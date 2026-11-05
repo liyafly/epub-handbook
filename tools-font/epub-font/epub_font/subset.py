@@ -182,10 +182,17 @@ def _process_job(job: dict, book: epubtext.BookText, usage: font_usage.FontUsage
     out = fontops.font_facts(out_font)
     checks, not_in_master = fontops.verify(source_facts, out, required, spec, limits, target, out_font, source_shapes)
     checks["independent-coverage"] = _independent_coverage(usage.harvest, target, original_bytes, out_bytes)
+    # 正文里真正出现的字与 CSS/配置/生成文本里保守加入的字分开统计，正文优先列出。
+    body_missing = [cp for cp in not_in_master if chr(cp) in usage.harvest.chars]
+    other_missing = [cp for cp in not_in_master if chr(cp) not in usage.harvest.chars]
     if not_in_master:
-        warnings.append(f"{target}: {len(not_in_master)} required characters are not in the master font (fallback fonts must cover them)")
+        warnings.append(
+            f"{target}: {len(not_in_master)} required characters are not in the master font "
+            f"({len(body_missing)} in body text, {len(other_missing)} from CSS/config/generated text; "
+            "fallback fonts must cover them)"
+        )
         locations = []
-        for cp in not_in_master[:20]:
+        for cp in (body_missing + other_missing)[:20]:
             char = chr(cp)
             where = usage.harvest.chars.get(char, {}).get("first", "CSS/config/generated text")
             locations.append(f"{fontops.cp_label(cp)} {char!r} ({where})")
@@ -211,6 +218,7 @@ def _process_job(job: dict, book: epubtext.BookText, usage: font_usage.FontUsage
         },
         "notInMaster": [fontops.cp_label(cp) for cp in not_in_master[:200]],
         "notInMasterCount": len(not_in_master),
+        "notInMasterBodyCount": len(body_missing),
         "checks": checks,
         "ok": all(check["ok"] for check in checks.values()),
         "warnings": warnings,

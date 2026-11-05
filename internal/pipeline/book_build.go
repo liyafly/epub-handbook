@@ -52,6 +52,8 @@ type bookRunner struct {
 	variant    string
 	open       bool
 	openApp    string
+	// steps 记录本次构建各项检查，供 report.html 汇总。
+	steps []bookStep
 }
 
 // BookRun 执行一条书级命令并返回退出码（0 成功，1 失败，3 用法错误）。
@@ -277,7 +279,7 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportPrefixes = []string{"font-subset", "nav-audit", "redline", "previous-dist-redline"}
+var reportPrefixes = []string{"font-subset", "nav-audit", "redline", "previous-dist-redline", "report"}
 
 // isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
 func isReportFile(name string) bool {
@@ -467,7 +469,7 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 		}); err != nil {
 			return err
 		}
-		r.printProviderWarnings(subsetReport)
+		r.printProviderWarnings(layout, subsetReport, tag)
 	} else if err := zipfs.CopyFile(r.ctx, c.full, c.final, 0o644); err != nil {
 		return err
 	}
@@ -487,12 +489,7 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 	}
 	output := filepath.Join(layout.DistDir, c.out.File)
 	if isFile(output) {
-		fmt.Fprintf(r.bio.out(), "INFO comparing candidate with previous dist (review only; does not block): %s\n", output)
-		prevPath := filepath.Join(layout.StateDir, "previous-dist-redline"+sfx+".txt")
-		_ = r.redlineCheck(layout, prevPath, "", "all", output, c.final, false)
-		if data, readErr := readSmallFile(prevPath); readErr == nil {
-			_, _ = r.bio.out().Write(data)
-		}
+		r.comparePreviousDist(layout, filepath.Join(layout.StateDir, "previous-dist-redline"+sfx+".txt"), tag, output, c.final)
 	}
 	return nil
 }
@@ -583,6 +580,15 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 			}
 		}
 		fmt.Fprintf(stderr, "Build failed; retained diagnostic files: %s\n", buildTmp)
+	}()
+	// 先于上面的失败快照执行，让 report.html 也进入失败现场。
+	defer func() {
+		if buildTmp == "" {
+			return
+		}
+		if path := r.writeReportHTML(layout, succeeded); path != "" {
+			fmt.Fprintf(stdout, "Summary: %s\n", layout.displayPath(path))
+		}
 	}()
 
 	states := make(map[string]distState, len(targets))
@@ -696,6 +702,10 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 			return err
 		}
 		fmt.Fprintf(stdout, "Built %s\n", output)
+		if hint := sizeHint(output); hint != "" {
+			fmt.Fprintln(stdout, "WARN", hint)
+			r.addStep(bookStep{Status: "WARN", Label: "size", Lines: []string{hint}})
+		}
 	}
 	if err := zipfs.WriteFileAtomic(layout.DeliveryLog, logBytes, 0o644); err != nil {
 		return err
@@ -843,12 +853,12 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 	}
 	if runErr != nil || outcome.ExitCode != ExitOK {
 		fmt.Fprintf(r.bio.err(), "FAIL %s (report: %s)\n", label, layout.displayPath(reportPath))
-		if marshalErr == nil {
-			_, _ = r.bio.err().Write(data)
-		}
+		lines := findingLines(outcome.Envelope.Findings, "error", 0)
 		if runErr != nil {
-			fmt.Fprintln(r.bio.err(), runErr)
+			lines = append(lines, runErr.Error())
 		}
+		printIndented(r.bio.err(), lines)
+		r.addStep(bookStep{Status: "FAIL", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
 		return errBookStepFailed
 	}
 	if marshalErr != nil {
@@ -861,6 +871,12 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 		}
 	}
 	fmt.Fprintf(r.bio.out(), "PASS %s (warnings: %d; report: %s)\n", label, warnings, layout.displayPath(reportPath))
+	var lines []string
+	if opts.CapabilityID != "epub.font.subset" { // 字体警告另由 printProviderWarnings 汇总成一行
+		lines = warnStepLines(outcome.Envelope)
+	}
+	printIndented(r.bio.out(), lines)
+	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
 	return nil
 }
 
@@ -883,36 +899,57 @@ func (r *bookRunner) redlineCheck(layout bookLayout, reportPath, label, check, b
 	}
 	if runErr != nil || outcome.ExitCode != ExitOK {
 		fmt.Fprintf(r.bio.err(), "FAIL %s (report: %s)\n", label, layout.displayPath(reportPath))
-		_, _ = r.bio.err().Write([]byte(text))
+		lines := outcome.lines
+		if runErr != nil {
+			lines = append(slices.Clone(lines), runErr.Error())
+		}
+		shown := lines
+		if len(shown) > maxRedlineLines {
+			shown = append(slices.Clone(shown[:maxRedlineLines]), fmt.Sprintf("… %d more lines (see report)", len(lines)-maxRedlineLines))
+		}
+		printIndented(r.bio.err(), shown)
+		r.addStep(bookStep{Status: "FAIL", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
 		return errBookStepFailed
 	}
 	fmt.Fprintf(r.bio.out(), "PASS %s (warnings: 0; report: %s)\n", label, layout.displayPath(reportPath))
+	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath)})
 	return nil
 }
 
-// printProviderWarnings 打印 provider 报告里各字体的 warning（不阻断）。
-func (r *bookRunner) printProviderWarnings(reportPath string) {
+// maxRedlineLines 是红线失败时终端最多显示的行数；完整内容在报告里。
+const maxRedlineLines = 20
+
+// comparePreviousDist 把候选与上一版成品比对（只供审阅，不阻断），终端只打一行。
+func (r *bookRunner) comparePreviousDist(layout bookLayout, reportPath, tag, previous, candidate string) {
+	outcome, runErr := compareRedline(previous, candidate, "all", nil, false, false)
+	text := strings.Join(outcome.lines, "\n")
+	if text != "" {
+		text += "\n"
+	}
+	_ = zipfs.WriteFileAtomic(reportPath, []byte(text), 0o644)
+	label := "vs previous " + filepath.Base(previous) + tag
+	step := bookStep{Status: "INFO", Label: label, Report: layout.displayPath(reportPath)}
+	if runErr != nil || outcome.ExitCode != ExitOK {
+		step.Lines = []string{"text, structure or metadata changed since the last build (review only; does not block)"}
+	} else {
+		step.Lines = []string{"no red-line differences from the last build"}
+	}
+	fmt.Fprintf(r.bio.out(), "INFO %s: %s (report: %s)\n", label, step.Lines[0], step.Report)
+	r.addStep(step)
+}
+
+// printProviderWarnings 汇总 provider 报告里各字体的 warning（不阻断）。
+func (r *bookRunner) printProviderWarnings(layout bookLayout, reportPath, tag string) {
 	data, err := readSmallFile(reportPath)
 	if err != nil {
 		return
 	}
-	var doc struct {
-		Facts map[string]json.RawMessage `json:"facts"`
-	}
-	if json.Unmarshal(data, &doc) != nil {
+	lines := fontWarningSummary(data)
+	if len(lines) == 0 {
 		return
 	}
-	var provider struct {
-		Fonts []struct {
-			Warnings []string `json:"warnings"`
-		} `json:"fonts"`
+	for _, line := range lines {
+		fmt.Fprintln(r.bio.out(), "WARN", line)
 	}
-	if json.Unmarshal(doc.Facts["epub.font.subset.providerReport"], &provider) != nil {
-		return
-	}
-	for _, font := range provider.Fonts {
-		for _, warning := range font.Warnings {
-			fmt.Fprintln(r.bio.out(), "WARNING", warning)
-		}
-	}
+	r.addStep(bookStep{Status: "WARN", Label: "fonts" + tag, Report: layout.displayPath(reportPath), Lines: lines})
 }

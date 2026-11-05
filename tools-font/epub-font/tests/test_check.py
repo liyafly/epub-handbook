@@ -225,6 +225,9 @@ def test_agrees_with_subset_tool(tmp_path):
     assert code == 1   # the tiny synthetic master cannot cover the whole book
     missing = {m["char"] for m in check_report["fonts"][0]["missing"]}
     assert missing and missing <= not_in_master
+    font_report = subset_report["fonts"][0]
+    assert 0 < font_report["notInMasterBodyCount"] <= font_report["notInMasterCount"]
+    assert any("in body text" in warning for warning in font_report["warnings"])
     assert check_report["fonts"][0]["noInk"] == [] and check_report["fonts"][0]["missingSequences"] == []
 
 
