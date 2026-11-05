@@ -53,8 +53,11 @@ func findingLines(findings []report.Finding, level string, limit int) []string {
 		if text == "" {
 			text = f.ID
 		}
+		if f.Location != "" {
+			text += " — " + f.Location
+		}
 		if level == "error" && f.Detail != "" {
-			text += ": " + f.Detail
+			text += " (" + f.Detail + ")"
 		}
 		if seen[text] {
 			continue
