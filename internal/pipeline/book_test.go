@@ -447,3 +447,58 @@ func TestBookImportStopsOnEncryptionAndNonOEBPS(t *testing.T) {
 		t.Fatalf("legacy-layout build = %d: %s", code, h.err)
 	}
 }
+
+// 替代旧 import-book.sh 的 provider 集成测试：子集字体留在源树，全量字体按 SHA 进入共享库。
+func TestBookImportSortsSubsetAndFullFonts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake provider is a POSIX shell script")
+	}
+	h := newBookHarness(t)
+	src := h.newBook("")
+	tree := filepath.Join(t.TempDir(), "tree")
+	if err := zipfs.CopyTree(context.Background(), filepath.Join(src, "epub"), tree, nil); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(tree, "OEBPS", "Fonts", "subset.ttf"), "subset font bytes")
+	mustWrite(t, filepath.Join(tree, "OEBPS", "Fonts", "full.ttf"), "full font bytes")
+	original := filepath.Join(t.TempDir(), "fonts.epub")
+	if err := zipfs.PackTree(context.Background(), tree, original, "mimetype"); err != nil {
+		t.Fatal(err)
+	}
+	provider := filepath.Join(t.TempDir(), "epub-font")
+	mustWrite(t, provider, `#!/bin/sh
+cat <<'JSON'
+{"fonts":{"embedded":[
+ {"file":"OEBPS/Fonts/full.ttf","variation_axes":{},"is_subset":false,"glyph_count":20000},
+ {"file":"OEBPS/Fonts/subset.ttf","variation_axes":{},"is_subset":true,"glyph_count":300}]}}
+JSON
+`)
+	if err := os.Chmod(provider, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EPUB_FONT_BIN", provider)
+	parent := t.TempDir()
+	dest := filepath.Join(parent, "book")
+	if code := BookImport(context.Background(), BookImportOptions{Original: original, Dir: dest}, h.io()); code != 0 {
+		t.Fatalf("import = %d: %s", code, h.err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "subset.ttf")); err != nil {
+		t.Error("a subset font must stay in the source tree")
+	}
+	if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "full.ttf")); err == nil {
+		t.Error("a full font must leave the source tree")
+	}
+	if got := mustRead(t, filepath.Join(parent, "fonts", "full.ttf")); got != "full font bytes" {
+		t.Errorf("library copy = %q", got)
+	}
+	var cfg struct {
+		Fonts []importedFontJob `json:"fonts"`
+	}
+	if err := json.Unmarshal([]byte(mustRead(t, filepath.Join(dest, "book.json"))), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Fonts) != 2 || cfg.Fonts[0].Target != "OEBPS/Fonts/full.ttf" || cfg.Fonts[0].From != "full.ttf" || cfg.Fonts[0].SHA256 == "" ||
+		cfg.Fonts[1].From != "" {
+		t.Errorf("book.json fonts = %+v", cfg.Fonts)
+	}
+}

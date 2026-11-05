@@ -53,20 +53,19 @@ jobs:
       - name: Smoke book workspace starter
         shell: bash
         run: |
-          sh templates/book-starter/test-build-dist-guard.sh
           book="$RUNNER_TEMP/book starter smoke"
-          output="$book/03 制作工作区/dist/book.epub"
+          output="$book/out/book.epub"
           go build -o "$RUNNER_TEMP/epub" ./cmd/epub
-          sh templates/book-starter/new-book.sh "$book"
-          export EPUB_HANDBOOK_ROOT="$GITHUB_WORKSPACE"
-          test -f "$book/03 制作工作区/epub/OEBPS/Styles/base.css"
-          test -f "$book/03 制作工作区/epub/OEBPS/Styles/design.css"
-          test "$(find "$book/03 制作工作区/epub/OEBPS/Styles" -type f | wc -l)" -eq 2
-          test -f "$book/README.md"
-          test ! -f "$book/03 制作工作区/epub/README.md"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh"
+          "$RUNNER_TEMP/epub" book new "$book"
+          test -f "$book/book.json"
+          test -f "$book/epub/OEBPS/Styles/base.css"
+          test -f "$book/epub/OEBPS/Styles/design.css"
+          test -f "$book/epub/OEBPS/Styles/reader.css"
+          test "$(find "$book/epub/OEBPS/Styles" -type f | wc -l)" -eq 3
+          "$RUNNER_TEMP/epub" book build "$book"
           test -s "$output"
-          chapter="$book/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
+          test -s "$book/.epub/report.html"
+          chapter="$book/epub/OEBPS/Text/01-chapter.xhtml"
           cp "$chapter" "$RUNNER_TEMP/book-starter-chapter.xhtml"
           before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           python3 - "$chapter" <<'PY'
@@ -80,7 +79,7 @@ jobs:
               raise SystemExit("starter chapter has no body end tag")
           path.write_text(source.replace(marker, '<img src="../Images/missing.png"/><a href="#missing-anchor">bad anchor</a>\n</body>', 1))
           PY
-          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh" >"$RUNNER_TEMP/book-starter-broken-reference.log" 2>&1; then
+          if "$RUNNER_TEMP/epub" book build "$book" >"$RUNNER_TEMP/book-starter-broken-reference.log" 2>&1; then
             echo "Expected broken XHTML resource and fragment references to fail the build." >&2
             exit 1
           fi
@@ -91,22 +90,32 @@ jobs:
           after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           test "$before_sha" = "$after_sha"
           cp "$RUNNER_TEMP/book-starter-chapter.xhtml" "$chapter"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh"
+          "$RUNNER_TEMP/epub" book build "$book"
           test -s "$output"
           before_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
-          printf '\n<broken' >> "$book/03 制作工作区/epub/OEBPS/package.opf"
-          if EPUB_BIN="$RUNNER_TEMP/epub" sh "$book/build.sh" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then
+          printf '\n<broken' >> "$book/epub/OEBPS/package.opf"
+          if "$RUNNER_TEMP/epub" book build "$book" >"$RUNNER_TEMP/book-starter-failed-build.log" 2>&1; then
             echo "Expected a malformed source build to fail." >&2
             exit 1
           fi
           after_sha=$(sha256sum "$output" | cut -d ' ' -f 1)
           test "$before_sha" = "$after_sha"
-          epub_count=$(find "$book/03 制作工作区/dist" -type f -name '*.epub' | wc -l | tr -d ' ')
+          epub_count=$(find "$book/out" -type f -name '*.epub' | wc -l | tr -d ' ')
           test "$epub_count" = 1
-          failure_count=$(find "$book/03 制作工作区/.pipeline" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')
+          failure_count=$(find "$book/.epub" -maxdepth 1 -type d -name 'build.*' | wc -l | tr -d ' ')
           test "$failure_count" = 2
-          find "$book/03 制作工作区/.pipeline" -type f -name nav-audit.json \
+          find "$book/.epub" -type f -name nav-audit.json \
             -exec grep -l 'OEBPS/Images/missing.png' {} + | grep -q .
+
+          # Old-layout books keep a forwarding build.sh; it must still reach the Go build.
+          legacy="$RUNNER_TEMP/legacy book smoke"
+          "$RUNNER_TEMP/epub" book new "$RUNNER_TEMP/legacy seed"
+          mkdir -p "$legacy/03 制作工作区"
+          mv "$RUNNER_TEMP/legacy seed/epub" "$legacy/03 制作工作区/epub"
+          printf '%s\n' '#!/bin/sh' 'exec sh "${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh" "$(dirname "$0")" "$@"' >"$legacy/build.sh"
+          EPUB_HANDBOOK_ROOT="$GITHUB_WORKSPACE" EPUB_BIN="$RUNNER_TEMP/epub" sh "$legacy/build.sh"
+          test -s "$legacy/03 制作工作区/dist/book.epub"
+          test -s "$legacy/03 制作工作区/交付记录.tsv"
 
       - name: Smoke release binary outside checkout
         shell: bash
@@ -137,14 +146,14 @@ jobs:
           starter="$RUNNER_TEMP/book starter reproducibility seed"
           book_a="$RUNNER_TEMP/book starter reproducibility a"
           book_b="$RUNNER_TEMP/book starter reproducibility b"
-          sh templates/book-starter/new-book.sh "$starter"
+          "$RUNNER_TEMP/epub" book new "$starter"
           cp -R "$starter" "$book_a"
           cp -R "$starter" "$book_b"
-          touch -t 198101010000 "$book_b/03 制作工作区/epub/OEBPS/Text/01-chapter.xhtml"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_a/build.sh"
-          EPUB_BIN="$RUNNER_TEMP/epub" sh "$book_b/build.sh"
-          book_sha_a=$(sha256sum "$book_a/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
-          book_sha_b=$(sha256sum "$book_b/03 制作工作区/dist/book.epub" | cut -d ' ' -f 1)
+          touch -t 198101010000 "$book_b/epub/OEBPS/Text/01-chapter.xhtml"
+          "$RUNNER_TEMP/epub" book build "$book_a"
+          "$RUNNER_TEMP/epub" book build "$book_b"
+          book_sha_a=$(sha256sum "$book_a/out/book.epub" | cut -d ' ' -f 1)
+          book_sha_b=$(sha256sum "$book_b/out/book.epub" | cut -d ' ' -f 1)
           test "$book_sha_a" = "$book_sha_b"
           printf 'Deterministic book starter SHA256=%s\n' "$book_sha_a"
 

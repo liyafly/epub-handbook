@@ -51,6 +51,26 @@ def run_logged(
     return result
 
 
+LEGACY_FORWARDER = (
+    "#!/bin/sh\n"
+    'exec sh "${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh" '
+    '"$(dirname "$0")" "$@"\n'
+)
+
+
+def create_legacy_book(book_dir: Path, env: dict[str, str], log_path: Path) -> None:
+    """Create an old-layout book (03 制作工作区/epub + forwarding build.sh) from `epub book new`."""
+    scratch = book_dir.parent / f".{book_dir.name}.new"
+    result = run_logged([env["EPUB_BIN"], "book", "new", str(scratch)], env, log_path)
+    if result.returncode != 0:
+        raise RuntimeError(f"epub book new failed; see {log_path}")
+    work = book_dir / "03 制作工作区"
+    work.mkdir(parents=True)
+    shutil.move(str(scratch / "epub"), str(work / "epub"))
+    shutil.rmtree(scratch)
+    (book_dir / "build.sh").write_text(LEGACY_FORWARDER, encoding="utf-8")
+
+
 def archive_source(epub_dir: Path, output: Path) -> None:
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr(
@@ -65,10 +85,7 @@ def archive_source(epub_dir: Path, output: Path) -> None:
 
 
 def prepare_book(book_dir: Path, env: dict[str, str]) -> tuple[Path, Path, Path]:
-    starter = REPO_ROOT / "templates" / "book-starter" / "new-book.sh"
-    result = run_logged(["sh", str(starter), str(book_dir)], env, book_dir.parent / "starter.log")
-    if result.returncode != 0:
-        raise RuntimeError(f"book starter failed; see {book_dir.parent / 'starter.log'}")
+    create_legacy_book(book_dir, env, book_dir.parent / "starter.log")
 
     epub_dir = book_dir / "03 制作工作区" / "epub"
     chapter = epub_dir / "OEBPS" / "Text" / "01-chapter.xhtml"
@@ -474,12 +491,7 @@ def main() -> int:
     )
 
     meta_inf_book = root / "META-INF-only-font-book"
-    starter = REPO_ROOT / "templates" / "book-starter" / "new-book.sh"
-    starter_result = run_logged(
-        ["sh", str(starter), str(meta_inf_book)], env, root / "meta-inf-starter.log"
-    )
-    if starter_result.returncode != 0:
-        raise RuntimeError(f"META-INF-only starter failed; see {root / 'meta-inf-starter.log'}")
+    create_legacy_book(meta_inf_book, env, root / "meta-inf-starter.log")
     meta_inf_epub = meta_inf_book / "03 制作工作区" / "epub"
     meta_inf_dist = dist_epub(meta_inf_book)
     run_build(meta_inf_book, env, root / "meta-inf-initial-build.log", success=True)

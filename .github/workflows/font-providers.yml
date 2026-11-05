@@ -66,9 +66,6 @@ jobs:
         working-directory: tools-font/epub-font
         run: uv run --project . --frozen pytest -q
 
-      - name: Test centralized build and font injection failure guards
-        run: sh templates/book-starter/test-build-dist-guard.sh
-
       - name: Build Go CLI
         run: go build -o "$RUNNER_TEMP/epub" ./cmd/epub
 
