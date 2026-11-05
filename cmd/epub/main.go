@@ -27,6 +27,9 @@ func main() {
 // ExitCode 传回去（§3：cmd 保持薄），取消与失败的区分、退出码语义都在
 // pipeline 内部完成（见 internal/pipeline/run.go 里 cancelled 相关注释）。
 func runCtx() (context.Context, context.CancelFunc) {
+	// 输出被 `| head` 之类截断时不要被 SIGPIPE 直接杀掉：写入只返回 EPIPE，
+	// 运行照常结束，defer（释放构建锁、清临时目录）都能执行。
+	signal.Ignore(syscall.SIGPIPE)
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
 

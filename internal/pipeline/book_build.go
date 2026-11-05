@@ -212,7 +212,7 @@ func (r *bookRunner) scratchDir(layout bookLayout, prefix string) (string, error
 // ---------------------------------------------------------------- clean
 
 func (r *bookRunner) clean(layout bookLayout) error {
-	if _, err := os.Lstat(filepath.Join(layout.StateDir, "build.lock")); err == nil {
+	if r.buildLocked(layout) {
 		return errors.New("Build lock exists; stop the active build before cleaning")
 	}
 	entries, err := os.ReadDir(layout.StateDir)
@@ -553,14 +553,11 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 	if err := zipfs.MkdirAll(layout.StateDir); err != nil {
 		return err
 	}
-	lockDir := filepath.Join(layout.StateDir, "build.lock")
-	if lockErr := zipfs.MkdirExclusive(lockDir); lockErr != nil {
-		if errors.Is(lockErr, zipfs.ErrOutputExists) {
-			return fmt.Errorf("Another build is active (or a stale lock exists): %s", lockDir)
-		}
-		return lockErr
+	release, err := r.acquireBuildLock(layout)
+	if err != nil {
+		return err
 	}
-	defer func() { _ = zipfs.Remove(lockDir) }()
+	defer release()
 
 	buildTmp := ""
 	succeeded := false

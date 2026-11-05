@@ -30,7 +30,7 @@ The book embeds fonts, and import uses `epub-font` to sort them. Install the [fo
 You edited a file in `out/`. See [Quick start](quick-start.en.md#when-the-build-refuses-to-overwrite).
 
 **It says `Another build is active`.**
-Another build of the same book is running. If you are sure none is, an interrupted build left its lock behind: delete `.epub/build.lock` and try again.
+Another build of the same book is running. A lock left by a build that was killed is usually cleared automatically; if you still see this and are sure no build is running, delete `.epub/build.lock` and try again.
 
 **The navigation audit reports `css-root-font-size`.**
 A stylesheet sets `font-size` on `html`, `:root` or `*`, which stops some readers from changing the font size. Delete that declaration. See [SPEC §5.5.1](../final/SPEC-实现约束.md#551-阅读器字号缩放) (Chinese).

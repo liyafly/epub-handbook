@@ -15,6 +15,10 @@
 - 构建终端每项检查一行：字体缺字合成一行（只报缺字最多的字体，正文与 CSS/配置/生成文本分开计数）；失败列出 error finding 及位置，不再打印整份 JSON；与上一版成品的比对只打一行。
 - `templates/book-starter/build.sh` 只转发给 `epub book`，旧书的书根 `build.sh` 照常可用，构建逻辑只剩 Go 一份。CI 与字体 smoke 改用 `epub book new` 建书。
 
+### Fixed
+
+- 构建被强行结束后残留的 `build.lock` 不再挡住下次构建：锁里记录进程号和主机名，主人是本机已结束的进程时自动清除；无法确认的锁照旧阻断。CLI 忽略 SIGPIPE，输出被 `| head` 截断时构建照常结束并释放锁。
+
 ### Removed
 
 - 删除 `templates/book-starter/new-book.sh`、`import-book.sh`、`import_book.py` 与 `test-build-dist-guard.sh`；改用 `epub book new|import`，守卫由 Go 测试覆盖。导入字体分拣测试从 Python 移到 Go。
