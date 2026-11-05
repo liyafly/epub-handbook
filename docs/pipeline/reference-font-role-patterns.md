@@ -86,7 +86,7 @@ epub run epub.package.nav.audit --input input.epub --json
 
 ## 4. 在书级 CSS 中实现角色样式
 
-EPUB3 迁移不会注入 CSS 或创建文本角色。样式预设（`templates/style-presets/`）也不再注入已有书，只作为新书起点：建书时用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`。已含 `epub-preset-*.css`（旧版 `epub.typography.optimize` 生成）的书，该 CSS 已属本书，直接编辑，无需工具维护。
+EPUB3 迁移不会注入 CSS 或创建文本角色。样式预设（`templates/style-presets/`）也不再注入已有书，只作为新书起点：建书时用 `epub book new <dir> --from-preset <name>` 复制进书级 `design.css`。已含 `epub-preset-*.css`（旧版 `epub.typography.optimize` 生成）的书，该 CSS 已属本书，直接编辑，无需工具维护。
 
 `.type-*` 是书级自定义角色类，不由仓库内置预设提供；采用这些类时，需在书内 CSS 中人工实现。内置预设只提供自身的样式规则，不会自动猜测正文语义，也不会把任意 `<b>` 改成 `.type-emphasis` 或把任意 `.cp` 认定为版权信息。逐类分派须人工 diff review。
 

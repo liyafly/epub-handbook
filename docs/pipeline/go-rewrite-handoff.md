@@ -3,13 +3,15 @@
 > 当前实现规则以 [`docs/final/SPEC-go-architecture.md`](../final/SPEC-go-architecture.md) 为准。本页只记录接手所需的现状、开放项和检查入口。
 > 迁移期决策快照见 [`archive/meta/2026-08-30-go-rewrite-decisions.md`](../../archive/meta/2026-08-30-go-rewrite-decisions.md)；逐轮复审证据见 [`archive/meta/2026-09-go-rewrite-review-log.md`](../../archive/meta/2026-09-go-rewrite-review-log.md)。
 
-## 当前状态（2026-09-30）
+## 当前状态（2026-11-05）
 
 - Go 单一公开 CLI 与 `internal/` 能力流水线是唯一执行面；`contracts/` 是机器契约来源，`tools-font/` 保留一个独立字体 provider。架构硬约束与守卫要求以 Go 架构 SPEC 为准。
 - contracts 与 registry 各有 21 个 capability：13 个输出型（12 个 single、1 个 multi）与 8 个只读型。`epub.font.coverage.analyze` 和 `epub.font.subset` 均通过 PATH 调用同一个 `tools-font/epub-font/` provider，不进入 Go CLI 发行包。`epub capabilities --json` 展示注册能力与契约依赖，不报告外部 provider 是否已安装。
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
-- 截至 2026-09-30，当前发布基线为 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
+- 书级工作流已全部进入 Go：`epub book new|import|preview|build|fonts|clean|accept-dist|recipes`，自动识别新布局（`book.json`）与旧布局（`03 制作工作区/`），支持阅读器/版本变体覆盖层。构建终端每项一行，汇总写 `report.html`。旧书书根 `build.sh` 经 `templates/book-starter/build.sh` 转发给 `epub book`；旧的 `new-book.sh`、`import-book.sh`、`import_book.py` 已删除。细节见[书级工作区](book-workspace.md)。
+- `tools-art/epub-art`（Python/Pillow）是独立的书级图片辅助工具：轮廓坐标、透明化候选、版面截图。不进发行包，未注册 capability。
+- 截至 2026-11-05，最新 Release 仍是 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。之后的 `epub book`、删除 `epub.typography.optimize` 等改动尚未发布，见 `CHANGELOG.md` 的 Unreleased。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
 - `internal/docguard` 已接替技能 frontmatter、OpenAI YAML 形状、skill 索引、AI 入口和契约结构等元校验。手册、速查表与 SPEC 的语义同步仍需人工核对。
 - CI、静态检查和产物验证不代表原生阅读器验收；每项 reader 结论只对 reader-matrix 记录的精确 artifact 与 SHA 生效。
 
@@ -22,7 +24,8 @@
 | EPUB I/O | `internal/book` / `internal/zipfs` 管理有界读取、ZIP entry 透传与一次性写出；`epub clean` 的多步处理共享源 archive，步骤间不生成中间 ZIP。 |
 | 扫描与编辑 | `internal/scan/{opf,xhtml,css}` 产出字节范围 edits；结构 normalize、EPUB3 OPF、XHTML shell 与 Duokan 弹注 class 规范化按目标范围写入。 |
 | 字体工具 | `epub-font` 的 `coverage`、`subset`、`check` 共用 `tools-font/epub-font/` 项目与一条 `uv tool install --editable tools-font/epub-font` 安装入口。Go capabilities 从 PATH 调用该 provider；缺少或启动失败时返回结构化 finding，书籍含字体而子集验证失败时构建失败并保留既有 dist。provider 不进入 Go CLI 发行包。 |
-| 遗留执行面 | 面向用户的 Python 执行脚本与 parity harness 已移除；`templates/cleanup-demo-books/build_demo_epubs.py` 仅作为生成测试 fixture 的 Python 3 辅助工具保留，不属于 CLI 执行面。`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
+| 书级工作流 | `internal/pipeline/book_*.go`；磁盘操作经 `internal/zipfs/workspace.go`，provider 与 git 经 `internal/extern`。 |
+| 遗留执行面 | 面向用户的 Python 执行脚本、parity harness 与旧 starter sh/Python 脚本已移除；`templates/cleanup-demo-books/build_demo_epubs.py` 仅作为生成测试 fixture 的 Python 3 辅助工具保留，不属于 CLI 执行面。`tools/parity/legacy-refs.txt` 作为零条目守卫基线保留。 |
 | 写出 gate | 单能力按其 gate 写出；`epub clean --approve` 仅在步骤、末次审计和全项红线通过后写出。失败候选不写出。 |
 | 取消 | 取消用 `status=cancelled` 和 exit 1 表示；取消的事务不写出，不能将其伪装成一般书稿错误。 |
 

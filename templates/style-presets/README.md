@@ -7,7 +7,7 @@
 ## 新书起点用法
 
 ```sh
-sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
+epub book new work-epub/<book> --from-preset literary-cn
 ```
 
 按 `preset.json` 的 `layers` 顺序，把除 `fonts.css`、`notes.css` 外的各层追加到新书 `design.css`，文件头注明“起点：preset <name> @ <手册提交>”。`notes.css` 单独复制为新书的 `Styles/notes.css`，并自动加入 OPF 与各章 link（base → notes → design）。`fonts.css` 不复制：字体走 `fonts.json` 与共享字体库流程。不带 `--from-preset` 时行为不变。复制后在书级 `制作说明.md` 记下选用的预设，视觉不满意就直接改 `design.css`。
@@ -23,7 +23,7 @@ sh templates/book-starter/new-book.sh work-epub/<book> --from-preset literary-cn
 1. 建立 `<name>/preset.json`、`README.md` 和 `Styles/`。
 2. `preset.json` 的 `layers` 按 `fonts.css`、`base.css`、其余场景层排序。
 3. 单 CSS 文件不超过 400 行；不得在页面级设置颜色或背景。
-4. 用 `new-book.sh <dir> --from-preset <name>` 建一本临时书并运行其 `build.sh`，再跑 `epub redline` 红线 gate 和 `epub run epub.notes.popup.normalize` 弹注校验。
+4. 用 `epub book new <dir> --from-preset <name>` 建一本临时书并运行 `epub book build <dir>`，再跑 `epub redline` 红线 gate 和 `epub run epub.notes.popup.normalize` 弹注校验。
 
 > **实测状态**：这些预设的结构合规由自动化 validator 保证；视觉效果尚未经
 > `reader-matrix` 实测，应用后应标记为待实测，直到按阅读器实测闭环回写。

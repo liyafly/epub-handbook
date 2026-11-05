@@ -1,6 +1,6 @@
 # 组合效果配方
 
-先保证普通正文可读，再选效果。每个目录有 `recipe.md`、可复制的 `recipe.css` 和最小 `sample.xhtml`；复制前检查类名、图片比例、CSS 加载顺序与本书级联。starter 的 `base.css` 保留基础规则，选中的片段写进 `design.css`，同步制作说明的“使用的配方”。字体仍单独放 `fonts.css`，标准弹注放 `notes.css`。
+先保证普通正文可读，再选效果。`epub book recipes` 列出配方，`epub book recipes <名称> --add <书目录>` 追加到书的 `design.css`。每个目录有 `recipe.md`、可复制的 `recipe.css` 和最小 `sample.xhtml`；复制前检查类名、图片比例、CSS 加载顺序与本书级联。starter 的 `base.css` 保留基础规则，选中的片段写进 `design.css`，同步制作说明的“使用的配方”。字体仍单独放 `fonts.css`，标准弹注放 `notes.css`。
 
 | 配方 | 效果与降级 | 证据状态 | 证据入口 |
 | --- | --- | --- | --- |

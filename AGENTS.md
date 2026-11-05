@@ -36,10 +36,10 @@
 
 ## 书级工作流
 
-书放在 `work-epub/<book>/`；主仓忽略整个 `work-epub/`，不得误加 submodule。主路径是 `epub book new|import|preview|build|fonts|clean|accept-dist`，自动识别两种布局，细节见 `docs/pipeline/book-workspace.md`：
+书放在 `work-epub/<book>/`；主仓忽略整个 `work-epub/`，不得误加 submodule。主路径是 `epub book new|import|preview|build|fonts|clean|accept-dist|recipes`，自动识别两种布局，细节见 `docs/pipeline/book-workspace.md`：
 
 - 新布局：`book.json`、`original.epub`、`epub/`、`out/`、隐藏的 `.epub/`；书级 Git 可选（`--git`）。
-- 旧布局：`01 源文件/`、`02 校对材料/`、`03 制作工作区/` 加书根 `build.sh`，独立 Git。`templates/book-starter/` 的 sh 脚本是旧路径，只为既有书保留。
+- 旧布局：`01 源文件/`、`02 校对材料/`、`03 制作工作区/` 加书根 `build.sh`，独立 Git。书根 `build.sh` 经 `templates/book-starter/build.sh` 转发给 `epub book`，构建逻辑只在 Go。
 
 两种布局的安全属性相同：
 

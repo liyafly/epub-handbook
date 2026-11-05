@@ -2,7 +2,7 @@ package pipeline
 
 // epub book new：从内置 book-starter 建立新布局的书级工作区。
 //
-// 移植 templates/book-starter/new-book.sh：preset 只是起点（把除 fonts.css /
+// 由已删除的 templates/book-starter/new-book.sh 移植而来：preset 只是起点（把除 fonts.css /
 // notes.css 以外的各层追加进 design.css；notes.css 单独成层并接入 OPF 与各章
 // link），复制后归本书自由修改。
 

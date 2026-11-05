@@ -8,7 +8,7 @@
 
 ```sh
 epub run epub.style.demo.maintain catalog=true query=poetry
-sh templates/book-starter/new-book.sh work-epub/<book> --from-preset poetry-cn
+epub book new work-epub/<book> --from-preset poetry-cn
 ```
 
 改动后运行全项 redline、导航审计和人工 diff review。诗歌、书信、对白等角色 class 必须已存在于正文；预设和配方不会自动把普通段落转换成角色结构。页面专用限制见各配方。静态结构检查、候选红线和真实阅读器显示分别记录；新页面的字号、窄屏、主题和分页仍待按矩阵实测。

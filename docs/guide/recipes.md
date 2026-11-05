@@ -10,7 +10,15 @@
 - `recipe.css`：要复制的样式；
 - `sample.xhtml`：最小样例，照着它改 XHTML 的结构和类名。
 
-用法：把 `recipe.css` 里需要的部分复制到书的 `design.css`（导入的书复制到它自己的样式表末尾），按 `sample.xhtml` 给正文加类名，然后预览。
+用法：
+
+```sh
+epub book recipes                       # 列出配方和回退方式
+epub book recipes drop-cap              # 打印配方 CSS
+epub book recipes drop-cap --add 我的书  # 追加到书的 design.css 末尾
+```
+
+然后按 `sample.xhtml` 给正文加类名，再预览。书里没有 `design.css` 时，把打印出的 CSS 复制到它自己的样式表末尾。
 
 ## 各阅读器表现
 

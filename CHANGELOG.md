@@ -2,9 +2,23 @@
 
 ## Unreleased
 
+### Added
+
+- `epub book recipes`：列出 `templates/recipes` 的配方和回退路线，打印配方 CSS，或用 `--add <书目录>` 追加到书的 `design.css`（带标记，已存在则拒绝）。配方文件已内嵌进二进制。
+- `epub book build` 每次写 `report.html`（新布局 `.epub/`，旧布局 `.pipeline/`），失败现场也带一份。
+- 成品超过 50 MB 时提示 Send to Kindle 可能拒收。
+- epub-font 2.2.0：subset 报告新增 `notInMasterBodyCount`（缺字中正文实际出现的部分），`epub.font.subset` 原样传出。
+
+### Changed
+
+- `epub book import` 遇到非 OEBPS 布局不再停止，自动原样保留并按原布局构建；`--legacy-layout` 仍接受，已无作用。
+- 构建终端每项检查一行：字体缺字合成一行（只报缺字最多的字体，正文与 CSS/配置/生成文本分开计数）；失败列出 error finding 及位置，不再打印整份 JSON；与上一版成品的比对只打一行。
+- `templates/book-starter/build.sh` 只转发给 `epub book`，旧书的书根 `build.sh` 照常可用，构建逻辑只剩 Go 一份。CI 与字体 smoke 改用 `epub book new` 建书。
+
 ### Removed
 
-- 删除 `epub.typography.optimize`（契约、`cli.json` 参数、`internal/caps/typography`、流水线注册、测试与 golden、CI 里的预设候选步骤）。样式预设不再注入已有书，只作新书起点：`templates/book-starter/new-book.sh <dir> --from-preset <name>` 一次性复制进书级 CSS。已含该能力生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 归本书所有，直接编辑，不再有工具维护。capability 总数 22 → 21；`epub.typography.english.optimize` 不受影响。内嵌资源不再打包 `templates/style-presets/*/Styles/*.css`，预设目录 catalog 只读 `preset.json`。
+- 删除 `templates/book-starter/new-book.sh`、`import-book.sh`、`import_book.py` 与 `test-build-dist-guard.sh`；改用 `epub book new|import`，守卫由 Go 测试覆盖。导入字体分拣测试从 Python 移到 Go。
+- 删除 `epub.typography.optimize`（契约、`cli.json` 参数、`internal/caps/typography`、流水线注册、测试与 golden、CI 里的预设候选步骤）。样式预设不再注入已有书，只作新书起点：`epub book new <dir> --from-preset <name>` 一次性复制进书级 CSS。已含该能力生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 归本书所有，直接编辑，不再有工具维护。capability 总数 22 → 21；`epub.typography.english.optimize` 不受影响。内嵌资源不再打包 `templates/style-presets/*/Styles/*.css`，预设目录 catalog 只读 `preset.json`。
 
 ### Changed
 

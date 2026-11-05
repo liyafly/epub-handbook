@@ -34,7 +34,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 - `epub.package.migrate.epub3` 迁移后依次跑 `epub.notes.popup.normalize`、nav audit、全项红线。
 - `epub.notes.popup.normalize` 只读校验，不转换 plain/Sigil 旧尾注；转换旧尾注须先取得正文修改授权，走正文校订流程。
 - `epub.font.subset` 调独立 `epub-font` provider；缺失、目标字体混淆、母版不匹配或验证失败时停止且不写候选。`fonts.json` 顶层 `"usage": "css"` 仅在样式表简单且明确要按角色缩小字符集时设置；不确定时删除，用全书模式。构建流程见[工作区指南](../../docs/pipeline/book-workspace.md)。
-- preset 是新书起点：用 `new-book.sh --from-preset <name>` 复制进书级 `design.css`，不注入已有书。已含 `epub-preset-*.css` 的书，该 CSS 已属本书，直接编辑；已有书的排版增强走配方（[templates/recipes](../../templates/recipes/README.md)）与书级设计。字体资源/链变化后另跑 `epub.font.coverage.analyze`。
+- preset 是新书起点：用 `epub book new <dir> --from-preset <name>` 复制进书级 `design.css`，不注入已有书。已含 `epub-preset-*.css` 的书，该 CSS 已属本书，直接编辑；已有书的排版增强走配方（[templates/recipes](../../templates/recipes/README.md)）与书级设计。字体资源/链变化后另跑 `epub.font.coverage.analyze`。
 
 ## 返回怎么读
 

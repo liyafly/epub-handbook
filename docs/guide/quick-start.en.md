@@ -71,7 +71,7 @@ The build runs these checks in order and stops at the first failure. Each check 
 | Text match | Every reader version has exactly the same text as the generic version |
 | Receipt | Records the SHA of every file in `out/`, so a file you edited by hand is never silently overwritten |
 
-A final `INFO` line compares the result with your previous build. It is for your information only.
+`WARN` lines are reminders that do not stop the build, such as missing characters in a font (only characters the text actually uses count) or a book over 50 MB (Send to Kindle may reject it). A final `INFO` line compares the result with your previous build, for information only. Everything is summarised in `.epub/report.html`; open it in a browser.
 
 If anything fails, nothing in `out/` changes. The failed attempt stays in `.epub/build.*`; `epub book clean my-book` removes old ones and keeps the latest.
 

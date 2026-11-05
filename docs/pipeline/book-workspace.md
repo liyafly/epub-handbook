@@ -6,12 +6,13 @@
 
 ```sh
 epub book new <dir> [--from-preset <name>] [--git]
-epub book import <original.epub> <dir> [--git] [--legacy-layout]
+epub book import <original.epub> <dir> [--git]
 epub book preview [<dir>] [--variant <name>] [--open[=<app>]]
 epub book build [<dir>] [--variant <name>]
 epub book fonts [<dir>] [--update-lock]
 epub book clean [<dir>]
 epub book accept-dist [<dir>] [--variant <name>]
+epub book recipes [<name> [--add <dir>]]
 ```
 
 纯 Go 实现，Windows、macOS、Linux 共用；省略 `<dir>` 表示当前目录。安全属性与旧 sh 构建器一致：冻结原件与 SHA、DRM 停止、导航审计、字体锁与子集、全项 redline、原子替换、`dist-sha256` 收据、`accept-dist` 逐成员比对、构建锁、失败现场保留。
@@ -51,7 +52,7 @@ work-epub/               # 旧布局
 
 `import` 冻结原件与 SHA，运行导航审计，解包，盘点内嵌字体；加 `--git` 时提交基线。加密、损坏或审计阻断时停止，冻结输入与报告保留供分析，不自动转目录，不解密。
 
-非 OEBPS 布局（或 OEBPS/META-INF 之外有资源）默认停止。核对资源集合后可加 `--legacy-layout`：原样解包，构建时按原布局打包，不猜测改名。
+非 OEBPS 布局（或 OEBPS/META-INF 之外有资源）自动原样保留：`book.json` 记 `legacyLayout`，构建时按原布局打包，不改名、不猜测；导入时打印一行提示。预设、配方 `--add` 和覆盖层都假定 `OEBPS/`，这类书需手工处理。旧参数 `--legacy-layout` 仍接受，已无作用。
 
 完整字体按 SHA 去重进共享库，许可先标"待核"。工具判断可能为子集的字体留在源树，报告列出字形数和判断；这个判断不能证明字体一定是全量。
 
@@ -61,7 +62,9 @@ work-epub/               # 旧布局
 
 `build` 依次：复制源 → 按锁注入完整字体 → 打包 → 子集化与独立覆盖检查 → 导航审计 → 全项 redline → 原子替换成品，登记收据和交付记录。另有一步与上一版成品的 redline 比较，只供审阅，不阻断。
 
-- 成功只保留固定交付包。失败保留 `build.*` 现场与报告，不替换已有成品。
+- 终端每项检查一行：`PASS` / `FAIL` / `WARN` / `INFO`，必要时缩进附几条说明（失败列 error finding 和位置，不再打印整份 JSON）。字体缺字合成一行，只报缺字最多的字体，正文缺字与 CSS/配置/生成文本里保守加入的字分开计数。成品超过 50 MB 时提示 Send to Kindle 可能拒收。
+- 每次构建写 `report.html`（新布局 `.epub/`，旧布局 `.pipeline/`）汇总各项；原始报告同目录。
+- 成功只保留固定交付包。失败保留 `build.*` 现场与报告（含 `report.html`），不替换已有成品。
 - `clean` 只清旧的 `build.*`，默认保留最近一次；遇到构建锁停止；不清收据和其他材料。
 - 现有成品的 SHA 必须与收据一致；缺收据或不一致都拒绝覆盖。
 - 编辑过成品后：先保存副本，做全项 redline 与人工 diff，把修改并回源；再运行 `accept-dist`。它重新生成并检查候选，要求包内所有成员与当前成品一致（不只比正文红线），通过才登记收据。它不替代人工审核，也不允许跳过源同步。
@@ -119,7 +122,7 @@ provider 先查 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%
 - `target` 是 OPF/CSS 引用的包内路径；新书用角色别名，旧书保留原名。`from` 只能是库内文件名。没有 `from` 的项继续用源树字体，两种可以混用；原有子集不入库。
 - `usage` 省略时按全书字符集；显式 `css` 才按保守的 CSS 角色范围。未知选择器会扩大字符集；活动内容、无法证明安全的样式或字符生成方式会拒绝 CSS 模式。
 - 可变字体只接受静态实例化；MATH 字体按原字节保留；原有加密边界不变。
-- 母版本来缺的字只打印 warning（附缺字与文件定位样本），不阻断；子集新增的缺字、空字形或 IVS/SVS 回归仍阻断。子集源缺少后来新增的字无法自动恢复，需找到授权的完整母版并更新配置。
+- 母版本来缺的字只给 warning（终端一行汇总，样本与定位在报告里），不阻断；子集新增的缺字、空字形或 IVS/SVS 回归仍阻断。子集源缺少后来新增的字无法自动恢复，需找到授权的完整母版并更新配置。
 - 更换母版版本后，审阅来源、许可与字形变化，再显式更新锁：`epub book fonts --update-lock`（旧布局也可用 `epub-font inject --config '03 制作工作区/fonts.json' --update-lock`）。
 
 `epub book fonts` 把锁定的母版注入源树供编辑器预览；源树里对应的母版路径必须被 Git 忽略，混用时只忽略库字体路径，子集字体继续跟踪。不注入时编辑器显示回退字体。交付总是从库重新注入临时副本，不复用预览文件。
@@ -132,17 +135,19 @@ provider 先查 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%
 
 按 [AGENTS.md](../../AGENTS.md)「过程记录」，日常构建不另写记录。配方首测或写兼容结论时，保留完整 artifact/SHA、阅读器版本和逐场景截图，并回写 [reader matrix](../final/reader-matrix.yaml)；出问题时保留失败现场与报告，确认交付后可清理中间调参；正文校订走 SPEC §10.1.1，含文决策留书级材料，被 gate 引用的文件与路径映射不得提前删除。
 
-## 旧 sh 脚本
+## 配方
 
-既有书仍可用 `templates/book-starter/` 下的脚本，它们与 `epub book` 语义一致：
+`epub book recipes` 列出 [templates/recipes](../../templates/recipes/README.md) 里的配方和降级路线；`epub book recipes <name>` 打印配方 CSS；`--add <dir>` 把它追加到该书 `OEBPS/Styles/design.css` 末尾，带 `/* recipe: <name> ... */` 标记，已存在则拒绝。只追加，不改已有规则；XHTML 里的类名仍要手工加（参考同目录 `sample.xhtml`）。
+
+## 旧布局的 build.sh
+
+旧书书根 `build.sh` 转发到 `${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh`，后者只再转发给 `epub book <命令> <书目录>`，构建逻辑只有 Go 一份：
 
 ```sh
-sh templates/book-starter/new-book.sh work-epub/<book> [--from-preset <name>]
-sh templates/book-starter/import-book.sh <原始.epub> work-epub/<book>
-sh build.sh            # 在书根；另有 fonts / clean / accept-dist
+sh build.sh            # 在书根；另有 fonts / clean / accept-dist / preview
 ```
 
-书根 `build.sh` 只转发到 `${EPUB_HANDBOOK_ROOT:-$HOME/Developer/epub-handbook}/templates/book-starter/build.sh`，书目录作首参数；多册可把各自含 `epub/` 的制作子目录传入。构建器兼容旧式复制到 `03 制作工作区/epub/` 的脚本和源树完整字体，但维护逻辑只更新手册这一份。配置优先制作区 `fonts.json`，再兼容书根配置；既有正式名用转发脚本的 `EPUB_OUTPUT_NAME` 保留。已有非 OEBPS 书核对资源集合后可设 `EPUB_LEGACY_LAYOUT=1`，原样打包原布局；`import-book.sh` 仍拒绝非 OEBPS 布局，不猜测改名。
+`epub` 从 PATH 或 `$HOME/.local/bin` 找，`EPUB_BIN` 可指定。多册工作区由 `epub book` 逐册处理。配置优先制作区 `fonts.json`，再兼容书根配置；既有正式名用转发脚本的 `EPUB_OUTPUT_NAME` 保留，非 OEBPS 书可设 `EPUB_LEGACY_LAYOUT=1`。旧的 `new-book.sh`、`import-book.sh` 已删除，新书用 `epub book new|import`。
 
 ## Git 与第三方材料
 

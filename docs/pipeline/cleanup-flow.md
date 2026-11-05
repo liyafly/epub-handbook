@@ -5,7 +5,7 @@
 
 ## 两条接入路径
 
-**精排已有书**：运行 `epub book import <原始.epub> work-epub/<book>`（既有书也可用旧脚本 `sh templates/book-starter/import-book.sh`），自动冻结原件与 SHA、导航审计、解包和字体盘点（加 `--git` 或用旧脚本时另提交书级基线）。随后改源 → `epub book build` → 阅读器检查。没有问题就不做规范化、EPUB3 迁移或 CSS 清洗，也不必为此另写记录；不为走完流程而重复变换。导入遇到审计阻断、加密或非 OEBPS 布局会停下并保留输入/报告（非 OEBPS 可在核对后用 `--legacy-layout` 原样接入）。命令细节见 [书级工作区](book-workspace.md)。
+**精排已有书**：运行 `epub book import <原始.epub> work-epub/<book>`，自动冻结原件与 SHA、导航审计、解包和字体盘点（加 `--git` 时另提交书级基线）。随后改源 → `epub book build` → 阅读器检查。没有问题就不做规范化、EPUB3 迁移或 CSS 清洗，也不必为此另写记录；不为走完流程而重复变换。导入遇到审计阻断或加密会停下并保留输入/报告；非 OEBPS 布局自动原样保留、按原布局打包。命令细节见 [书级工作区](book-workspace.md)。
 
 **清洗问题书**：审计发现相应问题，或用户明确要求清洗时，才进入下列 S0–S9 的对应步骤。每次写出后的全项红线、人工 diff 与授权正文校订 gate 始终保留。已接入的书直接使用冻结原件、现有源和对应审计，不重复复制或迁移。
 

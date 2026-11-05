@@ -1,6 +1,6 @@
 # 书级 EPUB 工作区（旧布局）
 
-> 新书和新导入的书请用 `epub book new|import|preview|build|fonts|clean|accept-dist`：纯 Go，Windows 可用，也能识别本页的旧布局，另有预览与阅读器变体。见 [快速开始](https://github.com/liyafly/epub-handbook/blob/main/docs/guide/quick-start.md) 和 [书级工作区](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)。本页的 sh 脚本只为既有书保留。
+> 本目录是 `epub book new` 内置的起始书（`mimetype`、`META-INF/`、`OEBPS/`），以及旧布局书的转发入口 `build.sh`。新书和新导入的书用 `epub book new|import|preview|build|fonts|clean|accept-dist|recipes`，见 [快速开始](https://github.com/liyafly/epub-handbook/blob/main/docs/guide/quick-start.md) 和 [书级工作区](https://github.com/liyafly/epub-handbook/blob/main/docs/pipeline/book-workspace.md)。本页其余内容说明既有的旧布局书。
 
 日常在书根：改 `03 制作工作区/epub/` → `sh build.sh` → 阅读器检查 → 提交。
 
@@ -11,16 +11,16 @@
 - `sh build.sh clean`：清旧的失败构建，保留最近一次现场；不清收据和其他材料。
 - `sh build.sh accept-dist`：先把编辑过的 dist 修改并回源并完成人工 diff；命令验证重建候选的每个成员都一致后，才重新登记 SHA。
 
-书根脚本依赖手册仓库的统一构建器，路径可用 `EPUB_HANDBOOK_ROOT` 指定。需要可用的 `epub` CLI；含字体时另装 `epub-font` provider。构建器默认把 `$HOME/.local/bin`（`uv tool install` 的默认位置）追加到搜索路径，调用者 PATH 里的工具优先；`EPUB_LOCAL_BIN=<目录>` 指定位置，显式设空则只用原始 PATH（用于隔离环境或检查工具缺失）。
+书根脚本转发到手册仓库的 `templates/book-starter/build.sh`（路径可用 `EPUB_HANDBOOK_ROOT` 指定），它再转发给 `epub book`，构建逻辑全在 Go CLI。需要可用的 `epub` CLI（`EPUB_BIN` 可指定）；含字体时另装 `epub-font` provider。构建器默认把 `$HOME/.local/bin`（`uv tool install` 的默认位置）追加到搜索路径，调用者 PATH 里的工具优先；`EPUB_LOCAL_BIN=<目录>` 指定位置，显式设空则只用原始 PATH（用于隔离环境或检查工具缺失）。
 
 ## 样式
 
-默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则，并在制作说明的"使用的配方"里记下；每条配方的证据范围以其说明为准。
+默认只加载 `base.css`（安全底座）和 `design.css`（本书设计）。从 [配方目录](https://github.com/liyafly/epub-handbook/tree/main/templates/recipes) 按需复制规则（`epub book recipes` 可列出和打印），并在制作说明的"使用的配方"里记下；每条配方的证据范围以其说明为准。
 
 - 嵌入字体时另加 `fonts.css`、OPF 声明和 XHTML link，放在 base 之前。
 - 标准弹注用 `notes.css`。
 - 已有多层 CSS 的书不必合并。
-- 想以某个书型为起点，建书时加 `--from-preset <name>`（如 `new-book.sh <书目录> --from-preset literary-cn`）。预设除 `fonts.css`、`notes.css` 外的各层复制进 `design.css`；预设的 `notes.css` 单独复制为 `Styles/notes.css`，自动加入 OPF 和各章 link（顺序 base → notes → design）。复制后都归本书自由修改。
+- 想以某个书型为起点，建书时加 `--from-preset <name>`（如 `epub book new <书目录> --from-preset literary-cn`）。预设除 `fonts.css`、`notes.css` 外的各层复制进 `design.css`；预设的 `notes.css` 单独复制为 `Styles/notes.css`，自动加入 OPF 和各章 link（顺序 base → notes → design）。复制后都归本书自由修改。
 
 ## 字体
 

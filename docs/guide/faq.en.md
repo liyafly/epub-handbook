@@ -18,8 +18,8 @@ Put the path in double quotes: `epub book build "my book"`.
 **Import says the book is encrypted or has DRM.**
 This tool does not decrypt and does not handle DRM-protected books. Use a DRM-free EPUB.
 
-**Import says `Non-OEBPS layout`.**
-The book's files are not in the usual `OEBPS/` folder. Import again with `--legacy-layout`; the tool keeps the original folder layout as it is and renames nothing.
+**Import says `not an OEBPS/ layout`.**
+The book's files are not in the usual `OEBPS/` folder. The tool has kept the original folder layout as it is, renamed nothing, and builds it normally. Presets and `epub book recipes --add` expect `OEBPS/`, so edit the styles of such a book by hand.
 
 **Import says the font tool is missing.**
 The book embeds fonts, and import uses `epub-font` to sort them. Install the [font tool](../../README.en.md#install) and import again.

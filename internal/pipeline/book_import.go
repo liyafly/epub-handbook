@@ -2,7 +2,7 @@ package pipeline
 
 // epub book import：冻结原件、DRM/加密停止、导航审计、解包、盘点内嵌字体。
 //
-// 移植 templates/book-starter/import_book.py。安全属性保持：原件只读并记录
+// 由已删除的 templates/book-starter/import_book.py 移植而来。安全属性保持：原件只读并记录
 // SHA-256；加密/rights 元数据、重名 ZIP 成员、不安全成员名一律停止；非 OEBPS
 // 布局原样保留（不改名、不猜测），构建时按原布局打包；完整字体按 SHA 进入共享库且绝不覆盖不同版本；失败时冻结输入与
 // 诊断保留在 .book-import-* 目录。

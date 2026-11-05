@@ -2,7 +2,7 @@ package pipeline
 
 // epub book build / fonts / clean / accept-dist
 //
-// 逐条移植 templates/book-starter/build.sh 的安全属性：构建锁、dist 收据、
+// 逐条移植旧 sh 构建器的安全属性（templates/book-starter/build.sh 现只转发到这里）：构建锁、dist 收据、
 // 失败现场保留、子集化 + 独立覆盖检查、导航审计、全项 redline、原子替换、
 // 交付记录与 accept-dist 的逐成员比对。所有磁盘写入经 internal/zipfs，
 // 外部进程经 internal/extern。

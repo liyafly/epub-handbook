@@ -10,7 +10,15 @@ Recipes live in [`templates/recipes/`](../../templates/recipes/README.md) (Chine
 - `recipe.css`: the styles to copy;
 - `sample.xhtml`: a minimal sample showing the structure and class names to use.
 
-To use one, copy the parts you need from `recipe.css` into the book's `design.css` (for an imported book, the end of its own stylesheet), add the class names to your XHTML as in `sample.xhtml`, and preview.
+To use one:
+
+```sh
+epub book recipes                         # list recipes and their fallbacks
+epub book recipes drop-cap                # print the recipe CSS
+epub book recipes drop-cap --add my-book  # append it to the book's design.css
+```
+
+Then add the class names to your XHTML as in `sample.xhtml`, and preview. If the book has no `design.css`, copy the printed CSS to the end of its own stylesheet.
 
 ## How each reader handles them
 

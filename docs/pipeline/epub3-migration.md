@@ -1,6 +1,6 @@
 # EPUB3 迁移：产物与验收
 
-> 状态：流程文档；用于把旧 EPUB/EPUB2 转为 EPUB3。排版样式由书级 CSS 决定；新书可用 `new-book.sh --from-preset` 取预设起点。
+> 状态：流程文档；用于把旧 EPUB/EPUB2 转为 EPUB3。排版样式由书级 CSS 决定；新书可用 `epub book new --from-preset` 取预设起点。
 > 执行入口：`epub run epub.package.migrate.epub3`；目录规范化见 cleanup-flow S2。
 > 对应 skill：`$epub-cleanup`
 
