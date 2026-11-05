@@ -3,8 +3,8 @@ package pipeline
 // epub book import：冻结原件、DRM/加密停止、导航审计、解包、盘点内嵌字体。
 //
 // 移植 templates/book-starter/import_book.py。安全属性保持：原件只读并记录
-// SHA-256；加密/rights 元数据、重名 ZIP 成员、不安全成员名、OEBPS 之外的资源
-// 一律停止；完整字体按 SHA 进入共享库且绝不覆盖不同版本；失败时冻结输入与
+// SHA-256；加密/rights 元数据、重名 ZIP 成员、不安全成员名一律停止；非 OEBPS
+// 布局原样保留（不改名、不猜测），构建时按原布局打包；完整字体按 SHA 进入共享库且绝不覆盖不同版本；失败时冻结输入与
 // 诊断保留在 .book-import-* 目录。
 
 import (
@@ -31,19 +31,16 @@ type BookImportOptions struct {
 	Dir      string
 	// Git 为 true 时在书根初始化 Git 并提交基线（可选）。
 	Git bool
-	// LegacyLayout 允许非 OEBPS 布局：原样解包并在 book.json 里标记，
-	// 构建时按原布局打包，不改名、不猜测。
-	LegacyLayout bool
 }
 
 // BookImport 导入已有 EPUB 并建立新布局，返回退出码。
 func BookImport(ctx context.Context, opts BookImportOptions, bio BookIO) int {
 	if strings.TrimSpace(opts.Original) == "" || strings.TrimSpace(opts.Dir) == "" {
-		return bookExit(bio, usageErrorf("usage: epub book import <original.epub> <book-directory> [--git] [--legacy-layout]"))
+		return bookExit(bio, usageErrorf("usage: epub book import <original.epub> <book-directory> [--git]"))
 	}
 	r := &bookRunner{ctx: ctx, bio: bio, env: readBookEnv()}
 	ensureLocalBin(r.env)
-	dest, retained, err := r.importBook(opts)
+	dest, legacy, retained, err := r.importBook(opts)
 	if err != nil {
 		if retained != "" {
 			err = fmt.Errorf("%w\nImport stopped; frozen input and diagnostics retained: %s", err, retained)
@@ -51,56 +48,60 @@ func BookImport(ctx context.Context, opts BookImportOptions, bio BookIO) int {
 		return bookExit(bio, err)
 	}
 	fmt.Fprintln(bio.out(), "Imported:", dest)
+	if legacy {
+		fmt.Fprintln(bio.out(), "Note: not an OEBPS/ layout; kept as-is and will be built as-is (presets and overlays assume OEBPS/).")
+	}
 	return ExitOK
 }
 
-func (r *bookRunner) importBook(opts BookImportOptions) (dest, retained string, err error) {
+func (r *bookRunner) importBook(opts BookImportOptions) (dest string, legacy bool, retained string, err error) {
 	original, err := filepath.Abs(opts.Original)
 	if err != nil {
-		return "", "", err
+		return "", false, "", err
 	}
 	dest, err = filepath.Abs(opts.Dir)
 	if err != nil {
-		return "", "", err
+		return "", false, "", err
 	}
 	if !isFile(original) {
-		return "", "", usageErrorf("Input must be a regular EPUB and destination must not exist")
+		return "", false, "", usageErrorf("Input must be a regular EPUB and destination must not exist")
 	}
 	if _, lerr := os.Lstat(dest); lerr == nil {
-		return "", "", usageErrorf("Input must be a regular EPUB and destination must not exist")
+		return "", false, "", usageErrorf("Input must be a regular EPUB and destination must not exist")
 	}
 	parent := filepath.Dir(dest)
 	if err := zipfs.MkdirAll(parent); err != nil {
-		return "", "", err
+		return "", false, "", err
 	}
 	retained, err = zipfs.MkdirTemp(parent, ".book-import-*")
 	if err != nil {
-		return "", "", err
+		return "", false, "", err
 	}
 	_ = zipfs.Chmod(retained, 0o755)
 	bookDir := filepath.Join(retained, "book")
-	if err := r.importInto(opts, original, dest, bookDir); err != nil {
-		return "", retained, err
+	legacy, err = r.importInto(opts, original, dest, bookDir)
+	if err != nil {
+		return "", false, retained, err
 	}
 	if err := zipfs.RenameNoReplace(bookDir, dest); err != nil {
-		return "", retained, fmt.Errorf("move imported book into place: %w", err)
+		return "", false, retained, fmt.Errorf("move imported book into place: %w", err)
 	}
 	_ = zipfs.Remove(retained)
-	return dest, "", nil
+	return dest, legacy, "", nil
 }
 
-func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir string) error {
+func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir string) (legacy bool, err error) {
 	ctx := r.ctx
 	if err := zipfs.MkdirAll(bookDir); err != nil {
-		return err
+		return false, err
 	}
 	frozen := filepath.Join(bookDir, "original.epub")
 	if err := zipfs.CopyFile(ctx, original, frozen, 0o444); err != nil {
-		return err
+		return false, err
 	}
 	reports := filepath.Join(bookDir, ".epub", "import")
 	if err := zipfs.MkdirAll(reports); err != nil {
-		return err
+		return false, err
 	}
 
 	// 导航审计：DRM/损坏阻断；不解密。
@@ -109,61 +110,50 @@ func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir 
 		CapabilityID: "epub.package.nav.audit", InputPath: frozen,
 	}); err != nil {
 		if errors.Is(err, errBookStepFailed) {
-			return errors.New("Navigation audit failed; inspect report and use cleanup-flow.md for repairs. DRM is not decrypted.")
+			return false, errors.New("Navigation audit failed; inspect report and use cleanup-flow.md for repairs. DRM is not decrypted.")
 		}
-		return err
+		return false, err
 	}
 
 	archive, err := zipfs.OpenContext(ctx, frozen)
 	if err != nil {
-		return err
+		return false, err
 	}
 	names := archive.Names()
 	if len(names) != len(slices.Compact(slices.Sorted(slices.Values(names)))) {
 		_ = archive.Close()
-		return errors.New("Duplicate ZIP entries are not supported")
+		return false, errors.New("Duplicate ZIP entries are not supported")
 	}
 	rootfile, err := readRootfile(ctx, archive)
 	if err != nil {
 		_ = archive.Close()
-		return err
+		return false, err
 	}
-	legacy := false
-	if !strings.HasPrefix(rootfile, "OEBPS/") {
-		if !opts.LegacyLayout {
-			_ = archive.Close()
-			return errors.New("Non-OEBPS layout: preserve the existing build path; no automatic renaming (retry with --legacy-layout to keep the original layout)")
-		}
-		legacy = true
-	} else if slices.ContainsFunc(names, func(name string) bool {
+	// 非 OEBPS 布局（或 OEBPS/META-INF 之外有资源）原样保留：不改名、不猜测，
+	// 在 book.json 标记后构建时按原布局打包。
+	legacy = !strings.HasPrefix(rootfile, "OEBPS/") || slices.ContainsFunc(names, func(name string) bool {
 		return name != "mimetype" && !strings.HasSuffix(name, "/") &&
 			!strings.HasPrefix(name, "META-INF/") && !strings.HasPrefix(name, "OEBPS/")
-	}) {
-		if !opts.LegacyLayout {
-			_ = archive.Close()
-			return errors.New("Resources outside OEBPS/META-INF: keep the existing build path (retry with --legacy-layout to keep the original layout)")
-		}
-		legacy = true
-	}
+	})
 	if slices.Contains(names, "META-INF/encryption.xml") || slices.Contains(names, "META-INF/rights.xml") {
 		_ = archive.Close()
-		return errors.New("Encryption metadata present; stop for explicit audit, no decryption")
+		return false, errors.New("Encryption metadata present; stop for explicit audit, no decryption")
 	}
 	source := filepath.Join(bookDir, "epub")
 	err = archive.ExtractTo(ctx, source)
 	_ = archive.Close()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	jobs, decisions, ignored, err := r.inventoryFonts(frozen, source, dest, reports)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	digest, err := zipfs.FileSHA256Context(ctx, frozen)
 	if err != nil {
-		return err
+		return false, err
 	}
 	cfg := bookConfig{
 		Version: 1, Title: filepath.Base(dest), Output: defaultOutputName, LegacyLayout: legacy,
@@ -173,39 +163,39 @@ func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir 
 	for _, job := range jobs {
 		raw, err := json.Marshal(job)
 		if err != nil {
-			return err
+			return false, err
 		}
 		cfg.Fonts = append(cfg.Fonts, raw)
 	}
 	if err := writeBookConfig(filepath.Join(bookDir, bookConfigName), cfg); err != nil {
-		return err
+		return false, err
 	}
 	relocation, err := json.MarshalIndent(map[string]string{
 		"auditedPath": frozen, "retainedPath": filepath.Join(dest, "original.epub"), "sha256": digest,
 	}, "", "  ")
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := zipfs.WriteFileAtomic(filepath.Join(reports, "relocation.json"), append(relocation, '\n'), 0o644); err != nil {
-		return err
+		return false, err
 	}
 	fontReport, err := json.MarshalIndent(decisions, "", "  ")
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := zipfs.WriteFileAtomic(filepath.Join(reports, "fonts.json"), append(fontReport, '\n'), 0o644); err != nil {
-		return err
+		return false, err
 	}
 
 	if opts.Git {
 		if err := initBookGit(ctx, bookDir, ignored, false); err != nil {
-			return err
+			return false, err
 		}
 		if err := gitCommitBaseline(ctx, bookDir, digest); err != nil {
-			return err
+			return false, err
 		}
 	}
-	return nil
+	return legacy, nil
 }
 
 // readRootfile 返回 container.xml 中第一个 rootfile 的 full-path。

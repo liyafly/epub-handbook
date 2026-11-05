@@ -12,7 +12,7 @@ import (
 
 const bookUsage = `用法:
   epub book new <书目录> [--from-preset <名称>] [--git]
-  epub book import <原书.epub> <书目录> [--git] [--legacy-layout]
+  epub book import <原书.epub> <书目录> [--git]
   epub book build [<书目录>] [--variant <名称>]
   epub book preview [<书目录>] [--variant <名称>] [--open[=<应用>]]
   epub book fonts [<书目录>] [--update-lock]
@@ -54,7 +54,7 @@ func runBook(argv []string) int {
 		fs := flag.NewFlagSet("epub book import", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		git := fs.Bool("git", false, "在书根初始化独立 Git 并提交基线")
-		legacy := fs.Bool("legacy-layout", false, "允许非 OEBPS 布局：原样解包，构建时按原布局打包")
+		_ = fs.Bool("legacy-layout", false, "已默认：非 OEBPS 布局自动原样保留（保留此参数只为兼容）")
 		args, code := parseInterspersed(fs, rest)
 		if code >= 0 {
 			return code
@@ -62,7 +62,7 @@ func runBook(argv []string) int {
 		if len(args) != 2 {
 			return bookUsageError("import 需要原书 EPUB 与目标书目录")
 		}
-		return pipeline.BookImport(ctx, pipeline.BookImportOptions{Original: args[0], Dir: args[1], Git: *git, LegacyLayout: *legacy}, bio)
+		return pipeline.BookImport(ctx, pipeline.BookImportOptions{Original: args[0], Dir: args[1], Git: *git}, bio)
 	case pipeline.BookCommandBuild, pipeline.BookCommandPreview, pipeline.BookCommandFonts, pipeline.BookCommandClean, pipeline.BookCommandAcceptDist:
 		fs := flag.NewFlagSet("epub book "+sub, flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)

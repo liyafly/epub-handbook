@@ -418,7 +418,7 @@ func TestBookImportStopsOnEncryptionAndNonOEBPS(t *testing.T) {
 		t.Error("a stopped import must not create the destination")
 	}
 
-	// Non-OEBPS: refused by default, accepted explicitly and then built as-is.
+	// Non-OEBPS: kept as-is automatically and then built as-is.
 	legacyTree := filepath.Join(t.TempDir(), "legacy")
 	if err := zipfs.CopyTree(context.Background(), filepath.Join(src, "epub"), legacyTree, nil); err != nil {
 		t.Fatal(err)
@@ -432,14 +432,16 @@ func TestBookImportStopsOnEncryptionAndNonOEBPS(t *testing.T) {
 	if err := zipfs.PackTree(context.Background(), legacyTree, flat, "mimetype"); err != nil {
 		t.Fatal(err)
 	}
-	dest2 := filepath.Join(t.TempDir(), "flat-book")
-	if code := BookImport(context.Background(), BookImportOptions{Original: flat, Dir: dest2}, h.io()); code == 0 ||
-		!strings.Contains(h.err.String(), "Non-OEBPS") {
-		t.Fatalf("non-OEBPS must stop by default: %d %s", code, h.err)
-	}
 	dest3 := filepath.Join(t.TempDir(), "flat-book-ok")
-	if code := BookImport(context.Background(), BookImportOptions{Original: flat, Dir: dest3, LegacyLayout: true}, h.io()); code != 0 {
-		t.Fatalf("--legacy-layout import = %d: %s", code, h.err)
+	h.out.Reset()
+	if code := BookImport(context.Background(), BookImportOptions{Original: flat, Dir: dest3}, h.io()); code != 0 {
+		t.Fatalf("non-OEBPS import = %d: %s", code, h.err)
+	}
+	if !strings.Contains(h.out.String(), "not an OEBPS/ layout") {
+		t.Errorf("non-OEBPS import must say the layout is kept: %s", h.out)
+	}
+	if cfg := mustRead(t, filepath.Join(dest3, "book.json")); !strings.Contains(cfg, `"legacyLayout": true`) {
+		t.Errorf("book.json must mark the kept layout: %s", cfg)
 	}
 	if code := h.run(dest3, "build"); code != 0 {
 		t.Fatalf("legacy-layout build = %d: %s", code, h.err)
