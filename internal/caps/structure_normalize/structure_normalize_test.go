@@ -159,6 +159,12 @@ func buildChainedIDFixture(t *testing.T, path string) {
 		{"OPS/Text/x*.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>X</title></head><body><p>Text from X.</p></body></html>`},
 		{"OPS/Text/y*.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Y</title></head><body><p>Text from Y.</p></body></html>`},
 	}
+	writeZipFixture(t, path, entries)
+}
+
+// writeZipFixture 按顺序写出 fixture entry；mimetype 不压缩。
+func writeZipFixture(t *testing.T, path string, entries []fixtureEntry) {
+	t.Helper()
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
 	for _, entry := range entries {
@@ -575,6 +581,42 @@ func TestDeobfuscateChainedIDsPassRedline(t *testing.T) {
 		if !finding.Verbose {
 			t.Fatalf("text redline reported a content change: %+v", finding)
 		}
+	}
+}
+
+// 多看按“普通图名 + ~slim”关联长屏封面。混淆名按 ID 改名后，slim 必须跟随伙伴的新名；
+// 可读名的成对资源保持原名。
+func TestDeobfuscateKeepsSlimPairing(t *testing.T) {
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "slim-pair.epub")
+	opf := `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" unique-identifier="id"><metadata><dc:identifier id="id">urn:test:slim</dc:identifier><dc:title>Slim</dc:title><dc:language>en</dc:language><meta name="cover" content="f100"/></metadata><manifest>` +
+		`<item id="f0" href="Text/%2A%3A%2A.xhtml" media-type="application/xhtml+xml"/>` +
+		`<item id="f100" href="Images/%2A%3A%3A%2A.jpg" media-type="image/jpeg"/>` +
+		`<item id="f101" href="Images/%2A%3A%3A%2A~slim.jpg" media-type="image/jpeg"/>` +
+		`<item id="cover.png" href="Images/cover.png" media-type="image/png"/>` +
+		`<item id="coverslim.png" href="Images/cover~slim.png" media-type="image/png"/>` +
+		`</manifest><spine><itemref idref="f0"/></spine></package>`
+	writeZipFixture(t, fixture, []fixtureEntry{
+		{"mimetype", "application/epub+zip"},
+		{"META-INF/container.xml", `<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`},
+		{"OPS/package.opf", opf},
+		{"OPS/Text/*:*.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>C</title></head><body><p><img src="../Images/%2A%3A%3A%2A.jpg" alt="cover"/></p></body></html>`},
+		{"OPS/Images/*::*.jpg", "jpg"},
+		{"OPS/Images/*::*~slim.jpg", "slim"},
+		{"OPS/Images/cover.png", "png"},
+		{"OPS/Images/cover~slim.png", "slim png"},
+	})
+	res, err := runGo(t, fixture, filepath.Join(dir, "out.epub"), ModeDeobfuscate, false)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := map[string]string{
+		"OPS/Text/*:*.xhtml":       "OPS/Text/f0.xhtml",
+		"OPS/Images/*::*.jpg":      "OPS/Images/f100.jpg",
+		"OPS/Images/*::*~slim.jpg": "OPS/Images/f100~slim.jpg",
+	}
+	if !reflect.DeepEqual(res.Renames, want) {
+		t.Fatalf("Renames = %v, want %v", res.Renames, want)
 	}
 }
 

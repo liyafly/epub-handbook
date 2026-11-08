@@ -686,6 +686,40 @@ func allHex(s string) bool {
 	return true
 }
 
+// slimPartners 找出与普通资源成对的 slim 资源：同目录、文件名去掉 ~slim / -slim / _slim
+// 后与另一个资源的文件名（不含扩展名）相同。候选多于一个时取扩展名相同的唯一一个，
+// 仍不唯一就不配对。返回 slim 源路径 → 伙伴源路径。
+func slimPartners(order []string) map[string]string {
+	byStem := map[string][]string{}
+	for _, source := range order {
+		key := pypath.Join(pypath.Dirname(source), pypath.BaseStem(source))
+		byStem[key] = append(byStem[key], source)
+	}
+	partners := map[string]string{}
+	for _, source := range order {
+		stem := pypath.BaseStem(source)
+		base, ok := cutSlimSuffix(stem)
+		if !ok || base == "" || len(stem)-len(base) != len("~slim") {
+			continue
+		}
+		candidates := byStem[pypath.Join(pypath.Dirname(source), base)]
+		if len(candidates) > 1 {
+			_, ext := pypath.SplitExt(source)
+			var sameExt []string
+			for _, c := range candidates {
+				if _, cext := pypath.SplitExt(c); strings.EqualFold(cext, ext) {
+					sameExt = append(sameExt, c)
+				}
+			}
+			candidates = sameExt
+		}
+		if len(candidates) == 1 {
+			partners[source] = candidates[0]
+		}
+	}
+	return partners
+}
+
 // cutSlimSuffix 复刻正则 (?:[~_-]?slim)$（大小写不敏感）的匹配与剥离。
 func cutSlimSuffix(name string) (string, bool) {
 	if len(name) < 4 || !strings.EqualFold(name[len(name)-4:], "slim") {
@@ -763,7 +797,7 @@ func allocatePath(preferred string, used map[string]bool) (string, error) {
 	return candidate, nil
 }
 
-// buildPathMap 逐行复刻 build_path_map。
+// buildPathMap 源自 build_path_map；另加 slim 资源跟随伙伴改名（slimPartners）。
 func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, op string, rep *stageReport) (map[string]string, error) {
 	var order []string
 	sourceResources := map[string]manifestResource{}
@@ -792,22 +826,49 @@ func buildPathMap(resources []manifestResource, files map[string]bool, opfPath, 
 	}
 	opfDir := pypath.Dirname(opfPath)
 	pathMap := map[string]string{}
-	for _, source := range order {
-		resource := sourceResources[source]
-		folder := classifyResource(resource)
-		basename := pypath.Basename(source)
-		if op == "deobfuscate-filenames" {
-			basename = deobfuscatedBasename(resource)
-		}
+	allocate := func(source, basename string) error {
 		preferred := pypath.Join(opfDir, basename)
-		if folder != "" {
+		if folder := classifyResource(sourceResources[source]); folder != "" {
 			preferred = pypath.Join(opfDir, folder, basename)
 		}
 		target, err := allocatePath(preferred, used)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		pathMap[source] = target
+		return nil
+	}
+	// 多看按“普通图文件名 + ~slim”关联长屏备用图。混淆名按 manifest ID 改名后两者不再同名，
+	// 所以成对的 slim 资源等伙伴分配完，再用伙伴的新文件名加 ~slim。
+	var slimPartner map[string]string
+	if op == "deobfuscate-filenames" {
+		slimPartner = slimPartners(order)
+	}
+	for _, source := range order {
+		if slimPartner[source] != "" {
+			continue
+		}
+		basename := pypath.Basename(source)
+		if op == "deobfuscate-filenames" {
+			basename = deobfuscatedBasename(sourceResources[source])
+		}
+		if err := allocate(source, basename); err != nil {
+			return nil, err
+		}
+	}
+	for _, source := range order {
+		partner := slimPartner[source]
+		if partner == "" {
+			continue
+		}
+		partnerStem, _ := pypath.SplitExt(pypath.Basename(pathMap[partner]))
+		_, ext := pypath.SplitExt(pypath.Basename(source))
+		if err := allocate(source, partnerStem+"~slim"+strings.ToLower(ext)); err != nil {
+			return nil, err
+		}
+	}
+	for _, source := range order {
+		target := pathMap[source]
 		if target == source {
 			continue
 		}

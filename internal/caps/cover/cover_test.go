@@ -444,3 +444,51 @@ func TestCoverMissingFileRefused(t *testing.T) {
 		t.Errorf("缺封面文件应拒绝: %+v", res.Findings)
 	}
 }
+
+// 多看按“封面文件名 + ~slim”关联长屏封面。换封面后，旧长屏图无论被删除还是留下都要告警。
+func TestReplaceCoverWarnsAboutSlimCover(t *testing.T) {
+	cases := []struct {
+		name, coverName, want string
+	}{
+		{"readable name is removed with the old cover", "cover", "long-screen cover OEBPS/Images/cover~slim.jpg was removed"},
+		{"obfuscated name is left behind", "a1b2", "long-screen cover OEBPS/Images/a1b2~slim.jpg still belongs to the old cover"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			source := filepath.Join(dir, "source.epub")
+			fixture := writeBookEntries("封面书", "cover", []byte("old-cover"))
+			oldHref := "Images/" + tc.coverName + ".jpg"
+			slimHref := "Images/" + tc.coverName + "~slim.jpg"
+			for i := range fixture {
+				content := strings.ReplaceAll(string(fixture[i].content), "Images/cover.jpg", oldHref)
+				if fixture[i].name == "OEBPS/content.opf" {
+					content = strings.Replace(content, "</manifest>", `<item id="slim" href="`+slimHref+`" media-type="image/jpeg"/></manifest>`, 1)
+				}
+				fixture[i].content = []byte(content)
+				if fixture[i].name == "OEBPS/Images/cover.jpg" {
+					fixture[i].name = "OEBPS/" + oldHref
+				}
+			}
+			fixture = append(fixture, zipEntry{name: "OEBPS/" + slimHref, content: []byte("old-slim")})
+			buildEpub(t, source, fixture)
+			cover := filepath.Join(dir, "new-cover.png")
+			if err := os.WriteFile(cover, []byte("new-cover"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			b, err := book.Open(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			res, err := Run(t.Context(), b, Params{Cover: cover, Output: filepath.Join(dir, "cover.epub")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			warnings, _ := res.Facts["warnings"].([]string)
+			if len(warnings) != 1 || !strings.Contains(warnings[0], tc.want) {
+				t.Fatalf("warnings = %v, want one containing %q", warnings, tc.want)
+			}
+		})
+	}
+}

@@ -8,7 +8,7 @@
 - 配方 `image-preview`：多看 / Reeden 点图预览带题注（`duokan-image-single`），其他阅读器为普通整宽图；recipe.md 附可选 spine 整屏图页写法（非严格书用 `duokan-`，严格 EPUB3 用 `reeden:` 前缀）。
 - 书信、公文与括注类：`.letter-salutation`、`.doc-heading`、`.aside-inline`（demo scene 30/31 与 literary-cn）。
 - SPEC §2：浅色字压背景图时，同一 `poster-*` 元素须加深色 `background-color` 兜底。
-- 阅读器扩展参考补第二个 `~slim` 封面样本；记录结构规范化会把混淆名书的普通封面与 `~slim` 图改成不同名（未修）。
+- 阅读器扩展参考补第二个 `~slim` 封面样本。
 - `epub book reader-layer [<书目录>]`：给没有 `reader.css` 的书补上阅读器覆盖层入口（OPF 登记，每个 spine XHTML 最后链接），两种布局都可用；有页面无法安全编辑时一个文件都不改。`epub book import` 对 OEBPS 布局自动加。
 - 配方 `page-image`：Kindle 上显示不好的装饰页只在 Kindle 变体换成整页图，其他阅读器用文字版；`templates/recipes/build.py` 为带 `reader.css` 的配方另打 `-kindle.epub`。
 - `epub-art page --engine webkit`（macOS WKWebView）；页面 `@font-face` 指向的字体缺失时报告 `missingFonts` 并给 warning。
@@ -27,6 +27,8 @@
 
 ### Fixed
 
+- `epub.cover.replace` 换封面时，旧的 `~slim` 长屏封面被一起删除或被留下都会给 warn，提示补新的长屏图；以前不提示。
+- `epub.structure.normalize` 反混淆改名时，`~slim` 长屏图跟随同名普通图的新文件名（如 `f100.jpg` / `f100~slim.jpg`），不再按自己的 manifest ID 改成不配对的名字。
 - 书放在分类子目录（`work-epub/<分类>/<书>/`）时，`epub book import` 沿用上层已有的字体库，不再在分类目录旁新建空的 `fonts/`。
 - 构建被强行结束后残留的 `build.lock` 不再挡住下次构建：锁里记录进程号和主机名，主人是本机已结束的进程时自动清除；无法确认的锁照旧阻断。CLI 忽略 SIGPIPE，输出被 `| head` 截断时构建照常结束并释放锁。
 

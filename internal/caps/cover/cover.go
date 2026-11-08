@@ -278,6 +278,16 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		edits = append(edits, editset.Replace(newArchivePath, 0, 0, coverData))
 	}
 
+	// 多看按“封面文件名 + ~slim”关联长屏封面。换封面后旧长屏图已不对应新封面，
+	// 删掉还是留下都要告诉调用方，由书级决定是否补新的长屏图。
+	for _, slimPath := range slimCoversOf(oldCoverPaths, names) {
+		if inDeletes[slimPath] {
+			warnf("long-screen cover %s was removed with the old cover; add a new cover~slim image if Duokan should keep a long-screen cover", slimPath)
+		} else {
+			warnf("long-screen cover %s still belongs to the old cover; replace or remove it", slimPath)
+		}
+	}
+
 	// ---- 引用重写 + SVG 封面页对齐（仅存在旧封面引用时） ----
 	if len(oldCoverPaths) > 0 {
 		pathMap := map[string]string{}
@@ -384,6 +394,28 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		Renames: nilIfEmpty(renames),
 	}
 	return res, nil
+}
+
+// slimCoversOf 返回与旧封面同目录、文件名为“旧封面名 + ~slim / -slim / _slim”的 entry。
+// 文件名含 cover 的长屏图本身也会被当成旧封面收进 oldCoverPaths，所以只排除自身比较。
+// 按名称排序，保证告警顺序稳定。
+func slimCoversOf(oldCoverPaths map[string]bool, names []string) []string {
+	var out []string
+	for _, name := range names {
+		stem := pypath.BaseStem(name)
+		if len(stem) <= len("~slim") || !strings.EqualFold(stem[len(stem)-4:], "slim") || !strings.ContainsRune("~-_", rune(stem[len(stem)-5])) {
+			continue
+		}
+		base := pypath.Join(pypath.Dirname(name), stem[:len(stem)-5])
+		for oldPath := range oldCoverPaths {
+			if oldPath != name && pypath.Join(pypath.Dirname(oldPath), pypath.BaseStem(oldPath)) == base {
+				out = append(out, name)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // nonNilStrings 复制字符串切片，空切片仍是空切片（不退化成 nil/null）。
