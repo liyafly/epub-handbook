@@ -79,7 +79,7 @@ func TestBookBuildWritesSummaryReport(t *testing.T) {
 			t.Errorf("report.html should mention %q", want)
 		}
 	}
-	if !strings.Contains(h.out.String(), "Summary: .epub/report.html") {
+	if !strings.Contains(h.out.String(), "Summary: "+filepath.Join(".epub", reportHTMLName)) {
 		t.Errorf("build should point to the summary: %s", h.out)
 	}
 	// 第二次构建与上一版成品比对，只打一行。

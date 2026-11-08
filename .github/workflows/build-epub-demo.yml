@@ -185,7 +185,7 @@ jobs:
         run: bash .github/scripts/install-epubcheck.sh
 
       - name: Validate book starter with EPUBCheck
-        run: java -jar "$EPUBCHECK_JAR" "$RUNNER_TEMP/book starter smoke/03 制作工作区/dist/book.epub" --mode epub --profile default
+        run: java -jar "$EPUBCHECK_JAR" "$RUNNER_TEMP/book starter smoke/out/book.epub" --mode epub --profile default
 
       - name: Validate with EPUBCheck
         run: |
