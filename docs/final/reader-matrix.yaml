@@ -1004,24 +1004,24 @@ expectations:
     workaround: "用普通 div + img，宽度写在外层或图的 CSS 上。"
   - reader: duokan
     case: slice-float-seam
-    status: pass
+    status: warn
     outcome: enhanced
     reader_version: "DuokanReader 5.9.1（macOS）"
     profile: "2026-11-08 用户试读；默认设置"
-    artifact: "anonymous-gamma-slice-D.epub#sha256=9be411641946f5b310cc4f7b3db91399f7143d47f17f1eef4a6cbcd909b96b58"
+    artifact: "anonymous-gamma-slice-D.epub#sha256=6b1c4a1f4d67a807969f3f435d8efca16f0fa1e100cd4987f5cfd4c9b26fd6f4"
     failed_page: none
-    issue: "丙（横幅宽 100% 左浮动，立柱 clear:left 左浮动叠在下方）接缝紧贴，章题和正文排在立柱右边。甲、乙（图放进 h1 开头）多看结果未报告。更早的负边距 + 空 div 占位写法章题压图（空 div 的百分比 padding 无效）。"
-    action: "补甲、乙的多看结果；无截图，记为用户观察。"
+    issue: "丙（横幅宽 100% 左浮动，立柱 clear:left 左浮动叠在下方）接缝紧贴，章题和正文排在立柱右边；用户比较甲、乙（图放进 h1 开头）后认为丙最好。更早的负边距 + 空 div 占位写法章题压图（空 div 的百分比 padding 无效）。"
+    action: "多看用丙。用户截图在会话中，未入库，故记 warn（观察）而非 pass；补截图后可改 pass。artifact 为同一源码的重建包（实测包已被构建覆盖），SHA 与实测时不同。"
   - reader: kindle_previewer
     case: slice-float-seam
     status: warn
     outcome: degraded
     reader_version: "4.0.4"
     profile: "2026-11-08 用户 GUI 预览；Kindle 电子书阅读器竖屏；出版商字体；字号 4–7；高级排版开"
-    artifact: "anonymous-gamma-slice-D.epub#sha256=9be411641946f5b310cc4f7b3db91399f7143d47f17f1eef4a6cbcd909b96b58"
+    artifact: "anonymous-gamma-slice-D.epub#sha256=6b1c4a1f4d67a807969f3f435d8efca16f0fa1e100cd4987f5cfd4c9b26fd6f4"
     failed_page: g1-slice / g1-h1col / g1-h1all
     issue: "左浮动的立柱不接在前面的横幅下，而是与下一个块（章题）的顶对齐，中间留缝。试过：横幅普通块 + 立柱浮动；横幅、立柱都浮动且立柱 clear:left（Kindle 不让两个浮动相叠）；立柱放进 h1 开头（甲）；横幅、立柱都放进 h1（乙）。都留缝，乙最小。外层 font-size:0、line-height:0、图 vertical-align:top 无效（推断 Kindle 不认 font-size:0，图仍带行高）。另：Γ 图高于一页（约 1.39 倍宽）时立柱被单独缩放，与横幅错位；整体缩到 1.1 倍宽以内后对齐。CLI 转换 Success、0 error。"
-    action: "Kindle 切图接受细缝（乙）；需要无缝时改用整图或 page-image 配方。"
+    action: "Kindle 切图接受细缝（乙）；需要无缝时改用整图或 page-image 配方。artifact 为同一源码的重建包，SHA 与实测时不同。"
     workaround: "切线选在不穿笔画的行，减轻错位与细缝的可见度。"
 
   - reader: duokan
