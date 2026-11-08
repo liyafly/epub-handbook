@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-11-03
+updated_at: 2026-11-08
 owner: epub-handbook
 
 lanes:
@@ -84,6 +84,12 @@ cases:
   - id: external-production-note-icon-inline
     title: 匿名外部生产样本：注释图标前后断行
     fixture: "anonymous-note-icon-inline.epub#sha256=0c7338e8cb90112fd1ba629061003b6357558ba43f6c9b9641154c1c7318e0b4"
+  - id: external-production-duokan-caption
+    title: 匿名外部生产样本：多看 figure/figcaption 图注对齐
+    fixture: "anonymous-duokan-production-sample.epub（产物身份与 SHA 留在本地书级制作说明）"
+  - id: external-production-duokan-titlepage
+    title: 匿名外部生产样本：多看流式海报页在大字号下拆页
+    fixture: "anonymous-duokan-production-sample.epub（产物身份与 SHA 留在本地书级制作说明）"
   - id: 17-image-layout
     title: 图文环绕
     fixture: templates/epub-style-demo/OEBPS/Text/17-image-layout.xhtml
@@ -178,6 +184,12 @@ cases:
   - id: probe-font-scale
     title: 根/正文字号声明与阅读器调字号探针
     fixture: templates/font-scale-probe/src/OEBPS/Text/p01.xhtml
+  - id: duokan-image-static-block
+    title: 多看 duokan-image-static 对普通块图、浮动图显示的影响（12 项单变量诊断）
+    fixture: "anonymous-duokan-image-diag-script（生成脚本留在本地书级目录，见书级制作说明）"
+  - id: slice-float-seam
+    title: Γ 形章首切图：整宽横幅 + 左浮动立柱的接缝
+    fixture: "anonymous-gamma-slice-script（生成脚本留在本地书级目录，见书级制作说明）"
 
 retired_cases:
   - id: 03b-poster-fullbleed
@@ -979,6 +991,67 @@ expectations:
     issue: "Apple Books macOS 视觉复测未执行；当前只确认清洗红线和 diff 可视化。"
     action: "待本地导入后记录默认字号、大字号、Ruby 和宽屏竖排增强结果。"
     workaround: "若用户字体设置影响竖排增强，优先保证正文源序和可读性。"
+  - reader: duokan
+    case: duokan-image-static-block
+    status: fail
+    outcome: broken
+    reader_version: "DuokanReader 5.9.1（macOS）"
+    profile: "2026-11-08 用户试读；默认设置"
+    artifact: "anonymous-duokan-image-diag-E.epub#sha256=48cbc46a6fb0d7c85770f93f8375ddff4e511e7e47aaa45e8d91cd4fc4853918"
+    failed_page: v12
+    issue: "用户报告 1–11 都显示（整图/切片、普通块/浮动块、RGBA PNG/调色板 PNG/JPG），未提 12；12 与 3 只差外层 div 多一个 duokan-image-static，判为不显示。旁证：同书切图样本第二版给横幅、立柱、小幅浮动图外层都加了该 class，多看里整页无图，去掉后显示。用户测的是同脚本较早一次构建，记录的 artifact 为同脚本重建，SHA 不同。"
+    action: "多看路线的普通块图、浮动图不要加 duokan-image-static。另一匿名外部样本（EPUB2，百分比写在 <img width> 属性）带它能显示，差异原因未查。补 12 号截图后可确认。"
+    workaround: "用普通 div + img，宽度写在外层或图的 CSS 上。"
+  - reader: duokan
+    case: slice-float-seam
+    status: pass
+    outcome: enhanced
+    reader_version: "DuokanReader 5.9.1（macOS）"
+    profile: "2026-11-08 用户试读；默认设置"
+    artifact: "anonymous-gamma-slice-D.epub#sha256=9be411641946f5b310cc4f7b3db91399f7143d47f17f1eef4a6cbcd909b96b58"
+    failed_page: none
+    issue: "丙（横幅宽 100% 左浮动，立柱 clear:left 左浮动叠在下方）接缝紧贴，章题和正文排在立柱右边。甲、乙（图放进 h1 开头）多看结果未报告。更早的负边距 + 空 div 占位写法章题压图（空 div 的百分比 padding 无效）。"
+    action: "补甲、乙的多看结果；无截图，记为用户观察。"
+  - reader: kindle_previewer
+    case: slice-float-seam
+    status: warn
+    outcome: degraded
+    reader_version: "4.0.4"
+    profile: "2026-11-08 用户 GUI 预览；Kindle 电子书阅读器竖屏；出版商字体；字号 4–7；高级排版开"
+    artifact: "anonymous-gamma-slice-D.epub#sha256=9be411641946f5b310cc4f7b3db91399f7143d47f17f1eef4a6cbcd909b96b58"
+    failed_page: g1-slice / g1-h1col / g1-h1all
+    issue: "左浮动的立柱不接在前面的横幅下，而是与下一个块（章题）的顶对齐，中间留缝。试过：横幅普通块 + 立柱浮动；横幅、立柱都浮动且立柱 clear:left（Kindle 不让两个浮动相叠）；立柱放进 h1 开头（甲）；横幅、立柱都放进 h1（乙）。都留缝，乙最小。外层 font-size:0、line-height:0、图 vertical-align:top 无效（推断 Kindle 不认 font-size:0，图仍带行高）。另：Γ 图高于一页（约 1.39 倍宽）时立柱被单独缩放，与横幅错位；整体缩到 1.1 倍宽以内后对齐。CLI 转换 Success、0 error。"
+    action: "Kindle 切图接受细缝（乙）；需要无缝时改用整图或 page-image 配方。"
+    workaround: "切线选在不穿笔画的行，减轻错位与细缝的可见度。"
+
+  - reader: duokan
+    case: recipe-image-preview
+    status: fail
+    reader_version: "5.9.1 (macOS iPad App)"
+    profile: "2026-11-08 用户试读；默认主题，字号未记录"
+    artifact: "anonymous-duokan-production-sample.epub（产物身份与 SHA 留在本地书级制作说明）"
+    failed_page: 彩插页
+    issue: "生产样本把单图 + 题注改为 div.duokan-image-single > img + p.duokan-image-maintitle 后，多看里整张图不显示。该样本 img 为 display:block; width:auto; max-width:100%，未套用配方 recipe.css 的 width:100%；配方原样是否同样失效未测。无截图。"
+    action: "配方标注：多看下单图预览结构可能导致图片不显示，使用前先用配方 CSS 在多看实测；只需图注居中时不用 duokan- 类名。"
+    workaround: "去掉 duokan-image-* 类名，改为普通 div > img + p 图注，题注用 text-align:center。"
+  - reader: duokan
+    case: external-production-duokan-caption
+    status: warn
+    reader_version: "5.9.1 (macOS iPad App)"
+    profile: "2026-11-08 用户试读；默认主题，字号未记录"
+    artifact: "anonymous-duokan-production-sample.epub（产物身份与 SHA 留在本地书级制作说明）"
+    issue: "figure { text-align:center } > figcaption { text-align:center } 的图注在多看里靠左。改为 div > img + p（p 上 text-align:center）后用户接受交付。无截图，记录观察而非 pass。"
+    action: "多看目标的图注用 div + p，不依赖 figure/figcaption 的块级与对齐；补截图后复核。"
+    workaround: "div.figure > img + p.caption { display:block; text-align:center; text-indent:0 }。"
+  - reader: duokan
+    case: external-production-duokan-titlepage
+    status: warn
+    reader_version: "5.9.1 (macOS iPad App)"
+    profile: "2026-11-08 用户试读；字号为默认 +3 档"
+    artifact: "anonymous-duokan-production-sample.epub（产物身份与 SHA 留在本地书级制作说明）"
+    issue: "流式书名页（窄列伪竖排书名/作者 + 前景花纹 img + 表格底行出版社）在默认字号能放进一页，调大字号后被拆成两页；同一 CSS 在 WebKit 放大到 1.75 倍仍只占半屏，WebKit 预检不能代表多看分页。另：多看覆盖层在通用 CSS 后追加规则覆盖 display（tbody/tr 的 contents → table-row 等）时，书名页同样被拆开，改为整份替换样式表后恢复。"
+    action: "多看海报页把花纹与出版社等装饰合成整页背景图（body background，background-size:contain），正文流只留 1.2em 窄列伪竖排的书名与作者；多看覆盖层不依赖层叠覆盖 display。待用户在默认 +3 档确认一页。"
+    workaround: "Kindle 版另用整页单图；通用版保持 flex 竖排海报。"
 
 # 尚未实测的 demo case：fixture 真实存在且能打包，但还没有在任何阅读器留下 pass/warn/fail 记录。
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
@@ -1004,7 +1077,7 @@ untested_cases:
     note: "合成样本仅 Chrome 预检（600px 宽竖题与右图并排、正文整行）；Apple Books / Kindle Previewer / Reeden 普通、大字号与窄屏待测。"
   - case: recipe-image-preview
     fixture: templates/recipes/image-preview/sample.xhtml
-    note: "合成样本仅 Chrome 预检；多看 / Reeden 点图预览与题注关联待测，Apple Books / Kindle Previewer 普通整宽图回退待测；可选 spine 整屏图页另测。"
+    note: "合成样本仅 Chrome 预检；多看生产样本有一条 fail 观察（见 expectations，图片不显示），配方原样在多看未测；Reeden 点图预览与题注关联待测，Apple Books / Kindle Previewer 普通整宽图回退待测；可选 spine 整屏图页另测。"
   - case: 02-ruby-standard-footnote
     fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
     readers: [koreader]
