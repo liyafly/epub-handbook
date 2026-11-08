@@ -477,28 +477,41 @@ JSON
 		t.Fatal(err)
 	}
 	t.Setenv("EPUB_FONT_BIN", provider)
-	parent := t.TempDir()
-	dest := filepath.Join(parent, "book")
-	if code := BookImport(context.Background(), BookImportOptions{Original: original, Dir: dest}, h.io()); code != 0 {
-		t.Fatalf("import = %d: %s", code, h.err)
-	}
-	if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "subset.ttf")); err != nil {
-		t.Error("a subset font must stay in the source tree")
-	}
-	if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "full.ttf")); err == nil {
-		t.Error("a full font must leave the source tree")
-	}
-	if got := mustRead(t, filepath.Join(parent, "fonts", "full.ttf")); got != "full font bytes" {
-		t.Errorf("library copy = %q", got)
-	}
-	var cfg struct {
-		Fonts []importedFontJob `json:"fonts"`
-	}
-	if err := json.Unmarshal([]byte(mustRead(t, filepath.Join(dest, "book.json"))), &cfg); err != nil {
-		t.Fatal(err)
-	}
-	if len(cfg.Fonts) != 2 || cfg.Fonts[0].Target != "OEBPS/Fonts/full.ttf" || cfg.Fonts[0].From != "full.ttf" || cfg.Fonts[0].SHA256 == "" ||
-		cfg.Fonts[1].From != "" {
-		t.Errorf("book.json fonts = %+v", cfg.Fonts)
+	// 书可以放在分类子目录里：import 要沿用上层已有的共享库，不在分类目录旁另建 fonts/。
+	for _, tc := range []struct{ name, category string }{{"flat", ""}, {"nested", "分类"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			parent := t.TempDir()
+			if err := os.Mkdir(filepath.Join(parent, "fonts"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			dest := filepath.Join(parent, tc.category, "book")
+			if code := BookImport(context.Background(), BookImportOptions{Original: original, Dir: dest}, h.io()); code != 0 {
+				t.Fatalf("import = %d: %s", code, h.err)
+			}
+			if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "subset.ttf")); err != nil {
+				t.Error("a subset font must stay in the source tree")
+			}
+			if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "full.ttf")); err == nil {
+				t.Error("a full font must leave the source tree")
+			}
+			if got := mustRead(t, filepath.Join(parent, "fonts", "full.ttf")); got != "full font bytes" {
+				t.Errorf("library copy = %q", got)
+			}
+			if tc.category != "" {
+				if _, err := os.Stat(filepath.Join(parent, tc.category, "fonts")); err == nil {
+					t.Error("a nested import must not create a second library next to the category")
+				}
+			}
+			var cfg struct {
+				Fonts []importedFontJob `json:"fonts"`
+			}
+			if err := json.Unmarshal([]byte(mustRead(t, filepath.Join(dest, "book.json"))), &cfg); err != nil {
+				t.Fatal(err)
+			}
+			if len(cfg.Fonts) != 2 || cfg.Fonts[0].Target != "OEBPS/Fonts/full.ttf" || cfg.Fonts[0].From != "full.ttf" || cfg.Fonts[0].SHA256 == "" ||
+				cfg.Fonts[1].From != "" {
+				t.Errorf("book.json fonts = %+v", cfg.Fonts)
+			}
+		})
 	}
 }

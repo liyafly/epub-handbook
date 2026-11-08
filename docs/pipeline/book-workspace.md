@@ -101,7 +101,7 @@ work-epub/               # 旧布局
 
 ## 字体
 
-完整母版不重复提交到每本书。字体库取 `EPUB_FONT_LIBRARY`；未设置时从书配置（`book.json` 或 `fonts.json`）的位置向上找与祖先同级的 `fonts/`。显式设置的目录不存在时失败，不悄悄回退。库内 `字体清单.tsv` 记录文件名、SHA、来源、许可与备注，书级 `THIRD_PARTY.md` 引用它；正文和图片仍在书级记录来源。库文件缺失或 SHA 不符即停，不擅自换字体版本。
+完整母版不重复提交到每本书。字体库取 `EPUB_FONT_LIBRARY`；未设置时从书配置（`book.json` 或 `fonts.json`）的位置向上找与祖先同级的 `fonts/`；`import` 同样先找已有的库，找不到才在书目录旁新建，所以书可以放在分类子目录（如 `work-epub/<分类>/<book>/`）。显式设置的目录不存在时失败，不悄悄回退。库内 `字体清单.tsv` 记录文件名、SHA、来源、许可与备注，书级 `THIRD_PARTY.md` 引用它；正文和图片仍在书级记录来源。库文件缺失或 SHA 不符即停，不擅自换字体版本。
 
 provider 先查 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%\.local\bin`，即 `uv tool install` 的默认位置）。`EPUB_LOCAL_BIN=<目录>` 指定位置，显式设空则只用调用者原始 PATH；`EPUB_FONT_BIN` 指定 provider 程序。
 

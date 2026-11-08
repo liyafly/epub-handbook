@@ -288,7 +288,7 @@ func (r *bookRunner) inventoryFonts(frozen, source, dest, reports string) (jobs 
 	for i, item := range coverage.Fonts.Embedded {
 		indexed[item.File] = i
 	}
-	library, err := fontLibraryDir(filepath.Dir(dest))
+	library, err := fontLibraryDir(dest)
 	if err != nil {
 		return nil, nil, nil, err
 	}

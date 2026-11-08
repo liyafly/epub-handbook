@@ -15,7 +15,7 @@ This step:
 - copies the book to `my-book/original.epub`, makes it read-only and records its SHA in `book.json`;
 - checks the package and its table of contents. It stops on DRM, encryption or a damaged file, and never tries to decrypt;
 - unpacks the book into `my-book/epub/`;
-- moves any complete embedded fonts into a shared `fonts/` library next to the book folder and locks their versions by SHA in `book.json`. Fonts that already look subsetted stay where they are. This step needs the [font tool](../../README.en.md#install).
+- moves any complete embedded fonts into the shared `fonts/` library (the nearest one in a parent folder, or a new one next to the book folder) and locks their versions by SHA in `book.json`. Fonts that already look subsetted stay where they are. This step needs the [font tool](../../README.en.md#install).
 
 When an import stops, `original.epub` and the reports are kept so you can see why. Common cases are in the [FAQ](faq.en.md#import).
 

@@ -120,8 +120,9 @@ func findSharedFontLibrary(configPath string) string {
 	}
 }
 
-// fontLibraryDir 返回导入时登记字体的共享库目录。
-func fontLibraryDir(destParent string) (string, error) {
+// fontLibraryDir 返回导入时登记字体的共享库目录：与构建同样向上找已有的 fonts/，
+// 书放在分类子目录里也共用同一个库；找不到才在书的父目录旁新建。
+func fontLibraryDir(dest string) (string, error) {
 	if selected := os.Getenv("EPUB_FONT_LIBRARY"); selected != "" {
 		if strings.HasPrefix(selected, "~") {
 			if home, err := os.UserHomeDir(); err == nil {
@@ -130,7 +131,10 @@ func fontLibraryDir(destParent string) (string, error) {
 		}
 		return filepath.Abs(selected)
 	}
-	return filepath.Abs(filepath.Join(destParent, "fonts"))
+	if found := findSharedFontLibrary(filepath.Join(dest, "book.json")); found != "" {
+		return filepath.Abs(found)
+	}
+	return filepath.Abs(filepath.Join(filepath.Dir(dest), "fonts"))
 }
 
 // gitRevision 复刻交付记录里“书源 commit / 手册 commit”的取值：
