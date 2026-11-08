@@ -29,6 +29,8 @@ epub book recipes drop-cap --add 我的书  # 追加到书的 design.css 末尾
 | [着重号](../../templates/recipes/text-emphasis/recipe.md) | 阅读区灰色，无法判断 | 下划线和圆点同时出现，可读 | 待测 | 原生着重号 → 下划线 |
 | [主题插图](../../templates/recipes/theme-adaptive-art/recipe.md) | 深色主题下白底图可见 | 白底图可见，夜间待测 | 待测 | 图片自带白底 |
 | [原译对照](../../templates/recipes/parallel-pair/recipe.md) | 阅读区灰色，无法判断 | 按原文、译文上下排 | 待测 | 宽屏双栏 → 上下排 |
+| [竖题章首](../../templates/recipes/vertical-title-art/recipe.md) | 待测 | 待测 | 待测 | 竖题 + 右图 → 横排章题在图上方 |
+| [地图预览](../../templates/recipes/image-preview/recipe.md) | 待测 | 待测 | 待测 | 点图预览 → 普通整宽图 + 图下题注 |
 
 这张表的证据边界：
 

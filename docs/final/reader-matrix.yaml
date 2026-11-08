@@ -169,6 +169,12 @@ cases:
   - id: recipe-page-image
     title: 装饰页 Kindle 整页图降级配方候选
     fixture: templates/recipes/page-image/sample.xhtml
+  - id: recipe-vertical-title-art
+    title: 窄列浮动竖题加右侧章首图配方候选
+    fixture: templates/recipes/vertical-title-art/sample.xhtml
+  - id: recipe-image-preview
+    title: 多看/Reeden 单图预览题注与普通整宽图回退配方候选
+    fixture: templates/recipes/image-preview/sample.xhtml
   - id: probe-font-scale
     title: 根/正文字号声明与阅读器调字号探针
     fixture: templates/font-scale-probe/src/OEBPS/Text/p01.xhtml
@@ -993,6 +999,12 @@ untested_cases:
   - case: recipe-page-image
     fixture: templates/recipes/page-image/sample.xhtml
     note: "合成样本未目测。page-image-kindle.epub#sha256=58952d52ee87ef0b40d311b23ddd7826a134c300105e05ec8325bf5285b47765 经 Kindle Previewer 4.0.4 CLI --convert：Enhanced Typesetting Supported、Conversion Success、0 error、0 quality issue（仅 W14016 缺封面声明）；这是转换结果，不是阅读器 pass。通用包 page-image.epub#sha256=6defeee1d7d36e1c40612c81cfde68530931d78e25f6f702b853c74b077b58d7 待 Apple Books / Reeden 确认整图不显示。"
+  - case: recipe-vertical-title-art
+    fixture: templates/recipes/vertical-title-art/sample.xhtml
+    note: "合成样本仅 Chrome 预检（600px 宽竖题与右图并排、正文整行）；Apple Books / Kindle Previewer / Reeden 普通、大字号与窄屏待测。"
+  - case: recipe-image-preview
+    fixture: templates/recipes/image-preview/sample.xhtml
+    note: "合成样本仅 Chrome 预检；多看 / Reeden 点图预览与题注关联待测，Apple Books / Kindle Previewer 普通整宽图回退待测；可选 spine 整屏图页另测。"
   - case: 02-ruby-standard-footnote
     fixture: templates/epub-style-demo/OEBPS/Text/02-ruby-note.xhtml
     readers: [koreader]

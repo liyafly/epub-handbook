@@ -129,6 +129,24 @@
   text-align: right;
 }
 
+/* 抬头顶格；书信、公文整体用楷体时在容器上加 .font-kt，不在这里绑字体。 */
+.letter-salutation {
+  text-indent: 0;
+}
+
+/* 信中、文中的公文抬头（如“××文件”），居中不缩进。 */
+.doc-heading {
+  margin: .8em 0;
+  text-align: center;
+  text-indent: 0;
+  font-size: 1.05em;
+}
+
+/* 行内括注弱化：正文里的人物旁白、舞台说明。只缩字号、不锁颜色，夜间模式照常可读。 */
+.aside-inline {
+  font-size: .85em;
+}
+
 .copyright-page {
   max-width: 36em;
   margin: 0 auto;

@@ -4,6 +4,11 @@
 
 ### Added
 
+- 配方 `vertical-title-art`：左侧窄列浮动竖排章题 + 右侧章首图，不认 float 时退回横排章题在图上方。
+- 配方 `image-preview`：多看 / Reeden 点图预览带题注（`duokan-image-single`），其他阅读器为普通整宽图；recipe.md 附可选 spine 整屏图页写法（非严格书用 `duokan-`，严格 EPUB3 用 `reeden:` 前缀）。
+- 书信、公文与括注类：`.letter-salutation`、`.doc-heading`、`.aside-inline`（demo scene 30/31 与 literary-cn）。
+- SPEC §2：浅色字压背景图时，同一 `poster-*` 元素须加深色 `background-color` 兜底。
+- 阅读器扩展参考补第二个 `~slim` 封面样本；记录结构规范化会把混淆名书的普通封面与 `~slim` 图改成不同名（未修）。
 - `epub book reader-layer [<书目录>]`：给没有 `reader.css` 的书补上阅读器覆盖层入口（OPF 登记，每个 spine XHTML 最后链接），两种布局都可用；有页面无法安全编辑时一个文件都不改。`epub book import` 对 OEBPS 布局自动加。
 - 配方 `page-image`：Kindle 上显示不好的装饰页只在 Kindle 变体换成整页图，其他阅读器用文字版；`templates/recipes/build.py` 为带 `reader.css` 的配方另打 `-kindle.epub`。
 - `epub-art page --engine webkit`（macOS WKWebView）；页面 `@font-face` 指向的字体缺失时报告 `missingFonts` 并给 warning。

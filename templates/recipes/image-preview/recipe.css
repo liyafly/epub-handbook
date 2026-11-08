@@ -1,0 +1,26 @@
+/* recipe: image-preview —— 地图、关系图这类要放大看的单图。
+ * 增强在 class 上：多看与 Reeden 认 duokan-image-single，点图进入大图预览并带题注。
+ * 回退：其他阅读器显示普通整宽图，题注是图下两行普通文字。 */
+.duokan-image-single {
+  margin: 1em 0;
+  text-align: center;
+  text-indent: 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.duokan-image-single img {
+  width: 100%;
+  height: auto;
+}
+.duokan-image-maintitle,
+.duokan-image-subtitle {
+  margin: .4em 0 0;
+  text-align: center;
+  text-indent: 0;
+}
+.duokan-image-maintitle {
+  font-size: .9em;
+}
+.duokan-image-subtitle {
+  font-size: .75em;
+}

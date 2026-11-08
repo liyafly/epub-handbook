@@ -82,6 +82,22 @@ the reference project's desktop UI or third-party dependencies.
   asserted. Only structural facts and minimal markup identifiers are recorded
   in [the analysis](docs/pipeline/reference-reader-extensions.md).
 
+## Local Cover-Structure Reference: local-cover-sample-02
+
+- Source: a user-supplied local EPUB (a Duokan-template book made with Sigil),
+  inspected read-only on 2026-11-08. Title, source filename, contributor names
+  and the artifact SHA-256 are kept in a local private record only, per the
+  de-identification rule in `AGENTS.md`.
+- Scope: structural facts about the ordinary cover, the manifest-only
+  `~slim` long-screen image and the `duokan-page-fullscreen` spine property,
+  recorded in [the analysis](docs/pipeline/reference-reader-extensions.md) §2.1
+  and §4. The same inspection informed two recipe ideas
+  ([vertical-title-art](templates/recipes/vertical-title-art/recipe.md),
+  [image-preview](templates/recipes/image-preview/recipe.md)); their CSS,
+  markup and images were written from scratch, and no text, CSS, image or
+  font from the book is retained in this repository.
+- Rights: no permission to redistribute the book or its assets is asserted.
+
 ## Local Note-Icon Structure Reference: note-icon-inline-sample-01
 
 - Source: a user-supplied local EPUB and the user's Duokan trial-reading feedback

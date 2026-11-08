@@ -29,6 +29,8 @@ Then add the class names to your XHTML as in `sample.xhtml`, and preview. If the
 | [Emphasis marks](../../templates/recipes/text-emphasis/recipe.md) | Reading area grey; cannot judge | Underline and dots both shown; readable | Untested | Native emphasis dots → underline |
 | [Theme-aware art](../../templates/recipes/theme-adaptive-art/recipe.md) | Image with its own white backing visible in dark theme | White-backed image visible; night mode untested | Untested | Image carries its own white backing |
 | [Parallel text](../../templates/recipes/parallel-pair/recipe.md) | Reading area grey; cannot judge | Original and translation stacked | Untested | Two columns on wide screens → stacked |
+| [Vertical chapter title](../../templates/recipes/vertical-title-art/recipe.md) | Untested | Untested | Untested | Vertical title + art on the right → horizontal title above the art |
+| [Map preview](../../templates/recipes/image-preview/recipe.md) | Untested | Untested | Untested | Tap-to-zoom with caption → plain full-width image + caption below |
 
 What this evidence covers:
 

@@ -1,0 +1,39 @@
+/* recipe: vertical-title-art —— 左侧竖排章题 + 右侧章首图。
+ * 竖排靠“窄列逐字下排”：每列 1.2em 宽，一行只放得下一个字，不用 writing-mode。
+ * 回退：不认 float 时，章次与章名横排在图上方；屏幕太窄放不下时，图落到章题下方。 */
+.vt-opening {
+  margin: 0 0 1.5em;
+  text-indent: 0;
+}
+.vt-opening::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+.vt-title {
+  float: left;
+  margin: 0 .4em 0 0;
+  font-size: 1.6em;
+  font-weight: normal;
+  line-height: 1.3;
+  text-indent: 0;
+}
+.vt-num,
+.vt-name {
+  float: left;
+  width: 1.2em;
+  text-align: center;
+}
+.vt-num {
+  margin: .2em .3em 0 0;
+  font-size: .6em;
+}
+.vt-art {
+  margin: 0;
+  text-align: right;
+  text-indent: 0;
+}
+.vt-art img {
+  width: 72%;
+  height: auto;
+}

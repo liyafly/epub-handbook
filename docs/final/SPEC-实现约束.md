@@ -62,6 +62,7 @@
 - 从既有 EPUB 继承的单图卷封页，如果源文件没有独立文本节点，必须保留原图 `<img class="poster-fallback">`，并可把同一资源镜像为 `poster-bg-contain` 或 `poster-bg-volume-*` 背景；背景必须使用 `background-size:contain`，禁止改用会裁图的 `cover` 或会拉伸图片的 `100% 100%`。
 - 单图卷封页可用 `@supports (background-size: contain)` 在支持背景图的阅读器中隐藏 `.poster-fallback`；不支持背景图时必须回退到原始 `<img>`，不得出现空白页。
 - 源文件中已有的可见叠加文本必须保留为真实文本节点；不允许把可编辑文本重新栅格化到图片中。
+- 浅色文字压在背景图上时，带背景图的同一个 `poster-*` 元素必须同时声明接近图片主色的深色 `background-color`。背景图没加载或被阅读器去掉时，浅色字仍然可读；不能只靠图片提供对比度。
 
 ## 3) 字体与 OPF
 

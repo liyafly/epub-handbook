@@ -509,7 +509,7 @@ h2 {
 | `page-break-before` | `always` | 推荐 | 单独成页 |
 | `page-break-after` | `always` | 推荐 | 单独成页 |
 | `page-break-inside` | `avoid` | 推荐 | 避免内部断页 |
-| `background-image` | 海报背景 | 推荐 | 放在 body |
+| `background-image` | 海报背景 | 推荐 | 放在 body；压浅色字时同元素加深色 `background-color` 兜底 |
 | `background-size` | `contain` | 推荐 | 含边缘文字的单图卷封；不用 `cover` 或 `100% 100%` |
 | `writing-mode` | `vertical-rl` | 推荐 | 竖排标题 |
 | `float` | `right` | 推荐 | 多列从右往左堆 |

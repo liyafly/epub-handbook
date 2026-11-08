@@ -24,6 +24,9 @@
 .poetry .stanza { margin: .8em 0; text-indent: 0; }
 .letter { margin: 1.2em 0; padding-left: 1em; border-left: 1px solid #c9bda9; }
 .letter-close, .letter-signature { text-align: right; }
+.letter-salutation { text-indent: 0; }
+.doc-heading { margin: .8em 0; text-align: center; text-indent: 0; font-size: 1.05em; }
+.aside-inline { font-size: .85em; }
 .scene-break { width: 20%; margin: 1.5em auto; border: 0; border-top: 1px solid #9b9488; }
 .scene-break-text { text-align: center; text-indent: 0; letter-spacing: .5em; }
 .copyright-page { max-width: 36em; margin: 0 auto; padding: 1.5em 0; }
