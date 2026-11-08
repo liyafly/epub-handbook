@@ -13,6 +13,7 @@ epub book fonts [<dir>] [--update-lock]
 epub book clean [<dir>]
 epub book accept-dist [<dir>] [--variant <name>]
 epub book recipes [<name> [--add <dir>]]
+epub book reader-layer [<dir>]
 ```
 
 纯 Go 实现，Windows、macOS、Linux 共用；省略 `<dir>` 表示当前目录。安全属性与旧 sh 构建器一致：冻结原件与 SHA、DRM 停止、导航审计、字体锁与子集、全项 redline、原子替换、`dist-sha256` 收据、`accept-dist` 逐成员比对、构建锁、失败现场保留。
@@ -28,7 +29,11 @@ epub book recipes [<name> [--add <dir>]]
   epub/                  # 解包源，唯一编辑处
   out/book.epub          # 成品
   .epub/                 # 报告、收据、delivery.tsv（只留最近一次）、预览、失败现场 build.*；可清理
+  制作说明.md            # new / import 生成的一屏提纲
+  素材/                  # 手建，纳入书级 Git：脚本、源图/源 HTML、验收证据、历史.md
 ```
+
+`.epub/` 只放工具生成、能重新生成的东西，随时可清；要长期保留的放 `素材/`（两种布局都适用；旧布局也可继续用 `02 校对材料/`）。`clean` 不碰 `素材/`。
 
 ```text
 work-epub/               # 旧布局
@@ -56,12 +61,15 @@ work-epub/               # 旧布局
 
 完整字体按 SHA 去重进共享库，许可先标"待核"。工具判断可能为子集的字体留在源树，报告列出字形数和判断；这个判断不能证明字体一定是全量。
 
+OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样式表的目录），OPF 的 manifest 末尾登记，每个 spine XHTML 在 `</head>` 前链接，排在所有样式之后。全部用字节区间插入，不重序列化；有页面无法安全编辑（没有闭合的 `<head>`、非 UTF-8）时只警告、一个文件都不改，修好后用 `epub book reader-layer` 补。书里已有 `reader.css` 时跳过。非 OEBPS 布局不加。之前导入的书也用 `reader-layer` 补，旧布局同样适用。
+
 导入后没有必要时，不做规范化、EPUB3 迁移或 CSS 清洗；确有问题才走 [cleanup-flow.md](cleanup-flow.md) 对应步骤。
 
 ## 构建
 
 `build` 依次：复制源 → 按锁注入完整字体 → 打包 → 子集化与独立覆盖检查 → 导航审计 → 全项 redline → 原子替换成品，登记收据和交付记录。另有一步与上一版成品的 redline 比较，只供审阅，不阻断。
 
+- 源树里有不在 SPEC-实现约束 §7 分层表（加 `reader.css`、`decoration.css`）里的样式文件时，打一行 `INFO style layers`，不阻断。导入书原有的样式表不必改名；这条是提醒新规则写进对应分层，不要另起文件。
 - 终端每项检查一行：`PASS` / `FAIL` / `WARN` / `INFO`，必要时缩进附几条说明（失败列 error finding 和位置，不再打印整份 JSON）。字体缺字合成一行，只报缺字最多的字体，正文缺字与 CSS/配置/生成文本里保守加入的字分开计数。成品超过 50 MB 时提示 Send to Kindle 可能拒收。
 - 每次构建写 `report.html`（新布局 `.epub/`，旧布局 `.pipeline/`）汇总各项；原始报告同目录。
 - 成功只保留固定交付包。失败保留 `build.*` 现场与报告（含 `report.html`），不替换已有成品。
@@ -93,7 +101,7 @@ work-epub/               # 旧布局
 - `"readers": [...]` 仅作文档，不生成任何东西。
 - 旧布局把同样的 `{"variants": {...}}` 写在制作区的 `variants.json`，覆盖层路径相对制作区；它不影响布局识别。
 
-覆盖层镜像 EPUB 树（如 `OEBPS/Styles/reader.css`），**只允许替换或新增 `.css`、替换 OPF**；出现 XHTML、nav、NCX、图片、字体即在构建前报错。`epub book new` 的新书自带空的 `Styles/reader.css`，在 OPF 和每个 XHTML 里排在最后，覆盖层只需替换它。不要写阅读器识别查询（SPEC §5.6.1）。
+覆盖层镜像 EPUB 树（如 `OEBPS/Styles/reader.css`），**只允许替换或新增 `.css`、替换 OPF**；出现 XHTML、nav、NCX、图片、字体即在构建前报错。`new` 和 `import` 的书自带空的 `reader.css`，在 OPF 和每个 XHTML 里排在最后，覆盖层只需替换它，只写与通用版不同的规则；不要整份复制已有样式表。Kindle 上调不好的装饰页用配方 [page-image](../../templates/recipes/page-image/recipe.md)：通用版隐藏整图，覆盖层显示整图、隐藏文字版。不要写阅读器识别查询（SPEC §5.6.1）。
 
 构建时先造通用版候选，再造各变体候选，各自走完整门禁（字体注入/子集/覆盖检查、导航审计、全项 redline）；每个变体另与通用版比对正文（`text` 红线）。**全部候选通过后才统一替换**：任一失败则 `out/` 一个文件都不动，错误信息列出失败的输出。每个输出有自己的收据（通用版 `dist-sha256`，变体 `dist-sha256.<name>`）和同样的"改过的成品不覆盖"保护；交付记录每个输出一行，变体行末多一列 `variant:<name>`。
 
@@ -132,7 +140,7 @@ provider 先查 PATH，再回落 `$HOME/.local/bin`（Windows 为 `%USERPROFILE%
 
 交付记录（新布局 `.epub/delivery.tsv` 只留最近一次；旧布局 `交付记录.tsv` 逐次追加）自动写入时间、书源 commit（有未提交修改带 `-dirty`）、手册 commit、成品 SHA 和字体锁。复现时取记录中的提交；字体库与手册版本一起备份。
 
-`制作说明.md` 可选，有内容时只放一屏：当前状态、目标阅读器、使用的配方、待办、已知差异和决策链接。旧的长记录和带日期的交接放 `02 校对材料/历史/`，不删除历史。
+`new` / `import` 生成 `制作说明.md` 骨架（已存在不覆盖），只放一屏：当前状态、成品与原件 SHA、目标阅读器、使用的配方、待办、已知差异和决策链接。逐轮修改经过写 `素材/历史.md`（旧布局可放 `02 校对材料/历史/`），不删除历史。
 
 按 [AGENTS.md](../../AGENTS.md)「过程记录」，日常构建不另写记录。配方首测或写兼容结论时，保留完整 artifact/SHA、阅读器版本和逐场景截图，并回写 [reader matrix](../final/reader-matrix.yaml)；出问题时保留失败现场与报告，确认交付后可清理中间调参；正文校订走 SPEC §10.1.1，含文决策留书级材料，被 gate 引用的文件与路径映射不得提前删除。
 

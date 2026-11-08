@@ -608,6 +608,8 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 		return err
 	}
 
+	r.noteStyleLayers(layout)
+
 	// 阶段一：生成并检查全部候选，此阶段不写 dist。
 	generic := &candidate{out: all[0], dir: buildTmp}
 	genericIsTarget := targets[0].Name == ""
@@ -932,6 +934,46 @@ func (r *bookRunner) comparePreviousDist(layout bookLayout, reportPath, tag, pre
 		step.Lines = []string{"no red-line differences from the last build"}
 	}
 	fmt.Fprintf(r.bio.out(), "INFO %s: %s (report: %s)\n", label, step.Lines[0], step.Report)
+	r.addStep(step)
+}
+
+// standardStyleLayers 是 SPEC-实现约束 §7 的 CSS 分层文件名，加上 reader.css 与 decoration.css。
+func standardStyleLayers() []string {
+	return []string{"fonts.css", "base.css", "design.css", "notes.css", "effects.css", "decoration.css",
+		"literary.css", "media.css", "vertical.css", "poster.css", "reader.css"}
+}
+
+// noteStyleLayers 对不在分层表里的样式文件给一条 INFO（不阻断）。导入书原有的样式表不必改名；
+// 这条提示是为了让新加的样式落到对应分层，而不是另起一个文件。
+func (r *bookRunner) noteStyleLayers(layout bookLayout) {
+	var others []string
+	_ = filepath.WalkDir(layout.EpubDir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.EqualFold(filepath.Ext(p), ".css") {
+			return nil
+		}
+		if !slices.Contains(standardStyleLayers(), strings.ToLower(d.Name())) {
+			if rel, rerr := filepath.Rel(layout.EpubDir, p); rerr == nil {
+				others = append(others, filepath.ToSlash(rel))
+			}
+		}
+		return nil
+	})
+	if len(others) == 0 {
+		return
+	}
+	shown := others
+	if len(shown) > maxFindingLines {
+		shown = shown[:maxFindingLines]
+	}
+	text := strings.Join(shown, ", ")
+	if extra := len(others) - len(shown); extra > 0 {
+		text += fmt.Sprintf(" and %d more", extra)
+	}
+	step := bookStep{Status: "INFO", Label: "style layers", Lines: []string{
+		"outside the standard layers (SPEC-实现约束 §7): " + text,
+		"imported style sheets can stay; put new rules in the matching layer instead of a new file",
+	}}
+	fmt.Fprintf(r.bio.out(), "INFO %s: %s\n", step.Label, step.Lines[0])
 	r.addStep(step)
 }
 

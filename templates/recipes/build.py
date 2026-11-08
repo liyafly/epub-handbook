@@ -11,10 +11,11 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parent
-RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair")
+RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "page-image")
 
 
-def package(name: str, baseline: bool) -> dict:
+def package(name: str, baseline: bool, kindle: bool = False) -> dict:
+    """kindle=True packs the recipe's reader.css (variant overlay); otherwise reader.css is empty."""
     source = ROOT / name
     page = (source / "sample.xhtml").read_bytes()
     tree = ET.fromstring(page)
@@ -31,7 +32,10 @@ def package(name: str, baseline: bool) -> dict:
         "OEBPS/toc.ncx": f'<?xml version="1.0"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:{identity}"/></head><docTitle><text>{label}</text></docTitle><navMap><navPoint id="sample" playOrder="1"><navLabel><text>{label}</text></navLabel><content src="sample.xhtml"/></navPoint></navMap></ncx>'.encode(),
     }
     image_item = ""
-    for image_name, media_type in (("art.png", "image/png"), ("art.svg", "image/svg+xml"), ("art-backed.svg", "image/svg+xml")):
+    if (source / "reader.css").exists():
+        files["OEBPS/reader.css"] = (source / "reader.css").read_bytes() if kindle else b"/* Generic: reader overlay empty. */\n"
+        image_item += '<item id="reader" href="reader.css" media-type="text/css"/>'
+    for image_name, media_type in (("art.png", "image/png"), ("art.jpg", "image/jpeg"), ("art.svg", "image/svg+xml"), ("art-backed.svg", "image/svg+xml")):
         if (source / image_name).exists():
             files["OEBPS/" + image_name] = (source / image_name).read_bytes()
             item_id = "art-backed" if image_name == "art-backed.svg" else "art"
@@ -40,7 +44,7 @@ def package(name: str, baseline: bool) -> dict:
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:{identity}</dc:identifier><dc:title>{label}</dc:title><dc:language>{language}</dc:language><meta property="dcterms:modified">2026-10-30T00:00:00Z</meta></metadata>
 <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="sample" href="sample.xhtml" media-type="application/xhtml+xml"/><item id="css" href="recipe.css" media-type="text/css"/>{image_item}</manifest><spine toc="ncx"><itemref idref="sample"/></spine></package>'''.encode()
-    output = ROOT / "dist" / (name + ("-baseline" if baseline else "") + ".epub")
+    output = ROOT / "dist" / (name + ("-baseline" if baseline else "") + ("-kindle" if kindle else "") + ".epub")
     with zipfile.ZipFile(output, "w") as archive:
         for path, data in [("mimetype", b"application/epub+zip"), *sorted(files.items())]:
             info = zipfile.ZipInfo(path, (2026, 10, 30, 0, 0, 0))
@@ -52,5 +56,6 @@ def package(name: str, baseline: bool) -> dict:
 if __name__ == "__main__":
     (ROOT / "dist").mkdir(exist_ok=True)
     inventory = [package(name, baseline) for name in RECIPES for baseline in (False, True)]
+    inventory += [package(name, False, kindle=True) for name in RECIPES if (ROOT / name / "reader.css").exists()]
     (ROOT / "dist" / "inventory.json").write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
     print(f"Built {len(RECIPES)} recipe fixtures and their CSS baselines in {ROOT / 'dist'}")

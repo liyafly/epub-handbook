@@ -85,7 +85,11 @@ func TestBookNewLayoutAndPreset(t *testing.T) {
 			t.Errorf("missing %s: %v", rel, err)
 		}
 	}
-	for _, unwanted := range []string{"02 校对材料", "制作说明.md", "THIRD_PARTY.md", ".git", "build.sh"} {
+	// 只多一份一屏长的制作说明骨架；其余旧布局材料仍不生成。
+	if notes := mustRead(t, filepath.Join(dir, "制作说明.md")); !strings.Contains(notes, "## 状态") || !strings.Contains(notes, "`out/book.epub`") {
+		t.Errorf("制作说明.md skeleton = %q", notes)
+	}
+	for _, unwanted := range []string{"02 校对材料", "THIRD_PARTY.md", ".git", "build.sh"} {
 		if _, err := os.Stat(filepath.Join(dir, unwanted)); err == nil {
 			t.Errorf("minimal layout must not create %s", unwanted)
 		}
@@ -493,6 +497,15 @@ JSON
 			}
 			if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Fonts", "full.ttf")); err == nil {
 				t.Error("a full font must leave the source tree")
+			}
+			if notes := mustRead(t, filepath.Join(dest, "制作说明.md")); !strings.Contains(notes, "original.epub") || !strings.Contains(notes, "SHA-256 `") {
+				t.Errorf("制作说明.md must record the frozen original: %q", notes)
+			}
+			if _, err := os.Stat(filepath.Join(dest, "epub", "OEBPS", "Styles", "reader.css")); err != nil {
+				t.Error("an imported book must keep or gain reader.css")
+			}
+			if strings.Contains(h.err.String(), "reader.css not added") {
+				t.Errorf("import must not warn when reader.css already exists: %s", h.err)
 			}
 			if got := mustRead(t, filepath.Join(parent, "fonts", "full.ttf")); got != "full font bytes" {
 				t.Errorf("library copy = %q", got)

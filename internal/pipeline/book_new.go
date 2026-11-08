@@ -127,6 +127,9 @@ func bookNew(ctx context.Context, opts BookNewOptions, bio BookIO) (presetNotes 
 	if err := writeBookConfig(filepath.Join(tmp, bookConfigName), cfg); err != nil {
 		return false, err
 	}
+	if err := writeProductionNotes(tmp, cfg); err != nil {
+		return false, err
+	}
 	if opts.Git {
 		if err := initBookGit(ctx, tmp, nil, true); err != nil {
 			return false, err
@@ -319,8 +322,7 @@ func initBookGit(ctx context.Context, dir string, ignoredFonts []string, blanket
 // 把它链接在最后。阅读器变体只需用覆盖层替换这一个文件。
 func addReaderLayer(epubDir string) error {
 	styles := filepath.Join(epubDir, "OEBPS", "Styles")
-	css := "@charset \"utf-8\";\n/* 阅读器覆盖层入口：默认为空。变体覆盖层（variants/<名称>/）只需替换本文件。\n * 不要在这里写阅读器识别查询（SPEC §5.6.1 禁止 amzn-kf8 / amzn-mobi）。 */\n"
-	if err := zipfs.WriteFileAtomic(filepath.Join(styles, "reader.css"), []byte(css), 0o644); err != nil {
+	if err := zipfs.WriteFileAtomic(filepath.Join(styles, "reader.css"), []byte(readerLayerCSS), 0o644); err != nil {
 		return err
 	}
 	opf := filepath.Join(epubDir, "OEBPS", "package.opf")

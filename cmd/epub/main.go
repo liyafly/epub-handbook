@@ -69,7 +69,7 @@ func usage(w *os.File) {
             [KEY=VALUE...]
   epub clean <in.epub | 目录> --out DIR [--steps normalize,migrate,css] [--approve] [--json]
             （默认只审计；目录按路径顺序串行处理）
-  epub book new|import|build|fonts|clean|accept-dist ...
+  epub book new|import|build|preview|fonts|clean|accept-dist|recipes|reader-layer ...
             书级工作流（见 epub book help）
   epub capabilities [--id ID] [--json] 列出能力、参数、执行形态及实现状态
   epub version [--json]          显示版本、commit、构建时间与目标平台

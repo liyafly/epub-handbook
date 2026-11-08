@@ -14,7 +14,7 @@ This step:
 
 - copies the book to `my-book/original.epub`, makes it read-only and records its SHA in `book.json`;
 - checks the package and its table of contents. It stops on DRM, encryption or a damaged file, and never tries to decrypt;
-- unpacks the book into `my-book/epub/`;
+- unpacks the book into `my-book/epub/` and adds an empty `reader.css` (loaded last in every chapter; reader versions replace only this file);
 - moves any complete embedded fonts into the shared `fonts/` library (the nearest one in a parent folder, or a new one next to the book folder) and locks their versions by SHA in `book.json`. Fonts that already look subsetted stay where they are. This step needs the [font tool](../../README.en.md#install).
 
 When an import stops, `original.epub` and the reports are kept so you can see why. Common cases are in the [FAQ](faq.en.md#import).
@@ -30,9 +30,11 @@ my-book/
   epub/           # the unpacked book; the only place you edit
   out/            # finished files; appears after a successful build
   .epub/          # hidden: reports, receipts, previews, failed builds; safe to clean
+  制作说明.md     # one-screen notes: status, target readers, recipes, to-dos
+  素材/           # create it yourself: scripts, source art, check screenshots, change history (历史.md) worth keeping
 ```
 
-You edit `epub/`, and now and then `book.json`. Nothing else.
+You edit `epub/`, and now and then `book.json` and `制作说明.md`. `.epub/` can be cleaned at any time; keep anything you need in `素材/`.
 
 ## 3. Preview
 
@@ -94,5 +96,6 @@ If you edited an EPUB in `out/` directly (say, a quick fix in Calibre or Sigil),
 | `epub book fonts my-book --update-lock` | After replacing a font master and checking it, update the SHA lock |
 | `epub book build my-book --variant kindle` | Build only one reader version |
 | `epub book import … --git` | Create a separate Git repository in the book folder (optional) |
+| `epub book reader-layer my-book` | Add `reader.css` to an older book that does not have it |
 
 Leave out the book folder and the command uses the current directory. Books in the older folder layout (`03 制作工作区/`) work with the same commands; the tool detects the layout.

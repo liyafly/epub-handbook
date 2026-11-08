@@ -4,6 +4,11 @@
 
 ### Added
 
+- `epub book reader-layer [<书目录>]`：给没有 `reader.css` 的书补上阅读器覆盖层入口（OPF 登记，每个 spine XHTML 最后链接），两种布局都可用；有页面无法安全编辑时一个文件都不改。`epub book import` 对 OEBPS 布局自动加。
+- 配方 `page-image`：Kindle 上显示不好的装饰页只在 Kindle 变体换成整页图，其他阅读器用文字版；`templates/recipes/build.py` 为带 `reader.css` 的配方另打 `-kindle.epub`。
+- `epub-art page --engine webkit`（macOS WKWebView）；页面 `@font-face` 指向的字体缺失时报告 `missingFonts` 并给 warning。
+- `epub book new|import` 生成一屏长的 `制作说明.md` 骨架（已存在不覆盖）；书级长期材料约定放 `素材/`，`.epub/` 只放可重新生成的东西。
+- `epub book build` 发现分层表以外的样式文件时打一行 `INFO style layers`，不阻断。
 - `epub book recipes`：列出 `templates/recipes` 的配方和回退路线，打印配方 CSS，或用 `--add <书目录>` 追加到书的 `design.css`（带标记，已存在则拒绝）。配方文件已内嵌进二进制。
 - `epub book build` 每次写 `report.html`（新布局 `.epub/`，旧布局 `.pipeline/`），失败现场也带一份。
 - 成品超过 50 MB 时提示 Send to Kindle 可能拒收。
@@ -17,6 +22,7 @@
 
 ### Fixed
 
+- 书放在分类子目录（`work-epub/<分类>/<书>/`）时，`epub book import` 沿用上层已有的字体库，不再在分类目录旁新建空的 `fonts/`。
 - 构建被强行结束后残留的 `build.lock` 不再挡住下次构建：锁里记录进程号和主机名，主人是本机已结束的进程时自动清除；无法确认的锁照旧阻断。CLI 忽略 SIGPIPE，输出被 `| head` 截断时构建照常结束并释放锁。
 
 ### Removed

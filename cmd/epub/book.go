@@ -19,6 +19,7 @@ const bookUsage = `用法:
   epub book clean [<书目录>]
   epub book accept-dist [<书目录>] [--variant <名称>]
   epub book recipes [<配方> [--add <书目录>]]
+  epub book reader-layer [<书目录>]
 
 新布局（含 book.json）与旧布局（03 制作工作区/epub/、fonts.json）自动识别；
 省略书目录表示当前目录。--git 在书根建立可选的独立 Git。
@@ -67,6 +68,21 @@ func runBook(argv []string) int {
 			name = args[0]
 		}
 		return pipeline.BookRecipes(pipeline.BookRecipesOptions{Name: name, Add: *add}, bio)
+	case "reader-layer":
+		fs := flag.NewFlagSet("epub book reader-layer", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) > 1 {
+			return bookUsageError("reader-layer 最多接受一个书目录")
+		}
+		dir := ""
+		if len(args) == 1 {
+			dir = args[0]
+		}
+		return pipeline.BookReaderLayer(ctx, pipeline.BookReaderLayerOptions{Dir: dir}, bio)
 	case "import":
 		fs := flag.NewFlagSet("epub book import", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)

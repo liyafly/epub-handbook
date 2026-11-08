@@ -150,6 +150,15 @@ func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir 
 	if err != nil {
 		return false, err
 	}
+	// 阅读器覆盖层入口：变体只需替换 reader.css。非 OEBPS 布局按承诺原样保留，不加。
+	if !legacy {
+		if _, lerr := addSourceReaderLayer(ctx, source); lerr != nil && !errors.Is(lerr, errReaderLayerExists) {
+			if ctx.Err() != nil {
+				return false, ctx.Err()
+			}
+			fmt.Fprintf(r.bio.err(), "Warning: reader.css not added (%v); fix the page, then run `epub book reader-layer`.\n", lerr)
+		}
+	}
 
 	digest, err := zipfs.FileSHA256Context(ctx, frozen)
 	if err != nil {
@@ -168,6 +177,9 @@ func (r *bookRunner) importInto(opts BookImportOptions, original, dest, bookDir 
 		cfg.Fonts = append(cfg.Fonts, raw)
 	}
 	if err := writeBookConfig(filepath.Join(bookDir, bookConfigName), cfg); err != nil {
+		return false, err
+	}
+	if err := writeProductionNotes(bookDir, cfg); err != nil {
 		return false, err
 	}
 	relocation, err := json.MarshalIndent(map[string]string{

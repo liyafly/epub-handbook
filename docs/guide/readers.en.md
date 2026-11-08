@@ -71,4 +71,10 @@ Then put the Kindle styles in `my-book/variants/kindle/OEBPS/Styles/reader.css`.
 
 New books from `epub book new` come with an empty `Styles/reader.css`, loaded last in every chapter. A reader version only has to replace that one file to override the rules before it.
 
-Imported books do not have it. To use reader versions, add an empty `reader.css` inside `epub/` yourself: list it in the OPF manifest, then link it as the last stylesheet in every XHTML file.
+Books imported with `epub book import` get one too (next to the book's existing stylesheets). For a book imported earlier, run `epub book reader-layer my-book`: it lists the file in the OPF and links it as the last stylesheet of every chapter; if any page cannot be edited safely, no file is changed.
+
+Do not copy a whole stylesheet into the overlay and edit it: you would have to keep two copies in step. The overlay's `reader.css` holds only the rules that differ for that version.
+
+### Decorative pages that look wrong on Kindle
+
+If a title page or chapter opener cannot be made to look right on Kindle, give the Kindle version a full-page image of it instead: see the [page-image](../../templates/recipes/page-image/recipe.md) recipe. Other readers keep the text version; body text is never turned into images.

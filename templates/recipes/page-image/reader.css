@@ -1,0 +1,12 @@
+@charset "utf-8";
+/* recipe: page-image（Kindle 变体）—— 放进 variants/kindle/OEBPS/Styles/reader.css。
+ * 显示预先截好的整页图，隐藏文字版；图片不透明，按页宽铺满，不设固定高度。 */
+.page-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+.page-image-text { display: none; }

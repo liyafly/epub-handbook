@@ -83,3 +83,40 @@ def test_page_renders_opaque_full_viewport(tmp_path):
     page.render(source, unfilled, (400, 600), scale=2, fill=False)
     with Image.open(unfilled) as im:
         assert min(im.getpixel((390, 595))) > 240  # short content leaves a white canvas without fill
+
+
+def test_page_reports_missing_font_files(tmp_path):
+    from epub_art import page
+    (tmp_path / 'Styles').mkdir()
+    (tmp_path / 'Text').mkdir()
+    (tmp_path / 'Fonts').mkdir()
+    (tmp_path / 'Fonts' / 'here.ttf').write_bytes(b'x')
+    (tmp_path / 'Styles' / 'fonts.css').write_text(
+        '@font-face { font-family: a; src: url("../Fonts/here.ttf"); }\n'
+        "@font-face { font-family: b; src: url('../Fonts/gone.otf') format('opentype'), local(B); }\n")
+    source = tmp_path / 'Text' / 'p.xhtml'
+    source.write_text('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title>'
+                      '<link href="../Styles/fonts.css" type="text/css" rel="stylesheet"/>'
+                      '<style>@font-face { font-family: c; src: url(../Fonts/inline%20gone.ttf); }</style>'
+                      '</head><body/></html>')
+    missing = page.missing_fonts(source)
+    assert missing == [str((tmp_path / 'Fonts' / 'gone.otf').resolve()),
+                       str((tmp_path / 'Fonts' / 'inline gone.ttf').resolve())]
+
+
+def test_page_renders_with_webkit(tmp_path):
+    import shutil
+    import sys
+    from epub_art import page
+    if sys.platform != 'darwin' or not shutil.which('swiftc'):
+        pytest.skip('WebKit engine needs macOS and swiftc')
+    source = tmp_path / 'p.xhtml'
+    source.write_text('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title>'
+                      '<style>body { margin: 0; background: rgb(30, 30, 200); }</style></head><body><p>x</p></body></html>')
+    output = tmp_path / 'out.png'
+    result = page.render(source, output, (400, 600), scale=2, engine='webkit', wait_ms=300)
+    with Image.open(output) as im:
+        assert im.size == (400, 600) and im.mode == 'RGB'
+        r, g, b = im.getpixel((390, 595))
+    assert b > 170 and r < 70 and g < 70
+    assert result['engine'] == 'webkit' and result['missingFonts'] == []

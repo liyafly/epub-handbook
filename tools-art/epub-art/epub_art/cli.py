@@ -43,6 +43,8 @@ def main(argv=None):
     p.add_argument('--scale', type=float, default=2.0, help='device pixel ratio; CSS viewport = size / scale')
     p.add_argument('--no-fill', dest='fill', action='store_false', help='do not stretch html/body to the viewport')
     p.add_argument('--quality', type=int, default=90)
+    p.add_argument('--engine', choices=['chrome', 'webkit'], default='chrome',
+                   help='chrome (headless Chrome/Edge) or webkit (macOS WKWebView, as in Apple Books and Reeden)')
     p.add_argument('--chrome', help='browser executable; default: EPUB_ART_CHROME or common Chrome/Edge paths')
     p.add_argument('--wait', type=int, default=3000, help='virtual time budget in ms for fonts and images')
     args = parser.parse_args(argv)
@@ -66,7 +68,7 @@ def main(argv=None):
             if not 1 <= args.quality <= 100 or not 0 <= args.wait <= 60000:
                 raise ValueError('quality 1..100 and wait 0..60000 are required')
             result = page.render(args.input, args.output, page.parse_size(args.size), args.scale,
-                                 args.fill, args.chrome, args.quality, args.wait)
+                                 args.fill, args.chrome, args.quality, args.wait, args.engine)
         elif args.command == 'transparent':
             if args.output.suffix.lower() != '.png' or not 0 <= args.threshold <= 255:
                 raise ValueError('transparent output must be PNG; threshold must be 0..255')

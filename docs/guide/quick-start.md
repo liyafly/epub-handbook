@@ -14,7 +14,7 @@ epub book import 原书.epub 我的书
 
 - 把原书复制成 `我的书/original.epub`，设为只读，SHA 写进 `book.json`；
 - 检查包结构和目录。遇到 DRM、加密或损坏的文件就停下，不会尝试解密；
-- 把书解包到 `我的书/epub/`；
+- 把书解包到 `我的书/epub/`，加一个空的 `reader.css`（在每一章里最后加载，做阅读器版本时只替换它）；
 - 如果书里嵌了完整字体，把它们移到共享字体库 `fonts/`（沿上级目录找已有的；没有就在书目录旁新建），`book.json` 用 SHA 锁住版本。看起来已经子集化的字体留在原处。这一步需要 [字体工具](../../README.md#安装)。
 
 导入停下时，`original.epub` 和检查报告都会保留，方便查原因。常见情况见 [常见问题](faq.md#导入)。
@@ -30,9 +30,11 @@ epub book import 原书.epub 我的书
   epub/           # 解包后的书，唯一要编辑的地方
   out/            # 成品，build 成功后才出现
   .epub/          # 隐藏：检查报告、成品收据、预览、失败现场；可以清理
+  制作说明.md     # 一屏长的提纲：状态、目标阅读器、配方、待办
+  素材/           # 自己建：要长期留的脚本、源图、验收截图、修改经过（历史.md）
 ```
 
-你只需要改 `epub/`，偶尔改 `book.json`。
+你只需要改 `epub/`，偶尔改 `book.json` 和 `制作说明.md`。`.epub/` 随时会被清理，要留的东西放 `素材/`。
 
 ## 3. 预览
 
@@ -94,5 +96,6 @@ epub book build 我的书
 | `epub book fonts 我的书 --update-lock` | 换了字体母版之后，确认无误再更新 SHA 锁 |
 | `epub book build 我的书 --variant kindle` | 只构建一个阅读器版本 |
 | `epub book import … --git` | 在书目录里建一个独立 Git 仓库（可选） |
+| `epub book reader-layer 我的书` | 给还没有 `reader.css` 的旧书补上它 |
 
 省略书目录时，命令作用于当前目录。用旧版目录结构（`03 制作工作区/`）的书也用这些命令，工具会自动识别。

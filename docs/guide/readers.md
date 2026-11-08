@@ -71,4 +71,10 @@
 
 `epub book new` 建的新书自带一个空的 `Styles/reader.css`，在每一章里最后加载。阅读器版本只要替换这一个文件，就能覆盖前面的规则。
 
-导入的书没有这个文件。想用阅读器版本的话，在 `epub/` 里自己加一个空的 `reader.css`：在 OPF 的 manifest 里登记它，再在每个 XHTML 里把它作为最后一个样式表链接。
+`epub book import` 导入的书也会自动加上（放在书里已有样式表的同一目录）。之前导入的书没有它，运行 `epub book reader-layer 我的书` 补上：它在 OPF 里登记这个文件，并把它作为每一章最后一个样式表链接；有页面改不了就一个文件都不动。
+
+不要把整份样式表复制进覆盖层再改：两份要一起维护，迟早会漏。覆盖层的 `reader.css` 只写这个版本和通用版不同的规则。
+
+### Kindle 上显示不好的装饰页
+
+书名页、章首页这类装饰页如果在 Kindle 上怎么调都不对，可以只给 Kindle 版换成整页图：见配方 [page-image](../../templates/recipes/page-image/recipe.md)。其他阅读器仍用文字版，正文不转图。

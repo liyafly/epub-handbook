@@ -1,0 +1,3 @@
+/* 通用版：整页图不显示，这一页照常用真实文字排版。
+ * Kindle 变体的 reader.css 反过来：显示整页图、隐藏文字版（见同目录 reader.css）。 */
+.page-image { display: none; }
