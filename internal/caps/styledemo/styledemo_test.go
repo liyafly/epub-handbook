@@ -808,3 +808,44 @@ func TestRunSourceTreeOK(t *testing.T) {
 		t.Errorf("errors = %v, findings = %v", res.Facts["errors"], res.Findings)
 	}
 }
+
+// TestBodyFontModeContract 覆盖自由版、锁定版和两者不配对的情况（SPEC §8）。
+func TestBodyFontModeContract(t *testing.T) {
+	const (
+		base   = "body { margin: 0; }"
+		meta   = `<meta property="ibooks:specified-fonts">true</meta>`
+		locked = `<body class="body-font-locked">`
+	)
+	opf := func(extra string) *element {
+		t.Helper()
+		root, err := parseXMLDoc([]byte(`<package xmlns="http://www.idpf.org/2007/opf"><metadata>` + extra + `</metadata></package>`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	for _, c := range []struct {
+		name, fonts, meta, page string
+		wantErr                 string
+	}{
+		{name: "自由版", fonts: ".font-mono { font-family: monospace; }", page: "<body>"},
+		{name: "锁定版", fonts: `body { font-family: "st", serif; }`, meta: meta, page: "<body>"},
+		{name: "注释里的 body 规则不算锁定", fonts: `/* body { font-family: "st", serif; } */`, page: "<body>"},
+		{name: "锁定缺 meta", fonts: `body { font-family: "st", serif; }`, page: "<body>", wantErr: "must match"},
+		{name: "自由版多了 meta", fonts: "", meta: meta, page: "<body>", wantErr: "must match"},
+		{name: "旧式 class 锁定没有字体规则", fonts: "", meta: meta, page: locked, wantErr: "no direct body"},
+		{name: "旧式 class 锁定有字体规则", fonts: `.body-font-locked { font-family: "st", serif; }`, meta: meta, page: locked},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var errs []string
+			validateBodyFontModeContract(opf(c.meta), base, c.fonts, map[string]string{"a.xhtml": c.page}, &errs, "test")
+			got := strings.Join(errs, "\n")
+			if c.wantErr == "" && got != "" {
+				t.Fatalf("unexpected errors: %s", got)
+			}
+			if !strings.Contains(got, c.wantErr) {
+				t.Fatalf("errors %q lack %q", got, c.wantErr)
+			}
+		})
+	}
+}

@@ -255,9 +255,6 @@ func validateBodyFontModeContract(pkgRoot *element, baseCSS, fontsCSS string, xh
 	activeFontsCSS := stripCSSComments(fontsCSS)
 	hasClassRule := reBodyFontClassRule.MatchString(activeFontsCSS)
 	hasDirectRule := hasDirectBodyFontFamily(activeFontsCSS)
-	require(hasClassRule || hasDirectRule,
-		context+": fonts.css must define a direct body or legacy .body-font-locked font-family chain")
-
 	var lockedHrefs []string
 	for href, text := range xhtmlTexts {
 		if hasBodyFontLockedMarkup(text) {
@@ -265,6 +262,9 @@ func validateBodyFontModeContract(pkgRoot *element, baseCSS, fontsCSS string, xh
 		}
 	}
 	sort.Strings(lockedHrefs)
+	// 自由版不写正文字体。旧式 class 锁定的页面仍然必须有对应的字体规则。
+	require(len(lockedHrefs) == 0 || hasClassRule || hasDirectRule,
+		context+": pages use .body-font-locked but fonts.css has no direct body or .body-font-locked font-family chain")
 	hasLockedMode := len(lockedHrefs) > 0 || hasDirectRule
 	hasMeta := hasIbooksSpecifiedFonts(pkgRoot)
 	require(hasLockedMode == hasMeta,

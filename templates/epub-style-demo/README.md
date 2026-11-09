@@ -25,7 +25,7 @@ templates/epub-style-demo/dist/epub-style-demo.epub
 5. `03c-poster-contain.xhtml`：单图卷封 contain + `<img>` fallback 对照样本。
 6. `04-lists-tables-code.xhtml`：列表、表格、代码块和键盘文本。
 7. `05-legacy-note-fallback.xhtml`：在标准弹注结构上叠加多看旧版 fallback。
-8. `07-font-family-order.xhtml`：系统优先 / 书内优先 / 混合链的 font-family 顺序验证；整本 demo 由 `fonts.css` 的直接 `body` 规则演示正文锁定模式。
+8. `07-font-family-order.xhtml`：中文跟随正文、生僻字回退、英文系统字体优先和首字体缺失时的 font-family 顺序验证。
 9. `08-long-mixed-flow.xhtml`：长段落、中英混排、大字号标题与右侧裁切压力测试。
 10. `09-kindle-risk.xhtml`：Kindle Previewer 专项风险项。
 11. `10-text-effects.xhtml`：着重号、波浪线、首字下沉与 Ruby。
@@ -50,9 +50,9 @@ templates/epub-style-demo/dist/epub-style-demo.epub
 
 OPF 还声明 `Images/cover.png` 为 raster 封面图，用于覆盖 Kindle Previewer 的封面识别检查。
 
-> 注：本 demo 的 `fonts.css` 直接给 `body` 绑定字体，`package.opf` 保留书级
-> `<meta property="ibooks:specified-fonts">true</meta>`，整书按锁定模式处理。
-> 真实书籍应全书统一自由或锁定模式，见 `docs/final/SPEC-实现约束.md` §8。
+> 注：本 demo 是自由版：`body` 不写字体，OPF 不加 `ibooks:specified-fonts`。公共 demo 不带字体文件，
+> 所以 `.font-kt` 等中文角色类没有规则，挂了也跟随正文，不能作为字形验收。
+> 锁定版和角色字体的验收用 [字体角色探针](../font-role-probe/README.md)，规则见 `docs/final/SPEC-实现约束.md` §8。
 
 完整覆盖关系见 [`SCENE_MATRIX.md`](SCENE_MATRIX.md)。按页面角色查源码、定位 class、查看依赖和降级建议，可从 [可复用版式配方](GALLERY.md) 开始。
 

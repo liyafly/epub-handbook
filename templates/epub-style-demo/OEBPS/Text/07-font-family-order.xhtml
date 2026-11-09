@@ -13,18 +13,17 @@
 <body>
   <section epub:type="chapter">
     <h1>七、font-family 顺序验证</h1>
-    <p><!-- 演示 font-family 顺序对实际命中的影响：分别测试系统优先、书内优先与混合链。 --></p>
-    <p class="font-specimen demo-system-first">
-      系统宋体优先样本：山川草木，风雨晦明，皆可入书。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察 iBooks、Windows 阅读器和其他阅读器的实际字体选择。
+    <p class="font-specimen">
+      中文跟随正文：山川草木，风雨晦明，皆可入书。这一段不写字体，由阅读器决定，换阅读器字体时应该变化。标点「引号」与书名号《样本》同时出现。
     </p>
-    <p class="font-specimen demo-embedded-first">
-      书内宋体优先样本：春水初生，春林初盛，春风十里。English ABC 123，标点「引号」与书名号《样本》同时出现，用来观察嵌入正文字体在不同设备上的命中顺序。
+    <p class="font-specimen">
+      生僻字与异体字观察：𠀀、𠮷、髙、﨑、㐂。记录阅读器的回退字体显示成什么。
     </p>
-    <p class="font-specimen demo-mixed">
-      混合回退样本：先给书内嵌入楷体，再给系统楷体，最后给开源中文回退。若阅读器按首个可用名称命中，这一段应优先显示嵌入楷体。
+    <p class="font-specimen demo-system-first" xml:lang="en" lang="en">
+      English, system font first: the quick brown fox jumps over the lazy dog. This should look like Georgia if the reader has it. <i>Italic text uses the true italic of that font.</i>
     </p>
-    <p class="font-specimen demo-system-first">
-      生僻字与异体字观察：𠀀、𠮷、髙、﨑、㐂。若首选字体缺字，阅读器应继续沿同一个 font-family 列表寻找后续字体，而不是只依赖 @font-face 内部的 fallback。
+    <p class="font-specimen demo-missing-first" xml:lang="en" lang="en">
+      English, first font missing: the reader should move on to the next font in the chain, so this looks the same as the paragraph above.
     </p>
   </section>
 </body>

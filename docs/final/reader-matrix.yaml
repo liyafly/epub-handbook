@@ -245,7 +245,7 @@ retest_priorities:
   - rank: 5
     case: 07-font-family-order
     readers: [ibooks_ios, ibooks_macos, kindle_previewer, thorium]
-    focus: "在临时授权素材工作区构建正文自由+局部字体、直接 body 锁定、原字体/子集字体和双版本对照；记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的码位、cmap、实际字形和用户字体切换表现。"
+    focus: "看 07 页：中文换字是否变化、生僻字回退显示成什么、英文系统字体是否命中、首字体缺失时是否走到下一段。角色字体与锁定版看 probe-font-role。记录 U+201C/U+201D、U+3007/U+25CB 与 CSS 生成引号的实际字形。"
   - rank: 6
     case: 29-poetry
     readers: [ibooks_macos, thorium, kindle_previewer]
@@ -1154,7 +1154,7 @@ untested_cases:
     note: "列表 / 表格 / 代码；尚未实测。"
   - case: 07-font-family-order
     fixture: templates/epub-style-demo/OEBPS/Text/07-font-family-order.xhtml
-    note: "字体链顺序、正文自由/锁定和局部嵌入字体的 policy fixture；尚无同时具备 reader_version、artifact 与 issue 的阅读器实测记录。仓库暂按‘锁定正文配对 specified-fonts、自由正文默认不加’执行，兼容性结论须完成 retest_priorities rank 5 后回写 expectations。"
+    note: "07 页已改为现行规则：中文跟随正文、生僻字回退、英文系统字体优先、首字体缺失；demo 改为自由版，角色字体与锁定版的实测见 probe-font-role。本页尚无 reader_version、artifact 与 issue 齐全的实测记录。"
   - case: 08-long-mixed-flow
     fixture: templates/epub-style-demo/OEBPS/Text/08-long-mixed-flow.xhtml
     note: "长篇中英混排；尚未实测。"

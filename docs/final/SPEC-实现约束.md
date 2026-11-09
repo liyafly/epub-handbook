@@ -311,11 +311,9 @@
 - 两版必须从同一个已定稿内容基线派生。允许差异只限字体 CSS、字体资源、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明；另允许每个 rendition 唯一的 `dcterms:modified` 反映各自实际打包时间。双版本比较可忽略该字段的值，但不得忽略缺失、多份或非 UTC `YYYY-MM-DDThh:mm:ssZ`。同一批成对构建应优先只取一次 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH` 传给两版，以减少无意义 diff；分步打包时的合法时间差不视为内容漂移。核心 `dc:*` metadata、spine、XHTML、注释、图片和其他资源必须一致。任何超出此白名单的差异都要另行授权并记录。
 - 既有 EPUB 若因历史兼容或用户明确要求在自由版保留 meta，必须在书级报告记录理由，并在书根 `制作说明.md` 显式记录豁免条目；该例外不得写回 starter、preset 或新书模板。
 
-### 尚未迁移
+### 存量书
 
-本节不追溯已交付的书。默认 demo 仍按旧规则写系统字体链：`epub.style.demo.maintain` 要求 `fonts.css` 有直接 `body` 字体链并与 meta 配对，而公共 demo 不带字体文件。改动涉及 Go 校验，待单独处理。
-
-`epub.css.layering.optimize` 处理存量书时，删除旧系统字体声明（`SimSun`、`SimHei`、`STKaiti`、`cnepub`），让这些文字跟随正文；书内 `@font-face` 字体的绑定不动。
+本节不追溯已交付的书。`epub.css.layering.optimize` 处理存量书时，删除旧系统字体声明（`SimSun`、`SimHei`、`STKaiti`、`cnepub`），让这些文字跟随正文；书内 `@font-face` 字体的绑定不动。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 

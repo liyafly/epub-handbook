@@ -11,7 +11,7 @@
 | 单图卷封 contain 对照 | `Text/03c-poster-contain.xhtml` | `body.poster-bg-contain`、`background-size: contain`、`.poster-fallback`、单页不裁图 | Apple Books / Kindle App / Kindle Previewer |
 | 表格与代码 | `Text/04-lists-tables-code.xhtml` | 列表、表格滚动、代码块、kbd | Kindle Previewer / KOReader / Thorium |
 | 多看 fallback | `Text/05-legacy-note-fallback.xhtml` | `duokan-footnote`、`ol.duokan-footnote-content`、单注释 | 多看 / 标准阅读器回退 |
-| font-family 顺序 + 正文锁定 | `Text/07-font-family-order.xhtml` | 全书正文锁定模式（`fonts.css` 直接 `body` 规则 + OPF `ibooks:specified-fonts=true`）、系统优先、书内优先、楷体混合链、生僻字 fallback | Apple Books / Windows 阅读器 |
+| font-family 顺序 + 正文自由 | `Text/07-font-family-order.xhtml` | 全书正文自由（不写 `body` 字体、不加 meta）、中文跟随正文、生僻字回退、英文系统字体优先、首字体缺失 | Apple Books / Windows 阅读器 |
 | 长段落与中英混排 | `Text/08-long-mixed-flow.xhtml` | 普通正文盒模型、右侧裁切、长 token 换行、大字号标题 | Kindle Previewer / Apple Books |
 | Kindle 风险项 | `Text/09-kindle-risk.xhtml` | cover metadata、nav + NCX、PNG、长串、表格、代码 | Kindle Previewer |
 | 文字效果合集 | `Text/10-text-effects.xhtml` | `.emp` / `.wavy` / `.dropcap` / Ruby 行距 | 全部 |
@@ -30,7 +30,7 @@
 | 横排语调标记兼容 fallback（v6） | `Text/26-prosody-fallback.xhtml` | A 为 semantic `ruby.prosody`（真实 `rt` 的 `△/▽`、标准 `ruby-position: under` + WebKit legacy）；B 为真实 HTML 双层 `inline-table/table-row/table-cell`，底层标记是 `span` 文本而非 generated content；覆盖单字符、多字符连续、标点旁和行末换行附近，使用 `aria-hidden` 与邻近说明保持可访问语义 | Apple Books / Reeden / Kindle Previewer / Thorium |
 | 横排块级独立章首页 | `Text/28-chapter-opening-block.xhtml` | 生产书反向提炼：同一 `h1` 内两个 block span，章次与章名不依赖相邻元素 margin；标题组 `margin:25% 5% 0 0`；左下 `5.5em auto` body background 只写在共享 CSS，XHTML 无 inline style 和饰图 `<img>`；根、body、frame 的 100%/90% 高度与分页约束 | Kindle Previewer / Readest / Reeden / Apple Books |
 | 诗歌、分节与长行 | `Text/29-poetry.xhtml` | `.poetry` / `.stanza` 中自造短诗、多节、长行自然折行和分页压力。不得把普通 `p` 自动转换为诗行，也不对长诗整体禁分页 | Apple Books / Thorium / Kindle Previewer / Readest |
-| 书信与落款 | `Text/30-letter.xhtml` | `.letter` 中称谓（`.letter-salutation` 顶格）、长正文、祝语、署名和日期保持源序；长信自然跨页，边线可丢失；楷体公文样本用 `.letter.font-kt` + `.doc-heading` | Apple Books / Thorium / Kindle Previewer |
+| 书信与落款 | `Text/30-letter.xhtml` | `.letter` 中称谓（`.letter-salutation` 顶格）、长正文、祝语、署名和日期保持源序；长信自然跨页，边线可丢失；公文样本用 `.letter.font-kt` + `.doc-heading`，公共 demo 不带楷体，文字跟随正文 | Apple Books / Thorium / Kindle Previewer |
 | 访谈与对白 | `Text/31-dialogue.xhtml` | `.dialog` / `.dialog-speaker` 覆盖短轮次和长回答；发言者真实文本存在，移除 CSS 后顺序仍可读；行内括注 `span.aside-inline` 只缩字号、不锁颜色 | Apple Books / Thorium / Readest |
 
 ## 退役对照页
