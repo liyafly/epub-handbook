@@ -62,23 +62,19 @@ epub run epub.package.nav.audit --input input.epub --json
 - 调试时很难知道读者看到的是嵌入字体还是系统字体；
 - 私有字体名、旧字体名和平台字体名混在一起。
 
-推荐字体链保持短小：
+字体链保持短小，中文角色只用嵌入字体，没指定就跟随正文：
 
 ```css
-.type-body {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
-}
-
 .type-title {
-  font-family: "Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: "ht", sans-serif;
 }
 
 .type-note {
-  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-family: "kt", serif;
 }
 ```
 
-如果使用嵌入字体，按 SPEC 的模式 A / B / C 管理，不把多个嵌入字体反复塞进同一条链。
+规则见 SPEC §8，不把多个嵌入字体反复塞进同一条链。
 
 ### 3.3 字体授权不能从文件存在推断
 

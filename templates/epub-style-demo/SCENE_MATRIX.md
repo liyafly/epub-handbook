@@ -53,7 +53,7 @@
 
 | 场景 | Fixture 形态 | 主要检查点 | 目标阅读器 |
 |---|---|---|---|
-| C1-body 正文角色完整覆盖 + 双版本 | 临时加入有明确授权的 `OEBPS/Fonts/st-all.ttf`、局部 `kt/fs` 角色、OPF font item、`@font-face` 和直接 body 锁定；从同一内容基线构建正文自由/锁定两版及原字体/子集字体对照 | 正文角色按继承覆盖全部实际文字与标点、`fontspec=forceAll`、两版除字体白名单外一致；核对 U+201C/U+201D、U+3007/U+25CB、CSS `quotes/content` 生成字符，默认字号和大字号均不裁切 | Apple Books / Kindle Previewer / Thorium |
+| 锁定版正文角色完整覆盖 + 双版本 | 临时加入有明确授权的 `OEBPS/Fonts/st-all.ttf`、局部 `kt/fs` 角色、OPF font item、`@font-face` 和直接 body 锁定；从同一内容基线构建正文自由/锁定两版及原字体/子集字体对照 | 正文角色按继承覆盖全部实际文字与标点、`fontspec=forceAll`、两版除字体白名单外一致；核对 U+201C/U+201D、U+3007/U+25CB、CSS `quotes/content` 生成字符，默认字号和大字号均不裁切 | Apple Books / Kindle Previewer / Thorium |
 
 ## 打包与记录
 

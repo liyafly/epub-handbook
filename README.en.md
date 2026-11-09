@@ -42,6 +42,10 @@ Books without embedded fonts do not need it. See the [font tool notes](tools-fon
 - [FAQ](docs/guide/faq.en.md)
 - [Glossary](docs/guide/glossary.en.md)
 
+## Fonts while reading
+
+To read in your own preferred font, use Reeden or Readest. To keep the book's fonts, use Apple Books (Original font), Kindle (Publisher Font) or Duokan (default font). See [Readers](docs/guide/readers.en.md) for why.
+
 ## Maintainers and AI tools
 
 AI tools (Claude Code, Codex and others) and maintainers start with [AGENTS.md](AGENTS.md). The full document index, CLI exit codes, input limits and the capability list are in the [maintainer index](docs/README.md). Maintainer documents are in Chinese. To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md).

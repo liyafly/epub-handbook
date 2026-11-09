@@ -13,7 +13,6 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   margin: 1.05em 0 .55em;
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   line-height: 1.3;
   text-indent: 0;
 }
@@ -33,7 +32,6 @@ figcaption { margin-top: .35em; font-size: .84em; text-indent: 0; }
 .table-wrap { margin: .9em 0; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .9em; }
 th, td { padding: .5em .55em; border: 1px solid #716b63; text-align: left; vertical-align: top; }
-th { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
 pre { margin: .9em 0; padding: .85em; overflow-x: auto; border: 1px solid #8f877b; white-space: pre; }
 code, kbd, samp, pre { font-family: "SF Mono", Consolas, "Source Code Pro", monospace; }
 kbd { padding: .05em .3em; border: 1px solid #8f877b; }

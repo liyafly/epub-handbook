@@ -1,6 +1,6 @@
 # 字体角色探针
 
-在真实阅读器里确认：哪些字体真的固定，哪些会被换字覆盖。结果决定 [SPEC §8](../../docs/final/SPEC-实现约束.md) 的字体规则怎么改。
+在真实阅读器里确认：哪些字体真的固定，哪些会被换字覆盖。结果已写入 [SPEC §8](../../docs/final/SPEC-实现约束.md)；D 包的系统字体链只作对照，不是推荐写法。
 
 ## 构建
 
@@ -47,4 +47,4 @@ uv run --no-project --with fonttools python templates/font-role-probe/build.py -
 4. 调大字号、切夜间主题，再看书信页。
 5. 记录阅读器版本、包的 SHA、截图和现象，写入 [reader-matrix](../../docs/final/reader-matrix.yaml) 的 `probe-font-role`。
 
-状态：默认设置已看过前几页，换字未记录，见矩阵。标记字是私用区字符，个别阅读器可能特殊处理，所以判断时同时看字形本身。
+状态：Apple Books、Reeden 的换字结果见矩阵，其余待测。标记字是私用区字符，个别阅读器可能特殊处理，所以判断时同时看字形本身。

@@ -73,7 +73,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 - 只需局部改动时，不为用能力而套整套预设层；先做代表性正文/章首/复杂页样例，确认节奏再推广。审查 add/replace 的具体样式表，避免覆盖原书有效设计。
 - 自由模式 body/普通 p 不设 font-family；锁定入口为 fonts.css 的 body 规则并同步 OPF 字体 meta/prefix。局部字体不要求全书锁定，保留既有模式及书级例外。
-- 设计字体/少量补字用专用角色；C1-body 须按 CSS 继承覆盖全部角色用字和标点，保留 generic fallback，不靠重复嵌入字体解决回退。
+- 设计字体/少量补字用专用角色；锁定正文须按 CSS 继承覆盖全部角色用字和标点，链尾保留 generic，不靠重复嵌入字体解决回退。
 - 字体声明进 fonts.css，正文节奏进 base.css，注释结构进 notes.css；带 epub namespace 的选择器须声明 namespace。
 - 自由版与锁定版从同一内容基线派生，差异规则按 SPEC §8；红线和覆盖都通过后，仍需大字号/窄屏阅读器验收。
 

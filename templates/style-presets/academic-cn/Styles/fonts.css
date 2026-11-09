@@ -1,30 +1,16 @@
 @charset "utf-8";
 
-/* 锁定版取消本段注释，并同步 OPF ibooks:specified-fonts=true。
+/* 锁定版取消本段注释，打包嵌入字体，并同步 OPF ibooks:specified-fonts=true。
 body {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st", serif;
 }
 */
 
-.font-st,
-.st {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
-}
-
-.font-ht,
-.ht {
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-}
-
-.font-kt,
-.kt {
-  font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif;
-}
-
-.font-fs,
-.fs {
-  font-family: "STFangsong", "FangSong", serif;
-}
+/* 中文角色要指定字形时才打开，只写嵌入字体 + 通用族；没指定就跟随正文。规则见 SPEC §8。
+.font-ht { font-family: "ht", sans-serif; }
+.font-kt { font-family: "kt", serif; }
+.font-fs { font-family: "fs", serif; }
+*/
 
 .font-mono,
 .mono {

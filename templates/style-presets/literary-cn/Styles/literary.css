@@ -17,7 +17,7 @@
 .decorated-chapter-title { margin: .4em 0 .8em; font-size: 1.55em; line-height: 1.35; }
 .chapter-subtitle { margin: .25em 0; font-size: .9em; }
 .chapter-head-note { margin: 1em 0; padding: .6em .8em; border-left: .2em solid #9b9488; text-indent: 0; }
-.epigraph { margin: 1.2em 0; text-align: right; font-family: "Kaiti SC", "KaiTi", "AR PL UKai CN", serif; }
+.epigraph { margin: 1.2em 0; text-align: right; }
 .epigraph-source { display: block; margin-top: .3em; font-size: .9em; }
 .dialog p { margin: .35em 0; text-indent: 0; }
 .dialog-speaker { font-weight: 600; }

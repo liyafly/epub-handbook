@@ -9,7 +9,7 @@
 CSS `font-family` 是一个有序列表（字体链）：
 
 ```css
-body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }
+body { font-family: "st-all", serif; }
 ```
 
 符合规范的引擎（WebKit/Blink）做**逐字形回退**：对**每一个字符**，从链首往后找第一个能提供该字形的字体。一个字由链首渲染，另一个字由链尾渲染——这是正常且预期的。
@@ -48,19 +48,19 @@ body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 | **B. span 包裹 + 专用字体** | 生僻字用 `<span class="rare">` 包起来，CSS 显式指定那一款字体 | 强：被包住的字直接命中专用字体 | 低（只嵌小子集） | 生僻字「少但散」 |
 | **C. 不嵌入，走系统字体** | 不嵌字体，靠阅读器系统字体 + generic 兜底 | 弱：完全依赖阅读器 | 无 | 全常用字、可接受阅读器差异 |
 
-### 策略 A 详解（对应 SPEC §8 模式 C1-body）
+### 策略 A 详解（对应 SPEC §8 锁定版）
 
 把实际用到的字形合并进同一款字体，正文只写这一款：
 
 ```css
 body {
-  font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st-all", serif;
 }
 ```
 
 正文角色使用一款覆盖其全部实际字符的字体，可减少 Kindle 触发不可靠回退。它既可用于生僻字很多的书，也可用于设计上必须固定正文外观的锁定版；需配合 `fontspec=forceAll`、直接 `body` 规则和 OPF `ibooks:specified-fonts=true`。
 
-### 策略 B 详解（对应 SPEC §8 模式 B，`.rare` 类）
+### 策略 B 详解（对应 SPEC §8 的 `.rare` 类）
 
 ```html
 正文正文<span class="rare">𠀀</span>正文正文

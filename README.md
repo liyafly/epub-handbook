@@ -42,6 +42,10 @@ uv tool install --editable --reinstall tools-font/epub-font
 - [常见问题](docs/guide/faq.md)
 - [术语表](docs/guide/glossary.md)
 
+## 看书时的字体
+
+想换成自己喜欢的字体，用 Reeden 或 Readest。不想换，用 Apple Books（选“原始字体”）、Kindle（选“出版商字体”）或多看（选“默认字体”）。原因见 [阅读器](docs/guide/readers.md)。
+
 ## 维护者与 AI 工具
 
 AI 工具（Claude Code、Codex 等）和维护者先读 [AGENTS.md](AGENTS.md)。完整文档索引、CLI 退出码、输入限额和能力清单见 [维护者文档索引](docs/README.md)。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。

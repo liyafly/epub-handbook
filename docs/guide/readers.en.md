@@ -4,6 +4,19 @@
 
 Three readers come first: **Apple Books, Kindle and Reeden**. A book that breaks on any of them is not ready. Readest is a secondary target: the basic version only has to read well.
 
+## Choosing a font while reading
+
+| You want | Reader | Setting |
+| --- | --- | --- |
+| Your own preferred font | Reeden, Readest | Use the book's free version and change the font in the reader |
+| The book's own fonts | Apple Books | Choose the Original font |
+| The book's own fonts | Kindle | Choose Publisher Font |
+| The book's own fonts | Duokan | Choose the default font |
+
+Why: when you change the font in Apple Books, specially designed fonts such as letters and headings are replaced too. Reeden changes only the body and keeps those fonts. This has not been recorded separately for Readest.
+
+With those settings, a locked version shows its embedded body font. A free version has no embedded body font, so the body uses the reader's default. Production rules are in [SPEC §8](../final/SPEC-实现约束.md#8-字体链规则) (Chinese).
+
 ## Which devices to check
 
 - **iPhone**: the narrowest screen, where recipes use their fallback. This is the one that decides.
@@ -23,7 +36,7 @@ Check both. iPad is not tested separately.
 - Kindle Previewer is only a local approximation; its result can differ from Amazon's conversion.
 - Send to Kindle has a file-size limit. See Amazon's current documentation for the number.
 - Use JPEG or PNG for images. WebP does not work on Kindle and SVG is unreliable; see [SPEC §5.1](../final/SPEC-实现约束.md#51-图片格式兼容) (Chinese).
-- Do not write Kindle-only queries such as `@media amzn-kf8`. If Kindle needs different styles, give it its own reader version (below).
+- When only styles differ, prefer `@media amzn-kf8` in the generic version; other readers skip it. The Kindle compatibility check reports a warning for it, which is expected. When content must differ too, use a reader version (below). Do not use this query for parallel text; see [SPEC §5.6.1](../final/SPEC-实现约束.md#561-文白对照左右兼容) (Chinese).
 
 ## Reeden
 
@@ -34,6 +47,10 @@ Check both. iPad is not tested separately.
 ## Readest
 
 The generic version just has to read well. Readest recognises books by their content, so after re-importing an edited book it may still open the old one. If you see an old result, first make sure you opened the new file, then look at the CSS.
+
+## Duokan
+
+Not a main target. Reset its layout settings before checking: custom spacing or first-line indent can break flush-left lines and line spacing, which is easy to mistake for a style bug. No CSS can target Duokan alone, so any Duokan-only change needs its own version, such as the rule-free [letter](../../templates/recipes/letter-paper/recipe.md) package.
 
 ## One source, several reader versions
 

@@ -233,7 +233,7 @@
 | `@font-face` | 定义书内字体 | 推荐 | 正文、标题、生僻字可分开 |
 | `src: local(...), url(...)` 的存量缺失 URL | 拆分容错 | 条件可用 | 仅同一 src 含有效非空 local() 时保留并记信息日志；不代表系统字体存在，不用于制造新模板悬空资源，见 SPEC §3 |
 | `@namespace epub` | `"http://www.idpf.org/2007/ops"` | 条件必需 | CSS 使用 `[epub\|type]` 时声明；紧跟可选 `@charset` / `@import`，早于 `@font-face` 和普通规则 |
-| `font-family` | 显式系统链默认 ≤ 4 段；稳定结构角色可直接绑定，混合/局部角色使用类；补字子集只走 `.rare`（详见 SPEC §8） | 推荐 | C1-body 嵌入字体全覆盖；局部字体覆盖明确承担字符，其余验证 fallback |
+| `font-family` | 正文：自由版不写，锁定版只写嵌入字体 + 通用族；中文角色：嵌入字体 + 通用族，两段；英文和代码：系统字体优先，最多 4 段；补字子集只走 `.rare`（SPEC §8） | 推荐 | 嵌入字体必须覆盖所承担的字符 |
 | `font-style` | `normal` / `italic` | 推荐 | 中文强调用着重号 |
 | `font-weight` | `normal` / `bold` / `400` / `700` | 推荐 | 嵌入字重需匹配 |
 | `font-size` | `em` / `%` | 推荐 | 正文不用 `px` / `pt`、`small` 等绝对关键字或 `vw`，否则不随阅读器字号变化（A-lite 海报页除外） |
@@ -254,36 +254,35 @@
 | `hanging-punctuation` | `allow-end` | 渐进增强 | Apple Books / KOReader 较好 |
 | `hyphenate-limit-chars` | `6 3 3` | 渐进增强 | 支持有限 |
 
-### 4.1 正文字体链
+### 4.1 正文字体
 
 ```css
-/* 正文自由模式（默认）：body 与普通正文 p 都不设 font-family */
+/* 自由版：body 与普通正文 p 都不写 font-family */
 
-/* 锁定模式：fonts.css 全书直接绑定 body */
+/* 锁定版：只用嵌入字体，同步 OPF ibooks:specified-fonts=true */
 body {
-  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
-}
-
-/* 模式 C1-body（设计锁定或生僻字 + 正文角色全部实际用字覆盖） */
-body {
-  font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+  font-family: "st", serif;
 }
 ```
 
-> 正文自由模式是默认；标题、序言和注释等局部角色仍可单独用字体。锁定模式需要同步 OPF `ibooks:specified-fonts=true`，普通正文 `p` 直接继承 `body`。裸 `p` 不是全书锁定入口；C1-body 仅当字体覆盖最终解析到正文角色的全部实际用字（`fontspec=forceAll`）时启用。自由/锁定双版本必须从同一内容基线派生，允许差异仅为字体 CSS、字体资源、OPF 字体 manifest/meta（含 `ibooks:specified-fonts`）及其所需的 package `ibooks:` prefix 声明；各 rendition 唯一的 `dcterms:modified` 可按实际打包时间不同。
+> 不用系统字体链锁定中文正文。裸 `p` 不是全书锁定入口。两版必须从同一内容基线派生，允许差异见 SPEC §8。读者换字后，Apple Books 会替换全部字体，加不加 meta 都一样。
 
-### 4.2 标题 / 特殊字体
+### 4.2 角色和英文字体
 
 ```css
-/* h1/h2 全书角色一致时可直接绑定；角色混合时改用标题类 */
+/* 中文角色只写两段；先打包字体并声明 @font-face / manifest。没指定就不写，跟随正文 */
 h1,
 h2 {
   font-family: "kt", serif;
 }
 
-/* 模式 B：生僻字子集字库（链 ≤ 2 段） */
 .rare {
   font-family: "tszt-rare", serif;
+}
+
+/* 英文和代码可系统字体优先，嵌入字体放第二或第三位 */
+.font-en-serif {
+  font-family: Georgia, "en", serif;
 }
 ```
 
@@ -420,7 +419,7 @@ h2 {
 | `text-decoration-color` | `#c03030` | 可用 | 波浪线颜色；局部文字效果可指定 |
 | `text-decoration-thickness` | `1px` | 可用 | 线宽 |
 | `text-underline-offset` | `0.12em` | 可用 | 下划线偏移 |
-| `quotes` | `"「" "」" "『" "』"` | 推荐 | 中文 `<q>`；C1-body 必须纳入角色子集，只有局部角色可使用明确 fallback |
+| `quotes` | `"「" "」" "『" "』"` | 推荐 | 中文 `<q>`；锁定正文必须纳入角色子集，只有局部角色可使用明确 fallback |
 | `content: open-quote` | 自动开引号 | 推荐 | `<q>`；属于 CSS 生成字符 |
 | `content: close-quote` | 自动闭引号 | 推荐 | `<q>`；属于 CSS 生成字符 |
 

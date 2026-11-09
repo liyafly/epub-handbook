@@ -66,8 +66,8 @@
 
 ## 3) 字体与 OPF
 
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；新建锁定版的入口是 `fonts.css` 中直接的 `body { font-family:... }`。添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由模式（默认）不需要。只在局部角色使用嵌入字体不需要此 meta。既有 EPUB 的 `body-font-locked` class 可兼容保留，但不作为新模板入口。判定规则见 §8。
-- 标题字体可用系统链或书内嵌入字体 + 通用族回退；当 `h1` / `h2` 在全书各自只有一个字体角色时可直接绑定，否则使用角色类。
+- `<meta property="ibooks:specified-fonts">true</meta>` 只在锁定版添加，入口是 `fonts.css` 中直接的 `body { font-family:... }`。添加时 OPF `<package>` 必须同步在 `prefix` 声明 ibooks 命名空间。自由版不加；只在局部角色使用嵌入字体也不加。既有 EPUB 的 `body-font-locked` class 可兼容保留，但不作为新模板入口。规则见 §8。
+- 标题等非正文角色指定字体时，使用书内嵌入字体 + 一个系统通用族；当 `h1` / `h2` 在全书各自只有一个字体角色时可直接绑定，否则使用角色类。见 §8。
 - 字体策略必须与 `fontspec` 三态一致：`auto | forceAll | none`。
 - **既有 EPUB 拆分容错**：同一 `@font-face` 的同一 `src` 声明包含有效非空 `local()` 时，缺失字体 URL 可保留原声明并继续拆分，仅记信息事件，不记 warning；这不证明阅读器具备该系统字体。其他声明里的 local()、字符串/注释伪命中、缺失图片/导入 CSS 等不能获得豁免。新书模板仍不得制造悬空字体资源；此条只定义拆分是否阻断，不替代交付和阅读器验收。
 
@@ -75,7 +75,7 @@
 
 `auto` 模式下，先按 CSS 继承、局部覆盖和字体链建立角色字符清单，不得只扫描普通 `p`：
 
-1. C1-body 或其他要求嵌入字体完整覆盖的锁定角色：纳入全书 XHTML 中最终解析到该角色的全部可渲染文字和标点
+1. 锁定正文或其他要求嵌入字体完整覆盖的角色：纳入全书 XHTML 中最终解析到该角色的全部可渲染文字和标点
 2. 局部设计 / 补字角色：纳入明确由嵌入字体承担的字符；其余字符只有在该局部角色声明了可靠 fallback 时才可排除
 3. `quotes`、`content` 等 CSS 生成且最终由该角色渲染的字符；现有覆盖分析器不会从 XHTML 自动采集，执行层须另行枚举
 4. 角色映射显式要求字符（body / heading / quote / rare）
@@ -83,7 +83,7 @@
 
 附加规则：
 - 当角色字体本身即为人工子集（rare 专用字库），可按角色策略显式 `none`，避免重复裁切。
-- 默认回跳符号 `◎` 若继承 C1-body、嵌入注释字体或其他要求完整覆盖的角色，必须进入该角色子集；只有为它声明了独立的非嵌入 fallback 角色时，才可从对应嵌入字体清单排除。
+- 默认回跳符号 `◎` 若继承锁定正文、嵌入注释字体或其他要求完整覆盖的角色，必须进入该角色子集；只有为它声明了独立的非嵌入 fallback 角色时，才可从对应嵌入字体清单排除。
 - 子集化、字体改名和文件扩展名改写不得改变 XHTML 正文码位。视觉相似字符（例如 `〇` U+3007 与 `○` U+25CB）不得按字形自动互换；这类变化属于正文校订，必须走 §10.1.1。
 - 子集写出后必须重新核对角色字符清单与字体 `cmap`；“子集命令成功”不等于该角色全部实际用字已覆盖。
 - 完整字体统一保存在共享字体库（默认 `work-epub/fonts/`，`EPUB_FONT_LIBRARY` 可指定），来源与许可见库内 `字体清单.tsv`。书级 `03 制作工作区/fonts.json` 以 `target` 指定 OPF/CSS 的包内路径，以 `from` 和完整 `sha256` 锁定库中母版；构建只向临时源树注入全量字体，再子集化。既有子集字体保留在源树，不冒充全量母版、不入共享库；母版已有的缺字给出字符与文件定位 warning，子集引入的覆盖回归仍阻断。发行候选只能由书根转发到统一构建器的 `build.sh` 或 `epub.font.subset` 生成，禁止直接打包解包源树。详见[书级工作区指南](../pipeline/book-workspace.md)。
@@ -176,11 +176,11 @@
 ## 5.9) 英文小说正文
 
 - 英文书页必须在 HTML 或 `body` 上声明 `xml:lang="en"` / `lang="en"`，让 Apple Books、Readest、Kindle 和其他阅读器有机会启用正确断字和朗读规则。
-- 英文正文使用短 serif 链，推荐起点为 `Georgia, "Times New Roman", "Noto Serif", serif`；不要沿用中文 `Songti/SimSun/Noto Serif CJK` 链。
+- 英文正文可使用短 serif 链，系统字体优先、嵌入字体第二或第三位，如 `Georgia, "en", serif`；规则见 §8。不要沿用中文链。
 - 简单英文小说的主路径是首段无缩进、后续段落 `1.2em–1.5em` 首行缩进，段间距接近 0；不要同时使用大段间距和大缩进。
 - 英文正文不强制 `justify`。未实测 hyphenation 的 Kindle/Readest/Apple Books 路径优先 `text-align:left`；确认断字稳定后才使用 `justify`。
 - 章首插图和正文插图默认使用居中 `figure`，宽度用 `max-width` 约束，不固定页高，不把插图做成固定版式页面。
-- 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。下沉首字若需要特殊字体，生产 EPUB 使用授权嵌入字体并声明 OPF font item；demo 可用系统手写体链代替。
+- 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。下沉首字若需要特殊字体，使用授权嵌入字体 + 一个系统通用族回退，并声明 OPF font item；无字体资源的 demo 只作结构对照，不能作为指定字形通过的证据。
 
 ## 5.9.1) 书信
 
@@ -257,42 +257,66 @@
 
 ## 8) 字体链规则
 
-> **设计意图**：正文默认自由，显式字体角色优先使用短系统链，嵌入字体仅作特定需求专用。原因：(1) 嵌入字体增加包体；(2) 阅读器与系统字体已覆盖多数常用 CJK 字符；(3) 默认正文不由书内 `body` 强制指定字体，给支持用户字体选择的阅读器保留切换空间。只有系统字体确实缺字，或设计上必须固定正文、标题、题签等角色字形时才嵌入。
+> **设计意图**：一本书最多两个版本。自由版把正文交给阅读器，读者用自己习惯的字体看书；锁定版的正文只用嵌入字体。中文的书信、诗歌、标题、注释等角色都用嵌入字体，不写系统字体名。英文和代码是例外，可以系统字体优先。
 
-- 同一份 EPUB 的普通正文默认不声明 `font-family`；需要显式字体的局部角色优先走短跨平台系统链。嵌入字体仅用于
-  (a) 大量生僻字、(b) 设计上必须的特定字体、(c) (a) 与 (b) 同时存在。
-- **正文字体分两种模式**，由全书生效的 `body` 是否有 `font-family` 区分：
-  - **自由模式（默认）**：`body` 和普通正文 `p` 都不设 `font-family`，正文交给阅读器默认字体；在支持用户字体选择的阅读器中保留切换空间。标题、注释、题签等局部角色仍可单独绑定字体。
-  - **锁定模式**：在 `fonts.css` 直接写 `body { font-family:... }`，普通正文 `p` 通过继承获得该字体链；OPF 必须同步加 `<meta property="ibooks:specified-fonts">true</meta>`。
-  - `base.css` 不承担字体绑定；自由模式的 `fonts.css` 不写直接 `body` 字体规则，锁定模式的角色绑定写在 `fonts.css`。
-- 裸 `p { font-family:... }` **不作为全书锁定入口**：它只覆盖段落，不能覆盖列表、引用、表格等其他正文容器，还会误伤同为 `p` 的注释。只需锁定某类正文段落时，应使用 `.bodytext`、`.prose` 等明确角色类。
-- **角色选择器规则**：结构元素在全书只有一个稳定字体角色时，可直接使用 `body`、`h1`、`h2`、`body.preface`、`aside[epub|type~="footnote"]` 等选择器；同一元素承担多种角色、只在少数位置换字形或需要例外时，必须改用明确角色类。使用 `epub|type` 这类命名空间选择器的 CSS 必须声明 `@namespace epub "http://www.idpf.org/2007/ops";`；它紧跟可选的 `@charset` / `@import`，并早于 `@font-face` 和普通规则。`fonts.css` 中这些规则只写字体属性，不混入布局、颜色和分页。
-- **`font-family` 链 ≤ 4 段**：1 个 Apple 系统字体 → 1 个 Windows 系统字体
-  → 1 个 Android / 跨平台开源 CJK 字体 → generic family（serif/sans-serif/monospace）。
-- 嵌入字体可直接绑定到稳定的全书角色：例如正文 `body`、统一层级标题 `h1/h2`、前言 `body.preface` 或注释容器。C1-body 必须由嵌入字体覆盖该角色经过继承与局部覆盖后真正承担的全部实际用字、标点和 CSS 生成字符；局部角色可以使用明确的 fallback，但必须单独枚举嵌入字体承担的字符并验证剩余字符确实落到该 fallback。CSS URL、OPF manifest 与字体文件必须闭环。注释字体绑定写在 `fonts.css`，`notes.css` 只保留注释结构与视觉。不要把嵌入字体直接挂到角色混杂的裸 `p` / `div` / `span`。
-- 生僻字子集（如 `tszt-rare`）禁止挂到 `body` / `h*`，必须使用模式 B `.rare` 包住实际字符。
-- 模式 C1-body 用于设计上需要锁定正文，或正文含生僻字且正文角色字体覆盖全部实际用字的场景。启用要求：
-  - 嵌入字体必须覆盖最终解析到正文角色的全部字符；可以是完整字体，也可以是按正文角色全部实际用字生成的完整角色子集；局部补字子集（如 `tszt-rare`）禁止走本路径，必须改用模式 B `.rare` 类；
-  - OPF manifest 声明对应字体 item；
-  - `fontspec` 切到 `forceAll`；
-  - body / h* 链仍 ≤ 5 段，嵌入字体在第 1 位且只出现 1 次，其后 3 段系统字体，
-    链尾 generic family；
-  - 示例：`body { font-family: "st-all", "Songti SC", "SimSun", "Noto Serif CJK SC", serif; }`。
-- 专用类按场景使用以下三种模式：
-  - **模式 A 设计字体专用**（题签 / 卷头题字 / 签名档）：链 ≤ 2 段，嵌入字体 + generic family；
-  - **模式 B 生僻字子集专用**（`.rare` 类）：链 ≤ 2 段，嵌入字体 + generic family；
-  - **模式 C 嵌入 + 系统字体复合**：**链 ≤ 5 段**，嵌入字体在链里**只出现 1 次**，位置为第 1 位（C1 设计前置）或倒数第 2 位（C2 嵌入兜底），二选一；中间为 3 段系统字体（Apple + Windows + Android / 开源 CJK），链尾 generic family。
-    - C1 示例：`"st-design", "Songti SC", "SimSun", "Noto Serif CJK SC", serif`
-    - C2 示例：`"Songti SC", "SimSun", "Noto Serif CJK SC", "tszt-rare", serif`
-- 同一条链里嵌入字体出现 ≥ 2 次属反模式；若需"设计字形 + 生僻字兜底"双重支援，应拆成两个类（C1 类挂在正文 / 章节，模式 B `.rare` 类用 span 包住生僻字），不要塞进同一条链。
-- "一平台一字体名" 允许：Apple `Songti SC` + Windows `SimSun` + Android `Noto Serif CJK SC` 是跨平台覆盖，不算堆叠。
-- 不在同一条链里堆叠**同一平台的多个别名**（如 `Songti SC` + `STSongti-SC-Regular`，或 `SimSun` + `宋体`，或 `Microsoft YaHei` + `微软雅黑`，或 `Noto Serif CJK SC` + `Source Han Serif SC`）；只保留各平台最常用的英文名。
-- 没有任何角色选择器或角色类引用的 `@font-face` 必须从 `fonts.css` 删除或保持注释；OPF 不挂对应字体 item。
-- `<meta property="ibooks:specified-fonts">true</meta>` 仅当正文字体锁定时添加；自由模式下不设置此 meta，局部角色的 `@font-face` 不单独触发此 meta。这是本仓当前可审计的包结构 policy；Apple Books 各版本中的字体切换与局部嵌入字体表现仍列在 `reader-matrix.yaml` 的 `07-font-family-order` 待复测项，不冒充实测结论。
-- 既有 EPUB 若因历史兼容或用户明确要求在正文自由模式保留该 meta，必须在书级报告记录理由，并在书根 `制作说明.md` 显式记录豁免条目；该例外不得写回 starter、preset 或新书模板。
-- 正文字体模式是**全书级决策**：同一本新建生产书要么全书自由（`body` 与普通正文 `p` 都无字体规则，OPF 无此 meta），要么全书锁定（直接 `body` 规则，OPF 加一份 meta）。不按页混用；既有书的 `body-font-locked` class 只作为兼容输入保留，不向新模板扩散。
-- 同一本书同时交付正文自由版与锁定版时，两版必须从同一个已定稿内容基线派生。允许差异只限字体 CSS、字体资源、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明；另允许每个 rendition 唯一的 `dcterms:modified` 反映各自实际打包时间。双版本比较可忽略该字段的值，但不得忽略缺失、多份或非 UTC `YYYY-MM-DDThh:mm:ssZ`。同一批成对构建应优先只取一次 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH` 传给两版，以减少无意义 diff；分步打包时的合法时间差不视为内容漂移。核心 `dc:*` metadata、spine、XHTML、注释、图片和其他资源必须一致。任何超出此白名单的差异都要另行授权并记录。
+### 正文：两个版本
+
+- **自由版**：`body` 和普通正文 `p` 都不写 `font-family`，OPF 不加 `ibooks:specified-fonts`。
+- **锁定版**：只在 `fonts.css` 写 `body { font-family: "st", serif; }`，普通正文 `p` 继承；OPF 同步加 `<meta property="ibooks:specified-fonts">true</meta>`，`fontspec` 切到 `forceAll`。
+  - 嵌入字体必须覆盖最终解析到正文角色的全部实际用字、标点和 CSS 生成字符。可以是完整字体，也可以是按这些字符生成的子集；局部补字子集（如 `tszt-rare`）不能挂到 `body` / `h*`。
+- **不用系统字体链锁定中文正文**：系统字体名在各设备上不一定存在，实际命中不可预期。
+- 日常按锁定版制作和校对，自由版在定稿时构建。两版的差异规则见下文“双版本”。
+- 版本是**全书级决策**，不按页混用。既有书的 `body-font-locked` class 只作为兼容输入保留，不向新模板扩散。
+- 裸 `p { font-family:... }` **不作为全书锁定入口**：它只覆盖段落，不能覆盖列表、引用、表格等其他正文容器，还会误伤同为 `p` 的注释。只需锁定某类正文段落时，应使用 `.bodytext`、`.prose` 等明确角色类。`base.css` 不承担字体绑定。
+
+### 中文非正文角色：只用嵌入字体
+
+- 书信、诗歌、标题、题签、序言、注释等角色要指定字形时，链只写两段：嵌入字体 alias + 一个系统通用族（`serif` / `sans-serif` / `monospace`），如 `.letter-paper { font-family: "tszt-letter", serif; }`。末尾的通用族只是字体失效时的兜底，不再追加其他字体名或正文嵌入字体。
+- 角色没有指定字形时，不写 `font-family`，跟随正文。**不写系统字体名**；只写系统字体名不算指定了字形。
+- 生僻字只用 `.rare { font-family: "tszt-rare", serif; }` 包住实际字符，不追加正文字体。
+- 嵌入字体必须覆盖该角色承担的字符。CSS 无法禁止缺字时的回退，缺字要靠字体覆盖检查发现，不能靠字体链补救。
+
+### 英文和代码：系统字体优先
+
+- 英文和代码可以系统字体优先，嵌入字体放第二或第三位，链尾写通用族，最多 4 段，如 `Georgia, "en", serif`、`"SF Mono", Consolas, "mono", monospace`。
+- 斜体用真斜体：嵌入英文字体要单独带 `font-style: italic` 的字体文件，否则阅读器会把正体机器斜切。
+- 中文不用斜体。英文链里夹中文时，中文也会被斜切；中文强调用着重号。
+
+### 阅读器换字的实际结果
+
+“固定”指默认设置下的显示，不代表读者换字后仍然保持。EPUB 无法禁止阅读器的全局覆盖：
+
+| 阅读器 | 读者换字后 | 证据 |
+| --- | --- | --- |
+| Apple Books | 正文和所有角色字体**全部被替换**，自由版、锁定版、加不加 `ibooks:specified-fonts` 都一样 | `probe-font-role`，2026-11-09 用户实测 |
+| Reeden | 角色字体保持 | 同上，仅测自由版 |
+| Kindle、多看、Readest | 未记录 | — |
+
+这决定了两版的用途，阅读说明见 [阅读器指南](../guide/readers.md)：
+
+- **自由版给想换字体的读者**，推荐 Reeden、Readest。
+- **不想换字体时**，用 Apple Books 的“原始字体”、Kindle 的“出版商字体”或多看的“默认字体”。这时锁定版显示嵌入的正文字体，自由版的正文是阅读器默认字体。
+
+### 选择器和资源
+
+- **角色选择器**：结构元素在全书只有一个稳定字体角色时，可直接使用 `body`、`h1`、`h2`、`body.preface`、`aside[epub|type~="footnote"]` 等选择器；同一元素承担多种角色、只在少数位置换字形或需要例外时，必须改用明确角色类。使用 `epub|type` 这类命名空间选择器的 CSS 必须声明 `@namespace epub "http://www.idpf.org/2007/ops";`；它紧跟可选的 `@charset` / `@import`，并早于 `@font-face` 和普通规则。
+- `fonts.css` 中这些规则只写字体属性，不混入布局、颜色和分页。注释字体绑定写在 `fonts.css`，`notes.css` 只保留注释结构与视觉。不要把嵌入字体直接挂到角色混杂的裸 `p` / `div` / `span`。
+- CSS URL、OPF manifest 与字体文件必须闭环。没有任何选择器引用的 `@font-face` 必须删除或保持注释，OPF 不挂对应字体 item。
+- 同一条链里嵌入字体只出现 1 次。需要“设计字形 + 生僻字”时拆成两个类，不塞进同一条链。
+- 不堆叠同一字体的多个别名（如 `Georgia` + `Georgia Pro`）。
 - 新建字体 alias、文件名和 class 必须遵循 [字体别名命名规范](字体别名命名规范.md)：使用 `en` / `st` / `kt` / `fs` / `ht` / `tszt-*` 等角色缩写；不得新增 `Book*`、`RareSong*` 或 `.book-*` 字体命名。
+
+### 双版本
+
+- 两版必须从同一个已定稿内容基线派生。允许差异只限字体 CSS、字体资源、OPF 中与字体有关的 manifest/meta（含 `ibooks:specified-fonts`），以及该 meta 所需的 `<package prefix>` 中 `ibooks:` 声明；另允许每个 rendition 唯一的 `dcterms:modified` 反映各自实际打包时间。双版本比较可忽略该字段的值，但不得忽略缺失、多份或非 UTC `YYYY-MM-DDThh:mm:ssZ`。同一批成对构建应优先只取一次 `BUILD_TIMESTAMP` / `SOURCE_DATE_EPOCH` 传给两版，以减少无意义 diff；分步打包时的合法时间差不视为内容漂移。核心 `dc:*` metadata、spine、XHTML、注释、图片和其他资源必须一致。任何超出此白名单的差异都要另行授权并记录。
+- 既有 EPUB 若因历史兼容或用户明确要求在自由版保留 meta，必须在书级报告记录理由，并在书根 `制作说明.md` 显式记录豁免条目；该例外不得写回 starter、preset 或新书模板。
+
+### 尚未迁移
+
+本节不追溯已交付的书。下面两处仍按旧规则写系统字体链，改动涉及 Go 校验或能力，待单独处理：
+
+- 默认 demo：`epub.style.demo.maintain` 要求 `fonts.css` 有直接 `body` 字体链并与 meta 配对，而公共 demo 不带字体文件。
+- `epub.css.layering.optimize` 把存量字体名规范化为系统字体链。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 
