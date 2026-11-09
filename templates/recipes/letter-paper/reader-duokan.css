@@ -1,0 +1,6 @@
+/* Duokan variant: paper, font and alignment without rules. Duokan draws these rules
+ * incorrectly, so its package leaves them out. */
+.letter-paper { padding-top: 1em; }
+.letter-paper p { overflow: visible; }
+.letter-rule { border: 0; padding: 0; margin: 0; }
+.letter-gap { background-image: none; }

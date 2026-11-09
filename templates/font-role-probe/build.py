@@ -139,6 +139,7 @@ def page_xhtml(title: str, body: str) -> bytes:
   <link rel="stylesheet" type="text/css" href="fonts.css"/>
   <link rel="stylesheet" type="text/css" href="base.css"/>
   <link rel="stylesheet" type="text/css" href="recipe.css"/>
+  <link rel="stylesheet" type="text/css" href="reader.css"/>
 </head>
 <body>
 {body}
@@ -191,13 +192,14 @@ def fonts_css(roles: list[str], names: dict[str, str], body: str | None) -> str:
     return "\n".join(lines) + "\n"
 
 
-def package(variant: str, fonts: dict[str, tuple[bytes, str]]) -> dict:
+def package(variant: str, fonts: dict[str, tuple[bytes, str]], duokan: bool = False) -> dict:
+    """duokan=True fills reader.css with the Duokan overlay; otherwise it stays empty."""
     label, body_chain, meta = VARIANTS[variant]
     pages = LETTER_PAGES if variant == "letter" else PAGES
     roles = ["letter"] if variant == "letter" else [role for role in ROLES if role != "st" or body_chain == '"st", serif']
     names = {role: f"{role}.{fonts[role][1]}" for role in roles}
-    identity = uuid.uuid5(uuid.NAMESPACE_URL, "https://example.invalid/font-role-probe/" + variant)
-    title = html.escape(f"字体角色探针 {label}")
+    identity = uuid.uuid5(uuid.NAMESPACE_URL, "https://example.invalid/font-role-probe/" + variant + ("-duokan" if duokan else ""))
+    title = html.escape(f"字体角色探针 {label}" + (" 多看" if duokan else ""))
 
     spine = "".join(f'<itemref idref="{name}"/>' for name in pages)
     points = "".join(
@@ -219,10 +221,11 @@ def package(variant: str, fonts: dict[str, tuple[bytes, str]]) -> dict:
         "OEBPS/fonts.css": fonts_css(roles, names, body_chain).encode(),
         "OEBPS/base.css": BASE_CSS.encode(),
         "OEBPS/recipe.css": (RECIPE / "recipe.css").read_bytes(),
+        "OEBPS/reader.css": (RECIPE / "reader-duokan.css").read_bytes() if duokan else b"/* Generic: reader overlay empty. */\n",
         "OEBPS/package.opf": f"""<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid"{prefix}>
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:{identity}</dc:identifier><dc:title>{title}</dc:title><dc:language>zh-CN</dc:language><meta property="dcterms:modified">2026-11-09T00:00:00Z</meta>{meta_line}</metadata>
-<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="fonts" href="fonts.css" media-type="text/css"/><item id="base" href="base.css" media-type="text/css"/><item id="recipe" href="recipe.css" media-type="text/css"/>{manifest}</manifest>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="fonts" href="fonts.css" media-type="text/css"/><item id="base" href="base.css" media-type="text/css"/><item id="recipe" href="recipe.css" media-type="text/css"/><item id="reader" href="reader.css" media-type="text/css"/>{manifest}</manifest>
 <spine toc="ncx">{spine}</spine>
 </package>
 """.encode(),
@@ -232,7 +235,7 @@ def package(variant: str, fonts: dict[str, tuple[bytes, str]]) -> dict:
     for role in roles:
         files[f"OEBPS/Fonts/{names[role]}"] = fonts[role][0]
 
-    output = ROOT / "dist" / f"font-role-{variant}.epub"
+    output = ROOT / "dist" / f"font-role-{variant}{'-duokan' if duokan else ''}.epub"
     with zipfile.ZipFile(output, "w") as archive:
         for path, data in [("mimetype", b"application/epub+zip"), *sorted(files.items())]:
             info = zipfile.ZipInfo(path, (2026, 11, 9, 0, 0, 0))
@@ -252,6 +255,7 @@ def main() -> None:
     fonts = {role: build_font((config_path.parent / config[role]).resolve(), role) for role in ROLES}
     (ROOT / "dist").mkdir(exist_ok=True)
     inventory = [package(variant, fonts) for variant in VARIANTS]
+    inventory.append(package("letter", fonts, duokan=True))
     (ROOT / "dist" / "inventory.json").write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
     for item in inventory:
         print(item["sha256"], item["artifact"])

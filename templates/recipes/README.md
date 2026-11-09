@@ -12,7 +12,7 @@
 | [page-image](page-image/recipe.md) | Kindle 版装饰页换整页图 → 其他阅读器用文字版 | 合成样本 Kindle Previewer 转换通过，目测待测；一本书书级通过 | [阅读器矩阵 untested_cases](../../docs/final/reader-matrix.yaml) |
 | [vertical-title-art](vertical-title-art/recipe.md) | 左侧竖排章题 + 右侧章首图 → 横排章题在图上方 | 仅 Chrome 预检，阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
 | [image-preview](image-preview/recipe.md) | 多看 / Reeden 点图预览带题注 → 普通整宽图 + 图下题注；可选 spine 整屏图页 | 仅 Chrome 预检，阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
-| [letter-paper](letter-paper/recipe.md) | 无边框纸面、顶格/空两格/右对齐、固定书信字体；纯 CSS 横线逐行跟随文字 → 不支持渐变的阅读器不画线；单包经 `amzn-kf8` 在 Kindle 省略 | 引擎分栏模拟通过；渐变版阅读器待复测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
+| [letter-paper](letter-paper/recipe.md) | 无边框纸面、顶格/空两格/右对齐、固定书信字体；纯 CSS 横线逐行跟随文字；Kindle 经 `amzn-kf8` 省略，多看变体省略 | 通用包与多看变体用户确认，未记录版本；规则见 SPEC §5.9.1 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
 
 “有历史记录”不代表新片段、新书或新 SHA 通过。尚未在至少两本书完成验证的做法只作为候选，不晋升为通用兼容规则；书级证据保留在书级 Git，公共目录只用合成材料。新 CSS 均需普通/大字号、窄屏与昼夜主题验证；静态 gate 与真实阅读器结果分别记录。
 
@@ -24,4 +24,4 @@
 python3 templates/recipes/build.py
 ```
 
-仅依赖 Python 标准库，独立打包样本到本目录 `dist/`，并生成保留同一正文、图片与元数据、CSS 为空的 `*-baseline.epub` 供全项 redline。`inventory.json` 记录 SHA；带 `reader.css` 的配方另打一个 `-kindle.epub`（通用包里 `reader.css` 为空）。每个产物都要跑 nav audit、全项 redline；主 demo 的 maintain 资源完整性规则不适用于这些最小包，缺项应单列，不能记通过。浏览器打开 `sample.xhtml` 只作预检。
+仅依赖 Python 标准库，独立打包样本到本目录 `dist/`，并生成保留同一正文、图片与元数据、CSS 为空的 `*-baseline.epub` 供全项 redline。`inventory.json` 记录 SHA；带 `reader.css` 的配方另打 `-kindle.epub`，带 `reader-duokan.css` 的另打 `-duokan.epub`（通用包里 `reader.css` 为空）。每个产物都要跑 nav audit、全项 redline；主 demo 的 maintain 资源完整性规则不适用于这些最小包，缺项应单列，不能记通过。浏览器打开 `sample.xhtml` 只作预检。

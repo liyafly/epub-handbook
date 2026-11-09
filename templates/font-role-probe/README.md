@@ -21,7 +21,7 @@ uv run --no-project --with fonttools python templates/font-role-probe/build.py -
 | C | 嵌入字体 | 有 | 锁定正文时，正文和角色都固定吗 |
 | D | 系统字体链 | 有 | 系统字体链实际命中什么 |
 
-所有阅读器都用同一个包，Kindle 也不例外。另产 `font-role-letter.epub`：书信成品，只有书信字体，没有标记字。
+四个包的书信页带横线，多看里横线不正常，判断字体时不用管。另产书信成品，只有书信字体，没有标记字：`font-role-letter.epub` 给多看以外的阅读器，`font-role-letter-duokan.epub` 给多看，无横线。
 
 ## 怎么看
 

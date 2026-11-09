@@ -19,14 +19,10 @@
   overflow: clip;
 }
 
-/* The rule is a gradient, not a border: readers without CSS gradients, such as Duokan,
- * draw no rule instead of a broken one. Padding extends it past the indent and the last
- * line's tail; the matching negative margin keeps layout unchanged. */
+/* Padding extends the rule past the indent and the last line's tail; the matching
+ * negative margin keeps layout unchanged. */
 .letter-rule {
-  background-image: linear-gradient(#cbd1c1, #cbd1c1);
-  background-repeat: repeat-x;
-  background-size: 100% 1px;
-  background-position: 0 100%;
+  border-bottom: 1px solid #cbd1c1;
   padding: 0 100em .12em;
   margin: 0 -100em;
 }
@@ -67,6 +63,6 @@
 /* Kindle: no rules. Other readers skip this unknown media type. */
 @media amzn-kf8 {
   .letter-paper p { overflow: visible; }
-  .letter-rule { background-image: none; padding: 0; margin: 0; }
+  .letter-rule { border: 0; padding: 0; margin: 0; }
   .letter-gap { background-image: none; }
 }

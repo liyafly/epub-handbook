@@ -57,7 +57,7 @@ epub run epub.notes.legacy-fallback --input "before.epub" --dry-run --json
 - 先以普通章首、连续正文、诗/信件或文白复杂页建立一致样例，再推广可复用类；用字号、间距、对齐和少量装饰形成层次，不重新设计原书。
 - 章首保留真实 h1，装饰图用 figure；版权页保留真文本和信息顺序，不猜补书目事实；不把普通章首自动转 A-lite。
 - 文白先按源序上下，宽屏增强见 [parallel-pair 配方](../../templates/recipes/parallel-pair/recipe.md)，不用 table/flex/grid 承载正文对照。
-- 无边框书信见 [letter-paper 候选配方](../../templates/recipes/letter-paper/recipe.md)：横线逐行跟随文字，长短信同一写法；同一个包在 Kindle 省略横线。不从普通边线样例推导阅读器通过。
+- 无边框书信见 [letter-paper 候选配方](../../templates/recipes/letter-paper/recipe.md)：横线逐行跟随文字，长短信同一写法；Kindle 用同一个包省略横线，多看单独出无横线变体。不从普通边线样例推导阅读器通过。
 - 组件样式归 literary.css；不改变对话标点、诗行、译文或 mixed-content 空白。新兼容结论走 demo 实测，场景见[场景矩阵](../../templates/epub-style-demo/SCENE_MATRIX.md)。
 
 ### 竖排与 Ruby

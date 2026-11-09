@@ -1085,7 +1085,7 @@ expectations:
     profile: "2026-11-09 用户试读；版本、设备、主题和字号未记录；截图未入库"
     artifact: "templates/font-role-probe/dist/font-role-a-free.epub#sha256=0cbf1abf817df1b86dbd4c71ea8f3ce34207f9321da1f2c3497e4a2878fb35db"
     issue: "用户在自定义版式间距下看到称呼、祝愿不顶格，用户自查后确认由自己的间距设置引起。默认版式下，段落背景用渐变的版本不画线；行内 border-bottom 版的横线显示不正常（2026-11-09 用户反馈，无截图）。"
-    action: "行内横线改用渐变，预期多看不画线；用 font-role-letter.epub 在默认版式复测，同时看行内负外边距和内边距是否影响版面。"
+    action: "多看不画横线，单独出无横线变体 reader-duokan.css；变体待用户确认。"
   - reader: kindle_previewer
     case: recipe-letter-paper
     status: warn
@@ -1103,7 +1103,7 @@ untested_cases:
     note: "字体角色探针：自由、自由加 meta、锁定、系统链四个包，查角色字体是否固定、换正文字体是否被覆盖、缺字回退与英文系统优先和斜体。字体不入库，本地构建。2026-11-09 用户口述四个包前几页默认显示正常，未记录阅读器、换字结果和后续页，不算通过。Reeden 待测。结果决定 SPEC §8 改法。"
   - case: recipe-letter-paper
     fixture: templates/recipes/letter-paper/sample.xhtml
-    note: "expectations 中的首轮观察针对已弃用的段落背景横线，均为 warn。当前写法：行内 span 上的渐变逐行画线，长短信同一样式，横线止于文字栏，Kindle 经 @media amzn-kf8 单包省略。WKWebView 与 Chrome 分栏模拟跨页跟随文字。行内 border 版用户确认多看以外观感好；改用渐变后 Apple Books、Readest、Reeden、多看、Kindle、大字号、窄屏和昼夜主题待复测。公共合成包不带字体，不能作为字形证据。"
+    note: "expectations 中的首轮观察针对已弃用的段落背景横线，均为 warn。当前写法：行内 span 的 border-bottom 逐行画线，长短信同一样式，横线止于文字栏；Kindle 经 @media amzn-kf8 省略，多看单独出无横线变体 reader-duokan.css。2026-11-09 用户反馈（无版本记录）：border 版除多看外观感好；多看横线不正常。曾试渐变版让多看不画线，多看无线且用户称正常，但 Readest 0.12.20 段首字消失、一行一两个字（用户截图），加 slice 或 margin !important 都无效，原因未查明，已放弃。回退后用户确认 border 通用包与多看变体可用，未记录版本、设备和截图，所以不记 pass。Reeden 结果未单独记录；大字号、窄屏和昼夜主题待测。规则见 SPEC §5.9.1，坑点见配方。公共合成包不带字体，不能作为字形证据。"
   - case: 01-basic-cjk
     fixture: templates/epub-style-demo/OEBPS/Text/01-body.xhtml
     note: "默认 Style Demo 普通正文；局部 plain-cn 候选的历史观察单独记为 warn，不外推到默认样式。"

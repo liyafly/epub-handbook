@@ -42,16 +42,40 @@
 
 ## 规则和限制
 
-- 横线画在行内 `span` 上，逐行跟随文字，所以跨页、换字体、调行距都不会错位。段落可以拆页。
+- 横线是行内 `span` 的下边框，逐行跟随文字，所以跨页、换字体、调行距都不会错位。段落可以拆页。
 - 横线只到文字栏两侧，不到纸边。文字两端对齐，让每行线一样长；大字号下字距会拉开。
-- 横线用 CSS 渐变，不用 `border`：多看不支持渐变，不画线，而 `border` 在多看里显示不正常。
 - `p` 上要同时写 `overflow: hidden` 和 `overflow: clip`。只写 `hidden` 时 Chrome 不拆长段，会裁掉内容。
 - 顶格写 `0em`。阅读器的自定义版式会盖过书内样式：多看调过“版式”里的间距或首行缩进后，顶格会失效。验收时用默认版式。
+- 不要把横线改成渐变。渐变版在 Readest 上段首字消失、一行只剩一两个字，原因没有查明。
 
-## Kindle 回退
+## 阅读器回退
 
-同一个包覆盖所有阅读器，不需要 Kindle 变体。[recipe.css](recipe.css) 末尾的 `@media amzn-kf8` 在 Kindle 去掉横线，纸面、文字、缩进和落款位置都保留。其他阅读器不认识这个媒体类型，会跳过它；如果某个阅读器不跳过，结果也只是没有横线。
+| 阅读器 | 包 | 效果 |
+| --- | --- | --- |
+| Apple Books、Reeden、Readest | 通用包 | 有横线 |
+| Kindle | 通用包，靠 [recipe.css](recipe.css) 末尾的 `@media amzn-kf8` | 无横线，其余不变 |
+| 多看 | 多看变体，叠加 [reader-duokan.css](reader-duokan.css) | 无横线，其余不变 |
+
+多看没有 CSS 能单独识别，所以要单独出一个包。在书的 `book.json` 里登记变体，覆盖层放这份样式，并作为样式表最后加载的 `reader.css`；做法见[书级工作区](../../../docs/pipeline/book-workspace.md)的“变体”。
+
+## 坑点
+
+都实测踩过，改这份配方前先看：
+
+| 做法 | 结果 |
+| --- | --- |
+| 横线铺在整封信或段落的背景上，段落拆页 | WebKit 里续页横线穿过文字（Apple Books、Readest 真机确认）。图片和渐变都一样，错位与画法无关 |
+| 块元素加 `box-decoration-break: clone` 修跨页 | 只有 Chrome 生效，WebKit 不生效 |
+| 段落不拆页来保住对齐 | 页底大片留白；超过一页的段落仍然错位 |
+| 行内延伸线用 `clone` | WebKit 把 padding 算进每一行，一行只剩一个字 |
+| 背景用 PNG 瓦片 | 通用包在 Kindle Previewer 上出现横穿文字的灰条 |
+| 行内横线改成渐变，让多看不画线 | 多看确实不画了，但 Readest 0.12.20 段首字消失、一行一两个字。加 `slice`、加 `margin !important` 都无效，原因未查明。本地注入 `span { margin: 0 !important }` 能复现同样现象，修复却对真机无效，所以这个复现不能当作原因 |
+| `p` 只写 `overflow: hidden` | Chrome 不拆长段，内容被裁掉 |
+| 署名和日期固定缩进 12 字 | iPhone 默认字号下放不下，落款折行，所以改为右对齐 |
+| 带着多看的自定义版式验收 | 不顶格、线距不准都是自己的间距设置造成的，曾被误判成样式问题 |
+
+工具上：Kindle Previewer 主程序加 `-help` 会拉起界面卡住，命令行用同目录的 `KindlePreviewer4CLI`，`--output` 的目录要先建好。
 
 ## 验证状态
 
-候选配方。见[阅读器矩阵](../../../docs/final/reader-matrix.yaml)的 `recipe-letter-paper`。用户已确认 `border` 版在多看以外的观感；改成渐变后，Apple Books、Readest、Reeden、多看和 Kindle 都要再看一次。大字号、窄屏和昼夜主题没有记录。
+候选配方，尚未在两本书上验证。2026-11-09 用户确认：通用包在 Apple Books、Readest、Kindle 正常，多看变体正常；Reeden 的结果未单独记录，版本和截图也未记录。大字号、窄屏和昼夜主题没有记录。见[阅读器矩阵](../../../docs/final/reader-matrix.yaml)的 `recipe-letter-paper`。

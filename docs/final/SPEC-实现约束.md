@@ -182,6 +182,17 @@
 - 章首插图和正文插图默认使用居中 `figure`，宽度用 `max-width` 约束，不固定页高，不把插图做成固定版式页面。
 - 首字装饰优先用 `::first-letter`，保持正文单词完整；旧式 span 首字和浮动 drop cap 只作为增强，并必须在朗读、复制文本、大字号和窄屏下复测。下沉首字若需要特殊字体，生产 EPUB 使用授权嵌入字体并声明 OPF font item；demo 可用系统手写体链代替。
 
+## 5.9.1) 书信
+
+书信结构用 `.letter-paper`，完整接入见 [letter-paper 配方](../../templates/recipes/letter-paper/recipe.md)。默认 demo 的 `.letter` 边线样式是另一个场景，不从它推导本节结论。
+
+- 格式：称呼、祝愿顶格；问候、正文、祝语引导空两格；署名、日期右对齐。全部用 CSS 实现，不在正文里写空格或方框，不预先拆行。
+- 字体：书信是固定字体角色，绑定专用别名 `tszt-letter`，不随正文换字；换字体只改 `fonts.json` 的指向。
+- 横线：每段文字包在 `span.letter-rule` 里，用行内 `border-bottom` 逐行画线，段落可以拆页，长短信同一写法。空行用 `.letter-gap`。不得改回段落或容器背景，也不得改成渐变，原因见配方的“坑点”。
+- 顶格写 `0em`，`text-indent` 与 `duokan-text-indent` 都写。不带单位的 `0` 不作为多看路径。
+- 回退：Kindle 与其他阅读器同包，经 `@media amzn-kf8` 去掉横线，`epub.kindle.compatibility.check` 的 `kindle.css-amzn-media-query` warn 是预期结果。§5.6.1 对这个媒体查询的限制只适用于文白对照。多看单独出无横线变体，叠加 `reader-duokan.css`，因为没有 CSS 能单独识别多看。
+- 验收：先恢复阅读器默认版式。多看调过“版式”里的间距或首行缩进后，顶格和横线的现象不能作为样式结论。
+
 ## 5.10) 边框、阴影与便签文本框
 
 - 便签、提示、摘录和资料卡必须保留真实文本；禁止把文字直接烘焙进图片来实现纸张效果。
