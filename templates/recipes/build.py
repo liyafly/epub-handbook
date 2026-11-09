@@ -11,7 +11,7 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parent
-RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "page-image", "vertical-title-art", "image-preview")
+RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "page-image", "vertical-title-art", "image-preview", "letter-paper")
 
 
 def package(name: str, baseline: bool, kindle: bool = False) -> dict:

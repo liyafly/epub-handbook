@@ -1,0 +1,72 @@
+/* Borderless letter paper. Rules follow each text line, so one style covers short and
+ * long letters. Needs <span class="letter-rule"> inside every p. Fonts go in fonts.css. */
+.letter-paper {
+  margin: 1em 0;
+  padding: .5em 1.2em;
+  border: 0;
+  background-color: #faf6eb;
+  color: #38392f;
+}
+
+.letter-paper p {
+  margin: 0;
+  padding: 0;
+  line-height: 2em;
+  text-indent: 2em;
+  text-align: justify;
+  /* Clip rule extensions. clip keeps long paragraphs splittable where it is supported. */
+  overflow: hidden;
+  overflow: clip;
+}
+
+/* The rule is a gradient, not a border: readers without CSS gradients, such as Duokan,
+ * draw no rule instead of a broken one. Padding extends it past the indent and the last
+ * line's tail; the matching negative margin keeps layout unchanged. */
+.letter-rule {
+  background-image: linear-gradient(#cbd1c1, #cbd1c1);
+  background-repeat: repeat-x;
+  background-size: 100% 1px;
+  background-position: 0 100%;
+  padding: 0 100em .12em;
+  margin: 0 -100em;
+}
+
+.letter-gap {
+  height: 2em;
+  background-image: linear-gradient(#cbd1c1, #cbd1c1);
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: 0 1.62em;
+}
+
+.letter-paper .letter-salutation,
+.letter-paper .letter-wish,
+.letter-paper .letter-flush {
+  text-indent: 0em;
+  duokan-text-indent: 0em;
+}
+
+.letter-paper .letter-signature,
+.letter-paper .letter-date,
+.letter-paper .letter-right {
+  text-indent: 0em;
+  duokan-text-indent: 0em;
+  text-align: right;
+}
+
+.letter-paper .letter-closing {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.letter-paper .letter-signoff {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Kindle: no rules. Other readers skip this unknown media type. */
+@media amzn-kf8 {
+  .letter-paper p { overflow: visible; }
+  .letter-rule { background-image: none; padding: 0; margin: 0; }
+  .letter-gap { background-image: none; }
+}

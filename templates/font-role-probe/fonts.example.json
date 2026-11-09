@@ -1,0 +1,11 @@
+{
+  "st": "body-font.ttf",
+  "letter": "letter-font.ttf",
+  "verse": "verse-font.ttf",
+  "title": "title-font.ttf",
+  "note": "note-font.ttf",
+  "en": "latin-regular.ttf",
+  "en-italic": "latin-italic.ttf",
+  "en-plain": "latin-without-italic.otf",
+  "mono": "mono.ttf"
+}

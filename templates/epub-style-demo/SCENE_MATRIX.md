@@ -47,6 +47,8 @@
 
 ## 外部人工场景
 
+横线逐行跟随文字、无边框纸面的独立候选见 [letter-paper 配方](../recipes/letter-paper/recipe.md)。它不替换默认 `30-letter.xhtml` 的边线场景；接入书稿时需实际嵌入书信字体，按 SPEC §8 使用嵌入别名加一个通用回退。
+
 以下场景需要仓库外的授权素材，不进入默认 demo EPUB。验证时应复制 demo 到临时工作区，加入本地授权资源，再把结论回写 `docs/final/reader-matrix.yaml`。
 
 | 场景 | Fixture 形态 | 主要检查点 | 目标阅读器 |

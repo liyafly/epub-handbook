@@ -1,0 +1,18 @@
+/* Production example only: supply a licensed font, declare it in OPF, subset and
+ * check coverage before loading this file. The public fixture has no font bytes.
+ * To change the letter font, point this alias at another font in fonts.json;
+ * the CSS stays the same and the body font never affects it.
+ * Paths below assume this file is beside recipe.css in OEBPS.
+ */
+@font-face {
+  font-family: "tszt-letter";
+  src: url("Fonts/tszt-letter.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+}
+
+.letter-paper,
+.letter-paper p,
+.letter-paper div {
+  font-family: "tszt-letter", serif;
+}
