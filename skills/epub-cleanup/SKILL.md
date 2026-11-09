@@ -42,7 +42,7 @@ epub run epub.notes.popup.normalize --input "book.epub" --json
 
 - `epub.structure.normalize.mappings[]` 是后续红线的路径映射；把完整 normalize 信封作为 `--path-map`，不要手抄。
 - `epub.package.migrate.epub3`：输入/输出 SHA 在信封 input/output，不在 facts。
-- `epub.css.layering.optimize`：`semanticFactoringDisabled=true`、`scopedMergeDisabled=true`、`duplicateDeduplication=disabled` 是当前策略；旧拆分/去重计数键保留但为 0，不代表功能可用。
+- `epub.css.layering.optimize`：`semanticFactoringDisabled=true`、`scopedMergeDisabled=true`、`duplicateDeduplication=disabled` 是当前策略；旧拆分/去重计数键保留但为 0，不代表功能可用。`fontDeclarationsRewritten` 现在是被删除的旧系统字体声明数（`SimSun`、`SimHei`、`STKaiti`、`cnepub`），这些文字改为跟随正文；书内 `@font-face` 字体的绑定不动。
 - `epub.font.subset`：`changedFonts` 是已替换字节的字体路径，`providerReport` 含输入/输出 SHA 与逐字体统计。`font-subset.usage-fallback` 表示 CSS 角色范围被保守扩大；`font-subset.not-in-master` 是缺字警告，确认 fallback 能覆盖；`font-subset.provider-missing` 是 provider 缺失错误；`font-subset.stale-input` 须先对未修改的源 EPUB 子集化再做其他改书步骤。
 - `epub.notes.popup.normalize`：`violations` 与 `error popupnotes` 的 title/location 给出文件和问题。迁移报告的 `duokanNotesNormalized/warnings` 只表示处理结果，不证明所有原注释合规。
 

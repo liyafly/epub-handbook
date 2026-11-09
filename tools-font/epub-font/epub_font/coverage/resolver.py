@@ -65,6 +65,9 @@ def resolve_chains(
 ) -> tuple:
     """Return deduplicated chains, unresolved selectors, and run mappings."""
     rules, unresolved_selectors = collect_rules(css_files)
+    # Only these rules can decide a font, and many runs share the same ancestors.
+    font_rules = [rule for rule in rules if "font-family" in rule["declarations"]]
+    families_by_ancestors: dict[str, list[str] | None] = {}
     registry = {
         key: value[0] if isinstance(value, list) else value
         for key, value in font_face_registry.items()
@@ -82,11 +85,15 @@ def resolve_chains(
             if "font-family" in declarations:
                 families = parse_font_family_list(declarations["font-family"])
         if families is None:
-            for index in range(len(ancestors) - 1, -1, -1):
-                result = resolve_font_family(ancestors[:index + 1], rules)
-                if result is not None:
-                    families = result
-                    break
+            key = repr(ancestors)
+            if key not in families_by_ancestors:
+                resolved = None
+                for index in range(len(ancestors) - 1, -1, -1):
+                    resolved = resolve_font_family(ancestors[:index + 1], font_rules)
+                    if resolved is not None:
+                        break
+                families_by_ancestors[key] = resolved
+            families = families_by_ancestors[key]
         defaulted = families is None
         if families is None:
             families = ["serif"]

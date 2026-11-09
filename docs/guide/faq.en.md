@@ -35,8 +35,11 @@ Another build of the same book is running. A lock left by a build that was kille
 **The navigation audit reports `css-root-font-size`.**
 A stylesheet sets `font-size` on `html`, `:root` or `*`, which stops some readers from changing the font size. Delete that declaration. See [SPEC §5.5.1](../final/SPEC-实现约束.md#551-阅读器字号缩放) (Chinese).
 
+**The build warns at `fixed-role fonts`.**
+Text with an assigned font uses characters that font lacks, so readers show them in a fallback font. The output lists each character, the font and the first file; the full list is in `.epub/font-roles.json`. The warning does not stop the build. A fallback sometimes looks fine, so first look at those characters in several real readers. If it looks wrong, use a font with more characters or wrap them in a `.rare` font.
+
 **The build prints many missing-character warnings.**
-The font master never had those characters, so readers show them in their default font. The warnings do not stop the build. If it bothers you, pick a font with wider coverage.
+The font master never had those characters. The count covers the whole book, so an English font lacking Chinese is included, and it does not mean readers will see another font. For characters that are really used, see the `fixed-role fonts` list above.
 
 **The red line says the text changed.**
 That is serious: some step changed the words. Do not deliver that file; find the step that did it. `epub redline --check text old.epub new.epub` shows where.

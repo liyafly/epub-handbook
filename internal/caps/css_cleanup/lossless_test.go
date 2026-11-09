@@ -29,7 +29,7 @@ func TestSanitizeCSSLosslessByteRanges(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 	want := []byte("\xef\xbb\xbf/* keep {; } */\r\n\r\n" +
-		"p {\r\n" + "  content: \"a;b{}\"; /* keep ; {} */\r\n" + "  background: url(data:text/css,a;b{});\r\n" + "  margin: 0;\r\n" + "  padding: 0;\r\n" + "  font-family: " + heiChain + ";\r\n" + "}\r\n")
+		"p {\r\n" + "  content: \"a;b{}\"; /* keep ; {} */\r\n" + "  background: url(data:text/css,a;b{});\r\n" + "  margin: 0;\r\n" + "  padding: 0;\r\n" + "}\r\n")
 	if !bytes.Equal(got, want) {
 		t.Fatalf("lossless output mismatch:\n got %q\nwant %q", got, want)
 	}

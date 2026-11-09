@@ -14,6 +14,7 @@ from .classifier import classify, _cp_string, _is_pua, _is_vs
 from .profiles import translate, PROFILES, PROFILE_DESCRIPTIONS
 from .reporter import generate_report, print_summary, save_report
 from .chain_health import assess_chains
+from .fixed_roles import check_book
 from .charset_tiers import build_standard_charsets, load_standard_charset, classify_tier
 
 
@@ -214,6 +215,10 @@ def main(argv=None):
         help="Optional path to a custom standard charset list to overlay "
              "(e.g. 通用规范汉字表). Default zones come from GB2312/GBK codecs.",
     )
+    parser.add_argument(
+        "--fixed-role-check", action="store_true",
+        help="Only report characters missing from the embedded font that starts their chain, as JSON",
+    )
     parser.add_argument("--json", action="store_true", help="Output full JSON to stdout")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress output")
     args = parser.parse_args(argv)
@@ -231,6 +236,8 @@ def main(argv=None):
 
         if not runs:
             print("No text runs found in EPUB.", file=sys.stderr)
+            if args.fixed_role_check:
+                print(json.dumps({"schema_version": "1.0", "fixed_role_missing": []}))
             sys.exit(0)
 
         # 3. Build font cmap index
@@ -310,6 +317,12 @@ def main(argv=None):
                 if seg.embedded and seg.file in font_index_dict:
                     fe = font_index_dict[seg.file]
                     family_to_font[seg.family.lower()] = (fe["file_path"], fe["family"])
+
+        if args.fixed_role_check:
+            with zipfile.ZipFile(args.epub, "r") as zf_check:
+                missing = check_book(zf_check, book, runs, css_files_with_content, font_face_registry, font_index_dict)
+            print(json.dumps({"schema_version": "1.0", "fixed_role_missing": missing}, ensure_ascii=False))
+            sys.exit(0)
 
         results = classify(char_inventory, font_index_dict, chains, run_chains)
 

@@ -6,6 +6,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"os"
@@ -144,11 +145,48 @@ func fontWarningSummary(data []byte) []string {
 				fontsMissing, len(provider.Fonts), worstTarget, worstBody, worstOther)
 		}
 		if worstBody > 0 {
-			summary += "; readers show them in a fallback font"
+			summary += "; this counts the whole book, and the fixed-role fonts check lists what is really used"
 		}
 		lines = append([]string{summary}, lines...)
 	}
 	return lines
+}
+
+// maxFixedRoleLines 限制终端列出的缺字条数；完整清单在报告里。
+const maxFixedRoleLines = 10
+
+// fixedRoleWarningLines 把 epub-font 的固定角色检查结果转成警告说明；没有缺字时返回空。
+// 缺少结果字段说明 provider 版本太旧，不能当作没有缺字。
+func fixedRoleWarningLines(data []byte) ([]string, error) {
+	var doc struct {
+		Missing *[]struct {
+			Char      string `json:"char"`
+			Codepoint string `json:"codepoint"`
+			Family    string `json:"family"`
+			Font      string `json:"font"`
+			Count     int    `json:"count"`
+			Location  string `json:"first_location"`
+		} `json:"fixed_role_missing"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("epub-font coverage did not return JSON: %w", err)
+	}
+	if doc.Missing == nil {
+		return nil, errors.New("epub-font is too old for this check; reinstall it with `uv tool install --editable --reinstall tools-font/epub-font`")
+	}
+	if len(*doc.Missing) == 0 {
+		return nil, nil
+	}
+	lines := []string{fmt.Sprintf("characters not in the fonts chosen for their text: %d; readers show them in a fallback font", len(*doc.Missing))}
+	for i, m := range *doc.Missing {
+		if i == maxFixedRoleLines {
+			lines = append(lines, fmt.Sprintf("... and %d more, see the report", len(*doc.Missing)-maxFixedRoleLines))
+			break
+		}
+		lines = append(lines, fmt.Sprintf("%s %s: not in %q (%s), used %d, first in %s", m.Char, m.Codepoint, m.Family, m.Font, m.Count, m.Location))
+	}
+	lines = append(lines, "check them in your real readers: the fallback may look fine. If not, use a font with these characters or wrap them in a .rare font")
+	return lines, nil
 }
 
 // sizeHint 在成品超过 Send to Kindle 常见上限时返回提示。

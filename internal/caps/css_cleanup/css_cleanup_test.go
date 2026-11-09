@@ -282,13 +282,13 @@ func TestCSSCleanupFixture(t *testing.T) {
 	}
 
 	style0002 := string(files["OEBPS/Styles/style0002.css"])
-	for _, want := range []string{
-		`"Songti SC", "SimSun", "Noto Serif CJK SC", serif`,
-		`"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`,
-		`"Kaiti SC", "STKaiti", "KaiTi", serif`,
-	} {
+	// SPEC §8：旧系统字体声明被删除，这些文字跟随正文；不写入任何系统字体名。
+	if strings.Contains(style0002, "font-family") {
+		t.Fatalf("style0002 不应保留旧系统字体声明:\n%s", style0002)
+	}
+	for _, want := range []string{"h1 {", "body {", ".part-text {"} {
 		if !strings.Contains(style0002, want) {
-			t.Fatalf("style0002 缺少 %q:\n%s", want, style0002)
+			t.Fatalf("style0002 丢了规则 %q:\n%s", want, style0002)
 		}
 	}
 	if strings.Contains(style0002, "————————————————") {
@@ -468,8 +468,8 @@ p { font-family: "STKaiti"; }
 	if !strings.Contains(consumer, `body { font-family: "SimHei"; }`) {
 		t.Fatalf("consumer stopped referencing the embedded font face: %s", consumer)
 	}
-	if !strings.Contains(consumer, `p { font-family: `+kaiChain+`; }`) {
-		t.Fatalf("unrelated system font family was not rewritten: %s", consumer)
+	if strings.Contains(consumer, "STKaiti") || !strings.Contains(consumer, "p { }") {
+		t.Fatalf("unrelated system font family was not removed: %s", consumer)
 	}
 }
 
@@ -521,7 +521,7 @@ func TestCleanupResolvesPercentEncodedCSSHref(t *testing.T) {
 		}
 	}
 	updated, err := b.Current("OEBPS/Styles/style 0002.css")
-	if err != nil || !strings.Contains(string(updated), `font-family: "Heiti SC"`) {
+	if err != nil || strings.Contains(string(updated), "font-family") {
 		t.Fatalf("encoded CSS entry was not processed: %q (%v)", updated, err)
 	}
 }
@@ -556,14 +556,34 @@ func contains(values []string, want string) bool {
 // TestSanitizeCSSUnits 覆盖安全的三个子变换与只读 shape 诊断。
 func TestSanitizeCSSUnits(t *testing.T) {
 	got, rewrites := sanitizeCSS("————————————————标题————————————————\nh1 {\n  font-family: \"SimHei\";\n}\n")
-	if rewrites != 1 || strings.Contains(got, "——") || !strings.Contains(got, heiChain) {
+	if rewrites != 1 || strings.Contains(got, "——") || strings.Contains(got, "font-family") || !strings.Contains(got, "h1 {") {
 		t.Fatalf("sanitizeCSS 不符: %q, %d", got, rewrites)
 	}
 	got, _ = sanitizeCSS("p {\n  margin: 0\n  padding: 0;\n}\n")
 	if !strings.Contains(got, "margin: 0;") {
 		t.Fatalf("补分号失败: %q", got)
 	}
-	if systemFontFamily(`"CNEPUB",SERIF`) != songChain {
+	if !isLegacySystemFontFamily(`"CNEPUB",SERIF`) {
 		t.Fatal("字体链查表（压缩+小写）失败")
+	}
+}
+
+// TestFontDeclarationRemovalIsExact 确认只删声明本身，相邻内容逐字节保留。
+func TestFontDeclarationRemovalIsExact(t *testing.T) {
+	for _, tc := range []struct{ name, in, want string }{
+		{"中间一行", "h1 {\n  color: red;\n  font-family: \"SimHei\";\n  margin: 0;\n}\n", "h1 {\n  color: red;\n  margin: 0;\n}\n"},
+		{"唯一一条", "h1 {\n  font-family: \"SimHei\";\n}\n", "h1 {\n}\n"},
+		{"写在一行", "p { font-family: \"STKaiti\"; color: red; }\n", "p { color: red; }\n"},
+		{"最后一条无分号", "p { color: red; font-family: \"SimSun\" }\n", "p { color: red; }\n"},
+		{"带回退的旧链", "body { font-family: \"cnepub\", serif; }\n", "body { }\n"},
+		{"其他字体不动", "p { font-family: \"Songti SC\", serif; }\n", "p { font-family: \"Songti SC\", serif; }\n"},
+		{"有注释不删", "p { /* 原书 */ font-family: \"SimHei\"; }\n", "p { /* 原书 */ font-family: \"SimHei\"; }\n"},
+		{"嵌入字体不删", "@font-face { font-family: \"cnepub\"; src: url(a.ttf); }\nbody { font-family: \"cnepub\", serif; }\n", "@font-face { font-family: \"cnepub\"; src: url(a.ttf); }\nbody { font-family: \"cnepub\", serif; }\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, _ := sanitizeCSS(tc.in); got != tc.want {
+				t.Fatalf("got  %q\nwant %q", got, tc.want)
+			}
+		})
 	}
 }

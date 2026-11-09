@@ -279,7 +279,7 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportPrefixes = []string{"font-subset", "nav-audit", "redline", "previous-dist-redline", "report"}
+var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "redline", "previous-dist-redline", "report"}
 
 // isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
 func isReportFile(name string) bool {
@@ -470,6 +470,9 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 			return err
 		}
 		r.printProviderWarnings(layout, subsetReport, tag)
+		if err := r.fixedRoleFontCheck(layout, filepath.Join(layout.StateDir, "font-roles"+sfx+".json"), tag, c.final); err != nil {
+			return err
+		}
 	} else if err := zipfs.CopyFile(r.ctx, c.full, c.final, 0o644); err != nil {
 		return err
 	}
@@ -876,6 +879,41 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 	}
 	printIndented(r.bio.out(), lines)
 	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
+	return nil
+}
+
+// fixedRoleFontCheck 列出指定了字体的文字里、这些字体都没有的字（SPEC §8）。
+// 只警告不阻断：阅读器的回退字体可能显示正常，要在真实阅读器里看。
+func (r *bookRunner) fixedRoleFontCheck(layout bookLayout, reportPath, tag, epubPath string) error {
+	label := "fixed-role fonts" + tag
+	warn := func(lines []string) error {
+		fmt.Fprintf(r.bio.out(), "WARN %s (report: %s)\n", label, layout.displayPath(reportPath))
+		printIndented(r.bio.out(), lines)
+		r.addStep(bookStep{Status: "WARN", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
+		return nil
+	}
+	res, err := runProvider(r.ctx, r.bio, []string{r.env.fontBin(), "coverage", epubPath, "--fixed-role-check"})
+	if err != nil {
+		if ctxErr := r.ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return warn([]string{"check did not run: " + err.Error()})
+	}
+	if res.ExitCode != 0 {
+		return warn([]string{fmt.Sprintf("check did not run: epub-font coverage exited with status %d", res.ExitCode)})
+	}
+	if err := zipfs.WriteFileAtomic(reportPath, res.Stdout, 0o644); err != nil {
+		return err
+	}
+	lines, err := fixedRoleWarningLines(res.Stdout)
+	if err != nil {
+		return warn([]string{"check did not run: " + err.Error()})
+	}
+	if len(lines) > 0 {
+		return warn(lines)
+	}
+	fmt.Fprintf(r.bio.out(), "PASS %s (report: %s)\n", label, layout.displayPath(reportPath))
+	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath)})
 	return nil
 }
 

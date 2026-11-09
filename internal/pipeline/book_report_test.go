@@ -113,3 +113,45 @@ func TestBookBuildFailureListsFindingsNotEnvelope(t *testing.T) {
 		t.Errorf("the retained failure directory must include report.html: %v", builds)
 	}
 }
+
+func TestFixedRoleWarningLines(t *testing.T) {
+	lines, err := fixedRoleWarningLines([]byte(`{"schema_version":"1.0","fixed_role_missing":[]}`))
+	if err != nil || len(lines) != 0 {
+		t.Fatalf("no missing characters means no warning: %q, %v", lines, err)
+	}
+
+	lines, err = fixedRoleWarningLines([]byte(`{"fixed_role_missing":[
+	  {"char":"缺","codepoint":"U+7F3A","family":"tszt-letter","font":"OEBPS/Fonts/letter.ttf","count":2,"first_location":"a.xhtml"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"缺 U+7F3A", "tszt-letter", "used 2", "a.xhtml", "real readers"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("warning lines lack %q: %q", want, lines)
+		}
+	}
+}
+
+func TestFixedRoleWarningLinesCapsList(t *testing.T) {
+	var entries []string
+	for range maxFixedRoleLines + 5 {
+		entries = append(entries, `{"char":"缺","codepoint":"U+7F3A","family":"a","font":"f","count":1,"first_location":"x"}`)
+	}
+	lines, err := fixedRoleWarningLines([]byte(`{"fixed_role_missing":[` + strings.Join(entries, ",") + `]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(lines, "\n"), "and 5 more") || len(lines) != maxFixedRoleLines+3 {
+		t.Errorf("list not capped: %d lines: %q", len(lines), lines)
+	}
+}
+
+// 旧版 provider 不认识结果字段时要说明检查没跑，不能当成没有缺字。
+func TestFixedRoleWarningLinesRejectsOldOrBadProvider(t *testing.T) {
+	for _, data := range []string{`{"schema_version":"1.0"}`, `not json`, ``} {
+		if lines, err := fixedRoleWarningLines([]byte(data)); err == nil {
+			t.Errorf("%q must be an error, got %q", data, lines)
+		}
+	}
+}

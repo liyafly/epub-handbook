@@ -30,6 +30,8 @@ epub-font check NEW.epub [--font OEBPS/Fonts/st-all.ttf ...] [--json REPORT.json
 
 `coverage` 可写出 JSON 报告和自包含 HTML 报告，用于查看字体链与阅读器风险；默认输出摘要。该分析会跳过 ASCII 与部分通用标点，不承担 `check` 的全量覆盖保证。
 
+`coverage BOOK.epub --fixed-role-check` 只输出 JSON 的 `fixed_role_missing`：字体链第一段是嵌入字体的文字里，这条链的嵌入字体都没有的字，包括 ASCII 和标点。它按每页实际加载的样式表判断，`epub book build` 用它给出警告，不阻断。规则见 SPEC §8。
+
 - `subset` 总是写出 `NEW.font-report.json`；只有全部字体检查通过时才写 `NEW.epub`。两个输出都必须不存在，`NEW.epub` 必须与输入不同。
 - Go capability 会在私有临时目录调用 provider，并在应用候选前校验版本化 sidecar（当前 schema v3，兼容旧 book-mode v2）、EPUB 与字体 SHA、字体 manifest 身份、字体来源、静态输出、使用范围、独立覆盖检查和逐项结果；provider 还必须报告与真实 MATH 表相符的 preserve 动作。schema v1 provider 会以 `font-subset.provider-outdated` 拒绝。私有临时报告随后清理；已校验的版本、SHA、字形统计、使用模式、checks、缺字数量和警告以 `epub.font.subset.providerReport` fact 保留，缺字等问题以稳定 ID 的 warn finding 暴露。书级构建把 capability envelope 保存到 `.pipeline/font-subset.json`。
 - 省略 `--config` 时自动处理 OPF manifest 中的全部字体。提供 `--config` 时，`fonts.json` 只覆盖列出的字体；manifest 中未列出的字体也会自动处理。含 OpenType `MATH` 表的字体始终按原字节保留；其他静态字体直接子集化，可变字体必须指定 `variation.mode: "instance"` 并输出静态实例。
@@ -85,7 +87,7 @@ manifest 中全部 XHTML / SVG / NCX（含 nav）的文本节点，`alt` / `titl
 | `format` | 输出轮廓/封装与目标扩展名一致 |
 | `independent-coverage` | 独立收集器按完整源字体与候选字体比较；子集不得新增缺字、空字形或 IVS/SVS 序列损失 |
 
-母版里本来就没有的字符列在 `notInMaster`（警告，不算失败）：它们要靠字体链后续字体兜底，交给 `epub.font.coverage.analyze` 判断。
+母版里本来就没有的字符列在 `notInMaster`（警告，不算失败）：默认按全书字符算，所以英文字体没有中文也会列入。指定了字体的文字是否真的缺字，由 `coverage --fixed-role-check` 判断。
 
 ## 全量校验：`epub-font check`
 

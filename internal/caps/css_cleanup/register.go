@@ -4,13 +4,6 @@ package csscleanup
 
 import "regexp"
 
-// 三条系统字体链（SONG_CHAIN / HEI_CHAIN / KAI_CHAIN）。
-const (
-	songChain = `"Songti SC", "SimSun", "Noto Serif CJK SC", serif`
-	heiChain  = `"Heiti SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`
-	kaiChain  = `"Kaiti SC", "STKaiti", "KaiTi", serif`
-)
-
 // idSanitizeRe 对齐 add_css_manifest_item 的
 // re.sub(r"[^A-Za-z0-9_.-]+", "-", ...)。
 var idSanitizeRe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)

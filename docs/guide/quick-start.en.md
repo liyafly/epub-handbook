@@ -68,6 +68,7 @@ The build runs these checks in order and stops at the first failure. Each check 
 | --- | --- |
 | Font injection | Takes each font from the shared library by the SHA in `book.json`; stops if a file does not match |
 | Font subset | Keeps only the characters the book uses and makes sure none were lost. Characters missing from the original font only warn |
+| Role fonts | Lists characters that text with an assigned font (letters, headings, a locked body and so on) uses but that font lacks. It only warns, because the fallback may look fine, so check them in several real readers |
 | Navigation audit | Package, table of contents and note links work, and font size is not locked |
 | Red line | Text, metadata, reading order, anchors, cover and encryption state are unchanged by packing |
 | Text match | Every reader version has exactly the same text as the generic version |

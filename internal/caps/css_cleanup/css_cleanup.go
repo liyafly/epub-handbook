@@ -1,8 +1,8 @@
 // Package csscleanup 迁移 scripts/epub_css_cleanup.py
 // （capability id：epub.css.layering.optimize）：
 //
-//   - sanitize_css：删除装饰分隔行、补缺失分号、把旧系统字体链
-//     （cnepub/SimSun/SimHei/STKaiti）规范化为三条标准链；
+//   - sanitize_css：删除装饰分隔行、补缺失分号、删除旧系统字体声明
+//     （cnepub/SimSun/SimHei/STKaiti），让这些文字跟随正文（SPEC §8）；
 //   - 高风险同构抽取已禁用：在 token/span 保真方案完成前不重建既有 CSS；
 //   - 既有 stylesheet 去重同样禁用：即使同目录逐字节相同，manifest id、
 //     OPF refines/fallback 或其它 CSS 的 @import 仍可能赋予它独立语义；
@@ -269,18 +269,13 @@ func buildResult(rep cleanupReport) report.Result {
 
 // ---- sanitize_css (lossless byte-range edits) ----
 
-// systemFontFamily 复刻 system_font_family：压缩空白并小写后查表。
-func systemFontFamily(value string) string {
-	compact := removeAllSpace(strings.ToLower(value))
-	switch compact {
-	case `"cnepub",serif`, `"simsun"`:
-		return songChain
-	case `"simhei"`:
-		return heiChain
-	case `"stkaiti"`:
-		return kaiChain
+// isLegacySystemFontFamily 判断声明值是不是要删除的旧系统字体：压缩空白并小写后查表。
+func isLegacySystemFontFamily(value string) bool {
+	switch removeAllSpace(strings.ToLower(value)) {
+	case `"cnepub",serif`, `"simsun"`, `"simhei"`, `"stkaiti"`:
+		return true
 	}
-	return ""
+	return false
 }
 
 // sanitizeCSS retains the old test-facing convenience signature. The write
@@ -713,17 +708,47 @@ func fontFamilyEdits(path string, data []byte, sheet *css.Stylesheet, embeddedFa
 			if decl.ValueSpan.Start < 0 || decl.ValueSpan.End > len(data) || decl.ValueSpan.Start > decl.ValueSpan.End {
 				return nil, 0, fmt.Errorf("font-family span out of bounds: %+v", decl.ValueSpan)
 			}
-			replacement := systemFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))
-			if replacement == "" || replacement == string(data[decl.ValueSpan.Start:decl.ValueSpan.End]) {
+			value := string(data[decl.ValueSpan.Start:decl.ValueSpan.End])
+			if !isLegacySystemFontFamily(value) || referencesEmbeddedFamily(value, embeddedFamilies) {
 				continue
 			}
-			if embeddedFamilies[normalizedFontFamily(string(data[decl.ValueSpan.Start:decl.ValueSpan.End]))] {
+			start, end, ok := declarationRemovalSpan(data, decl)
+			if !ok {
 				continue
 			}
-			edits = append(edits, editset.Replace(path, int64(decl.ValueSpan.Start), int64(decl.ValueSpan.Len()), []byte(replacement)))
+			// 空切片删字节；nil 在 editset 里表示删整个 entry。
+			edits = append(edits, editset.Replace(path, int64(start), int64(end-start), []byte{}))
 		}
 	}
 	return edits, len(edits), editset.Validate(edits)
+}
+
+// referencesEmbeddedFamily 判断字体链里是否有任一段是书内 @font-face 字体。
+// 这些绑定属于书的字形，不能删。
+func referencesEmbeddedFamily(value string, embeddedFamilies map[string]bool) bool {
+	for _, family := range strings.Split(value, ",") {
+		if embeddedFamilies[normalizedFontFamily(family)] {
+			return true
+		}
+	}
+	return false
+}
+
+// declarationRemovalSpan 返回删除整条声明的字节区间：连同它前面的空白和自己的分号，
+// 不碰后面的内容。声明片段里有注释时不删，注释可能是作者留下的说明。
+func declarationRemovalSpan(data []byte, decl css.Declaration) (start, end int, ok bool) {
+	start, end = decl.Span.Start, decl.Span.End
+	if decl.HasSemicolon {
+		end = decl.SemicolonSpan.End
+	} else {
+		for end > start && isCSSSpaceByte(data[end-1]) {
+			end--
+		}
+	}
+	if start < 0 || end > len(data) || start >= end || strings.Contains(string(data[start:end]), "/*") {
+		return 0, 0, false
+	}
+	return start, end, true
 }
 
 func trimCSSByteSpan(data []byte, start, end int) css.Span {

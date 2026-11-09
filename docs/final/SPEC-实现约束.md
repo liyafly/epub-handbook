@@ -274,7 +274,7 @@
 - 书信、诗歌、标题、题签、序言、注释等角色要指定字形时，链只写两段：嵌入字体 alias + 一个系统通用族（`serif` / `sans-serif` / `monospace`），如 `.letter-paper { font-family: "tszt-letter", serif; }`。末尾的通用族只是字体失效时的兜底，不再追加其他字体名或正文嵌入字体。
 - 角色没有指定字形时，不写 `font-family`，跟随正文。**不写系统字体名**；只写系统字体名不算指定了字形。
 - 生僻字只用 `.rare { font-family: "tszt-rare", serif; }` 包住实际字符，不追加正文字体。
-- 嵌入字体必须覆盖该角色承担的字符。CSS 无法禁止缺字时的回退，缺字要靠字体覆盖检查发现，不能靠字体链补救。
+- 嵌入字体应覆盖该角色承担的字符。缺字时阅读器会用回退字体显示，有的显示正常，所以缺字**只警告，不阻断构建，要在多个真实阅读器里实际查看**。`epub book build` 的 `fixed-role fonts` 列出这些字：字体链第一段是嵌入字体的文字里，这条链的嵌入字体都没有的字。第一段是系统字体的链（如英文的 `Georgia, "en", serif`）和不写字体的正文不查。按每页实际加载的样式表判断，包括 ASCII 和标点；CSS 生成的文字不查。
 
 ### 英文和代码：系统字体优先
 
@@ -313,10 +313,9 @@
 
 ### 尚未迁移
 
-本节不追溯已交付的书。下面两处仍按旧规则写系统字体链，改动涉及 Go 校验或能力，待单独处理：
+本节不追溯已交付的书。默认 demo 仍按旧规则写系统字体链：`epub.style.demo.maintain` 要求 `fonts.css` 有直接 `body` 字体链并与 meta 配对，而公共 demo 不带字体文件。改动涉及 Go 校验，待单独处理。
 
-- 默认 demo：`epub.style.demo.maintain` 要求 `fonts.css` 有直接 `body` 字体链并与 meta 配对，而公共 demo 不带字体文件。
-- `epub.css.layering.optimize` 把存量字体名规范化为系统字体链。
+`epub.css.layering.optimize` 处理存量书时，删除旧系统字体声明（`SimSun`、`SimHei`、`STKaiti`、`cnepub`），让这些文字跟随正文；书内 `@font-face` 字体的绑定不动。
 
 ## §10 AI 清洗已有 EPUB 的改动边界
 
@@ -417,7 +416,7 @@ AI 可自动执行；review 时通过外部 diff 工具（Calibre Editor / VS Co
 | OPF manifest 缺 `properties="svg" / "mathml"` | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（迁移时标记已识别特性） |
 | nav.xhtml 缺失 / 结构破损 | `epub-cleanup`（`epub.package.migrate.epub3`） | 中（可识别输入由迁移生成；其他结构人工修复） |
 | toc.ncx 与 nav.xhtml 不同步 | `epub-cleanup`（`epub.package.migrate.epub3`） | 人工（nav.audit 不比对 NCX 与 nav；migrate 只在缺 nav 时由 NCX 生成） |
-| 字体策略不规范 | `epub-cleanup`（`epub.css.layering.optimize` 只整理分层；字体链在书级 CSS 人工调整） | 人工 |
+| 字体策略不规范 | `epub-cleanup`（`epub.css.layering.optimize` 整理分层并删除旧系统字体声明；其余字体链在书级 CSS 人工调整） | 人工 |
 | 中英混排排版不稳 | `epub-cleanup`（书级 CSS 人工调整，参考 [配方目录](../../templates/recipes/README.md)） | 人工 |
 | 英文小说首字下沉 / 字体策略 | `epub-special-layout`（`epub.typography.english.optimize`） | 只读检出；语言声明可修补，drop cap 与字体排版人工决定 |
 | 图文环绕用不稳定布局 | `epub-audit`（`epub.image.layout.optimize`） | 只读检出，人工修复 |
