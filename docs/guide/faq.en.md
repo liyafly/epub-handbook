@@ -68,6 +68,12 @@ Not necessarily; EPUB 2 uses XHTML too. Open the OPF and look at `<package versi
 **How do I compare two EPUBs?**
 Use "Compare to another book" in the Calibre editor, or unpack both and compare them in VS Code. See [EPUB diff review](../pipeline/epub-diff-review.md) (Chinese).
 
+**Is fixed layout supported?**
+Yes, for books that are fixed layout throughout (every page has a fixed size, `rendition:layout=pre-paginated`). The rules are in [SPEC §5.13](../final/SPEC-实现约束.md#513-固定版式整本-pre-paginated) (Chinese) and a sample is in the [fixed-layout demo](../../templates/fxl-demo/README.md) (Chinese). Mixing reflowable and fixed-layout pages in one book is not supported, and neither is turning a fixed-layout book into a reflowable one. How each reader handles them has not been tested yet.
+
+**Are scripts and read-aloud sync supported?**
+No. Scripting (JavaScript) and read-aloud sync (Media Overlays) in EPUB 3 are out of scope.
+
 **Can AI help?**
 Yes, but you do not need it. AI tools (Claude Code, Codex and others) start from [AGENTS.md](../../AGENTS.md). The files in `skills/` are plain Markdown that people can follow too.
 

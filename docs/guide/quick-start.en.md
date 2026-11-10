@@ -19,9 +19,7 @@ This step:
 
 When an import stops, `original.epub` and the reports are kept so you can see why. Common cases are in the [FAQ](faq.en.md#import).
 
-To write a new book from scratch, use `epub book new my-book`. Add `--from-preset literary-cn` to start from one of the book-type presets.
-
-A new book comes with a plain placeholder cover `epub/OEBPS/Images/cover.png`, a copyright page `Text/00-copyright.xhtml` and hidden landmarks. To change the cover, overwrite it with a PNG of the same name. For a JPEG, also change that cover item in `package.opf`: `href` to the new file name and `media-type` to `image/jpeg`.
+To write a new book from scratch, see [Writing a book from scratch](#writing-a-book-from-scratch) below.
 
 ## 2. The book folder
 
@@ -84,6 +82,21 @@ If anything fails, nothing in `out/` changes. The failed attempt stays in `.epub
 ## 6. Send it to your reader
 
 The finished book is in `my-book/out/`: `book.epub` by default, plus files such as `book-kindle.epub` if you set up reader versions. See [Readers](readers.en.md) for how to send them.
+
+## Writing a book from scratch
+
+```sh
+epub book new my-book --title "Title" --author "Author"
+epub book add-chapter my-book --title "Chapter 2"
+epub book build my-book
+```
+
+A new book has no `original.epub`; otherwise its folder is the same as an imported one. It comes with a title page, a copyright page, a first chapter, a table of contents and hidden landmarks, and every book gets its own identifier. Add `--from-preset literary-cn` to start from one of the book-type presets.
+
+- **Cover**: a plain placeholder `epub/OEBPS/Images/cover.png`. Overwrite it with a PNG of the same name. For a JPEG, also change that cover item in `package.opf`: `href` to the new file name and `media-type` to `image/jpeg`.
+- **Copyright page**: replace the placeholder text in `Text/00-copyright.xhtml`, and write only true bibliographic facts.
+- **Chapters**: `add-chapter` creates a chapter file (named like `02-chapter.xhtml` by default, placed last), copies the stylesheets of the last chapter, and lists it in the OPF, the table of contents and the NCX. `--after 01-chapter.xhtml` puts it after a given chapter; `--file` sets the file name. Write the text into the new file.
+- **Metadata**: title and author are set when the book is created. For series, sort names and accessibility, see [OPF metadata](../how-to/opf-metadata.md) (Chinese); for print page numbers, see [Page list](../how-to/page-list.md) (Chinese).
 
 ## When the build refuses to overwrite
 

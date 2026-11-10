@@ -68,6 +68,12 @@
 **怎么对比两个 EPUB？**
 用 Calibre 编辑器的"与另一本书比较"，或者解包后用 VS Code 对比。见 [EPUB diff review](../pipeline/epub-diff-review.md)。
 
+**支持固定版式吗？**
+支持整本固定版式（每页尺寸固定，`rendition:layout=pre-paginated`），规则见 [SPEC §5.13](../final/SPEC-实现约束.md#513-固定版式整本-pre-paginated)，样本见 [固定版式 demo](../../templates/fxl-demo/README.md)。一本书里混排可重排页和固定版式页不做，把固定版式改成可重排也不做。各阅读器的表现还没有实测。
+
+**支持脚本交互和朗读同步吗？**
+不支持。EPUB 3 里的脚本（JavaScript）和朗读同步（Media Overlays）都不在范围内。
+
 **我想让 AI 帮忙。**
 可以，但不是必需的。AI 工具（Claude Code、Codex 等）先读 [AGENTS.md](../../AGENTS.md)。`skills/` 里的文件是普通 Markdown，人也可以照着做。
 

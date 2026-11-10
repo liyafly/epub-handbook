@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-把你已有的 EPUB 排得更好看，并且在 Apple Books、Kindle 和 Reeden 上都能正常显示。`epub` 是一个命令行工具：它把书解包成可以编辑的文件夹，你改 CSS，它负责打包和检查。正文一个字都不能变，目录和注释要能用，字号要能调，检查都通过才输出成品。每本书的设计由你决定；工具负责不把书做坏、效果失败时能回退、按阅读器分别出版本。支持 macOS、Windows 和 Linux，只处理没有 DRM 的书。
+把你已有的 EPUB 排得更好看，或者从零做一本新书，并且在 Apple Books、Kindle 和 Reeden 上都能正常显示。`epub` 是一个命令行工具：它把书解包成（或新建为）可以编辑的文件夹，你写内容、改 CSS，它负责打包和检查。正文一个字都不能变，目录和注释要能用，字号要能调，检查都通过才输出成品。每本书的设计由你决定；工具负责不把书做坏、效果失败时能回退、按阅读器分别出版本。支持 macOS、Windows 和 Linux，只处理没有 DRM 的书。
 
 ## 安装
 
@@ -33,6 +33,12 @@ uv tool install --editable --reinstall tools-font/epub-font
 3. 改样式：编辑 `我的书/epub/OEBPS/` 下的 CSS，可以从 [配方](docs/guide/recipes.md) 复制，然后再预览。
 4. 构建：`epub book build 我的书`，完整检查后把成品写到 `我的书/out/`。
 5. 送到阅读器：Apple Books 直接导入，Kindle 用 Send to Kindle，见 [阅读器](docs/guide/readers.md)。
+
+## 从零开始
+
+1. 建书：`epub book new 我的书 --title "书名" --author "作者"`，自带书名页、版权页、第一章和占位封面。
+2. 加章：`epub book add-chapter 我的书 --title 第二章`，同时登记到 OPF、目录和 NCX。
+3. 构建：`epub book build 我的书`。详见 [快速开始 · 从零做一本书](docs/guide/quick-start.md#从零做一本书)。
 
 ## 使用指南
 

@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-Make EPUBs you already own look better, and display properly on Apple Books, Kindle and Reeden. `epub` is a command-line tool: it unpacks a book into a folder you can edit, you change the CSS, and it packs and checks the result. Not a word of the text may change, the table of contents and notes must work, and the font size must stay adjustable; only when every check passes does it write the finished book. The design of each book is yours. The tool makes sure nothing breaks, that effects fall back gracefully when a reader cannot show them, and that each reader can get its own version. It runs on macOS, Windows and Linux, and works only on DRM-free books.
+Make EPUBs you already own look better, or write a new book from scratch, and have it display properly on Apple Books, Kindle and Reeden. `epub` is a command-line tool: it unpacks a book into (or creates) a folder you can edit, you write the content and change the CSS, and it packs and checks the result. Not a word of the text may change, the table of contents and notes must work, and the font size must stay adjustable; only when every check passes does it write the finished book. The design of each book is yours. The tool makes sure nothing breaks, that effects fall back gracefully when a reader cannot show them, and that each reader can get its own version. It runs on macOS, Windows and Linux, and works only on DRM-free books.
 
 ## Install
 
@@ -33,6 +33,12 @@ Books without embedded fonts do not need it. See the [font tool notes](tools-fon
 3. Edit styles: change the CSS under `my-book/epub/OEBPS/`, perhaps copying from the [recipes](docs/guide/recipes.en.md), and preview again.
 4. Build: `epub book build my-book` runs every check and writes the finished book to `my-book/out/`.
 5. Send it to your reader: import it into Apple Books, or use Send to Kindle. See [Readers](docs/guide/readers.en.md).
+
+## From scratch
+
+1. Create: `epub book new my-book --title "Title" --author "Author"`. It comes with a title page, a copyright page, a first chapter and a placeholder cover.
+2. Add chapters: `epub book add-chapter my-book --title "Chapter 2"` lists each one in the OPF, the table of contents and the NCX.
+3. Build: `epub book build my-book`. See [Quick start · Writing a book from scratch](docs/guide/quick-start.en.md#writing-a-book-from-scratch).
 
 ## User guide
 

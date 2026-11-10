@@ -19,9 +19,7 @@ epub book import 原书.epub 我的书
 
 导入停下时，`original.epub` 和检查报告都会保留，方便查原因。常见情况见 [常见问题](faq.md#导入)。
 
-想从零写一本新书，用 `epub book new 我的书`；加 `--from-preset literary-cn` 可以用某个书型预设作起点。
-
-新书自带纯色占位封面 `epub/OEBPS/Images/cover.png`、版权页 `Text/00-copyright.xhtml` 和隐藏的导览（landmarks）。换封面时用同名 PNG 覆盖即可；换成 JPEG 的话，同时把 `package.opf` 里封面那一项的 `href` 改成新文件名、`media-type` 改成 `image/jpeg`。
+想从零写一本新书，见下面的 [从零做一本书](#从零做一本书)。
 
 ## 2. 认识书目录
 
@@ -84,6 +82,21 @@ epub book build 我的书
 ## 6. 送到阅读器
 
 成品在 `我的书/out/`。默认是 `book.epub`，配置了阅读器版本的还有 `book-kindle.epub` 这样的文件。怎么送、要注意什么，见 [阅读器](readers.md)。
+
+## 从零做一本书
+
+```sh
+epub book new 我的书 --title "书名" --author "作者"
+epub book add-chapter 我的书 --title 第二章
+epub book build 我的书
+```
+
+新书没有 `original.epub`，其余目录和导入的书一样。它自带书名页、版权页、第一章、目录和隐藏的导览（landmarks），每本书有自己的标识符。加 `--from-preset literary-cn` 可以用某个书型预设作起点。
+
+- **封面**：自带纯色占位图 `epub/OEBPS/Images/cover.png`，用同名 PNG 覆盖即可。换成 JPEG 的话，同时把 `package.opf` 里封面那一项的 `href` 改成新文件名、`media-type` 改成 `image/jpeg`。
+- **版权页**：改 `Text/00-copyright.xhtml` 里的占位文字，只写真实的书目信息。
+- **加章**：`add-chapter` 新建一个章节文件（默认名如 `02-chapter.xhtml`，排在最后），样式表照抄最后一章，并登记到 OPF、目录和 NCX。`--after 01-chapter.xhtml` 插在某章之后，`--file` 指定文件名。正文写进新文件。
+- **元数据**：书名和作者建书时已写好。丛书、排序名和无障碍声明见 [OPF 元数据](../how-to/opf-metadata.md)；有纸书页码对照时见 [页码对照](../how-to/page-list.md)。
 
 ## 构建拒绝覆盖成品时
 
