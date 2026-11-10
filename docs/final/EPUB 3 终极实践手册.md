@@ -130,6 +130,10 @@ book.epub
 > - 锁定模式（直接 `body` 规则）：**添加**；普通正文 p 直接继承。
 > - 标题、题签、生僻字等局部角色使用嵌入字体不单独触发此 meta。上述三项是仓库 policy，不等同于已完成 Apple Books 实测；版本化证据待 `reader-matrix.yaml` 的 `07-font-family-order` 复测补齐。
 
+### 3.1 丛书、排序名与无障碍元数据
+
+丛书（`belongs-to-collection`、`collection-type`、`group-position`）、排序名（`file-as`）和无障碍声明（`schema:accessMode` 等）的可照抄写法见 [OPF 元数据](../how-to/opf-metadata.md)。导航审计检查三件事：`refines` 指向不存在的 `id` 报 `error`；`collection-type`、`group-position` 没挂在 `belongs-to-collection` 上报 `warn`；`schema:accessMode`、`schema:accessibilityHazard` 的值不在标准词表里报 `warn`。无障碍声明必须属实，起始书不预填。阅读器怎么显示这些信息尚未实测。
+
 ---
 
 ## 四、字体方案

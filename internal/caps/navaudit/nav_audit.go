@@ -454,6 +454,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 			}
 		}
 	}
+	ins.checkMetadataRefines(ctx)
 	ins.checkCSSURLs(ctx, pkg, manifestPaths)
 	ins.checkReaderFontScaling(ctx, pkg)
 	ins.checkPageColorLock(ctx, pkg)

@@ -4,6 +4,7 @@
 
 ### Added
 
+- 导航审计检查 OPF 元数据：`refines` 指向不存在的 `id` 报 error；`collection-type`、`group-position` 没挂在 `belongs-to-collection` 上报 warn；`schema:accessMode`、`schema:accessibilityHazard` 不在标准词表报 warn。新增 [OPF 元数据](docs/how-to/opf-metadata.md) 写法指南，起始书 OPF 带丛书与排序名的注释示例。
 - `epub book add-chapter [<书目录>] --title <标题> [--file <文件名>] [--after <章节>]`：加一章并同步 OPF manifest、spine、nav 目录和 NCX（`playOrder` 重排）。全部字节区间编辑，有一处不能安全编辑就一个文件都不改；两种布局都可用。
 - 起始书加占位封面（`cover-image` 与 `meta name="cover"` 都写）、版权页和隐藏的 landmarks。
 - `epub book new --title <书名> --author <作者>`；每本新书生成自己的 `urn:uuid` 标识符和建书时刻的 `dcterms:modified`，不再共用固定值。

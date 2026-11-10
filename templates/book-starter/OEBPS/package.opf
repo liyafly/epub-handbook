@@ -9,6 +9,13 @@
     <meta property="dcterms:modified">2026-06-12T00:00:00Z</meta>
     <meta property="rendition:layout">reflowable</meta>
     <meta name="cover" content="cover-image"/>
+    <!-- 丛书与排序名示例：取消注释并改值，写法见 docs/how-to/opf-metadata.md。
+    <meta property="belongs-to-collection" id="series">丛书名</meta>
+    <meta refines="#series" property="collection-type">series</meta>
+    <meta refines="#series" property="group-position">1</meta>
+    给 dc:title 加 id="title" 后再写：
+    <meta refines="#title" property="file-as">排序用书名</meta>
+    -->
   </metadata>
   <manifest>
     <item id="nav"         href="nav.xhtml"             media-type="application/xhtml+xml" properties="nav"/>
