@@ -70,7 +70,7 @@
 
 `epub redline --check metadata` 只比较 `dc:title`、`dc:creator`、`dc:identifier`、`dc:language`，加这些 `meta` 不会触发红线。给 `dc:title`、`dc:creator` 加 `id` 也不改它们的文字。
 
-本页每段都贴进过起始书，`epub book build` 通过、`xmllint --noout` 通过。EPUBCheck 只在 CI 跑。
+本页每段都贴进过起始书，`epub book build` 通过、`xmllint --noout` 通过，EPUBCheck 5.4.0 没有报这些元数据。
 
 ## 阅读器显示（待测）
 

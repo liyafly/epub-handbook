@@ -26,10 +26,10 @@
 OPF 的 `<metadata>` 里写页码来自哪个纸书版本，用该版的 ISBN：
 
 ```xml
-<meta property="a11y:pageBreakSource">urn:isbn:9780000000000</meta>
+<meta property="pageBreakSource">urn:isbn:9780000000000</meta>
 ```
 
-`a11y:` 是 EPUB 3.3 的保留前缀，不用声明。是否合规以 CI 的 EPUBCheck 为准。
+不要写成 `a11y:pageBreakSource`：EPUBCheck 5.4.0 报它是未定义属性（OPF-027）。不带前缀的写法和旧写法 `<dc:source id="print-source">…</dc:source>` 加 `<meta refines="#print-source" property="source-of">pagination</meta>` 都通过了 EPUBCheck 5.4.0。
 
 ## 审计会查什么
 
@@ -39,7 +39,7 @@ OPF 的 `<metadata>` 里写页码来自哪个纸书版本，用该版的 ISBN：
 
 ## 红线
 
-实际跑过：在起始书第一章加一个空的页码标记、在 OPF 加 `pageBreakSource`，`epub redline --check all` 前后对比全部通过。`anchors` 只报被删除的 `id`，新增的不报；空 `span` 没有文字，`text` 也不报。
+实际跑过：在起始书第一章加一个空的页码标记、在 OPF 加页码来源，`epub redline --check all` 前后对比全部通过。`anchors` 只报被删除的 `id`，新增的不报；空 `span` 没有文字，`text` 也不报。
 
 nav 里新加的 page-list 会被 `text` 红线算作 nav 文字变化（块数不同），对比加 page-list 前后的成品时会报 `error`。这是预期的结构变化：确认只改了 nav 后，在制作说明里记下。`epub book build` 本身比较的是源和成品，不受影响。
 
