@@ -397,7 +397,7 @@ func findTOCNav(root *opf.SpanNode) *opf.SpanNode {
 }
 
 // chapterNavEdit 在 nav 的 toc 里加一条：默认追加到顶层 ol 末尾；after 时插在指向
-// 锚点文件的最后一个目录项之后，作为它的同级。
+// 锚点文件的最外层目录项（含其小节）之后，作为它的同级。
 func chapterNavEdit(ctx context.Context, navPath string, data []byte, anchorPath string, after bool, title, newPath string) ([]byte, error) {
 	if err := opf.EditableUTF8(data); err != nil {
 		return nil, fmt.Errorf("%s: %w", navPath, err)
@@ -412,12 +412,17 @@ func chapterNavEdit(ctx context.Context, navPath string, data []byte, anchorPath
 	}
 	var anchorLI *opf.SpanNode
 	if after {
+		// 小节链接（file#s1）去掉片段后也指向同一文件：取嵌套最浅的 li，
+		// 深度相同取文档序最后一个。
+		best := -1
 		for _, n := range toc.Walk() {
 			if n.Name.Local != "a" || n.Parent == nil || n.Parent.Name.Local != "li" {
 				continue
 			}
 			if href, _ := n.AttrByLocal("", "href"); hrefTarget(navPath, href) == anchorPath {
-				anchorLI = n.Parent
+				if d := ancestorDepth(n.Parent, toc, "li"); best < 0 || d <= best {
+					anchorLI, best = n.Parent, d
+				}
 			}
 		}
 		if anchorLI == nil {
@@ -443,6 +448,7 @@ func chapterNavEdit(ctx context.Context, navPath string, data []byte, anchorPath
 }
 
 // chapterNCXEdit 在 navMap 里加 navPoint，并把全部 navPoint 的 playOrder 按文档序重排为 1..n。
+// after 时插在指向锚点文件的最外层 navPoint（含其子项）之后，作为它的同级。
 func chapterNCXEdit(ctx context.Context, ncxPath string, data []byte, anchorPath string, after bool, title, newPath string) ([]byte, error) {
 	if err := opf.EditableUTF8(data); err != nil {
 		return nil, fmt.Errorf("%s: %w", ncxPath, err)
@@ -468,13 +474,16 @@ func chapterNCXEdit(ctx context.Context, ncxPath string, data []byte, anchorPath
 	}
 	var anchorPoint *opf.SpanNode
 	if after {
+		best := -1
 		for _, p := range points {
 			content := p.ChildByAnyNS("content")
 			if content == nil {
 				continue
 			}
 			if src, _ := content.AttrByLocal("", "src"); hrefTarget(ncxPath, src) == anchorPath {
-				anchorPoint = p
+				if d := ancestorDepth(p, navMap, "navPoint"); best < 0 || d <= best {
+					anchorPoint, best = p, d
+				}
 			}
 		}
 		if anchorPoint == nil {
@@ -529,4 +538,15 @@ func chapterNCXEdit(ctx context.Context, ncxPath string, data []byte, anchorPath
 		"\n" + indent + "</navPoint>"
 	edits = append(edits, editset.Insert(ncxPath, int64(insertAt), []byte(point)))
 	return editset.Apply(ncxPath, data, edits)
+}
+
+// ancestorDepth 数 n 与 stop 之间名为 local 的祖先个数（不含 n 和 stop 本身）。
+func ancestorDepth(n, stop *opf.SpanNode, local string) int {
+	depth := 0
+	for p := n.Parent; p != nil && p != stop; p = p.Parent {
+		if p.Name.Local == local {
+			depth++
+		}
+	}
+	return depth
 }

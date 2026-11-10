@@ -5,8 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/liyafly/epub-handbook/internal/scan/opf"
 )
 
 func (h *bookHarness) addChapter(opts BookAddChapterOptions) int {
@@ -188,4 +192,128 @@ func TestBookAddChapterLegacyLayoutAndNoNCX(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(oebps, "Text", "02-chapter.xhtml")); err != nil {
 		t.Error(err)
 	}
+}
+
+// tocChildren 返回 toc nav 里某个 ol 的直接 li 子项的 href（ol 为 nil 时取顶层 ol）。
+func tocTopHrefs(t *testing.T, nav string) []string {
+	t.Helper()
+	root, err := opf.ScanXHTMLSpanTree([]byte(nav))
+	if err != nil {
+		t.Fatal(err)
+	}
+	toc := findTOCNav(root)
+	if toc == nil {
+		t.Fatal("no toc nav")
+	}
+	var out []string
+	for _, li := range toc.ChildByAnyNS("ol").Kids {
+		if a := li.ChildByAnyNS("a"); li.Name.Local == "li" && a != nil {
+			href, _ := a.AttrByLocal("", "href")
+			out = append(out, href)
+		}
+	}
+	return out
+}
+
+func navMapTopSrcs(t *testing.T, ncx string) []string {
+	t.Helper()
+	root, err := opf.ScanSpanTree([]byte(ncx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, p := range root.ChildByAnyNS("navMap").Kids {
+		if c := p.ChildByAnyNS("content"); p.Name.Local == "navPoint" && c != nil {
+			src, _ := c.AttrByLocal("", "src")
+			out = append(out, src)
+		}
+	}
+	return out
+}
+
+func assertPlayOrderSequential(t *testing.T, ncx string) {
+	t.Helper()
+	got := playOrders(t, ncx)
+	for i, v := range got {
+		if v != strconv.Itoa(i+1) {
+			t.Fatalf("playOrder = %v, want 1..%d", got, len(got))
+		}
+	}
+}
+
+func TestBookAddChapterAfterChapterWithSections(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	oebps := filepath.Join(dir, "epub", "OEBPS")
+	chapter := filepath.Join(oebps, "Text", "01-chapter.xhtml")
+	mustWrite(t, chapter, strings.Replace(mustRead(t, chapter), "</section>", `  <h2 id="s1">第一节</h2>
+  </section>`, 1))
+	navPath := filepath.Join(oebps, "nav.xhtml")
+	mustWrite(t, navPath, strings.Replace(mustRead(t, navPath),
+		`<li><a href="Text/01-chapter.xhtml">第一章</a></li>`,
+		`<li><a href="Text/01-chapter.xhtml">第一章</a><ol><li><a href="Text/01-chapter.xhtml#s1">第一节</a></li></ol></li>`, 1))
+	ncxPath := filepath.Join(oebps, "toc.ncx")
+	mustWrite(t, ncxPath, strings.Replace(mustRead(t, ncxPath),
+		`<content src="Text/01-chapter.xhtml"/>`,
+		`<content src="Text/01-chapter.xhtml"/>
+      <navPoint id="np-s1" playOrder="4"><navLabel><text>第一节</text></navLabel><content src="Text/01-chapter.xhtml#s1"/></navPoint>`, 1))
+
+	if code := h.addChapter(BookAddChapterOptions{Dir: dir, Title: "第二章", After: "01-chapter.xhtml"}); code != 0 {
+		t.Fatalf("add = %d: %s", code, h.err)
+	}
+	nav := mustRead(t, navPath)
+	top := tocTopHrefs(t, nav)
+	if n := len(top); n < 2 || top[n-2] != "Text/01-chapter.xhtml" || top[n-1] != "Text/02-chapter.xhtml" {
+		t.Errorf("new li must be a top-level sibling right after chapter 1: %v\n%s", top, nav)
+	}
+	ncx := mustRead(t, ncxPath)
+	srcs := navMapTopSrcs(t, ncx)
+	if n := len(srcs); n < 2 || srcs[n-2] != "Text/01-chapter.xhtml" || srcs[n-1] != "Text/02-chapter.xhtml" {
+		t.Errorf("new navPoint must be a direct navMap child after chapter 1: %v\n%s", srcs, ncx)
+	}
+	assertPlayOrderSequential(t, ncx)
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("build = %d: %s %s", code, h.out, h.err)
+	}
+}
+
+func TestBookAddChapterAfterNestedOnlyStaysAtThatLevel(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	oebps := filepath.Join(dir, "epub", "OEBPS")
+	navPath := filepath.Join(oebps, "nav.xhtml")
+	nav := mustRead(t, navPath)
+	nav = strings.Replace(nav, `<li><a href="Text/00-title.xhtml">书名页</a></li>
+      <li><a href="Text/00-copyright.xhtml">版权信息</a></li>`,
+		`<li><a href="Text/00-title.xhtml">书名页</a><ol><li><a href="Text/00-copyright.xhtml">版权信息</a></li></ol></li>`, 1)
+	mustWrite(t, navPath, nav)
+	ncxPath := filepath.Join(oebps, "toc.ncx")
+	ncx := mustRead(t, ncxPath)
+	copyright := `
+    <navPoint id="np-2" playOrder="2">
+      <navLabel><text>版权信息</text></navLabel>
+      <content src="Text/00-copyright.xhtml"/>
+    </navPoint>`
+	if !strings.Contains(ncx, copyright) {
+		t.Fatal("starter NCX changed; update the fixture")
+	}
+	ncx = strings.Replace(ncx, copyright, "", 1)
+	ncx = strings.Replace(ncx, `<content src="Text/00-title.xhtml"/>`, `<content src="Text/00-title.xhtml"/>`+strings.ReplaceAll(copyright, "\n    ", "\n      "), 1)
+	mustWrite(t, ncxPath, ncx)
+
+	if code := h.addChapter(BookAddChapterOptions{Dir: dir, Title: "献词", After: "00-copyright.xhtml"}); code != 0 {
+		t.Fatalf("add = %d: %s", code, h.err)
+	}
+	nav = mustRead(t, navPath)
+	if !strings.Contains(nav, `<ol><li><a href="Text/00-copyright.xhtml">版权信息</a></li>`+"\n"+`<li><a href="Text/02-chapter.xhtml">献词</a></li></ol></li>`) {
+		t.Errorf("new li must be a sibling of the nested copyright entry:\n%s", nav)
+	}
+	if top := tocTopHrefs(t, nav); slices.Contains(top, "Text/02-chapter.xhtml") {
+		t.Errorf("new li must not be top level: %v", top)
+	}
+	ncx = mustRead(t, ncxPath)
+	if slices.Contains(navMapTopSrcs(t, ncx), "Text/02-chapter.xhtml") {
+		t.Errorf("new navPoint must stay nested under the title page:\n%s", ncx)
+	}
+	assertPlayOrderSequential(t, ncx)
 }

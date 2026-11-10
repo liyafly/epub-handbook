@@ -49,6 +49,7 @@
 
 ### Fixed
 
+- `epub book add-chapter --after <章>`：那一章在目录里带小节时，新章不再被插成它的最后一个小节，而是插在这一章（含小节）之后、与它同级；nav 和 NCX 都按最外层的目录项算。
 - `epub.cover.replace` 换封面时，旧的 `~slim` 长屏封面被一起删除或被留下都会给 warn，提示补新的长屏图；以前不提示。
 - `epub.structure.normalize` 反混淆改名时，`~slim` 长屏图跟随同名普通图的新文件名（如 `f100.jpg` / `f100~slim.jpg`），不再按自己的 manifest ID 改成不配对的名字。
 - 书放在分类子目录（`work-epub/<分类>/<书>/`）时，`epub book import` 沿用上层已有的字体库，不再在分类目录旁新建空的 `fonts/`。

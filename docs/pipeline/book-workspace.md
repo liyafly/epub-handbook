@@ -66,7 +66,7 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 
 `new` 给每本书生成新的 `urn:uuid` 标识符（OPF 与 NCX 相同）和建书时刻的 `dcterms:modified`；之后构建不再改它。`--title`、`--author` 写进 OPF、NCX、书名页、版权页和 `book.json`。
 
-`add-chapter` 加一章：新文件放在 spine 最后一个 XHTML 的目录，默认名 `<NN>-<slug>.xhtml`、排在末尾；样式表 link 照抄最后一章。同步 OPF manifest、spine、nav 的 toc 和 NCX（`playOrder` 重排；没有 NCX 就跳过）。`--after <文件>` 把目录项插在指向它的最后一条之后，作为同级；它在 nav 里没有条目就拒绝。只做字节区间插入；任何一处不能安全编辑就一个文件都不改。两种布局都可用，多卷工作区要进各卷目录执行。
+`add-chapter` 加一章：新文件放在 spine 最后一个 XHTML 的目录，默认名 `<NN>-<slug>.xhtml`、排在末尾；样式表 link 照抄最后一章。同步 OPF manifest、spine、nav 的 toc 和 NCX（`playOrder` 重排；没有 NCX 就跳过）。`--after <文件>` 把目录项插在指向它的最外层目录项之后（含其小节），作为同级；它在 nav 里没有条目就拒绝。只做字节区间插入；任何一处不能安全编辑就一个文件都不改。两种布局都可用，多卷工作区要进各卷目录执行。
 
 导入后没有必要时，不做规范化、EPUB3 迁移或 CSS 清洗；确有问题才走 [cleanup-flow.md](cleanup-flow.md) 对应步骤。
 
