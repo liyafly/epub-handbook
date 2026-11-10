@@ -148,7 +148,7 @@
       "parameters": {
         "metadata_json": {
           "type": "string",
-          "description": "元数据修改 JSON 对象文本（不是文件路径）。",
+          "description": "元数据修改 JSON 对象文本（不是文件路径）。字段：title、subtitle、author、language、publisher、description、identifier、rights、series、series_position、title_sort、author_sort。",
           "required": true
         },
         "allow_font_obfuscation": {

@@ -25,7 +25,7 @@ epub run epub.alite.convert --input "before.epub" --output "candidate.epub" --dr
 ```
 
 - split **不需 --output**，`output_dir` 必须是尚不存在的目录；切分点是 TOC 目标下标（无目录退化为 spine），不是页码，先核对实际目录。
-- `metadata_json` 是内联对象、不是文件路径。
+- `metadata_json` 是内联对象、不是文件路径。丛书与排序名用 `series`、`series_position`（数字）、`title_sort`、`author_sort`；值不能为空。
 - A-lite 已知卷数时 dry-run 与实跑都加 `expect_volumes=N`。
 
 ## 返回怎么读

@@ -2,7 +2,7 @@
 
 > 状态：可照抄的写法。阅读器怎么显示这些信息还没实测，见文末。
 
-从零做书时，元数据直接写在 `epub/OEBPS/package.opf` 的 `<metadata>` 里。下面每段都能原样贴进起始书，改掉值即可。`epub book build` 的导航审计会检查 `refines` 指向、丛书挂接和无障碍词表。
+从零做书时，元数据直接写在 `epub/OEBPS/package.opf` 的 `<metadata>` 里。改已有的 EPUB 成品时，丛书和排序名也可以用 `epub run epub.metadata.edit` 的 `series`、`series_position`、`title_sort`、`author_sort` 字段写入，见 [包操作](../pipeline/package-operations.md)。下面每段都能原样贴进起始书，改掉值即可。`epub book build` 的导航审计会检查 `refines` 指向、丛书挂接和无障碍词表。
 
 ## 丛书
 

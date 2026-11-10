@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1",
   "id": "epub.metadata.edit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "transformer",
   "legacySkillSlugs": ["epub-package-ops"],
   "inputSchema": "contracts/schemas/v1/artifact-reference.schema.json",

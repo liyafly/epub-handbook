@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/book"
+	"github.com/liyafly/epub-handbook/internal/book/pypath"
 	"github.com/liyafly/epub-handbook/internal/editset"
 	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/scan/opf"
@@ -315,13 +316,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 	appendElem := func(e appendedElem) { view.appended = append(view.appended, e) }
 
 	// 1. 扫描/决策（set_titles → set_dc_text，顺序对齐 Python）。
+	mainTitleID := ""
 	titleVal, hasTitle := lookupField(fields, "title")
 	subtitleVal, hasSubtitle := lookupField(fields, "subtitle")
 	if hasTitle || hasSubtitle {
-		changed, titleEdits, err := setTitles(view, titleVal, hasTitle, subtitleVal, hasSubtitle, appendElem)
+		changed, titleEdits, id, err := setTitles(view, titleVal, hasTitle, subtitleVal, hasSubtitle, appendElem)
 		if err != nil {
 			return failedResult(err.Error())
 		}
+		mainTitleID = id
 		rep.FieldsUpdated += changed
 		edits = append(edits, titleEdits...)
 	}
@@ -339,6 +342,14 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		rep.FieldsUpdated += changed
 		edits = append(edits, dcEdits...)
 	}
+
+	// 丛书与排序名（series / series_position / title_sort / author_sort）。
+	refined, refinedEdits, err := setSeriesAndSort(view, tree, fields, mainTitleID)
+	if err != nil {
+		return failedResult(err.Error())
+	}
+	rep.FieldsUpdated += refined
+	edits = append(edits, refinedEdits...)
 
 	// 追加元素统一插在 </metadata> 之前（ET.SubElement 语义）。
 	if len(view.appended) > 0 {
@@ -384,7 +395,7 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 }
 
 // setTitles 逐行复刻 metadata.set_titles。
-func setTitles(view *childView, titleVal string, hasTitle bool, subtitleVal string, hasSubtitle bool, appendElem func(appendedElem)) (int, []editset.Edit, error) {
+func setTitles(view *childView, titleVal string, hasTitle bool, subtitleVal string, hasSubtitle bool, appendElem func(appendedElem)) (int, []editset.Edit, string, error) {
 	changed := 0
 	var edits []editset.Edit
 	titles := view.findAllDcTitle() // findall 快照
@@ -491,7 +502,7 @@ func setTitles(view *childView, titleVal string, hasTitle bool, subtitleVal stri
 			changed++
 		}
 	}
-	return changed, edits, nil
+	return changed, edits, mainID, nil
 }
 
 // setDCText 逐行复刻 metadata.set_dc_text（首元素命中或末尾追加）。
@@ -567,4 +578,164 @@ func attrEscapeFor(quote byte, value string) string {
 			"&", "&amp;"), "<", "&lt;"), ">", "&gt;"), "'", "&#39;"), `"`, "&quot;")
 	}
 	return attribEscape(value)
+}
+
+// setSeriesAndSort 处理 EPUB 3 的丛书与排序名字段：
+//   - series：改写第一个不带 refines 的 belongs-to-collection；没有就追加一个
+//     （id 默认 series），并挂 collection-type=series；
+//   - series_position：在该集合上挂 group-position（数字）；
+//   - title_sort / author_sort：在第一个 dc:title / dc:creator 上挂 file-as，
+//     目标没有 id 时补一个。
+//
+// 这些字段的值不能为空；没有可挂的目标时拒绝，不猜测。
+func setSeriesAndSort(view *childView, tree *opf.SpanNode, fields [][2]string, mainTitleID string) (int, []editset.Edit, error) {
+	series, hasSeries := lookupField(fields, "series")
+	position, hasPosition := lookupField(fields, "series_position")
+	titleSort, hasTitleSort := lookupField(fields, "title_sort")
+	authorSort, hasAuthorSort := lookupField(fields, "author_sort")
+	if !hasSeries && !hasPosition && !hasTitleSort && !hasAuthorSort {
+		return 0, nil, nil
+	}
+	for _, f := range [][2]string{{"series", series}, {"series_position", position}, {"title_sort", titleSort}, {"author_sort", authorSort}} {
+		if v, ok := lookupField(fields, f[0]); ok && strings.TrimSpace(v) == "" {
+			return 0, nil, toolErrf("%s must be a non-empty string", f[0])
+		}
+	}
+	if hasPosition && !seriesPositionRE.MatchString(strings.TrimSpace(position)) {
+		return 0, nil, toolErrf("series_position must be a number such as 2 or 2.5")
+	}
+	used := map[string]bool{}
+	for _, n := range tree.Walk() {
+		if id, ok := n.AttrByLocal("", "id"); ok && id != "" {
+			used[id] = true
+		}
+	}
+	for _, a := range view.appended {
+		for _, kv := range a.attrs {
+			if kv[0] == "id" {
+				used[kv[1]] = true
+			}
+		}
+	}
+	changed := 0
+	var edits []editset.Edit
+
+	// 集合。
+	var collection *liveChild
+	for _, c := range view.live() {
+		if ns, local := c.tag(); ns == opfURI && local == "meta" && c.attr("property") == "belongs-to-collection" && c.attr("refines") == "" {
+			c := c
+			collection = &c
+			break
+		}
+	}
+	collectionID := ""
+	if hasSeries || hasPosition {
+		if collection == nil && !hasSeries {
+			return 0, nil, toolErrf("series_position needs a series (no belongs-to-collection in the OPF)")
+		}
+		if collection == nil {
+			collectionID = pypath.UniqueID("series", used)
+			view.appended = append(view.appended,
+				appendedElem{ns: opfURI, local: "meta", attrs: [][2]string{{"property", "belongs-to-collection"}, {"id", collectionID}}, text: series},
+				appendedElem{ns: opfURI, local: "meta", attrs: [][2]string{{"refines", "#" + collectionID}, {"property", "collection-type"}}, text: "series"},
+			)
+			changed++
+		} else {
+			var idEdits []editset.Edit
+			collectionID, idEdits = ensureElementID(view, collection, "series", used)
+			edits = append(edits, idEdits...)
+			if hasSeries && collection.text() != series {
+				if e, ok := textReplaceEdit(view, collection.node, series); ok {
+					edits = append(edits, e)
+					changed++
+				}
+			}
+		}
+		if hasPosition {
+			n, e := setRefinedMeta(view, collectionID, "group-position", strings.TrimSpace(position))
+			changed += n
+			edits = append(edits, e...)
+		}
+	}
+
+	if hasTitleSort {
+		id := mainTitleID
+		if id == "" {
+			title := view.findDc("title")
+			if title == nil {
+				return 0, nil, toolErrf("title_sort needs a dc:title")
+			}
+			var idEdits []editset.Edit
+			id, idEdits = ensureElementID(view, title, "main-title", used)
+			edits = append(edits, idEdits...)
+		}
+		n, e := setRefinedMeta(view, id, "file-as", titleSort)
+		changed += n
+		edits = append(edits, e...)
+	}
+	if hasAuthorSort {
+		creator := view.findDc("creator")
+		if creator == nil {
+			return 0, nil, toolErrf("author_sort needs a dc:creator (set author too)")
+		}
+		id, idEdits := ensureElementID(view, creator, "creator", used)
+		edits = append(edits, idEdits...)
+		n, e := setRefinedMeta(view, id, "file-as", authorSort)
+		changed += n
+		edits = append(edits, e...)
+	}
+	return changed, edits, nil
+}
+
+// ensureElementID 返回元素的 id；没有时生成一个不冲突的 id，原始节点用插入属性的编辑补上，
+// 追加元素直接改属性。
+func ensureElementID(view *childView, c *liveChild, base string, used map[string]bool) (string, []editset.Edit) {
+	if id := c.attr("id"); id != "" {
+		return id, nil
+	}
+	id := pypath.UniqueID(base, used)
+	if c.appended != nil {
+		for i := range view.appended {
+			if &view.appended[i] == c.appended {
+				view.appended[i].attrs = append(view.appended[i].attrs, [2]string{"id", id})
+			}
+		}
+		return id, nil
+	}
+	n := c.node
+	if idx := n.AttrIndex("", "id"); idx >= 0 {
+		if span, quote, ok := opf.RawAttrValueSpan(view.data, n, idx); ok {
+			return id, []editset.Edit{editset.Replace(view.path, int64(span.Start), int64(span.Len()), []byte(attrEscapeFor(quote, id)))}
+		}
+	}
+	pos := n.Open.End - 1
+	if n.SelfClose {
+		pos = n.Open.End - 2
+	}
+	return id, []editset.Edit{editset.Insert(view.path, int64(pos), []byte(` id="`+attribEscape(id)+`"`))}
+}
+
+// setRefinedMeta 把 <meta refines="#id" property="p"> 的值设为 value：已有就改文字，没有就追加。
+func setRefinedMeta(view *childView, id, property, value string) (int, []editset.Edit) {
+	existing := view.findMeta("#"+id, property)
+	if existing == nil {
+		view.appended = append(view.appended, appendedElem{ns: opfURI, local: "meta", attrs: [][2]string{{"refines", "#" + id}, {"property", property}}, text: value})
+		return 1, nil
+	}
+	if existing.text() == value {
+		return 0, nil
+	}
+	if existing.node != nil {
+		if e, ok := textReplaceEdit(view, existing.node, value); ok {
+			return 1, []editset.Edit{e}
+		}
+		return 0, nil
+	}
+	for i := range view.appended {
+		if &view.appended[i] == existing.appended {
+			view.appended[i].text = value
+		}
+	}
+	return 1, nil
 }

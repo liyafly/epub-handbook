@@ -1,7 +1,13 @@
 // register.go 收纳 metadata 包的只读表（INV-7 白名单：注册表文件）。
 package metadata
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+// seriesPositionRE 是 group-position 允许的数字写法（如 2、2.5）。
+var seriesPositionRE = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
 
 // attribEscape 复刻 ElementTree._escape_attrib 的属性值转义。
 var attribEscape = strings.NewReplacer(

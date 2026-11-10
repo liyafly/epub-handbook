@@ -120,6 +120,12 @@ epub run epub.metadata.edit \
 - `description`
 - `identifier`
 - `rights`
+- `series`：丛书名，写到第一个 `belongs-to-collection`；没有就新建（`id="series"`，并挂 `collection-type` 为 `series`）
+- `series_position`：在丛书上挂 `group-position`，值是数字（如 `2`、`2.5`）；书里没有丛书又没给 `series` 时拒绝
+- `title_sort`：在第一个 `dc:title` 上挂 `file-as`
+- `author_sort`：在第一个 `dc:creator` 上挂 `file-as`；没有 `dc:creator` 时拒绝
+
+后四个字段的值不能为空；目标元素没有 `id` 时补一个不冲突的 `id`。写法和每个值的含义见 [OPF 元数据](../how-to/opf-metadata.md)。
 
 元数据写入不改 spine 和正文。能力运行自带的内置 metadata 红线会把预期中的字段变更记为 findings（退出码 1），产物仍会写出；验证建议用显式 redline 排除 metadata：
 

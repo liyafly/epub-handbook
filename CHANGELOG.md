@@ -10,6 +10,7 @@
 
 ### Added
 
+- `epub.metadata.edit` 1.1.0：`metadata_json` 新增 `series`、`series_position`、`title_sort`、`author_sort`，写成 EPUB 3 的 `belongs-to-collection` / `group-position` 与 `file-as`。
 - 固定版式 demo `templates/fxl-demo/`：封面、跨页对开、图上压字、纯文字页，素材自造，独立打包到自己的 `dist/`；CI 构建后跑导航审计和 EPUBCheck。阅读器待测。
 - 导航审计识别固定版式（全局 `rendition:layout`，spine 项 `rendition:layout-*` 可覆盖；判断放在 `internal/scan/opf`，image_layout 共用）：只被固定版式页面引用的样式表跳过三项字号检查；新增 `fxl-viewport-missing` / `fxl-viewport-size-missing`（error）、`fxl-aspect-ratio-mixed`、`page-spread-on-reflowable`（warn）；整本固定版式的 page-list 不再报缺页码标记。合成测试包在 `testdata/fxl/minimal/`。
 - `epub book build` 对每个产物跑 Kindle 静态检查：终端一行汇总各级别数量，明细进 `report.html`。只有名为 `kindle` 的变体遇到 error 才阻断，`out/` 不更新。此前 `readers.md` 写着构建会跑这项检查，但实际没有跑。

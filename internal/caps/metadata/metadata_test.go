@@ -4,8 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/xml"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/liyafly/epub-handbook/internal/book"
@@ -405,5 +408,111 @@ func TestMetadataBadJSONRefused(t *testing.T) {
 	if res.Status != report.StatusFailed ||
 		res.Findings[0].Title != "metadata JSON must be an object of string fields" {
 		t.Errorf("非法 metadata JSON 应拒绝: %+v", res.Findings)
+	}
+}
+
+func runFields(t *testing.T, source, fields string) (report.Result, string) {
+	t.Helper()
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	res, err := Run(context.Background(), b, Params{MetadataJSON: fields})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := b.Current("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status == report.StatusComplete {
+		dec := xml.NewDecoder(bytes.NewReader(data))
+		for {
+			if _, err := dec.Token(); err != nil {
+				if err != io.EOF {
+					t.Fatalf("OPF not well-formed after %s: %v\n%s", fields, err, data)
+				}
+				break
+			}
+		}
+	}
+	return res, string(data)
+}
+
+func TestMetadataWriteSeriesAndSortNames(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	res, opfText := runFields(t, source, `{"series": "丛书 & 甲", "series_position": "2", "title_sort": "排序题", "author_sort": "Meta, Author"}`)
+	if res.Status != report.StatusComplete {
+		t.Fatalf("status = %s: %+v", res.Status, res.Findings)
+	}
+	if got := res.Facts["fieldsUpdated"]; got != 4 {
+		t.Errorf("fieldsUpdated = %v, want 4", got)
+	}
+	for _, want := range []string{
+		`<meta property="belongs-to-collection" id="series">丛书 &amp; 甲</meta>`,
+		`<meta refines="#series" property="collection-type">series</meta>`,
+		`<meta refines="#series" property="group-position">2</meta>`,
+		`<dc:title id="main-title">原题</dc:title>`,
+		`<meta refines="#main-title" property="file-as">排序题</meta>`,
+		`<dc:creator id="creator">Author meta</dc:creator>`,
+		`<meta refines="#creator" property="file-as">Meta, Author</meta>`,
+	} {
+		if !strings.Contains(opfText, want) {
+			t.Errorf("OPF lacks %q\n%s", want, opfText)
+		}
+	}
+
+	// 已有集合与排序名：只改值，不重复追加，也不再补 id。
+	second := filepath.Join(dir, "second.epub")
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), b, Params{MetadataJSON: `{"series": "丛书 & 甲", "series_position": "2", "title_sort": "排序题", "author_sort": "Meta, Author"}`}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.WriteTo(second); err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	res, opfText = runFields(t, second, `{"series": "丛书乙", "series_position": "3.5", "title_sort": "新排序", "author_sort": "Author, Meta"}`)
+	if res.Status != report.StatusComplete || res.Facts["fieldsUpdated"] != 4 {
+		t.Fatalf("update: status=%s fields=%v %+v", res.Status, res.Facts["fieldsUpdated"], res.Findings)
+	}
+	for want, count := range map[string]int{
+		`property="belongs-to-collection"`: 1, `property="collection-type"`: 1, `property="group-position">3.5<`: 1,
+		`>新排序</meta>`: 1, `>Author, Meta</meta>`: 1, `id="main-title"`: 1, `id="creator"`: 1, `>丛书乙</meta>`: 1,
+	} {
+		if got := strings.Count(opfText, want); got != count {
+			t.Errorf("%q appears %d times, want %d\n%s", want, got, count, opfText)
+		}
+	}
+	if res, _ := runFields(t, second, `{"series": "丛书乙"}`); res.Facts["fieldsUpdated"] != 1 {
+		t.Errorf("changing only one series value should count 1, got %v", res.Facts["fieldsUpdated"])
+	}
+
+	// 和 title 一起改时，file-as 挂在 setTitles 生成的 main-title 上，不重复插入 id。
+	res, opfText = runFields(t, source, `{"title": "新题", "title_sort": "新题排序"}`)
+	if res.Status != report.StatusComplete || strings.Count(opfText, `id="main-title"`) != 1 || !strings.Contains(opfText, `<meta refines="#main-title" property="file-as">新题排序</meta>`) {
+		t.Errorf("title + title_sort: %s\n%s", res.Status, opfText)
+	}
+}
+
+func TestMetadataWriteSeriesRefusals(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.epub")
+	buildEpub(t, source, writeBookEntries("原题", "meta"))
+	for _, fields := range []string{
+		`{"series_position": "2"}`,
+		`{"series": "丛书", "series_position": "第二"}`,
+		`{"series": "  "}`,
+		`{"title_sort": ""}`,
+	} {
+		if res, _ := runFields(t, source, fields); res.Status != report.StatusFailed {
+			t.Errorf("%s: status = %s, want failed", fields, res.Status)
+		}
 	}
 }
