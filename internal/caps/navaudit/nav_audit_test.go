@@ -109,10 +109,17 @@ func TestKindleCompatibilityRulesStayOutOfNavAudit(t *testing.T) {
 
 func TestNavAuditWarnsNonCoreImageWithoutFallback(t *testing.T) {
 	res := runNativeAudit(t, writeEPUB3WithImageFixture(t, false))
-	if res.Status != report.StatusComplete || len(res.Findings) != 1 {
+	// 该 fixture 的 nav 没有 landmarks，另有一条 nav-landmarks-missing info；只数 warn/error。
+	var actionable []report.Finding
+	for _, f := range res.Findings {
+		if f.Level != "info" {
+			actionable = append(actionable, f)
+		}
+	}
+	if res.Status != report.StatusComplete || len(actionable) != 1 {
 		t.Fatalf("TIFF-only audit status=%s findings=%+v, want one warning and no errors", res.Status, res.Findings)
 	}
-	finding := res.Findings[0]
+	finding := actionable[0]
 	if finding.Level != "warn" || finding.Detail != "non-core-image-without-fallback" || finding.Location != "Images/scan.tiff" {
 		t.Fatalf("TIFF warning=%+v, want a generic non-core image warning at the resource", finding)
 	}

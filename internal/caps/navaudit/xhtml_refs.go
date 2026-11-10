@@ -16,18 +16,49 @@ type xhtmlDocument struct {
 	references      []xhtmlReference
 	unsupportedBase bool
 	baseReference   string
+	// navTypes 是本文档里 nav 元素的 epub:type 词（toc、landmarks、page-list…）。
+	navTypes map[string]bool
+	// hasPagebreak 表示本文档有 epub:type="pagebreak" 或 role="doc-pagebreak" 的页码标记。
+	hasPagebreak bool
 }
 
 type xhtmlReference struct {
 	kind string
 	raw  string
+	// nav 非空时，链接位于该类型（landmarks / page-list）的 nav 里。
+	nav string
+}
+
+// epubTypes 返回元素 epub:type 的分词。
+func epubTypes(n *opf.SpanNode) []string {
+	v, ok := n.AttrByLocal(opf.OPSURI, "type")
+	if !ok {
+		v, _ = n.AttrByLocal("", "epub:type")
+	}
+	return strings.Fields(v)
+}
+
+// enclosingNavType 返回链接所在的 landmarks / page-list nav 类型；不在其中时为空。
+func enclosingNavType(n *opf.SpanNode) string {
+	for p := n.Parent; p != nil; p = p.Parent {
+		if !strings.EqualFold(p.Name.Local, "nav") {
+			continue
+		}
+		for _, t := range epubTypes(p) {
+			if t == "landmarks" || t == "page-list" {
+				return t
+			}
+		}
+		return ""
+	}
+	return ""
 }
 
 // scanXHTMLDocument verifies local references and keeps only IDs/reference
 // strings for cross-document fragment checks. It releases the full span tree
 // after each document instead of retaining every XHTML tree in memory.
 func (ins *inspector) scanXHTMLDocument(ctx context.Context, item opf.ManifestItem, root *opf.SpanNode, manifestMedia map[string]map[string]struct{}) xhtmlDocument {
-	doc := xhtmlDocument{item: item, ids: make(map[string]struct{})}
+	doc := xhtmlDocument{item: item, ids: make(map[string]struct{}), navTypes: map[string]bool{}}
 	walkXHTMLNodes(ctx, root, func(n *opf.SpanNode) {
 		if !doc.unsupportedBase {
 			if strings.EqualFold(n.Name.Local, "base") && (n.Name.Space == "" || n.Name.Space == opf.XHTMLURI) {
@@ -48,7 +79,21 @@ func (ins *inspector) scanXHTMLDocument(ctx context.Context, item opf.ManifestIt
 			doc.ids[id] = struct{}{}
 		}
 
+		if !doc.hasPagebreak {
+			for _, t := range epubTypes(n) {
+				if t == "pagebreak" {
+					doc.hasPagebreak = true
+				}
+			}
+			if role, ok := n.AttrByLocal("", "role"); ok && hasTokenFold(role, "doc-pagebreak") {
+				doc.hasPagebreak = true
+			}
+		}
 		switch strings.ToLower(n.Name.Local) {
+		case "nav":
+			for _, t := range epubTypes(n) {
+				doc.navTypes[t] = true
+			}
 		case "img":
 			if src, ok := n.AttrByLocal("", "src"); ok {
 				doc.references = append(doc.references, xhtmlReference{kind: "image", raw: src})
@@ -62,7 +107,7 @@ func (ins *inspector) scanXHTMLDocument(ctx context.Context, item opf.ManifestIt
 			}
 		case "a":
 			if href, ok := n.AttrByLocal("", "href"); ok {
-				doc.references = append(doc.references, xhtmlReference{kind: "link", raw: href})
+				doc.references = append(doc.references, xhtmlReference{kind: "link", raw: href, nav: enclosingNavType(n)})
 			}
 		}
 	})
@@ -79,7 +124,7 @@ func (ins *inspector) scanXHTMLDocument(ctx context.Context, item opf.ManifestIt
 		if ctx.Err() != nil {
 			return doc
 		}
-		ins.checkXHTMLLocalReference(ctx, doc.item.ArchivePath, ref.kind, ref.raw, manifestMedia)
+		ins.checkXHTMLLocalReference(ctx, doc.item.ArchivePath, ref, manifestMedia)
 	}
 	return doc
 }
@@ -112,13 +157,14 @@ func (ins *inspector) checkXHTMLFragments(ctx context.Context, documents []xhtml
 				return
 			}
 			if ref.kind == "link" {
-				ins.checkXHTMLFragmentReference(ctx, doc.item.ArchivePath, ref.raw, idsByPath, manifestXHTML)
+				ins.checkXHTMLFragmentReference(ctx, doc.item.ArchivePath, ref, idsByPath, manifestXHTML)
 			}
 		}
 	}
 }
 
-func (ins *inspector) checkXHTMLFragmentReference(ctx context.Context, source, raw string, idsByPath map[string]map[string]struct{}, manifestXHTML map[string]struct{}) {
+func (ins *inspector) checkXHTMLFragmentReference(ctx context.Context, source string, ref xhtmlReference, idsByPath map[string]map[string]struct{}, manifestXHTML map[string]struct{}) {
+	raw := ref.raw
 	if ctx.Err() != nil || pypath.IsExternalURI(raw) {
 		return
 	}
@@ -161,6 +207,11 @@ func (ins *inspector) checkXHTMLFragmentReference(ctx context.Context, source, r
 		return
 	}
 	if _, ok := ids[fragment]; !ok {
+		if ref.nav != "" {
+			ins.addXHTMLReferenceFinding("error", "Nav "+ref.nav+" link target ID is missing", "nav-"+ref.nav+"-target-missing", source, raw, target+"#"+fragment)
+			ins.addSkill("epub-audit", "error")
+			return
+		}
 		ins.addXHTMLReferenceFinding("error", "XHTML fragment target ID is missing", "xhtml-missing-fragment", source, raw, target+"#"+fragment)
 		ins.addSkill("epub-audit", "error")
 	}
@@ -182,7 +233,8 @@ func walkXHTMLNodes(ctx context.Context, root *opf.SpanNode, visit func(*opf.Spa
 	return true
 }
 
-func (ins *inspector) checkXHTMLLocalReference(ctx context.Context, source, kind, raw string, manifestMedia map[string]map[string]struct{}) {
+func (ins *inspector) checkXHTMLLocalReference(ctx context.Context, source string, ref xhtmlReference, manifestMedia map[string]map[string]struct{}) {
+	kind, raw := ref.kind, ref.raw
 	if ctx.Err() != nil || pypath.IsExternalURI(raw) {
 		return
 	}
@@ -207,6 +259,11 @@ func (ins *inspector) checkXHTMLLocalReference(ctx context.Context, source, kind
 		return
 	}
 	if !ins.b.Has(target) {
+		if ref.nav != "" {
+			ins.addXHTMLReferenceFinding("error", "Nav "+ref.nav+" link target is missing from the ZIP archive", "nav-"+ref.nav+"-target-missing", source, raw, target)
+			ins.addSkill("epub-audit", "error")
+			return
+		}
 		ins.addXHTMLReferenceFinding("error", "XHTML local "+kind+" target is missing from the ZIP archive", "xhtml-missing-target", source, raw, target)
 		ins.addSkill("epub-audit", "error")
 		return
@@ -240,4 +297,39 @@ func hasTokenFold(value, token string) bool {
 		}
 	}
 	return false
+}
+
+// checkNavLandmarksAndPageList 依据已扫描的文档检查：
+//   - EPUB 3 的 nav 文档没有 landmarks → info；
+//   - 正文有页码标记但 nav 没有 page-list，或有 page-list 但正文没有页码标记 → warn。
+func (ins *inspector) checkNavLandmarksAndPageList(pkg *opf.Package, documents []xhtmlDocument) {
+	nav, ok := pkg.NavItem()
+	if !ok || nav.ArchivePath == "" {
+		return
+	}
+	var navDoc *xhtmlDocument
+	pagebreaks := false
+	for i := range documents {
+		if documents[i].item.ArchivePath == nav.ArchivePath && navDoc == nil {
+			navDoc = &documents[i]
+		}
+		if documents[i].hasPagebreak {
+			pagebreaks = true
+		}
+	}
+	if navDoc == nil {
+		return // nav 读不到或解析失败，已有对应 finding。
+	}
+	if strings.HasPrefix(pkg.Version, "3") && !navDoc.navTypes["landmarks"] {
+		ins.addFinding("info", "Nav document has no landmarks nav", nav.ArchivePath, "nav-landmarks-missing")
+	}
+	pageList := navDoc.navTypes["page-list"]
+	switch {
+	case pagebreaks && !pageList:
+		ins.addFinding("warn", "XHTML has pagebreak markers but the nav document has no page-list", nav.ArchivePath, "nav-page-list-missing")
+		ins.addSkill("epub-audit", "warn")
+	case pageList && !pagebreaks:
+		ins.addFinding("warn", "Nav page-list exists but no XHTML has pagebreak markers", nav.ArchivePath, "nav-page-list-without-pagebreaks")
+		ins.addSkill("epub-audit", "warn")
+	}
 }

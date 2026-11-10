@@ -669,6 +669,7 @@ func (ins *inspector) checkXHTML(ctx context.Context, pkg *opf.Package) {
 		}
 	}
 	ins.checkXHTMLFragments(ctx, documents, manifestXHTML)
+	ins.checkNavLandmarksAndPageList(pkg, documents)
 	ins.summaryOCRCounters(textChars, imageRefs)
 }
 

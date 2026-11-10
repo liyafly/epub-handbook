@@ -9,7 +9,7 @@
     "epub.package.nav.audit.findingsByLevel": {
       "error": 0,
       "warn": 4,
-      "info": 0
+      "info": 1
     },
     "epub.package.nav.audit.status": "complete",
     "epub.typography.english.optimize.editCount": 0,

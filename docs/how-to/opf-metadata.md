@@ -55,7 +55,7 @@
 | `accessibilityFeature` = `tableOfContents` | 有 `nav` 目录且链接可用 |
 | `accessibilityFeature` = `readingOrder` | spine 和页面源码顺序就是阅读顺序 |
 | `accessibilityFeature` = `alternativeText` | 每张承载信息的图都写了 `alt` |
-| `accessibilityFeature` = `pageNavigation` | nav 里有 page-list |
+| `accessibilityFeature` = `pageNavigation` | nav 里有 page-list（见 [page-list.md](page-list.md)） |
 | `accessibilityHazard` = `none` | 确认没有闪烁、动效模拟和声音；不确定就不写，或写 `unknown` |
 | `accessibilitySummary` | 一两句话，说明上面这些声明的实际情况 |
 
