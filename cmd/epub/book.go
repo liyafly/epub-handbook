@@ -11,7 +11,7 @@ import (
 )
 
 const bookUsage = `用法:
-  epub book new <书目录> [--from-preset <名称>] [--git]
+  epub book new <书目录> [--from-preset <名称>] [--title <书名>] [--author <作者>] [--git]
   epub book import <原书.epub> <书目录> [--git]
   epub book build [<书目录>] [--variant <名称>]
   epub book preview [<书目录>] [--variant <名称>] [--open[=<应用>]]
@@ -44,6 +44,8 @@ func runBook(argv []string) int {
 		fs.SetOutput(os.Stderr)
 		preset := fs.String("from-preset", "", "以 templates/style-presets/<名称> 为起点")
 		git := fs.Bool("git", false, "在书根初始化独立 Git")
+		title := fs.String("title", "", "书名（写进 OPF、NCX、书名页与 book.json）")
+		author := fs.String("author", "", "作者（写进 OPF 与书名页）")
 		args, code := parseInterspersed(fs, rest)
 		if code >= 0 {
 			return code
@@ -51,7 +53,7 @@ func runBook(argv []string) int {
 		if len(args) != 1 {
 			return bookUsageError("new 需要一个书目录")
 		}
-		return pipeline.BookNew(ctx, pipeline.BookNewOptions{Dir: args[0], Preset: *preset, Git: *git}, bio)
+		return pipeline.BookNew(ctx, pipeline.BookNewOptions{Dir: args[0], Preset: *preset, Git: *git, Title: *title, Author: *author}, bio)
 	case "recipes":
 		fs := flag.NewFlagSet("epub book recipes", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)

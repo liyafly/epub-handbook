@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/liyafly/epub-handbook/internal/zipfs"
 )
@@ -28,6 +29,9 @@ type BookNewOptions struct {
 	Preset string
 	// Git 为 true 时在书根初始化独立 Git（可选，默认不建）。
 	Git bool
+	// Title / Author 非空时写进 OPF、NCX、书名页与 book.json；为空保留占位文字。
+	Title  string
+	Author string
 }
 
 // BookNew 建立新书工作区，返回退出码。
@@ -67,8 +71,9 @@ func validPresetName(name string) bool {
 
 func bookNew(ctx context.Context, opts BookNewOptions, bio BookIO) (presetNotes bool, err error) {
 	if strings.TrimSpace(opts.Dir) == "" {
-		return false, usageErrorf("usage: epub book new <book-directory> [--from-preset <name>] [--git]")
+		return false, usageErrorf("usage: epub book new <book-directory> [--from-preset <name>] [--title <title>] [--author <author>] [--git]")
 	}
+	title, author := strings.TrimSpace(opts.Title), strings.TrimSpace(opts.Author)
 	root, err := FindRepoRoot()
 	if err != nil {
 		return false, err
@@ -114,6 +119,13 @@ func bookNew(ctx context.Context, opts BookNewOptions, bio BookIO) (presetNotes 
 	if err := writeStarterTree(root, epubDir); err != nil {
 		return false, err
 	}
+	bookID, err := newBookUUID()
+	if err != nil {
+		return false, err
+	}
+	if err := personalizeStarter(epubDir, starterReplacements(bookID, time.Now(), title, author)); err != nil {
+		return false, err
+	}
 	if opts.Preset != "" {
 		presetNotes, err = applyPreset(ctx, root, opts.Preset, presetDir, epubDir)
 		if err != nil {
@@ -123,7 +135,11 @@ func bookNew(ctx context.Context, opts BookNewOptions, bio BookIO) (presetNotes 
 	if err := addReaderLayer(epubDir); err != nil {
 		return false, err
 	}
-	cfg := bookConfig{Version: 1, Title: name, Output: defaultOutputName, Fonts: []json.RawMessage{}}
+	configTitle := name
+	if title != "" {
+		configTitle = title
+	}
+	cfg := bookConfig{Version: 1, Title: configTitle, Output: defaultOutputName, Fonts: []json.RawMessage{}}
 	if err := writeBookConfig(filepath.Join(tmp, bookConfigName), cfg); err != nil {
 		return false, err
 	}
