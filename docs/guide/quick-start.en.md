@@ -100,5 +100,6 @@ If you edited an EPUB in `out/` directly (say, a quick fix in Calibre or Sigil),
 | `epub book build my-book --variant kindle` | Build only one reader version |
 | `epub book import … --git` | Create a separate Git repository in the book folder (optional) |
 | `epub book reader-layer my-book` | Add `reader.css` to an older book that does not have it |
+| `epub book add-chapter my-book --title "Chapter 2"` | Add a chapter and list it in the OPF, the table of contents and the NCX; `--after 01-chapter.xhtml` puts it after a given chapter |
 
 Leave out the book folder and the command uses the current directory. Books in the older folder layout (`03 制作工作区/`) work with the same commands; the tool detects the layout.

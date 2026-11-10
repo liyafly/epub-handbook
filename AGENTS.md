@@ -36,7 +36,7 @@
 
 ## 书级工作流
 
-书放在 `work-epub/<分类>/<book>/`（也可直接放 `work-epub/<book>/`），共享字体库在 `work-epub/fonts/`；主仓忽略整个 `work-epub/`，不得误加 submodule。主路径是 `epub book new|import|preview|build|fonts|clean|accept-dist|recipes|reader-layer`，自动识别两种布局，细节见 `docs/pipeline/book-workspace.md`：
+书放在 `work-epub/<分类>/<book>/`（也可直接放 `work-epub/<book>/`），共享字体库在 `work-epub/fonts/`；主仓忽略整个 `work-epub/`，不得误加 submodule。主路径是 `epub book new|import|add-chapter|preview|build|fonts|clean|accept-dist|recipes|reader-layer`，自动识别两种布局，细节见 `docs/pipeline/book-workspace.md`：
 
 - 新布局：`book.json`、`original.epub`、`epub/`、`out/`、隐藏的 `.epub/`、`制作说明.md`，需要时手建 `素材/`；书级 Git 可选（`--git`）。`.epub/` 只放可重新生成的东西，要保留的脚本、源图、证据放 `素材/`。
 - 旧布局：`01 源文件/`、`02 校对材料/`、`03 制作工作区/` 加书根 `build.sh`，独立 Git。书根 `build.sh` 经 `templates/book-starter/build.sh` 转发给 `epub book`，构建逻辑只在 Go。

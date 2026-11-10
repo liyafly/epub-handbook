@@ -100,5 +100,6 @@ epub book build 我的书
 | `epub book build 我的书 --variant kindle` | 只构建一个阅读器版本 |
 | `epub book import … --git` | 在书目录里建一个独立 Git 仓库（可选） |
 | `epub book reader-layer 我的书` | 给还没有 `reader.css` 的旧书补上它 |
+| `epub book add-chapter 我的书 --title 第二章` | 加一章，同时登记到 OPF、目录和 NCX；`--after 01-chapter.xhtml` 插在某章之后 |
 
 省略书目录时，命令作用于当前目录。用旧版目录结构（`03 制作工作区/`）的书也用这些命令，工具会自动识别。

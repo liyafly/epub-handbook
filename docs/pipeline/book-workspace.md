@@ -5,7 +5,7 @@
 ## 命令
 
 ```sh
-epub book new <dir> [--from-preset <name>] [--git]
+epub book new <dir> [--from-preset <name>] [--title <title>] [--author <author>] [--git]
 epub book import <original.epub> <dir> [--git]
 epub book preview [<dir>] [--variant <name>] [--open[=<app>]]
 epub book build [<dir>] [--variant <name>]
@@ -14,6 +14,7 @@ epub book clean [<dir>]
 epub book accept-dist [<dir>] [--variant <name>]
 epub book recipes [<name> [--add <dir>]]
 epub book reader-layer [<dir>]
+epub book add-chapter [<dir>] --title <title> [--file <name>] [--after <chapter>]
 ```
 
 纯 Go 实现，Windows、macOS、Linux 共用；省略 `<dir>` 表示当前目录。安全属性与旧 sh 构建器一致：冻结原件与 SHA、DRM 停止、导航审计、字体锁与子集、全项 redline、原子替换、`dist-sha256` 收据、`accept-dist` 逐成员比对、构建锁、失败现场保留。
@@ -62,6 +63,10 @@ work-epub/               # 旧布局
 完整字体按 SHA 去重进共享库，许可先标"待核"。工具判断可能为子集的字体留在源树，报告列出字形数和判断；这个判断不能证明字体一定是全量。
 
 OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样式表的目录），OPF 的 manifest 末尾登记，每个 spine XHTML 在 `</head>` 前链接，排在所有样式之后。全部用字节区间插入，不重序列化；有页面无法安全编辑（没有闭合的 `<head>`、非 UTF-8）时只警告、一个文件都不改，修好后用 `epub book reader-layer` 补。书里已有 `reader.css` 时跳过。非 OEBPS 布局不加。之前导入的书也用 `reader-layer` 补，旧布局同样适用。
+
+`new` 给每本书生成新的 `urn:uuid` 标识符（OPF 与 NCX 相同）和建书时刻的 `dcterms:modified`；之后构建不再改它。`--title`、`--author` 写进 OPF、NCX、书名页、版权页和 `book.json`。
+
+`add-chapter` 加一章：新文件放在 spine 最后一个 XHTML 的目录，默认名 `<NN>-<slug>.xhtml`、排在末尾；样式表 link 照抄最后一章。同步 OPF manifest、spine、nav 的 toc 和 NCX（`playOrder` 重排；没有 NCX 就跳过）。`--after <文件>` 把目录项插在指向它的最后一条之后，作为同级；它在 nav 里没有条目就拒绝。只做字节区间插入；任何一处不能安全编辑就一个文件都不改。两种布局都可用，多卷工作区要进各卷目录执行。
 
 导入后没有必要时，不做规范化、EPUB3 迁移或 CSS 清洗；确有问题才走 [cleanup-flow.md](cleanup-flow.md) 对应步骤。
 

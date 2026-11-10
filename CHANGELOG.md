@@ -4,6 +4,10 @@
 
 ### Added
 
+- `epub book add-chapter [<书目录>] --title <标题> [--file <文件名>] [--after <章节>]`：加一章并同步 OPF manifest、spine、nav 目录和 NCX（`playOrder` 重排）。全部字节区间编辑，有一处不能安全编辑就一个文件都不改；两种布局都可用。
+- 起始书加占位封面（`cover-image` 与 `meta name="cover"` 都写）、版权页和隐藏的 landmarks。
+- `epub book new --title <书名> --author <作者>`；每本新书生成自己的 `urn:uuid` 标识符和建书时刻的 `dcterms:modified`，不再共用固定值。
+
 - 配方 `vertical-title-art`：左侧窄列浮动竖排章题 + 右侧章首图，不认 float 时退回横排章题在图上方。
 - 配方 `image-preview`：多看 / Reeden 点图预览带题注（`duokan-image-single`），其他阅读器为普通整宽图；recipe.md 附可选 spine 整屏图页写法（非严格书用 `duokan-`，严格 EPUB3 用 `reeden:` 前缀）。
 - 书信、公文与括注类：`.letter-salutation`、`.doc-heading`、`.aside-inline`（demo scene 30/31 与 literary-cn）。
