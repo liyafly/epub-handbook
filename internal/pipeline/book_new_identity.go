@@ -61,6 +61,7 @@ func starterReplacements(id string, now time.Time, title, author string) []start
 			starterReplacement{"OEBPS/package.opf", "<dc:title>" + starterTitle + "</dc:title>", "<dc:title>" + t + "</dc:title>"},
 			starterReplacement{"OEBPS/toc.ncx", "<docTitle><text>" + starterTitle + "</text></docTitle>", "<docTitle><text>" + t + "</text></docTitle>"},
 			starterReplacement{"OEBPS/Text/00-title.xhtml", "<h1>" + starterTitle + "</h1>", "<h1>" + t + "</h1>"},
+			starterReplacement{"OEBPS/Text/00-copyright.xhtml", "<dd>" + starterTitle + "</dd>", "<dd>" + t + "</dd>"},
 		)
 	}
 	if author != "" {
@@ -68,6 +69,7 @@ func starterReplacements(id string, now time.Time, title, author string) []start
 		reps = append(reps,
 			starterReplacement{"OEBPS/package.opf", "<dc:creator>" + starterAuthor + "</dc:creator>", "<dc:creator>" + a + "</dc:creator>"},
 			starterReplacement{"OEBPS/Text/00-title.xhtml", "<p>" + starterAuthor + "</p>", "<p>" + a + "</p>"},
+			starterReplacement{"OEBPS/Text/00-copyright.xhtml", "<dd>" + starterAuthor + "</dd>", "<dd>" + a + "</dd>"},
 		)
 	}
 	return reps

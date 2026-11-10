@@ -56,7 +56,7 @@ func TestBookNewTitleAuthorEscaped(t *testing.T) {
 	if code := BookNew(context.Background(), opts, h.io()); code != 0 {
 		t.Fatalf("book new = %d: %s", code, h.err)
 	}
-	for _, rel := range []string{"epub/OEBPS/package.opf", "epub/OEBPS/toc.ncx", "epub/OEBPS/Text/00-title.xhtml"} {
+	for _, rel := range []string{"epub/OEBPS/package.opf", "epub/OEBPS/toc.ncx", "epub/OEBPS/Text/00-title.xhtml", "epub/OEBPS/Text/00-copyright.xhtml"} {
 		data := mustRead(t, filepath.Join(dir, rel))
 		if strings.Contains(data, starterTitle) {
 			t.Errorf("%s still has the title placeholder", rel)

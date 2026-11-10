@@ -21,6 +21,8 @@ epub book import 原书.epub 我的书
 
 想从零写一本新书，用 `epub book new 我的书`；加 `--from-preset literary-cn` 可以用某个书型预设作起点。
 
+新书自带纯色占位封面 `epub/OEBPS/Images/cover.png`、版权页 `Text/00-copyright.xhtml` 和隐藏的导览（landmarks）。换封面时用同名 PNG 覆盖即可；换成 JPEG 的话，同时把 `package.opf` 里封面那一项的 `href` 改成新文件名、`media-type` 改成 `image/jpeg`。
+
 ## 2. 认识书目录
 
 ```text

@@ -21,6 +21,8 @@ When an import stops, `original.epub` and the reports are kept so you can see wh
 
 To write a new book from scratch, use `epub book new my-book`. Add `--from-preset literary-cn` to start from one of the book-type presets.
 
+A new book comes with a plain placeholder cover `epub/OEBPS/Images/cover.png`, a copyright page `Text/00-copyright.xhtml` and hidden landmarks. To change the cover, overwrite it with a PNG of the same name. For a JPEG, also change that cover item in `package.opf`: `href` to the new file name and `media-type` to `image/jpeg`.
+
 ## 2. The book folder
 
 ```text

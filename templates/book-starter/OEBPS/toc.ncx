@@ -13,6 +13,10 @@
       <content src="Text/00-title.xhtml"/>
     </navPoint>
     <navPoint id="np-2" playOrder="2">
+      <navLabel><text>版权信息</text></navLabel>
+      <content src="Text/00-copyright.xhtml"/>
+    </navPoint>
+    <navPoint id="np-3" playOrder="3">
       <navLabel><text>第一章</text></navLabel>
       <content src="Text/01-chapter.xhtml"/>
     </navPoint>
