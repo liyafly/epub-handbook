@@ -72,7 +72,7 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 
 ## 构建
 
-`build` 依次：复制源 → 按锁注入完整字体 → 打包 → 子集化与独立覆盖检查 → 导航审计 → 全项 redline → 原子替换成品，登记收据和交付记录。另有一步与上一版成品的 redline 比较，只供审阅，不阻断。
+`build` 依次：复制源 → 按锁注入完整字体 → 打包 → 子集化与独立覆盖检查 → 导航审计 → 全项 redline → Kindle 检查 → 原子替换成品，登记收据和交付记录。Kindle 检查（`epub.kindle.compatibility.check`）对每个产物都跑，终端一行汇总，报告写 `kindle-check.json`、明细进 `report.html`；只有名为 `kindle` 的变体遇到 error 级 finding 才失败（这时所有产物都不写出），其他产物只提示。`readers` 仍只是备注。另有一步与上一版成品的 redline 比较，只供审阅，不阻断。
 
 - 源树里有不在 SPEC-实现约束 §7 分层表（加 `reader.css`、`decoration.css`）里的样式文件时，打一行 `INFO style layers`，不阻断。导入书原有的样式表不必改名；这条是提醒新规则写进对应分层，不要另起文件。
 - 终端每项检查一行：`PASS` / `FAIL` / `WARN` / `INFO`，必要时缩进附几条说明（失败列 error finding 和位置，不再打印整份 JSON）。字体缺字合成一行，只报缺字最多的字体，正文缺字与 CSS/配置/生成文本里保守加入的字分开计数。成品超过 50 MB 时提示 Send to Kindle 可能拒收。

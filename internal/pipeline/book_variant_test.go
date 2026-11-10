@@ -307,3 +307,71 @@ func TestBookPreviewLegacyAndMultiVolume(t *testing.T) {
 		}
 	}
 }
+
+func addWebP(t *testing.T, dir string) {
+	t.Helper()
+	opfPath := filepath.Join(dir, "epub/OEBPS/package.opf")
+	opf := mustRead(t, opfPath)
+	anchor := `    <item id="css-base"`
+	if !strings.Contains(opf, anchor) {
+		t.Fatal("starter OPF anchor missing")
+	}
+	mustWrite(t, opfPath, strings.Replace(opf, anchor, `    <item id="webp-art" href="Images/art.webp" media-type="image/webp"/>`+"\n"+anchor, 1))
+	mustWrite(t, filepath.Join(dir, "epub/OEBPS/Images/art.webp"), "RIFF0000WEBPVP8 ")
+}
+
+func TestBuildKindleCheckBlocksOnlyKindleVariant(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("clean build = %d: %s", code, h.err)
+	}
+	if !strings.Contains(h.out.String(), "PASS kindle check (error: 0, warn: 0, info: 0;") {
+		t.Errorf("clean book should print a passing kindle summary: %s", h.out)
+	}
+	generic := filepath.Join(dir, "out", "book.epub")
+	before := sha(t, generic)
+
+	addWebP(t, dir)
+	mustWrite(t, filepath.Join(dir, "variants/kindle/OEBPS/Styles/reader.css"), "p { text-indent: 2em; }\n")
+	setVariants(t, dir, map[string]variantConfig{"kindle": {Overlay: "variants/kindle", Output: "book-kindle.epub"}})
+	if code := h.run(dir, "build"); code == 0 {
+		t.Fatal("WebP in the kindle variant must fail the build")
+	}
+	if !strings.Contains(h.err.String(), "FAIL kindle check [kindle]") || !strings.Contains(h.err.String(), "WebP") {
+		t.Errorf("missing kindle variant failure: %s", h.err)
+	}
+	if sha(t, generic) != before {
+		t.Error("out/book.epub changed although the kindle variant failed")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "out", "book-kindle.epub")); err == nil {
+		t.Error("failed kindle variant was written")
+	}
+
+	setVariants(t, dir, nil)
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("generic build with WebP = %d: %s %s", code, h.out, h.err)
+	}
+	if !strings.Contains(h.out.String(), "WARN kindle check (error: 1, warn: 0, info: 0; blocks only the kindle variant;") {
+		t.Errorf("generic build should only print the kindle summary: %s", h.out)
+	}
+	if strings.Contains(h.out.String(), "WebP image is outside") {
+		t.Errorf("terminal should get one summary line, details go to report.html: %s", h.out)
+	}
+	if !strings.Contains(mustRead(t, filepath.Join(dir, ".epub", "report.html")), "WebP image is outside") {
+		t.Error("report.html lacks the kindle finding")
+	}
+}
+
+func TestBuildKindleCheckAmznMediaQueryWarns(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	design := filepath.Join(dir, "epub/OEBPS/Styles/design.css")
+	mustWrite(t, design, mustRead(t, design)+"@media amzn-kf8 { p { text-indent: 2em; } }\n")
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("build = %d: %s %s", code, h.out, h.err)
+	}
+	if !strings.Contains(h.out.String(), "WARN kindle check (error: 0, warn: 1, info: 0;") {
+		t.Errorf("want one kindle warn in the summary: %s", h.out)
+	}
+}

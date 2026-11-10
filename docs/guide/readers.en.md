@@ -35,8 +35,9 @@ Check both. iPad is not tested separately.
 - Send the EPUB with **Send to Kindle** (app, web or email). Amazon converts it in the cloud, and **the book that arrives on your device is the one that counts**.
 - Kindle Previewer is only a local approximation; its result can differ from Amazon's conversion.
 - Send to Kindle has a file-size limit. See Amazon's current documentation for the number.
+- Every build runs a static Kindle check on each output. The terminal shows one line with the error, warn and info counts; details are in `.epub/report.html`. It only reports and does not block, except that an error (a WebP image, for example) fails the build of a reader version named `kindle`, and `out/` stays unchanged. `readers` in `book.json` is only a note and does not affect the check.
 - Use JPEG or PNG for images. WebP does not work on Kindle and SVG is unreliable; see [SPEC §5.1](../final/SPEC-实现约束.md#51-图片格式兼容) (Chinese).
-- When only styles differ, prefer `@media amzn-kf8` in the generic version; other readers skip it. The Kindle compatibility check reports a warning for it, which is expected. When content must differ too, use a reader version (below). Do not use this query for parallel text; see [SPEC §5.6.1](../final/SPEC-实现约束.md#561-文白对照左右兼容) (Chinese).
+- When only styles differ, prefer `@media amzn-kf8` in the generic version; other readers skip it. The Kindle check that runs on every build reports a warning for it, which is expected. When content must differ too, use a reader version (below). Do not use this query for parallel text; see [SPEC §5.6.1](../final/SPEC-实现约束.md#561-文白对照左右兼容) (Chinese).
 
 ## Reeden
 

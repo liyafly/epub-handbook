@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/liyafly/epub-handbook/internal/report"
 	"github.com/liyafly/epub-handbook/internal/zipfs"
 )
 
@@ -279,7 +280,7 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "redline", "previous-dist-redline", "report"}
+var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "kindle-check", "redline", "previous-dist-redline", "report"}
 
 // isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
 func isReportFile(name string) bool {
@@ -489,6 +490,9 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 		if err := r.redlineCheck(layout, filepath.Join(layout.StateDir, "redline-vs-generic"+sfx+".txt"), "redline text vs generic"+tag, "text", genericFull, c.final, true); err != nil {
 			return err
 		}
+	}
+	if err := r.kindleCheck(layout, filepath.Join(layout.StateDir, "kindle-check"+sfx+".json"), tag, c.final, c.out.Name == kindleVariantName); err != nil {
+		return err
 	}
 	output := filepath.Join(layout.DistDir, c.out.File)
 	if isFile(output) {
@@ -879,6 +883,79 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 	}
 	printIndented(r.bio.out(), lines)
 	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
+	return nil
+}
+
+// kindleVariantName 是唯一一个让 Kindle 检查的 error 阻断构建的变体名。
+const kindleVariantName = "kindle"
+
+// kindleCheck 对一个产物跑 epub.kindle.compatibility.check：终端只打一行各级别数量，
+// 明细进 report.html。blocking 为 true（名为 kindle 的变体）时 error 级 finding 使构建失败；
+// 其他产物只提示。book.json 的 readers 仍只是备注，不影响这里。
+func (r *bookRunner) kindleCheck(layout bookLayout, reportPath, tag, epubPath string, blocking bool) error {
+	label := "kindle check" + tag
+	outcome, runErr := Run(r.ctx, Options{CapabilityID: "epub.kindle.compatibility.check", InputPath: epubPath})
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	display := layout.displayPath(reportPath)
+	if runErr != nil {
+		lines := []string{"check did not run: " + runErr.Error()}
+		status := "WARN"
+		if blocking {
+			status = "FAIL"
+		}
+		fmt.Fprintf(r.bio.out(), "%s %s (report: %s)\n", status, label, display)
+		printIndented(r.bio.out(), lines)
+		r.addStep(bookStep{Status: status, Label: label, Report: display, Lines: lines})
+		if blocking {
+			return errBookStepFailed
+		}
+		return nil
+	}
+	data, err := MarshalEnvelope(outcome.Envelope)
+	if err != nil {
+		return err
+	}
+	if err := zipfs.WriteFileAtomic(reportPath, data, 0o644); err != nil {
+		return err
+	}
+	var own []report.Finding
+	counts := map[string]int{}
+	for _, f := range outcome.Envelope.Findings {
+		if strings.HasPrefix(f.ID, "upstream.") {
+			continue // nav.audit 的转述，已由导航审计一步报告。
+		}
+		own = append(own, f)
+		counts[f.Level]++
+	}
+	var lines []string
+	for _, level := range []string{"error", "warn", "info"} {
+		lines = append(lines, findingLines(own, level, maxFindingLines)...)
+	}
+	summary := fmt.Sprintf("error: %d, warn: %d, info: %d", counts["error"], counts["warn"], counts["info"])
+	status := "PASS"
+	switch {
+	case blocking && counts["error"] > 0:
+		status = "FAIL"
+	case counts["error"] > 0 || counts["warn"] > 0:
+		status = "WARN"
+		if !blocking && counts["error"] > 0 {
+			summary += "; blocks only the kindle variant"
+		}
+	}
+	out := r.bio.out()
+	if status == "FAIL" {
+		out = r.bio.err()
+	}
+	fmt.Fprintf(out, "%s %s (%s; report: %s)\n", status, label, summary, display)
+	if status == "FAIL" {
+		printIndented(out, findingLines(own, "error", maxFindingLines))
+	}
+	r.addStep(bookStep{Status: status, Label: label, Report: display, Lines: lines})
+	if status == "FAIL" {
+		return errBookStepFailed
+	}
 	return nil
 }
 

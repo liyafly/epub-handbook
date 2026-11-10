@@ -73,6 +73,7 @@ The build runs these checks in order and stops at the first failure. Each check 
 | Role fonts | Lists characters that text with an assigned font (letters, headings, a locked body and so on) uses but that font lacks. It only warns, because the fallback may look fine, so check them in several real readers |
 | Navigation audit | Package, table of contents and note links work, and font size is not locked |
 | Red line | Text, metadata, reading order, anchors, cover and encryption state are unchanged by packing |
+| Kindle check | One line with the error, warn and info counts of the static Kindle check; details in `report.html`. It only reports, except that an error stops a version named `kindle` |
 | Text match | Every reader version has exactly the same text as the generic version |
 | Receipt | Records the SHA of every file in `out/`, so a file you edited by hand is never silently overwritten |
 

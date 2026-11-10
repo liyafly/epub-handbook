@@ -35,8 +35,9 @@
 - 用 **Send to Kindle**（App、网页或邮件）发送 EPUB。亚马逊在云端把它转换成 Kindle 格式，**以设备上实际收到的书为准**。
 - Kindle Previewer 只是本地的近似预检，结果和云端转换不一定一样。
 - Send to Kindle 有文件大小上限，请查看亚马逊当前的说明。
+- 每次构建都对每个成品跑 Kindle 静态检查，终端一行列出 error、warn、info 的数量，明细在 `.epub/report.html`。它只提示，不阻断；只有名为 `kindle` 的阅读器版本遇到 error（比如 WebP 图片）时构建才失败，`out/` 不变。`book.json` 里的 `readers` 只是备注，不影响检查。
 - 图片用 JPEG 或 PNG。WebP 不能用于 Kindle，SVG 也不可靠，见 [SPEC §5.1](../final/SPEC-实现约束.md#51-图片格式兼容)。
-- 只有样式不同时，优先在通用版里写 `@media amzn-kf8`，其他阅读器会跳过它。构建前的 Kindle 兼容检查会对它报一条警告，这是预期结果。内容也要不同时，用下面的阅读器版本。文白对照不要用这个查询，见 [SPEC §5.6.1](../final/SPEC-实现约束.md#561-文白对照左右兼容)。
+- 只有样式不同时，优先在通用版里写 `@media amzn-kf8`，其他阅读器会跳过它。每次构建的 Kindle 检查会对它报一条警告，这是预期结果。内容也要不同时，用下面的阅读器版本。文白对照不要用这个查询，见 [SPEC §5.6.1](../final/SPEC-实现约束.md#561-文白对照左右兼容)。
 
 ## Reeden
 
