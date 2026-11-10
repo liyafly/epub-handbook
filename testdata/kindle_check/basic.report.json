@@ -17,11 +17,15 @@
       "kindle.css-amzn-media-query",
       "kindle.css-img-direct-float",
       "kindle.css-unicode-range",
+      "kindle.css-float-clear-stack",
+      "kindle.css-emphasis-underline",
       "kindle.css-parse-failed"
     ],
     "epub.kindle.compatibility.check.counts": {
       "kindle.cover-not-raster": 0,
       "kindle.css-amzn-media-query": 0,
+      "kindle.css-emphasis-underline": 0,
+      "kindle.css-float-clear-stack": 0,
       "kindle.css-img-direct-float": 0,
       "kindle.css-parse-failed": 0,
       "kindle.css-styled-underline": 0,

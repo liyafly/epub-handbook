@@ -129,6 +129,8 @@ func checkIDs() []string {
 		"kindle.css-amzn-media-query",
 		"kindle.css-img-direct-float",
 		"kindle.css-unicode-range",
+		"kindle.css-float-clear-stack",
+		"kindle.css-emphasis-underline",
 		"kindle.css-parse-failed",
 	}
 }
@@ -227,6 +229,8 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 		styledUnderline := false
 		styleSeen, underlineBeforeStyle := false, false
 		floatSide := ""
+		clearSide := ""
+		emphasis, underline := false, false
 		for _, decl := range rule.Declarations {
 			name := decl.Property()
 			value := decl.PropertyValue()
@@ -256,6 +260,16 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 				if word == "left" || word == "right" {
 					floatSide = word
 				}
+			case "clear":
+				word := firstWord(value)
+				if word == "left" || word == "right" || word == "both" {
+					clearSide = word
+				}
+			case "text-emphasis", "text-emphasis-style", "-webkit-text-emphasis", "-webkit-text-emphasis-style", "-epub-text-emphasis", "-epub-text-emphasis-style":
+				emphasis = emphasis || !strings.EqualFold(firstWord(value), "none")
+			}
+			if name == "text-decoration" || name == "text-decoration-line" {
+				underline = slices.Contains(strings.Fields(value), "underline")
 			}
 		}
 		if rotate {
@@ -265,6 +279,14 @@ func (i *inspector) checkCSSRules(path string, data []byte, rules []cssscan.Rule
 		if styledUnderline {
 			i.add("warn", "kindle.css-styled-underline", "Styled underline may not degrade to a basic underline",
 				fmt.Sprintf("selector %q should declare a basic underline before text-decoration-style", strings.TrimSpace(rule.Selector)), path, rule.Span.Start)
+		}
+		if floatSide != "" && clearSide != "" {
+			i.add("info", "kindle.css-float-clear-stack", "Float with clear may not stack under the previous float on Kindle",
+				fmt.Sprintf("selector %q sets float:%s with clear:%s; in Kindle Previewer 4.0.4 the cleared float aligned with the next block instead (reader-matrix slice-float-seam; user observation, no screenshot)", strings.TrimSpace(rule.Selector), floatSide, clearSide), path, rule.Span.Start)
+		}
+		if emphasis && underline {
+			i.add("warn", "kindle.css-emphasis-underline", "Kindle shows both emphasis marks and the underline fallback",
+				fmt.Sprintf("selector %q declares text-emphasis and an underline; Kindle Previewer showed both, and an @supports rule removing the underline did not apply (reader-matrix recipe-text-emphasis, screenshot and log)", strings.TrimSpace(rule.Selector)), path, rule.Span.Start)
 		}
 		if floatSide != "" && hasDirectImgSelector(rule.Selector) {
 			i.add("warn", "kindle.css-img-direct-float", "An img selector carries float directly",

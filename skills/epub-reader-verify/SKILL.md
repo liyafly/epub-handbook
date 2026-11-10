@@ -37,6 +37,7 @@ epub run epub.style.demo.maintain --input "demo.epub" --json
 - `kindle.ncx-missing`：补齐 NCX manifest item 或 spine `toc`；`kindle.cover-not-raster`：封面走 JPEG/PNG 主路径。cover-image 与 legacy `name=cover` 由 nav.audit 报告。
 - `kindle.image-webp` 是 error，改 JPEG/PNG；`kindle.image-gif` 逐资源复核帧数；`kindle.image-svg` 检查 raster fallback。
 - `kindle.css-transform-rotate`：移除通用 EPUB 便签旋转；`kindle.css-styled-underline`：先声明基础 underline 再声明增强样式；`kindle.css-amzn-media-query`：移除 Kindle 专用媒体查询；`kindle.css-img-direct-float`：float 放在 wrapping figure；`kindle.css-unicode-range`：核对字体分配在目标格式的实测。
+- `kindle.css-float-clear-stack`（info，依据 reader-matrix `slice-float-seam`，用户观察无截图）：同一规则既浮动又 clear 时，Kindle 不把它叠到上一个浮动下面；需要无缝拼接改用整图或 page-image 配方。`kindle.css-emphasis-underline`（warn，依据 `recipe-text-emphasis` 截图与日志）：Kindle 同时显示着重号和下划线，`@supports` 取消下划线不生效；可读，按书决定是否接受。
 - `kindle.css-parse-failed`：修复样式表后重跑。转换日志里的 warning 映射到具体资源再判断，不默认无害；没有实测不虚构 pass/fail，设备不可用时列待验项。
 - 改动交最窄专项 skill，保留 EPUB3 语义和正文；新兼容规则走 demo → 实测 → matrix → SPEC，不把私有 CSS 当关键内容唯一路径。
 

@@ -139,6 +139,12 @@ func TestFindingRulesAndLevels(t *testing.T) {
 		{name: "font unicode range", id: "kindle.css-unicode-range", level: "info", edit: func(files map[string]string) {
 			files["OEBPS/styles.css"] = `@font-face { font-family: Demo; src: url(demo.woff2); unicode-range: U+0000-00FF; }`
 		}},
+		{name: "float with clear", id: "kindle.css-float-clear-stack", level: "info", edit: func(files map[string]string) {
+			files["OEBPS/styles.css"] = `.column { float: left; clear: left; }`
+		}},
+		{name: "emphasis with underline", id: "kindle.css-emphasis-underline", level: "warn", edit: func(files map[string]string) {
+			files["OEBPS/styles.css"] = `em.e { text-decoration: underline; -webkit-text-emphasis: filled dot; text-emphasis: filled dot; }`
+		}},
 		{name: "css parse failure", id: "kindle.css-parse-failed", level: "warn", edit: func(files map[string]string) {
 			files["OEBPS/styles.css"] = `.broken { color: red;`
 			files["OEBPS/content.opf"] = strings.Replace(files["OEBPS/content.opf"], `</manifest>`, `<item id="extra-style" href="extra.css" media-type="text/css"/></manifest>`, 1)
@@ -418,4 +424,23 @@ func findFinding(findings []report.Finding, id string) (report.Finding, bool) {
 func hasFinding(findings []report.Finding, id string) bool {
 	_, ok := findFinding(findings, id)
 	return ok
+}
+
+func TestNewKindleRulesNegative(t *testing.T) {
+	for name, css := range map[string]string{
+		"float without clear":        `.a { float: left; } .b { clear: both; }`,
+		"clear none":                 `.a { float: left; clear: none; }`,
+		"emphasis without underline": `em { text-emphasis: filled dot; text-decoration: none; }`,
+		"underline without emphasis": `u { text-decoration: underline; }`,
+		"emphasis none":              `em { text-decoration: underline; text-emphasis: none; }`,
+	} {
+		files := baseFiles()
+		files["OEBPS/styles.css"] = css
+		result := runCheck(t, files)
+		for _, id := range []string{"kindle.css-float-clear-stack", "kindle.css-emphasis-underline"} {
+			if hasFinding(result.Findings, id) {
+				t.Errorf("%s: unexpected %s: %+v", name, id, result.Findings)
+			}
+		}
+	}
 }
