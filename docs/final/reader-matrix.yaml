@@ -74,6 +74,9 @@ cases:
   - id: 16-math
     title: 数学公式与 MathML
     fixture: templates/epub-style-demo/OEBPS/Text/16-math.xhtml
+  - id: fxl-demo
+    title: 整本固定版式 demo：封面、跨页对开、图上压字、纯文字页
+    fixture: templates/fxl-demo/OEBPS/package.opf
   - id: external-production-fxl
     title: 外部生产书：整本固定版式（底图 + 绝对定位真文字层）
     fixture: external-production-artifact
@@ -1156,6 +1159,9 @@ untested_cases:
   - case: recipe-vertical-title-art
     fixture: templates/recipes/vertical-title-art/sample.xhtml
     note: "合成样本仅 Chrome 预检（600px 宽竖题与右图并排、正文整行）；Apple Books / Kindle Previewer / Reeden 普通、大字号与窄屏待测。"
+  - case: fxl-demo
+    fixture: templates/fxl-demo/OEBPS/package.opf
+    note: "lane fxl_epub。只做过 WebKit 渲染预检（epub-art page --engine webkit）。Apple Books、Kindle、Reeden 都待测：对开是否成对、封面是否单页居中、横竖屏切换、文字能否选中和搜索。Kindle 送达方式另记。"
   - case: external-production-fxl
     fixture: external-production-artifact
     note: "lane fxl_epub。所有者确认这本固定版式书在 Reeden、Apple Books、Kindle 上都能显示，但阅读器版本、平台（iOS / macOS）、Kindle 送达方式和截图都没有记录，所以不写 expectations。补齐 A5 后按阅读器各写一条，没有截图记 warn。产物 anonymous-production-fxl.epub，身份与 SHA 留在本地书级记录。"

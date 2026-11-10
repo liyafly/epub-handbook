@@ -218,6 +218,13 @@ jobs:
             java -jar "$EPUBCHECK_JAR" "$candidate" --mode epub --profile default
           done
 
+      - name: Build and validate fixed-layout demo
+        shell: bash
+        run: |
+          sh templates/fxl-demo/build.sh
+          "$RUNNER_TEMP/epub" run epub.package.nav.audit --input templates/fxl-demo/dist/fxl-demo.epub --json
+          java -jar "$EPUBCHECK_JAR" templates/fxl-demo/dist/fxl-demo.epub --mode epub --profile default
+
       - name: Build & EPUBCheck cleanup demo books
         run: |
           bash templates/cleanup-demo-books/build.sh

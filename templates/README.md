@@ -10,8 +10,9 @@
 | `cleanup-demo-books` | 自造 before / after 清洗样本，用于红线 gate 和 diff review | `bash templates/cleanup-demo-books/build.sh` |
 | `book-starter` | `epub book new` 内置的起始书；旧布局书的 `build.sh` 转发入口 | `epub book new work-epub/<book>` |
 | `style-presets` | 六个书型起点样例 | 不单独打包 |
-| `recipes` | 五个组合效果的 CSS、最小 XHTML 与证据边界 | `python3 templates/recipes/build.py` |
+| `recipes` | 组合效果配方的 CSS、最小 XHTML 与证据边界 | `python3 templates/recipes/build.py` |
 | `shape-wrap-demo` | 独立轮廓环绕合成场景及历史阅读器证据 | `sh templates/shape-wrap-demo/build.sh` |
+| `fxl-demo` | 整本固定版式：封面、跨页对开、图上压字、纯文字页（SPEC §5.13） | `sh templates/fxl-demo/build.sh` |
 
 ## 使用原则
 

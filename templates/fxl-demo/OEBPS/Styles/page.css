@@ -1,0 +1,16 @@
+@charset "utf-8";
+/* Fixed layout (SPEC §5.13): every page is 768 x 1024 CSS px; px positions and
+ * sizes are intentional here. Text stays real text on top of the art. */
+html, body { margin: 0; padding: 0; }
+.page { position: relative; width: 768px; height: 1024px; overflow: hidden; }
+.art { position: absolute; top: 0; left: 0; width: 768px; height: 1024px; }
+.t { position: absolute; margin: 0; font-family: Georgia, serif; line-height: 1.4; }
+.cover-title { left: 64px; top: 330px; width: 640px; font-size: 64px; line-height: 1.2; color: #ffffff; text-align: center; }
+.cover-sub { left: 64px; top: 540px; width: 640px; font-size: 28px; color: #e8eef5; text-align: center; }
+.overlay { left: 72px; top: 96px; width: 600px; font-size: 26px; color: #2a2a2a; }
+.spread-caption { top: 880px; width: 620px; font-size: 24px; color: #fdf8ea; }
+.spread-left .spread-caption { left: 96px; }
+.spread-right .spread-caption { left: 52px; text-align: right; }
+.prose { left: 96px; top: 120px; width: 576px; font-size: 22px; color: #222222; }
+.prose p { margin: 0 0 18px; text-indent: 0; }
+.folio { left: 0; top: 960px; width: 768px; font-size: 18px; color: #555555; text-align: center; }
