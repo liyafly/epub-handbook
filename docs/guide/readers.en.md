@@ -53,6 +53,10 @@ The generic version just has to read well. Readest recognises books by their con
 
 Not a main target. Reset its layout settings before checking: custom spacing or first-line indent can break flush-left lines and line spacing, which is easy to mistake for a style bug. No CSS can target Duokan alone, so any Duokan-only change needs its own version, such as the rule-free [letter](../../templates/recipes/letter-paper/recipe.md) package.
 
+## Fixed layout
+
+In a book that is fixed layout throughout, every page has a fixed size; the reader scales whole pages, and readers cannot change the font size or line spacing. Reeden, Apple Books and Kindle can open such books, but reader versions, spread behavior and the Kindle delivery route have not been tested and recorded yet; see [SPEC §5.13](../final/SPEC-实现约束.md#513-固定版式整本-pre-paginated) (Chinese). The text layer is exactly what readers see, so proofread it page by page before delivery.
+
 ## One source, several reader versions
 
 Start with one generic `book.epub`, and write every special style as "fallback first, enhancement second". For most books that is enough.

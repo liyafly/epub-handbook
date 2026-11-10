@@ -52,7 +52,7 @@ AI 工具（Claude Code、Codex 等）和维护者先读 [AGENTS.md](AGENTS.md)�
 
 ## 范围
 
-只做可重排的 EPUB 3。不生成 MOBI、AZW3 等 Kindle 专有格式，不做阅读器，也不模拟阅读器渲染：显示效果以真实阅读器为准。
+可重排的 EPUB 3 为主，也支持整本固定版式（见 [SPEC §5.13](docs/final/SPEC-实现约束.md#513-固定版式整本-pre-paginated)）。不做脚本交互和朗读同步（Media Overlays），不生成 MOBI、AZW3 等 Kindle 专有格式，不做阅读器，也不模拟阅读器渲染：显示效果以真实阅读器为准。
 
 ## 许可
 

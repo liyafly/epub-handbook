@@ -30,6 +30,8 @@
 
 ### Changed
 
+- 范围改为“可重排为主，支持整本固定版式”：SPEC 新增 §5.13 固定版式，§0 写明整本 `pre-paginated` 的书豁免安全底座第 1、4 项；A-lite 只用于可重排书。README、术语表、阅读器指南与终极实践手册同步；`reader-matrix.yaml` 加 `fxl_epub` lane 和待测的 `external-production-fxl`。
+
 - `epub book import` 遇到非 OEBPS 布局不再停止，自动原样保留并按原布局构建；`--legacy-layout` 仍接受，已无作用。
 - 构建终端每项检查一行：字体缺字合成一行（只报缺字最多的字体，正文与 CSS/配置/生成文本分开计数）；失败列出 error finding 及位置，不再打印整份 JSON；与上一版成品的比对只打一行。
 - `templates/book-starter/build.sh` 只转发给 `epub book`，旧书的书根 `build.sh` 照常可用，构建逻辑只剩 Go 一份。CI 与字体 smoke 改用 `epub book new` 建书。

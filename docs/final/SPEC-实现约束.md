@@ -22,6 +22,8 @@
 4. 图片宽度用百分比（§5.6、§5.11），不以 `em` / 固定像素决定版面。
 5. 导航与注释可用（§1、`epub.package.nav.audit`）。
 
+整本 `pre-paginated` 的书（§5.13）豁免第 1 项（可调字号）和第 4 项（图片宽度用百分比），其余三项照常。
+
 验收三态：每个目标阅读器对每个增强只判**增强生效 / 退回可读 / 坏掉**。增强可以失败，但必须失败成可读；只有「坏掉」阻断交付。`reader-matrix.yaml` 新条目可选加 `outcome: enhanced | degraded | broken`，与既有 `status`（`pass | warn | fail | na`）并存；旧条目不迁移，守卫不变。
 
 规则依据：每条硬规则应能说出依据——实测（`reader-matrix` / fixture）、用户决策或推导。推导得来的规则是待验证假设，允许说明理由后不照做。书级调参数值（环绕宽度、文白比例、头图宽度等）是配方默认起点，来源见各 `recipe.md`，不是硬规则。
@@ -49,7 +51,7 @@
 
 ## 2) A-lite 页面约束
 
-- 仅允许 reflowable EPUB；v1 不支持 FXL。
+- A-lite 页面只用于可重排书；固定版式见 §5.13。
 - A-lite 页面 CSS 禁用 `position: absolute`。
 - A-lite 页面 CSS 禁用 `vh` / `vw` 单位。
 - 海报页 `<body>` 必须带 `class="fullpage"`；需要海报背景时必须使用 `class="fullpage poster-bg"`。外层必须是 `<section class="fullframe" epub:type="chapter">`。
@@ -226,6 +228,19 @@
 - `.tcy` 依次写 `-webkit-text-combine: horizontal`、`-epub-text-combine: horizontal`、`text-combine-upright: all`，标准写法放最后。
 - 回退：不认这些属性时数字侧躺，仍按原序可读。横排页面里 `.tcy` 不起作用，不另写横排规则。
 - 写法与样例见 [tate-chu-yoko 配方](../../templates/recipes/tate-chu-yoko/recipe.md)。
+
+## 5.13) 固定版式（整本 pre-paginated）
+
+> 依据：一本外部生产书的结构（只读摘要，书级材料留在本地）和所有者“在 Reeden、Apple Books、Kindle 上都能显示”的口头确认；阅读器版本、平台、Kindle 送达方式和截图都没有记录。下面凡涉及阅读器行为的条文都是待验证。
+
+- 范围：只支持整本固定版式，OPF 写全局 `<meta property="rendition:layout">pre-paginated</meta>`。可重排书里夹几页固定版式的混排不做；把固定版式改成可重排也不做（§10.6）。
+- 每页一个 XHTML，`head` 里写 `<meta name="viewport" content="width=W, height=H"/>`，W、H 是 CSS 像素整数。全书各页宽高比应一致。
+- 对开：OPF 写 `rendition:spread`（`none`、`landscape`、`both` 或 `auto`），spine 项用 `page-spread-left` / `page-spread-right` 指定左右页。`page-spread-*` 只用在固定版式项上。
+- 文字尽量保留为真文字：图片只做底图或插图，文字放在绝对定位的元素里、用授权嵌入字体。页面内用 `px` 定位和定字号是正常写法（§0 豁免第 1、4 项）。
+- 文字层就是读者看到的文字。底图是空白纸时，文字层漏掉的标点或字在屏幕上同样缺失；交付前要校对文字层，改字按 §10.1.1 走授权。
+- 嵌入子集字体的 cmap 可能把没保留的码位映射到空字形（宽度 0）。查字体覆盖要看字形是否有轮廓，不能只看 cmap。
+- Kindle：送达方式（Send to Kindle、USB、Kindle Previewer）和已知限制待验证；CFF 轮廓的 OTF 是否在固定版式里触发警告也待验证。
+- 阅读器结论记在 `reader-matrix.yaml` 的 `fxl_epub` lane 与 `external-production-fxl`，没有截图或日志只能是 `warn`。
 
 ## 6) Fixture 命名索引（M5 对齐）
 

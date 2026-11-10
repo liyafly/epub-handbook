@@ -52,7 +52,7 @@ AI tools (Claude Code, Codex and others) and maintainers start with [AGENTS.md](
 
 ## Scope
 
-Reflowable EPUB 3 only. The tool does not produce MOBI, AZW3 or other Kindle formats, is not a reader, and does not simulate one: real readers have the final word on how a book looks.
+Mainly reflowable EPUB 3; whole-book fixed layout is also supported (see [SPEC §5.13](docs/final/SPEC-实现约束.md#513-固定版式整本-pre-paginated), Chinese). No scripted interactivity or read-aloud sync (Media Overlays). The tool does not produce MOBI, AZW3 or other Kindle formats, is not a reader, and does not simulate one: real readers have the final word on how a book looks.
 
 ## Licence
 

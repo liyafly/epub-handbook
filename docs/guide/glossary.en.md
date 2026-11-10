@@ -4,7 +4,7 @@
 
 ## EPUB itself
 
-- **EPUB**: an e-book format. Underneath it is a zip file holding HTML (XHTML), CSS, images and a table of contents. Readers lay the text out again for each screen and font size, which is called **reflowable**. This tool works only on reflowable books, not fixed-layout ones.
+- **EPUB**: an e-book format. Underneath it is a zip file holding HTML (XHTML), CSS, images and a table of contents. Readers lay the text out again for each screen and font size, which is called **reflowable**. Books whose pages have a fixed size are **fixed layout** (pre-paginated). This tool works mainly on reflowable books and also supports books that are fixed layout throughout; mixing both in one book is not supported.
 - **EPUB 2 / EPUB 3**: the two versions. The OPF says which: `<package version="2.0">` or `"3.0"`. This tool targets EPUB 3.
 - **XHTML**: the files that hold the text; a stricter form of HTML.
 - <a id="opf"></a>**OPF**: the book's package file (often `package.opf`). It lists the title and author, every file in the book, and the reading order.
