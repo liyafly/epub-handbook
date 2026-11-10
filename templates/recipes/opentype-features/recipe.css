@@ -1,0 +1,16 @@
+/* recipe: opentype-features —— 嵌入字体的旧式数字、小型大写、连字。
+ * 只对带这些特性的嵌入字体有效；子集化保留全部 OpenType 特性。
+ * 回退：字体没有该特性或阅读器不认时，显示普通字形。
+ * font-feature-settings 不会叠加：一个元素同时用两个类时，后写的会盖掉前面的。 */
+.ot-oldstyle {
+  font-variant-numeric: oldstyle-nums;
+  font-feature-settings: "onum" 1;
+}
+.ot-smallcaps {
+  font-variant-caps: small-caps;
+  font-feature-settings: "smcp" 1;
+}
+.ot-ligatures {
+  font-variant-ligatures: common-ligatures discretionary-ligatures;
+  font-feature-settings: "liga" 1, "dlig" 1;
+}

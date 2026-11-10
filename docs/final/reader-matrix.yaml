@@ -184,6 +184,18 @@ cases:
   - id: recipe-letter-paper
     title: 无边框满幅横线书信配方候选
     fixture: templates/recipes/letter-paper/sample.xhtml
+  - id: recipe-tate-chu-yoko
+    title: 竖排纵中横与数字侧躺回退配方候选
+    fixture: templates/recipes/tate-chu-yoko/sample.xhtml
+  - id: recipe-opentype-features
+    title: 嵌入字体 OpenType 特性与普通字形回退配方候选
+    fixture: templates/recipes/opentype-features/sample.xhtml
+  - id: recipe-cjk-punctuation
+    title: 中文标点挤压与中西文间距配方候选
+    fixture: templates/recipes/cjk-punctuation/sample.xhtml
+  - id: recipe-english-hyphenation
+    title: 英文断词与孤行控制配方候选
+    fixture: templates/recipes/english-hyphenation/sample.xhtml
   - id: probe-font-role
     title: 固定角色字体、正文字体模式、缺字回退与英文字体链探针
     fixture: templates/font-role-probe/build.py
@@ -1139,6 +1151,18 @@ untested_cases:
   - case: recipe-vertical-title-art
     fixture: templates/recipes/vertical-title-art/sample.xhtml
     note: "合成样本仅 Chrome 预检（600px 宽竖题与右图并排、正文整行）；Apple Books / Kindle Previewer / Reeden 普通、大字号与窄屏待测。"
+  - case: recipe-tate-chu-yoko
+    fixture: templates/recipes/tate-chu-yoko/sample.xhtml
+    note: "合成样本未在任何阅读器打开；规则是推导（SPEC §5.12）。Apple Books / Kindle / Reeden 的纵中横与侧躺回退待测。"
+  - case: recipe-opentype-features
+    fixture: templates/recipes/opentype-features/sample.xhtml
+    note: "公共合成包不带字体，只能看到普通字形；特性效果需书级用授权字体实测（SPEC §8 OpenType 特性，推导）。"
+  - case: recipe-cjk-punctuation
+    fixture: templates/recipes/cjk-punctuation/sample.xhtml
+    note: "text-spacing-trim、text-autospace、hanging-punctuation 三项在三个主目标上的支持都待测；不认时应完全不变。"
+  - case: recipe-english-hyphenation
+    fixture: templates/recipes/english-hyphenation/sample.xhtml
+    note: "hyphens、orphans、widows 在三个主目标上待测；配方不设 justify。"
   - case: recipe-image-preview
     fixture: templates/recipes/image-preview/sample.xhtml
     note: "合成样本仅 Chrome 预检；多看生产样本有一条 fail 观察（见 expectations，图片不显示），配方原样在多看未测；Reeden 点图预览与题注关联待测，Apple Books / Kindle Previewer 普通整宽图回退待测；可选 spine 整屏图页另测。"

@@ -11,7 +11,7 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parent
-RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "page-image", "vertical-title-art", "image-preview", "letter-paper")
+RECIPES = ("shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "page-image", "vertical-title-art", "image-preview", "letter-paper", "tate-chu-yoko", "opentype-features", "cjk-punctuation", "english-hyphenation")
 
 
 OVERLAYS = {"kindle": "reader.css", "duokan": "reader-duokan.css"}

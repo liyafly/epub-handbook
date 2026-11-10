@@ -11,7 +11,7 @@ func TestBookRecipesListShowAndAdd(t *testing.T) {
 	if code := BookRecipes(BookRecipesOptions{}, h.io()); code != 0 {
 		t.Fatalf("list = %d: %s", code, h.err)
 	}
-	for _, want := range []string{"shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "vertical-title-art", "image-preview"} {
+	for _, want := range []string{"shape-wrap", "drop-cap", "text-emphasis", "theme-adaptive-art", "parallel-pair", "vertical-title-art", "image-preview", "tate-chu-yoko", "opentype-features", "cjk-punctuation", "english-hyphenation"} {
 		if !strings.Contains(h.out.String(), want) {
 			t.Errorf("list should include %s: %s", want, h.out)
 		}

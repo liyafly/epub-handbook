@@ -1,0 +1,11 @@
+/* recipe: cjk-punctuation —— 中文标点挤压、行首尾标点、中西文间距。
+ * 挂在可选类 .cjk-punct 上，不写到全局 p。不认的阅读器完全不变。 */
+@supports (text-spacing-trim: trim-start) {
+  .cjk-punct { text-spacing-trim: trim-start; }
+}
+@supports (text-autospace: normal) {
+  .cjk-punct { text-autospace: normal; }
+}
+@supports (hanging-punctuation: allow-end) {
+  .cjk-punct { hanging-punctuation: allow-end; }
+}

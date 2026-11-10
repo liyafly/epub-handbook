@@ -209,7 +209,7 @@ jobs:
         shell: bash
         run: |
           python3 templates/recipes/build.py
-          for recipe in shape-wrap drop-cap text-emphasis theme-adaptive-art parallel-pair; do
+          for recipe in shape-wrap drop-cap text-emphasis theme-adaptive-art parallel-pair tate-chu-yoko opentype-features cjk-punctuation english-hyphenation; do
             candidate="templates/recipes/dist/$recipe.epub"
             baseline="templates/recipes/dist/$recipe-baseline.epub"
             "$RUNNER_TEMP/epub" run epub.package.nav.audit --input "$candidate" --json

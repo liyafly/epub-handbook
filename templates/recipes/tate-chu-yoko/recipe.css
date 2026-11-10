@@ -1,0 +1,13 @@
+/* recipe: tate-chu-yoko —— 竖排里两三位数字横排成一格（纵中横）。
+ * 回退：不认 text-combine-upright 时数字侧躺，仍可读。
+ * .tcy-vertical 只是样例用的竖排容器；书里已有竖排容器时只复制 .tcy。 */
+.tcy-vertical {
+  writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+}
+.tcy {
+  -webkit-text-combine: horizontal;
+  -epub-text-combine: horizontal;
+  text-combine-upright: all;
+}

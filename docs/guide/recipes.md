@@ -31,6 +31,10 @@ epub book recipes drop-cap --add 我的书  # 追加到书的 design.css 末尾
 | [原译对照](../../templates/recipes/parallel-pair/recipe.md) | 阅读区灰色，无法判断 | 按原文、译文上下排 | 待测 | 宽屏双栏 → 上下排 |
 | [竖题章首](../../templates/recipes/vertical-title-art/recipe.md) | 待测 | 待测 | 待测 | 竖题 + 右图 → 横排章题在图上方 |
 | [地图预览](../../templates/recipes/image-preview/recipe.md) | 待测 | 待测 | 待测 | 点图预览 → 普通整宽图 + 图下题注 |
+| [纵中横](../../templates/recipes/tate-chu-yoko/recipe.md) | 待测 | 待测 | 待测 | 竖排数字横排一格 → 数字侧躺 |
+| [OpenType 特性](../../templates/recipes/opentype-features/recipe.md) | 待测 | 待测 | 待测 | 旧式数字、小型大写、连字 → 普通字形 |
+| [中文标点](../../templates/recipes/cjk-punctuation/recipe.md) | 待测 | 待测 | 待测 | 标点挤压、中西文间距 → 不变 |
+| [英文断词](../../templates/recipes/english-hyphenation/recipe.md) | 待测 | 待测 | 待测 | 断词 → 不断词 |
 
 这张表的证据边界：
 

@@ -1,0 +1,10 @@
+/* recipe: english-hyphenation —— 英文断词与孤行控制。
+ * 依赖页面的 lang / xml:lang；不设 justify（SPEC §5.9：断字未实测前左对齐）。
+ * 回退：不认 hyphens 时不断词，照常换行。 */
+.en-hyphenate {
+  -webkit-hyphens: auto;
+  -epub-hyphens: auto;
+  hyphens: auto;
+  orphans: 2;
+  widows: 2;
+}

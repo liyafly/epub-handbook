@@ -1,0 +1,15 @@
+/* Production example only: supply a licensed font that has onum / smcp / dlig,
+ * declare it in OPF, subset and check coverage before loading this file.
+ * The public fixture has no font bytes, so its sample shows ordinary glyphs.
+ * Paths below assume this file is beside recipe.css in OEBPS.
+ */
+@font-face {
+  font-family: "en";
+  src: url("Fonts/en.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+}
+
+.ot-sample {
+  font-family: Georgia, "en", serif;
+}

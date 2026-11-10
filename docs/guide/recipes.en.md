@@ -31,6 +31,10 @@ Then add the class names to your XHTML as in `sample.xhtml`, and preview. If the
 | [Parallel text](../../templates/recipes/parallel-pair/recipe.md) | Reading area grey; cannot judge | Original and translation stacked | Untested | Two columns on wide screens → stacked |
 | [Vertical chapter title](../../templates/recipes/vertical-title-art/recipe.md) | Untested | Untested | Untested | Vertical title + art on the right → horizontal title above the art |
 | [Map preview](../../templates/recipes/image-preview/recipe.md) | Untested | Untested | Untested | Tap-to-zoom with caption → plain full-width image + caption below |
+| [Tate-chu-yoko](../../templates/recipes/tate-chu-yoko/recipe.md) | Untested | Untested | Untested | Short numbers set upright in one cell in vertical text → numbers lie sideways |
+| [OpenType features](../../templates/recipes/opentype-features/recipe.md) | Untested | Untested | Untested | Old-style figures, small caps, ligatures → ordinary glyphs |
+| [CJK punctuation](../../templates/recipes/cjk-punctuation/recipe.md) | Untested | Untested | Untested | Punctuation trimming and CJK–Latin spacing → unchanged |
+| [English hyphenation](../../templates/recipes/english-hyphenation/recipe.md) | Untested | Untested | Untested | Hyphenation → no hyphenation |
 
 What this evidence covers:
 

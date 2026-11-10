@@ -218,6 +218,15 @@
 - 内层图片使用 `height:auto`；横幅高度由源图宽高比控制。不固定高度，不使用 `vh/vw`、absolute positioning 或大段顶部空白模拟固定页。
 - 如果章首需要强视觉首屏、背景图或大面积叠字，应改走 A-lite 海报方案；不要把普通章节头图扩大成伪固定版式。
 
+## 5.12) 竖排纵中横
+
+> 依据：推导，待验证。下列写法来自 CSS Writing Modes 与 EPUB 3.0 前缀，尚无本仓库阅读器实测；结论待 `recipe-tate-chu-yoko` 实测后更新。
+
+- 竖排正文里两三位的数字用 `<span class="tcy">` 包住，不改文字、不插空格。四位以上不做纵中横，保持侧躺或改用汉字数字（后者是正文改动，需要授权）。
+- `.tcy` 依次写 `-webkit-text-combine: horizontal`、`-epub-text-combine: horizontal`、`text-combine-upright: all`，标准写法放最后。
+- 回退：不认这些属性时数字侧躺，仍按原序可读。横排页面里 `.tcy` 不起作用，不另写横排规则。
+- 写法与样例见 [tate-chu-yoko 配方](../../templates/recipes/tate-chu-yoko/recipe.md)。
+
 ## 6) Fixture 命名索引（M5 对齐）
 
 - `01-basic-cjk`
@@ -305,6 +314,15 @@
 - 同一条链里嵌入字体只出现 1 次。需要“设计字形 + 生僻字”时拆成两个类，不塞进同一条链。
 - 不堆叠同一字体的多个别名（如 `Georgia` + `Georgia Pro`）。
 - 新建字体 alias、文件名和 class 必须遵循 [字体别名命名规范](字体别名命名规范.md)：使用 `en` / `st` / `kt` / `fs` / `ht` / `tszt-*` 等角色缩写；不得新增 `Book*`、`RareSong*` 或 `.book-*` 字体命名。
+
+### OpenType 特性
+
+> 依据：推导，待验证。尚无本仓库阅读器实测；结论待 `recipe-opentype-features` 用真字体在书级实测后更新。
+
+- 旧式数字、小型大写、连字只用于带这些特性的授权嵌入字体：每个类同时写 `font-variant-*` 和对应的 `font-feature-settings`。不认或字体没有该特性时显示普通字形。
+- `font-feature-settings` 不叠加。一个元素需要多个特性时写一个组合类，把特性写进同一条声明，不靠多个类叠加。
+- 子集化保留全部 OpenType 特性，provider 无需额外配置。公共合成包不带字体，不能作为字形证据。
+- 写法与样例见 [opentype-features 配方](../../templates/recipes/opentype-features/recipe.md)。
 
 ### 双版本
 

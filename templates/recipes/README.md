@@ -13,6 +13,10 @@
 | [vertical-title-art](vertical-title-art/recipe.md) | 左侧竖排章题 + 右侧章首图 → 横排章题在图上方 | 仅 Chrome 预检，阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
 | [image-preview](image-preview/recipe.md) | 多看 / Reeden 点图预览带题注 → 普通整宽图 + 图下题注；可选 spine 整屏图页 | 仅 Chrome 预检，阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
 | [letter-paper](letter-paper/recipe.md) | 无边框纸面、顶格/空两格/右对齐、固定书信字体；纯 CSS 横线逐行跟随文字；Kindle 经 `amzn-kf8` 省略，多看变体省略 | 通用包与多看变体用户确认，未记录版本；规则见 SPEC §5.9.1 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
+| [tate-chu-yoko](tate-chu-yoko/recipe.md) | 竖排里两三位数字横排成一格 → 数字侧躺 | 阅读器待测；规则见 SPEC §5.12（推导，待验证） | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
+| [opentype-features](opentype-features/recipe.md) | 嵌入字体的旧式数字、小型大写、连字 → 普通字形 | 阅读器待测；公共包不带字体，效果只能书级验证；规则见 SPEC §8（推导，待验证） | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
+| [cjk-punctuation](cjk-punctuation/recipe.md) | 标点挤压、行尾悬挂、中西文间距 → 完全不变 | 阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
+| [english-hyphenation](english-hyphenation/recipe.md) | 英文断词与孤行控制 → 不断词 | 阅读器待测 | [reader-matrix untested_cases](../../docs/final/reader-matrix.yaml) |
 
 “有历史记录”不代表新片段、新书或新 SHA 通过。尚未在至少两本书完成验证的做法只作为候选，不晋升为通用兼容规则；书级证据保留在书级 Git，公共目录只用合成材料。新 CSS 均需普通/大字号、窄屏与昼夜主题验证；静态 gate 与真实阅读器结果分别记录。
 

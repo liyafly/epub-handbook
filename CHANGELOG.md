@@ -4,6 +4,7 @@
 
 ### Added
 
+- 四个配方：`tate-chu-yoko`（竖排纵中横 → 数字侧躺）、`opentype-features`（旧式数字、小型大写、连字 → 普通字形，附 `fonts.example.css`）、`cjk-punctuation`（标点挤压、行尾悬挂、中西文间距，写在 `@supports` 里、挂可选类）、`english-hyphenation`（断词与孤行控制）。阅读器均待测；SPEC 新增 §5.12 纵中横和 §8「OpenType 特性」，标明“推导，待验证”。
 - 导航审计检查 landmarks 与 page-list：EPUB 3 没有 landmarks 报 info；landmarks 或 page-list 链接目标不存在报 error（取代同一链接的通用缺失提示）；正文有页码标记而 nav 没有 page-list（或反过来）报 warn。新增 [页码对照](docs/how-to/page-list.md) 指南。
 - 导航审计检查 OPF 元数据：`refines` 指向不存在的 `id` 报 error；`collection-type`、`group-position` 没挂在 `belongs-to-collection` 上报 warn；`schema:accessMode`、`schema:accessibilityHazard` 不在标准词表报 warn。新增 [OPF 元数据](docs/how-to/opf-metadata.md) 写法指南，起始书 OPF 带丛书与排序名的注释示例。
 - `epub book add-chapter [<书目录>] --title <标题> [--file <文件名>] [--after <章节>]`：加一章并同步 OPF manifest、spine、nav 目录和 NCX（`playOrder` 重排）。全部字节区间编辑，有一处不能安全编辑就一个文件都不改；两种布局都可用。
