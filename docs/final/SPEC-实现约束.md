@@ -119,7 +119,7 @@
 - 常见来源是通用 CSS reset（`html, body, div, … { font-size: 100% }`）和模板 `html { font-size: 100% }`；清洗存量书时必须把字号声明从 `html` / `:root` / `*` 上删除（reset 列表里的 `body` 可一并删除），保留其余 reset 属性。
 - 单独的 `*` 选择器同样命中 `html`，按 `html` 处理。
 - 其它元素不用绝对字号（`px` / `pt` 等，或 `small`、`medium` 等绝对关键字）与视口字号（`vw` / `vh`）：它们不随根字号变化，阅读器放大时这部分文字不动。A-lite 海报页（`.fullpage`）与 `0` / `1px` 隐藏文字惯用法除外。Reeden 测试版会把 `p { font-size: 16px }` 一起放大，但 WebView 类阅读器按 CSS 语义不会，不能据此放宽。
-- 自动 gate：`epub run epub.package.nav.audit` 对 `html` / `:root` / `*` 字号声明报 error（`css-root-font-size`，书级构建阻断）；对普通 `body` 报 info（`css-body-font-size`，仅提示冗余）；对其它元素的绝对/视口字号报 warn（`css-fixed-font-size`，人工复核后改为相对单位或说明理由）。
+- 自动 gate：`epub run epub.package.nav.audit` 对 `html` / `:root` / `*` 字号声明报 error（`css-root-font-size`，书级构建阻断）；对普通 `body` 报 info（`css-body-font-size`，仅提示冗余）；对其它元素的绝对/视口字号报 warn（`css-fixed-font-size`，人工复核后改为相对单位或说明理由）。只被固定版式页面引用的样式表不做这三项检查（§5.13）。
 - 证据边界与实测方法见[字号缩放探针](../../templates/font-scale-probe/README.md)；`body` 若在其它阅读器复现锁定，再升级为 warn / error。
 
 ## 5.6) 图片环绕兼容
@@ -240,6 +240,7 @@
 - 文字层就是读者看到的文字。底图是空白纸时，文字层漏掉的标点或字在屏幕上同样缺失；交付前要校对文字层，改字按 §10.1.1 走授权。
 - 嵌入子集字体的 cmap 可能把没保留的码位映射到空字形（宽度 0）。查字体覆盖要看字形是否有轮廓，不能只看 cmap。
 - Kindle：送达方式（Send to Kindle、USB、Kindle Previewer）和已知限制待验证；CFF 轮廓的 OTF 是否在固定版式里触发警告也待验证。
+- 导航审计对固定版式页面检查：缺 `viewport` 或缺 width/height 报 error；各页宽高比不一致报 warn；`page-spread-*` 用在可重排项上报 warn。只被固定版式页面引用的样式表不做字号三项检查；整本固定版式的 page-list 可以直接指向页面文件。
 - 阅读器结论记在 `reader-matrix.yaml` 的 `fxl_epub` lane 与 `external-production-fxl`，没有截图或日志只能是 `warn`。
 
 ## 6) Fixture 命名索引（M5 对齐）

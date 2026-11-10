@@ -290,3 +290,51 @@ func TestRunIsReadOnlyAndComplete(t *testing.T) {
 		}
 	}
 }
+
+// rewriteEntry 读出 EPUB、改一个成员、写到新路径。
+func rewriteEntry(t *testing.T, src, name string, edit func(string) string) string {
+	t.Helper()
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	var entries []zipEntry
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if _, err := buf.ReadFrom(rc); err != nil {
+			t.Fatal(err)
+		}
+		rc.Close()
+		data := buf.String()
+		if f.Name == name {
+			data = edit(data)
+		}
+		entries = append(entries, zipEntry{name: f.Name, content: []byte(data)})
+	}
+	out := filepath.Join(t.TempDir(), "rewritten.epub")
+	writeFixtureEpub(t, out, entries)
+	return out
+}
+
+func TestLoneImageExemptOnGlobalFixedLayout(t *testing.T) {
+	base := advisorFixture(t, []struct{ name, body, bodyClass string }{
+		{"bare.xhtml", `<img src="../Images/test.png" alt="test"/><p>正文足够长。</p>`, ""},
+	}, []string{"bare.xhtml"})
+	global := rewriteEntry(t, base, "OEBPS/content.opf", func(s string) string {
+		return strings.Replace(s, "<metadata/>", `<metadata><meta property="rendition:layout">pre-paginated</meta></metadata>`, 1)
+	})
+	if _, findings := runAdvisor(t, global); hasKind(findings, "lone-image-no-figure", "bare.xhtml") {
+		t.Error("global rendition:layout=pre-paginated page must be exempt")
+	}
+	overridden := rewriteEntry(t, global, "OEBPS/content.opf", func(s string) string {
+		return strings.Replace(s, `<itemref idref="p1"/>`, `<itemref idref="p1" properties="rendition:layout-reflowable"/>`, 1)
+	})
+	if _, findings := runAdvisor(t, overridden); !hasKind(findings, "lone-image-no-figure", "bare.xhtml") {
+		t.Error("an itemref overriding to reflowable must be checked again")
+	}
+}

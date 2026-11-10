@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:5f3c1a6e-2b7d-4e9a-8c10-0f1e2d3c4b5a</dc:identifier>
+    <dc:title>Synthetic fixed layout</dc:title>
+    <dc:language>en</dc:language>
+    <meta property="dcterms:modified">2026-11-10T00:00:00Z</meta>
+    <meta property="rendition:layout">pre-paginated</meta>
+    <meta property="rendition:spread">landscape</meta>
+    <meta name="cover" content="cover-image"/>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="cover-image" href="cover.svg" media-type="image/svg+xml" properties="cover-image"/>
+    <item id="css" href="page.css" media-type="text/css"/>
+    <item id="p1" href="p1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="p2" href="p2.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="p1" properties="page-spread-right"/>
+    <itemref idref="p2" properties="page-spread-left"/>
+  </spine>
+</package>

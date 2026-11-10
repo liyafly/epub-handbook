@@ -328,7 +328,8 @@ func (ins *inspector) checkNavLandmarksAndPageList(pkg *opf.Package, documents [
 	case pagebreaks && !pageList:
 		ins.addFinding("warn", "XHTML has pagebreak markers but the nav document has no page-list", nav.ArchivePath, "nav-page-list-missing")
 		ins.addSkill("epub-audit", "warn")
-	case pageList && !pagebreaks:
+	case pageList && !pagebreaks && len(opf.FixedLayoutXHTML(pkg)) < len(opf.SpineXHTMLPaths(pkg)):
+		// 整本固定版式的 page-list 直接指向页面文件，不需要页码标记（SPEC §5.13）。
 		ins.addFinding("warn", "Nav page-list exists but no XHTML has pagebreak markers", nav.ArchivePath, "nav-page-list-without-pagebreaks")
 		ins.addSkill("epub-audit", "warn")
 	}

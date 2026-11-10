@@ -187,7 +187,7 @@ func analyzeEpub(ctx context.Context, b *book.Book) (advisorReport, error) {
 		}
 		bodyChildren := body.children
 		bodyClasses := splitPyFields(attrValue(body, "class"))
-		fixedLayout := hasAnyProp(ref.Properties) || hasAnyProp(item.Properties)
+		fixedLayout := pkg.IsFixedLayout(ref) || hasAnyProp(item.Properties)
 		alitePage := false
 		for _, cls := range bodyClasses {
 			if err := ctx.Err(); err != nil {

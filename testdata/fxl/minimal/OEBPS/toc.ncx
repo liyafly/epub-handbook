@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:5f3c1a6e-2b7d-4e9a-8c10-0f1e2d3c4b5a"/></head>
+  <docTitle><text>Synthetic fixed layout</text></docTitle>
+  <navMap>
+    <navPoint id="np-1" playOrder="1"><navLabel><text>Page 1</text></navLabel><content src="p1.xhtml"/></navPoint>
+    <navPoint id="np-2" playOrder="2"><navLabel><text>Page 2</text></navLabel><content src="p2.xhtml"/></navPoint>
+  </navMap>
+</ncx>

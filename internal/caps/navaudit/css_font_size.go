@@ -22,7 +22,11 @@ import (
 // 其它元素上的绝对字号（px/pt/… 或 small 等绝对关键字）与视口字号（vw/vh）
 // 不随根字号变化，阅读器放大时这些文字不动，按 warn 报告；A-lite 海报页
 // (.fullpage) 与 0/1px 隐藏文字惯用法除外。
+//
+// 只被固定版式页面引用的样式表（SPEC §5.13）跳过这三项：固定版式按页缩放，
+// px 字号是正常写法。同时被可重排页面引用的照常报告。
 func (ins *inspector) checkReaderFontScaling(ctx context.Context, pkg *opf.Package) {
+	fxlOnly := ins.fixedLayoutOnlyStylesheets(ctx, pkg)
 	seen := make(map[string]bool)
 	for _, item := range pkg.Manifest {
 		if ctx.Err() != nil {
@@ -32,7 +36,7 @@ func (ins *inspector) checkReaderFontScaling(ctx context.Context, pkg *opf.Packa
 			continue
 		}
 		seen[item.ArchivePath] = true
-		if !hasEntry(ins.b, item.ArchivePath) {
+		if !hasEntry(ins.b, item.ArchivePath) || fxlOnly[item.ArchivePath] {
 			continue
 		}
 		raw, err := ins.b.Current(item.ArchivePath)

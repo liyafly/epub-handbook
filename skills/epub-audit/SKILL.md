@@ -44,6 +44,7 @@ epub run epub.font.coverage.analyze --input "book.epub" --json
 - DRM/未知加密、不可读 ZIP/container/OPF 按根 AGENTS 停止；可修复的版本、properties、导航诊断可进入修复，再验证产物，不要求先手工清零。
 - 路径混淆 → `epub-cleanup`（`epub.structure.normalize`）；EPUB2/legacy → `epub-cleanup`（`epub.package.migrate.epub3`）；注释 → `epub.notes.popup.normalize`；合并/拆分/换封面 → `epub-package-ops`。不因需要审计就自动执行写操作。
 - `css-root-font-size` error 与 `css-fixed-font-size` warn 是 P1 功能问题（部分阅读器无法调字号），交 `epub-cleanup`；`css-body-font-size` 只是 info，不单独派修。`css-page-color-lock` warn 是夜间/护眼主题对比度风险，须人工判断是否保留，交 `epub-cleanup`。见 SPEC §5.5.1、§7。
+- 整本固定版式（SPEC §5.13）：只被固定版式页面引用的样式表不报三项字号 finding。`fxl-viewport-missing`、`fxl-viewport-size-missing` 是 error，补每页 `viewport` 的 width/height；`fxl-aspect-ratio-mixed` warn 核对各页尺寸；`page-spread-on-reflowable` warn 去掉可重排项上的 `page-spread-*`。整本固定版式的 page-list 指向页面文件，不报缺页码标记。
 - 不删除 spine 页面来掩盖错误，不猜 `dc:language`，不批量删除字体 metadata 或未识别资源。CSS 字体断链保留声明与 `local()`，不猜替代字体；非字体断链须修复。
 - Kindle/legacy 交付保留 NCX；目录层次问题按需读 [文集导航](../../docs/how-to/anthology-navigation.md)。修复保持现有 id 与 mixed-content 正文；有授权删除时记录精确清单及红线差异。
 
