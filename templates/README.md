@@ -21,5 +21,4 @@
 - 模板用于显示验证、清洗演示和 starter 复现，不承载下游技术架构。
 - 模板构建入口用 shell 加系统 `zip`，或只依赖 Python 3 标准库的脚本（`recipes`、`cleanup-demo-books`、`shape-wrap-demo`）；`font-role-probe` 另需 fontTools。这些脚本只生成自造样本，不属于用户 EPUB 执行面。
 - 生成的 `.epub` 产物放在模板自己的 `dist/` 目录，被 Git 忽略；构建日志等临时文件同样不入库，可随时删除重建。
-- `shape-wrap-demo/evidence/` 与 `cleanup-receipt.json` 是有意只留在本地的历史阅读器证据，不要清理。
 - 新增样式规则时，优先补一个可打开的模板页面，再把稳定结论写回手册或 skill。

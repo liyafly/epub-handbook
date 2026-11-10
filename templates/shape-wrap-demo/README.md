@@ -13,11 +13,8 @@ sh templates/shape-wrap-demo/build.sh
 构建不生成图片、不修改源码、不覆盖历史观察记录。固定 ZIP 顺序与时间戳，
 是否复现历史产物仍以本机重建后的 SHA-256 对比为准。
 
-`evidence/` 保存迁入的原始观察、截图、验证日志、测试副本归档和原生成脚本
-`build-scenes-original.py`；`cleanup-receipt.json` 保存历史清理收据。
-这些材料原样保留在本地并被 Git 忽略。公开的合成场景截图及去除本地路径和字体偏好的观察索引在 [reader-evidence/](reader-evidence/README.md)，不包含书级素材。
-旧记录中的实验路径是历史位置，现从本模板目录查找；历史测试副本在
-`evidence/standard-v3-test-inputs.zip` 中。
+公开的合成场景截图及去除本地路径和字体偏好的观察索引在 [reader-evidence/](reader-evidence/README.md)，不包含书级素材。
+原始观察、验证日志、测试副本和原生成脚本已于 2026-11-10 删除，不再保留。
 
 历史观察记录了 Apple Books、Readest 的轮廓环绕和 Kindle Previewer 的矩形回退。
 这些结论只属于记录中的产物、版本与配置，迁移和静态检查不构成新一轮阅读器验收。
