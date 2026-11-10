@@ -16,7 +16,7 @@ go build -o epub ./cmd/epub        # Windows 用 go build -o epub.exe ./cmd/epub
 
 把生成的 `epub` 放进 PATH 里的目录，或者用完整路径运行。
 
-**下载二进制**：[GitHub Releases](https://github.com/liyafly/epub-handbook/releases) 提供 macOS、Windows 和 Linux 的压缩包，可用 `SHA256SUMS` 核对。`epub book` 命令是 v0.5.0 之后加入的，新版本发布之前请从源码构建。macOS 二进制未签名，第一次运行可能被系统拦下。
+**下载二进制**：[GitHub Releases](https://github.com/liyafly/epub-handbook/releases) 提供 macOS、Windows 和 Linux 的压缩包，可用 `SHA256SUMS` 核对。`epub book` 命令从 v0.6.0 起包含在二进制里，v0.6.0 发布之前请从源码构建。macOS 二进制未签名，第一次运行可能被系统拦下。
 
 **字体工具（可选）**：只有书里嵌入字体时才需要 `epub-font`。它是 Python 程序，用 [uv](https://docs.astral.sh/uv/) 从仓库安装：
 

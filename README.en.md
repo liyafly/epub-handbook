@@ -16,7 +16,7 @@ go build -o epub ./cmd/epub        # on Windows: go build -o epub.exe ./cmd/epub
 
 Put the resulting `epub` in a folder on your PATH, or run it by its full path.
 
-**Download a binary**: [GitHub Releases](https://github.com/liyafly/epub-handbook/releases) has archives for macOS, Windows and Linux, with `SHA256SUMS` to verify them. The `epub book` commands arrived after v0.5.0, so build from source until the next release. The macOS binary is not signed, and macOS may block it the first time you run it.
+**Download a binary**: [GitHub Releases](https://github.com/liyafly/epub-handbook/releases) has archives for macOS, Windows and Linux, with `SHA256SUMS` to verify them. The `epub book` commands ship in binaries from v0.6.0; build from source until v0.6.0 is released. The macOS binary is not signed, and macOS may block it the first time you run it.
 
 **Font tool (optional)**: you need `epub-font` only if the book embeds fonts. It is a Python program, installed from the repository with [uv](https://docs.astral.sh/uv/):
 

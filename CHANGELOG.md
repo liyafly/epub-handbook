@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 - 2026-11-10
+
+从零做书（`epub book new --title/--author`、`add-chapter`、起始书封面与版权页）、OPF 元数据与导航审计、四个新配方、构建时的 Kindle 检查，以及整本固定版式的规则、检查与 demo。新增配方与固定版式都还没有阅读器实测，见 `docs/final/reader-matrix.yaml` 的 `untested_cases`。
+
+### Breaking
+
+- 删除 `epub.typography.optimize`（契约、`cli.json` 参数、`internal/caps/typography`、流水线注册、测试与 golden、CI 里的预设候选步骤）。样式预设不再注入已有书，只作新书起点：`epub book new <dir> --from-preset <name>` 一次性复制进书级 CSS。已含该能力生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 归本书所有，直接编辑，不再有工具维护。capability 总数 22 → 21；`epub.typography.english.optimize` 不受影响。内嵌资源不再打包 `templates/style-presets/*/Styles/*.css`，预设目录 catalog 只读 `preset.json`。
 
 ### Added
 
@@ -14,7 +20,6 @@
 - `epub book add-chapter [<书目录>] --title <标题> [--file <文件名>] [--after <章节>]`：加一章并同步 OPF manifest、spine、nav 目录和 NCX（`playOrder` 重排）。全部字节区间编辑，有一处不能安全编辑就一个文件都不改；两种布局都可用。
 - 起始书加占位封面（`cover-image` 与 `meta name="cover"` 都写）、版权页和隐藏的 landmarks。
 - `epub book new --title <书名> --author <作者>`；每本新书生成自己的 `urn:uuid` 标识符和建书时刻的 `dcterms:modified`，不再共用固定值。
-
 - 配方 `vertical-title-art`：左侧窄列浮动竖排章题 + 右侧章首图，不认 float 时退回横排章题在图上方。
 - 配方 `image-preview`：多看 / Reeden 点图预览带题注（`duokan-image-single`），其他阅读器为普通整宽图；recipe.md 附可选 spine 整屏图页写法（非严格书用 `duokan-`，严格 EPUB3 用 `reeden:` 前缀）。
 - 书信、公文与括注类：`.letter-salutation`、`.doc-heading`、`.aside-inline`（demo scene 30/31 与 literary-cn）。
@@ -33,10 +38,13 @@
 ### Changed
 
 - 范围改为“可重排为主，支持整本固定版式”：SPEC 新增 §5.13 固定版式，§0 写明整本 `pre-paginated` 的书豁免安全底座第 1、4 项；A-lite 只用于可重排书。README、术语表、阅读器指南与终极实践手册同步；`reader-matrix.yaml` 加 `fxl_epub` lane 和待测的 `external-production-fxl`。
-
 - `epub book import` 遇到非 OEBPS 布局不再停止，自动原样保留并按原布局构建；`--legacy-layout` 仍接受，已无作用。
 - 构建终端每项检查一行：字体缺字合成一行（只报缺字最多的字体，正文与 CSS/配置/生成文本分开计数）；失败列出 error finding 及位置，不再打印整份 JSON；与上一版成品的比对只打一行。
 - `templates/book-starter/build.sh` 只转发给 `epub book`，旧书的书根 `build.sh` 照常可用，构建逻辑只剩 Go 一份。CI 与字体 smoke 改用 `epub book new` 建书。
+- 弹注标准结构改为 `aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item[epub:type="footnote"][role="doc-footnote"]`：`footnote` 只标单条注释，不再标在整组容器上（旧写法会让部分阅读器点一条注释弹出整组）。`epub.notes.popup.normalize` 按新结构校验；旧 grouped 结构在非多看场景给出 `popupnotes.legacy-container` warn，多看 fallback 暂时继续使用旧结构，`epub.notes.legacy-fallback` 遇到标准结构报 `notes-fallback.no-grouped-list`。SPEC §1、手册、速查表、skills、demo 02 和 cleanup demo 目标已同步更新。
+- F19：epub-font 2.1.0 新增显式 CSS 字体角色子集模式；默认全书模式不变。简单选择器按继承字体族分配字符，无法识别的作用域保守扩大或拒绝，并在 schemaVersion 3 sidecar 与 Go finding 中记录模式和回退；Go 保持兼容旧 book-mode schemaVersion 2。每次整书 subset 运行只收集一次独立字符清单。
+- C24：`//host` network-path 按外链静默跳过；cover 与 merge 的 missing/rooted 警告限定于本次实际改写涉及的引用，normalize 对缺失 OPF href 只报告一次。
+- G46：EPUB3 迁移继续规范化 Duokan class/role，但保留 `⊙` 返回字形，不再把正文字符替换为 `◎`。
 
 ### Fixed
 
@@ -44,18 +52,6 @@
 - `epub.structure.normalize` 反混淆改名时，`~slim` 长屏图跟随同名普通图的新文件名（如 `f100.jpg` / `f100~slim.jpg`），不再按自己的 manifest ID 改成不配对的名字。
 - 书放在分类子目录（`work-epub/<分类>/<书>/`）时，`epub book import` 沿用上层已有的字体库，不再在分类目录旁新建空的 `fonts/`。
 - 构建被强行结束后残留的 `build.lock` 不再挡住下次构建：锁里记录进程号和主机名，主人是本机已结束的进程时自动清除；无法确认的锁照旧阻断。CLI 忽略 SIGPIPE，输出被 `| head` 截断时构建照常结束并释放锁。
-
-### Removed
-
-- 删除 `templates/book-starter/new-book.sh`、`import-book.sh`、`import_book.py` 与 `test-build-dist-guard.sh`；改用 `epub book new|import`，守卫由 Go 测试覆盖。导入字体分拣测试从 Python 移到 Go。
-- 删除 `epub.typography.optimize`（契约、`cli.json` 参数、`internal/caps/typography`、流水线注册、测试与 golden、CI 里的预设候选步骤）。样式预设不再注入已有书，只作新书起点：`epub book new <dir> --from-preset <name>` 一次性复制进书级 CSS。已含该能力生成的 `epub-preset-<hash>-*.css` 的书，这些 CSS 归本书所有，直接编辑，不再有工具维护。capability 总数 22 → 21；`epub.typography.english.optimize` 不受影响。内嵌资源不再打包 `templates/style-presets/*/Styles/*.css`，预设目录 catalog 只读 `preset.json`。
-
-### Changed
-
-- 弹注标准结构改为 `aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item[epub:type="footnote"][role="doc-footnote"]`：`footnote` 只标单条注释，不再标在整组容器上（旧写法会让部分阅读器点一条注释弹出整组）。`epub.notes.popup.normalize` 按新结构校验；旧 grouped 结构在非多看场景给出 `popupnotes.legacy-container` warn，多看 fallback 暂时继续使用旧结构，`epub.notes.legacy-fallback` 遇到标准结构报 `notes-fallback.no-grouped-list`。SPEC §1、手册、速查表、skills、demo 02 和 cleanup demo 目标已同步更新。
-
-### Fixed
-
 - G41：`epub redline --check text` 现在覆盖 `th`、`dt`、`dd`、`figcaption`、`caption`、`summary`、`address` 及指定容器中的零散文字；把零散文字包进段落不会改变正文哈希序列。
 - G43：EPUB 3 中的 XHTML 1.x DTD 命名实体现在报告 `xhtml-dtd-entities-need-migration` 并建议运行 migrate；clean 仅在选择 migrate 时延后此预审计 finding，末次审计与正文红线仍负责验收。
 - G45：结构规范化会为每个非 UTF-8 文本资源返回 `structure.non-utf8-text` finding；nav.audit 的 OPF 解析错误使用 `opf-parse-error`，不再误报 spine 为空。
@@ -71,11 +67,9 @@
 - F17：font.subset 用字体魔数识别未登记字体与错误声明为非字体媒体类型的字体；book-starter 扫描 `META-INF/` 和 `OEBPS/` 中已知字体扩展名。
 - F18：epub-font 将非 UTF-8 subset 配置作为 exit 2 用法错误；coverage 默认只输出一行 `error:`，设置 `EPUB_FONT_DEBUG=1` 才附 traceback；Go 将 provider exit 2 归为 `font-subset.provider-rejected-input`。
 
-### Changed
+### Removed
 
-- F19：epub-font 2.1.0 新增显式 CSS 字体角色子集模式；默认全书模式不变。简单选择器按继承字体族分配字符，无法识别的作用域保守扩大或拒绝，并在 schemaVersion 3 sidecar 与 Go finding 中记录模式和回退；Go 保持兼容旧 book-mode schemaVersion 2。每次整书 subset 运行只收集一次独立字符清单。
-- C24：`//host` network-path 按外链静默跳过；cover 与 merge 的 missing/rooted 警告限定于本次实际改写涉及的引用，normalize 对缺失 OPF href 只报告一次。
-- G46：EPUB3 迁移继续规范化 Duokan class/role，但保留 `⊙` 返回字形，不再把正文字符替换为 `◎`。
+- 删除 `templates/book-starter/new-book.sh`、`import-book.sh`、`import_book.py` 与 `test-build-dist-guard.sh`；改用 `epub book new|import`，守卫由 Go 测试覆盖。导入字体分拣测试从 Python 移到 Go。
 
 ## v0.5.0 - 2026-09-30
 
