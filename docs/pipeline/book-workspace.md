@@ -106,7 +106,7 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 - `"readers": [...]` 仅作文档，不生成任何东西。
 - 旧布局把同样的 `{"variants": {...}}` 写在制作区的 `variants.json`，覆盖层路径相对制作区；它不影响布局识别。
 
-覆盖层镜像 EPUB 树（如 `OEBPS/Styles/reader.css`），**只允许替换或新增 `.css`、替换 OPF**；出现 XHTML、nav、NCX、图片、字体即在构建前报错。`new` 和 `import` 的书自带空的 `reader.css`，在 OPF 和每个 XHTML 里排在最后，覆盖层只需替换它，只写与通用版不同的规则；不要整份复制已有样式表。Kindle 上调不好的装饰页用配方 [page-image](../../templates/recipes/page-image/recipe.md)：通用版隐藏整图，覆盖层显示整图、隐藏文字版。不要写阅读器识别查询（SPEC §5.6.1）。
+覆盖层镜像 EPUB 树（如 `OEBPS/Styles/reader.css`），**只允许替换或新增 `.css` 与图片、替换 OPF、替换源树里已有的 XHTML（nav 除外）**；出现 nav、NCX、字体、新 XHTML 或其他文件即在构建前报错。替换的 XHTML 只改排版结构：变体对通用版的 `text` 红线照常阻断。覆盖层替换了 OPF 时，新 manifest 没列的图片不进该变体的包（终端报一行数量），引用了未列图片的页面由导航审计报 error。`new` 和 `import` 的书自带空的 `reader.css`，在 OPF 和每个 XHTML 里排在最后，覆盖层只需替换它，只写与通用版不同的规则；不要整份复制已有样式表。Kindle 上调不好的装饰页用配方 [page-image](../../templates/recipes/page-image/recipe.md)：通用版隐藏整图，覆盖层显示整图、隐藏文字版。不要写阅读器识别查询（SPEC §5.6.1）。
 
 构建时先造通用版候选，再造各变体候选，各自走完整门禁（字体注入/子集/覆盖检查、导航审计、全项 redline）；每个变体另与通用版比对正文（`text` 红线）。**全部候选通过后才统一替换**：任一失败则 `out/` 一个文件都不动，错误信息列出失败的输出。每个输出有自己的收据（通用版 `dist-sha256`，变体 `dist-sha256.<name>`）和同样的"改过的成品不覆盖"保护；交付记录每个输出一行，变体行末多一列 `variant:<name>`。
 

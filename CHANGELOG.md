@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- 书级变体覆盖层可以替换源树里已有的 XHTML（nav 除外）、替换或新增图片；仍不允许 nav、NCX、字体和新章节。正文一致由变体对通用版的 `text` 红线保证（原本就阻断）。覆盖层替换了 OPF 时，新 manifest 没列的图片不进该变体的包，阅读器各自的切图不必都塞进通用版。
+
 ## v0.6.0 - 2026-11-10
 
 从零做书（`epub book new --title/--author`、`add-chapter`、起始书封面与版权页）、OPF 元数据与导航审计、四个新配方、构建时的 Kindle 检查，以及整本固定版式的规则、检查与 demo。新增配方与固定版式都还没有阅读器实测，见 `docs/final/reader-matrix.yaml` 的 `untested_cases`。

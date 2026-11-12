@@ -405,6 +405,19 @@ func (r *bookRunner) prepareTree(layout bookLayout, out outputSpec, overlayFiles
 		if err := applyOverlay(out.Overlay, overlayFiles, srcDir); err != nil {
 			return "", fontPlan{}, err
 		}
+		opfPath, err := treeRootfile(srcDir)
+		if err != nil {
+			return "", fontPlan{}, err
+		}
+		if slices.Contains(overlayFiles, opfPath) {
+			removed, err := pruneUnlistedImages(r.ctx, srcDir, opfPath)
+			if err != nil {
+				return "", fontPlan{}, fmt.Errorf("variant %q: %w", out.Name, err)
+			}
+			if len(removed) > 0 {
+				fmt.Fprintf(r.bio.out(), "variant %s: %d image(s) not in its manifest left out\n", out.Name, len(removed))
+			}
+		}
 	}
 	plan, err := fontPlanFor(layout, out, dir)
 	if err != nil {

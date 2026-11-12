@@ -64,8 +64,10 @@ Start with one generic `book.epub`, and write every special style as "fallback f
 When one reader shows the generic version correctly but badly, give that reader its own version. Each version is "generic + one overlay":
 
 - an overlay is a folder that mirrors the layout of `epub/`;
-- it may contain **only CSS files and the OPF**. XHTML, images, fonts or navigation files in an overlay make the build fail;
-- so every version has the same text, and the build checks that word for word.
+- it may contain CSS files (replace or add), the OPF (replace), images (replace or add) and chapter XHTML that already exists in `epub/` (replace);
+- fonts, navigation files (nav, NCX) or new chapters in an overlay make the build fail;
+- a replaced chapter may change only the layout, for example swapping one shaped image for two slices. The build checks every version's text against the generic version word for word and fails if it differs;
+- when the overlay replaces the OPF, images that the new OPF does not list are left out of that version. For example, a Kindle version that uses slices lists the slices and drops the whole image in its OPF, so its package carries only the slices. A chapter that points at an unlisted image fails the navigation check.
 
 In `book.json`:
 

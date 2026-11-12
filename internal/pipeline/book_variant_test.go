@@ -152,26 +152,31 @@ func TestBookVariantPartialFailureLeavesOutUntouched(t *testing.T) {
 	}
 }
 
-func TestOverlayRejectsEverythingExceptCSSAndOPF(t *testing.T) {
+func TestOverlayRejectsDisallowedFiles(t *testing.T) {
 	h := newBookHarness(t)
 	dir := h.newBook("")
 	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/Styles/reader.css"), "p{}\n")
 	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/Text/01-chapter.xhtml"), "<html/>")
+	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/Text/99-new.xhtml"), "<html/>")
+	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/Images/slice.png"), "png")
 	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/nav.xhtml"), "<html/>")
+	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/toc.ncx"), "<ncx/>")
 	mustWrite(t, filepath.Join(dir, "variants/x/OEBPS/Fonts/a.ttf"), "x")
 	mustWrite(t, filepath.Join(dir, "variants/x/.DS_Store"), "ignored")
 	setVariants(t, dir, map[string]variantConfig{"x": {Overlay: "variants/x"}})
 	if code := h.run(dir, "build"); code == 0 {
-		t.Fatal("overlay with XHTML must be rejected")
+		t.Fatal("overlay with nav, NCX, new XHTML and fonts must be rejected")
 	}
 	msg := h.err.String()
-	for _, want := range []string{"01-chapter.xhtml", "nav.xhtml", "Fonts/a.ttf"} {
+	for _, want := range []string{"99-new.xhtml (new XHTML", "nav.xhtml (nav document)", "toc.ncx", "Fonts/a.ttf"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error should list %s: %s", want, msg)
 		}
 	}
-	if strings.Contains(msg, ".DS_Store") {
-		t.Error("hidden files are ignored, not violations")
+	for _, allowed := range []string{"01-chapter.xhtml", "slice.png", "reader.css", ".DS_Store"} {
+		if strings.Contains(msg, allowed) {
+			t.Errorf("%s is allowed and must not be listed: %s", allowed, msg)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "out", "book.epub")); err == nil {
 		t.Error("nothing may be built when an overlay is invalid")
@@ -186,6 +191,133 @@ func TestOverlayRejectsEverythingExceptCSSAndOPF(t *testing.T) {
 	setVariants(t, dir, map[string]variantConfig{"x": {Overlay: "../outside"}})
 	if code := h.run(dir, "build"); code == 0 {
 		t.Error("overlay escaping the book must be rejected")
+	}
+}
+
+// slicedBook sets up a book whose chapter shows Images/whole.png and a kindle
+// overlay that swaps it for two slices: replaced chapter XHTML, new images and
+// a replaced OPF listing the slices instead of the whole image.
+func slicedBook(t *testing.T, h *bookHarness) (dir, chapter string) {
+	t.Helper()
+	dir = h.newBook("")
+	oebps := filepath.Join(dir, "epub/OEBPS")
+	png := mustRead(t, filepath.Join(oebps, "Images/cover.png"))
+	mustWrite(t, filepath.Join(oebps, "Images/whole.png"), png)
+	opfPath := filepath.Join(oebps, "package.opf")
+	opfText := mustRead(t, opfPath)
+	const coverItem = `<item id="cover-image" href="Images/cover.png"      media-type="image/png" properties="cover-image"/>`
+	if !strings.Contains(opfText, coverItem) {
+		t.Fatal("starter OPF changed; update the fixture")
+	}
+	generic := strings.Replace(opfText, coverItem, coverItem+"\n    <item id=\"whole\" href=\"Images/whole.png\" media-type=\"image/png\"/>", 1)
+	mustWrite(t, opfPath, generic)
+	chapterPath := filepath.Join(oebps, "Text/01-chapter.xhtml")
+	chapter = strings.Replace(mustRead(t, chapterPath), "<h1>", `<div class="shape"><img src="../Images/whole.png" alt=""/></div>`+"\n    <h1>", 1)
+	mustWrite(t, chapterPath, chapter)
+
+	overlay := filepath.Join(dir, "variants/kindle/OEBPS")
+	mustWrite(t, filepath.Join(overlay, "Images/band.png"), png)
+	mustWrite(t, filepath.Join(overlay, "Images/side.png"), png)
+	mustWrite(t, filepath.Join(overlay, "package.opf"), strings.Replace(opfText, coverItem, coverItem+
+		"\n    <item id=\"band\" href=\"Images/band.png\" media-type=\"image/png\"/>"+
+		"\n    <item id=\"side\" href=\"Images/side.png\" media-type=\"image/png\"/>", 1))
+	mustWrite(t, filepath.Join(overlay, "Text/01-chapter.xhtml"), strings.Replace(chapter,
+		`<div class="shape"><img src="../Images/whole.png" alt=""/></div>`,
+		`<div class="band"><img src="../Images/band.png" alt=""/></div><div class="side"><img src="../Images/side.png" alt=""/></div>`, 1))
+	setVariants(t, dir, map[string]variantConfig{"kindle": {Overlay: "variants/kindle", Output: "book-kindle.epub"}})
+	return dir, chapter
+}
+
+func memberNames(t *testing.T, epub string) map[string]bool {
+	t.Helper()
+	a, err := zipfs.Open(epub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	names := map[string]bool{}
+	for _, name := range a.Names() {
+		names[name] = true
+	}
+	return names
+}
+
+func TestOverlayReplacesXHTMLAndCarriesOnlyItsImages(t *testing.T) {
+	h := newBookHarness(t)
+	dir, chapter := slicedBook(t, h)
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("build = %d: %s", code, h.err)
+	}
+	if !strings.Contains(h.out.String(), "variant kindle: 1 image(s) not in its manifest left out") {
+		t.Errorf("build should report the pruned image: %s", h.out)
+	}
+	generic, kindle := filepath.Join(dir, "out", "book.epub"), filepath.Join(dir, "out", "book-kindle.epub")
+	if readMember(t, generic, "OEBPS/Text/01-chapter.xhtml") != chapter {
+		t.Error("generic output must keep the source XHTML")
+	}
+	if !strings.Contains(readMember(t, kindle, "OEBPS/Text/01-chapter.xhtml"), "band.png") {
+		t.Error("variant output lacks the replaced XHTML")
+	}
+	g, k := memberNames(t, generic), memberNames(t, kindle)
+	if !g["OEBPS/Images/whole.png"] || g["OEBPS/Images/band.png"] || g["OEBPS/Images/side.png"] {
+		t.Errorf("generic images wrong: %v", g)
+	}
+	if k["OEBPS/Images/whole.png"] || !k["OEBPS/Images/band.png"] || !k["OEBPS/Images/side.png"] || !k["OEBPS/Images/cover.png"] {
+		t.Errorf("variant images wrong: %v", k)
+	}
+
+	// Preview applies the same overlay and pruning.
+	if code := h.runVariant(dir, "preview", "kindle"); code != 0 {
+		t.Fatalf("preview = %d: %s", code, h.err)
+	}
+	if p := memberNames(t, filepath.Join(dir, ".epub", "preview-kindle.epub")); p["OEBPS/Images/whole.png"] || !p["OEBPS/Images/side.png"] {
+		t.Errorf("preview images wrong: %v", p)
+	}
+}
+
+func TestOverlayXHTMLMustKeepGenericText(t *testing.T) {
+	h := newBookHarness(t)
+	dir, _ := slicedBook(t, h)
+	sliced := filepath.Join(dir, "variants/kindle/OEBPS/Text/01-chapter.xhtml")
+	mustWrite(t, sliced, strings.Replace(mustRead(t, sliced), "正文从这里开始。", "正文从这里起。", 1))
+	if code := h.run(dir, "build"); code == 0 {
+		t.Fatal("a variant XHTML that changes the text must fail the build")
+	}
+	if !strings.Contains(h.err.String(), "FAIL redline text vs generic [kindle]") {
+		t.Errorf("the text redline must be what fails: %s", h.err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dir, "out")); len(entries) != 0 {
+		t.Errorf("out/ must stay empty, has %v", entries)
+	}
+}
+
+// newestBuildFile reads a report from the retained diagnostic build directory.
+func newestBuildFile(t *testing.T, dir, name string) string {
+	t.Helper()
+	matches, _ := filepath.Glob(filepath.Join(dir, ".epub", "build.*", name))
+	if len(matches) == 0 {
+		matches, _ = filepath.Glob(filepath.Join(dir, ".epub", name))
+	}
+	if len(matches) == 0 {
+		t.Fatalf("no %s in the build state", name)
+	}
+	return matches[len(matches)-1]
+}
+
+func TestOverlayMissingImageFailsTheBuild(t *testing.T) {
+	h := newBookHarness(t)
+	dir, chapter := slicedBook(t, h)
+	// The variant chapter still points at the whole image, which its OPF no longer lists.
+	mustWrite(t, filepath.Join(dir, "variants/kindle/OEBPS/Text/01-chapter.xhtml"), chapter)
+	if code := h.run(dir, "build"); code == 0 {
+		t.Fatal("a variant XHTML pointing at a pruned image must fail the build")
+	}
+	if !strings.Contains(h.err.String(), "FAIL epub.package.nav.audit [kindle]") ||
+		!strings.Contains(mustRead(t, newestBuildFile(t, dir, "nav-audit.kindle.json")), "whole.png") {
+		t.Errorf("the nav audit must flag the missing image: %s", h.err)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dir, "out")); len(entries) != 0 {
+		t.Errorf("out/ must stay empty, has %v", entries)
 	}
 }
 

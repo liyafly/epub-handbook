@@ -28,7 +28,7 @@
 - **Fallback / enhancement**: first write what every reader can show (the fallback), then add effects that only work where supported (the enhancement). If the enhancement fails, the book still reads well.
 - **Recipe**: copyable CSS plus a sample for one special effect. See [Recipes](recipes.en.md).
 - **Preset**: a whole set of styles for one kind of book, used once when creating a new book.
-- **Reader version / overlay**: a separate build for one reader. It may replace only CSS and the OPF, so its text is the same as the generic version. See [Readers](readers.en.md#one-source-several-reader-versions).
+- **Reader version / overlay**: a separate build for one reader. It may replace CSS, the OPF, images and the layout of existing chapters; its text must match the generic version word for word. See [Readers](readers.en.md#one-source-several-reader-versions).
 - **Red line**: what packing must never change: text, metadata, reading order, anchors, cover and encryption state. Checked by `epub redline`.
 - **Navigation audit**: checks that the package, table of contents and note links work, and that font size is not locked.
 - **Receipt**: the SHA of a finished file, recorded in `.epub/` after a successful build. If the file was edited by hand afterwards, the build uses it to refuse to overwrite.
