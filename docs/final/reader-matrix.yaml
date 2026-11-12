@@ -1135,6 +1135,9 @@ expectations:
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:
+  - case: noteref-icon-vertical-align
+    fixture: templates/epub-style-demo/OEBPS/Text/05-legacy-note-fallback.xhtml
+    note: "图片 noteref 的竖直位置。一本插图书（匿名）在 WebKit（epub-art page --engine webkit）里量过：SPEC §1 的 sup / img 都用 vertical-align: middle 时，0.9em 图标中心比相邻汉字低约 0.3em；用 position: relative; top: -0.18em 上提后仍低约 0.1em；sup 用 baseline、图标 vertical-align: -0.1em 时中心差小于 1px。只是浏览器渲染测量，demo 未改，Apple Books、Kindle、多看、Reeden 未测；实测前不改 SPEC。"
   - case: probe-font-role
     fixture: templates/font-role-probe/build.py
     note: "Apple Books、Reeden 换字结果见 expectations。Kindle、多看、Readest 的换字，以及缺字页（M1）和英文页（E1–E8）的逐项结果未记录。字体不入库，本地构建。"
