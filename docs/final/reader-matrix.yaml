@@ -1,5 +1,5 @@
 version: 1
-updated_at: 2026-11-09
+updated_at: 2026-11-14
 owner: epub-handbook
 
 lanes:
@@ -1132,6 +1132,16 @@ expectations:
     issue: "换阅读器字体后，角色标记字仍在。"
     action: "记入 SPEC §8；锁定版未测。"
 
+  - reader: kindle_previewer
+    case: hidden-footnotes-container
+    status: fail
+    reader_version: "4.0.4"
+    profile: "2026-11-14 Kindle Previewer CLI --convert --qualitychecks；另有用户 Kindle 实测（设备、版本未记录）：点注码不弹出，同一包 Apple Books 正常弹出"
+    artifact: "anonymous-hidden-footnotes.epub（书级私有，指纹记在书级记录）"
+    failed_page: none
+    issue: "标准结构弹注，CSS 用 aside.footnotes { display: none; } 隐藏整组。转换日志对每个注释目标都报 W14001 Hyperlink not resolved：Kindle 转换丢弃 display:none 的元素，注码断链。@media amzn-kf8 里 display:block（含 !important）与 @media not amzn-kf8 包裹隐藏规则都无效；删掉隐藏或改 height:0; overflow:hidden 后 W14001 为 0。"
+    action: "SPEC §1：注释容器在章末保持可见，不整组隐藏。样本书改为章末可见后转换 W14001 为 0；Kindle 实机弹注待复测。"
+    workaround: "不要用 height:0 等手段视觉隐藏：转换能解析链接，但弹窗内容是否可见未实测。"
 # 这是诚实的现状记录，不是结论。补测后请把对应条目从这里删除，并在上面的 expectations 段
 # 按 AGENTS.md「阅读器实测闭环」补 reader + status + reader_version + artifact + issue。
 untested_cases:

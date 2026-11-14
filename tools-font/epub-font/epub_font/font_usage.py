@@ -743,10 +743,14 @@ class _Planner:
         if self.include_all_attributes:
             all_chars.update(self.attribute_text)
         if self.needs_case_variants:
+            # Only mappings that change the character add text. Uncased
+            # characters (CJK, punctuation) map to themselves and keep their
+            # role-scoped usage instead of turning every role whole-book.
             variants = {
                 output_char
                 for char in all_chars
                 for mapping in (char.upper(), char.lower())
+                if mapping != char
                 for output_char in mapping
             }
             self.generated_text.update(variants)

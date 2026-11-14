@@ -42,6 +42,7 @@
 - 多条注释放在容器内唯一的 `div.footnote-list` 中：`aside[epub:type="footnotes"] > div.footnote-list > aside.footnote-item`。
 - 旧 grouped 结构（`aside[epub:type="footnote"][role="doc-footnote"] > ol.footnote-list > li.footnote-item`）只作为下方多看 fallback 的承载结构保留；非多看场景下 `epub.notes.popup.normalize` 对它给出 `popupnotes.legacy-container` warn，新书和改版书一律用标准结构。
 - 每条注释必须可回跳，默认回跳符号 `◎`（U+25CE）。
+- 注释容器在章末保持可见，不得用 `display: none` 整组隐藏：Kindle 转换会丢弃隐藏元素，注码断链、不能弹注（Kindle Previewer 报 W14001，见 `reader-matrix.yaml` 的 `hidden-footnotes-container`）。`@media amzn-kf8` 覆盖无效，弹注阅读器里多出的章末列表是可接受的代价。
 - 当需要兼容多看旧版本时，暂时改用上述旧 grouped 结构，并同步（基于标准结构的多看写法尚未实测，`epub.notes.legacy-fallback` 遇到标准结构会报 `notes-fallback.no-grouped-list` 并停止）：
   - noteref 锚 `<a>` 增加 `class="duokan-footnote"`，且锚内放注释图标 `<img>`；
   - 注释容器必须使用 `<ol class="footnote-list duokan-footnote-content">`；

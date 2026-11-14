@@ -155,6 +155,18 @@ def test_multicodepoint_case_transform_results_are_retained():
     assert ord("\u030c") in title.codepoints
 
 
+def test_case_transform_keeps_uncased_text_role_scoped():
+    chapter = CHAPTER.replace("\u4e59\u6807\u9898", "\u4e59\u6807\u9898 name")
+    css = CSS + "h1 { text-transform: uppercase; }\n"
+    zf, _book, _independent, plan = build_plan(chapter=chapter, css=css)
+    with zf:
+        body, title = plan.fonts[BODY], plan.fonts[TITLE]
+    assert title.mode == "css"
+    assert {ord(c) for c in "NAME"} <= title.codepoints
+    assert ord("\u7532") not in title.codepoints
+    assert ord("\u4e59") not in body.codepoints
+
+
 def test_xml_stylesheet_processing_instruction_refuses_css_mode():
     chapter = CHAPTER.replace(
         "<html xmlns=", '<?xml-stylesheet type="text/css" href="../Styles/fonts.css"?>\n<html xmlns='
