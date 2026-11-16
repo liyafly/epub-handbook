@@ -402,12 +402,23 @@ func (r *bookRunner) prepareTree(layout bookLayout, out outputSpec, overlayFiles
 		return "", fontPlan{}, err
 	}
 	if out.Overlay != "" {
+		swaps, err := findImageSwaps(overlayFiles, srcDir)
+		if err != nil {
+			return "", fontPlan{}, fmt.Errorf("variant %q: %w", out.Name, err)
+		}
 		if err := applyOverlay(out.Overlay, overlayFiles, srcDir); err != nil {
 			return "", fontPlan{}, err
 		}
 		opfPath, err := treeRootfile(srcDir)
 		if err != nil {
 			return "", fontPlan{}, err
+		}
+		if len(swaps) > 0 {
+			changed, err := applyImageSwaps(r.ctx, srcDir, opfPath, swaps)
+			if err != nil {
+				return "", fontPlan{}, fmt.Errorf("variant %q: %w", out.Name, err)
+			}
+			fmt.Fprintf(r.bio.out(), "variant %s: %d image(s) swapped to another format, references rewritten in %d file(s)\n", out.Name, len(swaps), len(changed))
 		}
 		if slices.Contains(overlayFiles, opfPath) {
 			removed, err := pruneUnlistedImages(r.ctx, srcDir, opfPath)
