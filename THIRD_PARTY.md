@@ -28,6 +28,16 @@ on 2026-06-18 inspected `ff8c171d0b9dfd3c44c0e2621e1054b39feaa0a0`.
 The handbook implementation does not provide DRM decryption and does not copy
 the reference project's desktop UI or third-party dependencies.
 
+## External Tool: whisper.cpp
+
+[`ggml-org/whisper.cpp`](https://github.com/ggml-org/whisper.cpp) (MIT) provides
+`whisper-cli`, which `epub book transcribe` runs through `internal/extern` to
+time words in audiobook chapters. It is installed separately (for example
+`brew install whisper-cpp`) and is not bundled. Speech models such as
+`ggml-small.en.bin` are downloaded by the user from the whisper.cpp model
+repository on Hugging Face (converted OpenAI Whisper weights, MIT) and are not
+stored in this repository. Tested with whisper.cpp 1.9.5.
+
 ## Documentation Reference: Reeden EPUB Extensions
 
 - Source / publisher: [Reeden official documentation](https://docs.reeden.app/ebook_spec)

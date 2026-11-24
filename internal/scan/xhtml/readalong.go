@@ -368,7 +368,6 @@ func isHeading(name string) bool {
 	return len(name) == 2 && name[0] == 'h' && name[1] >= '1' && name[1] <= '6'
 }
 
-
 func attrValue(attrs []Attr, name string) string {
 	for _, a := range attrs {
 		if strings.EqualFold(a.Raw, name) {

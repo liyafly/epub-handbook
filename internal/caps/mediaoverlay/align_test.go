@@ -89,3 +89,28 @@ func abs(x float64) float64 {
 	}
 	return x
 }
+
+func TestMP3DurationFrameWalk(t *testing.T) {
+	frame := make([]byte, 417) // MPEG-1 Layer III, 128 kbps, 44.1 kHz, no padding
+	copy(frame, []byte{0xff, 0xfb, 0x90, 0x00})
+	data := []byte("ID3\x04\x00\x00\x00\x00\x00\x05xxxxx")
+	for range 100 {
+		data = append(data, frame...)
+	}
+	data = append(data, []byte("TAG trailing id3v1")...)
+	got, err := MP3Duration(data)
+	if want := 100 * 1152 / 44100.0; err != nil || abs(got-want) > 1e-9 {
+		t.Fatalf("duration = %v, %v; want %v", got, err, want)
+	}
+	if _, err := MP3Duration([]byte("not audio at all")); err == nil {
+		t.Fatal("non-MP3 input must fail")
+	}
+}
+
+func TestTokensSplitCJKPerCharacter(t *testing.T) {
+	got := tokens("正文从这里开始。Mr Jones’ 4 pigs")
+	want := []string{"正", "文", "从", "这", "里", "开", "始", "mr", "jones", "four", "pigs"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("tokens = %q", got)
+	}
+}

@@ -1078,6 +1078,15 @@ Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应�
 
 ---
 
+## 十点六、有声同步（Media Overlays）
+
+有每章一个 MP3 的有声书时，可以做逐句高亮的跟读版。规则见 [SPEC §5.14](SPEC-实现约束.md)，做法见 [做有声同步版](../how-to/read-along.md)。
+
+- 结构：正文句子包 `<span id="mo-…">`；每章一个 SMIL，`<par>` 里一对 `<text src="ch1.xhtml#id"/>` 与 `<audio src="…mp3" clipBegin="…s" clipEnd="…s"/>`；OPF 正文 item 加 `media-overlay`，metadata 写 `media:duration` 与 `media:active-class`。
+- 只做成变体，通用版和 Kindle 版不带音频。
+- 时间轴来自本机 whisper.cpp 识别，再逐词对上正文；CLI 不联网。
+- 阅读器：Reeden 能播放（待记录证据），Readest 待测；Apple Books 可重排版没找到播放入口，Kindle 不支持。
+
 ## 十一、制作流程
 
 1. 准备并定稿文本、封面、海报背景、注释图标和授权字体；若用参考版校订已有正文，先按 SPEC §10.1.1 完成逐项决策，不直接覆盖现版。

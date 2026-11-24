@@ -15,6 +15,7 @@ epub book accept-dist [<dir>] [--variant <name>]
 epub book recipes [<name> [--add <dir>]]
 epub book reader-layer [<dir>]
 epub book add-chapter [<dir>] --title <title> [--file <name>] [--after <chapter>]
+epub book transcribe [<dir>] [--model <ggml-model>] [--force]
 ```
 
 纯 Go 实现，Windows、macOS、Linux 共用；省略 `<dir>` 表示当前目录。安全属性与旧 sh 构建器一致：冻结原件与 SHA、DRM 停止、导航审计、字体锁与子集、全项 redline、原子替换、`dist-sha256` 收据、`accept-dist` 逐成员比对、构建锁、失败现场保留。
@@ -115,6 +116,15 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 构建时先造通用版候选，再造各变体候选，各自走完整门禁（字体注入/子集/覆盖检查、导航审计、全项 redline）；每个变体另与通用版比对正文（`text` 红线）。**全部候选通过后才统一替换**：任一失败则 `out/` 一个文件都不动，错误信息列出失败的输出。每个输出有自己的收据（通用版 `dist-sha256`，变体 `dist-sha256.<name>`）和同样的"改过的成品不覆盖"保护；交付记录每个输出一行，变体行末多一列 `variant:<name>`。
 
 `--variant <name>`（`build` / `accept-dist` / `preview`）只处理该变体，不重建也不触碰通用版成品与收据。`accept-dist` 不带 `--variant` 时逐个输出做成员比对，全部一致才登记收据。
+
+## 有声同步
+
+`book.json` 写 `readAlong`（`audio`、`model`、可选 `language`、`narrator`、`granularity`、`audioMap`），再加一个 `"mediaOverlay": true` 的变体，overlay 可省。旧布局把 `readAlong` 写在制作区 `variants.json`，路径相对制作区。
+
+- `epub book transcribe` 经 `whisper-cli`（或 `EPUB_WHISPER_BIN`）逐个识别音频，缓存到状态目录的 `asr/<音频SHA>.json`；缓存键含模型 SHA，`--force` 重来。`clean` 不删这些缓存。
+- `build` 对该变体在字体子集之后跑 `epub.media.overlay.build`，再照常做导航审计、全项 redline 和对通用版的 `text` 红线。报告是 `media-overlay.<变体>.json`。
+- 缺时间轴缓存：整体构建时跳过该变体并报 WARN；`--variant` 只建它时直接失败。`preview` 不加音频。
+- 做法与结果判读见 [做有声同步版](../how-to/read-along.md)；能力细节见 [media-overlay.md](media-overlay.md)。
 
 ## 字体
 

@@ -57,6 +57,8 @@ type bookConfig struct {
 	// Readers 只是文档性质的目标阅读器清单，不会据此自动生成任何东西。
 	Readers  []string                 `json:"readers,omitempty"`
 	Variants map[string]variantConfig `json:"variants,omitempty"`
+	// ReadAlong 配置有声同步（docs/pipeline/media-overlay.md）。
+	ReadAlong *readAlongConfig `json:"readAlong,omitempty"`
 }
 
 func (c bookConfig) jobs() ([]fontJob, error) {
@@ -111,7 +113,9 @@ type bookLayout struct {
 	Config     bookConfig // 新布局的 book.json
 	// Variants 是已校验的变体（阅读器版本 / 版本差异），按名字排序。
 	Variants []variantSpec
-	Volumes  []string // 多册工作区：各册目录（含自己的 build.sh）
+	// ReadAlong 是解析后的有声同步配置；没有 readAlong 段时为 nil。
+	ReadAlong *readAlongSpec
+	Volumes   []string // 多册工作区：各册目录（含自己的 build.sh）
 }
 
 // displayPath 返回相对书根的路径，用于简洁输出。
@@ -201,6 +205,12 @@ func resolveNewLayout(bookDir string, env bookEnv) (bookLayout, error) {
 	if err != nil {
 		return bookLayout{}, fmt.Errorf("%s: %w", bookConfigName, err)
 	}
+	if layout.ReadAlong, err = resolveReadAlong(cfg.ReadAlong, bookDir); err != nil {
+		return bookLayout{}, fmt.Errorf("%s: %w", bookConfigName, err)
+	}
+	if err := checkMediaOverlayVariants(layout); err != nil {
+		return bookLayout{}, fmt.Errorf("%s: %w", bookConfigName, err)
+	}
 	return layout, nil
 }
 
@@ -267,13 +277,20 @@ func resolveLegacyLayout(dir string, env bookEnv) (bookLayout, error) {
 	// 旧布局的变体配置放在制作区的 variants.json，不参与布局识别。
 	if data, err := readSmallFile(filepath.Join(layout.WorkDir, legacyVariantsName)); err == nil {
 		var doc struct {
-			Variants map[string]variantConfig `json:"variants"`
+			Variants  map[string]variantConfig `json:"variants"`
+			ReadAlong *readAlongConfig         `json:"readAlong"`
 		}
 		if err := json.Unmarshal(data, &doc); err != nil {
 			return bookLayout{}, fmt.Errorf("%s is not valid JSON: %w", legacyVariantsName, err)
 		}
 		layout.Variants, err = buildVariantSpecs(doc.Variants, layout.WorkDir, layout.OutputName)
 		if err != nil {
+			return bookLayout{}, fmt.Errorf("%s: %w", legacyVariantsName, err)
+		}
+		if layout.ReadAlong, err = resolveReadAlong(doc.ReadAlong, layout.WorkDir); err != nil {
+			return bookLayout{}, fmt.Errorf("%s: %w", legacyVariantsName, err)
+		}
+		if err := checkMediaOverlayVariants(layout); err != nil {
 			return bookLayout{}, fmt.Errorf("%s: %w", legacyVariantsName, err)
 		}
 	}

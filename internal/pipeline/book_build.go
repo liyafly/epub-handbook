@@ -280,7 +280,7 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "kindle-check", "redline", "previous-dist-redline", "report"}
+var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "media-overlay", "kindle-check", "redline", "previous-dist-redline", "report"}
 
 // isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
 func isReportFile(name string) bool {
@@ -501,6 +501,11 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 	} else if err := zipfs.CopyFile(r.ctx, c.full, c.final, 0o644); err != nil {
 		return err
 	}
+	if c.out.MediaOverlay {
+		if err := r.readAlongCandidate(layout, c, tag); err != nil {
+			return err
+		}
+	}
 	if err := r.capabilityCheck(layout, filepath.Join(layout.StateDir, "nav-audit"+sfx+".json"), "epub.package.nav.audit"+tag, Options{
 		CapabilityID: "epub.package.nav.audit", InputPath: c.final,
 	}); err != nil {
@@ -572,6 +577,9 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 		targets = []outputSpec{v}
 	}
 	if err := validateEpubTree(layout); err != nil {
+		return err
+	}
+	if targets, err = r.dropUntranscribed(layout, targets); err != nil {
 		return err
 	}
 	overlays, err := validateOverlays(layout, targets)

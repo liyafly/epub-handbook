@@ -10,6 +10,7 @@ description: 在明确授权后合并或拆分 EPUB、修改元数据、替换�
 公共返回、授权边界与验收说明见[技能索引](../README.md)。
 
 - 包操作：用户明确选择时；多个操作分开执行并分别验证。每个输入先预检，损坏/加密按根 AGENTS 停止，不靠删除资源绕过保护。
+- 有声同步：用户有每章一个 MP3 的有声书，要做跟读高亮版时。规则读 [SPEC §5.14](../../docs/final/SPEC-实现约束.md)，做法读 [做有声同步版](../../docs/how-to/read-along.md)。书级工作区优先用 `readAlong` 配置加 `mediaOverlay` 变体，由构建调用下面的能力。
 - A-lite 转换：明确需要全页封面式视觉时。先读目标 XHTML/CSS/OPF 与图片/字体，识别背景、叠字、竖列和版权页；规则读 [SPEC §2](../../docs/final/SPEC-实现约束.md)，对照[叠字 fixture](../../templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml)或[单图 fixture](../../templates/epub-style-demo/OEBPS/Text/03c-poster-contain.xhtml)。
 
 ## 调什么
@@ -22,6 +23,7 @@ epub run epub.package.split --input "book.epub" --json "output_dir=split-candida
 epub run epub.metadata.edit --input "book.epub" --output "candidate.epub" --json metadata_json='{"title":"新书名"}'
 epub run epub.cover.replace --input "book.epub" --output "candidate.epub" --json "cover=cover.png"
 epub run epub.alite.convert --input "before.epub" --output "candidate.epub" --dry-run --json [expect_volumes=N]
+epub run epub.media.overlay.build --input "book.epub" --output "readalong.epub" --json "audio_dir=素材/audio" "timings_dir=.epub/asr" [audio_map=map.json] [granularity=paragraph]
 ```
 
 - split **不需 --output**，`output_dir` 必须是尚不存在的目录；切分点是 TOC 目标下标（无目录退化为 spine），不是页码，先核对实际目录。
@@ -34,6 +36,7 @@ epub run epub.alite.convert --input "before.epub" --output "candidate.epub" --dr
 - `metadata.edit`、`merge`、`cover.replace` 的内置红线会把授权字段变化、合并卷新增内容或封面替换记为 error（exit 1），但候选仍写出。按 [package-operations](../../docs/pipeline/package-operations.md)，用排除对应检查项的显式 redline 复核（metadata 排除 metadata，cover 排除 cover，merge 用 drm,anchors），其余检查项仍须通过。
 - merge 的 `mappings` 仅对应首个 `--input`；`sourceMappings[]` 以 inputIndex/input 区分每卷完整映射。
 - A-lite：`alite.no-copyright` 表示未找到相邻版权页，不表示应凭空补一页。
+- 有声同步：`facts["epub.media.overlay.build.chapters"]` 给每章的匹配率、弱句和起止秒数。error 时不写任何改动。
 
 ## 依据返回怎么判断
 
@@ -45,6 +48,12 @@ epub run epub.alite.convert --input "before.epub" --output "candidate.epub" --dr
 - split 对同一 `@font-face src` 内有有效非空 `local()` 的缺失字体 URL 保留声明并继续，只记 `split.font-local-fallback` 事件；系统字体是否可用仍须实测。无此回退的字体、图片/导入 CSS 断链仍拒绝。split 必须核对所有分段合起来的内容、边界与导航，原书与某一段必然有范围差异；检查新增导航 spine 项是否为预期非正文项。
 - 换封面只接受已授权的封面/引用变化，metadata 只接受指定字段变化。门禁失败保留候选，不自动发布。
 - 需要同时保留常规封面与 slim/多比例资源时，先核对替换计划、mappings 和真实 ZIP 成员；单封面替换可能清理被替代资源。Kindle 重复封面先查 cover-image/legacy cover、guide、spine 与封面页单主图是否一致；桌面显示主图不证明手机自动选中 slim。见 [10 月复盘](../../docs/pipeline/reader-adaptation-lessons-2026-10.md)。
+
+### 有声同步
+
+- `media-overlay.low-match`：先查音频排序或改用 `audio_map`，不要降低门槛。`timings-missing`：先跑 `epub book transcribe`。`chapter-count-mismatch`：按 detail 里列出的章节写 `audio_map`。
+- `weak-segments` 是 warn：多为没念的章题或一两个词的短句，抽听即可；集中在同一段时检查那段是否被删节。
+- 产物必须过全项 redline（span 不改文字）。阅读器结论只按实测写进 reader-matrix，不由构建结果代替。
 
 ### A-lite 转换
 

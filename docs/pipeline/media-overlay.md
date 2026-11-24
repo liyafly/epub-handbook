@@ -1,6 +1,6 @@
 # 有声同步（Media Overlays）
 
-> 状态：开发中。S1、S2 完成：`epub run epub.media.overlay.build` 可用，时间轴需自备；`epub book transcribe` 与书级接入未完成。硬规则见 [SPEC-实现约束 §5.14](../final/SPEC-实现约束.md)。
+> 状态：已实现（2026-11-25），阅读器实测待记录。用法见 [做有声同步版](../how-to/read-along.md)，硬规则见 [SPEC-实现约束 §5.14](../final/SPEC-实现约束.md)。本页是维护者参考。
 
 把「EPUB + 按章分开的有声书音频」做成逐句高亮跟读的 EPUB3。原型在一本英文插图小说上跑通：whisper.cpp + `small.en` 模型，各章 97–99% 的书面词与识别词对上。书级证据留在本地。
 
@@ -58,9 +58,11 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 "variants": {"readalong": {"mediaOverlay": true}}
 ```
 
-- 跟读只做成变体，通用版不带音频。
-- 构建时缺时间轴缓存：这个变体跳过并报 warn，其他输出照常。
-- 音频原件放 `素材/audio/`，识别缓存放 `.epub/`。
+- 跟读只做成变体，通用版不带音频。构建在字体子集之后对变体候选跑能力，之后照常做导航审计和红线。
+- 构建时缺时间轴缓存：这个变体跳过并报 WARN，其他输出照常；`--variant` 只建它时失败。
+- 音频原件放 `素材/audio/`，识别缓存放状态目录 `asr/`（新布局 `.epub/asr/`）。
+- `transcribe` 用 Go 逐帧算 MP3 时长写进时间轴，whisper.cpp 的 token 以空格开头的开新词，`[_BEG_]` 之类的特殊 token 丢掉。
+- 中日文按字对齐（汉字、假名逐字成词）；要用多语言模型。
 
 ## 跨平台
 
@@ -79,10 +81,10 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 
 ## 阶段
 
-| 阶段 | 内容 |
-| --- | --- |
-| S1 | 时间轴 schema、本页、SPEC §5.14 |
-| S2 | 契约、参数和能力本体，加 golden 和原型对照 |
-| S3 | extern whisper-cli、`epub book transcribe` |
-| S4 | nav audit SMIL 检查、`book.json` 接入 |
-| S5 | how-to（双语）、skill（并入 `epub-package-ops`）、FAQ、手册和速查表、reader-matrix |
+S1–S5 已于 2026-11-24/25 完成：时间轴 schema 与规则；能力本体（含 2 GiB 限额与 `book.AddFile`）；`epub book transcribe`；nav audit 的 SMIL 检查与 `book.json` 接入；how-to、FAQ、skill、手册与速查表。
+
+## 待办
+
+- Reeden、Readest 实测：记版本、截图，写进 `reader-matrix.yaml`。
+- 单个 m4b + 章节表：需要可选的 ffmpeg provider。
+- nav audit 不核对 clip 是否超过音频长度（能力写 SMIL 时已按时间轴里的时长封顶）。

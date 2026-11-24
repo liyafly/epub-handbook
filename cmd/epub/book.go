@@ -20,6 +20,7 @@ const bookUsage = `用法:
   epub book accept-dist [<书目录>] [--variant <名称>]
   epub book recipes [<配方> [--add <书目录>]]
   epub book reader-layer [<书目录>]
+  epub book transcribe [<书目录>] [--model <ggml 模型>] [--force]
   epub book add-chapter [<书目录>] --title <标题> [--file <文件名>] [--after <已有章节文件>]
 
 新布局（含 book.json）与旧布局（03 制作工作区/epub/、fonts.json）自动识别；
@@ -86,6 +87,23 @@ func runBook(argv []string) int {
 			dir = args[0]
 		}
 		return pipeline.BookReaderLayer(ctx, pipeline.BookReaderLayerOptions{Dir: dir}, bio)
+	case "transcribe":
+		fs := flag.NewFlagSet("epub book transcribe", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		model := fs.String("model", "", "whisper.cpp 模型文件（覆盖 readAlong.model）")
+		force := fs.Bool("force", false, "忽略缓存，重新识别全部音频")
+		args, code := parseInterspersed(fs, rest)
+		if code >= 0 {
+			return code
+		}
+		if len(args) > 1 {
+			return bookUsageError("transcribe 最多接受一个书目录")
+		}
+		dir := ""
+		if len(args) == 1 {
+			dir = args[0]
+		}
+		return pipeline.BookTranscribe(ctx, pipeline.BookTranscribeOptions{Dir: dir, Model: *model, Force: *force}, bio)
 	case "add-chapter":
 		fs := flag.NewFlagSet("epub book add-chapter", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)

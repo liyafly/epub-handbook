@@ -458,6 +458,7 @@ func (ins *inspector) inspectOPF(ctx context.Context) {
 	ins.checkCSSURLs(ctx, pkg, manifestPaths)
 	ins.checkReaderFontScaling(ctx, pkg)
 	ins.checkFixedLayout(ctx, pkg)
+	ins.checkMediaOverlays(ctx, pkg)
 	ins.checkPageColorLock(ctx, pkg)
 	ins.checkXHTML(ctx, pkg)
 	ins.ocrHeuristic(pkg)

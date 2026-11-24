@@ -41,10 +41,22 @@ const (
 	minClip    = 0.05
 )
 
-// tokens 把文字规范成对齐用的词：小写、去撇号、拆成字母数字串，个位数字转英文词。
+// tokens 把文字规范成对齐用的词：小写、去撇号、拆成字母数字串，个位数字转英文词，
+// 汉字和假名逐字拆开。
 func tokens(s string) []string {
 	s = strings.ToLower(strings.NewReplacer("’", "", "'", "").Replace(s))
-	words := strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	// 汉字、假名逐字成词：中日文没有空格，识别器的分词也和书面不同
+	var spaced strings.Builder
+	for _, r := range s {
+		if unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana) {
+			spaced.WriteByte(' ')
+			spaced.WriteRune(r)
+			spaced.WriteByte(' ')
+		} else {
+			spaced.WriteRune(r)
+		}
+	}
+	words := strings.FieldsFunc(spaced.String(), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	digits := [...]string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
 	for i, w := range words {
 		if len(w) == 1 && w[0] >= '1' && w[0] <= '9' {

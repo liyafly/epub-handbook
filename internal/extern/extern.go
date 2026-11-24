@@ -39,6 +39,7 @@ const waitDelay = 5 * time.Second
 // child process cannot deadlock on a full pipe.
 const (
 	maxRunDuration    = 30 * time.Minute
+	longRunDuration   = 4 * time.Hour
 	streamOutputLimit = 16 << 20
 )
 
@@ -121,6 +122,12 @@ type CmdResult struct {
 // 也是唯一能真正终止一个失控外部 provider 子进程的地方。
 func Run(ctx context.Context, dir string, argv []string) (CmdResult, error) {
 	return run(ctx, dir, argv, maxRunDuration)
+}
+
+// RunLong is Run with a longer ceiling, for providers whose run time grows with
+// the input (speech recognition of an audiobook chapter on a slow CPU).
+func RunLong(ctx context.Context, dir string, argv []string) (CmdResult, error) {
+	return run(ctx, dir, argv, longRunDuration)
 }
 
 func run(ctx context.Context, dir string, argv []string, maxDuration time.Duration) (CmdResult, error) {

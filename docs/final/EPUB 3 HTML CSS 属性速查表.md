@@ -190,6 +190,9 @@
 | `ibooks:specified-fonts` | `true` | 条件推荐 | 仅正文字体锁定时添加；自由正文历史例外须书级记录并显式 lint 豁免 |
 | `<meta name="cover">` | `cover-img` | 推荐 | 兼容封面识别 |
 | `spine toc="ncx"` | `toc` / `ncx` item id | 推荐 | Kindle / 旧工具链兼容目录 |
+| `media:duration` | `0:22:02.230` | 条件可用 | 有声同步：每个 SMIL 一条（`refines="#smil-id"`）加全书合计；见 SPEC §5.14 |
+| `media:active-class` | `mo-active` | 条件可用 | 有声同步的高亮类，样式表里要定义；`media:` 是保留前缀，不声明 |
+| `media:narrator` | 朗读者 | 可用 | 有声同步 |
 
 ### 3.3 manifest media-type
 
@@ -209,7 +212,9 @@
 | OTF | `font/otf` | 推荐 |
 | WOFF | `font/woff` | 条件可用 |
 | WOFF2 | `font/woff2` | 条件可用 |
-| MP3 | `audio/mpeg` | 条件可用 |
+| MP3 | `audio/mpeg` | 条件可用：有声同步音频，ZIP 里不压缩 |
+| AAC / M4A | `audio/mp4` | 条件可用：有声同步音频 |
+| SMIL | `application/smil+xml` | 条件可用：有声同步；正文 item 用 `media-overlay="<smil id>"` 指向它；Reeden 待记录、Readest 待测 |
 | MP4 | `video/mp4` | 条件可用 |
 
 ### 3.4 spine

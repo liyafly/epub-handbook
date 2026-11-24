@@ -10,7 +10,7 @@
 - `--legacy-report` 已移除。CLI 使用 v2 envelope；取消以 `status=cancelled`、exit 1 表示，取消的写出型任务不落盘。
 - EPUB 结构与正文验证由 `epub.package.nav.audit`、`epub redline --check all` 和 CI EPUBCheck 组成。不存在独立 `epub_lint.py` 的 Go capability。
 - 书级工作流已全部进入 Go：`epub book new|import|add-chapter|preview|build|fonts|clean|accept-dist|recipes|reader-layer`，自动识别新布局（`book.json`）与旧布局（`03 制作工作区/`），支持阅读器/版本变体覆盖层。构建终端每项一行，汇总写 `report.html`。旧书书根 `build.sh` 经 `templates/book-starter/build.sh` 转发给 `epub book`；旧的 `new-book.sh`、`import-book.sh`、`import_book.py` 已删除。构建对每个产物跑 Kindle 静态检查（只有 `kindle` 变体的 error 阻断）。细节见[书级工作区](book-workspace.md)。
-- 范围：可重排为主，支持整本固定版式（SPEC §5.13）；nav audit 与 image_layout 共用 `internal/scan/opf` 的固定版式判断。脚本交互不做；Media Overlays 开发中（`epub.media.overlay.build` 已注册，transcribe 与书级接入未完成），见 [media-overlay.md](media-overlay.md)。
+- 范围：可重排为主，支持整本固定版式（SPEC §5.13）；nav audit 与 image_layout 共用 `internal/scan/opf` 的固定版式判断。脚本交互不做；Media Overlays 见 [media-overlay.md](media-overlay.md)：能力 `epub.media.overlay.build`、`epub book transcribe`（外部 whisper-cli，经 `extern.RunLong`）与 `mediaOverlay` 变体。
 - `tools-art/epub-art`（Python/Pillow）是独立的书级图片辅助工具：轮廓坐标、透明化候选、版面截图。不进发行包，未注册 capability。
 - 截至 2026-11-10，最新 Release 仍是 Go CLI [`v0.5.0`](https://github.com/liyafly/epub-handbook/releases/tag/v0.5.0)；附件包含 Linux amd64、Windows amd64、macOS arm64 和 macOS amd64 原生构建及 `SHA256SUMS`。下一版 `v0.6.0` 已在 `CHANGELOG.md` 定稿，`cmd/epub/version.go` 为 `0.6.0-dev`；打 tag 和推送由所有者做（`release-cli.yml` 由 `v*` tag 触发）。CI/附件验证不构成目标阅读器验收；后续版本以实际 Release 为准。
 - `internal/docguard` 已接替技能 frontmatter、OpenAI YAML 形状、skill 索引、AI 入口和契约结构等元校验。手册、速查表与 SPEC 的语义同步仍需人工核对。

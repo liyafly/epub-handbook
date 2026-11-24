@@ -41,22 +41,26 @@ type variantConfig struct {
 	Output  string `json:"output,omitempty"`
 	// Fonts 非 nil 时整体替换字体任务列表（空数组表示本变体不嵌字体）。
 	Fonts *[]json.RawMessage `json:"fonts,omitempty"`
+	// MediaOverlay 为 true 时构建该变体会按 readAlong 加入音频与 SMIL；此时 overlay 可省。
+	MediaOverlay bool `json:"mediaOverlay,omitempty"`
 }
 
 type variantSpec struct {
-	Name       string
-	OverlayDir string
-	Output     string
-	Fonts      *[]json.RawMessage
+	Name         string
+	OverlayDir   string
+	Output       string
+	Fonts        *[]json.RawMessage
+	MediaOverlay bool
 }
 
 // outputSpec 描述一个要构建的成品：通用版（Name 为空）或某个变体。
 type outputSpec struct {
-	Name    string
-	File    string
-	Receipt string
-	Overlay string
-	Fonts   *[]json.RawMessage
+	Name         string
+	File         string
+	Receipt      string
+	Overlay      string
+	Fonts        *[]json.RawMessage
+	MediaOverlay bool
 }
 
 func (o outputSpec) label() string {
@@ -87,7 +91,7 @@ func buildVariantSpecs(configs map[string]variantConfig, baseDir, genericOutput 
 		if !validVariantName(name) {
 			return nil, fmt.Errorf("variant name %q is not a safe file name", name)
 		}
-		if cfg.Overlay == "" || !filepath.IsLocal(filepath.FromSlash(cfg.Overlay)) {
+		if (cfg.Overlay == "" && !cfg.MediaOverlay) || (cfg.Overlay != "" && !filepath.IsLocal(filepath.FromSlash(cfg.Overlay))) {
 			return nil, fmt.Errorf("variant %q: overlay must be a relative path inside the book", name)
 		}
 		output := cmp.Or(cfg.Output, strings.TrimSuffix(genericOutput, ".epub")+"-"+name+".epub")
@@ -98,9 +102,13 @@ func buildVariantSpecs(configs map[string]variantConfig, baseDir, genericOutput 
 			return nil, fmt.Errorf("variant %q: output %q is already used by %s", name, output, other)
 		}
 		seenOutputs[output] = name
+		overlayDir := ""
+		if cfg.Overlay != "" {
+			overlayDir = filepath.Join(baseDir, filepath.FromSlash(cfg.Overlay))
+		}
 		specs = append(specs, variantSpec{
-			Name: name, OverlayDir: filepath.Join(baseDir, filepath.FromSlash(cfg.Overlay)),
-			Output: output, Fonts: cfg.Fonts,
+			Name: name, OverlayDir: overlayDir,
+			Output: output, Fonts: cfg.Fonts, MediaOverlay: cfg.MediaOverlay,
 		})
 	}
 	return specs, nil
@@ -112,7 +120,7 @@ func (l bookLayout) outputs() []outputSpec {
 	for _, v := range l.Variants {
 		list = append(list, outputSpec{
 			Name: v.Name, File: v.Output, Receipt: filepath.Join(l.StateDir, "dist-sha256."+v.Name),
-			Overlay: v.OverlayDir, Fonts: v.Fonts,
+			Overlay: v.OverlayDir, Fonts: v.Fonts, MediaOverlay: v.MediaOverlay,
 		})
 	}
 	return list
