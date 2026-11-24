@@ -113,3 +113,53 @@ func TestOriginalReadFailurePoisonsWrites(t *testing.T) {
 		t.Fatalf("CommitGroup left output directory behind: stat error = %v", err)
 	}
 }
+
+func TestAddFileStreamsStoredEntryWithoutRetaining(t *testing.T) {
+	b, _ := openSample(t)
+	dir := t.TempDir()
+	audio := filepath.Join(dir, "ch01.mp3")
+	payload := []byte("ID3fake-audio-bytes")
+	if err := os.WriteFile(audio, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b.maxRetainedBytes = 1 // file-backed entries must not count against the budget
+	if err := b.AddFile("OEBPS/Audio/ch01.mp3", audio); err != nil {
+		t.Fatal(err)
+	}
+	if !b.Has("OEBPS/Audio/ch01.mp3") || !b.IsModified("OEBPS/Audio/ch01.mp3") {
+		t.Fatal("added file entry not visible")
+	}
+	if err := b.AddFile("OEBPS/Audio/ch01.mp3", audio); !errors.Is(err, ErrDuplicateEntry) {
+		t.Fatalf("duplicate add: %v", err)
+	}
+	if err := b.AddFile("mimetype", audio); !errors.Is(err, ErrDuplicateEntry) {
+		t.Fatalf("replacing an input entry must be refused: %v", err)
+	}
+	if got, err := b.Current("OEBPS/Audio/ch01.mp3"); err != nil || string(got) != string(payload) {
+		t.Fatalf("Current = %q, %v", got, err)
+	}
+	fork := b.Fork()
+	if !fork.Has("OEBPS/Audio/ch01.mp3") {
+		t.Fatal("fork lost file entry")
+	}
+	b.maxRetainedBytes = MaxRetainedBytes
+	out := filepath.Join(dir, "out.epub")
+	if err := b.WriteTo(out); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	got, err := r.Original("OEBPS/Audio/ch01.mp3")
+	if err != nil || string(got) != string(payload) {
+		t.Fatalf("written entry = %q, %v", got, err)
+	}
+	if e, _ := r.arch.Lookup("OEBPS/Audio/ch01.mp3"); e == nil || e.MethodCode() != 0 {
+		t.Fatalf("audio entry must be stored, got %+v", e)
+	}
+	if err := fork.Apply([]editset.Edit{editset.Delete("OEBPS/Audio/ch01.mp3")}); err != nil || fork.Has("OEBPS/Audio/ch01.mp3") {
+		t.Fatalf("delete file entry: %v", err)
+	}
+}

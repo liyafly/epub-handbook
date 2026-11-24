@@ -40,7 +40,7 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 
 - 支持 MP3（`audio/mpeg`）和 M4A/AAC（`audio/mp4`），原样放进包。时长由 Go 解析帧头或 `mvhd`。
 - `whisper-cli` 能直接读 MP3、WAV、FLAC，读不了 AAC。第一版要求按章的 MP3。单个 m4b 以后再做，需要可选的 ffmpeg。
-- 限额：现有 `zipfs.DefaultLimits` 是整包 512 MB、单个文件 256 MB。EPUB 规范本身没有上限，这是本项目的安全阀。带音频的书怎么放宽，在 S2 里定。
+- 限额：整包 2 GiB、单个文件 256 MiB、解压总量 4 GiB（`zipfs.DefaultLimits`）。EPUB 规范本身没有上限，这是本项目的安全阀。新加的音频由 `book.AddFile` 登记磁盘路径，写包时直接流式写入并存储不压缩，不占 512 MiB 内存缓存。
 
 ## 书级接入
 

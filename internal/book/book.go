@@ -67,6 +67,7 @@ func openArchive(ctx context.Context, arch *zipfs.Archive) (*Book, error) {
 		byName:           make(map[string]*zipfs.Entry),
 		cur:              make(map[string][]byte),
 		deleted:          make(map[string]bool),
+		files:            make(map[string]string),
 		source:           &originalCache{entries: make(map[string][]byte)},
 		maxRetainedBytes: MaxRetainedBytes,
 	}
@@ -105,6 +106,7 @@ type Book struct {
 	cur              map[string][]byte
 	added            []string
 	deleted          map[string]bool
+	files            map[string]string // added entries streamed from disk at write time
 	currentBytes     int64
 	maxRetainedBytes int64
 	readErr          error
@@ -138,6 +140,7 @@ func (b *Book) Fork() *Book {
 		cur:              maps.Clone(b.cur),
 		added:            slices.Clone(b.added),
 		deleted:          maps.Clone(b.deleted),
+		files:            maps.Clone(b.files),
 		currentBytes:     b.currentBytes,
 		maxRetainedBytes: b.maxRetainedBytes,
 		readErr:          b.readErr,
@@ -188,6 +191,9 @@ func (b *Book) Has(name string) bool {
 	if _, ok := b.cur[name]; ok {
 		return true
 	}
+	if _, ok := b.files[name]; ok {
+		return true
+	}
 	_, ok := b.byName[name]
 	return ok
 }
@@ -195,6 +201,9 @@ func (b *Book) Has(name string) bool {
 // IsModified 判断 entry 相对输入是否被改动（含新增与删除）。
 func (b *Book) IsModified(name string) bool {
 	if b.deleted[name] {
+		return true
+	}
+	if _, ok := b.files[name]; ok {
 		return true
 	}
 	_, ok := b.cur[name]
@@ -273,7 +282,40 @@ func (b *Book) CurrentContext(ctx context.Context, name string) ([]byte, error) 
 	if data, ok := b.cur[name]; ok {
 		return data, nil
 	}
+	if path, ok := b.files[name]; ok {
+		// Not retained: file-backed entries are large media read on demand.
+		return zipfs.ReadFileContext(ctx, path, zipfs.DefaultLimits().MaxEntryBytes)
+	}
 	return b.OriginalContext(ctx, name)
+}
+
+// AddFile adds a new entry whose bytes are streamed from a regular disk file
+// when the book is written (stored, not deflated). The file is not read now and
+// never counts against the retained-content budget; it must stay unchanged
+// until the book is written.
+func (b *Book) AddFile(name, diskPath string) error {
+	if err := ValidatePath(name); err != nil {
+		return fmt.Errorf("book: %s: %w", name, err)
+	}
+	if strings.HasSuffix(name, "/") {
+		return fmt.Errorf("book: %s: entry name must not end with '/'", name)
+	}
+	if _, isOriginal := b.byName[name]; isOriginal || b.Has(name) {
+		return fmt.Errorf("book: %w: %s", ErrDuplicateEntry, name) // replacing an input entry is not supported
+	}
+	size, err := zipfs.StatRegularFile(diskPath)
+	if err != nil {
+		return fmt.Errorf("book: %s: %w", name, err)
+	}
+	if size > zipfs.DefaultLimits().MaxEntryBytes {
+		return fmt.Errorf("%w: %s is %d bytes", ErrMemoryLimit, diskPath, size)
+	}
+	delete(b.deleted, name)
+	b.files[name] = diskPath
+	if !slices.Contains(b.added, name) {
+		b.added = append(b.added, name)
+	}
+	return nil
 }
 
 // ReadFileContext delegates bounded auxiliary-input reads to the I/O boundary.
@@ -404,6 +446,7 @@ func (b *Book) deleteEntry(path string) error {
 	b.deleted[path] = true
 	b.currentBytes -= int64(len(b.cur[path]))
 	delete(b.cur, path)
+	delete(b.files, path)
 	if i := slices.Index(b.added, path); i >= 0 {
 		b.added = slices.Delete(b.added, i, i+1)
 	}
@@ -459,6 +502,11 @@ func (b *Book) plans() []zipfs.Plan {
 	// 新增 entry 按字母序追加，与 scripts/epub_lib.py write_epub 的补写顺序一致。
 	for _, name := range slices.Sorted(slices.Values(b.added)) {
 		p := zipfs.Plan{Name: name, Content: b.cur[name]}
+		if p.Content == nil {
+			if path, ok := b.files[name]; ok {
+				p.File, p.Method = path, zipfs.MethodStore
+			}
+		}
 		if name == "mimetype" {
 			p.Method = zipfs.MethodStore
 		}

@@ -64,10 +64,10 @@ type Limits struct {
 // DefaultLimits returns the standard bounds for untrusted EPUB archives.
 func DefaultLimits() Limits {
 	return Limits{
-		MaxArchiveBytes: 512 << 20,
+		MaxArchiveBytes: 2 << 30, // read-along books carry audio (SPEC-实现约束 §5.14)
 		MaxEntries:      100_000,
 		MaxEntryBytes:   256 << 20,
-		MaxTotalBytes:   1 << 30,
+		MaxTotalBytes:   4 << 30,
 		MaxPathBytes:    4096,
 	}
 }
@@ -471,6 +471,9 @@ type Plan struct {
 	Name    string
 	Source  *Entry
 	Content []byte
+	// File streams a regular disk file into the entry at write time, so large
+	// media never has to be retained in memory. Ignored when Content is set.
+	File    string
 	Method  Method
 	Deleted bool
 }
@@ -628,7 +631,7 @@ func validatePlans(plans []Plan) error {
 		if err := ValidateEntryName(p.Name); err != nil {
 			return fmt.Errorf("zipfs: plan %q: %w", p.Name, err)
 		}
-		if p.Source == nil && p.Content == nil {
+		if p.Source == nil && p.Content == nil && p.File == "" {
 			return fmt.Errorf("%w: %s", ErrInvalidPlan, p.Name)
 		}
 		if p.Source != nil && p.Content == nil && p.Source.Name() != p.Name {
@@ -680,6 +683,12 @@ func (a *Archive) writePlans(ctx context.Context, output io.Writer, plans []Plan
 		if err != nil {
 			return fmt.Errorf("zipfs: create %q: %w", p.Name, err)
 		}
+		if p.Content == nil && p.File != "" {
+			if err := a.copyFileEntry(ctx, fw, p); err != nil {
+				return err
+			}
+			continue
+		}
 		if _, err := fw.Write(p.Content); err != nil {
 			return fmt.Errorf("zipfs: write %q: %w", p.Name, err)
 		}
@@ -691,6 +700,31 @@ func (a *Archive) writePlans(ctx context.Context, output io.Writer, plans []Plan
 		return fmt.Errorf("zipfs: close writer: %w", err)
 	}
 	return nil
+}
+
+func (a *Archive) copyFileEntry(ctx context.Context, fw io.Writer, p *Plan) error {
+	f, stat, err := openRegularFile(p.File)
+	if err != nil {
+		return fmt.Errorf("zipfs: open %q for entry %q: %w", p.File, p.Name, err)
+	}
+	defer f.Close()
+	if stat.Size() > a.limits.MaxEntryBytes {
+		return fmt.Errorf("zipfs: %q is %d bytes, exceeds entry limit %d: %w", p.File, stat.Size(), a.limits.MaxEntryBytes, ErrLimitExceeded)
+	}
+	if err := copyBoundedContext(ctx, fw, f, a.limits.MaxEntryBytes); err != nil {
+		return fmt.Errorf("zipfs: write %q: %w", p.Name, err)
+	}
+	return nil
+}
+
+// StatRegularFile returns the size of a regular file without reading it.
+func StatRegularFile(path string) (int64, error) {
+	f, stat, err := openRegularFile(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	return stat.Size(), nil
 }
 
 type boundedBuffer struct {
