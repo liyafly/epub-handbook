@@ -9,6 +9,7 @@
 | [epub3-migration.md](epub3-migration.md) | S3：迁移产物与验收 |
 | [asset-optimization.md](asset-optimization.md) | S5 / S5f：图片与字体 |
 | [package-operations.md](package-operations.md) | 合并、拆分、元数据、封面 |
+| [media-overlay.md](media-overlay.md) | 有声同步（开发中） |
 | [epub-diff-review.md](epub-diff-review.md) | S8：人工 diff |
 | [reference-font-role-patterns.md](reference-font-role-patterns.md) | 字体角色参考 |
 | [reference-reader-extensions.md](reference-reader-extensions.md) | 多看长屏封面、Reeden 扩展与待验证模式 |

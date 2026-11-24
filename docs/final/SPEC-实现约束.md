@@ -244,6 +244,18 @@
 - 导航审计对固定版式页面检查：缺 `viewport` 或缺 width/height 报 error；各页宽高比不一致报 warn；`page-spread-*` 用在可重排项上报 warn。只被固定版式页面引用的样式表不做字号三项检查；整本固定版式的 page-list 可以直接指向页面文件。
 - 阅读器结论记在 `reader-matrix.yaml` 的 `fxl_epub` lane 与 `external-production-fxl`，没有截图或日志只能是 `warn`。
 
+## 5.14) 有声同步（Media Overlays）
+
+> 依据：一本英文插图小说的本地原型（证据留在书级目录）和所有者的口头反馈：Reeden 能播放并高亮；Apple Books 打开可重排的同步版时没找到播放入口。阅读器版本和截图都没有记录，下面涉及阅读器的条文都待验证。实现进度见 [media-overlay.md](../pipeline/media-overlay.md)。
+
+- 只做成书级变体（`mediaOverlay: true`），通用版和 Kindle 版不带音频和 SMIL。
+- 音频只用 EPUB3 核心媒体类型：MP3（`audio/mpeg`）、AAC/MP4（`audio/mp4`）。原样放进包，不转码，ZIP 里不压缩。
+- 每个正文 XHTML 最多对应一个 SMIL 和一个音频文件。SMIL 的 `text@src` 必须指向存在的 id；`clipBegin` 小于 `clipEnd`，单调递增，不超过音频时长。
+- 句子 span 的 id 用 `mo-` 前缀，与现有 id 冲突就报错，不改名。插入 span 不得改动文字，`text`、`anchors` 红线照常执行。
+- OPF 写每个 SMIL 的 `media:duration`（`refines`）和全书合计；`media:active-class` 指向的类在样式表里定义，颜色要在深色主题下也看得清。`media:` 是保留前缀，不在 `prefix` 里声明。
+- 时间轴来自外部识别器（默认 whisper.cpp），格式固定为 `contracts/schemas/v2/word-timings.schema.json`。CLI 不联网、不下载模型。
+- 目标阅读器：Reeden、Readest。Apple Books 的可重排同步版和 Kindle 都不作目标。
+
 ## 6) Fixture 命名索引（M5 对齐）
 
 - `01-basic-cjk`

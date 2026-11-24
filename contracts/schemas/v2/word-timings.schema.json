@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Word timings for one audio file (media overlay input)",
+  "description": "Written by `epub book transcribe` or any other recognizer; read by epub.media.overlay.build. Times are seconds from the start of the audio file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "audio", "engine", "words"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "duration"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "description": "File name relative to the audio directory."},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "duration": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "model": {"type": "string"},
+        "modelSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "words": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {"type": "string", "minLength": 1},
+          {"type": "number", "minimum": 0},
+          {"type": "number", "minimum": 0}
+        ],
+        "items": false,
+        "minItems": 3
+      }
+    }
+  }
+}
