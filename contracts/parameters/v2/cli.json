@@ -280,6 +280,40 @@
           "default": "false"
         }
       }
+    },
+    "epub.media.overlay.build": {
+      "description": "按章音频与词级时间轴生成有声同步（EPUB3 Media Overlays）：逐句 span、SMIL、OPF 与高亮样式；音频原样存入，不改正文文字。",
+      "parameters": {
+        "audio_dir": {
+          "type": "string",
+          "description": "每章一个音频（.mp3 / .m4a）的目录；默认按文件名排序，对应 epub:type=chapter 的正文。",
+          "required": true
+        },
+        "timings_dir": {
+          "type": "string",
+          "description": "word-timings JSON 目录（contracts/schemas/v2/word-timings.schema.json），按音频 SHA-256 匹配。",
+          "required": true
+        },
+        "audio_map": {
+          "type": "string",
+          "description": "可选 JSON 文件：{\"<XHTML href 或容器路径>\": \"<音频文件名>\"}，章节与音频不按顺序对应时使用。"
+        },
+        "granularity": {
+          "type": "string",
+          "description": "高亮粒度。",
+          "default": "sentence",
+          "enum": ["sentence", "paragraph"]
+        },
+        "narrator": {
+          "type": "string",
+          "description": "写入 media:narrator，可省。"
+        },
+        "allow_font_obfuscation": {
+          "type": "boolean",
+          "description": "仅在获得标准字体混淆处理授权时启用；不允许 DRM 解密。",
+          "default": "false"
+        }
+      }
     }
   }
 }

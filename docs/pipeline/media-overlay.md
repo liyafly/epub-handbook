@@ -1,6 +1,6 @@
 # 有声同步（Media Overlays）
 
-> 状态：开发中（S1：契约前置与规则）。硬规则见 [SPEC-实现约束 §5.14](../final/SPEC-实现约束.md)。
+> 状态：开发中。S1、S2 完成：`epub run epub.media.overlay.build` 可用，时间轴需自备；`epub book transcribe` 与书级接入未完成。硬规则见 [SPEC-实现约束 §5.14](../final/SPEC-实现约束.md)。
 
 把「EPUB + 按章分开的有声书音频」做成逐句高亮跟读的 EPUB3。原型在一本英文插图小说上跑通：whisper.cpp + `small.en` 模型，各章 97–99% 的书面词与识别词对上。书级证据留在本地。
 
@@ -17,7 +17,16 @@
 
 ## `epub.media.overlay.build`
 
-参数：`--audio-dir`、`--audio-map`（可选，XHTML → 音频）、`--timings-dir`、`--granularity sentence|paragraph`（默认 sentence）、`--narrator`。
+参数（`key=value`）：`audio_dir`、`timings_dir`、`audio_map`（可选，XHTML → 音频）、`granularity=sentence|paragraph`（默认 sentence）、`narrator`。
+
+```sh
+epub run epub.media.overlay.build --input book.epub --output book-readalong.epub --json \
+  audio_dir=素材/audio timings_dir=.epub/asr narrator="…"
+```
+
+- 默认配对：spine 里标了 `epub:type="chapter"`、且至少 50 个词的文档，按顺序对应 `audio_dir` 里按文件名排序的 `.mp3` / `.m4a`。数量不一致就报错，改用 `audio_map`。
+- 时间轴按音频 SHA-256 匹配，与 JSON 文件名无关。
+- 新 entry：`<OPF 目录>/Audio/<章节文件名>.<扩展名>`、`<OPF 目录>/Smil/<章节文件名>.smil`；高亮规则追加到第一章最后一个样式表。
 
 1. **扫描**
    - 分句：断句只看 `<p>` 直属的文字，行内元素整个包进句子 span；脚注区、nav、figure 不切。章题 `h1` 取自身文字或图片 `alt`。
@@ -25,7 +34,7 @@
    - 生成 SMIL。
    - figure 链接到转写弹注时，用注释文字参与对齐，SMIL 指向 figure。
 2. **应用**：XHTML span edits；OPF edits（manifest、`media-overlay`、`media:duration`、`media:active-class`）；CSS 高亮规则；新增 SMIL 和音频 entry，音频不压缩。
-3. **报告**：facts `epub.media.overlay.chapters` 记每章的词数、匹配率、起止时间和弱句数。
+3. **报告**：facts `epub.media.overlay.build.chapters` 记每章的词数、匹配率、起止时间和弱句数。
 
 | finding | 级别 |
 | --- | --- |

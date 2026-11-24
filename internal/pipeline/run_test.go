@@ -218,8 +218,8 @@ func TestEmbeddedResourcesSupportRunOutsideRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DescribeCapabilities: %v", err)
 	}
-	if len(infos) != 21 {
-		t.Fatalf("embedded capability count = %d, want 21", len(infos))
+	if len(infos) != 22 {
+		t.Fatalf("embedded capability count = %d, want 22", len(infos))
 	}
 	if schema, err := readRepositoryFile("", "contracts/schemas/v2/envelope.schema.json"); err != nil || len(schema) == 0 {
 		t.Fatalf("embedded envelope schema: bytes=%d err=%v", len(schema), err)
@@ -557,8 +557,8 @@ func TestCapabilitiesListsContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contracts) != 21 {
-		t.Errorf("契约数 = %d, want 21", len(contracts))
+	if len(contracts) != 22 {
+		t.Errorf("契约数 = %d, want 22", len(contracts))
 	}
 	if !strings.Contains(ImplementedIDs()[0], "epub.") {
 		t.Errorf("registry id 形态异常: %v", ImplementedIDs())

@@ -1,0 +1,4 @@
+p { margin: 0; }
+
+/* read-along highlight (media overlay) */
+.mo-active { background-color: rgba(255, 200, 0, .35); border-radius: .15em; }

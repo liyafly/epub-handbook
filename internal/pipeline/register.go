@@ -24,6 +24,7 @@ import (
 	imagelayout "github.com/liyafly/epub-handbook/internal/caps/image_layout"
 	kindlecheck "github.com/liyafly/epub-handbook/internal/caps/kindle_check"
 	literarystructure "github.com/liyafly/epub-handbook/internal/caps/literary_structure"
+	"github.com/liyafly/epub-handbook/internal/caps/mediaoverlay"
 	mergecap "github.com/liyafly/epub-handbook/internal/caps/merge"
 	metadatacap "github.com/liyafly/epub-handbook/internal/caps/metadata"
 	migrateepub3 "github.com/liyafly/epub-handbook/internal/caps/migrate_epub3"
@@ -316,6 +317,12 @@ func init() {
 	register("epub.metadata.edit", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
 		return metadatacap.Run(ctx, b, metadatacap.Params{
 			MetadataJSON: args.Get("metadata_json"), Output: args.Get("output"),
+		})
+	})
+	register("epub.media.overlay.build", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {
+		return mediaoverlay.Run(ctx, b, mediaoverlay.Params{
+			AudioDir: args.Get("audio_dir"), TimingsDir: args.Get("timings_dir"), AudioMap: args.Get("audio_map"),
+			Granularity: args.Get("granularity"), Narrator: args.Get("narrator"),
 		})
 	})
 	register("epub.cover.replace", func(ctx context.Context, b *book.Book, args Args, up Upstream) (report.Result, error) {

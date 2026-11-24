@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smil xmlns="http://www.w3.org/ns/SMIL" xmlns:epub="http://www.idpf.org/2007/ops" version="3.0">
+<body>
+<seq id="seq1" epub:textref="../one.xhtml" epub:type="chapter">
+<par id="par1"><text src="../one.xhtml#mo-one-h1"/><audio src="../Audio/one.mp3" clipBegin="1.000s" clipEnd="2.300s"/></par>
+<par id="par2"><text src="../one.xhtml#mo-one-s2"/><audio src="../Audio/one.mp3" clipBegin="2.300s" clipEnd="5.600s"/></par>
+<par id="par3"><text src="../one.xhtml#mo-one-s3"/><audio src="../Audio/one.mp3" clipBegin="5.600s" clipEnd="13.400s"/></par>
+<par id="par4"><text src="../one.xhtml#mo-one-s4"/><audio src="../Audio/one.mp3" clipBegin="13.400s" clipEnd="17.200s"/></par>
+<par id="par5"><text src="../one.xhtml#mo-one-s5"/><audio src="../Audio/one.mp3" clipBegin="17.200s" clipEnd="24.000s"/></par>
+<par id="par6"><text src="../one.xhtml#mo-one-s6"/><audio src="../Audio/one.mp3" clipBegin="24.000s" clipEnd="26.800s"/></par>
+<par id="par7"><text src="../one.xhtml#mo-one-s7"/><audio src="../Audio/one.mp3" clipBegin="26.800s" clipEnd="30.100s"/></par>
+<par id="par8"><text src="../one.xhtml#mo-one-s8"/><audio src="../Audio/one.mp3" clipBegin="30.100s" clipEnd="38.400s"/></par>
+<par id="par9"><text src="../one.xhtml#fig-1"/><audio src="../Audio/one.mp3" clipBegin="38.400s" clipEnd="41.300s"/></par>
+</seq>
+</body>
+</smil>

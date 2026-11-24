@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "2",
+  "capability": "epub.media.overlay.build",
+  "status": "complete",
+  "input": {
+    "path": "\u003cfixture.epub\u003e"
+  },
+  "output": {
+    "path": "\u003cout.epub\u003e"
+  },
+  "facts": {
+    "epub.media.overlay.build.chapters": [
+      {
+        "xhtml": "OEBPS/one.xhtml",
+        "audio": "OEBPS/Audio/one.mp3",
+        "smil": "OEBPS/Smil/one.smil",
+        "segments": 9,
+        "bookWords": 74,
+        "heardWords": 74,
+        "matchedWords": 74,
+        "matchRate": 1,
+        "weakSegments": [],
+        "begin": 1,
+        "end": 41.3,
+        "audioDuration": 42.7
+      },
+      {
+        "xhtml": "OEBPS/two.xhtml",
+        "audio": "OEBPS/Audio/two.mp3",
+        "smil": "OEBPS/Smil/two.smil",
+        "segments": 7,
+        "bookWords": 71,
+        "heardWords": 69,
+        "matchedWords": 69,
+        "matchRate": 0.972,
+        "weakSegments": [
+          "mo-two-h1"
+        ],
+        "begin": 0,
+        "end": 37.9,
+        "audioDuration": 39.3
+      }
+    ],
+    "epub.package.nav.audit.findingsByLevel": {
+      "error": 0,
+      "warn": 1,
+      "info": 1
+    },
+    "epub.package.nav.audit.status": "complete"
+  },
+  "findings": [
+    {
+      "level": "info",
+      "id": "upstream.diagnostics",
+      "title": "epub.package.nav.audit reported 0 error / 1 warn findings (diagnostic, not blocking)",
+      "detail": "see facts[\"epub.package.nav.audit.findingsByLevel\"]",
+      "location": "epub.package.nav.audit"
+    },
+    {
+      "level": "warn",
+      "id": "media-overlay.weak-segments",
+      "title": "some segments barely match the audio; their timing is interpolated",
+      "detail": "mo-two-h1",
+      "location": "OEBPS/two.xhtml"
+    }
+  ],
+  "events": [
+    {
+      "step": "drm-preflight",
+      "status": "completed"
+    },
+    {
+      "step": "epub.package.nav.audit",
+      "status": "completed",
+      "message": "diagnostic: 0 error, 1 warn"
+    },
+    {
+      "step": "epub.media.overlay.build",
+      "status": "completed"
+    },
+    {
+      "step": "redline",
+      "status": "completed",
+      "message": "0 findings"
+    },
+    {
+      "step": "write-output",
+      "status": "completed",
+      "message": "<out.epub>"
+    }
+  ]
+}
