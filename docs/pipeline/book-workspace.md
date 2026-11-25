@@ -121,6 +121,7 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 
 `book.json` 写 `readAlong`（`audio`、`model`、可选 `language`、`narrator`、`granularity`、`audioMap`），再加一个 `"mediaOverlay": true` 的变体，overlay 可省。旧布局把 `readAlong` 写在制作区 `variants.json`，路径相对制作区。
 
+- `audio` 可以是每章一个文件的目录，也可以是带章节标记的单个 m4b：`transcribe` 先用 FFmpeg 按章无损切到状态目录 `audio/`。
 - `epub book transcribe` 经 `whisper-cli`（或 `EPUB_WHISPER_BIN`）逐个识别音频，缓存到状态目录的 `asr/<音频SHA>.json`；缓存键含模型 SHA，`--force` 重来。`clean` 不删这些缓存。
 - `build` 对该变体在字体子集之后跑 `epub.media.overlay.build`，再照常做导航审计、全项 redline 和对通用版的 `text` 红线。报告是 `media-overlay.<变体>.json`。
 - 缺时间轴缓存：整体构建时跳过该变体并报 WARN；`--variant` 只建它时直接失败。`preview` 不加音频。

@@ -38,6 +38,16 @@ time words in audiobook chapters. It is installed separately (for example
 repository on Hugging Face (converted OpenAI Whisper weights, MIT) and are not
 stored in this repository. Tested with whisper.cpp 1.9.5.
 
+## External Tool: FFmpeg
+
+[FFmpeg](https://ffmpeg.org/) (LGPL/GPL, depending on the build) provides
+`ffmpeg` and `ffprobe`, which `epub book transcribe` runs through
+`internal/extern` only when the audiobook is an m4b or M4A: `ffprobe` reads
+chapter markers and durations, `ffmpeg` splits the file by chapter without
+re-encoding and decodes AAC to WAV for whisper.cpp. It is installed separately
+(for example `brew install ffmpeg`) and is not bundled or linked. Tested with
+FFmpeg 9.1.
+
 ## Documentation Reference: Reeden EPUB Extensions
 
 - Source / publisher: [Reeden official documentation](https://docs.reeden.app/ebook_spec)

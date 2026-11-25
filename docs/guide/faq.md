@@ -72,7 +72,7 @@
 支持整本固定版式（每页尺寸固定，`rendition:layout=pre-paginated`），规则见 [SPEC §5.13](../final/SPEC-实现约束.md#513-固定版式整本-pre-paginated)，样本见 [固定版式 demo](../../templates/fxl-demo/README.md)。一本书里混排可重排页和固定版式页不做，把固定版式改成可重排也不做。各阅读器的表现还没有实测。
 
 **支持朗读同步（跟读高亮）吗？**
-支持。有每章一个 MP3 的有声书时，可以做成边听边高亮的 EPUB3（Media Overlays）：whisper.cpp 在本机识别出每个词的时间，再逐句对上正文。只做成单独的变体，通用版不带音频。目标阅读器是 Reeden 和 Readest；Apple Books 的可重排版没找到播放入口，Kindle 不支持。做法见 [做有声同步版](../how-to/read-along.md)。
+支持。有每章一个 MP3 的有声书，或带章节的单个 m4b 时，可以做成边听边高亮的 EPUB3（Media Overlays）：whisper.cpp 在本机识别出每个词的时间，再逐句对上正文。只做成单独的变体，通用版不带音频。目标阅读器是 Reeden 和 Readest；Apple Books 的可重排版没找到播放入口，Kindle 不支持。做法见 [做有声同步版](../how-to/read-along.md)。
 
 **支持脚本交互吗？**
 不支持。EPUB 3 里的脚本（JavaScript）不在范围内。

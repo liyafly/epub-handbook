@@ -10,7 +10,7 @@ description: 在明确授权后合并或拆分 EPUB、修改元数据、替换�
 公共返回、授权边界与验收说明见[技能索引](../README.md)。
 
 - 包操作：用户明确选择时；多个操作分开执行并分别验证。每个输入先预检，损坏/加密按根 AGENTS 停止，不靠删除资源绕过保护。
-- 有声同步：用户有每章一个 MP3 的有声书，要做跟读高亮版时。规则读 [SPEC §5.14](../../docs/final/SPEC-实现约束.md)，做法读 [做有声同步版](../../docs/how-to/read-along.md)。书级工作区优先用 `readAlong` 配置加 `mediaOverlay` 变体，由构建调用下面的能力。
+- 有声同步：用户有每章一个 MP3 或带章节 m4b 的有声书，要做跟读高亮版时。规则读 [SPEC §5.14](../../docs/final/SPEC-实现约束.md)，做法读 [做有声同步版](../../docs/how-to/read-along.md)。书级工作区优先用 `readAlong` 配置加 `mediaOverlay` 变体，由构建调用下面的能力。
 - A-lite 转换：明确需要全页封面式视觉时。先读目标 XHTML/CSS/OPF 与图片/字体，识别背景、叠字、竖列和版权页；规则读 [SPEC §2](../../docs/final/SPEC-实现约束.md)，对照[叠字 fixture](../../templates/epub-style-demo/OEBPS/Text/03-vertical-alite.xhtml)或[单图 fixture](../../templates/epub-style-demo/OEBPS/Text/03c-poster-contain.xhtml)。
 
 ## 调什么

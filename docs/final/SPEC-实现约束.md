@@ -249,7 +249,7 @@
 > 依据：一本英文插图小说的本地原型（证据留在书级目录）和所有者的口头反馈：Reeden 能播放并高亮；Apple Books 打开可重排的同步版时没找到播放入口。阅读器版本和截图都没有记录，下面涉及阅读器的条文都待验证。实现进度见 [media-overlay.md](../pipeline/media-overlay.md)。
 
 - 只做成书级变体（`mediaOverlay: true`），通用版和 Kindle 版不带音频和 SMIL。
-- 音频只用 EPUB3 核心媒体类型：MP3（`audio/mpeg`）、AAC/MP4（`audio/mp4`）。原样放进包，不转码，ZIP 里不压缩。
+- 音频只用 EPUB3 核心媒体类型：MP3（`audio/mpeg`）、AAC/MP4（`audio/mp4`）。原样放进包，不转码，ZIP 里不压缩。整本 m4b 只按章节标记切分（复制 AAC 数据），不重新编码。
 - 每个正文 XHTML 最多对应一个 SMIL 和一个音频文件。SMIL 的 `text@src` 必须指向存在的 id；`clipBegin` 小于 `clipEnd`，单调递增，不超过音频时长。
 - 句子 span 的 id 用 `mo-` 前缀，与现有 id 冲突就报错，不改名。插入 span 不得改动文字，`text`、`anchors` 红线照常执行。
 - OPF 写每个 SMIL 的 `media:duration`（`refines`）和全书合计；`media:active-class` 指向的类在样式表里定义，颜色要在深色主题下也看得清。`media:` 是保留前缀，不在 `prefix` 里声明。

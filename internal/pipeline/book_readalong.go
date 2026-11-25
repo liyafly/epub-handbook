@@ -2,7 +2,8 @@ package pipeline
 
 // 有声同步的书级部分（docs/pipeline/media-overlay.md）：
 //   - book.json 的 readAlong 段（旧布局写在制作区 variants.json 里）；
-//   - epub book transcribe：经 extern 调 whisper-cli，把词级时间轴缓存到 <状态目录>/asr/；
+//   - epub book transcribe：readAlong.audio 是单个 m4b 时先经 ffmpeg 按章节标记无损切成
+//     <状态目录>/audio/<sha>/NNN.m4a；再经 extern 调 whisper-cli，把词级时间轴缓存到 <状态目录>/asr/；
 //   - 构建 mediaOverlay 变体时调用 epub.media.overlay.build。
 
 import (
@@ -15,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/liyafly/epub-handbook/internal/caps/mediaoverlay"
@@ -23,10 +25,15 @@ import (
 )
 
 const (
-	whisperTool       = "whisper-cli"
-	readAlongAsrDir   = "asr"
-	maxWhisperJSON    = 256 << 20
-	maxAudioFileBytes = 256 << 20
+	whisperTool         = "whisper-cli"
+	ffmpegTool          = "ffmpeg"
+	ffprobeTool         = "ffprobe"
+	readAlongAsrDir     = "asr"
+	readAlongSplitDir   = "audio"
+	maxWhisperJSON      = 256 << 20
+	maxProbeJSON        = 16 << 20
+	maxAudioFileBytes   = 256 << 20
+	maxAudioBundleBytes = 8 << 30
 )
 
 // readAlongConfig 是 book.json 的 readAlong 段。相对路径以书根（旧布局：制作区）为基准，
@@ -40,7 +47,8 @@ type readAlongConfig struct {
 	AudioMap    string `json:"audioMap,omitempty"`
 }
 
-// readAlongSpec 是解析成绝对路径后的配置。
+// readAlongSpec 是解析成绝对路径后的配置。AudioDir 是每章一个文件的目录，
+// 或带章节标记的单个 m4b / m4a / mp4 文件（见 bundle）。
 type readAlongSpec struct {
 	AudioDir    string
 	Model       string
@@ -101,6 +109,153 @@ func checkMediaOverlayVariants(layout bookLayout) error {
 
 func (l bookLayout) asrDir() string { return filepath.Join(l.StateDir, readAlongAsrDir) }
 
+// bundle 报告 readAlong.audio 是否是单个整本音频文件（m4b 等），而不是每章一个文件的目录。
+func (r *readAlongSpec) bundle() bool {
+	if isDir(r.AudioDir) {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(r.AudioDir)) {
+	case ".m4b", ".m4a", ".mp4":
+		return true
+	}
+	return false
+}
+
+// chapterAudioDir 返回每章音频所在目录。整本音频返回 <状态目录>/audio/<sha 前 16 位>，
+// ready=false 表示还没切分（transcribe 会切）。
+func (l bookLayout) chapterAudioDir(ctx context.Context) (dir string, ready bool, err error) {
+	ra := l.ReadAlong
+	if !ra.bundle() {
+		return ra.AudioDir, true, nil
+	}
+	if !isFile(ra.AudioDir) {
+		return "", false, fmt.Errorf("readAlong.audio not found: %s", ra.AudioDir)
+	}
+	sum, err := zipfs.FileSHA256ContextLimit(ctx, ra.AudioDir, maxAudioBundleBytes)
+	if err != nil {
+		return "", false, err
+	}
+	dir = filepath.Join(l.StateDir, readAlongSplitDir, sum[:16])
+	return dir, isDir(dir), nil
+}
+
+func toolBin(env, name string) string { return cmpOr(os.Getenv(env), name) }
+
+func requireFFmpeg() (ffmpeg, ffprobe string, err error) {
+	ffmpeg, ffprobe = toolBin("EPUB_FFMPEG_BIN", ffmpegTool), toolBin("EPUB_FFPROBE_BIN", ffprobeTool)
+	for _, bin := range []string{ffmpeg, ffprobe} {
+		if err := extern.Require(bin); err != nil {
+			return "", "", fmt.Errorf("%s was not found on PATH; m4b / AAC audio needs FFmpeg (macOS: brew install ffmpeg; Windows: winget install ffmpeg) or set EPUB_FFMPEG_BIN / EPUB_FFPROBE_BIN", bin)
+		}
+	}
+	return ffmpeg, ffprobe, nil
+}
+
+func runTool(ctx context.Context, name string, argv []string) ([]byte, error) {
+	res, err := extern.RunLong(ctx, "", argv)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	if res.ExitCode != 0 {
+		tail := strings.TrimSpace(string(res.Stderr))
+		if len(tail) > 600 {
+			tail = tail[len(tail)-600:]
+		}
+		return nil, fmt.Errorf("%s exited %d: %s", name, res.ExitCode, tail)
+	}
+	return res.Stdout, nil
+}
+
+type audioChapter struct{ start, end string }
+
+// probeChapters 读整本音频的章节标记（ffprobe -show_chapters）。
+func probeChapters(ctx context.Context, ffprobe, src string) ([]audioChapter, error) {
+	out, err := runTool(ctx, "ffprobe", []string{ffprobe, "-v", "error", "-show_chapters", "-of", "json", src})
+	if err != nil {
+		return nil, err
+	}
+	if len(out) > maxProbeJSON {
+		return nil, errors.New("ffprobe output too large")
+	}
+	var doc struct {
+		Chapters []struct {
+			Start string `json:"start_time"`
+			End   string `json:"end_time"`
+		} `json:"chapters"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil {
+		return nil, fmt.Errorf("ffprobe output is not valid JSON: %w", err)
+	}
+	var chapters []audioChapter
+	for _, c := range doc.Chapters {
+		chapters = append(chapters, audioChapter{c.Start, c.End})
+	}
+	return chapters, nil
+}
+
+// probeDuration 读音频容器记录的时长（秒）。
+func probeDuration(ctx context.Context, ffprobe, src string) (float64, error) {
+	out, err := runTool(ctx, "ffprobe", []string{ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", src})
+	if err != nil {
+		return 0, err
+	}
+	d, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("ffprobe reported no duration for %s", filepath.Base(src))
+	}
+	return d, nil
+}
+
+// splitBundle 把整本音频按章节标记切成 NNN.m4a（只复制 AAC 数据，不重新编码），
+// 先写进临时目录，全部成功后改名到位；已切过则直接返回。
+func splitBundle(ctx context.Context, layout bookLayout, bio BookIO) (string, error) {
+	dir, ready, err := layout.chapterAudioDir(ctx)
+	if err != nil || ready {
+		return dir, err
+	}
+	src := layout.ReadAlong.AudioDir
+	ffmpeg, ffprobe, err := requireFFmpeg()
+	if err != nil {
+		return "", err
+	}
+	chapters, err := probeChapters(ctx, ffprobe, src)
+	if err != nil {
+		return "", err
+	}
+	if len(chapters) == 0 {
+		return "", fmt.Errorf("%s has no chapter markers; split it into one file per chapter and point readAlong.audio at that folder", filepath.Base(src))
+	}
+	if err := zipfs.MkdirAll(filepath.Dir(dir)); err != nil {
+		return "", err
+	}
+	tmp, err := zipfs.MkdirTemp(filepath.Dir(dir), ".split-*")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = zipfs.RemoveAll(tmp) }()
+	fmt.Fprintf(bio.out(), "SPLIT %s: %d chapters\n", filepath.Base(src), len(chapters))
+	for i, c := range chapters {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		out := filepath.Join(tmp, fmt.Sprintf("%03d.m4a", i+1))
+		argv := []string{ffmpeg, "-nostdin", "-v", "error", "-i", src, "-ss", c.start, "-to", c.end,
+			"-map", "0:a:0", "-c", "copy", "-map_metadata", "-1", "-map_chapters", "-1",
+			"-fflags", "+bitexact", "-movflags", "+faststart", out}
+		if _, err := runTool(ctx, "ffmpeg", argv); err != nil {
+			return "", fmt.Errorf("split chapter %d: %w", i+1, err)
+		}
+	}
+	if err := zipfs.Chmod(tmp, 0o755); err != nil {
+		return "", err
+	}
+	if err := zipfs.RenameNoReplace(tmp, dir); err != nil {
+		return "", err
+	}
+	fmt.Fprintf(bio.out(), "PASS split -> %s\n", layout.displayPath(dir))
+	return dir, nil
+}
+
 // audioFiles 列出音频目录里的 .mp3 / .m4a（按文件名排序）。
 func audioFiles(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
@@ -145,14 +300,20 @@ func readSmallFileLimit(path string, limit int64) ([]byte, error) {
 
 // missingTimings 返回还没有时间轴缓存的音频文件名（不校验模型，构建时只要有就用）。
 func missingTimings(ctx context.Context, layout bookLayout) ([]string, error) {
-	ra := layout.ReadAlong
-	files, err := audioFiles(ra.AudioDir)
+	dir, ready, err := layout.chapterAudioDir(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !ready {
+		return []string{filepath.Base(layout.ReadAlong.AudioDir) + " (not split yet)"}, nil
+	}
+	files, err := audioFiles(dir)
 	if err != nil {
 		return nil, err
 	}
 	var missing []string
 	for _, name := range files {
-		sum, err := zipfs.FileSHA256ContextLimit(ctx, filepath.Join(ra.AudioDir, name), maxAudioFileBytes)
+		sum, err := zipfs.FileSHA256ContextLimit(ctx, filepath.Join(dir, name), maxAudioFileBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -202,9 +363,22 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 		return fmt.Errorf("%s was not found on PATH; install whisper.cpp (macOS: brew install whisper-cpp; Windows: whisper-cli.exe from the whisper.cpp release) or set EPUB_WHISPER_BIN", bin)
 	}
 	version := whisperVersion(ctx, bin)
-	files, err := audioFiles(ra.AudioDir)
+	audioDir, err := splitBundle(ctx, layout, bio)
 	if err != nil {
 		return err
+	}
+	files, err := audioFiles(audioDir)
+	if err != nil {
+		return err
+	}
+	var ffmpeg, ffprobe string
+	for _, name := range files {
+		if isAAC(name) {
+			if ffmpeg, ffprobe, err = requireFFmpeg(); err != nil {
+				return err
+			}
+			break
+		}
 	}
 	modelSHA, err := zipfs.FileSHA256ContextLimit(ctx, model, 8<<30)
 	if err != nil {
@@ -224,10 +398,7 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		src := filepath.Join(ra.AudioDir, name)
-		if strings.EqualFold(filepath.Ext(name), ".m4a") {
-			return fmt.Errorf("%s: whisper-cli cannot read AAC; convert the chapter to MP3 first", name)
-		}
+		src := filepath.Join(audioDir, name)
 		data, err := zipfs.ReadFileContext(ctx, src, maxAudioFileBytes)
 		if err != nil {
 			return err
@@ -239,23 +410,28 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 			skipped++
 			continue
 		}
-		duration, err := mediaoverlay.MP3Duration(data)
-		if err != nil {
+		outBase := filepath.Join(scratch, fmt.Sprintf("%03d", i+1))
+		input := src
+		var duration float64
+		if isAAC(name) {
+			// whisper-cli 读不了 AAC：先解码成 16 kHz 单声道 WAV（时间轴不变）。
+			if duration, err = probeDuration(ctx, ffprobe, src); err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
+			input = outBase + ".wav"
+			if _, err := runTool(ctx, "ffmpeg", []string{ffmpeg, "-nostdin", "-v", "error", "-i", src, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", input}); err != nil {
+				return fmt.Errorf("%s: decode: %w", name, err)
+			}
+		} else if duration, err = mediaoverlay.MP3Duration(data); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 		fmt.Fprintf(bio.out(), "[%d/%d] %s (%s) …\n", i+1, len(files), name, clockString(duration))
-		outBase := filepath.Join(scratch, fmt.Sprintf("%03d", i+1))
-		argv := []string{bin, "-m", model, "-f", src, "-l", ra.Language, "-np", "-ojf", "-of", outBase}
-		res, err := extern.RunLong(ctx, "", argv)
-		if err != nil {
-			return fmt.Errorf("%s: whisper-cli: %w", name, err)
+		argv := []string{bin, "-m", model, "-f", input, "-l", ra.Language, "-np", "-ojf", "-of", outBase}
+		if _, err := runTool(ctx, "whisper-cli", argv); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
 		}
-		if res.ExitCode != 0 {
-			tail := strings.TrimSpace(string(res.Stderr))
-			if len(tail) > 600 {
-				tail = tail[len(tail)-600:]
-			}
-			return fmt.Errorf("%s: whisper-cli exited %d: %s", name, res.ExitCode, tail)
+		if input != src {
+			_ = zipfs.Remove(input)
 		}
 		raw, err := zipfs.ReadFileContext(ctx, outBase+".json", maxWhisperJSON)
 		if err != nil {
@@ -284,6 +460,8 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 	fmt.Fprintf(bio.out(), "Transcribed %d, cached %d. Next: epub book build%s\n", done, skipped, readAlongVariantHint(layout))
 	return nil
 }
+
+func isAAC(name string) bool { return strings.EqualFold(filepath.Ext(name), ".m4a") }
 
 func readAlongVariantHint(layout bookLayout) string {
 	for _, v := range layout.Variants {
@@ -369,7 +547,11 @@ func clockString(sec float64) string {
 func (r *bookRunner) readAlongCandidate(layout bookLayout, c *candidate, tag string) error {
 	ra := layout.ReadAlong
 	out := filepath.Join(c.dir, "readalong.epub")
-	args := Args{"audio_dir": ra.AudioDir, "timings_dir": layout.asrDir()}
+	audioDir, _, err := layout.chapterAudioDir(r.ctx)
+	if err != nil {
+		return err
+	}
+	args := Args{"audio_dir": audioDir, "timings_dir": layout.asrDir()}
 	if ra.Narrator != "" {
 		args["narrator"] = ra.Narrator
 	}

@@ -47,8 +47,9 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 
 ## 音频
 
-- 支持 MP3（`audio/mpeg`）和 M4A/AAC（`audio/mp4`），原样放进包。时长由 Go 解析帧头或 `mvhd`。
-- `whisper-cli` 能直接读 MP3、WAV、FLAC，读不了 AAC。第一版要求按章的 MP3。单个 m4b 以后再做，需要可选的 ffmpeg。
+- 支持 MP3（`audio/mpeg`）和 M4A/AAC（`audio/mp4`），原样放进包。时长写在时间轴里：MP3 由 Go 逐帧计算，M4A 取 `ffprobe` 报的容器时长。
+- 单个 m4b（或带章节的 m4a / mp4）：`transcribe` 用 `ffprobe -show_chapters` 读章节标记，`ffmpeg -c copy` 按章切成 `<状态目录>/audio/<m4b SHA 前 16 位>/NNN.m4a`。只复制 AAC 数据，不重新编码；先写临时目录，全部成功再改名到位。构建从这个目录取音频，没切过就当作缺时间轴。
+- `whisper-cli` 能直接读 MP3、WAV、FLAC，读不了 AAC：M4A 先由 ffmpeg 解码成 16 kHz 单声道 WAV 再识别，时间轴不变，WAV 用完即删。FFmpeg 只在有 m4b / M4A 时才要求。
 - 限额：整包 2 GiB、单个文件 256 MiB、解压总量 4 GiB（`zipfs.DefaultLimits`）。EPUB 规范本身没有上限，这是本项目的安全阀。新加的音频由 `book.AddFile` 登记磁盘路径，写包时直接流式写入并存储不压缩，不占 512 MiB 内存缓存。
 
 ## 书级接入
@@ -72,6 +73,7 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 | Windows | 官方 Release 的 `whisper-bin-x64.zip`，`whisper-cli.exe` 放进 PATH |
 | Linux | 发行版包或源码编译 |
 
+m4b / M4A 另需 FFmpeg：macOS `brew install ffmpeg`，Windows `winget install ffmpeg`，Linux 发行版包。
 模型（`ggml-base.en.bin` 约 148 MB、`ggml-small.en.bin` 约 488 MB）由用户下载。CLI 不联网。工具缺失时按 SPEC-Go 架构 §6.4 显式降级。
 
 ## 不做
@@ -81,10 +83,9 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 
 ## 阶段
 
-S1–S5 已于 2026-11-24/25 完成：时间轴 schema 与规则；能力本体（含 2 GiB 限额与 `book.AddFile`）；`epub book transcribe`；nav audit 的 SMIL 检查与 `book.json` 接入；how-to、FAQ、skill、手册与速查表。
+单个 m4b 于 2026-11-25 补上。S1–S5 已于 2026-11-24/25 完成：时间轴 schema 与规则；能力本体（含 2 GiB 限额与 `book.AddFile`）；`epub book transcribe`；nav audit 的 SMIL 检查与 `book.json` 接入；how-to、FAQ、skill、手册与速查表。
 
 ## 待办
 
 - Reeden、Readest 实测：记版本、截图，写进 `reader-matrix.yaml`。
-- 单个 m4b + 章节表：需要可选的 ffmpeg provider。
 - nav audit 不核对 clip 是否超过音频长度（能力写 SMIL 时已按时间轴里的时长封顶）。

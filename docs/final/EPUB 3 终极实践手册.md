@@ -1080,7 +1080,7 @@ Apple Books、Readest 与 Kindle Previewer 对新 demo artifact 复测。对应�
 
 ## 十点六、有声同步（Media Overlays）
 
-有每章一个 MP3 的有声书时，可以做逐句高亮的跟读版。规则见 [SPEC §5.14](SPEC-实现约束.md)，做法见 [做有声同步版](../how-to/read-along.md)。
+有每章一个 MP3 的有声书或带章节的 m4b 时，可以做逐句高亮的跟读版。规则见 [SPEC §5.14](SPEC-实现约束.md)，做法见 [做有声同步版](../how-to/read-along.md)。
 
 - 结构：正文句子包 `<span id="mo-…">`；每章一个 SMIL，`<par>` 里一对 `<text src="ch1.xhtml#id"/>` 与 `<audio src="…mp3" clipBegin="…s" clipEnd="…s"/>`；OPF 正文 item 加 `media-overlay`，metadata 写 `media:duration` 与 `media:active-class`。
 - 只做成变体，通用版和 Kindle 版不带音频。

@@ -155,6 +155,71 @@ func TestBookReadAlongTranscribeAndBuild(t *testing.T) {
 	}
 }
 
+// TestBookReadAlongM4B 用假 ffprobe / ffmpeg 走整本 m4b：transcribe 先按章节标记切分，
+// 再解码成 WAV 交给 whisper；build 从切分目录取音频。
+func TestBookReadAlongM4B(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake tools are shell scripts")
+	}
+	h := newBookHarness(t)
+	dir := setupReadAlongBook(t, h)
+	mustWrite(t, filepath.Join(dir, "素材/book.m4b"), "M4B bytes")
+	path := filepath.Join(dir, "book.json")
+	var cfg bookConfig
+	if err := json.Unmarshal([]byte(mustRead(t, path)), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg.ReadAlong.Audio = "素材/book.m4b"
+	if err := writeBookConfig(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	tools := t.TempDir()
+	probe := filepath.Join(tools, "ffprobe")
+	ffmpeg := filepath.Join(tools, "ffmpeg")
+	log := filepath.Join(tools, "ffmpeg.log")
+	writeScript := func(p, body string) {
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeScript(probe, `case "$*" in
+*-show_chapters*) echo '{"chapters":[{"start_time":"0.000000","end_time":"2.612000"}]}';;
+*) echo 2.612;;
+esac
+`)
+	writeScript(ffmpeg, `for last; do :; done
+echo "$*" >> "`+log+`"
+echo "audio $last" > "$last"
+`)
+	t.Setenv("EPUB_FFPROBE_BIN", probe)
+	t.Setenv("EPUB_FFMPEG_BIN", ffmpeg)
+
+	if code := h.run(dir, "build"); code != 0 || !strings.Contains(h.err.String(), "book.m4b (not split yet)") {
+		t.Fatalf("build before split = %d: %s", code, h.err)
+	}
+	if code := BookTranscribe(context.Background(), BookTranscribeOptions{Dir: dir}, h.io()); code != 0 {
+		t.Fatalf("transcribe = %d: %s %s", code, h.out, h.err)
+	}
+	calls := mustRead(t, log)
+	if !strings.Contains(calls, "-ss 0.000000 -to 2.612000 -map 0:a:0 -c copy") || !strings.Contains(calls, "-ar 16000 -ac 1") {
+		t.Fatalf("ffmpeg calls:\n%s", calls)
+	}
+	if !strings.Contains(h.out.String(), "SPLIT book.m4b: 1 chapters") || !strings.Contains(h.out.String(), "PASS 001.m4a") {
+		t.Fatalf("transcribe output: %s", h.out)
+	}
+	if code := BookTranscribe(context.Background(), BookTranscribeOptions{Dir: dir}, h.io()); code != 0 || strings.Contains(h.out.String(), "SPLIT") {
+		t.Fatalf("second transcribe must reuse the split: %d %s", code, h.out)
+	}
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("build = %d: %s", code, h.err)
+	}
+	readalong := filepath.Join(dir, "out", "book-readalong.epub")
+	names := memberNames(t, readalong)
+	if !names["OEBPS/Audio/01-chapter.m4a"] || !strings.Contains(readMember(t, readalong, "OEBPS/package.opf"), `media-type="audio/mp4"`) {
+		t.Fatalf("read-along output members: %v", names)
+	}
+}
+
 func TestReadAlongConfigErrors(t *testing.T) {
 	h := newBookHarness(t)
 	dir := h.newBook("")
