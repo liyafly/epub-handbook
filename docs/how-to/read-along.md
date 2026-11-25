@@ -6,7 +6,7 @@
 
 | 东西 | 说明 |
 | --- | --- |
-| whisper.cpp | macOS：`brew install whisper-cpp`；Windows：官方 Release 的 `whisper-bin-x64.zip`，把 `whisper-cli.exe` 放进 PATH；Linux：发行版包或源码编译。路径不在 PATH 时设 `EPUB_WHISPER_BIN`。 |
+| whisper.cpp | macOS：`brew install whisper-cpp`；Windows：官方 Release 里 `b` 开头的构建（如 `b5454`）带的 `whisper-bin-x64.zip`，把解压出的 `Release` 文件夹放进 PATH（CI 每次都在 Windows 上实跑一遍）；Linux：发行版包或源码编译。路径不在 PATH 时设 `EPUB_WHISPER_BIN`。 |
 | 模型 | 从 `huggingface.co/ggerganov/whisper.cpp` 下载，别改文件名（要靠它认出模型尺寸做精确的词时间）。英文书用 `ggml-small.en.bin`（约 488 MB）或 `ggml-base.en.bin`（约 148 MB）；中文书用多语言的 `ggml-small.bin` 等。放进书旁边的 `whisper-models/` 文件夹（和字体库 `fonts/` 同级），所有书共用。 |
 | 音频 | 两种都行：每章一个 MP3 / M4A 的文件夹（文件名排序和章节顺序一致），或带章节标记的单个 m4b。原件放 `素材/`。 |
 | FFmpeg | 只有 m4b、M4A 才要。macOS：`brew install ffmpeg`；Windows：`winget install ffmpeg`。不在 PATH 时设 `EPUB_FFMPEG_BIN`、`EPUB_FFPROBE_BIN`。 |

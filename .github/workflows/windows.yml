@@ -59,3 +59,44 @@ jobs:
           ./epub.exe book build "smoke book"
           test -f "smoke book/out/book-kindle.epub"
         shell: bash
+
+  readalong:
+    # 有声同步的真实外部工具链：whisper.cpp 官方 Windows 包 + FFmpeg，单个 m4b →
+    # transcribe → build。单元测试里的假 whisper / ffmpeg 是 shell 脚本，在 Windows 上跳过，
+    # 这里补上 Windows 的真实调用路径。
+    name: read-along smoke (real whisper.cpp + FFmpeg, windows-latest)
+    runs-on: windows-latest
+    env:
+      WHISPER_BUILD: b5454 # 与 whisper.cpp v1.9.5 同日的发布构建（v1.9.x 本身不带二进制）
+      PYTHON: python
+    steps:
+      - name: 保持 LF 检出
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 安装 FFmpeg
+        run: choco install ffmpeg -y --no-progress
+
+      - name: 下载 whisper.cpp、base.en 模型和 jfk.wav
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/whisper"
+          curl -fsSL -o "$RUNNER_TEMP/whisper.zip" "https://github.com/ggml-org/whisper.cpp/releases/download/$WHISPER_BUILD/whisper-bin-x64.zip"
+          unzip -q "$RUNNER_TEMP/whisper.zip" -d "$RUNNER_TEMP/whisper" || 7z x -y -o"$RUNNER_TEMP/whisper" "$RUNNER_TEMP/whisper.zip"
+          cygpath -w "$RUNNER_TEMP/whisper/Release" >> "$GITHUB_PATH"
+          curl -fsSL -o "$RUNNER_TEMP/ggml-base.en.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+          curl -fsSL -o "$RUNNER_TEMP/jfk.wav" https://raw.githubusercontent.com/ggml-org/whisper.cpp/v1.9.5/samples/jfk.wav
+
+      - name: m4b → transcribe → build
+        shell: bash
+        run: |
+          whisper-cli --version || true
+          ffmpeg -version | head -1
+          go build -o epub.exe ./cmd/epub
+          bash .github/scripts/readalong-smoke.sh ./epub.exe "$RUNNER_TEMP/readalong" "$RUNNER_TEMP/ggml-base.en.bin" "$RUNNER_TEMP/jfk.wav"
