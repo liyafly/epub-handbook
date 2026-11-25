@@ -296,8 +296,18 @@ func TestBookLegacyLayoutAndForwardingScript(t *testing.T) {
 	if strings.Count(log, "\n") != 2 {
 		t.Errorf("legacy delivery log should append: %q", log)
 	}
+	before, _ := os.Stat(dist)
 	if code := h.run(book, "build"); code != 0 {
 		t.Fatalf("legacy rebuild = %d: %s", code, h.err)
+	}
+	after, _ := os.Stat(dist)
+	if strings.Count(mustRead(t, filepath.Join(work, "交付记录.tsv")), "\n") != 2 || !strings.Contains(h.out.String(), "Unchanged ") || !after.ModTime().Equal(before.ModTime()) {
+		t.Errorf("an identical rebuild must not rewrite dist or log a row: %s", h.out)
+	}
+	css := filepath.Join(work, "epub", "OEBPS", "package.opf")
+	mustWrite(t, css, mustRead(t, css)+"\n")
+	if code := h.run(book, "build"); code != 0 {
+		t.Fatalf("legacy rebuild after a change = %d: %s", code, h.err)
 	}
 	if strings.Count(mustRead(t, filepath.Join(work, "交付记录.tsv")), "\n") != 3 {
 		t.Error("legacy delivery log must keep history")

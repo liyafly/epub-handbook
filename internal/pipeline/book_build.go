@@ -724,19 +724,37 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 		}
 	}
 
+	// 和 dist 里已有成品逐字节相同的输出不覆盖、不改时间，也不记交付记录。
+	changed := make(map[string]bool, len(cands))
+	anyChanged := false
+	for _, c := range cands {
+		st := states[c.out.Name]
+		changed[c.out.Name] = accept || !st.exists || st.sha != finalSHA[c.out.Name]
+		anyChanged = anyChanged || changed[c.out.Name]
+	}
 	// 先在内存里备好交付记录，再替换成品。
-	logBytes, err := buildDeliveryLog(r.ctx, layout, cands, finalSHA)
+	logBytes, err := buildDeliveryLog(r.ctx, layout, cands, finalSHA, changed)
 	if err != nil {
 		return err
 	}
 	for _, c := range cands {
 		output := filepath.Join(layout.DistDir, c.out.File)
+		receipt := []byte(finalSHA[c.out.Name] + "\n")
+		if !changed[c.out.Name] {
+			if old, rerr := readSmallFile(c.out.Receipt); rerr != nil || !bytes.Equal(old, receipt) {
+				if err := zipfs.WriteFileAtomic(c.out.Receipt, receipt, 0o644); err != nil {
+					return err
+				}
+			}
+			fmt.Fprintf(stdout, "Unchanged %s (same bytes as the last build; not rewritten or logged)\n", output)
+			continue
+		}
 		if !accept {
 			if err := zipfs.ReplaceFile(c.final, output); err != nil {
 				return err
 			}
 		}
-		if err := zipfs.WriteFileAtomic(c.out.Receipt, []byte(finalSHA[c.out.Name]+"\n"), 0o644); err != nil {
+		if err := zipfs.WriteFileAtomic(c.out.Receipt, receipt, 0o644); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "Built %s\n", output)
@@ -746,8 +764,10 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 			r.addStep(bookStep{Status: "WARN", Label: "size", Lines: []string{hint}})
 		}
 	}
-	if err := zipfs.WriteFileAtomic(layout.DeliveryLog, logBytes, 0o644); err != nil {
-		return err
+	if anyChanged {
+		if err := zipfs.WriteFileAtomic(layout.DeliveryLog, logBytes, 0o644); err != nil {
+			return err
+		}
 	}
 	succeeded = true
 	return nil
@@ -797,10 +817,14 @@ func treeHasFontFiles(root string) bool {
 	return found
 }
 
-func buildDeliveryLog(ctx context.Context, layout bookLayout, cands []*candidate, shas map[string]string) ([]byte, error) {
+// 旧布局的交付记录是追加的，只记 changed 的输出；新布局每次整份重写，记全部输出。
+func buildDeliveryLog(ctx context.Context, layout bookLayout, cands []*candidate, shas map[string]string, changed map[string]bool) ([]byte, error) {
 	sourceRev, handbookRev := bookSourceRevision(ctx, layout), handbookRevision(ctx)
 	var rows strings.Builder
 	for _, c := range cands {
+		if layout.Kind == layoutLegacy && !changed[c.out.Name] {
+			continue
+		}
 		fonts := make([]string, 0, len(c.plan.Jobs))
 		for _, job := range c.plan.Jobs {
 			if job.From != "" {
