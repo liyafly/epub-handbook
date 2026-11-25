@@ -276,8 +276,9 @@ func audioFiles(dir string) ([]string, error) {
 	return out, nil
 }
 
-// cachedTimings 读缓存；不存在或与当前模型不一致时返回 ok=false。
-func cachedTimings(path, modelSHA string) bool {
+// cachedTimings 读缓存；不存在、与当前模型或词时间算法不一致时返回 ok=false。
+// timing 为空表示只要有缓存就行（构建时）。
+func cachedTimings(path, modelSHA, timing string) bool {
 	data, err := readSmallFileLimit(path, maxWhisperJSON)
 	if err != nil {
 		return false
@@ -285,13 +286,14 @@ func cachedTimings(path, modelSHA string) bool {
 	var doc struct {
 		SchemaVersion string `json:"schemaVersion"`
 		Engine        struct {
-			ModelSHA string `json:"modelSha256"`
+			ModelSHA   string `json:"modelSha256"`
+			WordTiming string `json:"wordTiming"`
 		} `json:"engine"`
 	}
 	if json.Unmarshal(data, &doc) != nil || doc.SchemaVersion != "1" {
 		return false
 	}
-	return modelSHA == "" || doc.Engine.ModelSHA == modelSHA
+	return (modelSHA == "" || doc.Engine.ModelSHA == modelSHA) && (timing == "" || doc.Engine.WordTiming == timing)
 }
 
 func readSmallFileLimit(path string, limit int64) ([]byte, error) {
@@ -317,7 +319,7 @@ func missingTimings(ctx context.Context, layout bookLayout) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !cachedTimings(filepath.Join(layout.asrDir(), sum+".json"), "") {
+		if !cachedTimings(filepath.Join(layout.asrDir(), sum+".json"), "", "") {
 			missing = append(missing, name)
 		}
 	}
@@ -384,6 +386,14 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 	if err != nil {
 		return err
 	}
+	// whisper.cpp 的逐 token 时间估计常把整段词都压到段首；能认出模型尺寸时用 DTW 对齐
+	// （要关 flash attention）。认不出就退回 token 时间并提示。
+	preset := dtwPreset(model)
+	timing := "dtw"
+	if preset == "" {
+		timing = "token"
+		fmt.Fprintf(bio.err(), "WARN %s: model size not recognized from the file name; word times use whisper's token timestamps, which can be coarse (name the model like ggml-small.en.bin)\n", filepath.Base(model))
+	}
 	if err := zipfs.MkdirAll(layout.asrDir()); err != nil {
 		return err
 	}
@@ -405,7 +415,7 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 		}
 		sum := sha256Hex(data)
 		dst := filepath.Join(layout.asrDir(), sum+".json")
-		if !opts.Force && cachedTimings(dst, modelSHA) {
+		if !opts.Force && cachedTimings(dst, modelSHA, timing) {
 			fmt.Fprintf(bio.out(), "SKIP %s (cached)\n", name)
 			skipped++
 			continue
@@ -427,6 +437,9 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 		}
 		fmt.Fprintf(bio.out(), "[%d/%d] %s (%s) …\n", i+1, len(files), name, clockString(duration))
 		argv := []string{bin, "-m", model, "-f", input, "-l", ra.Language, "-np", "-ojf", "-of", outBase}
+		if preset != "" {
+			argv = append(argv, "--dtw", preset, "-nfa")
+		}
 		if _, err := runTool(ctx, "whisper-cli", argv); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
@@ -444,7 +457,7 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 		doc := map[string]any{
 			"schemaVersion": "1",
 			"audio":         map[string]any{"path": name, "sha256": sum, "duration": roundMillis(duration)},
-			"engine":        map[string]any{"name": "whisper.cpp", "version": version, "model": filepath.Base(model), "modelSha256": modelSHA},
+			"engine":        map[string]any{"name": "whisper.cpp", "version": version, "model": filepath.Base(model), "modelSha256": modelSHA, "wordTiming": timing},
 			"words":         words,
 		}
 		out, err := json.Marshal(doc)
@@ -459,6 +472,23 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 	}
 	fmt.Fprintf(bio.out(), "Transcribed %d, cached %d. Next: epub book build%s\n", done, skipped, readAlongVariantHint(layout))
 	return nil
+}
+
+// dtwPreset 从 ggml 模型文件名认出 whisper.cpp 的 DTW 预设名（ggml-small.en-q5_1.bin → small.en）。
+func dtwPreset(model string) string {
+	name := strings.TrimSuffix(strings.ToLower(filepath.Base(model)), ".bin")
+	name = strings.TrimPrefix(name, "ggml-")
+	if i := strings.Index(name, "-q"); i > 0 {
+		name = name[:i]
+	}
+	name = strings.ReplaceAll(name, "large-v", "large.v")
+	name = strings.ReplaceAll(name, "-turbo", ".turbo")
+	switch name {
+	case "tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en",
+		"large.v1", "large.v2", "large.v3", "large.v3.turbo":
+		return name
+	}
+	return ""
 }
 
 func isAAC(name string) bool { return strings.EqualFold(filepath.Ext(name), ".m4a") }
@@ -485,7 +515,8 @@ func whisperVersion(ctx context.Context, bin string) string {
 }
 
 // whisperWords 把 whisper.cpp -ojf 的 token 合成词：以空格开头的 token 开新词，
-// 特殊 token（[_BEG_] 等）跳过。时间取 offsets（毫秒）。
+// 特殊 token（[_BEG_] 等）跳过。有 DTW 时间（t_dtw，厘秒）时词起点取词首 token 的 t_dtw，
+// 终点取同段下一个词的起点、段末词取段末；没有时退回 offsets（毫秒）。
 func whisperWords(raw []byte) ([][]any, error) {
 	var doc struct {
 		Transcription []struct {
@@ -495,6 +526,7 @@ func whisperWords(raw []byte) ([][]any, error) {
 					From int64 `json:"from"`
 					To   int64 `json:"to"`
 				} `json:"offsets"`
+				DTW *int64 `json:"t_dtw"`
 			} `json:"tokens"`
 		} `json:"transcription"`
 	}
@@ -507,19 +539,42 @@ func whisperWords(raw []byte) ([][]any, error) {
 	}
 	var words []word
 	for _, seg := range doc.Transcription {
+		first := len(words)
+		useDTW := true
+		var segEnd float64
+		for _, tk := range seg.Tokens {
+			if !strings.HasPrefix(tk.Text, "[_") && !strings.HasPrefix(tk.Text, "<|") {
+				useDTW = useDTW && tk.DTW != nil && *tk.DTW >= 0
+				segEnd = max(segEnd, float64(tk.Offsets.To)/1000)
+			}
+		}
 		for _, tk := range seg.Tokens {
 			t := tk.Text
 			if strings.HasPrefix(t, "[_") || strings.HasPrefix(t, "<|") {
 				continue
 			}
 			s, e := float64(tk.Offsets.From)/1000, float64(tk.Offsets.To)/1000
-			if strings.HasPrefix(t, " ") || len(words) == 0 {
+			if useDTW {
+				s = float64(*tk.DTW) / 100
+			}
+			if strings.HasPrefix(t, " ") || len(words) == first {
 				words = append(words, word{strings.TrimSpace(t), s, e})
 				continue
 			}
 			last := &words[len(words)-1]
 			last.text += t
-			last.end = max(last.end, e)
+			if !useDTW {
+				last.end = max(last.end, e)
+			}
+		}
+		if useDTW {
+			for i := first; i < len(words); i++ {
+				end := segEnd
+				if i+1 < len(words) {
+					end = words[i+1].start
+				}
+				words[i].end = max(words[i].start, end)
+			}
 		}
 	}
 	out := make([][]any, 0, len(words))

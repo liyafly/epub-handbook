@@ -7,6 +7,7 @@
 - 有声同步（EPUB3 Media Overlays）。新能力 `epub.media.overlay.build`：按章音频 + 词级时间轴（`contracts/schemas/v2/word-timings.schema.json`），逐句加 span、写 SMIL、OPF（`media-overlay`、`media:duration`、`media:active-class`）和高亮样式，音频原样不压缩放进包；匹配率低于 90%、缺时间轴、章节数不符时失败且不改动。capability 总数 21 → 22。
 - `epub book transcribe`：经外部 `whisper-cli`（whisper.cpp）识别 `readAlong.audio` 里的 MP3 / M4A，缓存到状态目录 `asr/`；`book.json` 新增 `readAlong`，变体新增 `"mediaOverlay": true`（overlay 可省），构建时对它跑上面的能力，缺缓存时跳过并报 WARN。
 - `readAlong.audio` 可直接指向带章节标记的单个 m4b：`transcribe` 用外部 FFmpeg 按章无损切分（`-c copy`）到状态目录 `audio/`；M4A 章节先解码成 WAV 再交给 whisper。
+- `transcribe` 用 whisper.cpp 的 DTW 词时间（`--dtw`），不再用常把整段词压到段首的 token 时间；旧缓存会自动重做。插图段的高亮改为描边，图片不再盖住高亮。
 - 导航审计检查 SMIL：`text@src` 能解析、音频在包内、clip 为正且不倒退、`media:duration` 与 clip 合计一致。
 - EPUB 输入上限从 512 MiB 放宽到 2 GiB（解压总量 4 GiB）；新增的音频从磁盘直接写进包，不占 512 MiB 内存缓存。
 - 新指南 [做有声同步版](docs/how-to/read-along.md)；SPEC §5.14。阅读器：Reeden 据所有者反馈可播放，待记录；Readest 待测。

@@ -18,9 +18,12 @@ type editFailure struct{ msg, loc string }
 
 func (e *editFailure) Error() string { return e.loc + ": " + e.msg }
 
-// highlightRule 追加到章节最后一个样式表末尾。半透明黄底在浅色和深色主题下都可见。
+// highlightRule 追加到章节最后一个样式表末尾。半透明黄底在浅色和深色主题下都可见；
+// 图片会盖住背景，所以插图段（朗读整页手稿、歌词图等）改用描边。
 const highlightRule = "\n/* read-along highlight (media overlay) */\n." + ActiveClass +
-	" { background-color: rgba(255, 200, 0, .35); border-radius: .15em; }\n"
+	" { background-color: rgba(255, 200, 0, .35); border-radius: .15em; }\n" +
+	"figure." + ActiveClass + ", img." + ActiveClass +
+	" { outline: .25em solid rgba(255, 200, 0, .85); outline-offset: .15em; }\n"
 
 // buildEdits 产出全部字节编辑，以及要从磁盘流式写入的音频 entry（容器路径, 磁盘路径）。
 func buildEdits(ctx context.Context, b *book.Book, opfPath string, opfData []byte, tree *opf.SpanNode,

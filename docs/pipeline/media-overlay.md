@@ -63,6 +63,8 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 - 构建时缺时间轴缓存：这个变体跳过并报 WARN，其他输出照常；`--variant` 只建它时失败。
 - 音频原件放 `素材/audio/`，识别缓存放状态目录 `asr/`（新布局 `.epub/asr/`）。
 - `transcribe` 用 Go 逐帧算 MP3 时长写进时间轴，whisper.cpp 的 token 以空格开头的开新词，`[_BEG_]` 之类的特殊 token 丢掉。
+- 词时间用 whisper.cpp 的 DTW 对齐（`--dtw <模型尺寸> -nfa`，取 `t_dtw`）：默认的逐 token 估计常把一整段的词都压到段首，句子高亮会在段里停住几秒。模型尺寸从文件名认（`ggml-small.en.bin` → `small.en`），认不出就退回 token 时间并 WARN。缓存记 `engine.wordTiming`，算法变了 `transcribe` 会重做。
+- 插图段（如朗读整页手稿时指向 `figure`）的高亮用描边：图片会盖住背景色。
 - 中日文按字对齐（汉字、假名逐字成词）；要用多语言模型。
 
 ## 跨平台

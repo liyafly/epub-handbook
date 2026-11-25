@@ -25,7 +25,8 @@
         "name": {"type": "string", "minLength": 1},
         "version": {"type": "string", "minLength": 1},
         "model": {"type": "string"},
-        "modelSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        "modelSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "wordTiming": {"enum": ["dtw", "token"], "description": "dtw: whisper.cpp --dtw alignment; token: per-token timestamp heuristic (can collapse a whole segment onto its start)"}
       }
     },
     "words": {

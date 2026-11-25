@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -229,5 +230,38 @@ func TestReadAlongConfigErrors(t *testing.T) {
 	}
 	if code := BookTranscribe(context.Background(), BookTranscribeOptions{Dir: h.newBook("")}, h.io()); code != ExitUsage {
 		t.Fatalf("transcribe without readAlong = %d", code)
+	}
+}
+
+func TestWhisperWordsDTW(t *testing.T) {
+	raw := `{"transcription":[{"tokens":[
+{"text":"[_BEG_]","offsets":{"from":0,"to":0},"t_dtw":-1},
+{"text":" Mr","offsets":{"from":1000,"to":1000},"t_dtw":110},
+{"text":".","offsets":{"from":1000,"to":1000},"t_dtw":130},
+{"text":" Jones","offsets":{"from":1000,"to":1000},"t_dtw":150},
+{"text":" slept.","offsets":{"from":1000,"to":3000},"t_dtw":220}]}]}`
+	words, err := whisperWords([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]any{{"Mr.", 1.1, 1.5}, {"Jones", 1.5, 2.2}, {"slept.", 2.2, 3.0}}
+	if fmt.Sprint(words) != fmt.Sprint(want) {
+		t.Fatalf("words = %v, want %v", words, want)
+	}
+	// 没有 t_dtw 时退回 offsets。
+	words, _ = whisperWords([]byte(strings.ReplaceAll(raw, `"t_dtw"`, `"x"`)))
+	if fmt.Sprint(words[0]) != "[Mr. 1 1]" {
+		t.Fatalf("token fallback = %v", words)
+	}
+}
+
+func TestDTWPreset(t *testing.T) {
+	for in, want := range map[string]string{
+		"/m/ggml-small.en.bin": "small.en", "ggml-base.bin": "base", "ggml-large-v3-turbo.bin": "large.v3.turbo",
+		"ggml-medium.en-q5_0.bin": "medium.en", "ggml-test.bin": "", "model.gguf": "",
+	} {
+		if got := dtwPreset(in); got != want {
+			t.Errorf("dtwPreset(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
