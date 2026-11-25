@@ -740,7 +740,8 @@ func (r *bookRunner) build(layout bookLayout, command string) (err error) {
 			return err
 		}
 		fmt.Fprintf(stdout, "Built %s\n", output)
-		if hint := sizeHint(output); hint != "" {
+		// 有声同步变体本就不给 Kindle，体积提示只对其他输出有意义。
+		if hint := sizeHint(output); hint != "" && !c.out.MediaOverlay {
 			fmt.Fprintln(stdout, "WARN", hint)
 			r.addStep(bookStep{Status: "WARN", Label: "size", Lines: []string{hint}})
 		}
