@@ -30,17 +30,18 @@ epub run epub.media.overlay.build --input book.epub --output book-readalong.epub
 
 1. **扫描**
    - 分句：断句只看 `<p>` 直属的文字，行内元素整个包进句子 span；脚注区、nav、figure 不切。章题 `h1` 取自身文字或图片 `alt`。
-   - 对齐：词规范化（NFKC、小写、去撇号、数字转词），再做 Myers diff。句子起点取第一个对上的词，句子之间连续接上，空白超过 2 秒截断。没对上的句子插值。
+   - 对齐：词规范化（NFKC、小写、去撇号、数字转词），再做 Myers diff。句子起点取第一个对上的词，句子之间首尾相接（停顿算进上一句，高亮不中断），末句后留 1 秒。没对上的句子插值。
    - 生成 SMIL。
    - figure 链接到转写弹注时，用注释文字参与对齐，SMIL 指向 figure。
 2. **应用**：XHTML span edits；OPF edits（manifest、`media-overlay`、`media:duration`、`media:active-class`）；CSS 高亮规则；新增 SMIL 和音频 entry，音频不压缩。
-3. **报告**：facts `epub.media.overlay.build.chapters` 记每章的词数、匹配率、起止时间和弱句数。
+3. **报告**：facts `epub.media.overlay.build.chapters` 记每章的词数、匹配率、起止时间、弱句和语速异常句。
 
 | finding | 级别 |
 | --- | --- |
 | 某章匹配率低于 90% | error |
 | 音频没有对应章节 | error |
 | 弱句（对上的词不到一半） | warn |
+| 语速体检：对上至少 5 个词的句子快于 9 词/秒或慢于 0.5 词/秒，一章有 3 句以上（`timing-suspect`） | warn |
 | 片头、片尾没覆盖 | info |
 
 nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超过音频时长；`media:duration` 的合计一致。不新增红线。
@@ -63,6 +64,7 @@ nav audit 增加 SMIL 检查：`text@src` 能解析；clip 单调递增、不超
 - 构建时缺时间轴缓存：这个变体跳过并报 WARN，其他输出照常；`--variant` 只建它时失败。
 - 音频原件放 `素材/audio/`，识别缓存放状态目录 `asr/`（新布局 `.epub/asr/`）。
 - `transcribe` 用 Go 逐帧算 MP3 时长写进时间轴，whisper.cpp 的 token 以空格开头的开新词，`[_BEG_]` 之类的特殊 token 丢掉。
+- 模型查找：`--model` → `readAlong.model` 路径 → `EPUB_WHISPER_MODEL`（文件或目录）→ 从书目录往上每一级的 `whisper-models/`。`readAlong.model` 只写文件名时按名找，不写时目录里只能有一个 `ggml-*.bin`。
 - 词时间用 whisper.cpp 的 DTW 对齐（`--dtw <模型尺寸> -nfa`，取 `t_dtw`）：默认的逐 token 估计常把一整段的词都压到段首，句子高亮会在段里停住几秒。模型尺寸从文件名认（`ggml-small.en.bin` → `small.en`），认不出就退回 token 时间并 WARN。缓存记 `engine.wordTiming`，算法变了 `transcribe` 会重做。
 - 插图段（如朗读整页手稿时指向 `figure`）的高亮用描边：图片会盖住背景色。
 - 中日文按字对齐（汉字、假名逐字成词）；要用多语言模型。

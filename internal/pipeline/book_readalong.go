@@ -30,6 +30,7 @@ const (
 	ffprobeTool         = "ffprobe"
 	readAlongAsrDir     = "asr"
 	readAlongSplitDir   = "audio"
+	whisperModelsDir    = "whisper-models"
 	maxWhisperJSON      = 256 << 20
 	maxProbeJSON        = 16 << 20
 	maxAudioFileBytes   = 256 << 20
@@ -37,7 +38,7 @@ const (
 )
 
 // readAlongConfig 是 book.json 的 readAlong 段。相对路径以书根（旧布局：制作区）为基准，
-// model 允许 ~/ 开头。
+// model 允许 ~/ 开头；只写文件名（如 ggml-small.en.bin）或不写时到共享模型目录找（findWhisperModel）。
 type readAlongConfig struct {
 	Audio       string `json:"audio"`
 	Model       string `json:"model,omitempty"`
@@ -51,7 +52,8 @@ type readAlongConfig struct {
 // 或带章节标记的单个 m4b / m4a / mp4 文件（见 bundle）。
 type readAlongSpec struct {
 	AudioDir    string
-	Model       string
+	Model       string // 模型路径；只写了文件名时为空，见 ModelName
+	ModelName   string
 	Language    string
 	Narrator    string
 	Granularity string
@@ -84,10 +86,14 @@ func resolveReadAlong(cfg *readAlongConfig, baseDir string) (*readAlongSpec, err
 	default:
 		return nil, fmt.Errorf("readAlong.granularity must be sentence or paragraph, got %q", cfg.Granularity)
 	}
-	return &readAlongSpec{
+	spec := &readAlongSpec{
 		AudioDir: abs(cfg.Audio), Model: abs(cfg.Model), Language: cmpOr(cfg.Language, "auto"),
 		Narrator: cfg.Narrator, Granularity: cfg.Granularity, AudioMap: abs(cfg.AudioMap),
-	}, nil
+	}
+	if cfg.Model != "" && !strings.ContainsAny(cfg.Model, `/\`) {
+		spec.Model, spec.ModelName = "", cfg.Model
+	}
+	return spec, nil
 }
 
 func cmpOr(v, fallback string) string {
@@ -347,18 +353,9 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 	if ra == nil {
 		return usageErrorf("no readAlong section in %s (legacy layout: %s)", bookConfigName, legacyVariantsName)
 	}
-	model := ra.Model
-	if opts.Model != "" {
-		model, err = filepath.Abs(opts.Model)
-		if err != nil {
-			return err
-		}
-	}
-	if model == "" {
-		return usageErrorf("no Whisper model: set readAlong.model or pass --model <ggml-*.bin>")
-	}
-	if !isFile(model) {
-		return usageErrorf("Whisper model not found: %s (download a ggml model such as ggml-small.en.bin)", model)
+	model, err := findWhisperModel(layout, opts.Model)
+	if err != nil {
+		return err
 	}
 	bin := cmpOr(os.Getenv("EPUB_WHISPER_BIN"), whisperTool)
 	if err := extern.Require(bin); err != nil {
@@ -472,6 +469,83 @@ func bookTranscribe(ctx context.Context, opts BookTranscribeOptions, bio BookIO)
 	}
 	fmt.Fprintf(bio.out(), "Transcribed %d, cached %d. Next: epub book build%s\n", done, skipped, readAlongVariantHint(layout))
 	return nil
+}
+
+// findWhisperModel 依次取：--model；readAlong.model 写的路径；EPUB_WHISPER_MODEL（文件或目录）；
+// 从书目录往上每一级的 whisper-models/（和字体库一样，放在书旁边，所有书共用）。
+// 在目录里找时，readAlong.model 只写了文件名就找这个名字，没写就要求目录里只有一个 ggml-*.bin。
+func findWhisperModel(layout bookLayout, override string) (string, error) {
+	ra := layout.ReadAlong
+	if override != "" {
+		p, err := filepath.Abs(override)
+		if err != nil {
+			return "", err
+		}
+		if !isFile(p) {
+			return "", usageErrorf("Whisper model not found: %s", p)
+		}
+		return p, nil
+	}
+	if ra.Model != "" {
+		if !isFile(ra.Model) {
+			return "", usageErrorf("Whisper model not found: %s (readAlong.model)", ra.Model)
+		}
+		return ra.Model, nil
+	}
+	var dirs []string
+	if env := os.Getenv("EPUB_WHISPER_MODEL"); env != "" {
+		if rest, ok := strings.CutPrefix(env, "~/"); ok {
+			if home, err := os.UserHomeDir(); err == nil {
+				env = filepath.Join(home, rest)
+			}
+		}
+		if isFile(env) && ra.ModelName == "" {
+			return filepath.Abs(env)
+		}
+		if isDir(env) {
+			dirs = append(dirs, env)
+		}
+	}
+	for dir := layout.BookDir; ; dir = filepath.Dir(dir) {
+		if candidate := filepath.Join(dir, whisperModelsDir); isDir(candidate) {
+			dirs = append(dirs, candidate)
+		}
+		if filepath.Dir(dir) == dir {
+			break
+		}
+	}
+	for _, dir := range dirs {
+		if ra.ModelName != "" {
+			if p := filepath.Join(dir, ra.ModelName); isFile(p) {
+				return p, nil
+			}
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		var found []string
+		for _, e := range entries {
+			if n := e.Name(); e.Type().IsRegular() && strings.HasPrefix(n, "ggml-") && strings.HasSuffix(n, ".bin") {
+				found = append(found, n)
+			}
+		}
+		switch len(found) {
+		case 0:
+			continue
+		case 1:
+			return filepath.Join(dir, found[0]), nil
+		default:
+			return "", usageErrorf("several Whisper models in %s (%s); set readAlong.model to one of the file names", dir, strings.Join(found, ", "))
+		}
+	}
+	want := "a ggml-*.bin model (e.g. ggml-small.en.bin)"
+	if ra.ModelName != "" {
+		want = ra.ModelName
+	}
+	return "", usageErrorf("no Whisper model found: put %s in a %s/ folder next to your books (e.g. %s), or set readAlong.model, EPUB_WHISPER_MODEL or --model",
+		want, whisperModelsDir, filepath.Join(filepath.Dir(layout.BookDir), whisperModelsDir))
 }
 
 // dtwPreset 从 ggml 模型文件名认出 whisper.cpp 的 DTW 预设名（ggml-small.en-q5_1.bin → small.en）。

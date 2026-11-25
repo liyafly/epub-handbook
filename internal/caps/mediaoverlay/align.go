@@ -14,8 +14,9 @@ type Word struct {
 // Clip 是一个分段在音频里的区间。
 type Clip struct {
 	Begin, End float64
-	Words      int // 分段的书面词数
-	Matched    int // 与识别词对上的书面词数
+	Words      int     // 分段的书面词数
+	Matched    int     // 与识别词对上的书面词数
+	Spoken     float64 // 第一个到最后一个对上的词的秒数；没对上为 -1（语速体检用）
 }
 
 // ChapterAlignment 汇总一章的对齐结果。
@@ -35,10 +36,8 @@ func (a ChapterAlignment) MatchRate() float64 {
 }
 
 const (
-	maxJoinGap = 2.0 // 相邻句之间的空白超过这个秒数就截断，不连到下一句
-	endPad     = 0.6 // 截断时在最后一个词后留的余量
-	tailPad    = 1.0 // 一章最后一句之后留的余量
-	minClip    = 0.05
+	tailPad = 1.0 // 一章最后一句之后留的余量
+	minClip = 0.05
 )
 
 // tokens 把文字规范成对齐用的词：小写、去撇号、拆成字母数字串，个位数字转英文词，
@@ -131,23 +130,21 @@ func Align(segments []string, heard []Word, duration float64) ChapterAlignment {
 	for k := 1; k < n; k++ {
 		first[k] = max(first[k], first[k-1])
 	}
+	// 句子首尾相接：停顿算进上一句，高亮一直停在上一句，直到下一句开口。
 	for k := range n {
-		var e float64
+		e := last[k] + tailPad
 		if k+1 < n {
-			nb := first[k+1]
-			if nb-last[k] < maxJoinGap {
-				e = nb
-			} else {
-				e = last[k] + endPad
-			}
-		} else {
-			e = last[k] + tailPad
+			e = first[k+1]
 		}
 		if duration > 0 {
 			e = min(e, duration)
 		}
 		e = max(e, first[k]+minClip)
 		clips[k].Begin, clips[k].End = first[k], e
+		clips[k].Spoken = -1
+		if has[k] {
+			clips[k].Spoken = max(0, last[k]-first[k])
+		}
 	}
 	return ChapterAlignment{Clips: clips, BookWords: len(bookTok), Heard: len(heardTok), Matched: len(b2w)}
 }

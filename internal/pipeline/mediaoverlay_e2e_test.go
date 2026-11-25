@@ -272,3 +272,40 @@ func readPipelineEPUBEntryOptional(t *testing.T, epubPath, target string) []byte
 	}
 	return nil
 }
+
+// TestMediaOverlayTimingSuspect：识别器把整段词压到同一时刻时，能力仍然构建，但报 timing-suspect。
+func TestMediaOverlayTimingSuspect(t *testing.T) {
+	input, audioDir, timingsDir := writeMediaOverlayFixture(t)
+	entries, err := os.ReadDir(timingsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		p := filepath.Join(timingsDir, e.Name())
+		var tf map[string]any
+		data, _ := os.ReadFile(p)
+		if err := json.Unmarshal(data, &tf); err != nil {
+			t.Fatal(err)
+		}
+		words := tf["words"].([]any)
+		for i, w := range words {
+			w.([]any)[1], w.([]any)[2] = 1.0, 1.0
+			if i == len(words)-1 {
+				w.([]any)[2] = 40.0
+			}
+		}
+		data, _ = json.Marshal(tf)
+		if err := os.WriteFile(p, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outcome := runMediaOverlay(t, input, filepath.Join(t.TempDir(), "out.epub"), Args{"audio_dir": audioDir, "timings_dir": timingsDir})
+	if outcome.ExitCode != ExitOK {
+		t.Fatalf("exit=%d findings=%+v", outcome.ExitCode, outcome.Envelope.Findings)
+	}
+	if !slices.ContainsFunc(outcome.Envelope.Findings, func(f report.Finding) bool {
+		return f.ID == "media-overlay.timing-suspect" && f.Level == "warn"
+	}) {
+		t.Fatalf("missing timing-suspect: %+v", outcome.Envelope.Findings)
+	}
+}

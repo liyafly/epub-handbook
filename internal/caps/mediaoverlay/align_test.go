@@ -114,3 +114,14 @@ func TestTokensSplitCJKPerCharacter(t *testing.T) {
 		t.Fatalf("tokens = %q", got)
 	}
 }
+
+func TestAlignContiguousAcrossPauses(t *testing.T) {
+	heard := []Word{{"one", 0, 0.4}, {"two", 0.4, 0.8}, {"three", 10, 10.4}, {"four", 10.4, 10.8}}
+	al := Align([]string{"One two.", "Three four."}, heard, 20)
+	if al.Clips[0].End != al.Clips[1].Begin || al.Clips[1].Begin != 10 {
+		t.Fatalf("clips must join across a pause: %+v", al.Clips)
+	}
+	if al.Clips[0].Spoken != 0.8 {
+		t.Fatalf("spoken = %v", al.Clips[0].Spoken)
+	}
+}

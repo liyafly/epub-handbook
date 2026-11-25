@@ -32,6 +32,12 @@ const (
 	minMatchRate = 0.90
 	weakRate     = 0.5
 	edgeInfo     = 5.0 // 片头/片尾超过这么多秒没覆盖就报 info
+	// 语速体检：对上至少 rateMinWords 个词的句子，语速快于 rateFast 或慢于 rateSlow 词/秒
+	// 多半是时间轴坏了（识别器把一段词压到同一时刻，或时间拉散）；一章有 rateMinSuspects 句就报 warn。
+	rateMinWords    = 5
+	rateFast        = 9.0
+	rateSlow        = 0.5
+	rateMinSuspects = 3
 
 	minChapterWords = 50 // 默认配对时，少于这么多词的 chapter 文档（封面、扉页）不算
 
@@ -58,6 +64,7 @@ type chapterFact struct {
 	Matched   int      `json:"matchedWords"`
 	MatchRate float64  `json:"matchRate"`
 	Weak      []string `json:"weakSegments"`
+	Suspect   []string `json:"timingSuspects"`
 	Begin     float64  `json:"begin"`
 	End       float64  `json:"end"`
 	Duration  float64  `json:"audioDuration"`
@@ -251,7 +258,7 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, [][
 		f := chapterFact{
 			XHTML: cp.item.ArchivePath, Audio: cp.audioName, SMIL: cp.smilName,
 			Segments: len(cp.plan.Segments), BookWords: cp.align.BookWords, Heard: cp.align.Heard,
-			Matched: cp.align.Matched, MatchRate: round3(cp.align.MatchRate()), Weak: []string{},
+			Matched: cp.align.Matched, MatchRate: round3(cp.align.MatchRate()), Weak: []string{}, Suspect: []string{},
 			Duration: round3(cp.duration),
 		}
 		if n := len(cp.align.Clips); n > 0 {
@@ -260,6 +267,11 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, [][
 		for k, c := range cp.align.Clips {
 			if c.Words > 0 && float64(c.Matched)/float64(c.Words) < weakRate {
 				f.Weak = append(f.Weak, cp.plan.Segments[k].ID)
+			}
+			if c.Matched >= rateMinWords && c.Spoken >= 0 {
+				if rate := float64(c.Matched) / max(c.Spoken, 1e-3); rate > rateFast || rate < rateSlow {
+					f.Suspect = append(f.Suspect, fmt.Sprintf("%s (%d words in %.1fs)", cp.plan.Segments[k].ID, c.Matched, c.Spoken))
+				}
 			}
 		}
 		facts = append(facts, f)
@@ -275,6 +287,12 @@ func scanPhase(ctx context.Context, b *book.Book, p Params) ([]editset.Edit, [][
 		if len(f.Weak) > 0 {
 			findings = append(findings, report.Finding{Level: "warn", ID: "media-overlay.weak-segments",
 				Title: "some segments barely match the audio; their timing is interpolated", Detail: strings.Join(f.Weak, " "), Location: loc})
+		}
+		if len(f.Suspect) >= rateMinSuspects {
+			shown := f.Suspect[:min(len(f.Suspect), 5)]
+			findings = append(findings, report.Finding{Level: "warn", ID: "media-overlay.timing-suspect",
+				Title:  "word times look broken: some sentences are spoken impossibly fast or slow, so highlights will lag or stall",
+				Detail: fmt.Sprintf("%d sentences, e.g. %s; re-run epub book transcribe with a whisper.cpp that supports --dtw", len(f.Suspect), strings.Join(shown, ", ")), Location: loc})
 		}
 		if f.Begin > edgeInfo || (cp.duration > 0 && cp.duration-f.End > edgeInfo) {
 			findings = append(findings, report.Finding{Level: "info", ID: "media-overlay.uncovered-edges",

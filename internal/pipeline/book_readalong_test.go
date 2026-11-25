@@ -265,3 +265,35 @@ func TestDTWPreset(t *testing.T) {
 		}
 	}
 }
+
+func TestFindWhisperModel(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	shared := filepath.Join(filepath.Dir(dir), whisperModelsDir)
+	layout := bookLayout{BookDir: dir, ReadAlong: &readAlongSpec{}}
+	t.Setenv("EPUB_WHISPER_MODEL", "")
+	if _, err := findWhisperModel(layout, ""); err == nil || !strings.Contains(err.Error(), whisperModelsDir) {
+		t.Fatalf("no model: %v", err)
+	}
+	mustWrite(t, filepath.Join(shared, "ggml-small.en.bin"), "small")
+	if got, err := findWhisperModel(layout, ""); err != nil || got != filepath.Join(shared, "ggml-small.en.bin") {
+		t.Fatalf("single shared model = %q, %v", got, err)
+	}
+	mustWrite(t, filepath.Join(shared, "ggml-base.en.bin"), "base")
+	if _, err := findWhisperModel(layout, ""); err == nil || !strings.Contains(err.Error(), "several Whisper models") {
+		t.Fatalf("ambiguous: %v", err)
+	}
+	spec, err := resolveReadAlong(&readAlongConfig{Audio: "a", Model: "ggml-base.en.bin"}, dir)
+	if err != nil || spec.ModelName != "ggml-base.en.bin" || spec.Model != "" {
+		t.Fatalf("bare model name: %+v %v", spec, err)
+	}
+	layout.ReadAlong = spec
+	if got, err := findWhisperModel(layout, ""); err != nil || got != filepath.Join(shared, "ggml-base.en.bin") {
+		t.Fatalf("named model = %q, %v", got, err)
+	}
+	t.Setenv("EPUB_WHISPER_MODEL", filepath.Join(shared, "ggml-small.en.bin"))
+	layout.ReadAlong = &readAlongSpec{}
+	if got, _ := findWhisperModel(layout, ""); got != filepath.Join(shared, "ggml-small.en.bin") {
+		t.Fatalf("env model = %q", got)
+	}
+}
