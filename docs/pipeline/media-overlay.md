@@ -91,5 +91,5 @@ m4b / M4A 另需 FFmpeg：macOS `brew install ffmpeg`，Windows `winget install 
 
 ## 待办
 
-- Reeden、Readest 实测：记版本、截图，写进 `reader-matrix.yaml`。
+- Reeden、Readest 已有用户观察（2026-11-26，能播放、逐句高亮）；补版本号和截图后在 `reader-matrix.yaml` 升为 pass。深色主题和翻页跟随待确认。
 - nav audit 不核对 clip 是否超过音频长度（能力写 SMIL 时已按时间轴里的时长封顶）。

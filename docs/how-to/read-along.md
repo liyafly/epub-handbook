@@ -64,8 +64,8 @@ epub book build               # 通用版 + readalong 变体
 
 ## 阅读器
 
-- Reeden：能播放并高亮（所有者口头反馈，待记录版本和截图）。
-- Readest：待测。
+- Reeden：能播放并逐句高亮（2026-11-26 用户实测，待补版本和截图）。
+- Readest：能播放并逐句高亮（同上）。
 - Apple Books：可重排的同步版没找到播放入口，不作目标。
 - Kindle：不支持，不作目标。
 

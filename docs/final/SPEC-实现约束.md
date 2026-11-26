@@ -246,7 +246,7 @@
 
 ## 5.14) 有声同步（Media Overlays）
 
-> 依据：一本英文插图小说的本地原型（证据留在书级目录）和所有者的口头反馈：Reeden 能播放并高亮；Apple Books 打开可重排的同步版时没找到播放入口。阅读器版本和截图都没有记录，下面涉及阅读器的条文都待验证。实现进度见 [media-overlay.md](../pipeline/media-overlay.md)。
+> 依据：一本英文插图小说的有声同步变体（证据留在书级目录）。2026-11-26 所有者实测：Reeden、Readest 都能播放原录音并逐句高亮；Apple Books 打开可重排的同步版时没找到播放入口。阅读器版本和截图都没有记录（`reader-matrix.yaml` 记为 warn），深色主题与翻页跟随待确认。实现进度见 [media-overlay.md](../pipeline/media-overlay.md)。
 
 - 只做成书级变体（`mediaOverlay: true`），通用版和 Kindle 版不带音频和 SMIL。
 - 音频只用 EPUB3 核心媒体类型：MP3（`audio/mpeg`）、AAC/MP4（`audio/mp4`）。原样放进包，不转码，ZIP 里不压缩。整本 m4b 只按章节标记切分（复制 AAC 数据），不重新编码。
