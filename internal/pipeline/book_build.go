@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -280,7 +281,7 @@ func validateEpubTree(layout bookLayout) error {
 	return nil
 }
 
-var reportPrefixes = []string{"font-subset", "font-roles", "nav-audit", "media-overlay", "kindle-check", "redline", "previous-dist-redline", "report"}
+var reportPrefixes = []string{"metadata", "font-subset", "font-roles", "nav-audit", "media-overlay", "kindle-check", "redline", "previous-dist-redline", "report"}
 
 // isReportFile 判断状态目录里的文件是否是上一轮留下的（含变体后缀的）报告。
 func isReportFile(name string) bool {
@@ -472,17 +473,26 @@ func (r *bookRunner) buildCandidate(layout bookLayout, c *candidate, overlayFile
 		return err
 	}
 	c.plan = plan
-	if err := zipfs.PackTree(r.ctx, srcDir, c.full, "mimetype"); err != nil {
-		return err
-	}
-	if !gates {
-		return nil
-	}
 	tag := ""
 	if c.out.Name != "" {
 		tag = " [" + c.out.Name + "]"
 	}
 	sfx := c.out.suffix()
+	packed := c.full
+	if len(c.out.Metadata) > 0 {
+		packed = filepath.Join(c.dir, "packed.epub")
+	}
+	if err := zipfs.PackTree(r.ctx, srcDir, packed, "mimetype"); err != nil {
+		return err
+	}
+	if len(c.out.Metadata) > 0 {
+		if err := r.variantMetadata(layout, c, packed, filepath.Join(layout.StateDir, "metadata"+sfx+".json"), tag); err != nil {
+			return err
+		}
+	}
+	if !gates {
+		return nil
+	}
 	subsetReport := filepath.Join(layout.StateDir, "font-subset"+sfx+".json")
 	if plan.Has || treeHasFontFiles(srcDir) {
 		args := Args{}
@@ -940,6 +950,54 @@ func (r *bookRunner) capabilityCheck(layout bookLayout, reportPath, label string
 	}
 	printIndented(r.bio.out(), lines)
 	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
+	return nil
+}
+
+// variantMetadata 按变体配置改写 OPF 元数据（书名、标识符等），把结果当作该变体的源。
+// epub.metadata.edit 的契约红线含 metadata，改了元数据必然报 redline.metadata error；
+// 这里的修改由变体配置明确授权，所以只放行这一类 error，其他 error（正文、spine、
+// 锚点、封面等）照常失败。
+func (r *bookRunner) variantMetadata(layout bookLayout, c *candidate, packed, reportPath, tag string) error {
+	label := "epub.metadata.edit" + tag
+	meta, err := json.Marshal(c.out.Metadata)
+	if err != nil {
+		return err
+	}
+	outcome, runErr := Run(r.ctx, Options{CapabilityID: "epub.metadata.edit", InputPath: packed, OutputPath: c.full, Args: Args{"metadata_json": string(meta)}})
+	data, marshalErr := MarshalEnvelope(outcome.Envelope)
+	if marshalErr == nil {
+		marshalErr = zipfs.WriteFileAtomic(reportPath, data, 0o644)
+	}
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	var other []report.Finding
+	changes := 0
+	for _, f := range outcome.Envelope.Findings {
+		switch {
+		case f.Level != "error":
+		case f.ID == "redline.metadata":
+			changes++
+		default:
+			other = append(other, f)
+		}
+	}
+	if runErr != nil || len(other) > 0 || !isFile(c.full) || (outcome.ExitCode != ExitOK && changes == 0) {
+		fmt.Fprintf(r.bio.err(), "FAIL %s (report: %s)\n", label, layout.displayPath(reportPath))
+		lines := findingLines(other, "error", 0)
+		if runErr != nil {
+			lines = append(lines, runErr.Error())
+		}
+		printIndented(r.bio.err(), lines)
+		r.addStep(bookStep{Status: "FAIL", Label: label, Report: layout.displayPath(reportPath), Lines: lines})
+		return errBookStepFailed
+	}
+	if marshalErr != nil {
+		return marshalErr
+	}
+	fields := slices.Sorted(maps.Keys(c.out.Metadata))
+	fmt.Fprintf(r.bio.out(), "PASS %s (variant metadata: %s; report: %s)\n", label, strings.Join(fields, ", "), layout.displayPath(reportPath))
+	r.addStep(bookStep{Status: "PASS", Label: label, Report: layout.displayPath(reportPath)})
 	return nil
 }
 

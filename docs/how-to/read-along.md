@@ -23,7 +23,11 @@
   "narrator": "朗读者名"
 },
 "variants": {
-  "readalong": {"mediaOverlay": true}
+  "readalong": {
+    "mediaOverlay": true,
+    "output": "书名 - 有声同步版.epub",
+    "metadata": {"title": "书名（有声同步版）", "identifier": "urn:uuid:<新的 UUID>"}
+  }
 }
 ```
 
@@ -31,6 +35,7 @@
 - `audio` 可以是文件夹，也可以直接写 m4b 文件，如 `"素材/book.m4b"`。
 - `language` 省略时由 whisper 自动判断。`granularity` 可设 `paragraph`（按段高亮，默认按句）。
 - 章节默认取 spine 里标了 `epub:type="chapter"`、且至少 50 个词的文档。数量和音频对不上时，写 `"audioMap": "素材/audio-map.json"`，内容是 `{"Text/ch1.xhtml": "001.mp3", …}`。
+- `output`、`metadata` 可省，但建议写上：同步版换个文件名和书名一眼能认出来；换标识符后阅读器不会把它和通用版当成同一本书（Reeden 遇到同一标识符会冲突）。新 UUID 可用 `uuidgen` 生成。
 - 跟读只做成变体：通用版和 Kindle 版不带音频。
 
 ## 步骤

@@ -113,3 +113,29 @@ func TestParseClock(t *testing.T) {
 		t.Error("bad clock accepted")
 	}
 }
+
+func TestNCXUIDMismatch(t *testing.T) {
+	ncx := func(uid string) func(string) string {
+		return func(string) string {
+			return `<?xml version="1.0" encoding="UTF-8"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="` + uid + `"/></head><docTitle><text>T</text></docTitle><navMap><navPoint id="n1" playOrder="1"><navLabel><text>One</text></navLabel><content src="one.xhtml"/></navPoint></navMap></ncx>`
+		}
+	}
+	addNCX := func(s string) string {
+		s = strings.Replace(s, "<manifest>", `<manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`, 1)
+		return strings.Replace(s, "<spine>", `<spine toc="ncx">`, 1)
+	}
+	find := func(path string) bool {
+		for _, f := range runNativeAudit(t, path).Findings {
+			if f.Detail == "ncx-uid-mismatch" && f.Level == "error" {
+				return true
+			}
+		}
+		return false
+	}
+	if find(packMediaOverlay(t, map[string]func(string) string{"OEBPS/content.opf": addNCX, "OEBPS/toc.ncx": ncx("urn:uuid:read-along-fixture")})) {
+		t.Fatal("matching NCX uid flagged")
+	}
+	if !find(packMediaOverlay(t, map[string]func(string) string{"OEBPS/content.opf": addNCX, "OEBPS/toc.ncx": ncx("urn:uuid:other")})) {
+		t.Fatal("mismatched NCX uid not flagged")
+	}
+}

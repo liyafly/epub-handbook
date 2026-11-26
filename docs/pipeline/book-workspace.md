@@ -104,6 +104,7 @@ OEBPS 布局的书在解包后加一个空的 `reader.css`（放在第一份样�
 
 - `output` 省略时为 `<通用输出名去掉 .epub>-<name>.epub`。
 - `fonts` 省略则沿用通用字体配置；`[]` 表示本变体不嵌字体。
+- `"metadata": {"title": "…", "identifier": "urn:uuid:…"}` 给变体自己的书名、标识符等（字段同 `epub.metadata.edit`：title、subtitle、author、language、publisher、description、identifier、rights、series、series_position、title_sort、author_sort）。打包后、所有检查之前改写，算作这个变体的源；改标识符时 NCX 的 `dtb:uid` 一起改。内容不同的版本（如有声同步版）要换标识符，否则阅读器会把它和通用版当成同一本书。只写 metadata 时 overlay 可省。
 - `"readers": [...]` 仅作文档，不生成任何东西。
 - 旧布局把同样的 `{"variants": {...}}` 写在制作区的 `variants.json`，覆盖层路径相对制作区；它不影响布局识别。
 

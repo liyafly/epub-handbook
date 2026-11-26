@@ -516,3 +516,35 @@ func TestMetadataWriteSeriesRefusals(t *testing.T) {
 		}
 	}
 }
+
+// 改标识符时 NCX 的 dtb:uid 跟着改，否则 EPUBCheck 报 NCX-001。
+func TestMetadataWriteIdentifierSyncsNCX(t *testing.T) {
+	entries := writeBookEntries("Title", "old-id")
+	for i := range entries {
+		if entries[i].name == "OEBPS/content.opf" {
+			s := strings.Replace(string(entries[i].content), `<item id="nav"`, `<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="nav"`, 1)
+			entries[i].content = []byte(strings.Replace(s, "<spine>", `<spine toc="ncx">`, 1))
+		}
+	}
+	entries = append(entries, zipEntry{name: "OEBPS/toc.ncx", content: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="urn:uuid:old-id"/><meta name="dtb:depth" content="1"/></head><docTitle><text>Title</text></docTitle><navMap/></ncx>
+`)})
+	source := filepath.Join(t.TempDir(), "in.epub")
+	buildEpub(t, source, entries)
+	b, err := book.Open(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if _, err := Run(context.Background(), b, Params{MetadataJSON: `{"identifier": "urn:uuid:new-id"}`}); err != nil {
+		t.Fatal(err)
+	}
+	ncx, err := b.Current("OEBPS/toc.ncx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(ncx), `<meta name="dtb:uid" content="urn:uuid:new-id"/>`) || strings.Contains(string(ncx), "old-id") {
+		t.Fatalf("NCX uid not synced:\n%s", ncx)
+	}
+}

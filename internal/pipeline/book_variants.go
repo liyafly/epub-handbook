@@ -36,6 +36,10 @@ import (
 const legacyVariantsName = "variants.json"
 
 // variantConfig 是 book.json / variants.json 中的一个变体。
+// variantMetadataKeys 是变体 metadata 可写的字段，与 epub.metadata.edit 的 metadata_json 一致。
+var variantMetadataKeys = []string{"title", "subtitle", "author", "language", "publisher", "description",
+	"identifier", "rights", "series", "series_position", "title_sort", "author_sort"}
+
 type variantConfig struct {
 	Overlay string `json:"overlay"`
 	Output  string `json:"output,omitempty"`
@@ -43,6 +47,9 @@ type variantConfig struct {
 	Fonts *[]json.RawMessage `json:"fonts,omitempty"`
 	// MediaOverlay 为 true 时构建该变体会按 readAlong 加入音频与 SMIL；此时 overlay 可省。
 	MediaOverlay bool `json:"mediaOverlay,omitempty"`
+	// Metadata 是本变体自己的 OPF 元数据（title、identifier 等，字段同 epub.metadata.edit），
+	// 打包后、所有检查之前改写，算作这个变体的源；此时 overlay 可省。
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 type variantSpec struct {
@@ -51,6 +58,7 @@ type variantSpec struct {
 	Output       string
 	Fonts        *[]json.RawMessage
 	MediaOverlay bool
+	Metadata     map[string]string
 }
 
 // outputSpec 描述一个要构建的成品：通用版（Name 为空）或某个变体。
@@ -61,6 +69,7 @@ type outputSpec struct {
 	Overlay      string
 	Fonts        *[]json.RawMessage
 	MediaOverlay bool
+	Metadata     map[string]string
 }
 
 func (o outputSpec) label() string {
@@ -91,8 +100,13 @@ func buildVariantSpecs(configs map[string]variantConfig, baseDir, genericOutput 
 		if !validVariantName(name) {
 			return nil, fmt.Errorf("variant name %q is not a safe file name", name)
 		}
-		if (cfg.Overlay == "" && !cfg.MediaOverlay) || (cfg.Overlay != "" && !filepath.IsLocal(filepath.FromSlash(cfg.Overlay))) {
+		if (cfg.Overlay == "" && !cfg.MediaOverlay && len(cfg.Metadata) == 0) || (cfg.Overlay != "" && !filepath.IsLocal(filepath.FromSlash(cfg.Overlay))) {
 			return nil, fmt.Errorf("variant %q: overlay must be a relative path inside the book", name)
+		}
+		for key := range cfg.Metadata {
+			if !slices.Contains(variantMetadataKeys, key) {
+				return nil, fmt.Errorf("variant %q: metadata.%s is not editable (allowed: %s)", name, key, strings.Join(variantMetadataKeys, ", "))
+			}
 		}
 		output := cmp.Or(cfg.Output, strings.TrimSuffix(genericOutput, ".epub")+"-"+name+".epub")
 		if !validOutputName(output) {
@@ -108,7 +122,7 @@ func buildVariantSpecs(configs map[string]variantConfig, baseDir, genericOutput 
 		}
 		specs = append(specs, variantSpec{
 			Name: name, OverlayDir: overlayDir,
-			Output: output, Fonts: cfg.Fonts, MediaOverlay: cfg.MediaOverlay,
+			Output: output, Fonts: cfg.Fonts, MediaOverlay: cfg.MediaOverlay, Metadata: cfg.Metadata,
 		})
 	}
 	return specs, nil
@@ -120,7 +134,7 @@ func (l bookLayout) outputs() []outputSpec {
 	for _, v := range l.Variants {
 		list = append(list, outputSpec{
 			Name: v.Name, File: v.Output, Receipt: filepath.Join(l.StateDir, "dist-sha256."+v.Name),
-			Overlay: v.OverlayDir, Fonts: v.Fonts, MediaOverlay: v.MediaOverlay,
+			Overlay: v.OverlayDir, Fonts: v.Fonts, MediaOverlay: v.MediaOverlay, Metadata: v.Metadata,
 		})
 	}
 	return list

@@ -343,6 +343,15 @@ func Run(ctx context.Context, b *book.Book, p Params) (report.Result, error) {
 		edits = append(edits, dcEdits...)
 	}
 
+	// 改了标识符时同步 NCX 的 dtb:uid：两者不一致是 EPUBCheck NCX-001 error。
+	if idVal, ok := lookupField(fields, "identifier"); ok {
+		ncxEdits, err := syncNCXUID(pkg, read, idVal)
+		if err != nil {
+			return failedResult(err.Error())
+		}
+		edits = append(edits, ncxEdits...)
+	}
+
 	// 丛书与排序名（series / series_position / title_sort / author_sort）。
 	refined, refinedEdits, err := setSeriesAndSort(view, tree, fields, mainTitleID)
 	if err != nil {
@@ -738,4 +747,44 @@ func setRefinedMeta(view *childView, id, property, value string) (int, []editset
 		}
 	}
 	return 1, nil
+}
+
+// syncNCXUID 把 NCX 里 <meta name="dtb:uid" content="…"/> 的值改成 uid（字节级替换）。
+// 没有 NCX、没有 dtb:uid 或值已一致时不改。
+func syncNCXUID(pkg *pkgInfo, read func(string) ([]byte, error), uid string) ([]editset.Edit, error) {
+	for _, item := range pkg.manifest {
+		if item.mediaType != "application/x-dtbncx+xml" && (pkg.tocID == "" || item.itemID != pkg.tocID) {
+			continue
+		}
+		data, err := read(item.archivePath)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %v", item.archivePath, err)
+		}
+		tree, err := opf.ScanSpanTree(data)
+		if err != nil {
+			return nil, fmt.Errorf("%s: XML parse failed: %v", item.archivePath, err)
+		}
+		for _, n := range tree.Walk() {
+			if n.Name.Local != "meta" {
+				continue
+			}
+			if name, _ := n.AttrByLocal("", "name"); name != "dtb:uid" {
+				continue
+			}
+			if cur, _ := n.AttrByLocal("", "content"); cur == uid {
+				return nil, nil
+			}
+			idx := n.AttrIndex("", "content")
+			if idx < 0 {
+				return nil, nil
+			}
+			span, quote, ok := opf.RawAttrValueSpan(data, n, idx)
+			if !ok {
+				return nil, nil
+			}
+			return []editset.Edit{editset.Replace(item.archivePath, int64(span.Start), int64(span.Len()), []byte(attrEscapeFor(quote, uid)))}, nil
+		}
+		return nil, nil
+	}
+	return nil, nil
 }

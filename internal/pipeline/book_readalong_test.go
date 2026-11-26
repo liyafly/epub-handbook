@@ -297,3 +297,31 @@ func TestFindWhisperModel(t *testing.T) {
 		t.Fatalf("env model = %q", got)
 	}
 }
+
+// 变体自己的书名和标识符：打包后改写，算作变体的源，红线照常通过；NCX 的 dtb:uid 跟着改。
+func TestBookVariantMetadata(t *testing.T) {
+	h := newBookHarness(t)
+	dir := h.newBook("")
+	setVariants(t, dir, map[string]variantConfig{"alt": {Metadata: map[string]string{"title": "Alt Edition", "identifier": "urn:uuid:alt-edition"}}})
+	if code := h.run(dir, "build"); code != 0 {
+		t.Fatalf("build = %d: %s", code, h.err)
+	}
+	alt := filepath.Join(dir, "out", "book-alt.epub")
+	opfText := readMember(t, alt, "OEBPS/package.opf")
+	if !strings.Contains(opfText, "Alt Edition") || !strings.Contains(opfText, "urn:uuid:alt-edition") {
+		t.Fatalf("variant OPF:\n%s", opfText)
+	}
+	if !strings.Contains(readMember(t, alt, "OEBPS/toc.ncx"), `content="urn:uuid:alt-edition"`) {
+		t.Fatal("NCX dtb:uid not synced")
+	}
+	if strings.Contains(readMember(t, filepath.Join(dir, "out", "book.epub"), "OEBPS/package.opf"), "Alt Edition") {
+		t.Fatal("generic output must keep its own metadata")
+	}
+	if !strings.Contains(h.out.String(), "PASS epub.metadata.edit [alt]") {
+		t.Fatalf("build output: %s", h.out)
+	}
+	setVariants(t, dir, map[string]variantConfig{"alt": {Metadata: map[string]string{"cover": "x"}}})
+	if code := h.run(dir, "build"); code == 0 || !strings.Contains(h.err.String(), "metadata.cover is not editable") {
+		t.Fatalf("bad metadata key: %d %s", code, h.err)
+	}
+}
